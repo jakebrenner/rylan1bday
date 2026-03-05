@@ -54,6 +54,7 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
 .one-text { font-family:'Playfair Display',serif; font-weight:700; font-size:clamp(5rem,15vw,9rem); background:linear-gradient(135deg,var(--mustard),var(--orange),var(--coral)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; line-height:1; animation:fadeInUp 1s ease-out 1.1s both; }
 @keyframes fadeInDown { from{transform:translateY(-20px);opacity:0;} to{transform:translateY(0);opacity:1;} }
 @keyframes fadeInUp { from{transform:translateY(20px);opacity:0;} to{transform:translateY(0);opacity:1;} }
+@keyframes spin { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
 
 .details { position:relative; z-index:1; max-width:500px; margin:0 auto; padding:30px 25px; animation:fadeInUp 0.8s ease-out 1.4s both; }
 .detail-card { background:white; border-radius:20px; padding:30px; box-shadow:0 4px 20px rgba(0,0,0,0.06); border:2px solid var(--light-sage); }
@@ -162,6 +163,10 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
       <div class="form-group"><label>Number of Kids</label><select name="kids"><option value="0">None</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4+">4+</option></select></div>
       <button type="submit" class="submit-btn">Send RSVP</button>
     </form>
+    <div class="loading-message" id="loadingMsg" style="display:none;text-align:center;padding:30px 0;">
+      <div style="font-size:2.5rem;margin-bottom:12px;animation:spin 1.2s linear infinite;display:inline-block;">&#9728;&#65039;</div>
+      <div style="font-family:'Fredoka',sans-serif;font-size:1.3rem;font-weight:600;color:var(--coral);">Wow, Dada is slow</div>
+    </div>
     <div class="success-message" id="successMsg">
       <div class="success-emoji">&#127880;</div>
       <div class="success-text">Thank You!</div>
@@ -197,8 +202,9 @@ function hSVG(c){return '<svg viewBox="0 0 70 48" xmlns="http://www.w3.org/2000/
 for(var i=0;i<6;i++){var u=document.createElement("div");u.className="heli-unit";u.style.cssText="top:"+(3+i*17)+"%;animation-name:"+anims[i]+";animation-duration:"+(14+i*2+Math.random()*4)+"s;animation-delay:"+(i*2)+"s;";var b=document.createElement("div");b.className="heli-body";b.innerHTML=hSVG(heliC[i]);var c=document.createElement("div");c.className="heli-cable";var f=document.createElement("img");f.className="heli-face";f.src=faces[i];f.alt="Rylan";u.appendChild(b);u.appendChild(c);u.appendChild(f);hl.appendChild(u);}
 var bc=document.getElementById("balloons");for(var i=0;i<10;i++){var b=document.createElement("div");b.className="balloon";b.style.cssText="left:"+(5+Math.random()*90)+"%;background:"+colors[i%6]+";width:"+(35+Math.random()*20)+"px;height:"+(45+Math.random()*25)+"px;animation-duration:"+(14+Math.random()*10)+"s;animation-delay:"+(Math.random()*15)+"s;";bc.appendChild(b);}
 var cc=document.getElementById("confetti");for(var i=0;i<25;i++){var c=document.createElement("div");c.className="confetti-piece";var s=6+Math.random()*8;var r=Math.random()>0.5;c.style.cssText="left:"+(Math.random()*100)+"%;width:"+s+"px;height:"+(r?s:s*0.6)+"px;background:"+colors[Math.floor(Math.random()*6)]+";border-radius:"+(r?"50%":"2px")+";animation-duration:"+(8+Math.random()*8)+"s;animation-delay:"+(Math.random()*12)+"s;";cc.appendChild(c);}
-var form=document.getElementById("rsvpForm");form.addEventListener("submit",function(e){e.preventDefault();var fd=new FormData(form);var d={};fd.forEach(function(v,k){d[k]=v;});var URL="https://script.google.com/macros/s/AKfycbz782NeWmlTEyQqnpp4eseacAPc5ClXKVdV_Rxy8ZqapIjtzQAwFH4yyi-626apdsyQyw/exec";if(URL){fetch(URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify(d)}).then(function(){ok();}).catch(function(err){console.error("RSVP submission failed:",err);ok();});}else{ok();}});
+var form=document.getElementById("rsvpForm");form.addEventListener("submit",function(e){e.preventDefault();var fd=new FormData(form);var d={};fd.forEach(function(v,k){d[k]=v;});form.style.display="none";document.getElementById("loadingMsg").style.display="block";var URL="https://script.google.com/macros/s/AKfycbz782NeWmlTEyQqnpp4eseacAPc5ClXKVdV_Rxy8ZqapIjtzQAwFH4yyi-626apdsyQyw/exec";if(URL){fetch(URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify(d)}).then(function(){ok();}).catch(function(err){console.error("RSVP submission failed:",err);ok();});}else{ok();}});
 function ok(){
+  document.getElementById("loadingMsg").style.display="none";
   form.style.display="none";
   document.getElementById("successMsg").classList.add("show");
   setupCal();
