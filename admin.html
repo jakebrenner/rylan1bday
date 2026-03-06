@@ -203,9 +203,13 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
       <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;">Zapier Webhook URL</label>
       <input type="url" class="config-input" id="zapierUrl" placeholder="https://hooks.zapier.com/hooks/catch/...">
       <p class="config-hint">Zapier webhook that receives {name, phone, inviteUrl} and sends an SMS.</p>
+      <input type="hidden" id="inviteUrl" value="https://ryvite.com">
       <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;">Invite Page URL</label>
-      <input type="url" class="config-input" id="inviteUrl" placeholder="https://yourdomain.com/index.html">
-      <p class="config-hint">Public URL of your invitation page. This link gets sent in the text message.</p>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="text" class="config-input" id="inviteUrlDisplay" value="https://ryvite.com" readonly style="background:#f0ede5;color:#666;cursor:default;flex:1;margin-bottom:0;">
+        <button type="button" onclick="copyInviteUrl()" style="padding:8px 14px;border:2px solid var(--teal);background:white;color:var(--teal);border-radius:10px;font-family:'Fredoka',sans-serif;font-size:0.82rem;font-weight:500;cursor:pointer;white-space:nowrap;">Copy</button>
+      </div>
+      <p class="config-hint">Your invite page domain. Unique links are generated automatically per guest.</p>
       <div style="display:flex;align-items:center;">
         <button class="save-config-btn" onclick="saveConfig()">Save Settings</button>
         <span class="config-saved" id="configSaved">Saved!</span>
@@ -425,7 +429,6 @@ function loadConfig() {
       currentEventId = data.eventId;
     }
     if (data.zapierWebhook) document.getElementById("zapierUrl").value = data.zapierWebhook;
-    if (data.invitePageUrl) document.getElementById("inviteUrl").value = data.invitePageUrl;
   };
 
   var script = document.createElement("script");
@@ -448,6 +451,19 @@ function getConfig() {
     inviteUrl: document.getElementById("inviteUrl").value.trim(),
     scriptUrl: SCRIPT_URL
   };
+}
+
+function copyInviteUrl() {
+  var url = document.getElementById("inviteUrlDisplay").value;
+  navigator.clipboard.writeText(url).then(function() {
+    showToast("URL copied!", "success");
+  }).catch(function() {
+    // Fallback for older browsers
+    var input = document.getElementById("inviteUrlDisplay");
+    input.select();
+    document.execCommand("copy");
+    showToast("URL copied!", "success");
+  });
 }
 
 // ---- Tabs ----
