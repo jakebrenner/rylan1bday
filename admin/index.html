@@ -112,6 +112,20 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
 .safari-step strong { color:var(--dark); }
 .safari-done-note { font-size:0.82rem; color:var(--sage); margin-top:10px; font-weight:500; }
 
+/* Contacts added from picker (shown inside picker card) */
+.picker-added { margin-top:12px; margin-bottom:12px; }
+.picker-added-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.picker-added-label { font-size:0.88rem; font-weight:600; color:var(--teal); }
+.picker-added-count { background:var(--teal); color:white; padding:2px 10px; border-radius:20px; font-size:0.75rem; font-weight:600; }
+.picker-added-list { max-height:200px; overflow-y:auto; }
+.picker-added-item { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:rgba(88,166,164,0.08); border:1.5px solid rgba(88,166,164,0.25); border-radius:8px; margin-bottom:6px; }
+.picker-added-item .pending-name { font-size:0.88rem; }
+.picker-added-item .pending-phone { font-size:0.8rem; }
+
+/* Fixed send button at bottom of viewport */
+.send-all-btn.fixed-bottom { position:fixed; bottom:0; left:0; right:0; z-index:100; border-radius:0; margin:0; padding:16px; box-shadow:0 -4px 20px rgba(0,0,0,0.15); }
+.pending-section.has-fixed-btn { padding-bottom:70px; }
+
 /* Pending contacts list */
 .pending-section { margin-top:16px; }
 .pending-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
@@ -255,6 +269,13 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
     <div class="bulk-card" id="pickerCard" style="display:none;">
       <h3>Select From Contacts</h3>
       <button class="picker-btn" id="pickerBtn" onclick="importContacts()">Open Contacts</button>
+      <div class="picker-added" id="pickerAdded" style="display:none;">
+        <div class="picker-added-header">
+          <span class="picker-added-label">Added from Contacts</span>
+          <span class="picker-added-count" id="pickerAddedCount">0</span>
+        </div>
+        <div class="picker-added-list" id="pickerAddedList"></div>
+      </div>
       <div class="safari-setup" id="safariSetup">
         <div class="safari-setup-header" onclick="toggleSafariSteps()">
           <h4>Enable Contact Picker on Safari</h4>
@@ -751,6 +772,7 @@ async function importContacts() {
       }
     });
     renderPendingList();
+    renderPickerAdded();
     if (added > 0) {
       showToast(added + " contact" + (added > 1 ? "s" : "") + " added!", "success");
     } else if (contacts.length > 0) {
@@ -792,6 +814,7 @@ function parseBulkContacts() {
   });
 
   renderPendingList();
+  renderPickerAdded();
   if (added > 0) document.getElementById("bulkInput").value = "";
   var msg = added + " added";
   if (skipped > 0) msg += ", " + skipped + " duplicate" + (skipped > 1 ? "s" : "");
@@ -841,6 +864,7 @@ function addContact(e) {
   pendingContacts.push({ first: first, last: last, phone: phone });
   document.getElementById("addContactForm").reset();
   renderPendingList();
+  renderPickerAdded();
   showToast(first + " added to list!", "success");
 }
 
@@ -851,6 +875,7 @@ function renderPendingList() {
   var count = document.getElementById("pendingCount");
   if (pendingContacts.length === 0) {
     section.style.display = "none";
+    updateFixedSendBtn();
     return;
   }
   section.style.display = "block";
@@ -865,11 +890,49 @@ function renderPendingList() {
       i + ')">&times;</button>';
     list.appendChild(item);
   });
+  updateFixedSendBtn();
 }
 
 function removePending(i) {
   pendingContacts.splice(i, 1);
   renderPendingList();
+  renderPickerAdded();
+}
+
+function renderPickerAdded() {
+  var container = document.getElementById("pickerAdded");
+  var list = document.getElementById("pickerAddedList");
+  var count = document.getElementById("pickerAddedCount");
+  if (!container) return;
+  if (pendingContacts.length === 0) {
+    container.style.display = "none";
+    return;
+  }
+  container.style.display = "block";
+  count.textContent = pendingContacts.length;
+  list.innerHTML = "";
+  pendingContacts.forEach(function(c, i) {
+    var item = document.createElement("div");
+    item.className = "picker-added-item";
+    item.innerHTML = '<div class="pending-info"><div class="pending-name">' +
+      escapeHtml(c.first + " " + c.last) + '</div><div class="pending-phone">' +
+      escapeHtml(c.phone) + '</div></div><button class="remove-btn" onclick="removePending(' +
+      i + ')">&times;</button>';
+    list.appendChild(item);
+  });
+}
+
+function updateFixedSendBtn() {
+  var btn = document.getElementById("sendAllBtn");
+  var section = document.getElementById("pendingSection");
+  if (!btn) return;
+  if (pendingContacts.length > 0) {
+    btn.classList.add("fixed-bottom");
+    section.classList.add("has-fixed-btn");
+  } else {
+    btn.classList.remove("fixed-bottom");
+    section.classList.remove("has-fixed-btn");
+  }
 }
 
 // ---- UUID Generator ----
@@ -987,6 +1050,10 @@ async function sendAllInvites() {
   } else {
     showToast(sentCount + " sent, " + failCount + " failed", "error");
   }
+
+  // Clear picker added display and fixed button
+  renderPickerAdded();
+  updateFixedSendBtn();
 
   // Switch to sent tab
   switchTab("sent");
