@@ -13,8 +13,24 @@ function getOrCreateSheet(name, headers) {
       sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
       sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
     }
+  } else if (headers && headers.length) {
+    // Ensure all expected headers exist (handles schema migrations)
+    var existingHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn() || 1).getValues()[0];
+    if (existingHeaders.length < headers.length) {
+      for (var h = existingHeaders.length; h < headers.length; h++) {
+        sheet.getRange(1, h + 1).setValue(headers[h]).setFontWeight("bold");
+      }
+    }
   }
   return sheet;
+}
+
+// ---- One-time migration: run this manually to add missing columns ----
+// Open Apps Script editor > Run > migrateSettingsColumns
+function migrateSettingsColumns() {
+  var sheet = getOrCreateSheet("Settings", SETTINGS_HEADERS);
+  Logger.log("Settings sheet now has headers: " + SETTINGS_HEADERS.join(", "));
+  Logger.log("Done! You can delete this function after running it.");
 }
 
 function normalizePhone(str) {
