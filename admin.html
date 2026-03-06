@@ -97,6 +97,39 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
 .empty-state .empty-icon { font-size:2.5rem; margin-bottom:10px; opacity:0.5; }
 .empty-state p { font-size:0.95rem; }
 
+/* Guest list tab */
+.guest-controls { display:flex; gap:8px; margin-bottom:16px; align-items:center; }
+.refresh-btn { padding:10px 20px; background:var(--teal); color:white; border:none; border-radius:10px; font-family:'Fredoka',sans-serif; font-size:0.9rem; font-weight:500; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:6px; }
+.refresh-btn:hover { background:#4a9290; }
+.refresh-btn:disabled { opacity:0.5; cursor:not-allowed; }
+.refresh-btn .spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,0.3); border-top-color:white; border-radius:50%; animation:spin 0.6s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.guest-stats { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+.stat-card { flex:1; min-width:80px; background:white; border:2px solid var(--light-sage); border-radius:12px; padding:12px 10px; text-align:center; }
+.stat-number { font-size:1.6rem; font-weight:700; line-height:1; }
+.stat-number.teal { color:var(--teal); }
+.stat-number.sage { color:var(--sage); }
+.stat-number.coral { color:var(--coral); }
+.stat-number.mustard { color:var(--mustard); }
+.stat-label { font-size:0.72rem; color:#999; margin-top:4px; font-weight:500; text-transform:uppercase; letter-spacing:0.5px; }
+.guest-list { max-height:500px; overflow-y:auto; }
+.guest-item { display:flex; align-items:center; padding:12px 14px; background:white; border:2px solid var(--light-sage); border-radius:10px; margin-bottom:8px; gap:12px; }
+.guest-avatar { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem; color:white; flex-shrink:0; }
+.guest-avatar.invited { background:var(--blue); }
+.guest-avatar.yes { background:var(--sage); }
+.guest-avatar.no { background:var(--coral); }
+.guest-details { flex:1; min-width:0; }
+.guest-name { font-weight:600; font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.guest-meta { color:#888; font-size:0.8rem; display:flex; flex-wrap:wrap; gap:6px; }
+.guest-meta span { white-space:nowrap; }
+.rsvp-badge { padding:4px 12px; border-radius:20px; font-size:0.75rem; font-weight:600; flex-shrink:0; }
+.rsvp-badge.yes { background:#e8f5e9; color:#4caf50; }
+.rsvp-badge.no { background:#fce4ec; color:var(--coral); }
+.rsvp-badge.pending { background:#fff8e1; color:var(--mustard); }
+.filter-bar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+.filter-chip { padding:6px 14px; border:2px solid var(--light-sage); border-radius:20px; background:white; font-family:'Fredoka',sans-serif; font-size:0.82rem; font-weight:500; color:#888; cursor:pointer; transition:all 0.2s; }
+.filter-chip.active { border-color:var(--teal); background:var(--teal); color:white; }
+
 /* Toast */
 .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(100px); background:var(--dark); color:white; padding:12px 24px; border-radius:12px; font-family:'Fredoka',sans-serif; font-size:0.9rem; z-index:1000; transition:transform 0.3s ease; pointer-events:none; text-align:center; max-width:90%; }
 .toast.show { transform:translateX(-50%) translateY(0); }
@@ -161,6 +194,7 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="add" onclick="switchTab('add')">Add Contacts</button>
     <button class="tab-btn" data-tab="sent" onclick="switchTab('sent')">Sent Invites</button>
+    <button class="tab-btn" data-tab="guests" onclick="switchTab('guests')">Guest List</button>
   </div>
 
   <!-- Add Contacts Tab -->
@@ -224,6 +258,34 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
       <div class="empty-state" id="sentEmpty">
         <div class="empty-icon">&#128233;</div>
         <p>No invites sent yet</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Guest List Tab -->
+  <div class="tab-content" id="tab-guests">
+    <div class="guest-controls">
+      <button class="refresh-btn" id="refreshGuestsBtn" onclick="fetchGuestList()">
+        <span id="refreshIcon">&#8635;</span> Refresh
+      </button>
+      <span id="lastRefreshed" style="font-size:0.8rem;color:#aaa;"></span>
+    </div>
+    <div class="guest-stats" id="guestStats" style="display:none;">
+      <div class="stat-card"><div class="stat-number teal" id="statInvited">0</div><div class="stat-label">Invited</div></div>
+      <div class="stat-card"><div class="stat-number sage" id="statYes">0</div><div class="stat-label">Coming</div></div>
+      <div class="stat-card"><div class="stat-number coral" id="statNo">0</div><div class="stat-label">Declined</div></div>
+      <div class="stat-card"><div class="stat-number mustard" id="statPending">0</div><div class="stat-label">Pending</div></div>
+    </div>
+    <div class="filter-bar" id="filterBar" style="display:none;">
+      <button class="filter-chip active" data-filter="all" onclick="filterGuests('all')">All</button>
+      <button class="filter-chip" data-filter="yes" onclick="filterGuests('yes')">Coming</button>
+      <button class="filter-chip" data-filter="no" onclick="filterGuests('no')">Declined</button>
+      <button class="filter-chip" data-filter="pending" onclick="filterGuests('pending')">Pending</button>
+    </div>
+    <div class="guest-list" id="guestList">
+      <div class="empty-state" id="guestEmpty">
+        <div class="empty-icon">&#128203;</div>
+        <p>Tap Refresh to load the guest list from your sheet</p>
       </div>
     </div>
   </div>
@@ -519,6 +581,160 @@ function renderSentList() {
       escapeHtml((c.first + " " + c.last).trim()) + '</div><div class="sent-phone">' +
       escapeHtml(c.phone) + '</div><div class="sent-time">' + time +
       '</div></div><span class="' + badgeClass + '">' + badgeText + '</span>';
+    list.appendChild(item);
+  });
+}
+
+// ---- Guest List ----
+var guestData = [];
+var currentFilter = "all";
+
+async function fetchGuestList() {
+  var config = getConfig();
+  if (!config.scriptUrl) {
+    showToast("Set your Google Apps Script URL in Setup first", "error");
+    return;
+  }
+  var btn = document.getElementById("refreshGuestsBtn");
+  var icon = document.getElementById("refreshIcon");
+  btn.disabled = true;
+  icon.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    var url = config.scriptUrl + "?action=guestList";
+    var resp = await fetch(url);
+    var data = await resp.json();
+    guestData = mergeGuestData(data.invites || [], data.rsvps || []);
+    renderGuestStats();
+    renderGuestList();
+    document.getElementById("filterBar").style.display = "flex";
+    document.getElementById("lastRefreshed").textContent = "Updated " + new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
+    showToast("Guest list loaded!", "success");
+  } catch (err) {
+    console.error("Fetch guest list error", err);
+    showToast("Couldn't load guest list. Check your Apps Script URL and redeploy with doGet.", "error");
+  }
+
+  btn.disabled = false;
+  icon.innerHTML = "&#8635;";
+}
+
+function mergeGuestData(invites, rsvps) {
+  // Build a map of guests keyed by normalized name
+  var guests = {};
+
+  invites.forEach(function(inv) {
+    var key = (inv.name || "").trim().toLowerCase();
+    if (!key) return;
+    guests[key] = {
+      name: inv.name || "",
+      firstName: inv.firstName || "",
+      lastName: inv.lastName || "",
+      phone: inv.phone || "",
+      invitedAt: inv.inviteSentAt || inv.timestamp || "",
+      rsvpStatus: "pending",
+      adults: "",
+      kids: "",
+      rsvpAt: ""
+    };
+  });
+
+  rsvps.forEach(function(r) {
+    var key = (r.name || "").trim().toLowerCase();
+    if (!key) return;
+    if (guests[key]) {
+      // Match found - update RSVP info
+      guests[key].rsvpStatus = (r.attending || "").toLowerCase() === "yes" ? "yes" : "no";
+      guests[key].adults = r.adults || "";
+      guests[key].kids = r.kids || "";
+      guests[key].rsvpAt = r.timestamp || "";
+    } else {
+      // RSVP'd but not in invite log (walked-in / direct link)
+      guests[key] = {
+        name: r.name || "",
+        firstName: "",
+        lastName: "",
+        phone: "",
+        invitedAt: "",
+        rsvpStatus: (r.attending || "").toLowerCase() === "yes" ? "yes" : "no",
+        adults: r.adults || "",
+        kids: r.kids || "",
+        rsvpAt: r.timestamp || ""
+      };
+    }
+  });
+
+  // Convert to array and sort: coming first, then pending, then declined
+  var order = { yes: 0, pending: 1, no: 2 };
+  return Object.values(guests).sort(function(a, b) {
+    return (order[a.rsvpStatus] || 1) - (order[b.rsvpStatus] || 1);
+  });
+}
+
+function renderGuestStats() {
+  document.getElementById("guestStats").style.display = "flex";
+  var total = guestData.length;
+  var yes = guestData.filter(function(g) { return g.rsvpStatus === "yes"; }).length;
+  var no = guestData.filter(function(g) { return g.rsvpStatus === "no"; }).length;
+  var pending = guestData.filter(function(g) { return g.rsvpStatus === "pending"; }).length;
+  document.getElementById("statInvited").textContent = total;
+  document.getElementById("statYes").textContent = yes;
+  document.getElementById("statNo").textContent = no;
+  document.getElementById("statPending").textContent = pending;
+}
+
+function filterGuests(filter) {
+  currentFilter = filter;
+  document.querySelectorAll(".filter-chip").forEach(function(c) { c.classList.remove("active"); });
+  document.querySelector('[data-filter="' + filter + '"]').classList.add("active");
+  renderGuestList();
+}
+
+function renderGuestList() {
+  var list = document.getElementById("guestList");
+  var empty = document.getElementById("guestEmpty");
+  var filtered = currentFilter === "all" ? guestData : guestData.filter(function(g) { return g.rsvpStatus === currentFilter; });
+
+  if (filtered.length === 0) {
+    list.innerHTML = "";
+    empty.querySelector("p").textContent = guestData.length === 0 ? "Tap Refresh to load the guest list from your sheet" : "No guests match this filter";
+    empty.style.display = "block";
+    list.appendChild(empty);
+    return;
+  }
+  empty.style.display = "none";
+  list.innerHTML = "";
+
+  filtered.forEach(function(g) {
+    var item = document.createElement("div");
+    item.className = "guest-item";
+
+    var initials = ((g.name || "?")[0] || "?").toUpperCase();
+    if (g.firstName && g.lastName) initials = g.firstName[0].toUpperCase() + g.lastName[0].toUpperCase();
+    else if (g.name) {
+      var parts = g.name.trim().split(" ");
+      initials = parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : parts[0][0].toUpperCase();
+    }
+
+    var avatarClass = "guest-avatar " + g.rsvpStatus;
+    var badgeClass = "rsvp-badge " + g.rsvpStatus;
+    var badgeText = g.rsvpStatus === "yes" ? "Coming" : g.rsvpStatus === "no" ? "Declined" : "Pending";
+
+    var metaParts = [];
+    if (g.phone) metaParts.push('<span>' + escapeHtml(g.phone) + '</span>');
+    if (g.rsvpStatus === "yes") {
+      if (g.adults) metaParts.push('<span>' + escapeHtml(g.adults) + ' adult' + (g.adults !== "1" ? "s" : "") + '</span>');
+      if (g.kids && g.kids !== "0") metaParts.push('<span>' + escapeHtml(g.kids) + ' kid' + (g.kids !== "1" ? "s" : "") + '</span>');
+    }
+    if (g.invitedAt) {
+      var d = new Date(g.invitedAt);
+      if (!isNaN(d)) metaParts.push('<span>Invited ' + d.toLocaleDateString("en-US", {month:"short",day:"numeric"}) + '</span>');
+    }
+
+    item.innerHTML = '<div class="' + avatarClass + '">' + escapeHtml(initials) + '</div>' +
+      '<div class="guest-details"><div class="guest-name">' + escapeHtml(g.name) + '</div>' +
+      '<div class="guest-meta">' + metaParts.join('<span style="color:#ddd;">|</span>') + '</div></div>' +
+      '<span class="' + badgeClass + '">' + badgeText + '</span>';
     list.appendChild(item);
   });
 }
