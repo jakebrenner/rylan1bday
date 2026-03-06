@@ -387,7 +387,37 @@ document.getElementById("loginPassword").addEventListener("keydown", function(e)
   if (e.key === "Enter") attemptLogin();
 });
 
-// ---- Config (stored in Google Sheet "Admin Settings" tab) ----
+// ---- Config (stored in Google Sheet + localStorage fallback) ----
+var LOCAL_SETTINGS_KEY = "ryvite_settings";
+
+function saveSettingsLocally(settings) {
+  localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function loadSettingsLocally() {
+  try { return JSON.parse(localStorage.getItem(LOCAL_SETTINGS_KEY) || "null"); } catch (e) { return null; }
+}
+
+function applySettings(data) {
+  if (data.eventId) {
+    document.getElementById("eventId").value = data.eventId;
+    currentEventId = data.eventId;
+  }
+  if (data.zapierWebhook) document.getElementById("zapierUrl").value = data.zapierWebhook;
+  if (data.eventName) {
+    document.getElementById("eventName").value = data.eventName;
+    updateInviteSlug();
+  }
+  if (data.customFields && data.customFields.length) {
+    loadCustomFieldsConfig(data.customFields);
+  } else {
+    loadCustomFieldsConfig([
+      { key: "adults", label: "Adults", type: "number" },
+      { key: "kids", label: "Kids", type: "number" }
+    ]);
+  }
+}
+
 function saveConfig() {
   var eventId = document.getElementById("eventId").value.trim();
   if (!eventId) {
@@ -395,6 +425,17 @@ function saveConfig() {
     document.getElementById("eventId").value = eventId;
   }
   currentEventId = eventId;
+
+  var settings = {
+    eventId: eventId,
+    eventName: document.getElementById("eventName").value.trim(),
+    zapierWebhook: document.getElementById("zapierUrl").value.trim(),
+    invitePageUrl: document.getElementById("inviteUrl").value.trim(),
+    customFields: getCustomFieldsConfig()
+  };
+
+  // Always save locally so settings survive even if the sheet call fails
+  saveSettingsLocally(settings);
 
   var btn = document.querySelector(".save-config-btn");
   btn.disabled = true;
@@ -404,37 +445,41 @@ function saveConfig() {
     method: "POST",
     mode: "no-cors",
     headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify({
-      action: "saveSettings",
-      eventId: eventId,
-      eventName: document.getElementById("eventName").value.trim(),
-      zapierWebhook: document.getElementById("zapierUrl").value.trim(),
-      invitePageUrl: document.getElementById("inviteUrl").value.trim(),
-      customFields: getCustomFieldsConfig()
-    })
+    body: JSON.stringify(Object.assign({ action: "saveSettings" }, settings))
   }).then(function() {
     btn.disabled = false;
     btn.textContent = "Save Settings";
     var saved = document.getElementById("configSaved");
     saved.style.display = "inline";
     setTimeout(function() { saved.style.display = "none"; }, 2000);
-    showToast("Settings saved to sheet!", "success");
+    showToast("Settings saved!", "success");
   }).catch(function(err) {
     btn.disabled = false;
     btn.textContent = "Save Settings";
     console.error("Save settings error", err);
-    showToast("Couldn't save settings", "error");
+    showToast("Saved locally (sheet sync failed)", "error");
   });
 }
 
 function loadConfig() {
+  // Immediately apply local settings so the UI is never empty
+  var local = loadSettingsLocally();
+  if (local) {
+    document.getElementById("configLoading").style.display = "none";
+    document.getElementById("configFields").style.display = "block";
+    applySettings(local);
+  }
+
+  // Then try to fetch from the sheet (will overwrite local if successful)
   var callbackName = "_settingsCb_" + Date.now();
   var timeout = setTimeout(function() {
     delete window[callbackName];
     var old = document.getElementById("jsonp_settings");
     if (old) old.remove();
-    document.getElementById("configLoading").textContent = "Couldn't load settings. Save to initialize.";
-    document.getElementById("configFields").style.display = "block";
+    if (!local) {
+      document.getElementById("configLoading").textContent = "Couldn't load from sheet. Fill in and save to get started.";
+      document.getElementById("configFields").style.display = "block";
+    }
   }, 10000);
 
   window[callbackName] = function(data) {
@@ -446,23 +491,10 @@ function loadConfig() {
     document.getElementById("configLoading").style.display = "none";
     document.getElementById("configFields").style.display = "block";
 
+    // Only overwrite if the sheet actually has data
     if (data.eventId) {
-      document.getElementById("eventId").value = data.eventId;
-      currentEventId = data.eventId;
-    }
-    if (data.zapierWebhook) document.getElementById("zapierUrl").value = data.zapierWebhook;
-    if (data.eventName) {
-      document.getElementById("eventName").value = data.eventName;
-      updateInviteSlug();
-    }
-    if (data.customFields && data.customFields.length) {
-      loadCustomFieldsConfig(data.customFields);
-    } else {
-      // Default fields for new events
-      loadCustomFieldsConfig([
-        { key: "adults", label: "Adults", type: "number" },
-        { key: "kids", label: "Kids", type: "number" }
-      ]);
+      applySettings(data);
+      saveSettingsLocally(data);
     }
   };
 
@@ -473,8 +505,10 @@ function loadConfig() {
     clearTimeout(timeout);
     delete window[callbackName];
     script.remove();
-    document.getElementById("configLoading").textContent = "Couldn't load settings.";
-    document.getElementById("configFields").style.display = "block";
+    if (!local) {
+      document.getElementById("configLoading").textContent = "Couldn't load from sheet.";
+      document.getElementById("configFields").style.display = "block";
+    }
   };
   document.head.appendChild(script);
 }
