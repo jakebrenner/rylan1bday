@@ -1036,11 +1036,11 @@ async function sendAllInvites() {
       smsBody = smsTemplate.replace(/\{name\}/g, contact.first || fullName).replace(/\{link\}/g, inviteLink);
     }
     try {
-      await fetch(config.zapierUrl, {
+      var webhookRes = await fetch("/api/webhook", {
         method: "POST",
-        mode: "no-cors",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          webhookUrl: config.zapierUrl,
           name: fullName,
           firstName: contact.first,
           lastName: contact.last,
@@ -1050,6 +1050,11 @@ async function sendAllInvites() {
           senderPhone: currentAdminPhone
         })
       });
+      var webhookData = await webhookRes.json();
+      if (webhookData.status !== "ok") {
+        console.error("Zapier error for " + fullName, webhookData);
+        success = false;
+      }
     } catch (err) {
       console.error("Zapier error for " + fullName, err);
       success = false;
@@ -1298,11 +1303,11 @@ function sendTestSms() {
   btn.textContent = "Sending...";
 
   // Send ONLY to the admin's own phone — both phone and senderPhone are the admin
-  fetch(config.zapierUrl, {
+  fetch("/api/webhook", {
     method: "POST",
-    mode: "no-cors",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      webhookUrl: config.zapierUrl,
       name: "Test User",
       firstName: "Test",
       lastName: "User",
@@ -1311,10 +1316,16 @@ function sendTestSms() {
       message: testMessage,
       senderPhone: currentAdminPhone
     })
-  }).then(function() {
+  }).then(function(res) { return res.json(); })
+  .then(function(data) {
     btn.disabled = false;
     btn.textContent = "Send Test SMS to Me";
-    showToast("Test SMS sent to your phone!", "success");
+    if (data.status === "ok") {
+      showToast("Test SMS sent to your phone!", "success");
+    } else {
+      console.error("Test SMS backend error", data);
+      showToast("Zapier rejected the request — check your webhook URL", "error");
+    }
   }).catch(function(err) {
     btn.disabled = false;
     btn.textContent = "Send Test SMS to Me";
