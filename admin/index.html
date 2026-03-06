@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rylan's Party - Admin</title>
+<title>Ryvite - Admin</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
 :root { --coral:#E87758; --mustard:#E4BA42; --teal:#58A6A4; --sage:#9CB482; --orange:#ED923C; --blue:#6495C7; --cream:#FDF8F0; --dark:#3A3A3A; --light-sage:#E8EDDF; }
@@ -174,6 +174,15 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
 .filter-chip { padding:6px 14px; border:2px solid var(--light-sage); border-radius:20px; background:white; font-family:'Fredoka',sans-serif; font-size:0.82rem; font-weight:500; color:#888; cursor:pointer; transition:all 0.2s; }
 .filter-chip.active { border-color:var(--teal); background:var(--teal); color:white; }
 
+/* Admin list items */
+.admin-item { display:flex; align-items:center; padding:12px 14px; background:white; border:2px solid var(--light-sage); border-radius:10px; margin-bottom:8px; gap:10px; }
+.admin-item .admin-info { flex:1; min-width:0; }
+.admin-item .admin-name { font-weight:600; font-size:0.95rem; }
+.admin-item .admin-phone { color:#888; font-size:0.85rem; }
+.admin-item .admin-you { font-size:0.72rem; color:var(--teal); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+.admin-remove-btn { padding:6px 12px; border:2px solid var(--coral); background:white; color:var(--coral); border-radius:8px; font-family:'Fredoka',sans-serif; font-size:0.8rem; font-weight:500; cursor:pointer; transition:all 0.2s; }
+.admin-remove-btn:hover { background:var(--coral); color:white; }
+
 /* Toast */
 .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(100px); background:var(--dark); color:white; padding:12px 24px; border-radius:12px; font-family:'Fredoka',sans-serif; font-size:0.9rem; z-index:1000; transition:transform 0.3s ease; pointer-events:none; text-align:center; max-width:90%; }
 .toast.show { transform:translateX(-50%) translateY(0); }
@@ -200,13 +209,14 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
 
 <div class="admin-frame">
 
-<!-- Login Gate -->
+<!-- Login Gate (redirects to /login/ if no session) -->
 <div class="login-section" id="loginSection">
-  <h1>Party Admin</h1>
-  <p>Enter the password to manage invites</p>
-  <input type="password" class="login-input" id="loginPassword" placeholder="Password" autocomplete="off">
-  <button class="login-btn" id="loginBtn" onclick="attemptLogin()">Enter</button>
-  <p class="login-error" id="loginError">Wrong password, try again!</p>
+  <h1>Organizer Admin</h1>
+  <p>Checking your session...</p>
+  <p class="login-error" id="loginError"></p>
+  <div style="text-align:center;margin-top:20px;">
+    <a href="/login/" class="login-btn" style="display:inline-block;text-decoration:none;max-width:300px;">Sign In</a>
+  </div>
 </div>
 
 <!-- Admin Panel -->
@@ -214,6 +224,11 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
   <div class="admin-header">
     <h1>Manage Invites</h1>
     <p>Add contacts and send invite texts</p>
+    <div style="margin-top:8px;">
+      <a href="/login/" style="color:var(--coral);font-size:0.82rem;text-decoration:none;font-weight:500;">Switch Event</a>
+      <span style="color:#ddd;margin:0 6px;">|</span>
+      <a href="/login/" onclick="sessionStorage.removeItem('ryvite_admin_session')" style="color:#aaa;font-size:0.82rem;text-decoration:none;font-weight:500;">Sign Out</a>
+    </div>
   </div>
 
   <!-- Event Invite URL (shown when settings loaded) -->
@@ -230,6 +245,7 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
     <button class="tab-btn active" data-tab="add" onclick="switchTab('add')">Add Contacts</button>
     <button class="tab-btn" data-tab="sent" onclick="switchTab('sent')">Sent Invites</button>
     <button class="tab-btn" data-tab="guests" onclick="switchTab('guests')">Guest List</button>
+    <button class="tab-btn" data-tab="admins" onclick="switchTab('admins')">Admins</button>
   </div>
 
   <!-- Add Contacts Tab -->
@@ -342,6 +358,29 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
     </div>
   </div>
 
+  <!-- Admins Tab -->
+  <div class="tab-content" id="tab-admins">
+    <div class="contact-card">
+      <h3>Event Organizers</h3>
+      <p style="font-size:0.88rem;color:#888;margin-bottom:16px;">People who can log in at <strong>/login/</strong> and manage this event.</p>
+      <div id="adminsList" style="margin-bottom:16px;"></div>
+      <div style="border-top:2px solid var(--light-sage);padding-top:16px;">
+        <h3 style="font-size:0.95rem;color:var(--teal);margin-bottom:12px;">Add an Organizer</h3>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Name</label>
+            <input type="text" id="newAdminName" placeholder="Jane Doe">
+          </div>
+          <div class="form-field">
+            <label>Phone Number</label>
+            <input type="tel" id="newAdminPhone" placeholder="(555) 123-4567">
+          </div>
+        </div>
+        <button class="add-btn" onclick="addAdmin()" style="background:linear-gradient(135deg,var(--teal),var(--sage));">Add Organizer</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Configuration (collapsible, at bottom) -->
   <div class="config-section" id="configSection">
     <h3 onclick="toggleSetup()">Setup <span class="chevron">&#9660;</span></h3>
@@ -377,7 +416,7 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
     </div>
   </div>
 
-  <a href="/" class="back-link">&larr; Back to Ryvite</a>
+  <a href="/login/" class="back-link">&larr; Back to Your Events</a>
 </div>
 
 </div>
@@ -386,29 +425,33 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
 
 <script>
 // ---- Config & State ----
-var ADMIN_PASSWORD = "rylan1";
 var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzjNsNyDnBmG8tV89kIede13MUPz1nlC0p40tVP-TdU0saN3Wh4gNNhqUBKR28NxoshgA/exec";
 var pendingContacts = [];
 var sentContacts = JSON.parse(localStorage.getItem("rylan_sent_contacts") || "[]");
 var currentEventId = "";
+var currentAdminPhone = "";
 
-// ---- Login ----
-function attemptLogin() {
-  var pw = document.getElementById("loginPassword").value;
-  if (pw === ADMIN_PASSWORD) {
+// ---- Phone-based Session Check ----
+(function() {
+  // Read eventId and phone from URL params (set by /login/ page)
+  var params = new URLSearchParams(window.location.search);
+  var eventId = params.get("eventId");
+  var phone = params.get("phone");
+
+  if (eventId && phone) {
+    // Valid session from login page — show admin panel
+    currentEventId = eventId;
+    currentAdminPhone = phone;
     document.getElementById("loginSection").style.display = "none";
     document.getElementById("adminPanel").style.display = "block";
     loadConfig();
     renderSentList();
     checkContactPickerSupport();
   } else {
-    document.getElementById("loginError").style.display = "block";
-    document.getElementById("loginPassword").value = "";
+    // No session — redirect to login
+    window.location.href = "/login/";
   }
-}
-document.getElementById("loginPassword").addEventListener("keydown", function(e) {
-  if (e.key === "Enter") attemptLogin();
-});
+})();
 
 // ---- Config (stored in Google Sheet + localStorage fallback) ----
 var LOCAL_SETTINGS_KEY = "ryvite_settings";
@@ -429,6 +472,9 @@ function applySettings(data) {
   if (data.eventId) {
     document.getElementById("eventId").value = data.eventId;
     currentEventId = data.eventId;
+  } else if (currentEventId) {
+    // Preserve eventId from URL if sheet has no data yet
+    document.getElementById("eventId").value = currentEventId;
   }
   if (data.zapierWebhook) document.getElementById("zapierUrl").value = data.zapierWebhook;
   if (data.eventName) {
@@ -537,7 +583,8 @@ function loadConfig() {
 
   var script = document.createElement("script");
   script.id = "jsonp_settings";
-  script.src = SCRIPT_URL + "?action=getSettings&callback=" + callbackName;
+  var eventParam = currentEventId ? "&eventId=" + encodeURIComponent(currentEventId) : "";
+  script.src = SCRIPT_URL + "?action=getSettings" + eventParam + "&callback=" + callbackName;
   script.onerror = function() {
     clearTimeout(timeout);
     delete window[callbackName];
@@ -661,6 +708,7 @@ function switchTab(tab) {
   document.querySelectorAll(".tab-content").forEach(function(c) { c.classList.remove("active"); });
   document.querySelector('[data-tab="' + tab + '"]').classList.add("active");
   document.getElementById("tab-" + tab).classList.add("active");
+  if (tab === "admins") fetchAdmins();
 }
 
 // ---- Contact Picker ----
@@ -1148,6 +1196,112 @@ function showToast(msg, type) {
   toast.className = "toast" + (type ? " " + type : "");
   toast.classList.add("show");
   setTimeout(function() { toast.classList.remove("show"); }, 3000);
+}
+
+// ---- Admin Management ----
+function fetchAdmins() {
+  if (!currentEventId) return;
+
+  var callbackName = "_adminsCb_" + Date.now();
+  var timeout = setTimeout(function() {
+    delete window[callbackName];
+    var old = document.getElementById("jsonp_admins");
+    if (old) old.remove();
+  }, 10000);
+
+  window[callbackName] = function(data) {
+    clearTimeout(timeout);
+    delete window[callbackName];
+    var old = document.getElementById("jsonp_admins");
+    if (old) old.remove();
+    renderAdminsList(data.admins || []);
+  };
+
+  var script = document.createElement("script");
+  script.id = "jsonp_admins";
+  script.src = SCRIPT_URL + "?action=getAdmins&eventId=" + encodeURIComponent(currentEventId) + "&callback=" + callbackName;
+  script.onerror = function() {
+    clearTimeout(timeout);
+    delete window[callbackName];
+    script.remove();
+  };
+  document.head.appendChild(script);
+}
+
+function renderAdminsList(admins) {
+  var list = document.getElementById("adminsList");
+  list.innerHTML = "";
+  if (admins.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;font-size:0.9rem;">No organizers added yet. Add one below!</div>';
+    return;
+  }
+  admins.forEach(function(a) {
+    var isYou = normalizePhone(a.phone) === normalizePhone(currentAdminPhone);
+    var item = document.createElement("div");
+    item.className = "admin-item";
+    item.innerHTML =
+      '<div class="admin-info">' +
+        '<div class="admin-name">' + escapeHtml(a.name || "Organizer") + (isYou ? ' <span class="admin-you">You</span>' : '') + '</div>' +
+        '<div class="admin-phone">' + escapeHtml(a.phone) + '</div>' +
+      '</div>' +
+      (isYou ? '' : '<button class="admin-remove-btn" onclick="removeAdmin(\'' + escapeHtml(a.phone) + '\')">Remove</button>');
+    list.appendChild(item);
+  });
+}
+
+function addAdmin() {
+  var name = document.getElementById("newAdminName").value.trim();
+  var phone = document.getElementById("newAdminPhone").value.trim();
+
+  if (!phone || normalizePhone(phone).length < 10) {
+    showToast("Please enter a valid phone number", "error");
+    return;
+  }
+
+  var eventName = document.getElementById("eventName").value.trim();
+
+  fetch(SCRIPT_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({
+      action: "addAdmin",
+      phone: normalizePhone(phone),
+      eventId: currentEventId,
+      eventName: eventName,
+      name: name
+    })
+  }).then(function() {
+    showToast(name ? name + " added as organizer!" : "Organizer added!", "success");
+    document.getElementById("newAdminName").value = "";
+    document.getElementById("newAdminPhone").value = "";
+    // Refresh admin list after a short delay (no-cors means we can't read response)
+    setTimeout(fetchAdmins, 1500);
+  }).catch(function(err) {
+    showToast("Error adding organizer", "error");
+    console.error("addAdmin error", err);
+  });
+}
+
+function removeAdmin(phone) {
+  if (!confirm("Remove this organizer?")) return;
+
+  fetch(SCRIPT_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({
+      action: "removeAdmin",
+      phone: normalizePhone(phone),
+      eventId: currentEventId
+    })
+  }).then(function() {
+    showToast("Organizer removed", "success");
+    setTimeout(fetchAdmins, 1500);
+  }).catch(function(err) {
+    showToast("Error removing organizer", "error");
+    console.error("removeAdmin error", err);
+  });
 }
 </script>
 

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ryvite - Organizer Login</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+:root { --coral:#E87758; --mustard:#E4BA42; --teal:#58A6A4; --sage:#9CB482; --orange:#ED923C; --blue:#6495C7; --cream:#FDF8F0; --dark:#3A3A3A; --light-sage:#E8EDDF; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dark); min-height:100vh; display:flex; justify-content:center; align-items:center; padding:16px; }
+
+.login-frame { width:100%; max-width:440px; background:var(--cream); border:6px solid var(--sage); border-radius:24px; box-shadow:0 0 0 4px white,0 0 0 10px var(--sage),0 12px 40px rgba(0,0,0,0.15); overflow:hidden; padding:40px 30px; }
+
+.login-header { text-align:center; margin-bottom:32px; }
+.login-header h1 { font-family:'Playfair Display',serif; font-size:2rem; color:var(--coral); margin-bottom:8px; }
+.login-header p { color:#888; font-size:0.95rem; line-height:1.5; }
+
+.form-group { margin-bottom:16px; }
+.form-group label { display:block; font-weight:500; font-size:0.9rem; color:var(--dark); margin-bottom:6px; }
+.phone-input { width:100%; padding:14px 18px; border:2px solid #e8e8e0; border-radius:12px; font-family:'Fredoka',sans-serif; font-size:1.1rem; background:white; outline:none; transition:border-color 0.3s; text-align:center; letter-spacing:1px; }
+.phone-input:focus { border-color:var(--teal); }
+
+.login-btn { width:100%; padding:14px; background:linear-gradient(135deg,var(--teal),var(--sage)); color:white; border:none; border-radius:14px; font-family:'Fredoka',sans-serif; font-size:1.1rem; font-weight:600; cursor:pointer; margin-top:8px; transition:all 0.3s; }
+.login-btn:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(88,166,164,0.4); }
+.login-btn:disabled { opacity:0.5; transform:none; box-shadow:none; cursor:not-allowed; }
+
+.login-error { color:var(--coral); font-size:0.88rem; margin-top:12px; display:none; text-align:center; line-height:1.4; }
+.login-hint { color:#aaa; font-size:0.82rem; margin-top:16px; text-align:center; line-height:1.5; }
+
+/* Event list after login */
+.events-section { display:none; }
+.events-header { text-align:center; margin-bottom:20px; }
+.events-header h2 { font-family:'Playfair Display',serif; font-size:1.5rem; color:var(--teal); margin-bottom:4px; }
+.events-header p { color:#888; font-size:0.88rem; }
+
+.event-card { background:white; border:2px solid var(--light-sage); border-radius:14px; padding:18px 20px; margin-bottom:12px; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:14px; }
+.event-card:hover { border-color:var(--teal); transform:translateY(-2px); box-shadow:0 4px 16px rgba(88,166,164,0.15); }
+.event-icon { width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg,var(--coral),var(--orange)); display:flex; align-items:center; justify-content:center; font-size:1.3rem; flex-shrink:0; }
+.event-info { flex:1; min-width:0; }
+.event-name { font-weight:600; font-size:1rem; color:var(--dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.event-id { font-size:0.78rem; color:#aaa; margin-top:2px; }
+.event-arrow { color:var(--teal); font-size:1.2rem; font-weight:700; }
+
+.no-events { text-align:center; padding:30px 20px; color:#aaa; }
+.no-events p { font-size:0.95rem; margin-bottom:6px; }
+
+.logout-link { display:inline-block; margin-top:20px; color:var(--coral); font-size:0.88rem; text-decoration:none; font-weight:500; cursor:pointer; }
+.logout-link:hover { text-decoration:underline; }
+
+.back-link { display:inline-block; margin-top:20px; color:var(--teal); font-size:0.9rem; text-decoration:none; font-weight:500; }
+.back-link:hover { text-decoration:underline; }
+
+/* Toast */
+.toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(100px); background:var(--dark); color:white; padding:12px 24px; border-radius:12px; font-family:'Fredoka',sans-serif; font-size:0.9rem; z-index:1000; transition:transform 0.3s ease; pointer-events:none; text-align:center; max-width:90%; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+.toast.error { background:var(--coral); }
+.toast.success { background:var(--teal); }
+
+/* Loading spinner */
+.loading { display:none; text-align:center; padding:20px; }
+.loading .spinner { display:inline-block; width:28px; height:28px; border:3px solid var(--light-sage); border-top-color:var(--teal); border-radius:50%; animation:spin 0.6s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+@media (max-width:480px) {
+  .login-frame { padding:30px 20px; }
+}
+</style>
+</head>
+<body>
+
+<div class="login-frame">
+
+  <!-- Login Form -->
+  <div id="loginSection">
+    <div class="login-header">
+      <h1>Organizer Login</h1>
+      <p>Enter the phone number associated with your event to manage it</p>
+    </div>
+
+    <div class="form-group">
+      <label>Phone Number</label>
+      <input type="tel" class="phone-input" id="phoneInput" placeholder="(555) 123-4567" autocomplete="tel">
+    </div>
+
+    <button class="login-btn" id="loginBtn" onclick="attemptLogin()">Sign In</button>
+
+    <div class="loading" id="loginLoading">
+      <div class="spinner"></div>
+    </div>
+
+    <p class="login-error" id="loginError"></p>
+    <p class="login-hint">This is the phone number you were set up as an event organizer with.</p>
+
+    <div style="text-align:center;">
+      <a href="/" class="back-link">&larr; Back to Ryvite</a>
+    </div>
+  </div>
+
+  <!-- Events List (shown after successful login) -->
+  <div class="events-section" id="eventsSection">
+    <div class="events-header">
+      <h2>Your Events</h2>
+      <p>Select an event to manage</p>
+    </div>
+    <div id="eventsList"></div>
+    <div style="text-align:center;">
+      <a class="logout-link" onclick="logout()">Sign out</a>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzjNsNyDnBmG8tV89kIede13MUPz1nlC0p40tVP-TdU0saN3Wh4gNNhqUBKR28NxoshgA/exec";
+var SESSION_KEY = "ryvite_admin_session";
+
+// Check for existing session on load
+(function() {
+  var session = getSession();
+  if (session && session.phone && session.events) {
+    showEvents(session.events, session.phone);
+  }
+})();
+
+// Enter key triggers login
+document.getElementById("phoneInput").addEventListener("keydown", function(e) {
+  if (e.key === "Enter") attemptLogin();
+});
+
+function normalizePhone(str) {
+  return str.replace(/[^0-9]/g, "");
+}
+
+function attemptLogin() {
+  var raw = document.getElementById("phoneInput").value.trim();
+  var phone = normalizePhone(raw);
+
+  if (phone.length < 10) {
+    showError("Please enter a valid phone number");
+    return;
+  }
+
+  var btn = document.getElementById("loginBtn");
+  var loading = document.getElementById("loginLoading");
+  btn.disabled = true;
+  loading.style.display = "block";
+  hideError();
+
+  // JSONP call to check admin status
+  var callbackName = "_loginCb_" + Date.now();
+  var timeout = setTimeout(function() {
+    cleanup();
+    showError("Request timed out. Please try again.");
+  }, 15000);
+
+  function cleanup() {
+    delete window[callbackName];
+    var old = document.getElementById("jsonp_login");
+    if (old) old.remove();
+    btn.disabled = false;
+    loading.style.display = "none";
+  }
+
+  window[callbackName] = function(data) {
+    clearTimeout(timeout);
+    cleanup();
+
+    if (data.error) {
+      showError(data.error);
+      return;
+    }
+
+    if (!data.events || data.events.length === 0) {
+      showError("No events found for this phone number. Ask an existing organizer to add you as an admin.");
+      return;
+    }
+
+    // Save session
+    saveSession({ phone: phone, events: data.events });
+    showEvents(data.events, phone);
+    showToast("Welcome back!", "success");
+  };
+
+  var script = document.createElement("script");
+  script.id = "jsonp_login";
+  script.src = SCRIPT_URL + "?action=adminLogin&phone=" + encodeURIComponent(phone) + "&callback=" + callbackName;
+  script.onerror = function() {
+    clearTimeout(timeout);
+    cleanup();
+    showError("Couldn't reach the server. Please try again.");
+  };
+  document.head.appendChild(script);
+}
+
+function showEvents(events, phone) {
+  document.getElementById("loginSection").style.display = "none";
+  document.getElementById("eventsSection").style.display = "block";
+
+  var list = document.getElementById("eventsList");
+  list.innerHTML = "";
+
+  if (events.length === 0) {
+    list.innerHTML = '<div class="no-events"><p>No events yet</p></div>';
+    return;
+  }
+
+  events.forEach(function(ev) {
+    var card = document.createElement("div");
+    card.className = "event-card";
+    card.onclick = function() {
+      // Navigate to admin with event context
+      window.location.href = "/admin/?eventId=" + encodeURIComponent(ev.eventId) + "&phone=" + encodeURIComponent(phone);
+    };
+    card.innerHTML =
+      '<div class="event-icon">&#127881;</div>' +
+      '<div class="event-info">' +
+        '<div class="event-name">' + escapeHtml(ev.eventName || ev.eventId) + '</div>' +
+        '<div class="event-id">' + escapeHtml(ev.eventId) + '</div>' +
+      '</div>' +
+      '<div class="event-arrow">&#8250;</div>';
+    list.appendChild(card);
+  });
+}
+
+function logout() {
+  sessionStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(SESSION_KEY);
+  document.getElementById("eventsSection").style.display = "none";
+  document.getElementById("loginSection").style.display = "block";
+  document.getElementById("phoneInput").value = "";
+}
+
+function saveSession(data) {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
+}
+
+function getSession() {
+  try {
+    return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null");
+  } catch (e) { return null; }
+}
+
+function showError(msg) {
+  var el = document.getElementById("loginError");
+  el.textContent = msg;
+  el.style.display = "block";
+}
+
+function hideError() {
+  document.getElementById("loginError").style.display = "none";
+}
+
+function escapeHtml(text) {
+  var div = document.createElement("div");
+  div.appendChild(document.createTextNode(text));
+  return div.innerHTML;
+}
+
+function showToast(msg, type) {
+  var toast = document.getElementById("toast");
+  toast.textContent = msg;
+  toast.className = "toast" + (type ? " " + type : "");
+  toast.classList.add("show");
+  setTimeout(function() { toast.classList.remove("show"); }, 3000);
+}
+</script>
+
+</body>
+</html>

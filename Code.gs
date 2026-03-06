@@ -17,6 +17,15 @@ function getOrCreateSheet(name, headers) {
   return sheet;
 }
 
+function normalizePhone(str) {
+  var digits = (str || "").replace(/[^0-9]/g, "");
+  // Strip leading "1" country code if 11 digits
+  if (digits.length === 11 && digits.charAt(0) === "1") {
+    digits = digits.substring(1);
+  }
+  return digits;
+}
+
 // ---- GET handler (JSONP) ----
 function doGet(e) {
   var action = (e.parameter.action || "").trim();
@@ -25,10 +34,16 @@ function doGet(e) {
   var result = {};
 
   if (action === "getSettings") {
-    result = handleGetSettings();
+    result = handleGetSettings(e.parameter.eventId);
   } else if (action === "guestList") {
     var eventId = e.parameter.eventId || "";
     result = handleGuestList(eventId);
+  } else if (action === "adminLogin") {
+    var phone = e.parameter.phone || "";
+    result = handleAdminLogin(phone);
+  } else if (action === "getAdmins") {
+    var eventId = e.parameter.eventId || "";
+    result = handleGetAdmins(eventId);
   } else {
     result = { error: "Unknown action: " + action };
   }
@@ -56,10 +71,140 @@ function doPost(e) {
     return handleInvite(data);
   } else if (action === "rsvp") {
     return handleRsvp(data);
+  } else if (action === "addAdmin") {
+    return handleAddAdmin(data);
+  } else if (action === "removeAdmin") {
+    return handleRemoveAdmin(data);
   } else {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Unknown action: " + action }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+// ============================================================
+// Admins
+// ============================================================
+// Sheet columns: Phone | EventID | EventName | Name | AddedAt
+//
+// Each row maps one phone number to one event they can admin.
+// A phone can appear in multiple rows (one per event).
+
+var ADMINS_HEADERS = ["Phone", "EventID", "EventName", "Name", "AddedAt"];
+
+function handleAdminLogin(rawPhone) {
+  var phone = normalizePhone(rawPhone);
+  if (phone.length < 10) {
+    return { error: "Invalid phone number" };
+  }
+
+  var sheet = getOrCreateSheet("Admins", ADMINS_HEADERS);
+  if (sheet.getLastRow() < 2) {
+    return { events: [] };
+  }
+
+  var data = sheet.getDataRange().getValues();
+  var events = [];
+  var seen = {};
+
+  for (var i = 1; i < data.length; i++) {
+    var rowPhone = normalizePhone(String(data[i][0]));
+    if (rowPhone === phone) {
+      var eventId = String(data[i][1] || "");
+      if (eventId && !seen[eventId]) {
+        seen[eventId] = true;
+        events.push({
+          eventId: eventId,
+          eventName: String(data[i][2] || eventId)
+        });
+      }
+    }
+  }
+
+  return { events: events };
+}
+
+function handleAddAdmin(data) {
+  var phone = normalizePhone(data.phone || "");
+  var eventId = (data.eventId || "").trim();
+  var eventName = (data.eventName || "").trim();
+  var name = (data.name || "").trim();
+
+  if (phone.length < 10) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Invalid phone number" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  if (!eventId) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Missing eventId" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  var sheet = getOrCreateSheet("Admins", ADMINS_HEADERS);
+
+  // Check for duplicate
+  if (sheet.getLastRow() >= 2) {
+    var existing = sheet.getDataRange().getValues();
+    for (var i = 1; i < existing.length; i++) {
+      if (normalizePhone(String(existing[i][0])) === phone && String(existing[i][1]) === eventId) {
+        return ContentService.createTextOutput(JSON.stringify({ status: "ok", message: "Already an admin" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+  }
+
+  sheet.appendRow([phone, eventId, eventName, name, new Date()]);
+
+  return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function handleRemoveAdmin(data) {
+  var phone = normalizePhone(data.phone || "");
+  var eventId = (data.eventId || "").trim();
+
+  if (!phone || !eventId) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Missing phone or eventId" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  var sheet = getOrCreateSheet("Admins", ADMINS_HEADERS);
+  if (sheet.getLastRow() < 2) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "not_found" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  var data_range = sheet.getDataRange().getValues();
+  for (var i = data_range.length - 1; i >= 1; i--) {
+    if (normalizePhone(String(data_range[i][0])) === phone && String(data_range[i][1]) === eventId) {
+      sheet.deleteRow(i + 1);
+      return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  return ContentService.createTextOutput(JSON.stringify({ status: "not_found" }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function handleGetAdmins(eventId) {
+  if (!eventId) return { admins: [] };
+
+  var sheet = getOrCreateSheet("Admins", ADMINS_HEADERS);
+  if (sheet.getLastRow() < 2) return { admins: [] };
+
+  var data = sheet.getDataRange().getValues();
+  var admins = [];
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][1]) === eventId) {
+      admins.push({
+        phone: String(data[i][0] || ""),
+        name: String(data[i][3] || ""),
+        addedAt: data[i][4] ? new Date(data[i][4]).toISOString() : ""
+      });
+    }
+  }
+
+  return { admins: admins };
 }
 
 // ============================================================
@@ -74,10 +219,30 @@ function doPost(e) {
 
 var SETTINGS_HEADERS = ["eventId", "eventName", "zapierWebhook", "invitePageUrl", "customFields"];
 
-function handleGetSettings() {
+function handleGetSettings(eventId) {
   var sheet = getOrCreateSheet("Settings", SETTINGS_HEADERS);
   if (sheet.getLastRow() < 2) return {};
 
+  // If eventId provided, search for matching row
+  if (eventId) {
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === eventId) {
+        var customFields = [];
+        try { customFields = JSON.parse(data[i][4] || "[]"); } catch (e) { customFields = []; }
+        return {
+          eventId:        data[i][0] || "",
+          eventName:      data[i][1] || "",
+          zapierWebhook:  data[i][2] || "",
+          invitePageUrl:  data[i][3] || "",
+          customFields:   customFields
+        };
+      }
+    }
+    return {};
+  }
+
+  // Fallback: return first row (backwards compat)
   var row = sheet.getRange("A2:E2").getValues()[0];
   var customFields = [];
   try { customFields = JSON.parse(row[4] || "[]"); } catch (e) { customFields = []; }
@@ -101,14 +266,29 @@ function handleSaveSettings(data) {
       : JSON.stringify(data.customFields);
   }
 
-  var values = [[
-    data.eventId       || "",
+  var eventId = data.eventId || "";
+  var values = [
+    eventId,
     data.eventName     || "",
     data.zapierWebhook || "",
     data.invitePageUrl || "",
     customFields
-  ]];
-  sheet.getRange("A2:E2").setValues(values);
+  ];
+
+  // Search for existing row with this eventId
+  if (eventId && sheet.getLastRow() >= 2) {
+    var existing = sheet.getDataRange().getValues();
+    for (var i = 1; i < existing.length; i++) {
+      if (String(existing[i][0]) === eventId) {
+        sheet.getRange(i + 1, 1, 1, 5).setValues([values]);
+        return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+  }
+
+  // No existing row — append new one
+  sheet.appendRow(values);
 
   return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
     .setMimeType(ContentService.MimeType.JSON);
