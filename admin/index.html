@@ -252,6 +252,7 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
       <div class="url-display" id="eventUrlDisplay">https://ryvite.com</div>
       <button type="button" class="copy-url-btn" onclick="copyEventUrl()">Copy</button>
     </div>
+    <a href="#" id="viewLivePageBtn" target="_blank" onclick="return openLiveEventPage()" style="display:inline-block;margin-top:8px;padding:8px 16px;background:linear-gradient(135deg,var(--teal),var(--sage));color:white;border-radius:10px;font-family:'Fredoka',sans-serif;font-size:0.85rem;font-weight:500;text-decoration:none;transition:all 0.2s;">View Live Event Page</a>
   </div>
 
   <!-- Tabs -->
@@ -435,6 +436,15 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
         <div id="customFieldsList"></div>
         <button type="button" class="add-field-btn" onclick="addCustomField()">+ Add Field</button>
 
+        <!-- SMS Message Template -->
+        <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;margin-top:16px;">SMS Message Template</label>
+        <p class="config-hint" style="margin-bottom:6px;">Customize the text message guests receive. Use <strong>{name}</strong> for their first name and <strong>{link}</strong> for the invite link.</p>
+        <textarea class="config-input" id="smsMessage" rows="3" placeholder="Hey {name}! You're invited! RSVP here: {link}" style="resize:vertical;min-height:60px;font-family:'Fredoka',sans-serif;font-size:0.9rem;line-height:1.4;"></textarea>
+        <div id="smsPreview" style="display:none;margin-top:8px;padding:12px 14px;background:white;border:2px solid var(--light-sage);border-radius:10px;">
+          <label style="font-size:0.78rem;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px;">Preview</label>
+          <p id="smsPreviewText" style="font-size:0.88rem;color:var(--dark);margin:0;line-height:1.5;word-break:break-word;"></p>
+        </div>
+
         <div style="display:flex;align-items:center;margin-top:16px;">
           <button class="save-config-btn" onclick="saveConfig()">Save Settings</button>
           <span class="config-saved" id="configSaved">Saved!</span>
@@ -522,6 +532,10 @@ function applySettings(data) {
       { key: "kids", label: "Kids", type: "number" }
     ]);
   }
+  if (data.smsMessage) {
+    document.getElementById("smsMessage").value = data.smsMessage;
+    updateSmsPreview();
+  }
   // Auto-collapse setup when settings are loaded
   if (data.eventId) {
     document.getElementById("configSection").classList.add("collapsed");
@@ -541,7 +555,8 @@ function saveConfig() {
     eventName: document.getElementById("eventName").value.trim(),
     zapierWebhook: document.getElementById("zapierUrl").value.trim(),
     invitePageUrl: document.getElementById("inviteUrl").value.trim(),
-    customFields: getCustomFieldsConfig()
+    customFields: getCustomFieldsConfig(),
+    smsMessage: document.getElementById("smsMessage").value.trim()
   };
 
   // Always save locally so settings survive even if the sheet call fails
@@ -997,7 +1012,12 @@ async function sendAllInvites() {
       console.error("Sheet error for " + fullName, err);
     }
 
-    // 2. Fire Zapier webhook to send SMS (with UUID invite link)
+    // 2. Fire Zapier webhook to send SMS (with UUID invite link + message)
+    var smsTemplate = document.getElementById("smsMessage").value.trim();
+    var smsBody = "";
+    if (smsTemplate) {
+      smsBody = smsTemplate.replace(/\{name\}/g, contact.first || fullName).replace(/\{link\}/g, inviteLink);
+    }
     try {
       await fetch(config.zapierUrl, {
         method: "POST",
@@ -1008,7 +1028,8 @@ async function sendAllInvites() {
           firstName: contact.first,
           lastName: contact.last,
           phone: contact.phone,
-          inviteUrl: inviteLink
+          inviteUrl: inviteLink,
+          message: smsBody
         })
       });
     } catch (err) {
@@ -1213,6 +1234,33 @@ function renderGuestList() {
       '<span class="' + badgeClass + '">' + badgeText + '</span>';
     list.appendChild(item);
   });
+}
+
+// ---- SMS Preview ----
+document.getElementById("smsMessage").addEventListener("input", updateSmsPreview);
+
+function updateSmsPreview() {
+  var template = document.getElementById("smsMessage").value.trim();
+  var preview = document.getElementById("smsPreview");
+  var previewText = document.getElementById("smsPreviewText");
+  if (!template) {
+    preview.style.display = "none";
+    return;
+  }
+  var sample = template.replace(/\{name\}/g, "Jane").replace(/\{link\}/g, "https://ryvite.com/event/example/?id=abc123&eid=demo");
+  previewText.textContent = sample;
+  preview.style.display = "block";
+}
+
+// ---- View Live Event Page ----
+function openLiveEventPage() {
+  var url = document.getElementById("inviteUrl").value.trim();
+  if (!url || url === "https://ryvite.com") {
+    showToast("Set your event name in Setup first", "error");
+    return false;
+  }
+  window.open(url, "_blank");
+  return false;
 }
 
 // ---- Helpers ----

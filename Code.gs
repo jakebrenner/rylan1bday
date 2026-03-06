@@ -238,7 +238,7 @@ function handleGetAdmins(eventId) {
 //
 // Supported field types: text, number, select, checkbox
 
-var SETTINGS_HEADERS = ["eventId", "eventName", "zapierWebhook", "invitePageUrl", "customFields"];
+var SETTINGS_HEADERS = ["eventId", "eventName", "zapierWebhook", "invitePageUrl", "customFields", "smsMessage"];
 
 function handleGetSettings(eventId) {
   var sheet = getOrCreateSheet("Settings", SETTINGS_HEADERS);
@@ -256,7 +256,8 @@ function handleGetSettings(eventId) {
           eventName:      data[i][1] || "",
           zapierWebhook:  data[i][2] || "",
           invitePageUrl:  data[i][3] || "",
-          customFields:   customFields
+          customFields:   customFields,
+          smsMessage:     data[i][5] || ""
         };
       }
     }
@@ -264,7 +265,7 @@ function handleGetSettings(eventId) {
   }
 
   // Fallback: return first row (backwards compat)
-  var row = sheet.getRange("A2:E2").getValues()[0];
+  var row = sheet.getRange("A2:F2").getValues()[0];
   var customFields = [];
   try { customFields = JSON.parse(row[4] || "[]"); } catch (e) { customFields = []; }
 
@@ -273,7 +274,8 @@ function handleGetSettings(eventId) {
     eventName:      row[1] || "",
     zapierWebhook:  row[2] || "",
     invitePageUrl:  row[3] || "",
-    customFields:   customFields
+    customFields:   customFields,
+    smsMessage:     row[5] || ""
   };
 }
 
@@ -293,7 +295,8 @@ function handleSaveSettings(data) {
     data.eventName     || "",
     data.zapierWebhook || "",
     data.invitePageUrl || "",
-    customFields
+    customFields,
+    data.smsMessage    || ""
   ];
 
   // Search for existing row with this eventId
@@ -301,7 +304,7 @@ function handleSaveSettings(data) {
     var existing = sheet.getDataRange().getValues();
     for (var i = 1; i < existing.length; i++) {
       if (String(existing[i][0]) === eventId) {
-        sheet.getRange(i + 1, 1, 1, 5).setValues([values]);
+        sheet.getRange(i + 1, 1, 1, 6).setValues([values]);
         return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
           .setMimeType(ContentService.MimeType.JSON);
       }
