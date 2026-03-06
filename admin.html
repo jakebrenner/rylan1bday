@@ -29,8 +29,12 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
 
 /* Config section */
 .config-section { background:white; border-radius:16px; padding:20px; margin-bottom:20px; border:2px solid var(--light-sage); }
-.config-section h3 { font-size:1rem; color:var(--teal); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.config-section h3 { font-size:1rem; color:var(--teal); margin-bottom:12px; display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; }
 .config-section h3::before { content:''; display:inline-block; width:4px; height:18px; background:var(--teal); border-radius:2px; }
+.config-section h3 .chevron { margin-left:auto; font-size:0.75rem; transition:transform 0.3s; }
+.config-section.collapsed h3 { margin-bottom:0; }
+.config-section.collapsed .config-body { display:none; }
+.config-section.collapsed h3 .chevron { transform:rotate(-90deg); }
 .config-input { width:100%; padding:10px 14px; border:2px solid #e8e8e0; border-radius:10px; font-family:'Fredoka',sans-serif; font-size:0.9rem; background:var(--cream); outline:none; margin-bottom:8px; transition:border-color 0.3s; }
 .config-input:focus { border-color:var(--teal); }
 .config-hint { font-size:0.78rem; color:#aaa; margin-bottom:10px; line-height:1.4; }
@@ -204,39 +208,6 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
     <p>Add contacts and send invite texts</p>
   </div>
 
-  <!-- Configuration -->
-  <div class="config-section" id="configSection">
-    <h3>Setup</h3>
-    <div id="configLoading" style="text-align:center;padding:10px;color:#aaa;font-size:0.9rem;">Loading settings...</div>
-    <div id="configFields" style="display:none;">
-      <input type="hidden" id="eventId">
-      <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;">Zapier Webhook URL</label>
-      <input type="url" class="config-input" id="zapierUrl" placeholder="https://hooks.zapier.com/hooks/catch/...">
-      <p class="config-hint">Zapier webhook that receives {name, phone, inviteUrl} and sends an SMS.</p>
-      <input type="hidden" id="inviteUrl" value="https://ryvite.com">
-      <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;">Event Name</label>
-      <input type="text" class="config-input" id="eventName" placeholder="e.g. Rylan's 1st Birthday" oninput="updateInviteSlug()">
-      <p class="config-hint">Name your event — a unique invite link will be generated below.</p>
-      <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;">Invite Page URL</label>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <input type="text" class="config-input" id="inviteUrlDisplay" value="https://ryvite.com" readonly style="background:#f0ede5;color:#666;cursor:default;flex:1;margin-bottom:0;">
-        <button type="button" onclick="copyInviteUrl()" style="padding:8px 14px;border:2px solid var(--teal);background:white;color:var(--teal);border-radius:10px;font-family:'Fredoka',sans-serif;font-size:0.82rem;font-weight:500;cursor:pointer;white-space:nowrap;">Copy</button>
-      </div>
-      <p class="config-hint">Auto-generated from event name. Unique guest links are appended when sending invites.</p>
-
-      <!-- Custom RSVP Fields -->
-      <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;margin-top:12px;">RSVP Fields</label>
-      <p class="config-hint" style="margin-bottom:8px;">Define custom fields guests fill out when they RSVP (e.g. Adults, Kids, Dietary Needs).</p>
-      <div id="customFieldsList"></div>
-      <button type="button" class="add-field-btn" onclick="addCustomField()">+ Add Field</button>
-
-      <div style="display:flex;align-items:center;margin-top:16px;">
-        <button class="save-config-btn" onclick="saveConfig()">Save Settings</button>
-        <span class="config-saved" id="configSaved">Saved!</span>
-      </div>
-    </div>
-  </div>
-
   <!-- Tabs -->
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="add" onclick="switchTab('add')">Add Contacts</button>
@@ -354,6 +325,41 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
     </div>
   </div>
 
+  <!-- Configuration (collapsible, at bottom) -->
+  <div class="config-section" id="configSection">
+    <h3 onclick="toggleSetup()">Setup <span class="chevron">&#9660;</span></h3>
+    <div class="config-body">
+      <div id="configLoading" style="text-align:center;padding:10px;color:#aaa;font-size:0.9rem;">Loading settings...</div>
+      <div id="configFields" style="display:none;">
+        <input type="hidden" id="eventId">
+        <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;">Zapier Webhook URL</label>
+        <input type="url" class="config-input" id="zapierUrl" placeholder="https://hooks.zapier.com/hooks/catch/...">
+        <p class="config-hint">Zapier webhook that receives {name, phone, inviteUrl} and sends an SMS.</p>
+        <input type="hidden" id="inviteUrl" value="https://ryvite.com">
+        <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;">Event Name</label>
+        <input type="text" class="config-input" id="eventName" placeholder="e.g. Rylan's 1st Birthday" oninput="updateInviteSlug()">
+        <p class="config-hint">Name your event — a unique invite link will be generated below.</p>
+        <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;">Invite Page URL</label>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="text" class="config-input" id="inviteUrlDisplay" value="https://ryvite.com" readonly style="background:#f0ede5;color:#666;cursor:default;flex:1;margin-bottom:0;">
+          <button type="button" onclick="copyInviteUrl()" style="padding:8px 14px;border:2px solid var(--teal);background:white;color:var(--teal);border-radius:10px;font-family:'Fredoka',sans-serif;font-size:0.82rem;font-weight:500;cursor:pointer;white-space:nowrap;">Copy</button>
+        </div>
+        <p class="config-hint">Auto-generated from event name. Unique guest links are appended when sending invites.</p>
+
+        <!-- Custom RSVP Fields -->
+        <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;margin-top:12px;">RSVP Fields</label>
+        <p class="config-hint" style="margin-bottom:8px;">Define custom fields guests fill out when they RSVP (e.g. Adults, Kids, Dietary Needs).</p>
+        <div id="customFieldsList"></div>
+        <button type="button" class="add-field-btn" onclick="addCustomField()">+ Add Field</button>
+
+        <div style="display:flex;align-items:center;margin-top:16px;">
+          <button class="save-config-btn" onclick="saveConfig()">Save Settings</button>
+          <span class="config-saved" id="configSaved">Saved!</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <a href="index.html" class="back-link">&larr; Back to Invitation</a>
 </div>
 
@@ -398,6 +404,10 @@ function loadSettingsLocally() {
   try { return JSON.parse(localStorage.getItem(LOCAL_SETTINGS_KEY) || "null"); } catch (e) { return null; }
 }
 
+function toggleSetup() {
+  document.getElementById("configSection").classList.toggle("collapsed");
+}
+
 function applySettings(data) {
   if (data.eventId) {
     document.getElementById("eventId").value = data.eventId;
@@ -415,6 +425,10 @@ function applySettings(data) {
       { key: "adults", label: "Adults", type: "number" },
       { key: "kids", label: "Kids", type: "number" }
     ]);
+  }
+  // Auto-collapse setup when settings are loaded
+  if (data.eventId) {
+    document.getElementById("configSection").classList.add("collapsed");
   }
 }
 
