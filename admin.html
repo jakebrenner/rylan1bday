@@ -600,7 +600,7 @@ function renderSentList() {
 var guestData = [];
 var currentFilter = "all";
 
-async function fetchGuestList() {
+function fetchGuestList() {
   var config = getConfig();
   if (!config.scriptUrl) {
     showToast("Set your Google Apps Script URL in Setup first", "error");
@@ -611,23 +611,41 @@ async function fetchGuestList() {
   btn.disabled = true;
   icon.innerHTML = '<span class="spinner"></span>';
 
-  try {
-    var url = config.scriptUrl + "?action=guestList";
-    var resp = await fetch(url);
-    var data = await resp.json();
+  // Use JSONP to bypass CORS (Google Apps Script doesn't send CORS headers)
+  var callbackName = "_guestCb_" + Date.now();
+  var timeout = setTimeout(function() {
+    cleanup();
+    showToast("Request timed out. Check your Apps Script URL and redeploy.", "error");
+  }, 15000);
+
+  function cleanup() {
+    delete window[callbackName];
+    var old = document.getElementById("jsonp_guest");
+    if (old) old.remove();
+    btn.disabled = false;
+    icon.innerHTML = "&#8635;";
+  }
+
+  window[callbackName] = function(data) {
+    clearTimeout(timeout);
+    cleanup();
     guestData = parseGuestRows(data.guests || []);
     renderGuestStats();
     renderGuestList();
     document.getElementById("filterBar").style.display = "flex";
     document.getElementById("lastRefreshed").textContent = "Updated " + new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
     showToast("Guest list loaded!", "success");
-  } catch (err) {
-    console.error("Fetch guest list error", err);
-    showToast("Couldn't load guest list. Check your Apps Script URL and redeploy with doGet.", "error");
-  }
+  };
 
-  btn.disabled = false;
-  icon.innerHTML = "&#8635;";
+  var script = document.createElement("script");
+  script.id = "jsonp_guest";
+  script.src = config.scriptUrl + "?action=guestList&callback=" + callbackName;
+  script.onerror = function() {
+    clearTimeout(timeout);
+    cleanup();
+    showToast("Couldn't load guest list. Check your Apps Script URL and redeploy with doGet.", "error");
+  };
+  document.head.appendChild(script);
 }
 
 function parseGuestRows(rows) {
