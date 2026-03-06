@@ -159,8 +159,7 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
     <form id="rsvpForm">
       <div class="form-group"><label>Your Name</label><input type="text" name="name" required placeholder="First & Last Name"></div>
       <div class="form-group"><label>Will you be joining us?</label><div class="attendance-options"><div class="attendance-option"><input type="radio" name="attending" id="yes" value="Yes" required><label for="yes">Wouldn't miss it!</label></div><div class="attendance-option"><input type="radio" name="attending" id="no" value="No"><label for="no">Can't make it</label></div></div></div>
-      <div class="form-group"><label>Number of Adults</label><select name="adults"><option value="1">Just me</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option><option value="5+">5+</option></select></div>
-      <div class="form-group"><label>Number of Kids</label><select name="kids"><option value="0">None</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4+">4+</option></select></div>
+      <div id="customFieldsContainer"></div>
       <button type="submit" class="submit-btn">Send RSVP</button>
     </form>
     <div class="loading-message" id="loadingMsg" style="display:none;text-align:center;padding:30px 0;">
@@ -202,7 +201,72 @@ function hSVG(c){return '<svg viewBox="0 0 70 48" xmlns="http://www.w3.org/2000/
 for(var i=0;i<6;i++){var u=document.createElement("div");u.className="heli-unit";u.style.cssText="top:"+(3+i*17)+"%;animation-name:"+anims[i]+";animation-duration:"+(14+i*2+Math.random()*4)+"s;animation-delay:"+(i*2)+"s;";var b=document.createElement("div");b.className="heli-body";b.innerHTML=hSVG(heliC[i]);var c=document.createElement("div");c.className="heli-cable";var f=document.createElement("img");f.className="heli-face";f.src=faces[i];f.alt="Rylan";u.appendChild(b);u.appendChild(c);u.appendChild(f);hl.appendChild(u);}
 var bc=document.getElementById("balloons");for(var i=0;i<10;i++){var b=document.createElement("div");b.className="balloon";b.style.cssText="left:"+(5+Math.random()*90)+"%;background:"+colors[i%6]+";width:"+(35+Math.random()*20)+"px;height:"+(45+Math.random()*25)+"px;animation-duration:"+(14+Math.random()*10)+"s;animation-delay:"+(Math.random()*15)+"s;";bc.appendChild(b);}
 var cc=document.getElementById("confetti");for(var i=0;i<25;i++){var c=document.createElement("div");c.className="confetti-piece";var s=6+Math.random()*8;var r=Math.random()>0.5;c.style.cssText="left:"+(Math.random()*100)+"%;width:"+s+"px;height:"+(r?s:s*0.6)+"px;background:"+colors[Math.floor(Math.random()*6)]+";border-radius:"+(r?"50%":"2px")+";animation-duration:"+(8+Math.random()*8)+"s;animation-delay:"+(Math.random()*12)+"s;";cc.appendChild(c);}
-var form=document.getElementById("rsvpForm");var _urlParams=new URLSearchParams(window.location.search);var _guestId=_urlParams.get("id")||"";var _eventId=_urlParams.get("eid")||"";form.addEventListener("submit",function(e){e.preventDefault();var fd=new FormData(form);var d={action:"rsvp"};fd.forEach(function(v,k){d[k]=v;});if(_guestId)d.inviteUuid=_guestId;if(_eventId)d.eventUuid=_eventId;form.style.display="none";document.getElementById("loadingMsg").style.display="block";var URL="https://script.google.com/macros/s/AKfycbz782NeWmlTEyQqnpp4eseacAPc5ClXKVdV_Rxy8ZqapIjtzQAwFH4yyi-626apdsyQyw/exec";if(URL){fetch(URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify(d)}).then(function(){ok();}).catch(function(err){console.error("RSVP submission failed:",err);ok();});}else{ok();}});
+var SCRIPT_URL="https://script.google.com/macros/s/AKfycbzjNsNyDnBmG8tV89kIede13MUPz1nlC0p40tVP-TdU0saN3Wh4gNNhqUBKR28NxoshgA/exec";
+var _urlParams=new URLSearchParams(window.location.search);
+var _guestId=_urlParams.get("id")||"";
+var _eventId=_urlParams.get("eid")||"";
+var _customFields=[];
+
+// Load settings (including custom fields) from the sheet
+(function loadEventSettings(){
+  var cbName="_settingsCb_"+Date.now();
+  var timer=setTimeout(function(){delete window[cbName];var s=document.getElementById("jsonp_inv_settings");if(s)s.remove();renderDefaultFields();},8000);
+  window[cbName]=function(data){
+    clearTimeout(timer);delete window[cbName];var s=document.getElementById("jsonp_inv_settings");if(s)s.remove();
+    if(data&&data.customFields&&data.customFields.length){_customFields=data.customFields;renderCustomFieldInputs(_customFields);}
+    else{renderDefaultFields();}
+  };
+  var eid=_eventId?"&eventId="+encodeURIComponent(_eventId):"";
+  var s=document.createElement("script");s.id="jsonp_inv_settings";
+  s.src=SCRIPT_URL+"?action=getSettings&callback="+cbName+eid;
+  s.onerror=function(){clearTimeout(timer);delete window[cbName];s.remove();renderDefaultFields();};
+  document.head.appendChild(s);
+})();
+
+function renderDefaultFields(){
+  _customFields=[{key:"adults",label:"Number of Adults",type:"number"},{key:"kids",label:"Number of Kids",type:"number"}];
+  renderCustomFieldInputs(_customFields);
+}
+
+function renderCustomFieldInputs(fields){
+  var container=document.getElementById("customFieldsContainer");
+  container.innerHTML="";
+  fields.forEach(function(f){
+    var div=document.createElement("div");div.className="form-group";
+    var label=document.createElement("label");label.textContent=f.label;div.appendChild(label);
+    if(f.type==="number"){
+      var sel=document.createElement("select");sel.name="cf_"+f.key;
+      for(var i=0;i<=10;i++){var o=document.createElement("option");o.value=i;o.textContent=i;sel.appendChild(o);}
+      div.appendChild(sel);
+    }else if(f.type==="checkbox"){
+      var wrap=document.createElement("div");wrap.className="attendance-options";
+      wrap.innerHTML='<div class="attendance-option"><input type="radio" name="cf_'+f.key+'" id="cf_'+f.key+'_yes" value="Yes"><label for="cf_'+f.key+'_yes">Yes</label></div><div class="attendance-option"><input type="radio" name="cf_'+f.key+'" id="cf_'+f.key+'_no" value="No" checked><label for="cf_'+f.key+'_no">No</label></div>';
+      div.appendChild(wrap);
+    }else{
+      var inp=document.createElement("input");inp.type="text";inp.name="cf_"+f.key;inp.placeholder=f.label;div.appendChild(inp);
+    }
+    container.appendChild(div);
+  });
+}
+
+var form=document.getElementById("rsvpForm");
+form.addEventListener("submit",function(e){
+  e.preventDefault();
+  var fd=new FormData(form);
+  var name=fd.get("name")||"";
+  var attending=fd.get("attending")||"";
+  var responseData={};
+  _customFields.forEach(function(f){
+    var val=fd.get("cf_"+f.key);
+    if(val!==null)responseData[f.key]=val;
+  });
+  var d={action:"rsvp",name:name,attending:attending,responseData:responseData};
+  if(_guestId)d.inviteId=_guestId;
+  if(_eventId)d.eventId=_eventId;
+  form.style.display="none";
+  document.getElementById("loadingMsg").style.display="block";
+  fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify(d)}).then(function(){ok();}).catch(function(err){console.error("RSVP submission failed:",err);ok();});
+});
 function ok(){
   document.getElementById("loadingMsg").style.display="none";
   form.style.display="none";
