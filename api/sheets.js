@@ -6,34 +6,36 @@ export default async function handler(req, res) {
   }
 
   try {
+    let gasResponse;
+
     if (req.method === 'GET') {
-      // Forward query params to GAS
       const params = new URLSearchParams(req.query).toString();
       const url = GAS_URL + (params ? '?' + params : '');
-      const response = await fetch(url, { redirect: 'follow' });
-      const data = await response.json();
-      return res.status(200).json(data);
-    }
-
-    if (req.method === 'POST') {
-      // Forward POST body to GAS
-      const response = await fetch(GAS_URL, {
+      gasResponse = await fetch(url, { redirect: 'follow' });
+    } else if (req.method === 'POST') {
+      gasResponse = await fetch(GAS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
         body: typeof req.body === 'string' ? req.body : JSON.stringify(req.body),
         redirect: 'follow',
       });
-      const text = await response.text();
-      try {
-        return res.status(200).json(JSON.parse(text));
-      } catch {
-        return res.status(200).json({ status: 'ok', raw: text });
-      }
+    } else {
+      return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    return res.status(405).json({ error: 'Method not allowed' });
+    const text = await gasResponse.text();
+
+    // Try to parse as JSON
+    try {
+      const data = JSON.parse(text);
+      return res.status(200).json(data);
+    } catch {
+      // GAS might return HTML error page or unexpected format
+      console.error('GAS non-JSON response:', text.substring(0, 500));
+      return res.status(200).json({ status: 'ok', raw: text.substring(0, 200) });
+    }
   } catch (error) {
-    console.error('GAS proxy error:', error);
-    return res.status(502).json({ error: 'Failed to reach backend' });
+    console.error('GAS proxy error:', error.message || error);
+    return res.status(502).json({ error: 'Failed to reach backend', detail: error.message });
   }
 }
