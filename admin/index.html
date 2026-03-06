@@ -431,7 +431,7 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
 
 <script>
 // ---- Config & State ----
-var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyYKs6Id0zA7T3mWIoBn-hbD8u3dvKH62lOSi6xstr9kfm-YpWRsqI4ALuhlHYR6iCE6w/exec";
+var API_URL = "/api/sheets";
 var pendingContacts = [];
 var sentContacts = JSON.parse(localStorage.getItem("rylan_sent_contacts") || "[]");
 var currentEventId = "";
@@ -530,12 +530,12 @@ function saveConfig() {
   btn.disabled = true;
   btn.textContent = "Saving...";
 
-  fetch(SCRIPT_URL, {
+  fetch(API_URL, {
     method: "POST",
-    mode: "no-cors",
-    headers: { "Content-Type": "text/plain" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(Object.assign({ action: "saveSettings" }, settings))
-  }).then(function() {
+  }).then(function(res) { return res.json(); })
+  .then(function() {
     btn.disabled = false;
     btn.textContent = "Save Settings";
     var saved = document.getElementById("configSaved");
@@ -560,47 +560,23 @@ function loadConfig() {
   }
 
   // Then try to fetch from the sheet (will overwrite local if successful)
-  var callbackName = "_settingsCb_" + Date.now();
-  var timeout = setTimeout(function() {
-    delete window[callbackName];
-    var old = document.getElementById("jsonp_settings");
-    if (old) old.remove();
-    if (!local) {
-      document.getElementById("configLoading").textContent = "Couldn't load from sheet. Fill in and save to get started.";
-      document.getElementById("configFields").style.display = "block";
-    }
-  }, 10000);
-
-  window[callbackName] = function(data) {
-    clearTimeout(timeout);
-    delete window[callbackName];
-    var old = document.getElementById("jsonp_settings");
-    if (old) old.remove();
-
-    document.getElementById("configLoading").style.display = "none";
-    document.getElementById("configFields").style.display = "block";
-
-    // Only overwrite if the sheet actually has data
-    if (data.eventId) {
-      applySettings(data);
-      saveSettingsLocally(data);
-    }
-  };
-
-  var script = document.createElement("script");
-  script.id = "jsonp_settings";
   var eventParam = currentEventId ? "&eventId=" + encodeURIComponent(currentEventId) : "";
-  script.src = SCRIPT_URL + "?action=getSettings" + eventParam + "&callback=" + callbackName;
-  script.onerror = function() {
-    clearTimeout(timeout);
-    delete window[callbackName];
-    script.remove();
-    if (!local) {
-      document.getElementById("configLoading").textContent = "Couldn't load from sheet.";
+  fetch(API_URL + "?action=getSettings" + eventParam)
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      document.getElementById("configLoading").style.display = "none";
       document.getElementById("configFields").style.display = "block";
-    }
-  };
-  document.head.appendChild(script);
+      if (data.eventId) {
+        applySettings(data);
+        saveSettingsLocally(data);
+      }
+    })
+    .catch(function() {
+      if (!local) {
+        document.getElementById("configLoading").textContent = "Couldn't load from sheet.";
+        document.getElementById("configFields").style.display = "block";
+      }
+    });
 }
 
 function getConfig() {
@@ -608,7 +584,7 @@ function getConfig() {
     eventId: currentEventId || document.getElementById("eventId").value.trim(),
     zapierUrl: document.getElementById("zapierUrl").value.trim(),
     inviteUrl: document.getElementById("inviteUrl").value.trim(),
-    scriptUrl: SCRIPT_URL
+    scriptUrl: API_URL
   };
 }
 
@@ -941,10 +917,9 @@ async function sendAllInvites() {
 
     // 1. Add row to Google Sheet with Event UUID, Invite UUID, Status=Sent
     try {
-      await fetch(SCRIPT_URL, {
+      await fetch(API_URL, {
         method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "invite",
           eventId: config.eventId,
@@ -1056,42 +1031,24 @@ function fetchGuestList() {
   btn.disabled = true;
   icon.innerHTML = '<span class="spinner"></span>';
 
-  // Use JSONP to bypass CORS
-  var callbackName = "_guestCb_" + Date.now();
-  var timeout = setTimeout(function() {
-    cleanup();
-    showToast("Request timed out. Check your Apps Script deployment.", "error");
-  }, 15000);
-
-  function cleanup() {
-    delete window[callbackName];
-    var old = document.getElementById("jsonp_guest");
-    if (old) old.remove();
-    btn.disabled = false;
-    icon.innerHTML = "&#8635;";
-  }
-
-  window[callbackName] = function(data) {
-    clearTimeout(timeout);
-    cleanup();
-    guestData = parseGuestRows(data.guests || []);
-    renderGuestStats();
-    renderGuestList();
-    document.getElementById("filterBar").style.display = "flex";
-    document.getElementById("lastRefreshed").textContent = "Updated " + new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
-    showToast("Guest list loaded!", "success");
-  };
-
   var eventParam = config.eventId ? "&eventId=" + encodeURIComponent(config.eventId) : "";
-  var script = document.createElement("script");
-  script.id = "jsonp_guest";
-  script.src = SCRIPT_URL + "?action=guestList&callback=" + callbackName + eventParam;
-  script.onerror = function() {
-    clearTimeout(timeout);
-    cleanup();
-    showToast("Couldn't load guest list. Redeploy your Apps Script.", "error");
-  };
-  document.head.appendChild(script);
+  fetch(API_URL + "?action=guestList" + eventParam)
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      guestData = parseGuestRows(data.guests || []);
+      renderGuestStats();
+      renderGuestList();
+      document.getElementById("filterBar").style.display = "flex";
+      document.getElementById("lastRefreshed").textContent = "Updated " + new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
+      showToast("Guest list loaded!", "success");
+    })
+    .catch(function() {
+      showToast("Couldn't load guest list. Check your configuration.", "error");
+    })
+    .finally(function() {
+      btn.disabled = false;
+      icon.innerHTML = "&#8635;";
+    });
 }
 
 function parseGuestRows(rows) {
@@ -1208,30 +1165,14 @@ function showToast(msg, type) {
 function fetchAdmins() {
   if (!currentEventId) return;
 
-  var callbackName = "_adminsCb_" + Date.now();
-  var timeout = setTimeout(function() {
-    delete window[callbackName];
-    var old = document.getElementById("jsonp_admins");
-    if (old) old.remove();
-  }, 10000);
-
-  window[callbackName] = function(data) {
-    clearTimeout(timeout);
-    delete window[callbackName];
-    var old = document.getElementById("jsonp_admins");
-    if (old) old.remove();
-    renderAdminsList(data.admins || []);
-  };
-
-  var script = document.createElement("script");
-  script.id = "jsonp_admins";
-  script.src = SCRIPT_URL + "?action=getAdmins&eventId=" + encodeURIComponent(currentEventId) + "&callback=" + callbackName;
-  script.onerror = function() {
-    clearTimeout(timeout);
-    delete window[callbackName];
-    script.remove();
-  };
-  document.head.appendChild(script);
+  fetch(API_URL + "?action=getAdmins&eventId=" + encodeURIComponent(currentEventId))
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      renderAdminsList(data.admins || []);
+    })
+    .catch(function(err) {
+      console.error("fetchAdmins error", err);
+    });
 }
 
 function renderAdminsList(admins) {
@@ -1267,10 +1208,9 @@ function addAdmin() {
 
   var displayName = (adminFirst + " " + adminLast).trim();
 
-  fetch(SCRIPT_URL, {
+  fetch(API_URL, {
     method: "POST",
-    mode: "no-cors",
-    headers: { "Content-Type": "text/plain" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       action: "addAdmin",
       phone: normalizePhone(phone),
@@ -1278,13 +1218,13 @@ function addAdmin() {
       adminFirst: adminFirst,
       adminLast: adminLast
     })
-  }).then(function() {
+  }).then(function(res) { return res.json(); })
+  .then(function() {
     showToast(displayName ? displayName + " added as organizer!" : "Organizer added!", "success");
     document.getElementById("newAdminFirst").value = "";
     document.getElementById("newAdminLast").value = "";
     document.getElementById("newAdminPhone").value = "";
-    // Refresh admin list after a short delay (no-cors means we can't read response)
-    setTimeout(fetchAdmins, 1500);
+    fetchAdmins();
   }).catch(function(err) {
     showToast("Error adding organizer", "error");
     console.error("addAdmin error", err);
@@ -1294,18 +1234,18 @@ function addAdmin() {
 function removeAdmin(phone) {
   if (!confirm("Remove this organizer?")) return;
 
-  fetch(SCRIPT_URL, {
+  fetch(API_URL, {
     method: "POST",
-    mode: "no-cors",
-    headers: { "Content-Type": "text/plain" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       action: "removeAdmin",
       phone: normalizePhone(phone),
       eventId: currentEventId
     })
-  }).then(function() {
+  }).then(function(res) { return res.json(); })
+  .then(function() {
     showToast("Organizer removed", "success");
-    setTimeout(fetchAdmins, 1500);
+    fetchAdmins();
   }).catch(function(err) {
     showToast("Error removing organizer", "error");
     console.error("removeAdmin error", err);

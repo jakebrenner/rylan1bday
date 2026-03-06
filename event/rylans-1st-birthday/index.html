@@ -201,7 +201,7 @@ function hSVG(c){return '<svg viewBox="0 0 70 48" xmlns="http://www.w3.org/2000/
 for(var i=0;i<6;i++){var u=document.createElement("div");u.className="heli-unit";u.style.cssText="top:"+(3+i*17)+"%;animation-name:"+anims[i]+";animation-duration:"+(14+i*2+Math.random()*4)+"s;animation-delay:"+(i*2)+"s;";var b=document.createElement("div");b.className="heli-body";b.innerHTML=hSVG(heliC[i]);var c=document.createElement("div");c.className="heli-cable";var f=document.createElement("img");f.className="heli-face";f.src=faces[i];f.alt="Rylan";u.appendChild(b);u.appendChild(c);u.appendChild(f);hl.appendChild(u);}
 var bc=document.getElementById("balloons");for(var i=0;i<10;i++){var b=document.createElement("div");b.className="balloon";b.style.cssText="left:"+(5+Math.random()*90)+"%;background:"+colors[i%6]+";width:"+(35+Math.random()*20)+"px;height:"+(45+Math.random()*25)+"px;animation-duration:"+(14+Math.random()*10)+"s;animation-delay:"+(Math.random()*15)+"s;";bc.appendChild(b);}
 var cc=document.getElementById("confetti");for(var i=0;i<25;i++){var c=document.createElement("div");c.className="confetti-piece";var s=6+Math.random()*8;var r=Math.random()>0.5;c.style.cssText="left:"+(Math.random()*100)+"%;width:"+s+"px;height:"+(r?s:s*0.6)+"px;background:"+colors[Math.floor(Math.random()*6)]+";border-radius:"+(r?"50%":"2px")+";animation-duration:"+(8+Math.random()*8)+"s;animation-delay:"+(Math.random()*12)+"s;";cc.appendChild(c);}
-var SCRIPT_URL="https://script.google.com/macros/s/AKfycbyYKs6Id0zA7T3mWIoBn-hbD8u3dvKH62lOSi6xstr9kfm-YpWRsqI4ALuhlHYR6iCE6w/exec";
+var API_URL="/api/sheets";
 var _urlParams=new URLSearchParams(window.location.search);
 var _guestId=_urlParams.get("id")||"";
 var _eventId=_urlParams.get("eid")||"";
@@ -209,18 +209,14 @@ var _customFields=[];
 
 // Load settings (including custom fields) from the sheet
 (function loadEventSettings(){
-  var cbName="_settingsCb_"+Date.now();
-  var timer=setTimeout(function(){delete window[cbName];var s=document.getElementById("jsonp_inv_settings");if(s)s.remove();renderDefaultFields();},8000);
-  window[cbName]=function(data){
-    clearTimeout(timer);delete window[cbName];var s=document.getElementById("jsonp_inv_settings");if(s)s.remove();
-    if(data&&data.customFields&&data.customFields.length){_customFields=data.customFields;renderCustomFieldInputs(_customFields);}
-    else{renderDefaultFields();}
-  };
   var eid=_eventId?"&eventId="+encodeURIComponent(_eventId):"";
-  var s=document.createElement("script");s.id="jsonp_inv_settings";
-  s.src=SCRIPT_URL+"?action=getSettings&callback="+cbName+eid;
-  s.onerror=function(){clearTimeout(timer);delete window[cbName];s.remove();renderDefaultFields();};
-  document.head.appendChild(s);
+  fetch(API_URL+"?action=getSettings"+eid)
+    .then(function(res){return res.json();})
+    .then(function(data){
+      if(data&&data.customFields&&data.customFields.length){_customFields=data.customFields;renderCustomFieldInputs(_customFields);}
+      else{renderDefaultFields();}
+    })
+    .catch(function(){renderDefaultFields();});
 })();
 
 function renderDefaultFields(){
@@ -265,7 +261,7 @@ form.addEventListener("submit",function(e){
   if(_eventId)d.eventId=_eventId;
   form.style.display="none";
   document.getElementById("loadingMsg").style.display="block";
-  fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify(d)}).then(function(){ok();}).catch(function(err){console.error("RSVP submission failed:",err);ok();});
+  fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)}).then(function(){ok();}).catch(function(err){console.error("RSVP submission failed:",err);ok();});
 });
 function ok(){
   document.getElementById("loadingMsg").style.display="none";
