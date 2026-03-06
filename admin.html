@@ -448,6 +448,15 @@ function removePending(i) {
   renderPendingList();
 }
 
+// ---- UUID Generator ----
+function generateUUID() {
+  if (crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
 // ---- Send Invites ----
 async function sendAllInvites() {
   var config = getConfig();
@@ -473,11 +482,14 @@ async function sendAllInvites() {
   for (var i = 0; i < total; i++) {
     var contact = pendingContacts[i];
     var fullName = (contact.first + " " + contact.last).trim();
+    var uuid = generateUUID();
     text.textContent = "Sending to " + fullName + "... (" + (i + 1) + "/" + total + ")";
 
     var success = true;
+    var baseUrl = config.inviteUrl || window.location.href.replace("admin.html", "index.html");
+    var inviteLink = baseUrl + (baseUrl.indexOf("?") > -1 ? "&" : "?") + "id=" + uuid;
 
-    // 1. Add to Google Sheet (Contacts sheet)
+    // 1. Add row to Google Sheet with UUID and Status=Sent
     if (config.scriptUrl) {
       try {
         await fetch(config.scriptUrl, {
@@ -485,12 +497,10 @@ async function sendAllInvites() {
           mode: "no-cors",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({
-            sheetName: "Contacts",
+            action: "invite",
+            uuid: uuid,
             name: fullName,
-            firstName: contact.first,
-            lastName: contact.last,
-            phone: contact.phone,
-            inviteSentAt: new Date().toISOString()
+            phone: contact.phone
           })
         });
       } catch (err) {
@@ -498,7 +508,7 @@ async function sendAllInvites() {
       }
     }
 
-    // 2. Fire Zapier webhook to send SMS
+    // 2. Fire Zapier webhook to send SMS (with UUID invite link)
     try {
       await fetch(config.zapierUrl, {
         method: "POST",
@@ -509,7 +519,7 @@ async function sendAllInvites() {
           firstName: contact.first,
           lastName: contact.last,
           phone: contact.phone,
-          inviteUrl: config.inviteUrl || window.location.href.replace("admin.html", "index.html")
+          inviteUrl: inviteLink
         })
       });
     } catch (err) {
@@ -521,6 +531,7 @@ async function sendAllInvites() {
       first: contact.first,
       last: contact.last,
       phone: contact.phone,
+      uuid: uuid,
       sentAt: new Date().toISOString(),
       status: success ? "sent" : "failed"
     });
@@ -604,7 +615,7 @@ async function fetchGuestList() {
     var url = config.scriptUrl + "?action=guestList";
     var resp = await fetch(url);
     var data = await resp.json();
-    guestData = mergeGuestData(data.invites || [], data.rsvps || []);
+    guestData = parseGuestRows(data.guests || []);
     renderGuestStats();
     renderGuestList();
     document.getElementById("filterBar").style.display = "flex";
@@ -619,54 +630,27 @@ async function fetchGuestList() {
   icon.innerHTML = "&#8635;";
 }
 
-function mergeGuestData(invites, rsvps) {
-  // Build a map of guests keyed by normalized name
-  var guests = {};
+function parseGuestRows(rows) {
+  // Each row: { timestamp, uuid, name, status, adults, kids }
+  // Status values from sheet: "Sent", "Attending", "Not Attending"
+  return rows.map(function(r) {
+    var status = (r.status || "").toLowerCase().trim();
+    var rsvpStatus;
+    if (status === "attending") rsvpStatus = "yes";
+    else if (status === "not attending") rsvpStatus = "no";
+    else rsvpStatus = "pending"; // "Sent" or empty
 
-  invites.forEach(function(inv) {
-    var key = (inv.name || "").trim().toLowerCase();
-    if (!key) return;
-    guests[key] = {
-      name: inv.name || "",
-      firstName: inv.firstName || "",
-      lastName: inv.lastName || "",
-      phone: inv.phone || "",
-      invitedAt: inv.inviteSentAt || inv.timestamp || "",
-      rsvpStatus: "pending",
-      adults: "",
-      kids: "",
-      rsvpAt: ""
+    return {
+      name: r.name || "",
+      uuid: r.uuid || "",
+      phone: r.phone || "",
+      invitedAt: r.timestamp || "",
+      rsvpStatus: rsvpStatus,
+      adults: r.adults || "",
+      kids: r.kids || ""
     };
-  });
-
-  rsvps.forEach(function(r) {
-    var key = (r.name || "").trim().toLowerCase();
-    if (!key) return;
-    if (guests[key]) {
-      // Match found - update RSVP info
-      guests[key].rsvpStatus = (r.attending || "").toLowerCase() === "yes" ? "yes" : "no";
-      guests[key].adults = r.adults || "";
-      guests[key].kids = r.kids || "";
-      guests[key].rsvpAt = r.timestamp || "";
-    } else {
-      // RSVP'd but not in invite log (walked-in / direct link)
-      guests[key] = {
-        name: r.name || "",
-        firstName: "",
-        lastName: "",
-        phone: "",
-        invitedAt: "",
-        rsvpStatus: (r.attending || "").toLowerCase() === "yes" ? "yes" : "no",
-        adults: r.adults || "",
-        kids: r.kids || "",
-        rsvpAt: r.timestamp || ""
-      };
-    }
-  });
-
-  // Convert to array and sort: coming first, then pending, then declined
-  var order = { yes: 0, pending: 1, no: 2 };
-  return Object.values(guests).sort(function(a, b) {
+  }).sort(function(a, b) {
+    var order = { yes: 0, pending: 1, no: 2 };
     return (order[a.rsvpStatus] || 1) - (order[b.rsvpStatus] || 1);
   });
 }
@@ -709,9 +693,8 @@ function renderGuestList() {
     var item = document.createElement("div");
     item.className = "guest-item";
 
-    var initials = ((g.name || "?")[0] || "?").toUpperCase();
-    if (g.firstName && g.lastName) initials = g.firstName[0].toUpperCase() + g.lastName[0].toUpperCase();
-    else if (g.name) {
+    var initials = "?";
+    if (g.name) {
       var parts = g.name.trim().split(" ");
       initials = parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : parts[0][0].toUpperCase();
     }
