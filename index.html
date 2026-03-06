@@ -3,25 +3,412 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ryvite - Beautiful Event Invitations</title>
+<title>Ryvite — Prompt to Party</title>
+<meta name="description" content="AI-powered invitations. Free for now. Beautiful forever. It started as a birthday invite for a 1-year-old. It became a completely over-engineered labor of love.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
-:root { --coral:#E87758; --mustard:#E4BA42; --teal:#58A6A4; --sage:#9CB482; --orange:#ED923C; --cream:#FDF8F0; --dark:#3A3A3A; }
+:root {
+  --party-coral: #E94560;
+  --blush-pop: #FF6B6B;
+  --midnight: #1A1A2E;
+  --confetti-gold: #FFB74D;
+  --mint-fizz: #4ECDC4;
+  --party-purple: #A78BFA;
+  --cream: #FFFAF5;
+  --warm-canvas: #FFF5E6;
+  --slate: #6B7280;
+  --slate-light: #D1D5DB;
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Inter', sans-serif;
+  --transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-smooth: all 0.6s ease-out;
+}
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Fredoka',sans-serif; background:var(--cream); color:var(--dark); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
-.landing { text-align:center; max-width:500px; }
-.logo { font-family:'Playfair Display',serif; font-size:3rem; color:var(--coral); margin-bottom:8px; }
-.tagline { color:#999; font-size:1.1rem; margin-bottom:40px; }
-.coming-soon { display:inline-block; padding:12px 32px; background:linear-gradient(135deg,var(--teal),var(--sage)); color:white; border-radius:14px; font-size:1rem; font-weight:600; letter-spacing:1px; }
-.footer { margin-top:60px; color:#ccc; font-size:0.85rem; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--font-body); color: var(--midnight); background: white; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-height: 1.2; }
+
+/* ===== NAV ===== */
+.nav { position: fixed; top:0; left:0; right:0; z-index:100; padding:1rem 2rem; display:flex; align-items:center; justify-content:space-between; transition: background 0.3s, box-shadow 0.3s; }
+.nav.scrolled { background: rgba(26,26,46,0.95); backdrop-filter: blur(10px); box-shadow: 0 2px 20px rgba(0,0,0,0.2); }
+.nav-logo { font-family: var(--font-display); font-size:1.4rem; font-weight:700; color:white; text-decoration:none; }
+.nav-cta { padding:0.6rem 1.4rem; background:linear-gradient(135deg, var(--party-coral), var(--blush-pop)); color:white; border:none; border-radius:50px; font-family:var(--font-body); font-size:0.85rem; font-weight:600; cursor:pointer; text-decoration:none; transition: var(--transition); }
+.nav-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(233,69,96,0.4); }
+
+/* ===== HERO ===== */
+.hero { background: linear-gradient(135deg, var(--midnight) 0%, #0f3460 100%); color: white; padding: 10rem 2rem 8rem; text-align: center; position: relative; overflow: hidden; }
+.hero::before { content:''; position:absolute; top:-50%; right:-10%; width:600px; height:600px; background:radial-gradient(circle, rgba(255,183,77,0.12) 0%, transparent 70%); border-radius:50%; }
+.hero::after { content:''; position:absolute; bottom:-30%; left:-5%; width:500px; height:500px; background:radial-gradient(circle, rgba(233,69,96,0.1) 0%, transparent 70%); border-radius:50%; }
+.hero-content { position:relative; z-index:2; max-width:800px; margin:0 auto; }
+.hero-badge { display:inline-block; background:rgba(255,183,77,0.2); color:var(--confetti-gold); padding:0.6rem 1.4rem; border-radius:50px; font-size:0.8rem; font-weight:600; margin-bottom:2rem; border:1px solid rgba(255,183,77,0.3); letter-spacing:0.5px; }
+.hero h1 { font-size:4rem; margin-bottom:0.75rem; letter-spacing:-1px; }
+.hero .tagline { font-size:1.5rem; color:rgba(255,255,255,0.9); margin-bottom:1rem; font-weight:300; }
+.hero .subtext { font-size:1.05rem; color:rgba(255,255,255,0.7); margin-bottom:0.5rem; max-width:550px; margin-left:auto; margin-right:auto; }
+.hero .origin { font-size:0.9rem; color:rgba(255,183,77,0.85); font-style:italic; margin-bottom:2.5rem; }
+.hero-cta { display:inline-block; background:linear-gradient(135deg, var(--party-coral), var(--blush-pop)); color:white; padding:1rem 2.5rem; border-radius:50px; font-weight:600; text-decoration:none; font-size:1.05rem; transition:var(--transition); box-shadow:0 10px 30px rgba(233,69,96,0.3); border:none; cursor:pointer; font-family:var(--font-body); }
+.hero-cta:hover { transform:translateY(-3px); box-shadow:0 15px 45px rgba(233,69,96,0.5); }
+
+/* ===== MARQUEE ===== */
+.marquee { background:var(--party-coral); color:white; padding:1.25rem 0; overflow:hidden; }
+.marquee-track { display:flex; animation:marquee-scroll 25s linear infinite; white-space:nowrap; gap:2.5rem; }
+.marquee-item { font-size:1rem; font-weight:600; flex-shrink:0; display:flex; align-items:center; gap:0.75rem; }
+.marquee-item::before { content:''; font-size:1.2rem; }
+@keyframes marquee-scroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+/* ===== SECTIONS ===== */
+.section { padding:6rem 2rem; }
+.container { max-width:1100px; margin:0 auto; }
+.section-label { font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:2px; color:var(--party-coral); margin-bottom:0.75rem; }
+.section-title { font-size:2.75rem; margin-bottom:1rem; }
+.section-subtitle { font-size:1.1rem; color:var(--slate); max-width:600px; line-height:1.7; }
+.section-subtitle.center { margin:0 auto; text-align:center; }
+
+/* ===== HOW IT WORKS ===== */
+.how-section { background:var(--cream); }
+.steps-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:2rem; margin-top:3.5rem; }
+.step-card { text-align:center; padding:2rem 1.5rem; }
+.step-num { display:inline-flex; align-items:center; justify-content:center; width:56px; height:56px; border-radius:50%; font-family:var(--font-display); font-size:1.5rem; font-weight:700; margin-bottom:1.25rem; }
+.step-card:nth-child(1) .step-num { background:linear-gradient(135deg, var(--party-coral), var(--blush-pop)); color:white; }
+.step-card:nth-child(2) .step-num { background:linear-gradient(135deg, var(--confetti-gold), #FFD89B); color:var(--midnight); }
+.step-card:nth-child(3) .step-num { background:linear-gradient(135deg, var(--mint-fizz), #4DBDAD); color:white; }
+.step-card:nth-child(4) .step-num { background:linear-gradient(135deg, var(--party-purple), #8B7FD6); color:white; }
+.step-card h4 { font-size:1.25rem; margin-bottom:0.75rem; }
+.step-card p { font-size:0.9rem; color:var(--slate); line-height:1.6; }
+
+/* ===== STORY ===== */
+.story-section { background:var(--midnight); color:white; }
+.story-section .section-label { color:var(--confetti-gold); }
+.story-text { max-width:700px; margin:2rem auto 0; }
+.story-text p { color:rgba(255,255,255,0.7); line-height:1.9; margin-bottom:1.25rem; font-size:0.95rem; }
+.story-text em { color:var(--confetti-gold); font-style:italic; }
+.donation-badge { display:inline-flex; align-items:center; gap:0.5rem; padding:0.6rem 1.25rem; background:rgba(255,183,77,0.15); border:1px solid rgba(255,183,77,0.3); border-radius:100px; font-size:0.85rem; color:var(--confetti-gold); font-weight:600; margin-top:0.5rem; }
+
+/* ===== FEATURES ===== */
+.features-section { background:var(--warm-canvas); }
+.features-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:2rem; margin-top:3rem; }
+.feature-card { background:white; border-radius:16px; padding:2.5rem 2rem; box-shadow:0 4px 20px rgba(0,0,0,0.04); border:1px solid rgba(0,0,0,0.04); transition:var(--transition); }
+.feature-card:hover { transform:translateY(-6px); box-shadow:0 20px 50px rgba(0,0,0,0.08); }
+.feature-icon { width:52px; height:52px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; margin-bottom:1.25rem; }
+.feature-card:nth-child(1) .feature-icon { background:linear-gradient(135deg, rgba(233,69,96,0.1), rgba(255,107,107,0.1)); }
+.feature-card:nth-child(2) .feature-icon { background:linear-gradient(135deg, rgba(255,183,77,0.15), rgba(255,216,155,0.1)); }
+.feature-card:nth-child(3) .feature-icon { background:linear-gradient(135deg, rgba(78,205,196,0.1), rgba(77,189,173,0.1)); }
+.feature-card:nth-child(4) .feature-icon { background:linear-gradient(135deg, rgba(167,139,250,0.1), rgba(139,127,214,0.1)); }
+.feature-card:nth-child(5) .feature-icon { background:linear-gradient(135deg, rgba(233,69,96,0.1), rgba(255,107,107,0.1)); }
+.feature-card:nth-child(6) .feature-icon { background:linear-gradient(135deg, rgba(255,183,77,0.15), rgba(255,216,155,0.1)); }
+.feature-card h4 { font-size:1.15rem; margin-bottom:0.6rem; }
+.feature-card p { font-size:0.9rem; color:var(--slate); line-height:1.6; margin:0; }
+
+/* ===== CTA / CONTACT ===== */
+.cta-section { background:linear-gradient(135deg, var(--midnight) 0%, #0f3460 100%); color:white; position:relative; overflow:hidden; }
+.cta-section::before { content:''; position:absolute; top:-40%; right:-10%; width:500px; height:500px; background:radial-gradient(circle, rgba(233,69,96,0.08) 0%, transparent 70%); border-radius:50%; }
+.cta-inner { display:grid; grid-template-columns:1fr 1fr; gap:4rem; align-items:center; position:relative; z-index:2; }
+.cta-left h2 { font-size:2.5rem; margin-bottom:1rem; line-height:1.15; }
+.cta-left p { color:rgba(255,255,255,0.7); font-size:1rem; line-height:1.7; margin-bottom:1.5rem; }
+.cta-left .cta-note { font-size:0.85rem; color:var(--confetti-gold); font-style:italic; }
+.contact-form { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:20px; padding:2.5rem; }
+.contact-form h3 { font-size:1.4rem; margin-bottom:0.5rem; text-align:center; }
+.contact-form .form-sub { text-align:center; font-size:0.85rem; color:rgba(255,255,255,0.5); margin-bottom:1.75rem; }
+.form-group { margin-bottom:1rem; }
+.form-group label { display:block; font-size:0.8rem; font-weight:600; color:rgba(255,255,255,0.6); margin-bottom:0.4rem; text-transform:uppercase; letter-spacing:0.5px; }
+.form-group input, .form-group textarea { width:100%; padding:0.85rem 1rem; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:10px; color:white; font-family:var(--font-body); font-size:0.95rem; outline:none; transition:border-color 0.3s; }
+.form-group input::placeholder, .form-group textarea::placeholder { color:rgba(255,255,255,0.3); }
+.form-group input:focus, .form-group textarea:focus { border-color:var(--party-coral); }
+.form-group textarea { resize:vertical; min-height:80px; }
+.submit-btn { width:100%; padding:1rem; background:linear-gradient(135deg, var(--party-coral), var(--blush-pop)); color:white; border:none; border-radius:12px; font-family:var(--font-body); font-size:1rem; font-weight:600; cursor:pointer; transition:var(--transition); margin-top:0.5rem; }
+.submit-btn:hover { transform:translateY(-2px); box-shadow:0 10px 30px rgba(233,69,96,0.4); }
+.submit-btn:disabled { opacity:0.6; cursor:not-allowed; transform:none; box-shadow:none; }
+.form-success { display:none; text-align:center; padding:2rem 1rem; }
+.form-success .check { font-size:3rem; margin-bottom:1rem; }
+.form-success h4 { font-size:1.3rem; margin-bottom:0.5rem; }
+.form-success p { font-size:0.9rem; color:rgba(255,255,255,0.6); margin:0; }
+.form-error { display:none; text-align:center; padding:0.75rem; background:rgba(220,38,38,0.15); border:1px solid rgba(220,38,38,0.3); border-radius:8px; color:#ff6b6b; font-size:0.85rem; margin-bottom:1rem; }
+
+/* ===== FOOTER ===== */
+.site-footer { background:var(--midnight); color:white; padding:3rem 2rem; text-align:center; border-top:1px solid rgba(255,255,255,0.06); }
+.footer-logo { font-family:var(--font-display); font-size:1.5rem; font-weight:700; margin-bottom:0.5rem; }
+.footer-tagline { font-size:0.85rem; color:rgba(255,255,255,0.5); margin-bottom:1.5rem; }
+.footer-links { display:flex; justify-content:center; gap:2rem; flex-wrap:wrap; margin-bottom:2rem; }
+.footer-links a { color:var(--confetti-gold); text-decoration:none; font-size:0.9rem; font-weight:500; transition:color 0.3s; }
+.footer-links a:hover { color:var(--party-coral); }
+.footer-bottom { padding-top:1.5rem; border-top:1px solid rgba(255,255,255,0.06); }
+.footer-bottom p { font-size:0.78rem; color:rgba(255,255,255,0.35); margin-bottom:0.25rem; }
+
+/* ===== SCROLL REVEAL ===== */
+.scroll-reveal { opacity:0; transform:translateY(30px); transition:var(--transition-smooth); }
+.scroll-reveal.visible { opacity:1; transform:translateY(0); }
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeInUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+.fade-in-up { animation: fadeInUp 0.8s ease-out both; }
+.fade-delay-1 { animation-delay: 0.15s; }
+.fade-delay-2 { animation-delay: 0.3s; }
+.fade-delay-3 { animation-delay: 0.45s; }
+.fade-delay-4 { animation-delay: 0.6s; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 900px) {
+  .steps-grid { grid-template-columns: repeat(2, 1fr); }
+  .features-grid { grid-template-columns: repeat(2, 1fr); }
+  .cta-inner { grid-template-columns: 1fr; gap:2.5rem; }
+}
+@media (max-width: 600px) {
+  .hero { padding:8rem 1.5rem 5rem; }
+  .hero h1 { font-size:2.5rem; }
+  .hero .tagline { font-size:1.15rem; }
+  .section { padding:4rem 1.5rem; }
+  .section-title { font-size:2rem; }
+  .steps-grid { grid-template-columns: 1fr 1fr; gap:1.25rem; }
+  .features-grid { grid-template-columns: 1fr; }
+  .nav { padding:0.75rem 1.25rem; }
+  .cta-left h2 { font-size:2rem; }
+  .contact-form { padding:1.75rem; }
+}
 </style>
 </head>
 <body>
-<div class="landing">
-  <h1 class="logo">Ryvite</h1>
-  <p class="tagline">Beautiful event invitations, effortlessly.</p>
-  <span class="coming-soon">Coming Soon</span>
-  <p class="footer">Made with love by Dada</p>
+
+<!-- Nav -->
+<nav class="nav" id="nav">
+  <a href="/" class="nav-logo">Ryvite</a>
+  <a href="#contact" class="nav-cta">Want Your Own Invite?</a>
+</nav>
+
+<!-- Hero -->
+<section class="hero" id="top">
+  <div class="hero-content">
+    <div class="hero-badge fade-in-up">AI-Powered Invitations</div>
+    <h1 class="fade-in-up fade-delay-1">Ryvite</h1>
+    <p class="tagline fade-in-up fade-delay-2">Prompt to Party</p>
+    <p class="subtext fade-in-up fade-delay-3">Beautiful, custom invitations generated by AI. Free for now. Beautiful forever.</p>
+    <p class="origin fade-in-up fade-delay-3">It started as a birthday invite for a 1-year-old. It became a completely over-engineered labor of love.</p>
+    <a href="#contact" class="hero-cta fade-in-up fade-delay-4">Get Your Invite</a>
+  </div>
+</section>
+
+<!-- Marquee -->
+<div class="marquee">
+  <div class="marquee-track">
+    <span class="marquee-item">Prompt to Party</span>
+    <span class="marquee-item">Every Moment Deserves Beauty</span>
+    <span class="marquee-item">AI-Powered Invitations</span>
+    <span class="marquee-item">Free for Now</span>
+    <span class="marquee-item">Totally Over-Engineered</span>
+    <span class="marquee-item">Prompt to Party</span>
+    <span class="marquee-item">Every Moment Deserves Beauty</span>
+    <span class="marquee-item">AI-Powered Invitations</span>
+    <span class="marquee-item">Free for Now</span>
+    <span class="marquee-item">Totally Over-Engineered</span>
+  </div>
 </div>
+
+<!-- How It Works -->
+<section class="section how-section" id="how">
+  <div class="container">
+    <div style="text-align:center;">
+      <p class="section-label scroll-reveal">How It Works</p>
+      <h2 class="section-title scroll-reveal">From Idea to Invite in Minutes</h2>
+      <p class="section-subtitle center scroll-reveal">No templates. No limitations. Just describe what you want and let AI create something beautiful.</p>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card scroll-reveal">
+        <div class="step-num">1</div>
+        <h4>Prompt It</h4>
+        <p>Tell us the vibe. Describe the theme, the mood, the energy. Our AI understands celebration in all its forms.</p>
+      </div>
+      <div class="step-card scroll-reveal">
+        <div class="step-num">2</div>
+        <h4>Inspire It</h4>
+        <p>Upload reference images and mood boards. Your photos guide the design so every invite reflects your vision.</p>
+      </div>
+      <div class="step-card scroll-reveal">
+        <div class="step-num">3</div>
+        <h4>Send It</h4>
+        <p>Instantly generate a fully custom invite. Share via text, email, or social. Your guests get the magic instantly.</p>
+      </div>
+      <div class="step-card scroll-reveal">
+        <div class="step-num">4</div>
+        <h4>Celebrate It</h4>
+        <p>Track RSVPs, manage your guest list, and focus on the moment. Every detail handled, beautifully.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Story -->
+<section class="section story-section" id="story">
+  <div class="container" style="text-align:center;">
+    <p class="section-label scroll-reveal">The Origin Story</p>
+    <h2 class="section-title scroll-reveal" style="color:white;">It Started with a Birthday Party</h2>
+    <div class="story-text scroll-reveal">
+      <p>Rylan was turning 1, and his dad needed an invite. <em>How hard could it be?</em></p>
+      <p>Turns out, $8 per invite on Paperless Post hard. Or "pick from 200 of the same template" hard. So instead of just making the invite, dad opened Claude, described the vibe, uploaded a few inspiration photos, and got back a fully custom, beautifully designed HTML invitation in about 90 seconds. It looked better than anything on the premium platforms. And it was free.</p>
+      <p>That should have been the end of it. Make the invite. Send the invite. Eat the cake. But instead, the thought crept in: <em>"What if everyone could do this?"</em> And then the completely over-engineered fun project began.</p>
+      <p>Ryvite is free for now because beautiful invitations shouldn't cost $8 a pop. If you love what we're building, donations go to Rylan's college fund.</p>
+      <div class="donation-badge">&#127891; Free for now &mdash; donations accepted for Rylan's college fund</div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="section features-section" id="features">
+  <div class="container">
+    <div style="text-align:center;">
+      <p class="section-label scroll-reveal">Features</p>
+      <h2 class="section-title scroll-reveal">Everything You Need to Celebrate</h2>
+      <p class="section-subtitle center scroll-reveal">No design skills required. No templates to fight with. Just your vision, beautifully realized.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card scroll-reveal">
+        <div class="feature-icon">&#10024;</div>
+        <h4>AI-Generated Design</h4>
+        <p>Describe your event and get a fully custom HTML invitation designed by AI in seconds.</p>
+      </div>
+      <div class="feature-card scroll-reveal">
+        <div class="feature-icon">&#128247;</div>
+        <h4>Photo-Guided</h4>
+        <p>Upload inspiration photos or mood boards and watch your vision come to life.</p>
+      </div>
+      <div class="feature-card scroll-reveal">
+        <div class="feature-icon">&#128203;</div>
+        <h4>RSVP Tracking</h4>
+        <p>Built-in RSVP management with real-time guest tracking and custom response fields.</p>
+      </div>
+      <div class="feature-card scroll-reveal">
+        <div class="feature-icon">&#128241;</div>
+        <h4>Mobile-First</h4>
+        <p>Every invite looks stunning on any device. No pinching or zooming required.</p>
+      </div>
+      <div class="feature-card scroll-reveal">
+        <div class="feature-icon">&#128279;</div>
+        <h4>Unique Guest Links</h4>
+        <p>Each guest gets their own personal invite link for seamless RSVP tracking.</p>
+      </div>
+      <div class="feature-card scroll-reveal">
+        <div class="feature-icon">&#127881;</div>
+        <h4>Completely Free</h4>
+        <p>No subscriptions, no per-invite fees, no hidden costs. Just beautiful invitations.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Contact CTA -->
+<section class="section cta-section" id="contact">
+  <div class="container">
+    <div class="cta-inner">
+      <div class="cta-left scroll-reveal">
+        <p class="section-label" style="color:var(--confetti-gold);">Get Started</p>
+        <h2>Want Your Own Invite?</h2>
+        <p>Tell us about your event and we'll get back to you with a custom, AI-generated invitation that's uniquely yours. No templates. No fees. Just magic.</p>
+        <p class="cta-note">We'll reach out within 24 hours to get your invite started.</p>
+      </div>
+      <div class="scroll-reveal">
+        <div class="contact-form" id="contactFormCard">
+          <h3>Let's Make It</h3>
+          <p class="form-sub">Tell us about your event</p>
+          <div class="form-error" id="formError"></div>
+          <form id="contactForm">
+            <div class="form-group">
+              <label for="contactName">Your Name</label>
+              <input type="text" id="contactName" name="name" placeholder="First & Last Name" required>
+            </div>
+            <div class="form-group">
+              <label for="contactEmail">Email</label>
+              <input type="email" id="contactEmail" name="email" placeholder="you@email.com" required>
+            </div>
+            <div class="form-group">
+              <label for="contactPhone">Phone</label>
+              <input type="tel" id="contactPhone" name="phone" placeholder="(555) 123-4567" required>
+            </div>
+            <div class="form-group">
+              <label for="contactEvent">Tell Us About Your Event</label>
+              <textarea id="contactEvent" name="event" placeholder="What's the occasion? Any theme or vibe in mind?" required></textarea>
+            </div>
+            <button type="submit" class="submit-btn" id="submitBtn">Send Request</button>
+          </form>
+          <div class="form-success" id="formSuccess">
+            <div class="check">&#127881;</div>
+            <h4>Request Sent!</h4>
+            <p>We'll be in touch within 24 hours to get your invite started.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-logo">Ryvite</div>
+    <p class="footer-tagline">Prompt to Party</p>
+    <div class="footer-links">
+      <a href="#how">How It Works</a>
+      <a href="#story">Our Story</a>
+      <a href="#features">Features</a>
+      <a href="#contact">Get Your Invite</a>
+    </div>
+    <div class="footer-bottom">
+      <p>Free for now. Donations accepted for Rylan's college fund. &#127891;</p>
+      <p>Built with love, AI, and a completely unreasonable amount of engineering for a birthday party.</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Nav scroll effect
+var nav = document.getElementById("nav");
+window.addEventListener("scroll", function() {
+  nav.classList.toggle("scrolled", window.scrollY > 60);
+});
+
+// Scroll reveal
+var observer = new IntersectionObserver(function(entries) {
+  entries.forEach(function(entry) {
+    if (entry.isIntersecting) {
+      entry.target.classList.add("visible");
+      observer.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.1, rootMargin: "0px 0px -80px 0px" });
+document.querySelectorAll(".scroll-reveal").forEach(function(el) {
+  observer.observe(el);
+});
+
+// Contact form
+document.getElementById("contactForm").addEventListener("submit", function(e) {
+  e.preventDefault();
+  var btn = document.getElementById("submitBtn");
+  var errEl = document.getElementById("formError");
+  errEl.style.display = "none";
+  btn.disabled = true;
+  btn.textContent = "Sending...";
+
+  var data = {
+    name: document.getElementById("contactName").value.trim(),
+    email: document.getElementById("contactEmail").value.trim(),
+    phone: document.getElementById("contactPhone").value.trim(),
+    event: document.getElementById("contactEvent").value.trim()
+  };
+
+  fetch("/api/contact", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  }).then(function(res) {
+    if (!res.ok) throw new Error("Failed to send");
+    document.getElementById("contactForm").style.display = "none";
+    document.getElementById("formSuccess").style.display = "block";
+  }).catch(function(err) {
+    btn.disabled = false;
+    btn.textContent = "Send Request";
+    errEl.textContent = "Something went wrong. Please try again or email jake@getmrkt.com directly.";
+    errEl.style.display = "block";
+  });
+});
+</script>
 </body>
 </html>
