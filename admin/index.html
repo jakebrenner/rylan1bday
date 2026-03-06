@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rylan's Party - Admin</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+:root { --coral:#E87758; --mustard:#E4BA42; --teal:#58A6A4; --sage:#9CB482; --orange:#ED923C; --blue:#6495C7; --cream:#FDF8F0; --dark:#3A3A3A; --light-sage:#E8EDDF; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dark); min-height:100vh; display:flex; justify-content:center; padding:16px; }
+.admin-frame { width:100%; max-width:600px; background:var(--cream); border:6px solid var(--sage); border-radius:24px; box-shadow:0 0 0 4px white,0 0 0 10px var(--sage),0 12px 40px rgba(0,0,0,0.15); overflow:hidden; padding:30px 25px; }
+
+/* Login gate */
+.login-section { max-width:400px; margin:60px auto; text-align:center; }
+.login-section h1 { font-family:'Playfair Display',serif; font-size:2rem; color:var(--coral); margin-bottom:8px; }
+.login-section p { color:#888; font-size:0.95rem; margin-bottom:30px; }
+.login-input { width:100%; padding:14px 18px; border:2px solid #e8e8e0; border-radius:12px; font-family:'Fredoka',sans-serif; font-size:1rem; background:white; outline:none; transition:border-color 0.3s; text-align:center; }
+.login-input:focus { border-color:var(--teal); }
+.login-btn { width:100%; padding:14px; background:linear-gradient(135deg,var(--teal),var(--sage)); color:white; border:none; border-radius:14px; font-family:'Fredoka',sans-serif; font-size:1.1rem; font-weight:600; cursor:pointer; margin-top:12px; transition:all 0.3s; }
+.login-btn:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(88,166,164,0.4); }
+.login-error { color:var(--coral); font-size:0.85rem; margin-top:10px; display:none; }
+
+/* Admin panel */
+.admin-panel { display:none; }
+.admin-header { text-align:center; margin-bottom:25px; }
+.admin-header h1 { font-family:'Playfair Display',serif; font-size:1.8rem; color:var(--coral); }
+.admin-header p { color:#888; font-size:0.9rem; margin-top:4px; }
+
+/* Config section */
+.config-section { background:white; border-radius:16px; padding:20px; margin-bottom:20px; border:2px solid var(--light-sage); }
+.config-section h3 { font-size:1rem; color:var(--teal); margin-bottom:12px; display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; }
+.config-section h3::before { content:''; display:inline-block; width:4px; height:18px; background:var(--teal); border-radius:2px; }
+.config-section h3 .chevron { margin-left:auto; font-size:0.75rem; transition:transform 0.3s; }
+.config-section.collapsed h3 { margin-bottom:0; }
+.config-section.collapsed .config-body { display:none; }
+.config-section.collapsed h3 .chevron { transform:rotate(-90deg); }
+.config-input { width:100%; padding:10px 14px; border:2px solid #e8e8e0; border-radius:10px; font-family:'Fredoka',sans-serif; font-size:0.9rem; background:var(--cream); outline:none; margin-bottom:8px; transition:border-color 0.3s; }
+.config-input:focus { border-color:var(--teal); }
+.config-hint { font-size:0.78rem; color:#aaa; margin-bottom:10px; line-height:1.4; }
+.save-config-btn { padding:10px 24px; background:var(--teal); color:white; border:none; border-radius:10px; font-family:'Fredoka',sans-serif; font-size:0.9rem; font-weight:500; cursor:pointer; transition:all 0.2s; }
+.save-config-btn:hover { background:#4a9290; }
+.config-saved { color:var(--sage); font-size:0.85rem; margin-left:10px; display:none; }
+
+/* Custom Fields Editor */
+.custom-field-row { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
+.custom-field-row input, .custom-field-row select { padding:8px 10px; border:2px solid #e8e8e0; border-radius:8px; font-family:'Fredoka',sans-serif; font-size:0.85rem; }
+.custom-field-row input[type="text"] { flex:1; min-width:0; }
+.custom-field-row select { width:100px; }
+.custom-field-row .remove-field-btn { background:none; border:none; color:#ccc; font-size:1.2rem; cursor:pointer; padding:4px 6px; }
+.custom-field-row .remove-field-btn:hover { color:var(--coral); }
+.add-field-btn { background:none; border:2px dashed #d0cdc4; color:#999; border-radius:8px; padding:8px 14px; font-family:'Fredoka',sans-serif; font-size:0.85rem; cursor:pointer; width:100%; margin-top:4px; }
+.add-field-btn:hover { border-color:var(--teal); color:var(--teal); }
+
+/* Event URL bar (top of admin) */
+.event-url-bar { background:white; border-radius:14px; padding:14px 16px; margin-bottom:20px; border:2px solid var(--teal); display:none; }
+.event-url-bar label { font-size:0.78rem; font-weight:600; color:var(--teal); text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:6px; }
+.event-url-bar .url-row { display:flex; align-items:center; gap:8px; }
+.event-url-bar .url-display { flex:1; font-size:0.88rem; color:var(--dark); background:var(--cream); padding:8px 12px; border-radius:8px; border:1px solid #e8e8e0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:'Fredoka',sans-serif; }
+.event-url-bar .copy-url-btn { padding:8px 14px; border:2px solid var(--teal); background:white; color:var(--teal); border-radius:10px; font-family:'Fredoka',sans-serif; font-size:0.82rem; font-weight:500; cursor:pointer; white-space:nowrap; transition:all 0.2s; }
+.event-url-bar .copy-url-btn:hover { background:var(--teal); color:white; }
+
+/* Tabs */
+.tab-bar { display:flex; gap:8px; margin-bottom:20px; }
+.tab-btn { flex:1; padding:12px; border:2px solid var(--light-sage); border-radius:12px; background:white; font-family:'Fredoka',sans-serif; font-size:0.95rem; font-weight:500; color:#888; cursor:pointer; transition:all 0.3s; text-align:center; }
+.tab-btn.active { border-color:var(--teal); background:var(--teal); color:white; }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+
+/* Add contact form */
+.contact-card { background:white; border-radius:16px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.04); border:2px solid var(--light-sage); margin-bottom:16px; }
+.contact-card h3 { font-size:1.1rem; color:var(--teal); margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+.contact-card h3::before { content:''; display:inline-block; width:4px; height:18px; background:var(--teal); border-radius:2px; }
+.form-row { display:flex; gap:10px; margin-bottom:12px; }
+.form-row .form-field { flex:1; }
+.form-field label { display:block; font-weight:500; font-size:0.85rem; color:var(--dark); margin-bottom:4px; }
+.form-field input { width:100%; padding:10px 14px; border:2px solid #e8e8e0; border-radius:10px; font-family:'Fredoka',sans-serif; font-size:0.95rem; background:var(--cream); outline:none; transition:border-color 0.3s; }
+.form-field input:focus { border-color:var(--teal); }
+.add-btn { width:100%; padding:14px; background:linear-gradient(135deg,var(--coral),var(--orange)); color:white; border:none; border-radius:12px; font-family:'Fredoka',sans-serif; font-size:1rem; font-weight:600; cursor:pointer; transition:all 0.3s; }
+.add-btn:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(232,119,88,0.4); }
+.add-btn:disabled { opacity:0.5; transform:none; box-shadow:none; cursor:not-allowed; }
+
+/* Bulk paste contacts */
+.bulk-card { background:white; border-radius:16px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.04); border:2px solid var(--light-sage); margin-bottom:16px; }
+.bulk-card h3 { font-size:1.1rem; color:var(--blue); margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+.bulk-card h3::before { content:''; display:inline-block; width:4px; height:18px; background:var(--blue); border-radius:2px; }
+.bulk-card p { font-size:0.85rem; color:#888; margin-bottom:12px; line-height:1.5; }
+.bulk-textarea { width:100%; min-height:100px; padding:12px 14px; border:2px solid #e8e8e0; border-radius:10px; font-family:'Fredoka',sans-serif; font-size:0.9rem; background:var(--cream); outline:none; resize:vertical; transition:border-color 0.3s; line-height:1.6; }
+.bulk-textarea:focus { border-color:var(--teal); }
+.bulk-textarea::placeholder { color:#bbb; }
+.bulk-btn { width:100%; padding:14px; background:linear-gradient(135deg,var(--blue),var(--teal)); color:white; border:none; border-radius:12px; font-family:'Fredoka',sans-serif; font-size:1rem; font-weight:600; cursor:pointer; transition:all 0.3s; margin-top:10px; }
+.bulk-btn:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(100,149,199,0.4); }
+.bulk-btn:disabled { opacity:0.5; transform:none; box-shadow:none; cursor:not-allowed; }
+.bulk-example { font-size:0.78rem; color:#bbb; margin-top:8px; line-height:1.5; }
+
+/* Contact Picker button */
+.picker-btn { width:100%; padding:14px; background:linear-gradient(135deg,var(--teal),var(--sage)); color:white; border:none; border-radius:12px; font-family:'Fredoka',sans-serif; font-size:1rem; font-weight:600; cursor:pointer; transition:all 0.3s; margin-bottom:12px; display:none; }
+.picker-btn:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(88,166,164,0.4); }
+.or-divider { text-align:center; color:#ccc; font-size:0.82rem; margin:12px 0; display:none; }
+
+/* Safari setup instructions */
+.safari-setup { display:none; background:white; border:2px solid var(--mustard); border-radius:12px; padding:16px; margin-bottom:12px; }
+.safari-setup-header { display:flex; align-items:center; justify-content:space-between; cursor:pointer; }
+.safari-setup-header h4 { font-size:0.95rem; color:var(--mustard); font-weight:600; margin:0; }
+.safari-setup-toggle { background:none; border:none; font-size:1.2rem; color:var(--mustard); cursor:pointer; transition:transform 0.2s; padding:0 4px; }
+.safari-setup-toggle.open { transform:rotate(180deg); }
+.safari-steps { display:none; margin-top:12px; padding:0; }
+.safari-steps.open { display:block; }
+.safari-step { display:flex; gap:10px; align-items:flex-start; padding:8px 0; font-size:0.88rem; color:var(--dark); line-height:1.4; }
+.safari-step:not(:last-child) { border-bottom:1px solid #f0ede5; }
+.step-num { width:22px; height:22px; border-radius:50%; background:var(--mustard); color:white; font-size:0.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+.safari-step strong { color:var(--dark); }
+.safari-done-note { font-size:0.82rem; color:var(--sage); margin-top:10px; font-weight:500; }
+
+/* Pending contacts list */
+.pending-section { margin-top:16px; }
+.pending-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.pending-header h3 { font-size:1rem; color:var(--dark); }
+.pending-count { background:var(--coral); color:white; padding:2px 10px; border-radius:20px; font-size:0.8rem; font-weight:600; }
+.pending-list { max-height:300px; overflow-y:auto; }
+.pending-item { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:white; border:2px solid var(--light-sage); border-radius:10px; margin-bottom:8px; }
+.pending-info { flex:1; }
+.pending-name { font-weight:600; font-size:0.95rem; }
+.pending-phone { color:#888; font-size:0.85rem; }
+.remove-btn { width:28px; height:28px; border-radius:50%; border:none; background:var(--cream); color:var(--coral); font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
+.remove-btn:hover { background:var(--coral); color:white; }
+.send-all-btn { width:100%; padding:14px; background:linear-gradient(135deg,var(--mustard),var(--orange)); color:white; border:none; border-radius:12px; font-family:'Fredoka',sans-serif; font-size:1rem; font-weight:600; cursor:pointer; transition:all 0.3s; margin-top:12px; }
+.send-all-btn:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(228,186,66,0.4); }
+.send-all-btn:disabled { opacity:0.5; transform:none; box-shadow:none; cursor:not-allowed; }
+
+/* Sent contacts */
+.sent-list { max-height:400px; overflow-y:auto; }
+.sent-item { display:flex; align-items:center; padding:10px 14px; background:white; border:2px solid var(--light-sage); border-radius:10px; margin-bottom:8px; }
+.sent-info { flex:1; }
+.sent-name { font-weight:600; font-size:0.95rem; }
+.sent-phone { color:#888; font-size:0.85rem; }
+.sent-time { color:#aaa; font-size:0.78rem; }
+.sent-badge { padding:4px 12px; border-radius:20px; font-size:0.75rem; font-weight:600; background:#e8f5e9; color:#4caf50; }
+.sent-badge.failed { background:#fce4ec; color:var(--coral); }
+.empty-state { text-align:center; padding:40px 20px; color:#bbb; }
+.empty-state .empty-icon { font-size:2.5rem; margin-bottom:10px; opacity:0.5; }
+.empty-state p { font-size:0.95rem; }
+
+/* Guest list tab */
+.guest-controls { display:flex; gap:8px; margin-bottom:16px; align-items:center; }
+.refresh-btn { padding:10px 20px; background:var(--teal); color:white; border:none; border-radius:10px; font-family:'Fredoka',sans-serif; font-size:0.9rem; font-weight:500; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:6px; }
+.refresh-btn:hover { background:#4a9290; }
+.refresh-btn:disabled { opacity:0.5; cursor:not-allowed; }
+.refresh-btn .spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,0.3); border-top-color:white; border-radius:50%; animation:spin 0.6s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.guest-stats { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+.stat-card { flex:1; min-width:80px; background:white; border:2px solid var(--light-sage); border-radius:12px; padding:12px 10px; text-align:center; }
+.stat-number { font-size:1.6rem; font-weight:700; line-height:1; }
+.stat-number.teal { color:var(--teal); }
+.stat-number.sage { color:var(--sage); }
+.stat-number.coral { color:var(--coral); }
+.stat-number.mustard { color:var(--mustard); }
+.stat-label { font-size:0.72rem; color:#999; margin-top:4px; font-weight:500; text-transform:uppercase; letter-spacing:0.5px; }
+.guest-list { max-height:500px; overflow-y:auto; }
+.guest-item { display:flex; align-items:center; padding:12px 14px; background:white; border:2px solid var(--light-sage); border-radius:10px; margin-bottom:8px; gap:12px; }
+.guest-avatar { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem; color:white; flex-shrink:0; }
+.guest-avatar.invited { background:var(--blue); }
+.guest-avatar.yes { background:var(--sage); }
+.guest-avatar.no { background:var(--coral); }
+.guest-details { flex:1; min-width:0; }
+.guest-name { font-weight:600; font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.guest-meta { color:#888; font-size:0.8rem; display:flex; flex-wrap:wrap; gap:6px; }
+.guest-meta span { white-space:nowrap; }
+.rsvp-badge { padding:4px 12px; border-radius:20px; font-size:0.75rem; font-weight:600; flex-shrink:0; }
+.rsvp-badge.yes { background:#e8f5e9; color:#4caf50; }
+.rsvp-badge.no { background:#fce4ec; color:var(--coral); }
+.rsvp-badge.pending { background:#fff8e1; color:var(--mustard); }
+.filter-bar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+.filter-chip { padding:6px 14px; border:2px solid var(--light-sage); border-radius:20px; background:white; font-family:'Fredoka',sans-serif; font-size:0.82rem; font-weight:500; color:#888; cursor:pointer; transition:all 0.2s; }
+.filter-chip.active { border-color:var(--teal); background:var(--teal); color:white; }
+
+/* Toast */
+.toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(100px); background:var(--dark); color:white; padding:12px 24px; border-radius:12px; font-family:'Fredoka',sans-serif; font-size:0.9rem; z-index:1000; transition:transform 0.3s ease; pointer-events:none; text-align:center; max-width:90%; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+.toast.error { background:var(--coral); }
+.toast.success { background:var(--teal); }
+
+/* Progress bar */
+.progress-bar { width:100%; height:6px; background:#e8e8e0; border-radius:3px; margin-top:12px; overflow:hidden; display:none; }
+.progress-fill { height:100%; background:linear-gradient(90deg,var(--mustard),var(--orange)); border-radius:3px; transition:width 0.3s; width:0%; }
+.progress-text { text-align:center; font-size:0.85rem; color:#888; margin-top:6px; display:none; }
+
+/* Back link */
+.back-link { display:inline-block; margin-top:20px; color:var(--teal); font-size:0.9rem; text-decoration:none; font-weight:500; }
+.back-link:hover { text-decoration:underline; }
+
+@media (max-width:480px) {
+  .form-row { flex-direction:column; gap:8px; }
+  .admin-frame { padding:20px 16px; }
+  .tab-btn { font-size:0.85rem; padding:10px 8px; }
+}
+</style>
+</head>
+<body>
+
+<div class="admin-frame">
+
+<!-- Login Gate -->
+<div class="login-section" id="loginSection">
+  <h1>Party Admin</h1>
+  <p>Enter the password to manage invites</p>
+  <input type="password" class="login-input" id="loginPassword" placeholder="Password" autocomplete="off">
+  <button class="login-btn" id="loginBtn" onclick="attemptLogin()">Enter</button>
+  <p class="login-error" id="loginError">Wrong password, try again!</p>
+</div>
+
+<!-- Admin Panel -->
+<div class="admin-panel" id="adminPanel">
+  <div class="admin-header">
+    <h1>Manage Invites</h1>
+    <p>Add contacts and send invite texts</p>
+  </div>
+
+  <!-- Event Invite URL (shown when settings loaded) -->
+  <div class="event-url-bar" id="eventUrlBar">
+    <label>Event Invite Link</label>
+    <div class="url-row">
+      <div class="url-display" id="eventUrlDisplay">https://ryvite.com</div>
+      <button type="button" class="copy-url-btn" onclick="copyEventUrl()">Copy</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="add" onclick="switchTab('add')">Add Contacts</button>
+    <button class="tab-btn" data-tab="sent" onclick="switchTab('sent')">Sent Invites</button>
+    <button class="tab-btn" data-tab="guests" onclick="switchTab('guests')">Guest List</button>
+  </div>
+
+  <!-- Add Contacts Tab -->
+  <div class="tab-content active" id="tab-add">
+
+    <!-- Contact Picker (shown when supported or with Safari setup instructions) -->
+    <div class="bulk-card" id="pickerCard" style="display:none;">
+      <h3>Select From Contacts</h3>
+      <button class="picker-btn" id="pickerBtn" onclick="importContacts()">Open Contacts</button>
+      <div class="safari-setup" id="safariSetup">
+        <div class="safari-setup-header" onclick="toggleSafariSteps()">
+          <h4>Enable Contact Picker on Safari</h4>
+          <button class="safari-setup-toggle" id="safariToggle">&#9660;</button>
+        </div>
+        <div class="safari-steps" id="safariSteps">
+          <div class="safari-step"><span class="step-num">1</span><span>Open the <strong>Settings</strong> app on your iPhone</span></div>
+          <div class="safari-step"><span class="step-num">2</span><span>Tap <strong>Safari</strong></span></div>
+          <div class="safari-step"><span class="step-num">3</span><span>Scroll down and tap <strong>Advanced</strong></span></div>
+          <div class="safari-step"><span class="step-num">4</span><span>Tap <strong>Feature Flags</strong></span></div>
+          <div class="safari-step"><span class="step-num">5</span><span>Find and enable <strong>Contact Picker API</strong></span></div>
+          <div class="safari-step"><span class="step-num">6</span><span>Come back here and tap <strong>Open Contacts</strong> above</span></div>
+          <p class="safari-done-note">You only need to do this once!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bulk Paste Contacts -->
+    <div class="bulk-card">
+      <h3>Add Multiple Contacts</h3>
+      <p>Paste names and phone numbers — one contact per line.</p>
+      <textarea class="bulk-textarea" id="bulkInput" placeholder="Jane Doe (555) 123-4567&#10;John Smith 555-987-6543&#10;Mary Johnson 5551234567"></textarea>
+      <p class="bulk-example">Accepts most formats: "Name Phone", "Name, Phone", or "Name - Phone"</p>
+      <button class="bulk-btn" onclick="parseBulkContacts()">Add All to List</button>
+    </div>
+
+    <!-- Manual Add -->
+    <div class="contact-card">
+      <h3>Add Manually</h3>
+      <form id="addContactForm" onsubmit="addContact(event)">
+        <div class="form-row">
+          <div class="form-field">
+            <label>First Name</label>
+            <input type="text" id="firstName" required placeholder="Jane">
+          </div>
+          <div class="form-field">
+            <label>Last Name</label>
+            <input type="text" id="lastName" placeholder="Doe">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Phone Number</label>
+            <input type="tel" id="phoneNumber" required placeholder="(555) 123-4567">
+          </div>
+        </div>
+        <button type="submit" class="add-btn">Add to List</button>
+      </form>
+    </div>
+
+    <!-- Pending Contacts -->
+    <div class="pending-section" id="pendingSection" style="display:none;">
+      <div class="pending-header">
+        <h3>Ready to Send</h3>
+        <span class="pending-count" id="pendingCount">0</span>
+      </div>
+      <div class="pending-list" id="pendingList"></div>
+      <button class="send-all-btn" id="sendAllBtn" onclick="sendAllInvites()">
+        Send Invites
+      </button>
+      <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+      <p class="progress-text" id="progressText"></p>
+    </div>
+  </div>
+
+  <!-- Sent Invites Tab -->
+  <div class="tab-content" id="tab-sent">
+    <div class="sent-list" id="sentList">
+      <div class="empty-state" id="sentEmpty">
+        <div class="empty-icon">&#128233;</div>
+        <p>No invites sent yet</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Guest List Tab -->
+  <div class="tab-content" id="tab-guests">
+    <div class="guest-controls">
+      <button class="refresh-btn" id="refreshGuestsBtn" onclick="fetchGuestList()">
+        <span id="refreshIcon">&#8635;</span> Refresh
+      </button>
+      <span id="lastRefreshed" style="font-size:0.8rem;color:#aaa;"></span>
+    </div>
+    <div class="guest-stats" id="guestStats" style="display:none;">
+      <div class="stat-card"><div class="stat-number teal" id="statInvited">0</div><div class="stat-label">Invited</div></div>
+      <div class="stat-card"><div class="stat-number sage" id="statYes">0</div><div class="stat-label">Coming</div></div>
+      <div class="stat-card"><div class="stat-number coral" id="statNo">0</div><div class="stat-label">Declined</div></div>
+      <div class="stat-card"><div class="stat-number mustard" id="statPending">0</div><div class="stat-label">Pending</div></div>
+    </div>
+    <div class="filter-bar" id="filterBar" style="display:none;">
+      <button class="filter-chip active" data-filter="all" onclick="filterGuests('all')">All</button>
+      <button class="filter-chip" data-filter="yes" onclick="filterGuests('yes')">Coming</button>
+      <button class="filter-chip" data-filter="no" onclick="filterGuests('no')">Declined</button>
+      <button class="filter-chip" data-filter="pending" onclick="filterGuests('pending')">Pending</button>
+    </div>
+    <div class="guest-list" id="guestList">
+      <div class="empty-state" id="guestEmpty">
+        <div class="empty-icon">&#128203;</div>
+        <p>Tap Refresh to load the guest list from your sheet</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Configuration (collapsible, at bottom) -->
+  <div class="config-section" id="configSection">
+    <h3 onclick="toggleSetup()">Setup <span class="chevron">&#9660;</span></h3>
+    <div class="config-body">
+      <div id="configLoading" style="text-align:center;padding:10px;color:#aaa;font-size:0.9rem;">Loading settings...</div>
+      <div id="configFields" style="display:none;">
+        <input type="hidden" id="eventId">
+        <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;">Zapier Webhook URL</label>
+        <input type="url" class="config-input" id="zapierUrl" placeholder="https://hooks.zapier.com/hooks/catch/...">
+        <p class="config-hint">Zapier webhook that receives {name, phone, inviteUrl} and sends an SMS.</p>
+        <input type="hidden" id="inviteUrl" value="https://ryvite.com">
+        <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;">Event Name</label>
+        <input type="text" class="config-input" id="eventName" placeholder="e.g. Rylan's 1st Birthday" oninput="updateInviteSlug()">
+        <p class="config-hint">Name your event — a unique invite link will be generated below.</p>
+        <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;">Invite Page URL</label>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="text" class="config-input" id="inviteUrlDisplay" value="https://ryvite.com" readonly style="background:#f0ede5;color:#666;cursor:default;flex:1;margin-bottom:0;">
+          <button type="button" onclick="copyInviteUrl()" style="padding:8px 14px;border:2px solid var(--teal);background:white;color:var(--teal);border-radius:10px;font-family:'Fredoka',sans-serif;font-size:0.82rem;font-weight:500;cursor:pointer;white-space:nowrap;">Copy</button>
+        </div>
+        <p class="config-hint">Auto-generated from event name. Unique guest links are appended when sending invites.</p>
+
+        <!-- Custom RSVP Fields -->
+        <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;margin-top:12px;">RSVP Fields</label>
+        <p class="config-hint" style="margin-bottom:8px;">Define custom fields guests fill out when they RSVP (e.g. Adults, Kids, Dietary Needs).</p>
+        <div id="customFieldsList"></div>
+        <button type="button" class="add-field-btn" onclick="addCustomField()">+ Add Field</button>
+
+        <div style="display:flex;align-items:center;margin-top:16px;">
+          <button class="save-config-btn" onclick="saveConfig()">Save Settings</button>
+          <span class="config-saved" id="configSaved">Saved!</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <a href="/" class="back-link">&larr; Back to Ryvite</a>
+</div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---- Config & State ----
+var ADMIN_PASSWORD = "rylan1";
+var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzjNsNyDnBmG8tV89kIede13MUPz1nlC0p40tVP-TdU0saN3Wh4gNNhqUBKR28NxoshgA/exec";
+var pendingContacts = [];
+var sentContacts = JSON.parse(localStorage.getItem("rylan_sent_contacts") || "[]");
+var currentEventId = "";
+
+// ---- Login ----
+function attemptLogin() {
+  var pw = document.getElementById("loginPassword").value;
+  if (pw === ADMIN_PASSWORD) {
+    document.getElementById("loginSection").style.display = "none";
+    document.getElementById("adminPanel").style.display = "block";
+    loadConfig();
+    renderSentList();
+    checkContactPickerSupport();
+  } else {
+    document.getElementById("loginError").style.display = "block";
+    document.getElementById("loginPassword").value = "";
+  }
+}
+document.getElementById("loginPassword").addEventListener("keydown", function(e) {
+  if (e.key === "Enter") attemptLogin();
+});
+
+// ---- Config (stored in Google Sheet + localStorage fallback) ----
+var LOCAL_SETTINGS_KEY = "ryvite_settings";
+
+function saveSettingsLocally(settings) {
+  localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function loadSettingsLocally() {
+  try { return JSON.parse(localStorage.getItem(LOCAL_SETTINGS_KEY) || "null"); } catch (e) { return null; }
+}
+
+function toggleSetup() {
+  document.getElementById("configSection").classList.toggle("collapsed");
+}
+
+function applySettings(data) {
+  if (data.eventId) {
+    document.getElementById("eventId").value = data.eventId;
+    currentEventId = data.eventId;
+  }
+  if (data.zapierWebhook) document.getElementById("zapierUrl").value = data.zapierWebhook;
+  if (data.eventName) {
+    document.getElementById("eventName").value = data.eventName;
+    updateInviteSlug();
+  }
+  if (data.invitePageUrl) {
+    document.getElementById("inviteUrl").value = data.invitePageUrl;
+    document.getElementById("inviteUrlDisplay").value = data.invitePageUrl;
+    document.getElementById("eventUrlDisplay").textContent = data.invitePageUrl;
+    document.getElementById("eventUrlBar").style.display = "block";
+  }
+  if (data.customFields && data.customFields.length) {
+    loadCustomFieldsConfig(data.customFields);
+  } else {
+    loadCustomFieldsConfig([
+      { key: "adults", label: "Adults", type: "number" },
+      { key: "kids", label: "Kids", type: "number" }
+    ]);
+  }
+  // Auto-collapse setup when settings are loaded
+  if (data.eventId) {
+    document.getElementById("configSection").classList.add("collapsed");
+  }
+}
+
+function saveConfig() {
+  var eventId = document.getElementById("eventId").value.trim();
+  if (!eventId) {
+    eventId = generateUUID();
+    document.getElementById("eventId").value = eventId;
+  }
+  currentEventId = eventId;
+
+  var settings = {
+    eventId: eventId,
+    eventName: document.getElementById("eventName").value.trim(),
+    zapierWebhook: document.getElementById("zapierUrl").value.trim(),
+    invitePageUrl: document.getElementById("inviteUrl").value.trim(),
+    customFields: getCustomFieldsConfig()
+  };
+
+  // Always save locally so settings survive even if the sheet call fails
+  saveSettingsLocally(settings);
+
+  var btn = document.querySelector(".save-config-btn");
+  btn.disabled = true;
+  btn.textContent = "Saving...";
+
+  fetch(SCRIPT_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify(Object.assign({ action: "saveSettings" }, settings))
+  }).then(function() {
+    btn.disabled = false;
+    btn.textContent = "Save Settings";
+    var saved = document.getElementById("configSaved");
+    saved.style.display = "inline";
+    setTimeout(function() { saved.style.display = "none"; }, 2000);
+    showToast("Settings saved!", "success");
+  }).catch(function(err) {
+    btn.disabled = false;
+    btn.textContent = "Save Settings";
+    console.error("Save settings error", err);
+    showToast("Saved locally (sheet sync failed)", "error");
+  });
+}
+
+function loadConfig() {
+  // Immediately apply local settings so the UI is never empty
+  var local = loadSettingsLocally();
+  if (local) {
+    document.getElementById("configLoading").style.display = "none";
+    document.getElementById("configFields").style.display = "block";
+    applySettings(local);
+  }
+
+  // Then try to fetch from the sheet (will overwrite local if successful)
+  var callbackName = "_settingsCb_" + Date.now();
+  var timeout = setTimeout(function() {
+    delete window[callbackName];
+    var old = document.getElementById("jsonp_settings");
+    if (old) old.remove();
+    if (!local) {
+      document.getElementById("configLoading").textContent = "Couldn't load from sheet. Fill in and save to get started.";
+      document.getElementById("configFields").style.display = "block";
+    }
+  }, 10000);
+
+  window[callbackName] = function(data) {
+    clearTimeout(timeout);
+    delete window[callbackName];
+    var old = document.getElementById("jsonp_settings");
+    if (old) old.remove();
+
+    document.getElementById("configLoading").style.display = "none";
+    document.getElementById("configFields").style.display = "block";
+
+    // Only overwrite if the sheet actually has data
+    if (data.eventId) {
+      applySettings(data);
+      saveSettingsLocally(data);
+    }
+  };
+
+  var script = document.createElement("script");
+  script.id = "jsonp_settings";
+  script.src = SCRIPT_URL + "?action=getSettings&callback=" + callbackName;
+  script.onerror = function() {
+    clearTimeout(timeout);
+    delete window[callbackName];
+    script.remove();
+    if (!local) {
+      document.getElementById("configLoading").textContent = "Couldn't load from sheet.";
+      document.getElementById("configFields").style.display = "block";
+    }
+  };
+  document.head.appendChild(script);
+}
+
+function getConfig() {
+  return {
+    eventId: currentEventId || document.getElementById("eventId").value.trim(),
+    zapierUrl: document.getElementById("zapierUrl").value.trim(),
+    inviteUrl: document.getElementById("inviteUrl").value.trim(),
+    scriptUrl: SCRIPT_URL
+  };
+}
+
+function slugify(text) {
+  return text.toString().toLowerCase()
+    .replace(/['\u2019]/g, "")          // remove apostrophes
+    .replace(/[^a-z0-9]+/g, "-")        // non-alphanumeric → hyphens
+    .replace(/^-+|-+$/g, "");           // trim leading/trailing hyphens
+}
+
+function updateInviteSlug() {
+  var name = document.getElementById("eventName").value.trim();
+  var slug = name ? slugify(name) : "";
+  var base = "https://ryvite.com";
+  var url = slug ? base + "/event/" + slug + "/" : base;
+  document.getElementById("inviteUrl").value = url;
+  document.getElementById("inviteUrlDisplay").value = url;
+  // Also update the top URL bar
+  document.getElementById("eventUrlDisplay").textContent = url;
+  document.getElementById("eventUrlBar").style.display = slug ? "block" : "none";
+}
+
+function copyInviteUrl() {
+  var url = document.getElementById("inviteUrlDisplay").value;
+  navigator.clipboard.writeText(url).then(function() {
+    showToast("URL copied!", "success");
+  }).catch(function() {
+    var input = document.getElementById("inviteUrlDisplay");
+    input.select();
+    document.execCommand("copy");
+    showToast("URL copied!", "success");
+  });
+}
+
+function copyEventUrl() {
+  var url = document.getElementById("eventUrlDisplay").textContent;
+  navigator.clipboard.writeText(url).then(function() {
+    showToast("Invite link copied!", "success");
+  }).catch(function() {
+    // Fallback for older browsers
+    var ta = document.createElement("textarea");
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    showToast("Invite link copied!", "success");
+  });
+}
+
+// ---- Custom Fields Editor ----
+var customFields = [];
+
+function addCustomField(field) {
+  field = field || { key: "", label: "", type: "text" };
+  customFields.push(field);
+  renderCustomFields();
+}
+
+function removeCustomField(i) {
+  customFields.splice(i, 1);
+  renderCustomFields();
+}
+
+function renderCustomFields() {
+  var list = document.getElementById("customFieldsList");
+  list.innerHTML = "";
+  customFields.forEach(function(f, i) {
+    var row = document.createElement("div");
+    row.className = "custom-field-row";
+    row.innerHTML =
+      '<input type="text" placeholder="Label (e.g. Adults)" value="' + escapeHtml(f.label) + '" onchange="updateCustomField(' + i + ',\'label\',this.value)">' +
+      '<select onchange="updateCustomField(' + i + ',\'type\',this.value)">' +
+        '<option value="number"' + (f.type === "number" ? " selected" : "") + '>Number</option>' +
+        '<option value="text"' + (f.type === "text" ? " selected" : "") + '>Text</option>' +
+        '<option value="checkbox"' + (f.type === "checkbox" ? " selected" : "") + '>Yes/No</option>' +
+      '</select>' +
+      '<button class="remove-field-btn" onclick="removeCustomField(' + i + ')" title="Remove">&times;</button>';
+    list.appendChild(row);
+  });
+}
+
+function updateCustomField(i, prop, value) {
+  customFields[i][prop] = value;
+  if (prop === "label") {
+    // Auto-generate key from label: lowercase, camelCase-ish
+    customFields[i].key = value.toLowerCase().replace(/[^a-z0-9]+(.)/g, function(_, c) { return c.toUpperCase(); }).replace(/[^a-zA-Z0-9]/g, "");
+  }
+}
+
+function getCustomFieldsConfig() {
+  return customFields.filter(function(f) { return f.label.trim() !== ""; });
+}
+
+function loadCustomFieldsConfig(fields) {
+  customFields = fields || [];
+  renderCustomFields();
+}
+
+// ---- Tabs ----
+function switchTab(tab) {
+  document.querySelectorAll(".tab-btn").forEach(function(b) { b.classList.remove("active"); });
+  document.querySelectorAll(".tab-content").forEach(function(c) { c.classList.remove("active"); });
+  document.querySelector('[data-tab="' + tab + '"]').classList.add("active");
+  document.getElementById("tab-" + tab).classList.add("active");
+}
+
+// ---- Contact Picker ----
+function isSafariMobile() {
+  var ua = navigator.userAgent;
+  return /iPhone|iPad|iPod/.test(ua) && /WebKit/.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(ua);
+}
+
+function checkContactPickerSupport() {
+  var hasAPI = ("contacts" in navigator && "ContactsManager" in window);
+  var card = document.getElementById("pickerCard");
+
+  if (hasAPI) {
+    // API is available — show the button directly
+    card.style.display = "block";
+    document.getElementById("pickerBtn").style.display = "block";
+  } else if (isSafariMobile()) {
+    // Safari iOS without the flag enabled — show setup instructions
+    card.style.display = "block";
+    document.getElementById("pickerBtn").style.display = "block";
+    document.getElementById("safariSetup").style.display = "block";
+  }
+  // Desktop/other browsers without API: card stays hidden, bulk paste is primary
+}
+
+function toggleSafariSteps() {
+  var steps = document.getElementById("safariSteps");
+  var toggle = document.getElementById("safariToggle");
+  var isOpen = steps.classList.contains("open");
+  if (isOpen) {
+    steps.classList.remove("open");
+    toggle.classList.remove("open");
+  } else {
+    steps.classList.add("open");
+    toggle.classList.add("open");
+  }
+}
+
+async function importContacts() {
+  try {
+    var props = ["name", "tel"];
+    var opts = { multiple: true };
+    var contacts = await navigator.contacts.select(props, opts);
+    var added = 0;
+    contacts.forEach(function(c) {
+      var name = (c.name && c.name[0]) || "Unknown";
+      var phone = (c.tel && c.tel[0]) || "";
+      if (!phone) return;
+      var parts = name.split(" ");
+      var first = parts[0] || "";
+      var last = parts.slice(1).join(" ") || "";
+      var normalPhone = normalizePhone(phone);
+      var isDup = pendingContacts.some(function(p) { return normalizePhone(p.phone) === normalPhone; }) ||
+                  sentContacts.some(function(s) { return normalizePhone(s.phone) === normalPhone; });
+      if (!isDup) {
+        pendingContacts.push({ first: first, last: last, phone: phone });
+        added++;
+      }
+    });
+    renderPendingList();
+    if (added > 0) {
+      showToast(added + " contact" + (added > 1 ? "s" : "") + " added!", "success");
+    } else if (contacts.length > 0) {
+      showToast("All selected contacts already in list", "");
+    }
+  } catch (err) {
+    if (err.name !== "AbortError") {
+      showToast("Couldn't access contacts: " + err.message, "error");
+    }
+  }
+}
+
+// ---- Bulk Paste Parser ----
+function normalizePhone(str) {
+  return str.replace(/[^0-9]/g, "");
+}
+
+function parseBulkContacts() {
+  var raw = document.getElementById("bulkInput").value.trim();
+  if (!raw) {
+    showToast("Paste some contacts first!", "error");
+    return;
+  }
+  var lines = raw.split(/\n/).map(function(l) { return l.trim(); }).filter(Boolean);
+  var added = 0;
+  var skipped = 0;
+  var failed = 0;
+
+  lines.forEach(function(line) {
+    var parsed = parseContactLine(line);
+    if (!parsed) { failed++; return; }
+    var normalPhone = normalizePhone(parsed.phone);
+    if (normalPhone.length < 7) { failed++; return; }
+    var isDup = pendingContacts.some(function(p) { return normalizePhone(p.phone) === normalPhone; }) ||
+                sentContacts.some(function(s) { return normalizePhone(s.phone) === normalPhone; });
+    if (isDup) { skipped++; return; }
+    pendingContacts.push(parsed);
+    added++;
+  });
+
+  renderPendingList();
+  if (added > 0) document.getElementById("bulkInput").value = "";
+  var msg = added + " added";
+  if (skipped > 0) msg += ", " + skipped + " duplicate" + (skipped > 1 ? "s" : "");
+  if (failed > 0) msg += ", " + failed + " couldn't be parsed";
+  showToast(msg, added > 0 ? "success" : "error");
+}
+
+function parseContactLine(line) {
+  // Remove common separators: comma, dash, pipe, tab → normalize to space
+  line = line.replace(/[,|\t]/g, " ").replace(/\s+/g, " ").trim();
+
+  // Strategy: find the phone number (sequence of digits, spaces, dashes, parens)
+  // Phone pattern: optional +/1, then area code (with or without parens), then 7 digits
+  var phoneMatch = line.match(/(\+?1?\s*)?(\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})/);
+  if (!phoneMatch) {
+    // Try: just 10+ raw digits at end
+    phoneMatch = line.match(/(\d{10,})\s*$/);
+  }
+  if (!phoneMatch) return null;
+
+  var phone = phoneMatch[0].trim();
+  var name = line.replace(phone, "").replace(/[-–—]\s*$/, "").trim();
+  if (!name) return null;
+
+  var parts = name.split(" ");
+  return {
+    first: parts[0] || "",
+    last: parts.slice(1).join(" ") || "",
+    phone: phone
+  };
+}
+
+// ---- Manual Add ----
+function addContact(e) {
+  e.preventDefault();
+  var first = document.getElementById("firstName").value.trim();
+  var last = document.getElementById("lastName").value.trim();
+  var phone = document.getElementById("phoneNumber").value.trim();
+  if (!first || !phone) return;
+  // Check for duplicates
+  var isDup = pendingContacts.some(function(p) { return p.phone === phone; }) ||
+              sentContacts.some(function(s) { return s.phone === phone; });
+  if (isDup) {
+    showToast("This phone number is already in the list", "error");
+    return;
+  }
+  pendingContacts.push({ first: first, last: last, phone: phone });
+  document.getElementById("addContactForm").reset();
+  renderPendingList();
+  showToast(first + " added to list!", "success");
+}
+
+// ---- Pending List ----
+function renderPendingList() {
+  var section = document.getElementById("pendingSection");
+  var list = document.getElementById("pendingList");
+  var count = document.getElementById("pendingCount");
+  if (pendingContacts.length === 0) {
+    section.style.display = "none";
+    return;
+  }
+  section.style.display = "block";
+  count.textContent = pendingContacts.length;
+  list.innerHTML = "";
+  pendingContacts.forEach(function(c, i) {
+    var item = document.createElement("div");
+    item.className = "pending-item";
+    item.innerHTML = '<div class="pending-info"><div class="pending-name">' +
+      escapeHtml(c.first + " " + c.last) + '</div><div class="pending-phone">' +
+      escapeHtml(c.phone) + '</div></div><button class="remove-btn" onclick="removePending(' +
+      i + ')">&times;</button>';
+    list.appendChild(item);
+  });
+}
+
+function removePending(i) {
+  pendingContacts.splice(i, 1);
+  renderPendingList();
+}
+
+// ---- UUID Generator ----
+function generateUUID() {
+  if (crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
+// ---- Send Invites ----
+async function sendAllInvites() {
+  var config = getConfig();
+  if (!config.zapierUrl) {
+    showToast("Please set your Zapier Webhook URL in Setup first", "error");
+    return;
+  }
+  if (pendingContacts.length === 0) return;
+
+  var btn = document.getElementById("sendAllBtn");
+  var bar = document.getElementById("progressBar");
+  var fill = document.getElementById("progressFill");
+  var text = document.getElementById("progressText");
+  btn.disabled = true;
+  bar.style.display = "block";
+  text.style.display = "block";
+  fill.style.width = "0%";
+
+  var total = pendingContacts.length;
+  var processed = 0;
+  var results = [];
+
+  for (var i = 0; i < total; i++) {
+    var contact = pendingContacts[i];
+    var fullName = (contact.first + " " + contact.last).trim();
+    var uuid = generateUUID();
+    text.textContent = "Sending to " + fullName + "... (" + (i + 1) + "/" + total + ")";
+
+    var success = true;
+    var baseUrl = config.inviteUrl || "https://ryvite.com";
+    // Ensure trailing slash before query params
+    if (baseUrl.charAt(baseUrl.length - 1) !== "/") baseUrl += "/";
+    var inviteLink = baseUrl + "?id=" + uuid + "&eid=" + encodeURIComponent(config.eventId);
+
+    // 1. Add row to Google Sheet with Event UUID, Invite UUID, Status=Sent
+    try {
+      await fetch(SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({
+          action: "invite",
+          eventId: config.eventId,
+          inviteId: uuid,
+          name: fullName,
+          phone: contact.phone
+        })
+      });
+    } catch (err) {
+      console.error("Sheet error for " + fullName, err);
+    }
+
+    // 2. Fire Zapier webhook to send SMS (with UUID invite link)
+    try {
+      await fetch(config.zapierUrl, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: fullName,
+          firstName: contact.first,
+          lastName: contact.last,
+          phone: contact.phone,
+          inviteUrl: inviteLink
+        })
+      });
+    } catch (err) {
+      console.error("Zapier error for " + fullName, err);
+      success = false;
+    }
+
+    results.push({
+      first: contact.first,
+      last: contact.last,
+      phone: contact.phone,
+      uuid: uuid,
+      sentAt: new Date().toISOString(),
+      status: success ? "sent" : "failed"
+    });
+
+    processed++;
+    fill.style.width = Math.round((processed / total) * 100) + "%";
+  }
+
+  // Save to sent history
+  sentContacts = sentContacts.concat(results);
+  localStorage.setItem("rylan_sent_contacts", JSON.stringify(sentContacts));
+
+  // Clear pending
+  pendingContacts = [];
+  renderPendingList();
+  renderSentList();
+
+  // Reset UI
+  btn.disabled = false;
+  setTimeout(function() {
+    bar.style.display = "none";
+    text.style.display = "none";
+  }, 1500);
+
+  var sentCount = results.filter(function(r) { return r.status === "sent"; }).length;
+  var failCount = results.length - sentCount;
+  if (failCount === 0) {
+    showToast("All " + sentCount + " invites sent!", "success");
+  } else {
+    showToast(sentCount + " sent, " + failCount + " failed", "error");
+  }
+
+  // Switch to sent tab
+  switchTab("sent");
+}
+
+// ---- Sent List ----
+function renderSentList() {
+  var list = document.getElementById("sentList");
+  var empty = document.getElementById("sentEmpty");
+  if (sentContacts.length === 0) {
+    empty.style.display = "block";
+    list.innerHTML = "";
+    list.appendChild(empty);
+    return;
+  }
+  empty.style.display = "none";
+  list.innerHTML = "";
+  // Show most recent first
+  var reversed = sentContacts.slice().reverse();
+  reversed.forEach(function(c) {
+    var item = document.createElement("div");
+    item.className = "sent-item";
+    var time = c.sentAt ? new Date(c.sentAt).toLocaleDateString("en-US", { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }) : "";
+    var badgeClass = c.status === "failed" ? "sent-badge failed" : "sent-badge";
+    var badgeText = c.status === "failed" ? "Failed" : "Sent";
+    item.innerHTML = '<div class="sent-info"><div class="sent-name">' +
+      escapeHtml((c.first + " " + c.last).trim()) + '</div><div class="sent-phone">' +
+      escapeHtml(c.phone) + '</div><div class="sent-time">' + time +
+      '</div></div><span class="' + badgeClass + '">' + badgeText + '</span>';
+    list.appendChild(item);
+  });
+}
+
+// ---- Guest List ----
+var guestData = [];
+var currentFilter = "all";
+
+function fetchGuestList() {
+  var config = getConfig();
+  var btn = document.getElementById("refreshGuestsBtn");
+  var icon = document.getElementById("refreshIcon");
+  btn.disabled = true;
+  icon.innerHTML = '<span class="spinner"></span>';
+
+  // Use JSONP to bypass CORS
+  var callbackName = "_guestCb_" + Date.now();
+  var timeout = setTimeout(function() {
+    cleanup();
+    showToast("Request timed out. Check your Apps Script deployment.", "error");
+  }, 15000);
+
+  function cleanup() {
+    delete window[callbackName];
+    var old = document.getElementById("jsonp_guest");
+    if (old) old.remove();
+    btn.disabled = false;
+    icon.innerHTML = "&#8635;";
+  }
+
+  window[callbackName] = function(data) {
+    clearTimeout(timeout);
+    cleanup();
+    guestData = parseGuestRows(data.guests || []);
+    renderGuestStats();
+    renderGuestList();
+    document.getElementById("filterBar").style.display = "flex";
+    document.getElementById("lastRefreshed").textContent = "Updated " + new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
+    showToast("Guest list loaded!", "success");
+  };
+
+  var eventParam = config.eventId ? "&eventId=" + encodeURIComponent(config.eventId) : "";
+  var script = document.createElement("script");
+  script.id = "jsonp_guest";
+  script.src = SCRIPT_URL + "?action=guestList&callback=" + callbackName + eventParam;
+  script.onerror = function() {
+    clearTimeout(timeout);
+    cleanup();
+    showToast("Couldn't load guest list. Redeploy your Apps Script.", "error");
+  };
+  document.head.appendChild(script);
+}
+
+function parseGuestRows(rows) {
+  // Each row: { timestamp, inviteId, name, phone, status, responseData }
+  // Status values from sheet: "Sent", "Attending", "Not Attending"
+  return rows.map(function(r) {
+    var status = (r.status || "").toLowerCase().trim();
+    var rsvpStatus;
+    if (status === "attending") rsvpStatus = "yes";
+    else if (status === "not attending") rsvpStatus = "no";
+    else rsvpStatus = "pending"; // "Sent" or empty
+
+    return {
+      name: r.name || "",
+      inviteId: r.inviteId || "",
+      phone: r.phone || "",
+      invitedAt: r.timestamp || "",
+      rsvpStatus: rsvpStatus,
+      responseData: r.responseData || {}
+    };
+  }).sort(function(a, b) {
+    var order = { yes: 0, pending: 1, no: 2 };
+    return (order[a.rsvpStatus] || 1) - (order[b.rsvpStatus] || 1);
+  });
+}
+
+function renderGuestStats() {
+  document.getElementById("guestStats").style.display = "flex";
+  var total = guestData.length;
+  var yes = guestData.filter(function(g) { return g.rsvpStatus === "yes"; }).length;
+  var no = guestData.filter(function(g) { return g.rsvpStatus === "no"; }).length;
+  var pending = guestData.filter(function(g) { return g.rsvpStatus === "pending"; }).length;
+  document.getElementById("statInvited").textContent = total;
+  document.getElementById("statYes").textContent = yes;
+  document.getElementById("statNo").textContent = no;
+  document.getElementById("statPending").textContent = pending;
+}
+
+function filterGuests(filter) {
+  currentFilter = filter;
+  document.querySelectorAll(".filter-chip").forEach(function(c) { c.classList.remove("active"); });
+  document.querySelector('[data-filter="' + filter + '"]').classList.add("active");
+  renderGuestList();
+}
+
+function renderGuestList() {
+  var list = document.getElementById("guestList");
+  var empty = document.getElementById("guestEmpty");
+  var filtered = currentFilter === "all" ? guestData : guestData.filter(function(g) { return g.rsvpStatus === currentFilter; });
+
+  if (filtered.length === 0) {
+    list.innerHTML = "";
+    empty.querySelector("p").textContent = guestData.length === 0 ? "Tap Refresh to load the guest list from your sheet" : "No guests match this filter";
+    empty.style.display = "block";
+    list.appendChild(empty);
+    return;
+  }
+  empty.style.display = "none";
+  list.innerHTML = "";
+
+  filtered.forEach(function(g) {
+    var item = document.createElement("div");
+    item.className = "guest-item";
+
+    var initials = "?";
+    if (g.name) {
+      var parts = g.name.trim().split(" ");
+      initials = parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : parts[0][0].toUpperCase();
+    }
+
+    var avatarClass = "guest-avatar " + g.rsvpStatus;
+    var badgeClass = "rsvp-badge " + g.rsvpStatus;
+    var badgeText = g.rsvpStatus === "yes" ? "Coming" : g.rsvpStatus === "no" ? "Declined" : "Pending";
+
+    var metaParts = [];
+    if (g.phone) metaParts.push('<span>' + escapeHtml(g.phone) + '</span>');
+    if (g.rsvpStatus === "yes" && g.responseData) {
+      customFields.forEach(function(field) {
+        var val = g.responseData[field.key];
+        if (val !== undefined && val !== "" && val !== 0 && val !== "0") {
+          metaParts.push('<span>' + escapeHtml(String(val)) + ' ' + escapeHtml(field.label) + '</span>');
+        }
+      });
+    }
+    if (g.invitedAt) {
+      var d = new Date(g.invitedAt);
+      if (!isNaN(d)) metaParts.push('<span>Invited ' + d.toLocaleDateString("en-US", {month:"short",day:"numeric"}) + '</span>');
+    }
+
+    item.innerHTML = '<div class="' + avatarClass + '">' + escapeHtml(initials) + '</div>' +
+      '<div class="guest-details"><div class="guest-name">' + escapeHtml(g.name) + '</div>' +
+      '<div class="guest-meta">' + metaParts.join('<span style="color:#ddd;">|</span>') + '</div></div>' +
+      '<span class="' + badgeClass + '">' + badgeText + '</span>';
+    list.appendChild(item);
+  });
+}
+
+// ---- Helpers ----
+function escapeHtml(text) {
+  var div = document.createElement("div");
+  div.appendChild(document.createTextNode(text));
+  return div.innerHTML;
+}
+
+function showToast(msg, type) {
+  var toast = document.getElementById("toast");
+  toast.textContent = msg;
+  toast.className = "toast" + (type ? " " + type : "");
+  toast.classList.add("show");
+  setTimeout(function() { toast.classList.remove("show"); }, 3000);
+}
+</script>
+
+</body>
+</html>

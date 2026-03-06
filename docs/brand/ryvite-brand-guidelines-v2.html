@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ryvite Brand Guidelines — Prompt to Party</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* ===== ROOT & RESET ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --party-coral: #E94560;
+            --blush-pop: #FF6B6B;
+            --midnight: #1A1A2E;
+            --confetti-gold: #FFB74D;
+            --mint-fizz: #4ECDC4;
+            --party-purple: #A78BFA;
+            --cream: #FFFAF5;
+            --warm-canvas: #FFF5E6;
+            --slate: #6B7280;
+            --slate-light: #D1D5DB;
+            --error-red: #DC2626;
+            --warning-amber: #F59E0B;
+
+            --font-display: 'Playfair Display', serif;
+            --font-body: 'Inter', sans-serif;
+
+            --transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            --transition-smooth: all 0.6s ease-out;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-body);
+            color: var(--midnight);
+            background-color: white;
+            line-height: 1.6;
+        }
+
+        /* ===== TYPOGRAPHY ===== */
+        h1, h2, h3, h4, h5, h6 {
+            font-family: var(--font-display);
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        h1 { font-size: 4rem; letter-spacing: -1px; }
+        h2 { font-size: 3rem; }
+        h3 { font-size: 2rem; }
+        h4 { font-size: 1.5rem; }
+        h5 { font-size: 1.25rem; }
+        h6 { font-size: 1rem; }
+
+        p { font-size: 1rem; margin-bottom: 1rem; }
+        .text-sm { font-size: 0.875rem; }
+        .text-xs { font-size: 0.75rem; }
+        .text-lg { font-size: 1.125rem; }
+        .text-xl { font-size: 1.25rem; }
+
+        .font-light { font-weight: 300; }
+        .font-medium { font-weight: 500; }
+        .font-bold { font-weight: 700; }
+
+        /* ===== UTILITIES ===== */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .section {
+            padding: 6rem 0;
+        }
+
+        .gradient-coral { background: linear-gradient(135deg, var(--party-coral), var(--blush-pop)); }
+        .gradient-warm { background: linear-gradient(135deg, var(--confetti-gold), #FFD89B); }
+        .gradient-cool { background: linear-gradient(135deg, var(--mint-fizz), #4DBDAD); }
+        .gradient-magic { background: linear-gradient(135deg, var(--party-purple), #8B7FD6); }
+
+        .text-white { color: white; }
+        .text-coral { color: var(--party-coral); }
+        .text-midnight { color: var(--midnight); }
+        .text-slate { color: var(--slate); }
+
+        .opacity-60 { opacity: 0.6; }
+        .opacity-75 { opacity: 0.75; }
+
+        .rounded { border-radius: 8px; }
+        .rounded-lg { border-radius: 12px; }
+        .rounded-full { border-radius: 9999px; }
+
+        /* ===== ANIMATIONS ===== */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(233, 69, 96, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(233, 69, 96, 0.6); }
+        }
+
+        @keyframes confetti-burst {
+            0% { transform: scale(0) rotate(0deg); opacity: 1; }
+            100% { transform: scale(1) rotate(360deg); opacity: 0; }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .slide-in-left {
+            animation: slideInLeft 0.8s ease-out;
+        }
+
+        .slide-in-right {
+            animation: slideInRight 0.8s ease-out;
+        }
+
+        /* Scroll animation trigger */
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: var(--transition-smooth);
+        }
+
+        .scroll-reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ===== HEADER & HERO ===== */
+        .hero {
+            background: linear-gradient(135deg, var(--midnight) 0%, #0f3460 100%);
+            color: white;
+            padding: 8rem 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255, 183, 77, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: -5%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(233, 69, 96, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .logo-hero {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 2rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .hero .tagline {
+            font-size: 1.5rem;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+            font-weight: 300;
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(255, 183, 77, 0.2);
+            color: var(--confetti-gold);
+            padding: 0.75rem 1.5rem;
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.8s ease-out 0.4s both;
+            border: 1px solid var(--confetti-gold);
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--party-coral), var(--blush-pop));
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            border: none;
+            font-size: 1rem;
+            transition: var(--transition);
+            animation: fadeInUp 0.8s ease-out 0.6s both;
+            box-shadow: 0 10px 30px rgba(233, 69, 96, 0.3);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 45px rgba(233, 69, 96, 0.5);
+        }
+
+        /* ===== MARQUEE ===== */
+        .marquee-section {
+            background: var(--party-coral);
+            color: white;
+            padding: 2rem 0;
+            overflow: hidden;
+        }
+
+        .marquee-content {
+            display: flex;
+            animation: scroll 20s linear infinite;
+            white-space: nowrap;
+            gap: 3rem;
+        }
+
+        .marquee-item {
+            font-size: 1.25rem;
+            font-weight: 600;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .marquee-item::before {
+            content: '✦';
+            font-size: 1.5rem;
+        }
+
+        @keyframes scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+        }
+
+        /* ===== BRAND STORY ===== */
+        .story-section {
+            background: var(--midnight);
+            color: white;
+        }
+
+        .story-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .story-card {
+            padding: 2.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border-left: 4px solid var(--party-coral);
+            transition: var(--transition);
+        }
+
+        .story-card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-5px);
+        }
+
+        .story-card h4 {
+            color: var(--confetti-gold);
+            margin-bottom: 1rem;
+        }
+
+        .story-number {
+            display: inline-block;
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--party-coral);
+            opacity: 0.3;
+            margin-bottom: 0.5rem;
+        }
+
+        /* ===== LOGO SYSTEM ===== */
+        .logo-system-section {
+            background: var(--cream);
+        }
+
+        .logo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .logo-showcase {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+            border: 1px solid var(--slate-light);
+            transition: var(--transition));
+        }
+
+        .logo-showcase:hover {
+            border-color: var(--party-coral);
+            box-shadow: 0 10px 30px rgba(233, 69, 96, 0.1);
+        }
+
+        .logo-showcase.dark {
+            background: var(--midnight);
+        }
+
+        .logo-showcase.coral {
+            background: var(--party-coral);
+        }
+
+        .logo-showcase.gold {
+            background: var(--confetti-gold);
+        }
+
+        .logo-showcase svg {
+            width: 100%;
+            max-width: 200px;
+            height: auto;
+        }
+
+        .logo-label {
+            font-size: 0.875rem;
+            color: var(--slate);
+            margin-top: 1rem;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        /* ===== COLOR SYSTEM ===== */
+        .color-system-section {
+            background: var(--warm-canvas);
+        }
+
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .color-swatch {
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .color-display {
+            height: 120px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 1rem;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .color-info {
+            padding: 1rem;
+            background: white;
+        }
+
+        .color-name {
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--midnight);
+            margin-bottom: 0.25rem;
+        }
+
+        .color-hex {
+            font-size: 0.75rem;
+            color: var(--slate);
+            font-family: monospace;
+        }
+
+        /* ===== TYPOGRAPHY SECTION ===== */
+        .typography-section {
+            background: white;
+        }
+
+        .type-showcase {
+            margin: 2rem 0;
+            padding: 2rem;
+            background: var(--warm-canvas);
+            border-radius: 12px;
+        }
+
+        .type-example {
+            margin: 1.5rem 0;
+            padding: 1rem;
+            background: white;
+            border-left: 3px solid var(--party-coral);
+            padding-left: 1.5rem;
+        }
+
+        .type-label {
+            font-size: 0.75rem;
+            color: var(--slate);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        /* ===== DUALITY SECTION ===== */
+        .duality-section {
+            background: linear-gradient(90deg, var(--cream) 50%, var(--midnight) 50%);
+        }
+
+        .duality-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            align-items: center;
+            margin-top: 3rem;
+        }
+
+        .duality-left {
+            padding: 3rem;
+            text-align: left;
+        }
+
+        .duality-right {
+            padding: 3rem;
+            text-align: left;
+            color: white;
+        }
+
+        .duality-left h3 {
+            color: var(--party-coral);
+            margin-bottom: 1rem;
+        }
+
+        .duality-right h3 {
+            color: var(--confetti-gold);
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .duality-grid {
+                grid-template-columns: 1fr;
+                background: var(--midnight);
+            }
+            .duality-left { background: var(--cream); }
+            .duality-right { background: var(--midnight); }
+        }
+
+        /* ===== VOICE & TONE ===== */
+        .voice-section {
+            background: white;
+        }
+
+        .voice-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .voice-card {
+            padding: 2rem;
+            border-radius: 12px;
+            border: 2px solid var(--slate-light);
+            transition: var(--transition);
+        }
+
+        .voice-card:hover {
+            border-color: var(--party-coral);
+            box-shadow: 0 10px 30px rgba(233, 69, 96, 0.1);
+        }
+
+        .voice-card.do {
+            border-left: 5px solid var(--mint-fizz);
+        }
+
+        .voice-card.dont {
+            border-left: 5px solid var(--error-red);
+        }
+
+        .voice-title {
+            font-weight: 700;
+            margin-bottom: 1rem;
+            font-size: 1.125rem;
+        }
+
+        .voice-card.do .voice-title {
+            color: var(--mint-fizz);
+        }
+
+        .voice-card.dont .voice-title {
+            color: var(--error-red);
+        }
+
+        .voice-card p {
+            font-size: 0.95rem;
+            margin-bottom: 0;
+        }
+
+        /* ===== APPLICATIONS SECTION ===== */
+        .applications-section {
+            background: var(--warm-canvas);
+        }
+
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .app-mockup {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+            transition: var(--transition);
+        }
+
+        .app-mockup:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        .app-header {
+            padding: 1.5rem;
+            background: linear-gradient(135deg, var(--party-coral), var(--blush-pop));
+            color: white;
+        }
+
+        .app-header h4 {
+            margin: 0 0 0.5rem 0;
+        }
+
+        .app-header p {
+            margin: 0;
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        .app-body {
+            padding: 2rem 1.5rem;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background: linear-gradient(135deg, var(--warm-canvas), white);
+        }
+
+        /* ===== ACCESSIBILITY SECTION ===== */
+        .accessibility-section {
+            background: white;
+        }
+
+        .contrast-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .contrast-check {
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .contrast-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+
+        /* ===== MOTION SECTION ===== */
+        .motion-section {
+            background: linear-gradient(135deg, var(--midnight), #0f3460);
+            color: white;
+        }
+
+        .motion-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .motion-card {
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .motion-card h4 {
+            color: var(--confetti-gold);
+            margin-bottom: 1rem;
+        }
+
+        /* ===== FOOTER ===== */
+        footer {
+            background: var(--midnight);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        footer p {
+            margin-bottom: 0.5rem;
+        }
+
+        .footer-links {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
+            color: var(--confetti-gold);
+            text-decoration: none;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .footer-links a:hover {
+            color: var(--party-coral);
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5rem; }
+            h2 { font-size: 2rem; }
+            h3 { font-size: 1.5rem; }
+
+            .hero {
+                padding: 4rem 1.5rem;
+            }
+
+            .hero h1 {
+                font-size: 2.25rem;
+            }
+
+            .section {
+                padding: 3rem 0;
+            }
+
+            .container {
+                padding: 0 1.5rem;
+            }
+
+            .logo-grid,
+            .color-grid,
+            .story-grid,
+            .voice-grid,
+            .app-grid,
+            .motion-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ===== HERO ===== -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="logo-hero">
+                <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Envelope base -->
+                    <path d="M20 40 L60 65 L100 40 L100 80 Q100 95 85 95 L35 95 Q20 95 20 80 Z" fill="none" stroke="#FFB74D" stroke-width="2" stroke-linejoin="round"/>
+                    <!-- Envelope flap -->
+                    <path d="M20 40 L60 65 L100 40" fill="none" stroke="#FFB74D" stroke-width="2" stroke-linecap="round"/>
+                    <!-- Confetti burst -->
+                    <circle cx="60" cy="35" r="8" fill="#E94560" opacity="0.8"/>
+                    <circle cx="50" cy="25" r="5" fill="#FF6B6B" opacity="0.6"/>
+                    <circle cx="70" cy="28" r="5" fill="#FFB74D" opacity="0.6"/>
+                    <circle cx="45" cy="40" r="4" fill="#A78BFA" opacity="0.6"/>
+                    <circle cx="75" cy="38" r="4" fill="#4ECDC4" opacity="0.6"/>
+                </svg>
+            </div>
+
+            <div class="badge">Brand Guidelines v2.0</div>
+
+            <h1>Ryvite</h1>
+            <p class="tagline">Prompt to Party</p>
+            <p style="font-size: 1.125rem; color: rgba(255, 255, 255, 0.85); margin-bottom: 0.75rem;">
+                AI-powered invitations. Free for now. Beautiful forever.
+            </p>
+            <p style="font-size: 0.9rem; color: rgba(255, 183, 77, 0.9); margin-bottom: 2rem; font-style: italic;">
+                It started as a birthday invite for a 1-year-old. It became a completely over-engineered labor of love.
+            </p>
+            <button class="cta-button">Explore Brand Book</button>
+        </div>
+    </section>
+
+    <!-- ===== MARQUEE ===== -->
+    <section class="marquee-section">
+        <div class="marquee-content">
+            <div class="marquee-item">Prompt to Party</div>
+            <div class="marquee-item">Every Moment Deserves Beauty</div>
+            <div class="marquee-item">AI-Powered Invitations</div>
+            <div class="marquee-item">Free for Now</div>
+            <div class="marquee-item">Totally Over-Engineered</div>
+            <div class="marquee-item">Prompt to Party</div>
+            <div class="marquee-item">Every Moment Deserves Beauty</div>
+            <div class="marquee-item">AI-Powered Invitations</div>
+            <div class="marquee-item">Free for Now</div>
+            <div class="marquee-item">Totally Over-Engineered</div>
+        </div>
+    </section>
+
+    <!-- ===== BRAND STORY ===== -->
+    <section class="story-section section">
+        <div class="container">
+            <h2 class="scroll-reveal">The Ryvite Story</h2>
+
+            <!-- Origin Story -->
+            <div class="scroll-reveal" style="max-width: 720px; margin: 0 auto 3rem; text-align: center;">
+                <p class="text-lg" style="color: rgba(255,255,255,0.9); line-height: 1.8; margin-bottom: 1.25rem;">
+                    It started with a birthday party. Rylan was turning 1, and his dad needed an invite. <em style="color: #FFB74D;">How hard could it be?</em>
+                </p>
+                <p style="color: rgba(255,255,255,0.6); line-height: 1.8; margin-bottom: 1.25rem;">
+                    Turns out, $8 per invite on Paperless Post hard. Or "pick from 200 of the same template" hard. So instead of just making the invite, dad opened Claude, described the vibe, uploaded a few inspiration photos, and got back a fully custom, beautifully designed HTML invitation in about 90 seconds. It looked better than anything on the premium platforms. And it was free.
+                </p>
+                <p style="color: rgba(255,255,255,0.6); line-height: 1.8; margin-bottom: 1.25rem;">
+                    That should have been the end of it. Make the invite. Send the invite. Eat the cake. But instead, the thought crept in: <em style="color: #FFB74D;">"What if everyone could do this?"</em> And then the completely over-engineered fun project began — auth systems, RSVP tracking, AI pipelines, database schemas — all because a 1-year-old needed a birthday party invite.
+                </p>
+                <p style="color: rgba(255,255,255,0.6); line-height: 1.8; margin-bottom: 1.25rem;">
+                    Ryvite is free for now because the whole point is that beautiful invitations shouldn't cost $8 a pop. If you love what we're building, donations go to Rylan's college fund — so that someday he can look back and know his first birthday kicked off something real.
+                </p>
+                <div style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem; background: rgba(255,183,77,0.15); border: 1px solid rgba(255,183,77,0.3); border-radius: 100px; font-size: 0.85rem; color: #FFB74D; font-weight: 600; margin-top: 0.5rem;">
+                    🎓 Free for now — donations accepted for Rylan's college fund
+                </div>
+            </div>
+
+            <!-- How It Works -->
+            <h3 class="scroll-reveal" style="text-align: center; color: white; font-size: 1.5rem; margin-bottom: 2rem;">How It Works</h3>
+            <div class="story-grid">
+                <div class="story-card scroll-reveal">
+                    <div class="story-number">01</div>
+                    <h4>Prompt It</h4>
+                    <p>Tell us the vibe. Describe the theme, the mood, the energy. Our AI understands celebration in all its forms — from intimate dinners to epic parties.</p>
+                </div>
+                <div class="story-card scroll-reveal">
+                    <div class="story-number">02</div>
+                    <h4>Inspire It</h4>
+                    <p>Upload reference images, mood boards, and inspiration. Your photos guide our design, ensuring every invite reflects your unique vision.</p>
+                </div>
+                <div class="story-card scroll-reveal">
+                    <div class="story-number">03</div>
+                    <h4>Send It</h4>
+                    <p>Instantly generate a fully custom HTML/CSS invite. Share via email, text, or social. Your guests get the magic before they even open it.</p>
+                </div>
+                <div class="story-card scroll-reveal">
+                    <div class="story-number">04</div>
+                    <h4>Celebrate It</h4>
+                    <p>Track RSVPs, manage guests, and celebrate the moment. Every detail leads to one perfect event, shared with the people you love most.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== LOGO SYSTEM ===== -->
+    <section class="logo-system-section section">
+        <div class="container">
+            <h2 class="scroll-reveal">Logo System</h2>
+            <p class="text-lg scroll-reveal opacity-75" style="margin-bottom: 3rem;">The Ryvite logomark: an envelope unfolds into celebration.</p>
+
+            <div class="logo-grid">
+                <div class="scroll-reveal">
+                    <div class="logo-showcase">
+                        <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Icon -->
+                            <circle cx="30" cy="40" r="20" fill="none" stroke="#E94560" stroke-width="2"/>
+                            <path d="M15 30 L30 42 L45 30 M15 50 L45 50" fill="none" stroke="#E94560" stroke-width="2" stroke-linecap="round"/>
+                            <!-- Wordmark -->
+                            <text x="65" y="50" font-family="Playfair Display, serif" font-size="32" font-weight="600" fill="#1A1A2E">Ryvite</text>
+                        </svg>
+                    </div>
+                    <p class="logo-label">Primary Lockup — Light Background</p>
+                </div>
+
+                <div class="scroll-reveal">
+                    <div class="logo-showcase dark">
+                        <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="30" cy="40" r="20" fill="none" stroke="#FFB74D" stroke-width="2"/>
+                            <path d="M15 30 L30 42 L45 30 M15 50 L45 50" fill="none" stroke="#FFB74D" stroke-width="2" stroke-linecap="round"/>
+                            <text x="65" y="50" font-family="Playfair Display, serif" font-size="32" font-weight="600" fill="white">Ryvite</text>
+                        </svg>
+                    </div>
+                    <p class="logo-label">Primary Lockup — Dark Background</p>
+                </div>
+
+                <div class="scroll-reveal">
+                    <div class="logo-showcase coral">
+                        <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="30" cy="40" r="20" fill="none" stroke="white" stroke-width="2"/>
+                            <path d="M15 30 L30 42 L45 30 M15 50 L45 50" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                            <text x="65" y="50" font-family="Playfair Display, serif" font-size="32" font-weight="600" fill="white">Ryvite</text>
+                        </svg>
+                    </div>
+                    <p class="logo-label">Accent — Coral Background</p>
+                </div>
+
+                <div class="scroll-reveal">
+                    <div class="logo-showcase gold">
+                        <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="30" cy="40" r="20" fill="none" stroke="#1A1A2E" stroke-width="2"/>
+                            <path d="M15 30 L30 42 L45 30 M15 50 L45 50" fill="none" stroke="#1A1A2E" stroke-width="2" stroke-linecap="round"/>
+                            <text x="65" y="50" font-family="Playfair Display, serif" font-size="32" font-weight="600" fill="#1A1A2E">Ryvite</text>
+                        </svg>
+                    </div>
+                    <p class="logo-label">Accent — Gold Background</p>
+                </div>
+            </div>
+
+            <div style="margin-top: 3rem; padding: 2rem; background: white; border-radius: 12px; border-left: 4px solid var(--party-coral);">
+                <h4>Logo Specifications</h4>
+                <ul style="margin-top: 1rem; margin-left: 1.5rem;">
+                    <li><strong>Minimum Size:</strong> 80px width for digital; 0.5" for print</li>
+                    <li><strong>Clear Space:</strong> Maintain 20px minimum on all sides</li>
+                    <li><strong>Color Variations:</strong> Full color, white, and single-color black versions</li>
+                    <li><strong>Never:</strong> Stretch, rotate, or apply gradients to the logo</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== COLOR SYSTEM ===== -->
+    <section class="color-system-section section">
+        <div class="container">
+            <h2 class="scroll-reveal">Color System</h2>
+
+            <h3 style="margin-top: 3rem; margin-bottom: 1.5rem;" class="scroll-reveal">Primary Colors</h3>
+            <div class="color-grid">
+                <div class="color-swatch scroll-reveal">
+                    <div class="color-display" style="background: var(--party-coral);">Party Coral</div>
+                    <div class="color-info">
+                        <div class="color-name">Party Coral</div>
+                        <div class="color-hex">#E94560</div>
+                    </div>
+                </div>
+                <div class="color-swatch scroll-reveal">
+                    <div class="color-display" style="background: var(--midnight); color: white;">Midnight</div>
+                    <div class="color-info">
+                        <div class="color-name">Midnight</div>
+                        <div class="color-hex">#1A1A2E</div>
+                    </div>
+                </div>
+                <div class="color-swatch scroll-reveal">
+                    <div class="color-display" style="background: var(--confetti-gold); color: var(--midnight);">Confetti Gold</div>
+                    <div class="color-info">
+                        <div class="color-name">Confetti Gold</div>
+                        <div class="color-hex">#FFB74D</div>
+                    </div>
+                </div>
+                <div class="color-swatch scroll-reveal">
+                    <div class="color-display" style="background: var(--blush-pop);">Blush Pop</div>
+                    <div class="color-info">
+                        <div class="color-name">Blush Pop</div>
+                        <div class="color-hex">#FF6B6B</div>
+                    </div>
+                </div>
+                <div class="color-swatch scroll-reveal">
+                    <div class="color-display" style="background: var(--cream); color: var(--midnight);">Cream</div>
+                    <div class="color-info">
+                        <div class="color-name">Cream</div>
+                        <div class="color-hex">#FFFAF5</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 3rem; margin-bottom: 1.5rem;" class="scroll-reveal">Functional Colors</h3>
+            <div class="color-grid">
+                <div class="color-swatch scroll-reveal">
+                    <div class="color-display" style="background: var(--mint-fizz); color: white;">Mint Fizz</div>
+                    <div class="color-info">
+                        <div class="color-name">Mint Fizz</div>
+                        <div class="color-hex">#4ECDC4</div>
+                    </div>
+                </div>
+                <div class="color-swatch scroll-reveal">
+                    <div class="color-display" style="background: var(--party-purple);">Party Purple</div>
+                    <div class="color-info">
+                        <div class="color-name">Party Purple</div>
+                        <div class="color-hex">#A78BFA</div>
+                    </div>
+                </div>
+                <div class="color-swatch scroll-reveal">
+                    <div class="color-display" style="background: var(--error-red);">Error Red</div>
+                    <div class="color-info">
+                        <div class="color-name">Error Red</div>
+                        <div class="color-hex">#DC2626</div>
+                    </div>
+                </div>
+                <div class="color-swatch scroll-reveal">
+                    <div class="color-display" style="background: var(--warning-amber); color: white;">Warning Amber</div>
+                    <div class="color-info">
+                        <div class="color-name">Warning Amber</div>
+                        <div class="color-hex">#F59E0B</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== TYPOGRAPHY ===== -->
+    <section class="typography-section section">
+        <div class="container">
+            <h2 class="scroll-reveal">Typography</h2>
+
+            <h3 style="margin-top: 3rem; color: var(--party-coral);" class="scroll-reveal">Playfair Display — The Invitation</h3>
+            <div class="type-showcase scroll-reveal">
+                <div class="type-example">
+                    <div class="type-label">Display</div>
+                    <h1 style="margin: 0;">The Moment Awaits</h1>
+                </div>
+                <div class="type-example">
+                    <div class="type-label">Headline 1</div>
+                    <h2 style="margin: 0;">Join Us for Celebration</h2>
+                </div>
+                <div class="type-example">
+                    <div class="type-label">Headline 2</div>
+                    <h3 style="margin: 0;">A Night to Remember</h3>
+                </div>
+                <div class="type-example">
+                    <div class="type-label">Headline 3</div>
+                    <h4 style="margin: 0;">Saturday, March 22</h4>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 3rem; color: var(--party-coral);" class="scroll-reveal">Inter — The Details</h3>
+            <div class="type-showcase scroll-reveal">
+                <div class="type-example">
+                    <div class="type-label">Body Large</div>
+                    <p class="text-lg" style="margin: 0;">RSVP by March 15 to secure your seat. We can't wait to celebrate with you and your plus one.</p>
+                </div>
+                <div class="type-example">
+                    <div class="type-label">Body Base</div>
+                    <p style="margin: 0;">Join us for an evening of food, music, and unforgettable moments. Your presence means everything to us.</p>
+                </div>
+                <div class="type-example">
+                    <div class="type-label">Body Small</div>
+                    <p class="text-sm" style="margin: 0;">Location details will be shared upon RSVP confirmation. Dietary restrictions can be noted in your response.</p>
+                </div>
+                <div class="type-example">
+                    <div class="type-label">UI / Labels</div>
+                    <p class="text-xs font-bold" style="margin: 0; text-transform: uppercase; letter-spacing: 1px;">RSVP Now • Share • Add to Calendar</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== DUALITY ===== -->
+    <section class="duality-section section">
+        <div class="container">
+            <h2 style="grid-column: 1 / -1; margin-bottom: 2rem;" class="scroll-reveal">The Duality</h2>
+            <div class="duality-grid">
+                <div class="duality-left scroll-reveal">
+                    <h3>The Invitation</h3>
+                    <p>Playfair Display is editorial. It's the formal, printed elegance of receiving a beautiful invitation in the mail. It commands attention and speaks to the significance of the moment.</p>
+                    <ul style="margin-top: 1.5rem; margin-left: 1.5rem; line-height: 2;">
+                        <li>Headlines and announcements</li>
+                        <li>Event titles and dates</li>
+                        <li>Decorative elements</li>
+                        <li>Premium feel and gravitas</li>
+                    </ul>
+                </div>
+                <div class="duality-right scroll-reveal">
+                    <h3>The Details</h3>
+                    <p>Inter is clean and modern. It's the practical clarity of information, the logistics of the party. It reads effortlessly on screens and in print, guiding your guests through every detail with confidence.</p>
+                    <ul style="margin-top: 1.5rem; margin-left: 1.5rem; line-height: 2;">
+                        <li>Body copy and instructions</li>
+                        <li>Location and time specifics</li>
+                        <li>UI buttons and labels</li>
+                        <li>Easy readability everywhere</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== VOICE & TONE ===== -->
+    <section class="voice-section section">
+        <div class="container">
+            <h2 class="scroll-reveal">Voice & Tone</h2>
+            <p class="text-lg scroll-reveal opacity-75" style="margin-bottom: 3rem;">Every word celebrates. Every message invites.</p>
+
+            <h3 style="margin-top: 3rem; margin-bottom: 1.5rem;" class="scroll-reveal">Celebration-First</h3>
+            <div class="voice-grid">
+                <div class="voice-card do scroll-reveal">
+                    <div class="voice-title">✓ Do</div>
+                    <p>"Your moment deserves something magical. Let us design it for you."</p>
+                </div>
+                <div class="voice-card dont scroll-reveal">
+                    <div class="voice-title">✕ Don't</div>
+                    <p>"Generate a basic invitation using our template system."</p>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 3rem; margin-bottom: 1.5rem;" class="scroll-reveal">Effortless Magic</h3>
+            <div class="voice-grid">
+                <div class="voice-card do scroll-reveal">
+                    <div class="voice-title">✓ Do</div>
+                    <p>"Our AI understands your vision instantly. Describe it, show us, we'll create it."</p>
+                </div>
+                <div class="voice-card dont scroll-reveal">
+                    <div class="voice-title">✕ Don't</div>
+                    <p>"Our machine learning algorithm processes your input parameters to generate output."</p>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 3rem; margin-bottom: 1.5rem;" class="scroll-reveal">Generous Spirit — "Free for Now"</h3>
+            <div class="voice-grid">
+                <div class="voice-card do scroll-reveal">
+                    <div class="voice-title">✓ Do</div>
+                    <p>"Free for now. If you love it, donations go to Rylan's college fund — he's the reason this whole thing exists."</p>
+                </div>
+                <div class="voice-card dont scroll-reveal">
+                    <div class="voice-title">✕ Don't</div>
+                    <p>"No-cost invitation platform with limited premium features available."</p>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 3rem; margin-bottom: 1.5rem;" class="scroll-reveal">The Origin Story — Lean Into It</h3>
+            <div class="voice-grid">
+                <div class="voice-card do scroll-reveal">
+                    <div class="voice-title">✓ Do</div>
+                    <p>"Ryvite exists because a dad needed a birthday invite for his 1-year-old and accidentally built an entire platform. Totally normal behavior."</p>
+                </div>
+                <div class="voice-card dont scroll-reveal">
+                    <div class="voice-title">✕ Don't</div>
+                    <p>"Our startup leverages cutting-edge AI to disrupt the digital invitation space."</p>
+                </div>
+            </div>
+
+            <div style="margin-top: 3rem; padding: 2rem; background: var(--warm-canvas); border-radius: 12px;" class="scroll-reveal">
+                <h4>Forbidden Words</h4>
+                <p style="margin-top: 1rem;">Avoid these when describing Ryvite:</p>
+                <p style="color: var(--error-red); font-weight: 600;">CHEAP • BASIC • TEMPLATE • GENERIC • SIMPLE (negative) • DISRUPTING • STARTUP JARGON</p>
+                <p style="margin-top: 1rem; font-size: 0.95rem;">These words diminish the value and heart behind what Ryvite is. We're not a workaround or a pitch deck — we're a family project that makes something people love.</p>
+            </div>
+
+            <div style="margin-top: 2rem; padding: 2rem; background: linear-gradient(135deg, rgba(255,183,77,0.1), rgba(233,69,96,0.05)); border-radius: 12px; border-left: 4px solid var(--confetti-gold);" class="scroll-reveal">
+                <h4 style="color: var(--confetti-gold);">🎓 Donation Messaging Guidelines</h4>
+                <p style="margin-top: 1rem; font-size: 0.95rem;"><strong>Tone:</strong> Warm, self-aware, a little funny. This whole thing started because a dad over-engineered a birthday invite. Lean into that energy. The donation is optional and framed as supporting the kid whose birthday started it all.</p>
+                <p style="font-size: 0.95rem;"><strong>Placement:</strong> After the user has already gotten value (post-invite creation, in the footer, on the about page). Never before or during the creation flow.</p>
+                <p style="font-size: 0.95rem;"><strong>Example CTAs:</strong> "Love your invite? Rylan's 1st birthday started all this — donations go to his college fund. 🎓" or "This whole platform exists because of a birthday party. Help fund the kid's future."</p>
+                <p style="font-size: 0.95rem;"><strong>Never say:</strong> "Pay what you want," "Support us," or anything that sounds like a paywall is coming.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== APPLICATIONS ===== -->
+    <section class="applications-section section">
+        <div class="container">
+            <h2 class="scroll-reveal">Applications</h2>
+            <p class="text-lg scroll-reveal opacity-75" style="margin-bottom: 3rem;">See Ryvite in action across every touchpoint.</p>
+
+            <div class="app-grid">
+                <div class="app-mockup scroll-reveal">
+                    <div class="app-header">
+                        <h4>Birthday Invitation</h4>
+                        <p>Custom HTML/CSS invite generated by AI</p>
+                    </div>
+                    <div class="app-body">
+                        <div style="width: 100%; max-width: 250px;">
+                            <div style="background: linear-gradient(135deg, var(--party-coral), var(--blush-pop)); padding: 2rem; border-radius: 8px; color: white; text-align: center;">
+                                <h3 style="margin: 0 0 0.5rem 0; color: white;">You're Invited!</h3>
+                                <p style="margin: 0; font-size: 0.9rem;">Join us for a night of cake, dancing & celebration</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="app-mockup scroll-reveal">
+                    <div class="app-header">
+                        <h4>Wedding Shower</h4>
+                        <p>Elegant, custom-designed theme</p>
+                    </div>
+                    <div class="app-body">
+                        <div style="width: 100%; max-width: 250px;">
+                            <div style="background: linear-gradient(135deg, #E8D4E8, #F5E6F0); padding: 2rem; border-radius: 8px; color: #4a3f5c; text-align: center;">
+                                <h3 style="margin: 0 0 0.5rem 0; color: #4a3f5c;">An Elegant Celebration</h3>
+                                <p style="margin: 0; font-size: 0.9rem;">Bridal Shower • Saturday Evening</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="app-mockup scroll-reveal">
+                    <div class="app-header">
+                        <h4>Prompt Interface</h4>
+                        <p>AI-powered invitation creation</p>
+                    </div>
+                    <div class="app-body">
+                        <div style="width: 100%; max-width: 250px; text-align: left;">
+                            <input type="text" placeholder="Describe your vibe..." style="width: 100%; padding: 0.75rem; border: 2px solid var(--party-coral); border-radius: 6px; margin-bottom: 1rem; font-family: var(--font-body);">
+                            <button style="width: 100%; padding: 0.75rem; background: var(--party-coral); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">Generate Invite</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="app-mockup scroll-reveal">
+                    <div class="app-header">
+                        <h4>Mobile View</h4>
+                        <p>Responsive invite experience</p>
+                    </div>
+                    <div class="app-body">
+                        <div style="width: 100%; max-width: 180px; aspect-ratio: 9/16; background: linear-gradient(135deg, var(--warm-canvas), white); border: 1px solid var(--slate-light); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.75rem;">
+                            <div style="color: var(--party-coral); font-weight: 600;">Mobile Invite</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="app-mockup scroll-reveal">
+                    <div class="app-header">
+                        <h4>Email Notification</h4>
+                        <p>Branded RSVP reminder</p>
+                    </div>
+                    <div class="app-body">
+                        <div style="width: 100%; max-width: 250px; padding: 1rem; background: white; border: 1px solid var(--slate-light); border-radius: 6px; font-size: 0.875rem; text-align: center;">
+                            <p style="margin: 0 0 0.5rem 0; color: var(--party-coral); font-weight: 600;">You're Invited!</p>
+                            <p style="margin: 0; color: var(--slate);">RSVP by March 15</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="app-mockup scroll-reveal">
+                    <div class="app-header">
+                        <h4>Social Share</h4>
+                        <p>Instagram & social media cards</p>
+                    </div>
+                    <div class="app-body">
+                        <div style="width: 100%; max-width: 250px; aspect-ratio: 1; background: linear-gradient(45deg, var(--party-coral), var(--confetti-gold)); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; text-align: center; font-size: 0.85rem; font-weight: 600;">
+                            Save the Date
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== ACCESSIBILITY ===== -->
+    <section class="accessibility-section section">
+        <div class="container">
+            <h2 class="scroll-reveal">Accessibility</h2>
+            <p class="text-lg scroll-reveal opacity-75" style="margin-bottom: 3rem;">Celebration is for everyone. Inclusivity is non-negotiable.</p>
+
+            <h3 style="margin-top: 2rem; margin-bottom: 1.5rem;" class="scroll-reveal">Color Contrast</h3>
+            <div class="contrast-grid">
+                <div class="contrast-check scroll-reveal" style="background: var(--party-coral);">
+                    <p style="color: white; font-size: 1.125rem; margin: 0;">Aa</p>
+                    <div class="contrast-label" style="color: var(--midnight);">Party Coral + White</div>
+                    <p style="color: var(--slate); font-size: 0.75rem; margin-top: 0.5rem;">WCAG AAA ✓</p>
+                </div>
+                <div class="contrast-check scroll-reveal" style="background: var(--midnight);">
+                    <p style="color: white; font-size: 1.125rem; margin: 0;">Aa</p>
+                    <div class="contrast-label" style="color: white;">Midnight + Cream</div>
+                    <p style="color: var(--confetti-gold); font-size: 0.75rem; margin-top: 0.5rem;">WCAG AAA ✓</p>
+                </div>
+                <div class="contrast-check scroll-reveal" style="background: var(--confetti-gold);">
+                    <p style="color: var(--midnight); font-size: 1.125rem; margin: 0;">Aa</p>
+                    <div class="contrast-label" style="color: var(--midnight);">Gold + Midnight</div>
+                    <p style="color: var(--slate); font-size: 0.75rem; margin-top: 0.5rem;">WCAG AA ✓</p>
+                </div>
+            </div>
+
+            <div style="margin-top: 3rem; padding: 2rem; background: var(--warm-canvas); border-radius: 12px;" class="scroll-reveal">
+                <h4>Guidelines</h4>
+                <ul style="margin-top: 1rem; margin-left: 1.5rem; line-height: 2;">
+                    <li><strong>Minimum Font Size:</strong> 16px for body text, 14px for small text</li>
+                    <li><strong>Line Height:</strong> Minimum 1.5 for readability</li>
+                    <li><strong>Button Size:</strong> Minimum 44px for touch targets</li>
+                    <li><strong>Color Alone:</strong> Never use color alone to convey meaning; add icons or text labels</li>
+                    <li><strong>Alt Text:</strong> All images must have descriptive alt text</li>
+                    <li><strong>Focus States:</strong> All interactive elements must have visible focus indicators</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== MOTION ===== -->
+    <section class="motion-section section">
+        <div class="container">
+            <h2 class="scroll-reveal">Motion & Animation</h2>
+            <p class="text-lg scroll-reveal opacity-75" style="margin-bottom: 3rem;">Subtle, celebratory, and purposeful. Motion should feel like joy.</p>
+
+            <div class="motion-grid">
+                <div class="motion-card scroll-reveal">
+                    <h4>Entrance Animations</h4>
+                    <p><strong>Curve:</strong> cubic-bezier(0.34, 1.56, 0.64, 1) (bounce out)</p>
+                    <p><strong>Duration:</strong> 0.6s–0.8s</p>
+                    <p><strong>Use:</strong> When elements first appear on screen</p>
+                </div>
+
+                <div class="motion-card scroll-reveal">
+                    <h4>Hover States</h4>
+                    <p><strong>Curve:</strong> ease-out</p>
+                    <p><strong>Duration:</strong> 0.3s</p>
+                    <p><strong>Use:</strong> Buttons, links, cards should scale or glow</p>
+                </div>
+
+                <div class="motion-card scroll-reveal">
+                    <h4>Interactions</h4>
+                    <p><strong>Curve:</strong> cubic-bezier(0.4, 0, 0.2, 1)</p>
+                    <p><strong>Duration:</strong> 0.2s–0.4s</p>
+                    <p><strong>Use:</strong> Form inputs, toggles, modals</p>
+                </div>
+
+                <div class="motion-card scroll-reveal">
+                    <h4>Celebrate Moments</h4>
+                    <p><strong>Curve:</strong> ease-out</p>
+                    <p><strong>Duration:</strong> 0.8s–1.2s</p>
+                    <p><strong>Use:</strong> RSVP submitted, invite sent, milestone moments</p>
+                </div>
+            </div>
+
+            <div style="margin-top: 3rem; padding: 2rem; background: rgba(255, 255, 255, 0.1); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.2);" class="scroll-reveal">
+                <h4>Principles</h4>
+                <ul style="margin-top: 1rem; margin-left: 1.5rem; line-height: 2;">
+                    <li><strong>Keep it light:</strong> Avoid rapid, jarring animations</li>
+                    <li><strong>Purpose-driven:</strong> Every animation should communicate or delight</li>
+                    <li><strong>Respectful:</strong> Provide a prefers-reduced-motion option</li>
+                    <li><strong>Consistent:</strong> Reuse the same easing curves across the product</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== FOOTER ===== -->
+    <footer>
+        <h3 style="margin-bottom: 0.5rem;">Ryvite Brand Guidelines</h3>
+        <p class="text-sm opacity-75">Version 2.0 — Confetti Edition • March 2026</p>
+        <p class="text-sm" style="color: #FFB74D; margin-top: 0.5rem;">Started as a birthday invite. Got slightly out of hand.</p>
+
+        <div class="footer-links">
+            <a href="#hero">Brand Book</a>
+            <a href="#logo">Logo System</a>
+            <a href="#voice">Voice & Tone</a>
+            <a href="#applications">Applications</a>
+        </div>
+
+        <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+            <p class="text-xs opacity-75">Free for now. Donations accepted for Rylan's college fund. 🎓</p>
+            <p class="text-xs opacity-75" style="margin-top: 0.25rem;">Built with love, AI, and a completely unreasonable amount of engineering for a birthday party.</p>
+        </div>
+    </footer>
+
+    <!-- ===== JAVASCRIPT ===== -->
+    <script>
+        // Scroll-triggered animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -100px 0px'
+        };
+
+        const observer = new IntersectionObserver(function(entries) {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.scroll-reveal').forEach(element => {
+            observer.observe(element);
+        });
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+
+        // Copy color hex on click
+        document.querySelectorAll('.color-swatch').forEach(swatch => {
+            swatch.addEventListener('click', function() {
+                const hex = this.querySelector('.color-hex').textContent;
+                navigator.clipboard.writeText(hex);
+
+                const originalText = this.querySelector('.color-hex').textContent;
+                this.querySelector('.color-hex').textContent = 'Copied!';
+                setTimeout(() => {
+                    this.querySelector('.color-hex').textContent = originalText;
+                }, 1500);
+            });
+        });
+
+        // Marquee animation setup
+        const marqueeContent = document.querySelector('.marquee-content');
+        if (marqueeContent) {
+            const marqueeWidth = marqueeContent.offsetWidth;
+            marqueeContent.style.animation = `scroll ${marqueeWidth / 50}s linear infinite`;
+        }
+
+        // Add subtle parallax to hero
+        window.addEventListener('scroll', function() {
+            const scrollY = window.scrollY;
+            const hero = document.querySelector('.hero');
+            if (scrollY < window.innerHeight) {
+                hero.style.backgroundPosition = `0 ${scrollY * 0.5}px`;
+            }
+        });
+    </script>
+</body>
+</html>
