@@ -199,9 +199,7 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
     <h3>Setup</h3>
     <div id="configLoading" style="text-align:center;padding:10px;color:#aaa;font-size:0.9rem;">Loading settings...</div>
     <div id="configFields" style="display:none;">
-      <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;">Event ID</label>
-      <input type="text" class="config-input" id="eventId" readonly style="background:#f0ede5;color:#888;cursor:default;">
-      <p class="config-hint">Unique identifier for this event. Auto-generated on first save.</p>
+      <input type="hidden" id="eventId">
       <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;">Zapier Webhook URL</label>
       <input type="url" class="config-input" id="zapierUrl" placeholder="https://hooks.zapier.com/hooks/catch/...">
       <p class="config-hint">Zapier webhook that receives {name, phone, inviteUrl} and sends an SMS.</p>
