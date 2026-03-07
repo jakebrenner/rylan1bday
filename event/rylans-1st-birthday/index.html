@@ -161,6 +161,7 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
     <p class="rsvp-subtitle">Please let us know if you can make it!</p>
     <form id="rsvpForm">
       <div class="form-group"><label>Your Name</label><input type="text" name="name" required placeholder="First & Last Name"></div>
+      <div class="form-group"><label>Phone Number</label><input type="tel" name="phone" required placeholder="(555) 555-5555"></div>
       <div class="form-group"><label>Will you be joining us?</label><div class="attendance-options"><div class="attendance-option"><input type="radio" name="attending" id="yes" value="Yes" required><label for="yes">Wouldn't miss it!</label></div><div class="attendance-option"><input type="radio" name="attending" id="no" value="No"><label for="no">Can't make it</label></div></div></div>
       <div id="customFieldsContainer"></div>
       <button type="submit" class="submit-btn">Send RSVP</button>
@@ -253,13 +254,14 @@ form.addEventListener("submit",function(e){
   e.preventDefault();
   var fd=new FormData(form);
   var name=fd.get("name")||"";
+  var phone=fd.get("phone")||"";
   var attending=fd.get("attending")||"";
   var responseData={};
   _customFields.forEach(function(f){
     var val=fd.get("cf_"+f.key);
     if(val!==null)responseData[f.key]=val;
   });
-  var d={action:"rsvp",name:name,attending:attending,responseData:responseData};
+  var d={action:"rsvp",name:name,phone:phone,attending:attending==="Yes",responseData:responseData};
   if(_guestId)d.inviteId=_guestId;
   if(_eventId)d.eventId=_eventId;
   form.style.display="none";

@@ -397,36 +397,45 @@ function handleRsvp(data) {
   var sheet = getOrCreateSheet("Invites", INVITES_HEADERS);
 
   var inviteId = data.inviteId || data.id || "";
-  if (!inviteId) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Missing inviteId" }))
-      .setMimeType(ContentService.MimeType.JSON);
+  var status = data.attending === true ? "Attending" : "Not Attending";
+  var responseData = {};
+  if (data.responseData && typeof data.responseData === "object") {
+    responseData = data.responseData;
   }
+  var responseJson = JSON.stringify(responseData);
 
-  // Find the row by InviteID (column C)
-  var dataRange = sheet.getDataRange();
-  var values = dataRange.getValues();
-  var found = false;
+  // If we have an inviteId, try to find and update the existing row
+  if (inviteId) {
+    var dataRange = sheet.getDataRange();
+    var values = dataRange.getValues();
 
-  for (var i = 1; i < values.length; i++) {
-    if (values[i][2] === inviteId) {
-      var status = data.attending ? "Attending" : "Not Attending";
-      sheet.getRange(i + 1, 6).setValue(status);
+    for (var i = 1; i < values.length; i++) {
+      if (values[i][2] === inviteId) {
+        // Update name and phone if provided
+        if (data.name) sheet.getRange(i + 1, 4).setValue(data.name);
+        if (data.phone) sheet.getRange(i + 1, 5).setValue(data.phone);
+        sheet.getRange(i + 1, 6).setValue(status);
+        sheet.getRange(i + 1, 7).setValue(responseJson);
 
-      // Store all custom field responses as JSON in ResponseData (column G)
-      var responseData = {};
-      if (data.responseData && typeof data.responseData === "object") {
-        responseData = data.responseData;
+        return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
+          .setMimeType(ContentService.MimeType.JSON);
       }
-      sheet.getRange(i + 1, 7).setValue(JSON.stringify(responseData));
-
-      found = true;
-      break;
     }
   }
 
-  return ContentService.createTextOutput(JSON.stringify({
-    status: found ? "ok" : "not_found"
-  })).setMimeType(ContentService.MimeType.JSON);
+  // No existing invite row found — create a new one
+  sheet.appendRow([
+    new Date(),
+    data.eventId  || "",
+    inviteId,
+    data.name     || "",
+    data.phone    || "",
+    status,
+    responseJson
+  ]);
+
+  return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // ============================================================
