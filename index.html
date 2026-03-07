@@ -137,6 +137,13 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
 .form-group input::placeholder, .form-group textarea::placeholder { color:rgba(255,255,255,0.3); }
 .form-group input:focus, .form-group textarea:focus { border-color:var(--party-coral); }
 .form-group textarea { resize:vertical; min-height:80px; }
+.form-checkbox { display:flex; align-items:flex-start; gap:0.6rem; margin-bottom:1rem; cursor:pointer; }
+.form-checkbox input[type="checkbox"] { appearance:none; -webkit-appearance:none; width:18px; height:18px; min-width:18px; border:1px solid rgba(255,255,255,0.3); border-radius:4px; background:rgba(255,255,255,0.08); cursor:pointer; position:relative; margin-top:2px; transition:border-color 0.3s, background 0.3s; }
+.form-checkbox input[type="checkbox"]:checked { background:var(--party-coral); border-color:var(--party-coral); }
+.form-checkbox input[type="checkbox"]:checked::after { content:'\2713'; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:white; font-size:12px; font-weight:700; }
+.form-checkbox label { font-size:0.78rem; color:rgba(255,255,255,0.55); line-height:1.5; cursor:pointer; }
+.form-checkbox label a { color:var(--confetti-gold); text-decoration:none; }
+.form-checkbox label a:hover { text-decoration:underline; }
 .submit-btn { width:100%; padding:1rem; background:linear-gradient(135deg, var(--party-coral), var(--blush-pop)); color:white; border:none; border-radius:12px; font-family:var(--font-body); font-size:1rem; font-weight:600; cursor:pointer; transition:var(--transition); margin-top:0.5rem; }
 .submit-btn:hover { transform:translateY(-2px); box-shadow:0 10px 30px rgba(233,69,96,0.4); }
 .submit-btn:disabled { opacity:0.6; cursor:not-allowed; transform:none; box-shadow:none; }
@@ -372,6 +379,10 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
               <label for="contactEvent">Tell Us About Your Event</label>
               <textarea id="contactEvent" name="event" placeholder="What's the occasion? Any theme or vibe in mind?" required></textarea>
             </div>
+            <div class="form-checkbox">
+              <input type="checkbox" id="smsConsent" name="smsConsent" required>
+              <label for="smsConsent">I understand that Ryvite will send transactional SMS messages (such as event updates and RSVP notifications) on my behalf only to contacts with whom I have a personal relationship. I agree to the <a href="/terms/" target="_blank">Terms &amp; Conditions</a> and <a href="/privacy/" target="_blank">Privacy Policy</a>.</label>
+            </div>
             <button type="submit" class="submit-btn" id="submitBtn">Send Request</button>
           </form>
           <div class="form-success" id="formSuccess">
@@ -457,6 +468,13 @@ document.getElementById("contactForm").addEventListener("submit", function(e) {
   var btn = document.getElementById("submitBtn");
   var errEl = document.getElementById("formError");
   errEl.style.display = "none";
+
+  if (!document.getElementById("smsConsent").checked) {
+    errEl.textContent = "Please agree to the SMS consent, Terms & Conditions, and Privacy Policy to continue.";
+    errEl.style.display = "block";
+    return;
+  }
+
   btn.disabled = true;
   btn.textContent = "Sending...";
 
