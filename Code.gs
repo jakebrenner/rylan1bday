@@ -404,14 +404,20 @@ function handleRsvp(data) {
   }
   var responseJson = JSON.stringify(responseData);
 
-  // If we have an inviteId, try to find and update the existing row
-  if (inviteId) {
+  // Try to find existing row — match by phone (unique per guest)
+  var phone = normalizePhone(data.phone || "");
+  if (phone || inviteId) {
     var dataRange = sheet.getDataRange();
     var values = dataRange.getValues();
 
     for (var i = 1; i < values.length; i++) {
-      if (values[i][2] === inviteId) {
-        // Update name and phone if provided
+      var rowPhone = normalizePhone(String(values[i][4] || ""));
+      var rowInviteId = String(values[i][2] || "");
+      // Match by phone first (unique per guest), fall back to inviteId only if phones don't match
+      if ((phone && rowPhone === phone) || (!phone && inviteId && rowInviteId === inviteId)) {
+        // Update the existing row
+        sheet.getRange(i + 1, 1).setValue(new Date());  // Update timestamp
+        if (inviteId) sheet.getRange(i + 1, 3).setValue(inviteId);
         if (data.name) sheet.getRange(i + 1, 4).setValue(data.name);
         if (data.phone) sheet.getRange(i + 1, 5).setValue(data.phone);
         sheet.getRange(i + 1, 6).setValue(status);
