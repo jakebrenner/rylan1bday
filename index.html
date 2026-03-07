@@ -439,7 +439,7 @@ for(var i=0;i<30;i++){var c=document.createElement("div");c.className="hero-conf
 var hl=document.getElementById("heroHelis");
 var heliAnims=["fly-lr-1","fly-rl-1","fly-lr-2"];
 var heliColors=["#E94560","#4ECDC4","#FFB74D"];
-var heliDelays=[3, 8, 14];
+var heliDelays=[0.5, 2, 4];
 for(var i=0;i<3;i++){var u=document.createElement("div");u.className="heli-unit";u.style.cssText="top:"+(12+i*28)+"%;animation-name:"+heliAnims[i]+";animation-duration:"+(20+i*5)+"s;animation-delay:"+heliDelays[i]+"s;animation-fill-mode:backwards;";var bd=document.createElement("div");bd.className="heli-body";bd.innerHTML=hSVG(heliColors[i]);var cb=document.createElement("div");cb.className="heli-cable";var f=document.createElement("img");f.className="heli-face";f.src=rylanFaces[i];f.alt="Rylan";u.appendChild(bd);u.appendChild(cb);u.appendChild(f);hl.appendChild(u);}
 
 // Nav scroll effect
