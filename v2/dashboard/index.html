@@ -83,7 +83,7 @@
   </div>
 
   <script>
-    const token = localStorage.getItem('sb_access_token');
+    let token = localStorage.getItem('sb_access_token');
     const user = JSON.parse(localStorage.getItem('v2_user') || 'null');
 
     if (!token || !user) {
@@ -91,6 +91,24 @@
     } else {
       document.getElementById('headerUser').textContent = user.displayName || user.email || '';
     }
+
+    // Validate token on load — if expired, clear and redirect
+    async function validateSession() {
+      if (!token) return;
+      try {
+        const res = await fetch('/api/v2/auth?action=profile', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const result = await res.json();
+        if (!result.success) {
+          logout();
+          return;
+        }
+      } catch (err) {
+        // Network error — don't log out, just proceed with cached data
+      }
+    }
+    validateSession();
 
     // Check for published event toast
     const params = new URLSearchParams(window.location.search);
