@@ -14,8 +14,6 @@ function getOrCreateSheet(name, headers) {
       sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
     }
   } else if (headers && headers.length) {
-    // Ensure all expected headers exist (handles schema migrations)
-    // Check each position individually — fills in missing intermediate headers too
     var maxCol = Math.max(sheet.getLastColumn() || 1, headers.length);
     var existingHeaders = sheet.getRange(1, 1, 1, maxCol).getValues()[0];
     for (var h = 0; h < headers.length; h++) {
@@ -28,7 +26,6 @@ function getOrCreateSheet(name, headers) {
 }
 
 // ---- One-time migration: run this manually to add missing columns ----
-// Open Apps Script editor > Run > migrateSettingsColumns
 function migrateSettingsColumns() {
   var sheet = getOrCreateSheet("Settings", SETTINGS_HEADERS);
   Logger.log("Settings sheet now has headers: " + SETTINGS_HEADERS.join(", "));
@@ -37,11 +34,132 @@ function migrateSettingsColumns() {
 
 function normalizePhone(str) {
   var digits = (str || "").replace(/[^0-9]/g, "");
-  // Strip leading "1" country code if 11 digits
   if (digits.length === 11 && digits.charAt(0) === "1") {
     digits = digits.substring(1);
   }
   return digits;
+}
+
+// ---- UUID generator ----
+function generateUUID() {
+  var chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  var sections = [8, 4, 4, 4, 12];
+  var uuid = [];
+  for (var s = 0; s < sections.length; s++) {
+    var part = "";
+    for (var i = 0; i < sections[s]; i++) {
+      part += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    uuid.push(part);
+  }
+  return uuid.join("-");
+}
+
+// ---- Slug generator ----
+function generateSlug(title) {
+  var slug = (title || "event").toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .substring(0, 50);
+  // Add short random suffix for uniqueness
+  var suffix = Math.random().toString(36).substring(2, 6);
+  return slug + "-" + suffix;
+}
+
+// ---- HMAC-SHA256 signing ----
+function hmacSign(data, secret) {
+  var signature = Utilities.computeHmacSha256Signature(data, secret);
+  return Utilities.base64EncodeWebSafe(signature);
+}
+
+function generateAuthToken(userId, email) {
+  var props = PropertiesService.getScriptProperties();
+  var secret = props.getProperty("AUTH_SECRET") || "ryvite-default-secret";
+  var payload = JSON.stringify({
+    userId: userId,
+    email: email,
+    exp: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+  });
+  var encoded = Utilities.base64EncodeWebSafe(payload);
+  var sig = hmacSign(encoded, secret);
+  return encoded + "." + sig;
+}
+
+function verifyAuthToken(token) {
+  var props = PropertiesService.getScriptProperties();
+  var secret = props.getProperty("AUTH_SECRET") || "ryvite-default-secret";
+
+  var parts = token.split(".");
+  if (parts.length !== 2) return null;
+
+  var encoded = parts[0];
+  var sig = parts[1];
+  var expectedSig = hmacSign(encoded, secret);
+
+  if (sig !== expectedSig) return null;
+
+  try {
+    var decoded = Utilities.newBlob(Utilities.base64DecodeWebSafe(encoded)).getDataAsString();
+    var payload = JSON.parse(decoded);
+    if (new Date(payload.exp) < new Date()) return null;
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
+
+// ---- Send magic link email via Resend ----
+function sendMagicLinkEmail(email, displayName, token) {
+  var props = PropertiesService.getScriptProperties();
+  var resendApiKey = props.getProperty("RESEND_API_KEY");
+  var vercelDomain = props.getProperty("VERCEL_DOMAIN") || "ryvite.com";
+
+  if (!resendApiKey) {
+    Logger.log("RESEND_API_KEY not set — skipping email send");
+    return false;
+  }
+
+  var loginUrl = "https://" + vercelDomain + "/login/?token=" + encodeURIComponent(token);
+  var greeting = displayName ? ("Hi " + displayName + ",") : "Hi there,";
+
+  var htmlBody = '<div style="font-family: Inter, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">'
+    + '<h1 style="font-family: Playfair Display, serif; color: #1A1A2E; font-size: 28px;">Ryvite</h1>'
+    + '<p style="color: #333; font-size: 16px; margin-top: 24px;">' + greeting + '</p>'
+    + '<p style="color: #666; font-size: 14px;">Click the button below to sign in to your Ryvite account:</p>'
+    + '<a href="' + loginUrl + '" style="display: inline-block; background: #E94560; color: white; padding: 14px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px; margin: 24px 0;">Sign In to Ryvite</a>'
+    + '<p style="color: #999; font-size: 12px; margin-top: 24px;">This link expires in 7 days. If you didn\'t request this, you can safely ignore this email.</p>'
+    + '</div>';
+
+  var payload = {
+    from: "Ryvite <noreply@" + vercelDomain + ">",
+    to: [email],
+    subject: "Your Ryvite Login Link",
+    html: htmlBody
+  };
+
+  var options = {
+    method: "post",
+    headers: {
+      "Authorization": "Bearer " + resendApiKey,
+      "Content-Type": "application/json"
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  try {
+    var response = UrlFetchApp.fetch("https://api.resend.com/emails", options);
+    var code = response.getResponseCode();
+    if (code >= 200 && code < 300) {
+      return true;
+    }
+    Logger.log("Resend error: " + response.getContentText());
+    return false;
+  } catch (e) {
+    Logger.log("Email send error: " + e.message);
+    return false;
+  }
 }
 
 // ---- GET handler (JSONP) ----
@@ -73,16 +191,43 @@ function doGet(e) {
 
 // ---- POST handler ----
 function doPost(e) {
+  var rawContents = e.postData.contents;
+  var contentType = e.postData.type || "";
   var data;
-  try {
-    data = JSON.parse(e.postData.contents);
-  } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Invalid JSON" }))
-      .setMimeType(ContentService.MimeType.JSON);
+
+  // Support both JSON body and URL-encoded form data
+  if (contentType.indexOf("application/x-www-form-urlencoded") >= 0 || contentType.indexOf("text/plain") >= 0) {
+    try {
+      // Try parsing as JSON first (text/plain from api proxy)
+      data = JSON.parse(rawContents);
+    } catch (err) {
+      // Parse URL-encoded form: action=xxx&data=yyy
+      var params = {};
+      var pairs = rawContents.split("&");
+      for (var p = 0; p < pairs.length; p++) {
+        var kv = pairs[p].split("=");
+        params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || "");
+      }
+      if (params.action && params.data) {
+        data = JSON.parse(params.data);
+        data.action = params.action;
+      } else if (params.action) {
+        data = params;
+      } else {
+        return jsonResponse({ success: false, error: "Invalid request format" });
+      }
+    }
+  } else {
+    try {
+      data = JSON.parse(rawContents);
+    } catch (err) {
+      return jsonResponse({ status: "error", message: "Invalid JSON" });
+    }
   }
 
   var action = (data.action || "").trim();
 
+  // V1 actions
   if (action === "saveSettings") {
     return handleSaveSettings(data);
   } else if (action === "invite") {
@@ -93,20 +238,473 @@ function doPost(e) {
     return handleAddAdmin(data);
   } else if (action === "removeAdmin") {
     return handleRemoveAdmin(data);
+  }
+  // V2 actions
+  else if (action === "signup") {
+    return handleSignup(data);
+  } else if (action === "login") {
+    return handleLogin(data);
+  } else if (action === "verifyToken") {
+    return handleVerifyToken(data);
+  } else if (action === "createEvent") {
+    return handleCreateEvent(data);
+  } else if (action === "updateEvent") {
+    return handleUpdateEvent(data);
+  } else if (action === "getEvent") {
+    return handleGetEvent(data);
+  } else if (action === "getUserEvents") {
+    return handleGetUserEvents(data);
+  } else if (action === "logGeneration") {
+    return handleLogGeneration(data);
+  } else if (action === "addInvite") {
+    return handleAddInviteV2(data);
   } else {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Unknown action: " + action }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse({ status: "error", message: "Unknown action: " + action });
   }
 }
 
+// ---- JSON response helper ----
+function jsonResponse(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 // ============================================================
-// Admins
+// V2 Sheet Headers
 // ============================================================
-// Sheet columns: phone | eventId | adminFirst | adminLast | addedAt
-//
-// Each row maps one phone number to one event they can admin.
-// A phone can appear in multiple rows (one per event).
-// eventName is resolved via the Settings table join on eventId.
+
+var USERS_HEADERS = ["id", "email", "phone", "displayName", "authToken", "tokenExpiry", "createdAt"];
+var EVENTS_HEADERS = ["id", "userId", "title", "description", "eventDate", "endDate", "locationName", "locationAddress", "dressCode", "eventType", "slug", "status", "prompt", "themeHtml", "themeCss", "themeConfig", "zapierWebhook", "customFields", "createdAt", "updatedAt"];
+var GENERATION_LOG_HEADERS = ["id", "eventId", "userId", "prompt", "model", "inputTokens", "outputTokens", "latencyMs", "status", "error", "createdAt"];
+
+// ============================================================
+// V2: Auth Actions
+// ============================================================
+
+function handleSignup(data) {
+  var email = (data.email || "").trim().toLowerCase();
+  var displayName = (data.displayName || "").trim();
+  var phone = normalizePhone(data.phone || "");
+
+  if (!email) {
+    return jsonResponse({ success: false, error: "Email is required" });
+  }
+
+  var sheet = getOrCreateSheet("Users", USERS_HEADERS);
+  var numCols = USERS_HEADERS.length;
+
+  // Check if user already exists
+  if (sheet.getLastRow() >= 2) {
+    var existing = sheet.getRange(1, 1, sheet.getLastRow(), numCols).getValues();
+    for (var i = 1; i < existing.length; i++) {
+      if (String(existing[i][1]).toLowerCase() === email) {
+        // User exists — send a new magic link instead
+        var userId = String(existing[i][0]);
+        var token = generateAuthToken(userId, email);
+        var expiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+        sheet.getRange(i + 1, 5).setValue(token);  // authToken
+        sheet.getRange(i + 1, 6).setValue(expiry.toISOString());  // tokenExpiry
+
+        sendMagicLinkEmail(email, String(existing[i][3]) || displayName, token);
+
+        return jsonResponse({ success: true, message: "Check your email for login link" });
+      }
+    }
+  }
+
+  // Create new user
+  var userId = generateUUID();
+  var token = generateAuthToken(userId, email);
+  var expiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  sheet.appendRow([
+    userId,
+    email,
+    phone,
+    displayName,
+    token,
+    expiry.toISOString(),
+    new Date().toISOString()
+  ]);
+
+  sendMagicLinkEmail(email, displayName, token);
+
+  return jsonResponse({ success: true, message: "Check your email for login link" });
+}
+
+function handleLogin(data) {
+  var email = (data.email || "").trim().toLowerCase();
+
+  if (!email) {
+    return jsonResponse({ success: false, error: "Email is required" });
+  }
+
+  var sheet = getOrCreateSheet("Users", USERS_HEADERS);
+  var numCols = USERS_HEADERS.length;
+
+  // Find user by email
+  if (sheet.getLastRow() >= 2) {
+    var existing = sheet.getRange(1, 1, sheet.getLastRow(), numCols).getValues();
+    for (var i = 1; i < existing.length; i++) {
+      if (String(existing[i][1]).toLowerCase() === email) {
+        var userId = String(existing[i][0]);
+        var displayName = String(existing[i][3] || "");
+        var token = generateAuthToken(userId, email);
+        var expiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+        sheet.getRange(i + 1, 5).setValue(token);
+        sheet.getRange(i + 1, 6).setValue(expiry.toISOString());
+
+        sendMagicLinkEmail(email, displayName, token);
+
+        return jsonResponse({ success: true, message: "Check your email for login link" });
+      }
+    }
+  }
+
+  // User not found — auto-create (login doubles as signup for convenience)
+  var userId = generateUUID();
+  var token = generateAuthToken(userId, email);
+  var expiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  sheet.appendRow([
+    userId,
+    email,
+    "",
+    "",
+    token,
+    expiry.toISOString(),
+    new Date().toISOString()
+  ]);
+
+  sendMagicLinkEmail(email, "", token);
+
+  return jsonResponse({ success: true, message: "Check your email for login link" });
+}
+
+function handleVerifyToken(data) {
+  var token = (data.token || "").trim();
+
+  if (!token) {
+    return jsonResponse({ success: false, error: "Token is required" });
+  }
+
+  // Verify HMAC signature and expiry
+  var payload = verifyAuthToken(token);
+  if (!payload) {
+    return jsonResponse({ success: false, error: "Invalid or expired token" });
+  }
+
+  // Find user by ID
+  var sheet = getOrCreateSheet("Users", USERS_HEADERS);
+  var numCols = USERS_HEADERS.length;
+
+  if (sheet.getLastRow() >= 2) {
+    var users = sheet.getRange(1, 1, sheet.getLastRow(), numCols).getValues();
+    for (var i = 1; i < users.length; i++) {
+      if (String(users[i][0]) === payload.userId) {
+        return jsonResponse({
+          success: true,
+          user: {
+            id: String(users[i][0]),
+            email: String(users[i][1]),
+            phone: String(users[i][2] || ""),
+            displayName: String(users[i][3] || "")
+          }
+        });
+      }
+    }
+  }
+
+  return jsonResponse({ success: false, error: "User not found" });
+}
+
+// ============================================================
+// V2: Event Actions
+// ============================================================
+
+function handleCreateEvent(data) {
+  var userId = (data.userId || "").trim();
+  var title = (data.title || "").trim();
+
+  if (!userId || !title) {
+    return jsonResponse({ success: false, error: "userId and title are required" });
+  }
+
+  var eventId = generateUUID();
+  var slug = generateSlug(title);
+  var now = new Date().toISOString();
+
+  var sheet = getOrCreateSheet("Events", EVENTS_HEADERS);
+  sheet.appendRow([
+    eventId,
+    userId,
+    title,
+    data.description || "",
+    data.eventDate || "",
+    data.endDate || "",
+    data.locationName || "",
+    data.locationAddress || "",
+    data.dressCode || "",
+    data.eventType || "",
+    slug,
+    "Draft",
+    data.prompt || "",
+    "",  // themeHtml
+    "",  // themeCss
+    "",  // themeConfig
+    data.zapierWebhook || "",
+    data.customFields ? (typeof data.customFields === "string" ? data.customFields : JSON.stringify(data.customFields)) : "",
+    now,
+    now
+  ]);
+
+  return jsonResponse({ success: true, eventId: eventId, slug: slug });
+}
+
+function handleUpdateEvent(data) {
+  var eventId = (data.eventId || "").trim();
+  var userId = (data.userId || "").trim();
+
+  if (!eventId) {
+    return jsonResponse({ success: false, error: "eventId is required" });
+  }
+
+  var sheet = getOrCreateSheet("Events", EVENTS_HEADERS);
+  var numCols = EVENTS_HEADERS.length;
+
+  if (sheet.getLastRow() < 2) {
+    return jsonResponse({ success: false, error: "Event not found" });
+  }
+
+  var events = sheet.getRange(1, 1, sheet.getLastRow(), numCols).getValues();
+
+  for (var i = 1; i < events.length; i++) {
+    if (String(events[i][0]) === eventId) {
+      // Validate ownership if userId provided
+      if (userId && String(events[i][1]) !== userId) {
+        return jsonResponse({ success: false, error: "Unauthorized" });
+      }
+
+      // Update each field if provided, keeping existing values otherwise
+      var updatedRow = events[i].slice();
+
+      if (data.title !== undefined) updatedRow[2] = data.title;
+      if (data.description !== undefined) updatedRow[3] = data.description;
+      if (data.eventDate !== undefined) updatedRow[4] = data.eventDate;
+      if (data.endDate !== undefined) updatedRow[5] = data.endDate;
+      if (data.locationName !== undefined) updatedRow[6] = data.locationName;
+      if (data.locationAddress !== undefined) updatedRow[7] = data.locationAddress;
+      if (data.dressCode !== undefined) updatedRow[8] = data.dressCode;
+      if (data.eventType !== undefined) updatedRow[9] = data.eventType;
+      if (data.status !== undefined) updatedRow[11] = data.status;
+      if (data.prompt !== undefined) updatedRow[12] = data.prompt;
+      if (data.themeHtml !== undefined) updatedRow[13] = data.themeHtml;
+      if (data.themeCss !== undefined) updatedRow[14] = data.themeCss;
+      if (data.themeConfig !== undefined) {
+        updatedRow[15] = typeof data.themeConfig === "string" ? data.themeConfig : JSON.stringify(data.themeConfig);
+      }
+      if (data.zapierWebhook !== undefined) updatedRow[16] = data.zapierWebhook;
+      if (data.customFields !== undefined) {
+        updatedRow[17] = typeof data.customFields === "string" ? data.customFields : JSON.stringify(data.customFields);
+      }
+      updatedRow[19] = new Date().toISOString(); // updatedAt
+
+      sheet.getRange(i + 1, 1, 1, numCols).setValues([updatedRow]);
+
+      return jsonResponse({ success: true, event: buildEventObj(updatedRow) });
+    }
+  }
+
+  return jsonResponse({ success: false, error: "Event not found" });
+}
+
+function handleGetEvent(data) {
+  var eventId = (data.eventId || "").trim();
+  var slug = (data.slug || "").trim();
+
+  if (!eventId && !slug) {
+    return jsonResponse({ success: false, error: "eventId or slug is required" });
+  }
+
+  var sheet = getOrCreateSheet("Events", EVENTS_HEADERS);
+  var numCols = EVENTS_HEADERS.length;
+
+  if (sheet.getLastRow() < 2) {
+    return jsonResponse({ success: false, error: "Event not found" });
+  }
+
+  var events = sheet.getRange(1, 1, sheet.getLastRow(), numCols).getValues();
+
+  for (var i = 1; i < events.length; i++) {
+    if ((eventId && String(events[i][0]) === eventId) || (slug && String(events[i][10]) === slug)) {
+      return jsonResponse({ success: true, event: buildEventObj(events[i]) });
+    }
+  }
+
+  return jsonResponse({ success: false, error: "Event not found" });
+}
+
+function handleGetUserEvents(data) {
+  var userId = (data.userId || "").trim();
+
+  if (!userId) {
+    return jsonResponse({ success: false, error: "userId is required" });
+  }
+
+  var sheet = getOrCreateSheet("Events", EVENTS_HEADERS);
+  var numCols = EVENTS_HEADERS.length;
+
+  if (sheet.getLastRow() < 2) {
+    return jsonResponse({ success: true, events: [] });
+  }
+
+  var allEvents = sheet.getRange(1, 1, sheet.getLastRow(), numCols).getValues();
+  var userEvents = [];
+
+  for (var i = 1; i < allEvents.length; i++) {
+    if (String(allEvents[i][1]) === userId) {
+      userEvents.push(buildEventObj(allEvents[i]));
+    }
+  }
+
+  // Sort by createdAt DESC
+  userEvents.sort(function(a, b) {
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+
+  return jsonResponse({ success: true, events: userEvents });
+}
+
+function buildEventObj(row) {
+  var themeConfig = {};
+  try { themeConfig = JSON.parse(row[15] || "{}"); } catch (e) { themeConfig = {}; }
+  var customFields = [];
+  try { customFields = JSON.parse(row[17] || "[]"); } catch (e) { customFields = []; }
+
+  return {
+    id: String(row[0] || ""),
+    userId: String(row[1] || ""),
+    title: String(row[2] || ""),
+    description: String(row[3] || ""),
+    eventDate: String(row[4] || ""),
+    endDate: String(row[5] || ""),
+    locationName: String(row[6] || ""),
+    locationAddress: String(row[7] || ""),
+    dressCode: String(row[8] || ""),
+    eventType: String(row[9] || ""),
+    slug: String(row[10] || ""),
+    status: String(row[11] || "Draft"),
+    prompt: String(row[12] || ""),
+    themeHtml: String(row[13] || ""),
+    themeCss: String(row[14] || ""),
+    themeConfig: themeConfig,
+    zapierWebhook: String(row[16] || ""),
+    customFields: customFields,
+    createdAt: String(row[18] || ""),
+    updatedAt: String(row[19] || "")
+  };
+}
+
+// ============================================================
+// V2: Generation Log
+// ============================================================
+
+function handleLogGeneration(data) {
+  var sheet = getOrCreateSheet("GenerationLog", GENERATION_LOG_HEADERS);
+
+  sheet.appendRow([
+    generateUUID(),
+    data.eventId || "",
+    data.userId || "",
+    data.prompt || "",
+    data.model || "",
+    data.inputTokens || 0,
+    data.outputTokens || 0,
+    data.latencyMs || 0,
+    data.status || "",
+    data.error || "",
+    new Date().toISOString()
+  ]);
+
+  return jsonResponse({ success: true });
+}
+
+// ============================================================
+// V2: Rate Limiting
+// ============================================================
+
+function checkRateLimit(userId) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("GenerationLog");
+  if (!sheet || sheet.getLastRow() < 2) return true;
+
+  var data = sheet.getDataRange().getValues();
+  var oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  var count = 0;
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][2]) === userId && new Date(data[i][10]) > oneHourAgo && String(data[i][8]) === "success") {
+      count++;
+    }
+  }
+
+  return count < 5;
+}
+
+// ============================================================
+// V2: RSVP (for dynamic event pages)
+// ============================================================
+
+function handleAddInviteV2(data) {
+  var eventId = (data.eventId || "").trim();
+  var inviteId = data.inviteId || generateUUID();
+  var name = (data.name || "").trim();
+  var statusVal = (data.status || "").trim();
+
+  if (!eventId || !name) {
+    return jsonResponse({ success: false, error: "eventId and name are required" });
+  }
+
+  var attending;
+  if (statusVal === "yes") attending = "Attending";
+  else if (statusVal === "no") attending = "Not Attending";
+  else if (statusVal === "maybe") attending = "Maybe";
+  else attending = statusVal;
+
+  var sheet = getOrCreateSheet("Invites", INVITES_HEADERS);
+
+  // Check if inviteId already exists and update
+  if (inviteId && sheet.getLastRow() >= 2) {
+    var existing = sheet.getDataRange().getValues();
+    for (var i = 1; i < existing.length; i++) {
+      if (String(existing[i][2]) === inviteId) {
+        if (name) sheet.getRange(i + 1, 4).setValue(name);
+        sheet.getRange(i + 1, 6).setValue(attending);
+        if (data.responseData) {
+          sheet.getRange(i + 1, 7).setValue(JSON.stringify(data.responseData));
+        }
+        return jsonResponse({ success: true, inviteId: inviteId });
+      }
+    }
+  }
+
+  sheet.appendRow([
+    new Date(),
+    eventId,
+    inviteId,
+    name,
+    data.phone || "",
+    attending,
+    data.responseData ? JSON.stringify(data.responseData) : ""
+  ]);
+
+  return jsonResponse({ success: true, inviteId: inviteId });
+}
+
+// ============================================================
+// V1: Admins (unchanged)
+// ============================================================
 
 var ADMINS_HEADERS = ["phone", "eventId", "adminFirst", "adminLast", "addedAt"];
 
@@ -136,7 +734,6 @@ function handleAdminLogin(rawPhone) {
     }
   }
 
-  // Resolve eventName from Settings table
   var events = [];
   if (eventIds.length > 0) {
     var settingsSheet = getOrCreateSheet("Settings", SETTINGS_HEADERS);
@@ -165,31 +762,26 @@ function handleAddAdmin(data) {
   var adminLast = (data.adminLast || "").trim();
 
   if (phone.length < 10) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Invalid phone number" }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse({ status: "error", message: "Invalid phone number" });
   }
   if (!eventId) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Missing eventId" }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse({ status: "error", message: "Missing eventId" });
   }
 
   var sheet = getOrCreateSheet("Admins", ADMINS_HEADERS);
 
-  // Check for duplicate
   if (sheet.getLastRow() >= 2) {
     var existing = sheet.getDataRange().getValues();
     for (var i = 1; i < existing.length; i++) {
       if (normalizePhone(String(existing[i][0])) === phone && String(existing[i][1]) === eventId) {
-        return ContentService.createTextOutput(JSON.stringify({ status: "ok", message: "Already an admin" }))
-          .setMimeType(ContentService.MimeType.JSON);
+        return jsonResponse({ status: "ok", message: "Already an admin" });
       }
     }
   }
 
   sheet.appendRow([phone, eventId, adminFirst, adminLast, new Date()]);
 
-  return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return jsonResponse({ status: "ok" });
 }
 
 function handleRemoveAdmin(data) {
@@ -197,27 +789,23 @@ function handleRemoveAdmin(data) {
   var eventId = (data.eventId || "").trim();
 
   if (!phone || !eventId) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Missing phone or eventId" }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse({ status: "error", message: "Missing phone or eventId" });
   }
 
   var sheet = getOrCreateSheet("Admins", ADMINS_HEADERS);
   if (sheet.getLastRow() < 2) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "not_found" }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse({ status: "not_found" });
   }
 
   var data_range = sheet.getDataRange().getValues();
   for (var i = data_range.length - 1; i >= 1; i--) {
     if (normalizePhone(String(data_range[i][0])) === phone && String(data_range[i][1]) === eventId) {
       sheet.deleteRow(i + 1);
-      return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return jsonResponse({ status: "ok" });
     }
   }
 
-  return ContentService.createTextOutput(JSON.stringify({ status: "not_found" }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return jsonResponse({ status: "not_found" });
 }
 
 function handleGetAdmins(eventId) {
@@ -247,14 +835,8 @@ function handleGetAdmins(eventId) {
 }
 
 // ============================================================
-// Settings
+// V1: Settings (unchanged)
 // ============================================================
-// Sheet columns: eventId | eventName | zapierWebhook | invitePageUrl | customFields | smsMessage | eventDate | eventTime | eventLocation | eventDescription
-//
-// customFields is a JSON string defining RSVP form fields, e.g.:
-// [{"key":"adults","label":"Adults","type":"number"},{"key":"kids","label":"Kids","type":"number"}]
-//
-// Supported field types: text, number, select, checkbox
 
 var SETTINGS_HEADERS = ["eventId", "eventName", "zapierWebhook", "invitePageUrl", "customFields", "smsMessage", "eventDate", "eventTime", "eventLocation", "eventDescription"];
 
@@ -263,11 +845,9 @@ function handleGetSettings(eventId) {
   var sheet = getOrCreateSheet("Settings", SETTINGS_HEADERS);
   if (sheet.getLastRow() < 2) return {};
 
-  // Always read the exact number of columns we expect (avoids getDataRange cutting short)
   var lastRow = sheet.getLastRow();
   var data = sheet.getRange(1, 1, lastRow, numCols).getValues();
 
-  // If eventId provided, search for matching row
   if (eventId) {
     for (var i = 1; i < data.length; i++) {
       if (String(data[i][0]) === eventId) {
@@ -290,7 +870,6 @@ function handleGetSettings(eventId) {
     return {};
   }
 
-  // Fallback: return first row (backwards compat)
   var row = data[1];
   var customFields = [];
   try { customFields = JSON.parse(row[4] || "[]"); } catch (e) { customFields = []; }
@@ -335,40 +914,34 @@ function handleSaveSettings(data) {
     data.eventDescription || ""
   ];
 
-  // Search for existing row with this eventId
   if (eventId && sheet.getLastRow() >= 2) {
     var existing = sheet.getRange(1, 1, sheet.getLastRow(), numCols).getValues();
     for (var i = 1; i < existing.length; i++) {
       if (String(existing[i][0]) === eventId) {
         sheet.getRange(i + 1, 1, 1, numCols).setValues([values]);
-        return ContentService.createTextOutput(JSON.stringify({
+        return jsonResponse({
           status: "ok",
           savedColumns: numCols,
           smsMessageReceived: smsMessage.substring(0, 50),
           row: i + 1
-        })).setMimeType(ContentService.MimeType.JSON);
+        });
       }
     }
   }
 
-  // No existing row — append new one
   sheet.appendRow(values);
 
-  return ContentService.createTextOutput(JSON.stringify({
+  return jsonResponse({
     status: "ok",
     savedColumns: numCols,
     smsMessageReceived: smsMessage.substring(0, 50),
     row: "appended"
-  })).setMimeType(ContentService.MimeType.JSON);
+  });
 }
 
 // ============================================================
-// Invites
+// V1: Invites (unchanged)
 // ============================================================
-// Sheet columns: Timestamp | EventID | InviteID | Name | Phone | Status | ResponseData
-//
-// ResponseData is a JSON string holding all RSVP custom field values, e.g.:
-// {"adults":2,"kids":1,"dietaryRestrictions":"none","songRequest":"Baby Shark"}
 
 var INVITES_HEADERS = ["Timestamp", "EventID", "InviteID", "Name", "Phone", "Status", "ResponseData"];
 
@@ -385,12 +958,11 @@ function handleInvite(data) {
     ""
   ]);
 
-  return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return jsonResponse({ status: "ok" });
 }
 
 // ============================================================
-// RSVP
+// V1: RSVP (unchanged)
 // ============================================================
 
 function handleRsvp(data) {
@@ -404,26 +976,22 @@ function handleRsvp(data) {
   }
   var responseJson = JSON.stringify(responseData);
 
-  // If we have an inviteId, try to find and update the existing row
   if (inviteId) {
     var dataRange = sheet.getDataRange();
     var values = dataRange.getValues();
 
     for (var i = 1; i < values.length; i++) {
       if (values[i][2] === inviteId) {
-        // Update name and phone if provided
         if (data.name) sheet.getRange(i + 1, 4).setValue(data.name);
         if (data.phone) sheet.getRange(i + 1, 5).setValue(data.phone);
         sheet.getRange(i + 1, 6).setValue(status);
         sheet.getRange(i + 1, 7).setValue(responseJson);
 
-        return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
-          .setMimeType(ContentService.MimeType.JSON);
+        return jsonResponse({ status: "ok" });
       }
     }
   }
 
-  // No existing invite row found — create a new one
   sheet.appendRow([
     new Date(),
     data.eventId  || "",
@@ -434,12 +1002,11 @@ function handleRsvp(data) {
     responseJson
   ]);
 
-  return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return jsonResponse({ status: "ok" });
 }
 
 // ============================================================
-// Guest List (read)
+// V1: Guest List (unchanged)
 // ============================================================
 
 function handleGuestList(eventId) {

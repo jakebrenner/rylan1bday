@@ -1,489 +1,310 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ryvite - Organizer Login</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<style>
-:root {
-  --party-coral: #E94560;
-  --blush-pop: #FF6B6B;
-  --midnight: #1A1A2E;
-  --confetti-gold: #FFB74D;
-  --mint-fizz: #4ECDC4;
-  --party-purple: #A78BFA;
-  --cream: #FFFAF5;
-  --warm-canvas: #FFF5E6;
-  --slate: #6B7280;
-  --slate-light: #D1D5DB;
-  --error-red: #DC2626;
-  --font-display: 'Playfair Display', serif;
-  --font-body: 'Inter', sans-serif;
-  --transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-* { margin:0; padding:0; box-sizing:border-box; }
-body {
-  font-family: var(--font-body);
-  background: linear-gradient(135deg, var(--midnight) 0%, #0f3460 100%);
-  color: var(--midnight);
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 16px;
-  position: relative;
-  overflow: hidden;
-}
-body::before {
-  content: '';
-  position: absolute;
-  top: -30%;
-  right: -10%;
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(255, 183, 77, 0.1) 0%, transparent 70%);
-  border-radius: 50%;
-}
-body::after {
-  content: '';
-  position: absolute;
-  bottom: -20%;
-  left: -10%;
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle, rgba(233, 69, 96, 0.08) 0%, transparent 70%);
-  border-radius: 50%;
-}
-
-.login-frame {
-  width: 100%;
-  max-width: 440px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
-  position: relative;
-  z-index: 1;
-  animation: fadeInUp 0.8s ease-out;
-}
-
-.login-frame-header {
-  padding: 2rem 2rem 1.5rem;
-  background: linear-gradient(135deg, var(--party-coral), var(--blush-pop));
-  color: white;
-  text-align: center;
-}
-.login-logo {
-  width: 210px;
-  height: 80px;
-  margin: 0 auto 12px;
-}
-.login-logo svg { width: 100%; height: 100%; }
-.login-frame-header h1 {
-  font-family: var(--font-display);
-  font-size: 1.75rem;
-  font-weight: 600;
-  margin-bottom: 4px;
-  line-height: 1.2;
-}
-.login-frame-header p {
-  font-size: 0.875rem;
-  opacity: 0.9;
-  font-weight: 300;
-  line-height: 1.5;
-}
-
-.login-body {
-  padding: 2rem;
-  background: linear-gradient(135deg, var(--warm-canvas), white);
-}
-
-.form-group { margin-bottom: 1rem; }
-.form-group label {
-  display: block;
-  font-weight: 500;
-  font-size: 0.875rem;
-  color: var(--midnight);
-  margin-bottom: 6px;
-}
-.phone-input {
-  width: 100%;
-  padding: 0.75rem;
-  border: 2px solid var(--slate-light);
-  border-radius: 8px;
-  font-family: var(--font-body);
-  font-size: 1rem;
-  background: white;
-  outline: none;
-  transition: border-color 0.3s;
-  text-align: center;
-  letter-spacing: 0.5px;
-}
-.phone-input:focus { border-color: var(--party-coral); }
-
-.login-btn {
-  width: 100%;
-  padding: 0.85rem;
-  background: linear-gradient(135deg, var(--party-coral), var(--blush-pop));
-  color: white;
-  border: none;
-  border-radius: 50px;
-  font-family: var(--font-body);
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 8px;
-  transition: var(--transition);
-  box-shadow: 0 10px 30px rgba(233, 69, 96, 0.3);
-}
-.login-btn:hover { transform: translateY(-3px); box-shadow: 0 15px 45px rgba(233, 69, 96, 0.5); }
-.login-btn:disabled { opacity: 0.5; transform: none; box-shadow: none; cursor: not-allowed; }
-
-.login-error {
-  color: var(--error-red);
-  font-size: 0.875rem;
-  margin-top: 12px;
-  display: none;
-  text-align: center;
-  line-height: 1.4;
-}
-.login-hint {
-  color: var(--slate);
-  font-size: 0.8rem;
-  margin-top: 16px;
-  text-align: center;
-  line-height: 1.5;
-}
-
-/* Event list after login */
-.events-section { display: none; }
-.events-header { text-align: center; margin-bottom: 20px; }
-.events-header h2 {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--midnight);
-  margin-bottom: 4px;
-}
-.events-header p { color: var(--slate); font-size: 0.875rem; }
-
-.event-card {
-  background: white;
-  border: 2px solid var(--slate-light);
-  border-radius: 12px;
-  padding: 16px 18px;
-  margin-bottom: 10px;
-  cursor: pointer;
-  transition: var(--transition);
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.event-card:hover {
-  border-color: var(--party-coral);
-  transform: translateY(-3px);
-  box-shadow: 0 10px 30px rgba(233, 69, 96, 0.1);
-}
-.event-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--confetti-gold), #FFD89B);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.3rem;
-  flex-shrink: 0;
-}
-.event-info { flex: 1; min-width: 0; }
-.event-name {
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: var(--midnight);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.event-id { font-size: 0.75rem; color: var(--slate); margin-top: 2px; }
-.event-arrow { color: var(--party-coral); font-size: 1.2rem; font-weight: 700; }
-
-.no-events { text-align: center; padding: 30px 20px; color: var(--slate); }
-.no-events p { font-size: 0.95rem; margin-bottom: 6px; }
-
-.logout-link {
-  display: inline-block;
-  margin-top: 20px;
-  color: var(--party-coral);
-  font-size: 0.875rem;
-  text-decoration: none;
-  font-weight: 500;
-  cursor: pointer;
-}
-.logout-link:hover { text-decoration: underline; }
-
-.back-link {
-  display: inline-block;
-  margin-top: 16px;
-  color: var(--slate);
-  font-size: 0.8rem;
-  text-decoration: none;
-  font-weight: 400;
-  transition: color 0.2s;
-}
-.back-link:hover { color: var(--party-coral); text-decoration: underline; }
-
-/* Toast */
-.toast {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%) translateY(100px);
-  background: var(--midnight);
-  color: white;
-  padding: 12px 24px;
-  border-radius: 50px;
-  font-family: var(--font-body);
-  font-size: 0.875rem;
-  font-weight: 500;
-  z-index: 1000;
-  transition: transform 0.3s ease;
-  pointer-events: none;
-  text-align: center;
-  max-width: 90%;
-}
-.toast.show { transform: translateX(-50%) translateY(0); }
-.toast.error { background: var(--error-red); }
-.toast.success { background: var(--mint-fizz); color: var(--midnight); }
-
-/* Loading spinner */
-.loading { display: none; text-align: center; padding: 20px; }
-.loading .spinner {
-  display: inline-block;
-  width: 28px;
-  height: 28px;
-  border: 3px solid var(--slate-light);
-  border-top-color: var(--party-coral);
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@media (max-width:480px) {
-  .login-body { padding: 1.5rem; }
-  .login-frame-header { padding: 1.5rem 1.5rem 1.25rem; }
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Ryvite</title>
+  <meta name="description" content="Sign in to Ryvite to create beautiful AI-designed event invitations.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --party-coral: #E94560;
+      --blush-pop: #FF6B6B;
+      --midnight: #1A1A2E;
+      --confetti-gold: #FFB74D;
+      --mint-fizz: #4ECDC4;
+      --party-purple: #A78BFA;
+      --cream: #FFFAF5;
+    }
+    html, body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, var(--midnight) 0%, #2a2a4e 100%);
+      color: var(--midnight);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .login-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+      width: 100%;
+      max-width: 420px;
+      padding: 40px;
+    }
+    .login-header { text-align: center; margin-bottom: 40px; }
+    .login-header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 32px;
+      color: var(--midnight);
+      margin-bottom: 8px;
+    }
+    .login-header p { font-size: 14px; color: #666; }
+    .form-group { margin-bottom: 20px; }
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--midnight);
+      margin-bottom: 8px;
+    }
+    input[type="email"],
+    input[type="text"] {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    input[type="email"]:focus,
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--party-coral);
+      box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.1);
+    }
+    .btn {
+      width: 100%;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: var(--party-coral); color: white; }
+    .btn-primary:hover {
+      background: var(--blush-pop);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(233, 69, 96, 0.3);
+    }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+    .message {
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .message.success { background: #d4edda; color: #155724; display: block; }
+    .message.error { background: #f8d7da; color: #721c24; display: block; }
+    .message.info { background: #cce5ff; color: #004085; display: block; }
+    .loading-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top: 2px solid white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .divider { text-align: center; margin: 30px 0 20px; font-size: 13px; color: #999; }
+    .toggle-mode { text-align: center; font-size: 13px; }
+    .toggle-mode button {
+      background: none;
+      border: none;
+      color: var(--party-coral);
+      cursor: pointer;
+      font-weight: 600;
+      text-decoration: underline;
+      font-family: 'Inter', sans-serif;
+    }
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 24px;
+      font-size: 13px;
+      color: #999;
+    }
+    .back-link a { color: #999; text-decoration: none; }
+    .back-link a:hover { color: var(--party-coral); }
+  </style>
 </head>
 <body>
-
-<div class="login-frame">
-
-  <!-- Login Form -->
-  <div id="loginSection">
-    <div class="login-frame-header">
-      <div class="login-logo">
-        <svg viewBox="0 0 210 80" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="32" cy="40" r="22" fill="none" stroke="white" stroke-width="2.2"/>
-          <path d="M18 30 L32 42 L46 30" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M18 50 L46 50" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
-          <circle cx="32" cy="22" r="3.5" fill="white" opacity="0.5"/>
-          <circle cx="23" cy="26" r="2.2" fill="white" opacity="0.35"/>
-          <circle cx="41" cy="25" r="2.2" fill="white" opacity="0.35"/>
-          <text x="64" y="50" font-family="Playfair Display, serif" font-size="34" font-weight="600" fill="white">Ryvite</text>
-        </svg>
-      </div>
-      <h1>Organizer Login</h1>
-      <p>Enter your phone number to manage your events</p>
+  <div class="login-container">
+    <div class="login-header">
+      <h1>Ryvite</h1>
+      <p>Create beautiful AI-designed event invites</p>
     </div>
-    <div class="login-body">
+
+    <div id="message" class="message"></div>
+
+    <!-- Login Mode -->
+    <div id="loginMode">
       <div class="form-group">
-        <label>Phone Number</label>
-        <input type="tel" class="phone-input" id="phoneInput" placeholder="(555) 123-4567" autocomplete="tel">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" placeholder="you@example.com" required>
       </div>
-
-      <button class="login-btn" id="loginBtn" onclick="attemptLogin()">Sign In</button>
-
-      <div class="loading" id="loginLoading">
-        <div class="spinner"></div>
-      </div>
-
-      <p class="login-error" id="loginError"></p>
-      <p class="login-hint">This is the phone number you were added as an event organizer with.</p>
-
-      <div style="text-align:center;">
-        <a href="/" class="back-link">&larr; Back to Ryvite</a>
+      <button class="btn btn-primary" id="submitBtn" onclick="handleLogin()">Send Magic Link</button>
+      <div class="divider">or</div>
+      <div class="toggle-mode">
+        Don't have an account? <button id="toggleToSignup" onclick="toggleMode('signup')">Sign up</button>
       </div>
     </div>
+
+    <!-- Signup Mode -->
+    <div id="signupMode" style="display: none;">
+      <div class="form-group">
+        <label for="signupName">Name</label>
+        <input type="text" id="signupName" placeholder="Your name" required>
+      </div>
+      <div class="form-group">
+        <label for="signupEmail">Email Address</label>
+        <input type="email" id="signupEmail" placeholder="you@example.com" required>
+      </div>
+      <div class="form-group">
+        <label for="signupPhone">Phone (optional)</label>
+        <input type="text" id="signupPhone" placeholder="(555) 123-4567">
+      </div>
+      <button class="btn btn-primary" id="submitSignupBtn" onclick="handleSignup()">Create Account</button>
+      <div class="divider">or</div>
+      <div class="toggle-mode">
+        Already have an account? <button onclick="toggleMode('login')">Log in</button>
+      </div>
+    </div>
+
+    <div class="back-link"><a href="/">&larr; Back to Ryvite</a></div>
   </div>
 
-  <!-- Events List (shown after successful login) -->
-  <div class="events-section" id="eventsSection">
-    <div class="login-frame-header">
-      <div class="login-logo">
-        <svg viewBox="0 0 210 80" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="32" cy="40" r="22" fill="none" stroke="white" stroke-width="2.2"/>
-          <path d="M18 30 L32 42 L46 30" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M18 50 L46 50" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
-          <circle cx="32" cy="22" r="3.5" fill="white" opacity="0.5"/>
-          <circle cx="23" cy="26" r="2.2" fill="white" opacity="0.35"/>
-          <circle cx="41" cy="25" r="2.2" fill="white" opacity="0.35"/>
-          <text x="64" y="50" font-family="Playfair Display, serif" font-size="34" font-weight="600" fill="white">Ryvite</text>
-        </svg>
-      </div>
-      <h1>Your Events</h1>
-      <p>Select an event to manage</p>
-    </div>
-    <div class="login-body">
-      <div id="eventsList"></div>
-      <div style="text-align:center;">
-        <a class="logout-link" onclick="logout()">Sign out</a>
-      </div>
-    </div>
-  </div>
+  <script>
+    const messageEl = document.getElementById('message');
 
-</div>
+    // Check for magic link token on page load
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token) {
+      handleMagicLink(token);
+    }
 
-<div class="toast" id="toast"></div>
+    // Check if already logged in
+    const existingSession = localStorage.getItem('sessionToken');
+    const existingUser = localStorage.getItem('user');
+    if (existingSession && existingUser && !token) {
+      window.location.href = '/dashboard/';
+    }
 
-<script>
-var API_URL = "/api/sheets";
-var SESSION_KEY = "ryvite_admin_session";
+    async function handleMagicLink(token) {
+      showMessage('Verifying your link...', 'info');
+      try {
+        const response = await fetch('/api/auth?action=verify&token=' + encodeURIComponent(token));
+        const result = await response.json();
 
-// Check for existing session on load
-(function() {
-  var session = getSession();
-  if (session && session.phone && session.events) {
-    showEvents(session.events, session.phone);
-  }
-})();
+        if (result.success) {
+          localStorage.setItem('sessionToken', result.sessionToken);
+          localStorage.setItem('user', JSON.stringify(result.user));
+          showMessage('Login successful! Redirecting...', 'success');
+          setTimeout(function() {
+            window.location.href = '/dashboard/';
+          }, 1000);
+        } else {
+          showMessage('Invalid or expired link. Please try again.', 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showMessage('Error verifying link. Please try again.', 'error');
+      }
+    }
 
-// Enter key triggers login
-document.getElementById("phoneInput").addEventListener("keydown", function(e) {
-  if (e.key === "Enter") attemptLogin();
-});
+    function toggleMode(mode) {
+      document.getElementById('loginMode').style.display = mode === 'signup' ? 'none' : 'block';
+      document.getElementById('signupMode').style.display = mode === 'signup' ? 'block' : 'none';
+      messageEl.style.display = 'none';
+    }
 
-function normalizePhone(str) {
-  return str.replace(/[^0-9]/g, "");
-}
-
-function attemptLogin() {
-  var raw = document.getElementById("phoneInput").value.trim();
-  var phone = normalizePhone(raw);
-
-  if (phone.length < 10) {
-    showError("Please enter a valid phone number");
-    return;
-  }
-
-  var btn = document.getElementById("loginBtn");
-  var loading = document.getElementById("loginLoading");
-  btn.disabled = true;
-  loading.style.display = "block";
-  hideError();
-
-  fetch(API_URL + "?action=adminLogin&phone=" + encodeURIComponent(phone))
-    .then(function(res) { return res.json(); })
-    .then(function(data) {
-      if (data.error) {
-        showError(data.error);
+    async function handleLogin() {
+      const email = document.getElementById('email').value.trim();
+      if (!email) {
+        showMessage('Please enter your email', 'error');
         return;
       }
-      if (!data.events || data.events.length === 0) {
-        showError("No events found for this phone number. Ask an existing organizer to add you as an admin.");
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner"></span>Sending...';
+
+      try {
+        const response = await fetch('/api/auth?action=login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage('Check your email for a login link!', 'success');
+          document.getElementById('email').value = '';
+        } else {
+          showMessage(result.error || 'Error sending link', 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showMessage('Error sending link. Please try again.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Send Magic Link';
+      }
+    }
+
+    async function handleSignup() {
+      const displayName = document.getElementById('signupName').value.trim();
+      const email = document.getElementById('signupEmail').value.trim();
+      const phone = document.getElementById('signupPhone').value.trim();
+
+      if (!displayName || !email) {
+        showMessage('Please fill in name and email', 'error');
         return;
       }
-      saveSession({ phone: phone, events: data.events });
-      showEvents(data.events, phone);
-      showToast("Welcome back!", "success");
-    })
-    .catch(function() {
-      showError("Couldn't reach the server. Please try again.");
-    })
-    .finally(function() {
-      btn.disabled = false;
-      loading.style.display = "none";
+
+      const btn = document.getElementById('submitSignupBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner"></span>Creating account...';
+
+      try {
+        const response = await fetch('/api/auth?action=signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ displayName, email, phone })
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage('Account created! Check your email for a login link.', 'success');
+          setTimeout(function() { toggleMode('login'); }, 2000);
+        } else {
+          showMessage(result.error || 'Error creating account', 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showMessage('Error creating account. Please try again.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Create Account';
+      }
+    }
+
+    function showMessage(text, type) {
+      messageEl.textContent = text;
+      messageEl.className = 'message ' + type;
+    }
+
+    // Allow Enter key to submit
+    document.getElementById('email').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') handleLogin();
     });
-}
-
-function showEvents(events, phone) {
-  document.getElementById("loginSection").style.display = "none";
-  document.getElementById("eventsSection").style.display = "block";
-
-  var list = document.getElementById("eventsList");
-  list.innerHTML = "";
-
-  if (events.length === 0) {
-    list.innerHTML = '<div class="no-events"><p>No events yet</p></div>';
-    return;
-  }
-
-  events.forEach(function(ev) {
-    var card = document.createElement("div");
-    card.className = "event-card";
-    card.onclick = function() {
-      window.location.href = "/admin/?eventId=" + encodeURIComponent(ev.eventId) + "&phone=" + encodeURIComponent(phone);
-    };
-    card.innerHTML =
-      '<div class="event-icon">&#127881;</div>' +
-      '<div class="event-info">' +
-        '<div class="event-name">' + escapeHtml(ev.eventName || ev.eventId) + '</div>' +
-        '<div class="event-id">' + escapeHtml(ev.eventId) + '</div>' +
-      '</div>' +
-      '<div class="event-arrow">&#8250;</div>';
-    list.appendChild(card);
-  });
-}
-
-function logout() {
-  sessionStorage.removeItem(SESSION_KEY);
-  localStorage.removeItem(SESSION_KEY);
-  document.getElementById("eventsSection").style.display = "none";
-  document.getElementById("loginSection").style.display = "block";
-  document.getElementById("phoneInput").value = "";
-}
-
-function saveSession(data) {
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
-}
-
-function getSession() {
-  try {
-    return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null");
-  } catch (e) { return null; }
-}
-
-function showError(msg) {
-  var el = document.getElementById("loginError");
-  el.textContent = msg;
-  el.style.display = "block";
-}
-
-function hideError() {
-  document.getElementById("loginError").style.display = "none";
-}
-
-function escapeHtml(text) {
-  var div = document.createElement("div");
-  div.appendChild(document.createTextNode(text));
-  return div.innerHTML;
-}
-
-function showToast(msg, type) {
-  var toast = document.getElementById("toast");
-  toast.textContent = msg;
-  toast.className = "toast" + (type ? " " + type : "");
-  toast.classList.add("show");
-  setTimeout(function() { toast.classList.remove("show"); }, 3000);
-}
-</script>
-
+    document.getElementById('signupEmail').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') handleSignup();
+    });
+  </script>
 </body>
 </html>

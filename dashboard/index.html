@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Ryvite</title>
+  <meta name="description" content="Manage your Ryvite events and AI-designed invitations.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --party-coral: #E94560;
+      --blush-pop: #FF6B6B;
+      --midnight: #1A1A2E;
+      --confetti-gold: #FFB74D;
+      --mint-fizz: #4ECDC4;
+      --party-purple: #A78BFA;
+      --cream: #FFFAF5;
+    }
+    html, body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--midnight); }
+    .header {
+      background: white;
+      border-bottom: 1px solid #eee;
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .header-left a { text-decoration: none; }
+    .header h1 { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--midnight); }
+    .header-user { font-size: 13px; color: #666; }
+    .header-actions { display: flex; gap: 12px; align-items: center; }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .btn-primary { background: var(--party-coral); color: white; }
+    .btn-primary:hover { background: var(--blush-pop); transform: translateY(-2px); }
+    .btn-secondary { background: #f0f0f0; color: var(--midnight); }
+    .btn-secondary:hover { background: #e0e0e0; }
+    .container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+    .section-title { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--midnight); margin-bottom: 30px; }
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      background: white;
+      border-radius: 8px;
+      border: 2px dashed #ddd;
+    }
+    .empty-state h3 { font-size: 20px; margin-bottom: 12px; color: var(--midnight); }
+    .empty-state p { color: #666; margin-bottom: 24px; }
+    .event-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 24px;
+    }
+    .event-card {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s;
+    }
+    .event-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    }
+    .event-card-header {
+      background: linear-gradient(135deg, var(--party-coral), var(--confetti-gold));
+      padding: 20px;
+      color: white;
+      min-height: 100px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .event-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .event-card-date { font-size: 12px; opacity: 0.9; }
+    .event-card-body { padding: 20px; }
+    .event-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .status-draft { background: #fff3cd; color: #856404; }
+    .status-published { background: #d4edda; color: #155724; }
+    .status-archived { background: #e2e3e5; color: #383d41; }
+    .event-actions { display: flex; gap: 8px; }
+    .event-actions button,
+    .event-actions a {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: var(--midnight);
+      text-align: center;
+      font-family: 'Inter', sans-serif;
+    }
+    .event-actions button:hover,
+    .event-actions a:hover {
+      background: #f9f9f9;
+      border-color: var(--party-coral);
+      color: var(--party-coral);
+    }
+    .loading { text-align: center; padding: 60px 20px; color: #666; }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--midnight);
+      color: white;
+      padding: 14px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      animation: slideUp 0.3s ease-out;
+      z-index: 100;
+    }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .invite-link-row {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+    }
+    .invite-link-input {
+      flex: 1;
+      padding: 6px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #666;
+      font-family: 'Inter', sans-serif;
+    }
+    .copy-btn {
+      padding: 6px 12px;
+      border: 1px solid var(--party-coral);
+      background: white;
+      color: var(--party-coral);
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+    }
+    .copy-btn:hover { background: var(--party-coral); color: white; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <a href="/"><h1>Ryvite</h1></a>
+      <span class="header-user" id="headerUser"></span>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" onclick="logout()">Log Out</button>
+      <a href="/create/" class="btn btn-primary">+ Create Event</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="section-title">Your Events</div>
+    <div id="loading" class="loading">Loading your events...</div>
+    <div id="emptyState" class="empty-state" style="display: none;">
+      <h3>No events yet</h3>
+      <p>Ready to create your first beautiful AI-designed invite?</p>
+      <a href="/create/" class="btn btn-primary">Create Your First Event</a>
+    </div>
+    <div id="eventGrid" class="event-grid" style="display: none;"></div>
+  </div>
+
+  <script>
+    const sessionToken = localStorage.getItem('sessionToken');
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+
+    if (!sessionToken || !user) {
+      window.location.href = '/login/';
+    } else {
+      document.getElementById('headerUser').textContent = user.displayName || user.email || '';
+    }
+
+    // Check for published event toast
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('published')) {
+      showToast('Event published successfully!');
+      window.history.replaceState({}, '', '/dashboard/');
+    }
+
+    async function loadDashboard() {
+      try {
+        const response = await fetch('/api/sheets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'getUserEvents',
+            userId: user.id
+          })
+        });
+
+        const result = await response.json();
+        document.getElementById('loading').style.display = 'none';
+
+        if (result.success && result.events && result.events.length > 0) {
+          renderEvents(result.events);
+        } else {
+          document.getElementById('emptyState').style.display = 'block';
+        }
+      } catch (err) {
+        console.error(err);
+        document.getElementById('loading').innerHTML = 'Error loading events. <button onclick="loadDashboard()" style="color: var(--party-coral); background: none; border: none; cursor: pointer; text-decoration: underline;">Retry</button>';
+      }
+    }
+
+    function renderEvents(events) {
+      const grid = document.getElementById('eventGrid');
+      grid.innerHTML = events.map(function(event) {
+        const eventDate = event.eventDate ? new Date(event.eventDate).toLocaleDateString() : 'No date set';
+        const statusClass = 'status-' + (event.status || 'draft').toLowerCase();
+        const inviteUrl = window.location.origin + '/event/?slug=' + encodeURIComponent(event.slug);
+
+        return '<div class="event-card">'
+          + '<div class="event-card-header">'
+          + '<h3>' + escapeHtml(event.title) + '</h3>'
+          + '<span class="event-card-date">' + eventDate + '</span>'
+          + '</div>'
+          + '<div class="event-card-body">'
+          + '<div class="event-meta">'
+          + '<span>' + escapeHtml(event.locationName || 'No location') + '</span>'
+          + '<span class="status-badge ' + statusClass + '">' + (event.status || 'Draft') + '</span>'
+          + '</div>'
+          + (event.status === 'Published' ? '<div class="invite-link-row"><input class="invite-link-input" value="' + escapeHtml(inviteUrl) + '" readonly onclick="this.select()"><button class="copy-btn" onclick="copyLink(this, \'' + escapeHtml(inviteUrl) + '\')">Copy</button></div>' : '')
+          + '<div class="event-actions">'
+          + '<a href="/event/?slug=' + encodeURIComponent(event.slug) + '" target="_blank">View</a>'
+          + '<button onclick="deleteEvent(\'' + event.id + '\', this)">Delete</button>'
+          + '</div>'
+          + '</div>'
+          + '</div>';
+      }).join('');
+
+      grid.style.display = 'grid';
+    }
+
+    function copyLink(btn, url) {
+      navigator.clipboard.writeText(url).then(function() {
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+      });
+    }
+
+    async function deleteEvent(eventId, btn) {
+      if (!confirm('Delete this event? This cannot be undone.')) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Deleting...';
+
+      try {
+        await fetch('/api/sheets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'updateEvent',
+            eventId: eventId,
+            userId: user.id,
+            status: 'Archived'
+          })
+        });
+        showToast('Event archived');
+        loadDashboard();
+      } catch (err) {
+        console.error(err);
+        btn.disabled = false;
+        btn.textContent = 'Delete';
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('sessionToken');
+      localStorage.removeItem('user');
+      window.location.href = '/login/';
+    }
+
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(function() { toast.remove(); }, 3000);
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

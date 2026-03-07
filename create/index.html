@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Event — Ryvite</title>
+  <meta name="description" content="Create a beautiful AI-designed event invitation in minutes.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --party-coral: #E94560;
+      --blush-pop: #FF6B6B;
+      --midnight: #1A1A2E;
+      --confetti-gold: #FFB74D;
+      --mint-fizz: #4ECDC4;
+      --party-purple: #A78BFA;
+      --cream: #FFFAF5;
+    }
+    html, body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--midnight); }
+    .header {
+      background: white;
+      border-bottom: 1px solid #eee;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h1 { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--midnight); }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .header-left a {
+      font-size: 13px;
+      color: #666;
+      text-decoration: none;
+    }
+    .header-left a:hover { color: var(--party-coral); }
+    .step-indicator { display: flex; gap: 8px; }
+    .step-dot {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: #eee;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: #999;
+      transition: all 0.3s;
+    }
+    .step-dot.active { background: var(--party-coral); color: white; }
+    .step-dot.completed { background: var(--mint-fizz); color: white; }
+    .container { max-width: 720px; margin: 40px auto; padding: 0 20px; }
+    .step { display: none; animation: fadeIn 0.3s; }
+    .step.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .step h2 { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--midnight); margin-bottom: 8px; }
+    .step p.step-desc { color: #666; margin-bottom: 30px; font-size: 14px; }
+    .form-group { margin-bottom: 24px; }
+    label { display: block; font-size: 14px; font-weight: 600; color: var(--midnight); margin-bottom: 8px; }
+    input[type="text"], input[type="email"], input[type="datetime-local"], textarea, select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      color: var(--midnight);
+      transition: border-color 0.2s;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--party-coral);
+      box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.1);
+    }
+    textarea { resize: vertical; min-height: 120px; }
+    .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 640px) { .two-column { grid-template-columns: 1fr; } }
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: var(--party-coral); color: white; }
+    .btn-primary:hover { background: var(--blush-pop); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(233, 69, 96, 0.3); }
+    .btn-secondary { background: #f0f0f0; color: var(--midnight); }
+    .btn-secondary:hover { background: #e0e0e0; }
+    .button-group { display: flex; gap: 12px; margin-top: 40px; }
+    .button-group .btn { flex: 1; }
+    .example-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .chip {
+      background: #f0f0f0;
+      border: 1px solid #ddd;
+      padding: 8px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+    .chip:hover { background: var(--cream); border-color: var(--party-coral); color: var(--party-coral); }
+    .image-upload-area {
+      border: 2px dashed #ddd;
+      border-radius: 6px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #fafafa;
+    }
+    .image-upload-area:hover { border-color: var(--party-coral); background: rgba(233, 69, 96, 0.05); }
+    .image-upload-area p { margin: 0; color: #666; font-size: 14px; }
+    .image-previews { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 12px; margin-top: 16px; }
+    .image-preview { position: relative; width: 80px; height: 80px; border-radius: 4px; overflow: hidden; background: #eee; }
+    .image-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .image-preview .remove {
+      position: absolute; top: 4px; right: 4px;
+      background: rgba(0, 0, 0, 0.6); color: white;
+      border: none; width: 20px; height: 20px;
+      border-radius: 50%; cursor: pointer;
+      font-size: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .loading-spinner {
+      display: inline-block;
+      width: 20px; height: 20px;
+      border: 2px solid rgba(233, 69, 96, 0.3);
+      border-top: 2px solid var(--party-coral);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-state { text-align: center; padding: 60px 20px; }
+    .loading-state h3 { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--midnight); margin-bottom: 16px; }
+    .loading-state p { color: #666; font-size: 14px; }
+    .progress-bar { width: 100%; height: 4px; background: #eee; border-radius: 2px; margin-top: 16px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: var(--party-coral); animation: progress 3s ease-in-out infinite; }
+    @keyframes progress { 0% { width: 10%; } 50% { width: 80%; } 100% { width: 100%; } }
+    .preview-frame { width: 100%; border: 1px solid #ddd; border-radius: 6px; height: 600px; }
+    .summary-item {
+      background: #f9f9f9;
+      padding: 16px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .summary-label { font-weight: 600; color: var(--midnight); }
+    .summary-value { color: #666; font-size: 14px; text-align: right; max-width: 60%; }
+    .message {
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .message.error { background: #f8d7da; color: #721c24; display: block; }
+    .message.success { background: #d4edda; color: #155724; display: block; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <a href="/dashboard/">&larr; Dashboard</a>
+      <h1>Create Event</h1>
+    </div>
+    <div class="step-indicator">
+      <div class="step-dot active" data-step="1">1</div>
+      <div class="step-dot" data-step="2">2</div>
+      <div class="step-dot" data-step="3">3</div>
+      <div class="step-dot" data-step="4">4</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="message" class="message"></div>
+
+    <!-- Step 1: Event Basics -->
+    <div class="step active" data-step="1">
+      <h2>Event Basics</h2>
+      <p class="step-desc">Let's start with the essentials</p>
+
+      <div class="form-group">
+        <label for="title">Event Title *</label>
+        <input type="text" id="title" placeholder="e.g., Sofia's 6th Birthday Bash" required>
+      </div>
+
+      <div class="form-group">
+        <label for="eventType">Event Type *</label>
+        <select id="eventType" required>
+          <option value="">Select event type...</option>
+          <option value="birthday">Birthday</option>
+          <option value="wedding">Wedding</option>
+          <option value="babyShower">Baby Shower</option>
+          <option value="graduation">Graduation</option>
+          <option value="dinnerParty">Dinner Party</option>
+          <option value="holiday">Holiday Party</option>
+          <option value="corporate">Corporate Event</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="description">Description (optional)</label>
+        <textarea id="description" placeholder="Any additional details about the event..."></textarea>
+      </div>
+
+      <div class="two-column">
+        <div class="form-group">
+          <label for="startDate">Start Date & Time *</label>
+          <input type="datetime-local" id="startDate" required>
+        </div>
+        <div class="form-group">
+          <label for="endDate">End Date & Time (optional)</label>
+          <input type="datetime-local" id="endDate">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="locationName">Location Name *</label>
+        <input type="text" id="locationName" placeholder="e.g., Central Park Pavilion" required>
+      </div>
+
+      <div class="form-group">
+        <label for="locationAddress">Address (optional)</label>
+        <input type="text" id="locationAddress" placeholder="123 Main St, City, State">
+      </div>
+
+      <div class="form-group">
+        <label for="dressCode">Dress Code (optional)</label>
+        <input type="text" id="dressCode" placeholder="e.g., Black tie, Casual, Beachy">
+      </div>
+
+      <div class="button-group">
+        <button class="btn btn-primary" onclick="nextStep()">Next: Creative Direction</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Creative Direction -->
+    <div class="step" data-step="2">
+      <h2>Creative Direction</h2>
+      <p class="step-desc">Describe the vibe. Get inspired with images.</p>
+
+      <div class="form-group">
+        <label for="prompt">How should this invite feel? *</label>
+        <textarea id="prompt" placeholder="Describe the mood, style, colors, themes... e.g., 'Modern and minimalist with gold accents. Sophisticated but playful. Think trendy brunch vibes with geometric patterns.'"></textarea>
+      </div>
+
+      <div class="example-chips">
+        <button class="chip" onclick="addPrompt('Elegant and luxurious with gold accents')">Elegant + Gold</button>
+        <button class="chip" onclick="addPrompt('Playful and colorful with confetti patterns')">Playful + Colorful</button>
+        <button class="chip" onclick="addPrompt('Modern minimalist with sleek typography')">Modern + Minimal</button>
+        <button class="chip" onclick="addPrompt('Rustic and cozy with warm earth tones')">Rustic + Warm</button>
+        <button class="chip" onclick="addPrompt('Underwater theme with blues and greens')">Underwater</button>
+        <button class="chip" onclick="addPrompt('Vintage floral with botanical elements')">Vintage + Floral</button>
+      </div>
+
+      <div class="form-group" style="margin-top: 24px;">
+        <label>Inspiration Images (optional, up to 4)</label>
+        <div class="image-upload-area" onclick="document.getElementById('imageInput').click()">
+          <p>Drag & drop images here or click to upload</p>
+          <p style="font-size: 12px; color: #999; margin-top: 4px;">PNG, JPG (max 5MB each)</p>
+        </div>
+        <input type="file" id="imageInput" multiple accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+        <div id="imagePreviews" class="image-previews"></div>
+      </div>
+
+      <div class="button-group">
+        <button class="btn btn-secondary" onclick="previousStep()">Back</button>
+        <button class="btn btn-primary" onclick="nextStep()">Next: Generate Theme</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Generate & Preview -->
+    <div class="step" data-step="3">
+      <div id="generatingView">
+        <div class="loading-state">
+          <span class="loading-spinner" style="width: 40px; height: 40px; border-width: 3px;"></span>
+          <h3>Generating Your Invite...</h3>
+          <p>Our AI is creating a custom design based on your vision</p>
+          <div class="progress-bar">
+            <div class="progress-bar-fill"></div>
+          </div>
+        </div>
+      </div>
+      <div id="generatedView" style="display: none;">
+        <h2>Preview Your Theme</h2>
+        <p class="step-desc">Love it? Continue to publish. Want to tweak it? Regenerate.</p>
+        <iframe id="previewFrame" class="preview-frame" style="margin: 20px 0;"></iframe>
+        <div class="button-group">
+          <button class="btn btn-secondary" onclick="goToStep(2)">Edit Details</button>
+          <button class="btn btn-secondary" onclick="regenerateTheme()">Regenerate</button>
+          <button class="btn btn-primary" onclick="nextStep()">Next: Publish</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Review & Publish -->
+    <div class="step" data-step="4">
+      <h2>Review & Publish</h2>
+      <p class="step-desc">Confirm your event details before publishing</p>
+
+      <div id="summaryContent"></div>
+
+      <div class="button-group">
+        <button class="btn btn-secondary" onclick="previousStep()">Back</button>
+        <button class="btn btn-primary" id="publishBtn" onclick="publishEvent()">Publish Invite</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentStep = 1;
+    const totalSteps = 4;
+    let currentEvent = null;
+    let inspirationImageBase64Array = [];
+
+    // Auth check
+    const sessionToken = localStorage.getItem('sessionToken');
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!sessionToken || !user) {
+      window.location.href = '/login/';
+    }
+
+    // Load draft from localStorage
+    function loadDraft() {
+      const draft = localStorage.getItem('eventDraft');
+      if (draft) {
+        const d = JSON.parse(draft);
+        if (d.title) document.getElementById('title').value = d.title;
+        if (d.description) document.getElementById('description').value = d.description;
+        if (d.eventType) document.getElementById('eventType').value = d.eventType;
+        if (d.startDate) document.getElementById('startDate').value = d.startDate;
+        if (d.endDate) document.getElementById('endDate').value = d.endDate;
+        if (d.locationName) document.getElementById('locationName').value = d.locationName;
+        if (d.locationAddress) document.getElementById('locationAddress').value = d.locationAddress;
+        if (d.dressCode) document.getElementById('dressCode').value = d.dressCode;
+        if (d.prompt) document.getElementById('prompt').value = d.prompt;
+      }
+    }
+
+    function saveDraft() {
+      const draft = {
+        title: document.getElementById('title').value,
+        description: document.getElementById('description').value,
+        eventType: document.getElementById('eventType').value,
+        startDate: document.getElementById('startDate').value,
+        endDate: document.getElementById('endDate').value,
+        locationName: document.getElementById('locationName').value,
+        locationAddress: document.getElementById('locationAddress').value,
+        dressCode: document.getElementById('dressCode').value,
+        prompt: document.getElementById('prompt').value
+      };
+      localStorage.setItem('eventDraft', JSON.stringify(draft));
+    }
+
+    function goToStep(step) {
+      if (step > currentStep && !validateStep(currentStep)) return;
+      saveDraft();
+
+      document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+      document.querySelector('.step[data-step="' + step + '"]').classList.add('active');
+
+      document.querySelectorAll('.step-dot').forEach(dot => {
+        const dotStep = parseInt(dot.getAttribute('data-step'));
+        dot.classList.remove('active', 'completed');
+        if (dotStep === step) dot.classList.add('active');
+        else if (dotStep < step) dot.classList.add('completed');
+      });
+
+      currentStep = step;
+
+      if (step === 3) generateTheme();
+      else if (step === 4) showSummary();
+    }
+
+    function nextStep() {
+      if (currentStep < totalSteps) goToStep(currentStep + 1);
+    }
+
+    function previousStep() {
+      if (currentStep > 1) goToStep(currentStep - 1);
+    }
+
+    function validateStep(step) {
+      if (step === 1) {
+        const title = document.getElementById('title').value.trim();
+        const eventType = document.getElementById('eventType').value;
+        const startDate = document.getElementById('startDate').value;
+        const locationName = document.getElementById('locationName').value.trim();
+
+        if (!title || !eventType || !startDate || !locationName) {
+          showMessage('Please fill in all required fields', 'error');
+          return false;
+        }
+      }
+
+      if (step === 2) {
+        const prompt = document.getElementById('prompt').value.trim();
+        if (!prompt) {
+          showMessage('Please describe the vibe for your invite', 'error');
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    async function generateTheme() {
+      // Show generating view
+      document.getElementById('generatingView').style.display = 'block';
+      document.getElementById('generatedView').style.display = 'none';
+
+      // Create event draft in GAS if not created yet
+      if (!currentEvent) {
+        try {
+          const response = await fetch('/api/sheets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'createEvent',
+              userId: user.id,
+              title: document.getElementById('title').value,
+              description: document.getElementById('description').value,
+              eventDate: document.getElementById('startDate').value,
+              endDate: document.getElementById('endDate').value,
+              locationName: document.getElementById('locationName').value,
+              locationAddress: document.getElementById('locationAddress').value,
+              dressCode: document.getElementById('dressCode').value,
+              eventType: document.getElementById('eventType').value,
+              prompt: document.getElementById('prompt').value
+            })
+          });
+          const result = await response.json();
+          if (result.success) {
+            currentEvent = { id: result.eventId, slug: result.slug };
+          } else {
+            showMessage(result.error || 'Error creating event', 'error');
+            goToStep(2);
+            return;
+          }
+        } catch (err) {
+          console.error(err);
+          showMessage('Error creating event', 'error');
+          goToStep(2);
+          return;
+        }
+      }
+
+      // Call generate theme API
+      try {
+        const response = await fetch('/api/generate-theme', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + sessionToken
+          },
+          body: JSON.stringify({
+            eventId: currentEvent.id,
+            userId: user.id,
+            prompt: document.getElementById('prompt').value,
+            eventDetails: {
+              title: document.getElementById('title').value,
+              eventDate: document.getElementById('startDate').value,
+              endDate: document.getElementById('endDate').value,
+              locationName: document.getElementById('locationName').value,
+              locationAddress: document.getElementById('locationAddress').value,
+              dressCode: document.getElementById('dressCode').value,
+              eventType: document.getElementById('eventType').value
+            },
+            inspirationImages: inspirationImageBase64Array
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          currentEvent.themeHtml = result.theme.html;
+          currentEvent.themeCss = result.theme.css;
+          currentEvent.themeConfig = result.theme.config;
+
+          document.getElementById('generatingView').style.display = 'none';
+          document.getElementById('generatedView').style.display = 'block';
+
+          // Render theme in iframe
+          const iframe = document.getElementById('previewFrame');
+          const fontsImport = result.theme.config.googleFontsImport || '';
+          const htmlContent = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>* { margin: 0; padding: 0; box-sizing: border-box; } html, body { padding: 20px; } ' + fontsImport + '</style><style>' + result.theme.css + '</style></head><body>' + result.theme.html + '</body></html>';
+          iframe.srcdoc = htmlContent;
+        } else {
+          showMessage(result.error || 'Failed to generate theme', 'error');
+          goToStep(2);
+        }
+      } catch (err) {
+        console.error(err);
+        showMessage('Error generating theme. Please try again.', 'error');
+        goToStep(2);
+      }
+    }
+
+    function regenerateTheme() {
+      document.getElementById('generatingView').style.display = 'block';
+      document.getElementById('generatedView').style.display = 'none';
+      generateTheme();
+    }
+
+    function addPrompt(text) {
+      const promptEl = document.getElementById('prompt');
+      if (promptEl.value) {
+        promptEl.value += ' ' + text;
+      } else {
+        promptEl.value = text;
+      }
+    }
+
+    function handleImageUpload(event) {
+      const files = Array.from(event.target.files);
+      const previewContainer = document.getElementById('imagePreviews');
+
+      if (files.length + inspirationImageBase64Array.length > 4) {
+        showMessage('Maximum 4 images allowed', 'error');
+        return;
+      }
+
+      for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) {
+          showMessage(file.name + ' is too large (max 5MB)', 'error');
+          continue;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const base64 = e.target.result.split(',')[1];
+          const idx = inspirationImageBase64Array.length;
+          inspirationImageBase64Array.push(base64);
+
+          const preview = document.createElement('div');
+          preview.className = 'image-preview';
+          preview.setAttribute('data-idx', idx);
+          preview.innerHTML = '<img src="data:image/*;base64,' + base64 + '" alt="Preview"><button class="remove" onclick="removeImage(this)">&times;</button>';
+          previewContainer.appendChild(preview);
+        };
+        reader.readAsDataURL(file);
+      }
+
+      event.target.value = '';
+    }
+
+    function removeImage(btn) {
+      const preview = btn.parentElement;
+      const idx = parseInt(preview.getAttribute('data-idx'));
+      inspirationImageBase64Array.splice(idx, 1);
+      preview.remove();
+      // Re-index remaining previews
+      document.querySelectorAll('.image-preview').forEach(function(el, i) {
+        el.setAttribute('data-idx', i);
+      });
+    }
+
+    function showSummary() {
+      const summaryContent = document.getElementById('summaryContent');
+      const startDate = document.getElementById('startDate').value;
+      const formattedDate = startDate ? new Date(startDate).toLocaleString() : 'Not set';
+
+      summaryContent.innerHTML = ''
+        + '<div class="summary-item"><span class="summary-label">Title</span><span class="summary-value">' + escapeHtml(document.getElementById('title').value) + '</span></div>'
+        + '<div class="summary-item"><span class="summary-label">Date & Time</span><span class="summary-value">' + formattedDate + '</span></div>'
+        + '<div class="summary-item"><span class="summary-label">Location</span><span class="summary-value">' + escapeHtml(document.getElementById('locationName').value) + '</span></div>'
+        + '<div class="summary-item"><span class="summary-label">Event Type</span><span class="summary-value">' + escapeHtml(document.getElementById('eventType').value) + '</span></div>'
+        + '<div class="summary-item"><span class="summary-label">Design Mood</span><span class="summary-value">' + escapeHtml(document.getElementById('prompt').value.substring(0, 80)) + '...</span></div>';
+    }
+
+    async function publishEvent() {
+      if (!currentEvent) {
+        showMessage('Event not created yet', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('publishBtn');
+      btn.disabled = true;
+      btn.textContent = 'Publishing...';
+
+      try {
+        const response = await fetch('/api/sheets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'updateEvent',
+            eventId: currentEvent.id,
+            userId: user.id,
+            status: 'Published',
+            themeHtml: currentEvent.themeHtml,
+            themeCss: currentEvent.themeCss,
+            themeConfig: JSON.stringify(currentEvent.themeConfig)
+          })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          localStorage.removeItem('eventDraft');
+          window.location.href = '/dashboard/?published=' + currentEvent.id;
+        } else {
+          showMessage(result.error || 'Failed to publish', 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showMessage('Error publishing event', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Publish Invite';
+      }
+    }
+
+    function showMessage(text, type) {
+      const messageEl = document.getElementById('message');
+      messageEl.textContent = text;
+      messageEl.className = 'message ' + type;
+      setTimeout(function() {
+        messageEl.style.display = 'none';
+        messageEl.className = 'message';
+      }, 5000);
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // Auto-save on input changes
+    document.querySelectorAll('input, textarea, select').forEach(function(el) {
+      el.addEventListener('change', saveDraft);
+    });
+
+    loadDraft();
+  </script>
+</body>
+</html>
