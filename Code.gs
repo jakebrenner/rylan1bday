@@ -249,17 +249,17 @@ function handleGetAdmins(eventId) {
 // ============================================================
 // Settings
 // ============================================================
-// Sheet columns: eventId | eventName | zapierWebhook | invitePageUrl | customFields
+// Sheet columns: eventId | eventName | zapierWebhook | invitePageUrl | customFields | smsMessage | eventDate | eventTime | eventLocation | eventDescription
 //
 // customFields is a JSON string defining RSVP form fields, e.g.:
 // [{"key":"adults","label":"Adults","type":"number"},{"key":"kids","label":"Kids","type":"number"}]
 //
 // Supported field types: text, number, select, checkbox
 
-var SETTINGS_HEADERS = ["eventId", "eventName", "zapierWebhook", "invitePageUrl", "customFields", "smsMessage"];
+var SETTINGS_HEADERS = ["eventId", "eventName", "zapierWebhook", "invitePageUrl", "customFields", "smsMessage", "eventDate", "eventTime", "eventLocation", "eventDescription"];
 
 function handleGetSettings(eventId) {
-  var numCols = SETTINGS_HEADERS.length; // 6
+  var numCols = SETTINGS_HEADERS.length;
   var sheet = getOrCreateSheet("Settings", SETTINGS_HEADERS);
   if (sheet.getLastRow() < 2) return {};
 
@@ -274,12 +274,16 @@ function handleGetSettings(eventId) {
         var customFields = [];
         try { customFields = JSON.parse(data[i][4] || "[]"); } catch (e) { customFields = []; }
         return {
-          eventId:        String(data[i][0] || ""),
-          eventName:      String(data[i][1] || ""),
-          zapierWebhook:  String(data[i][2] || ""),
-          invitePageUrl:  String(data[i][3] || ""),
-          customFields:   customFields,
-          smsMessage:     String(data[i][5] || "")
+          eventId:          String(data[i][0] || ""),
+          eventName:        String(data[i][1] || ""),
+          zapierWebhook:    String(data[i][2] || ""),
+          invitePageUrl:    String(data[i][3] || ""),
+          customFields:     customFields,
+          smsMessage:       String(data[i][5] || ""),
+          eventDate:        String(data[i][6] || ""),
+          eventTime:        String(data[i][7] || ""),
+          eventLocation:    String(data[i][8] || ""),
+          eventDescription: String(data[i][9] || "")
         };
       }
     }
@@ -292,17 +296,21 @@ function handleGetSettings(eventId) {
   try { customFields = JSON.parse(row[4] || "[]"); } catch (e) { customFields = []; }
 
   return {
-    eventId:        String(row[0] || ""),
-    eventName:      String(row[1] || ""),
-    zapierWebhook:  String(row[2] || ""),
-    invitePageUrl:  String(row[3] || ""),
-    customFields:   customFields,
-    smsMessage:     String(row[5] || "")
+    eventId:          String(row[0] || ""),
+    eventName:        String(row[1] || ""),
+    zapierWebhook:    String(row[2] || ""),
+    invitePageUrl:    String(row[3] || ""),
+    customFields:     customFields,
+    smsMessage:       String(row[5] || ""),
+    eventDate:        String(row[6] || ""),
+    eventTime:        String(row[7] || ""),
+    eventLocation:    String(row[8] || ""),
+    eventDescription: String(row[9] || "")
   };
 }
 
 function handleSaveSettings(data) {
-  var numCols = SETTINGS_HEADERS.length; // 6
+  var numCols = SETTINGS_HEADERS.length;
   var sheet = getOrCreateSheet("Settings", SETTINGS_HEADERS);
 
   var customFields = "";
@@ -316,11 +324,15 @@ function handleSaveSettings(data) {
   var smsMessage = data.smsMessage || "";
   var values = [
     eventId,
-    data.eventName     || "",
-    data.zapierWebhook || "",
-    data.invitePageUrl || "",
+    data.eventName        || "",
+    data.zapierWebhook    || "",
+    data.invitePageUrl    || "",
     customFields,
-    smsMessage
+    smsMessage,
+    data.eventDate        || "",
+    data.eventTime        || "",
+    data.eventLocation    || "",
+    data.eventDescription || ""
   ];
 
   // Search for existing row with this eventId
@@ -385,36 +397,45 @@ function handleRsvp(data) {
   var sheet = getOrCreateSheet("Invites", INVITES_HEADERS);
 
   var inviteId = data.inviteId || data.id || "";
-  if (!inviteId) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Missing inviteId" }))
-      .setMimeType(ContentService.MimeType.JSON);
+  var status = data.attending === true ? "Attending" : "Not Attending";
+  var responseData = {};
+  if (data.responseData && typeof data.responseData === "object") {
+    responseData = data.responseData;
   }
+  var responseJson = JSON.stringify(responseData);
 
-  // Find the row by InviteID (column C)
-  var dataRange = sheet.getDataRange();
-  var values = dataRange.getValues();
-  var found = false;
+  // If we have an inviteId, try to find and update the existing row
+  if (inviteId) {
+    var dataRange = sheet.getDataRange();
+    var values = dataRange.getValues();
 
-  for (var i = 1; i < values.length; i++) {
-    if (values[i][2] === inviteId) {
-      var status = data.attending ? "Attending" : "Not Attending";
-      sheet.getRange(i + 1, 6).setValue(status);
+    for (var i = 1; i < values.length; i++) {
+      if (values[i][2] === inviteId) {
+        // Update name and phone if provided
+        if (data.name) sheet.getRange(i + 1, 4).setValue(data.name);
+        if (data.phone) sheet.getRange(i + 1, 5).setValue(data.phone);
+        sheet.getRange(i + 1, 6).setValue(status);
+        sheet.getRange(i + 1, 7).setValue(responseJson);
 
-      // Store all custom field responses as JSON in ResponseData (column G)
-      var responseData = {};
-      if (data.responseData && typeof data.responseData === "object") {
-        responseData = data.responseData;
+        return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
+          .setMimeType(ContentService.MimeType.JSON);
       }
-      sheet.getRange(i + 1, 7).setValue(JSON.stringify(responseData));
-
-      found = true;
-      break;
     }
   }
 
-  return ContentService.createTextOutput(JSON.stringify({
-    status: found ? "ok" : "not_found"
-  })).setMimeType(ContentService.MimeType.JSON);
+  // No existing invite row found — create a new one
+  sheet.appendRow([
+    new Date(),
+    data.eventId  || "",
+    inviteId,
+    data.name     || "",
+    data.phone    || "",
+    status,
+    responseJson
+  ]);
+
+  return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // ============================================================

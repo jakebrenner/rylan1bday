@@ -60,7 +60,7 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
 .hero-confetti { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0; }
 .hero-confetti-piece { position:absolute; top:-15px; opacity:0; animation:heroConfettiFall linear infinite; }
 @keyframes heroConfettiFall { 0%{transform:translateY(0) rotate(0deg);opacity:0;} 8%{opacity:0.45;} 92%{opacity:0.45;} 100%{transform:translateY(110vh) rotate(720deg);opacity:0;} }
-.helis-overlay { position:fixed; top:0; left:0; width:100%; height:100vh; pointer-events:none; z-index:50; overflow:visible; }
+.helis-overlay { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:2; overflow:visible; }
 .heli-unit { position:absolute; display:flex; flex-direction:column; align-items:center; animation-timing-function:linear; animation-iteration-count:infinite; opacity:0.85; }
 .heli-body svg { width:70px; height:48px; overflow:visible; }
 .heli-body .main-rotor { animation:rotor-spin 0.15s linear infinite; transform-origin:34px 13px; }
@@ -198,9 +198,6 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
 </head>
 <body>
 
-<!-- Helicopters (fixed overlay, fly across all sections) -->
-<div class="helis-overlay" id="heroHelis"></div>
-
 <!-- Nav -->
 <nav class="nav" id="nav">
   <a href="/" class="nav-logo"><svg class="nav-logo-icon" viewBox="0 0 210 80" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="40" r="22" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M18 30 L32 42 L46 30" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50 L46 50" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="32" cy="22" r="3.5" fill="currentColor" opacity="0.5"/><circle cx="23" cy="26" r="2.2" fill="currentColor" opacity="0.35"/><circle cx="41" cy="25" r="2.2" fill="currentColor" opacity="0.35"/><text x="64" y="50" font-family="Playfair Display, serif" font-size="34" font-weight="600" fill="currentColor">Ryvite</text></svg></a>
@@ -209,6 +206,8 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
 
 <!-- Hero -->
 <section class="hero" id="top">
+  <!-- Helicopters (contained within hero area) -->
+  <div class="helis-overlay" id="heroHelis"></div>
   <div class="hero-particles">
     <div class="hero-balloons" id="heroBalloons"></div>
     <div class="hero-confetti" id="heroConfetti"></div>
@@ -440,7 +439,7 @@ for(var i=0;i<30;i++){var c=document.createElement("div");c.className="hero-conf
 var hl=document.getElementById("heroHelis");
 var heliAnims=["fly-lr-1","fly-rl-1","fly-lr-2"];
 var heliColors=["#E94560","#4ECDC4","#FFB74D"];
-var heliDelays=[3, 8, 14];
+var heliDelays=[0.5, 2, 4];
 for(var i=0;i<3;i++){var u=document.createElement("div");u.className="heli-unit";u.style.cssText="top:"+(12+i*28)+"%;animation-name:"+heliAnims[i]+";animation-duration:"+(20+i*5)+"s;animation-delay:"+heliDelays[i]+"s;animation-fill-mode:backwards;";var bd=document.createElement("div");bd.className="heli-body";bd.innerHTML=hSVG(heliColors[i]);var cb=document.createElement("div");cb.className="heli-cable";var f=document.createElement("img");f.className="heli-face";f.src=rylanFaces[i];f.alt="Rylan";u.appendChild(bd);u.appendChild(cb);u.appendChild(f);hl.appendChild(u);}
 
 // Nav scroll effect

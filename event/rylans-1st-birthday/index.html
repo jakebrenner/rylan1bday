@@ -26,12 +26,12 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
 .heli-cable { width:2px; height:14px; background:#888; }
 .heli-face { width:70px; height:70px; border-radius:50%; border:3px solid white; box-shadow:0 3px 10px rgba(0,0,0,0.25); object-fit:cover; }
 
-@keyframes fly-lr-1 { 0%{transform:translate(-130px,0);} 25%{transform:translate(140px,-15px);} 50%{transform:translate(340px,8px);} 75%{transform:translate(480px,-10px);} 100%{transform:translate(700px,3px);} }
-@keyframes fly-rl-1 { 0%{transform:translate(700px,0) scaleX(-1);} 25%{transform:translate(460px,-12px) scaleX(-1);} 50%{transform:translate(240px,10px) scaleX(-1);} 75%{transform:translate(90px,-6px) scaleX(-1);} 100%{transform:translate(-130px,2px) scaleX(-1);} }
-@keyframes fly-lr-2 { 0%{transform:translate(-150px,5px);} 30%{transform:translate(190px,-18px);} 60%{transform:translate(390px,12px);} 100%{transform:translate(720px,-3px);} }
-@keyframes fly-rl-2 { 0%{transform:translate(720px,0) scaleX(-1);} 35%{transform:translate(360px,-10px) scaleX(-1);} 65%{transform:translate(140px,14px) scaleX(-1);} 100%{transform:translate(-150px,4px) scaleX(-1);} }
-@keyframes fly-lr-3 { 0%{transform:translate(-110px,8px);} 20%{transform:translate(110px,-12px);} 50%{transform:translate(300px,16px);} 80%{transform:translate(500px,-8px);} 100%{transform:translate(680px,10px);} }
-@keyframes fly-rl-3 { 0%{transform:translate(680px,5px) scaleX(-1);} 25%{transform:translate(430px,-14px) scaleX(-1);} 55%{transform:translate(190px,10px) scaleX(-1);} 100%{transform:translate(-110px,-5px) scaleX(-1);} }
+@keyframes fly-lr-1 { 0%{transform:translate(-15vw,0);} 25%{transform:translate(25vw,-15px);} 50%{transform:translate(55vw,8px);} 75%{transform:translate(80vw,-10px);} 100%{transform:translate(110vw,3px);} }
+@keyframes fly-rl-1 { 0%{transform:translate(110vw,0) scaleX(-1);} 25%{transform:translate(75vw,-12px) scaleX(-1);} 50%{transform:translate(45vw,10px) scaleX(-1);} 75%{transform:translate(15vw,-6px) scaleX(-1);} 100%{transform:translate(-15vw,2px) scaleX(-1);} }
+@keyframes fly-lr-2 { 0%{transform:translate(-15vw,5px);} 30%{transform:translate(30vw,-18px);} 60%{transform:translate(60vw,12px);} 100%{transform:translate(110vw,-3px);} }
+@keyframes fly-rl-2 { 0%{transform:translate(110vw,0) scaleX(-1);} 35%{transform:translate(55vw,-10px) scaleX(-1);} 65%{transform:translate(20vw,14px) scaleX(-1);} 100%{transform:translate(-15vw,4px) scaleX(-1);} }
+@keyframes fly-lr-3 { 0%{transform:translate(-15vw,8px);} 20%{transform:translate(18vw,-12px);} 50%{transform:translate(48vw,16px);} 80%{transform:translate(78vw,-8px);} 100%{transform:translate(110vw,10px);} }
+@keyframes fly-rl-3 { 0%{transform:translate(110vw,5px) scaleX(-1);} 25%{transform:translate(70vw,-14px) scaleX(-1);} 55%{transform:translate(30vw,10px) scaleX(-1);} 100%{transform:translate(-15vw,-5px) scaleX(-1);} }
 @keyframes bob { 0%,100%{margin-top:0;} 50%{margin-top:-5px;} }
 .heli-body { animation:bob 1.5s ease-in-out infinite; }
 
@@ -64,6 +64,8 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
 .detail-label { font-weight:600; font-size:0.85rem; letter-spacing:1px; text-transform:uppercase; color:#888; }
 .detail-value { font-size:1.05rem; color:var(--dark); margin-top:2px; }
 
+.no-gifts { text-align:center; margin:8px auto 0; padding:10px 20px; font-size:0.9rem; color:var(--teal); font-style:italic; opacity:0.85; }
+.no-gifts svg { vertical-align:middle; margin-right:5px; }
 .rsvp-section { position:relative; z-index:1; max-width:500px; margin:0 auto; padding:10px 25px 40px; animation:fadeInUp 0.8s ease-out 1.6s both; }
 .rsvp-card { background:white; border-radius:20px; padding:30px; box-shadow:0 4px 20px rgba(0,0,0,0.06); border:2px solid var(--light-sage); }
 .rsvp-title { font-family:'Playfair Display',serif; font-size:1.8rem; color:var(--teal); text-align:center; margin-bottom:5px; }
@@ -148,6 +150,7 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
       <div><div class="detail-label">What</div><div class="detail-value">Tacos &amp; Cake</div></div>
     </div>
   </div>
+  <div class="no-gifts"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>No gifts necessary &mdash; your presence is the best present!</div>
 </section>
 
 <div class="wave-divider"><svg viewBox="0 0 400 20"><path d="M0 10 Q50 0 100 10 Q150 20 200 10 Q250 0 300 10 Q350 20 400 10" fill="none" stroke="#ED923C" stroke-width="2" opacity="0.3"/></svg></div>
@@ -158,6 +161,7 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
     <p class="rsvp-subtitle">Please let us know if you can make it!</p>
     <form id="rsvpForm">
       <div class="form-group"><label>Your Name</label><input type="text" name="name" required placeholder="First & Last Name"></div>
+      <div class="form-group"><label>Phone Number</label><input type="tel" name="phone" required placeholder="(555) 555-5555"></div>
       <div class="form-group"><label>Will you be joining us?</label><div class="attendance-options"><div class="attendance-option"><input type="radio" name="attending" id="yes" value="Yes" required><label for="yes">Wouldn't miss it!</label></div><div class="attendance-option"><input type="radio" name="attending" id="no" value="No"><label for="no">Can't make it</label></div></div></div>
       <div id="customFieldsContainer"></div>
       <button type="submit" class="submit-btn">Send RSVP</button>
@@ -206,15 +210,21 @@ var _urlParams=new URLSearchParams(window.location.search);
 var _guestId=_urlParams.get("id")||"";
 var _eventId=_urlParams.get("eid")||"";
 var _customFields=[];
+var _webhookUrl="";
+var _smsTemplate="";
 
-// Load settings (including custom fields) from the sheet
+// Load settings (including custom fields, webhook, sms template) from the sheet
 (function loadEventSettings(){
   var eid=_eventId?"&eventId="+encodeURIComponent(_eventId):"";
   fetch(API_URL+"?action=getSettings"+eid)
     .then(function(res){return res.json();})
     .then(function(data){
-      if(data&&data.customFields&&data.customFields.length){_customFields=data.customFields;renderCustomFieldInputs(_customFields);}
-      else{renderDefaultFields();}
+      if(data){
+        if(data.zapierWebhook)_webhookUrl=data.zapierWebhook;
+        if(data.smsMessage)_smsTemplate=data.smsMessage;
+        if(data.customFields&&data.customFields.length){_customFields=data.customFields;renderCustomFieldInputs(_customFields);}
+        else{renderDefaultFields();}
+      }else{renderDefaultFields();}
     })
     .catch(function(){renderDefaultFields();});
 })();
@@ -250,18 +260,41 @@ form.addEventListener("submit",function(e){
   e.preventDefault();
   var fd=new FormData(form);
   var name=fd.get("name")||"";
+  var phone=fd.get("phone")||"";
   var attending=fd.get("attending")||"";
   var responseData={};
   _customFields.forEach(function(f){
     var val=fd.get("cf_"+f.key);
     if(val!==null)responseData[f.key]=val;
   });
-  var d={action:"rsvp",name:name,attending:attending,responseData:responseData};
+  var isAttending=attending==="Yes";
+  var d={action:"rsvp",name:name,phone:phone,attending:isAttending,responseData:responseData};
   if(_guestId)d.inviteId=_guestId;
   if(_eventId)d.eventId=_eventId;
   form.style.display="none";
   document.getElementById("loadingMsg").style.display="block";
-  fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)}).then(function(){ok();}).catch(function(err){console.error("RSVP submission failed:",err);ok();});
+  fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)}).then(function(){
+    // Fire SMS notification webhook if configured
+    if(_webhookUrl){
+      var answersText="";
+      _customFields.forEach(function(f){
+        if(responseData[f.key]!==undefined)answersText+=(answersText?", ":"")+f.label+": "+responseData[f.key];
+      });
+      var msg=_smsTemplate||"New RSVP from {name} ({phone}): {attending}. {answers}";
+      msg=msg.replace(/\{name\}/g,name).replace(/\{phone\}/g,phone).replace(/\{attending\}/g,isAttending?"Attending":"Not Attending").replace(/\{answers\}/g,answersText);
+      fetch("/api/webhook",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        webhookUrl:_webhookUrl,
+        name:name,
+        phone:phone,
+        attending:isAttending?"Attending":"Not Attending",
+        answers:answersText,
+        responseData:responseData,
+        message:msg,
+        eventId:_eventId||""
+      })}).catch(function(err){console.error("Webhook error:",err);});
+    }
+    ok();
+  }).catch(function(err){console.error("RSVP submission failed:",err);ok();});
 });
 function ok(){
   document.getElementById("loadingMsg").style.display="none";
@@ -282,8 +315,8 @@ function setupCal(){
     "VERSION:2.0",
     "PRODID:-//RylanBirthday//EN",
     "BEGIN:VEVENT",
-    "DTSTART;TZID=America/Los_Angeles:20260321T113000",
-    "DTEND;TZID=America/Los_Angeles:20260321T143000",
+    "DTSTART;TZID=America/Los_Angeles:20260321T120000",
+    "DTEND;TZID=America/Los_Angeles:20260321T150000",
     "SUMMARY:"+t,
     "LOCATION:"+loc,
     "DESCRIPTION:"+desc,
@@ -292,8 +325,8 @@ function setupCal(){
   ].join("\r\n");
   var blob=new Blob([icsText],{type:"text/calendar;charset=utf-8"});
   document.getElementById("icsBtn").href=URL.createObjectURL(blob);
-  document.getElementById("gcalBtn").href="https://calendar.google.com/calendar/render?action=TEMPLATE&text="+encodeURIComponent(t)+"&dates=20260321T183000Z/20260321T213000Z&location="+encodeURIComponent(loc)+"&details="+encodeURIComponent(desc);
-  document.getElementById("outlookBtn").href="https://outlook.live.com/calendar/0/action/compose?subject="+encodeURIComponent(t)+"&startdt=2026-03-21T18:30:00Z&enddt=2026-03-21T21:30:00Z&location="+encodeURIComponent(loc)+"&body="+encodeURIComponent(desc);
+  document.getElementById("gcalBtn").href="https://calendar.google.com/calendar/render?action=TEMPLATE&text="+encodeURIComponent(t)+"&dates=20260321T200000Z/20260321T230000Z&location="+encodeURIComponent(loc)+"&details="+encodeURIComponent(desc);
+  document.getElementById("outlookBtn").href="https://outlook.live.com/calendar/0/action/compose?subject="+encodeURIComponent(t)+"&startdt=2026-03-21T20:00:00Z&enddt=2026-03-21T23:00:00Z&location="+encodeURIComponent(loc)+"&body="+encodeURIComponent(desc);
 }
 </script>
 </body>

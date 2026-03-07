@@ -447,10 +447,10 @@ body { font-family:'Fredoka',sans-serif; background:var(--sage); color:var(--dar
         <div id="customFieldsList"></div>
         <button type="button" class="add-field-btn" onclick="addCustomField()">+ Add Field</button>
 
-        <!-- SMS Message Template -->
-        <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;margin-top:16px;">SMS Message Template</label>
-        <p class="config-hint" style="margin-bottom:6px;">Customize the text message guests receive. Use <strong>{name}</strong> for their first name and <strong>{link}</strong> for the invite link.</p>
-        <textarea class="config-input" id="smsMessage" rows="3" placeholder="Hey {name}! You're invited! RSVP here: {link}" style="resize:vertical;min-height:60px;font-family:'Fredoka',sans-serif;font-size:0.9rem;line-height:1.4;"></textarea>
+        <!-- SMS Notification Template (triggered on RSVP) -->
+        <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:4px;margin-top:16px;">RSVP Notification SMS Template</label>
+        <p class="config-hint" style="margin-bottom:6px;">You'll get a text when someone RSVPs. Use <strong>{name}</strong> for guest name, <strong>{phone}</strong> for their phone, <strong>{attending}</strong> for their status, and <strong>{answers}</strong> for their RSVP answers.</p>
+        <textarea class="config-input" id="smsMessage" rows="3" placeholder="New RSVP from {name} ({phone}): {attending}. {answers}" style="resize:vertical;min-height:60px;font-family:'Fredoka',sans-serif;font-size:0.9rem;line-height:1.4;"></textarea>
         <div id="smsPreview" style="display:none;margin-top:8px;padding:12px 14px;background:white;border:2px solid var(--light-sage);border-radius:10px;">
           <label style="font-size:0.78rem;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px;">Preview</label>
           <p id="smsPreviewText" style="font-size:0.88rem;color:var(--dark);margin:0;line-height:1.5;word-break:break-word;"></p>
@@ -1042,36 +1042,7 @@ async function sendAllInvites() {
       console.error("Sheet error for " + fullName, err);
     }
 
-    // 2. Fire Zapier webhook to send SMS (with UUID invite link + message)
-    var smsTemplate = document.getElementById("smsMessage").value.trim();
-    var smsBody = "";
-    if (smsTemplate) {
-      smsBody = smsTemplate.replace(/\{name\}/g, contact.first || fullName).replace(/\{link\}/g, inviteLink);
-    }
-    try {
-      var webhookRes = await fetch("/api/webhook", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          webhookUrl: config.zapierUrl,
-          name: fullName,
-          firstName: contact.first,
-          lastName: contact.last,
-          phone: contact.phone,
-          inviteUrl: inviteLink,
-          message: smsBody,
-          senderPhone: currentAdminPhone
-        })
-      });
-      var webhookData = await webhookRes.json();
-      if (webhookData.status !== "ok") {
-        console.error("Zapier error for " + fullName, webhookData);
-        success = false;
-      }
-    } catch (err) {
-      console.error("Zapier error for " + fullName, err);
-      success = false;
-    }
+    // Webhook is now triggered on RSVP, not on invite send
 
     results.push({
       first: contact.first,
@@ -1283,7 +1254,7 @@ function updateSmsPreview() {
     preview.style.display = "none";
     return;
   }
-  var sample = template.replace(/\{name\}/g, "Jane").replace(/\{link\}/g, "https://ryvite.com/event/example/?id=abc123&eid=demo");
+  var sample = template.replace(/\{name\}/g, "Jane Doe").replace(/\{phone\}/g, "(555) 123-4567").replace(/\{attending\}/g, "Attending").replace(/\{answers\}/g, "Adults: 2, Kids: 1");
   previewText.textContent = sample;
   preview.style.display = "block";
 }
@@ -1308,26 +1279,25 @@ function sendTestSms() {
     return;
   }
 
-  var testLink = (config.inviteUrl || "https://ryvite.com") + "?id=test123&eid=" + encodeURIComponent(config.eventId);
-  var testMessage = template.replace(/\{name\}/g, "Test").replace(/\{link\}/g, testLink);
+  var testMessage = template.replace(/\{name\}/g, "Jane Doe").replace(/\{phone\}/g, "(555) 123-4567").replace(/\{attending\}/g, "Attending").replace(/\{answers\}/g, "Adults: 2, Kids: 1");
 
   var btn = document.getElementById("sendTestSmsBtn");
   btn.disabled = true;
   btn.textContent = "Sending...";
 
-  // Send ONLY to the admin's own phone — both phone and senderPhone are the admin
+  // Send ONLY to the admin's own phone
   fetch("/api/webhook", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       webhookUrl: config.zapierUrl,
-      name: "Test User",
-      firstName: "Test",
-      lastName: "User",
+      name: "Jane Doe",
       phone: currentAdminPhone,
-      inviteUrl: testLink,
+      attending: "Attending",
+      answers: "Adults: 2, Kids: 1",
+      responseData: {adults:"2",kids:"1"},
       message: testMessage,
-      senderPhone: currentAdminPhone
+      eventId: config.eventId || ""
     })
   }).then(function(res) { return res.json(); })
   .then(function(data) {
