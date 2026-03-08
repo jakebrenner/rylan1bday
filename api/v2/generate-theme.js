@@ -7,9 +7,20 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Theme generation model — balance cost vs quality
-// Options: 'claude-haiku-4-5-20251001' (cheapest), 'claude-sonnet-4-20250514' (best quality)
-const THEME_MODEL = process.env.THEME_MODEL || 'claude-sonnet-4-20250514';
+const DEFAULT_THEME_MODEL = process.env.THEME_MODEL || 'claude-sonnet-4-20250514';
+
+async function getThemeModel() {
+  try {
+    const { data } = await supabase
+      .from('app_config')
+      .select('value')
+      .eq('key', 'theme_model')
+      .single();
+    return data?.value || DEFAULT_THEME_MODEL;
+  } catch {
+    return DEFAULT_THEME_MODEL;
+  }
+}
 
 const SYSTEM_PROMPT = `You are Ryvite's invite designer — an expert at turning natural language event descriptions into beautiful, custom HTML/CSS invite themes.
 
@@ -110,6 +121,7 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'Rate limit exceeded. Max 5 generations per hour.' });
   }
 
+  const themeModel = await getThemeModel();
   const startTime = Date.now();
 
   try {
@@ -141,7 +153,7 @@ ${effectivePrompt}`;
       : [{ type: 'text', text: userMessage }];
 
     const response = await client.messages.create({
-      model: THEME_MODEL,
+      model: themeModel,
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: messageContent }]
@@ -187,7 +199,7 @@ ${effectivePrompt}`;
         html: theme.theme_html,
         css: theme.theme_css,
         config: theme.theme_config,
-        model: THEME_MODEL,
+        model: themeModel,
         input_tokens: response.usage?.input_tokens || 0,
         output_tokens: response.usage?.output_tokens || 0,
         latency_ms: latency
@@ -204,7 +216,7 @@ ${effectivePrompt}`;
       event_id: eventId,
       user_id: user.id,
       prompt: effectivePrompt,
-      model: THEME_MODEL,
+      model: themeModel,
       input_tokens: response.usage.input_tokens,
       output_tokens: response.usage.output_tokens,
       latency_ms: latency,
@@ -221,7 +233,7 @@ ${effectivePrompt}`;
         config: theme.theme_config
       },
       metadata: {
-        model: THEME_MODEL,
+        model: themeModel,
         latencyMs: latency,
         tokens: {
           input: response.usage.input_tokens,
@@ -237,7 +249,7 @@ ${effectivePrompt}`;
       event_id: eventId,
       user_id: user.id,
       prompt: effectivePrompt,
-      model: THEME_MODEL,
+      model: themeModel,
       input_tokens: 0,
       output_tokens: 0,
       latency_ms: Date.now() - startTime,

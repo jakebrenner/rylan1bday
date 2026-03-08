@@ -233,6 +233,25 @@ create index idx_notif_log_guest_id on public.notification_log(guest_id);
 comment on table public.notification_log is 'Email and SMS delivery tracking';
 
 -- ============================================================
+-- 9. APP_CONFIG — platform-wide settings (model selection, etc.)
+-- ============================================================
+
+create table public.app_config (
+  key         text primary key,
+  value       text not null,
+  updated_by  uuid references auth.users(id),
+  updated_at  timestamptz not null default now()
+);
+
+comment on table public.app_config is 'Platform-wide configuration (model selection, feature flags, etc.)';
+
+-- Seed defaults
+insert into public.app_config (key, value) values
+  ('chat_model', 'claude-haiku-4-5-20251001'),
+  ('theme_model', 'claude-sonnet-4-20250514')
+on conflict (key) do nothing;
+
+-- ============================================================
 -- SHARED FUNCTIONS & TRIGGERS
 -- ============================================================
 

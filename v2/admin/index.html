@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Ryvite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --party-coral: #E94560; --blush-pop: #FF6B6B; --midnight: #1A1A2E;
+      --confetti-gold: #FFB74D; --mint-fizz: #4ECDC4; --party-purple: #A78BFA; --cream: #FFFAF5;
+    }
+    html, body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--midnight); }
+    .header { background: var(--midnight); border-bottom: 1px solid #333; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .header-left a { text-decoration: none; }
+    .header h1 { font-family: 'Playfair Display', serif; font-size: 22px; color: white; }
+    .header-badge { background: var(--party-coral); color: white; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .header-actions { display: flex; gap: 12px; align-items: center; }
+    .header-actions a { color: #aaa; text-decoration: none; font-size: 13px; transition: color 0.2s; }
+    .header-actions a:hover { color: white; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 4px; margin-bottom: 24px; background: white; border-radius: 8px; padding: 4px; border: 1px solid #eee; }
+    .tab { flex: 1; padding: 10px 16px; text-align: center; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; color: #888; background: transparent; border: none; font-family: 'Inter', sans-serif; }
+    .tab.active { background: var(--midnight); color: white; }
+    .tab:hover:not(.active) { background: #f0f0f0; color: var(--midnight); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Stats cards */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .stat-card { background: white; border-radius: 8px; padding: 20px; border: 1px solid #eee; }
+    .stat-card .stat-value { font-size: 32px; font-weight: 700; color: var(--midnight); }
+    .stat-card .stat-label { font-size: 12px; color: #888; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Tables */
+    .table-container { background: white; border-radius: 8px; border: 1px solid #eee; overflow: hidden; }
+    .table-header { padding: 16px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .table-header h3 { font-size: 16px; font-weight: 600; }
+    .table-header .count { font-size: 12px; color: #888; background: #f0f0f0; padding: 4px 10px; border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 12px 20px; font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; background: #fafafa; border-bottom: 1px solid #eee; }
+    td { padding: 14px 20px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+    .user-email { font-weight: 600; color: var(--midnight); }
+    .user-name { color: #888; font-size: 12px; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .badge-green { background: #d4edda; color: #155724; }
+    .badge-yellow { background: #fff3cd; color: #856404; }
+    .badge-gray { background: #e2e3e5; color: #383d41; }
+    .badge-blue { background: #d1ecf1; color: #0c5460; }
+    .clickable { cursor: pointer; color: var(--party-coral); text-decoration: underline; }
+    .clickable:hover { color: var(--blush-pop); }
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: var(--party-coral); color: white; }
+    .btn-primary:hover { background: var(--blush-pop); }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-secondary { background: #f0f0f0; color: var(--midnight); }
+    .btn-secondary:hover { background: #e0e0e0; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .back-link { font-size: 13px; color: #888; cursor: pointer; margin-bottom: 16px; display: inline-flex; align-items: center; gap: 6px; }
+    .back-link:hover { color: var(--party-coral); }
+
+    /* Config section */
+    .config-section { background: white; border-radius: 8px; border: 1px solid #eee; padding: 24px; margin-bottom: 24px; }
+    .config-section h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 20px; }
+    .config-field label { display: block; font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .config-field select { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 14px; color: var(--midnight); background: white; cursor: pointer; }
+    .config-field select:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+    .config-field .hint { font-size: 11px; color: #aaa; margin-top: 6px; }
+    .config-actions { display: flex; gap: 12px; align-items: center; }
+    .config-saved { color: var(--mint-fizz); font-size: 13px; font-weight: 600; display: none; }
+
+    /* Token usage */
+    .usage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 16px; }
+    .usage-card { background: #f9f9f9; border-radius: 8px; padding: 16px; }
+    .usage-card .model-name { font-size: 13px; font-weight: 600; color: var(--midnight); margin-bottom: 8px; font-family: monospace; }
+    .usage-card .usage-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .usage-card .usage-stat { font-size: 12px; }
+    .usage-card .usage-stat .val { font-weight: 700; font-size: 16px; color: var(--midnight); }
+    .usage-card .usage-stat .lbl { color: #888; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s; }
+    .modal { background: white; border-radius: 12px; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto; padding: 24px; }
+    .modal h3 { font-size: 18px; margin-bottom: 16px; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .loading { text-align: center; padding: 60px 20px; color: #888; }
+    .access-denied { text-align: center; padding: 80px 20px; }
+    .access-denied h2 { font-family: 'Playfair Display', serif; margin-bottom: 12px; }
+    .access-denied p { color: #666; margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <a href="/v2/dashboard/" style="display:flex;align-items:center;"><svg viewBox="0 0 210 80" xmlns="http://www.w3.org/2000/svg" style="height:32px;width:auto;"><circle cx="32" cy="40" r="22" fill="none" stroke="var(--party-coral)" stroke-width="2.2"/><path d="M18 30 L32 42 L46 30" fill="none" stroke="var(--party-coral)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50 L46 50" fill="none" stroke="var(--party-coral)" stroke-width="1.8" stroke-linecap="round"/><circle cx="32" cy="22" r="3.5" fill="var(--confetti-gold)" opacity="0.7"/><circle cx="23" cy="26" r="2.2" fill="var(--blush-pop)" opacity="0.5"/><circle cx="41" cy="25" r="2.2" fill="var(--confetti-gold)" opacity="0.5"/><text x="64" y="52" font-family="Playfair Display, serif" font-size="34" font-weight="700" fill="white">Ryvite</text></svg></a>
+      <h1>Admin</h1>
+      <span class="header-badge">Internal</span>
+    </div>
+    <div class="header-actions">
+      <a href="/v2/dashboard/">Dashboard</a>
+      <a href="#" onclick="logout()">Log Out</a>
+    </div>
+  </div>
+
+  <div id="accessDenied" class="access-denied" style="display:none;">
+    <h2>Access Denied</h2>
+    <p>You don't have admin privileges. Contact the Ryvite team if you think this is an error.</p>
+    <a href="/v2/dashboard/" class="btn btn-primary">Back to Dashboard</a>
+  </div>
+
+  <div id="adminContent" class="container" style="display:none;">
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+      <button class="tab" data-tab="users" onclick="switchTab('users')">Users</button>
+      <button class="tab" data-tab="settings" onclick="switchTab('settings')">AI Models</button>
+    </div>
+
+    <!-- Overview Tab -->
+    <div class="tab-content active" id="tab-overview">
+      <div class="stat-grid" id="statsGrid">
+        <div class="stat-card"><div class="stat-value" id="statUsers">—</div><div class="stat-label">Total Users</div></div>
+        <div class="stat-card"><div class="stat-value" id="statEvents">—</div><div class="stat-label">Total Events</div></div>
+        <div class="stat-card"><div class="stat-value" id="statPublished">—</div><div class="stat-label">Published</div></div>
+        <div class="stat-card"><div class="stat-value" id="statRsvps">—</div><div class="stat-label">Total RSVPs</div></div>
+        <div class="stat-card"><div class="stat-value" id="statGenerations">—</div><div class="stat-label">AI Generations</div></div>
+      </div>
+
+      <div class="config-section">
+        <h3>Token Usage by Model</h3>
+        <div class="usage-grid" id="usageGrid">
+          <div class="loading">Loading usage data...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Users Tab -->
+    <div class="tab-content" id="tab-users">
+      <div id="usersListView">
+        <div class="table-container">
+          <div class="table-header">
+            <h3>All Users</h3>
+            <span class="count" id="userCount">0 users</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Tier</th>
+                <th>Events</th>
+                <th>Published</th>
+                <th>Joined</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr><td colspan="6" class="loading">Loading users...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- User Detail View -->
+      <div id="userDetailView" style="display:none;">
+        <div class="back-link" onclick="backToUsers()">&#8592; Back to all users</div>
+        <div class="config-section" style="margin-bottom:16px;">
+          <h3 id="detailUserName">User</h3>
+          <div style="font-size:13px;color:#888;" id="detailUserMeta"></div>
+        </div>
+        <div class="table-container">
+          <div class="table-header">
+            <h3>Events</h3>
+            <span class="count" id="userEventCount">0 events</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Type</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>RSVPs</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="userEventsBody">
+              <tr><td colspan="6" class="loading">Loading events...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div class="tab-content" id="tab-settings">
+      <div class="config-section">
+        <h3>AI Model Configuration</h3>
+        <p style="font-size:13px;color:#888;margin-bottom:20px;">Choose which Claude models power the chat assistant and invite designer. Changes take effect immediately for all new requests.</p>
+        <div class="config-row">
+          <div class="config-field">
+            <label>Chat Model (Event Details Extraction)</label>
+            <select id="chatModelSelect">
+              <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fastest, cheapest ($0.80/1M in, $4/1M out)</option>
+              <option value="claude-sonnet-4-20250514">Claude Sonnet 4 — Balanced ($3/1M in, $15/1M out)</option>
+              <option value="claude-opus-4-20250514">Claude Opus 4 — Most capable ($15/1M in, $75/1M out)</option>
+            </select>
+            <div class="hint">Used for the conversational event planning chat. Haiku is recommended — it handles structured extraction well at minimal cost.</div>
+          </div>
+          <div class="config-field">
+            <label>Theme Model (Invite Design Generation)</label>
+            <select id="themeModelSelect">
+              <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fastest, cheapest ($0.80/1M in, $4/1M out)</option>
+              <option value="claude-sonnet-4-20250514">Claude Sonnet 4 — Balanced ($3/1M in, $15/1M out)</option>
+              <option value="claude-opus-4-20250514">Claude Opus 4 — Most capable ($15/1M in, $75/1M out)</option>
+            </select>
+            <div class="hint">Used to generate HTML/CSS invite themes. Higher-tier models produce more creative and polished designs.</div>
+          </div>
+        </div>
+        <div class="config-actions">
+          <button class="btn btn-primary" id="saveConfigBtn" onclick="saveConfig()">Save Configuration</button>
+          <span class="config-saved" id="configSaved">Saved!</span>
+        </div>
+      </div>
+
+      <div class="config-section">
+        <h3>Cost Estimation</h3>
+        <p style="font-size:13px;color:#888;margin-bottom:16px;">Approximate cost per operation based on typical token usage.</p>
+        <table style="font-size:13px;">
+          <thead>
+            <tr>
+              <th>Operation</th>
+              <th>Avg Tokens (in/out)</th>
+              <th>Haiku 4.5</th>
+              <th>Sonnet 4</th>
+              <th>Opus 4</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Chat message</td>
+              <td>~2K / ~300</td>
+              <td style="color:var(--mint-fizz);font-weight:600;">~$0.003</td>
+              <td>~$0.011</td>
+              <td>~$0.053</td>
+            </tr>
+            <tr>
+              <td>Theme generation</td>
+              <td>~3K / ~3K</td>
+              <td>~$0.014</td>
+              <td style="color:var(--mint-fizz);font-weight:600;">~$0.054</td>
+              <td>~$0.270</td>
+            </tr>
+            <tr>
+              <td><strong>Full event creation</strong><br><span style="color:#888;font-size:11px;">~4 chat msgs + 1 theme gen</span></td>
+              <td></td>
+              <td>~$0.026</td>
+              <td style="color:var(--mint-fizz);font-weight:600;">~$0.098</td>
+              <td>~$0.482</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- RSVP Modal -->
+  <div id="rsvpModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 id="rsvpModalTitle">RSVPs</h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal()">Close</button>
+      </div>
+      <table style="font-size:13px;">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email / Phone</th>
+            <th>Status</th>
+            <th>+Ones</th>
+            <th>Responded</th>
+          </tr>
+        </thead>
+        <tbody id="rsvpModalBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    var token = localStorage.getItem('sb_access_token');
+    var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
+    if (!token || !user) { window.location.href = '/v2/login/'; }
+
+    var allUsers = [];
+
+    // ---- Init ----
+    init();
+
+    async function init() {
+      // Verify admin access by trying to load stats
+      try {
+        var res = await adminFetch('stats');
+        if (!res.success) throw new Error('Not admin');
+        document.getElementById('adminContent').style.display = 'block';
+        showStats(res.stats);
+        loadUsers();
+        loadConfig();
+      } catch (err) {
+        document.getElementById('accessDenied').style.display = 'block';
+      }
+    }
+
+    async function adminFetch(action, opts) {
+      var method = (opts && opts.method) || 'GET';
+      var url = '/api/v2/admin?action=' + action;
+      if (opts && opts.params) {
+        Object.keys(opts.params).forEach(function(k) { url += '&' + k + '=' + encodeURIComponent(opts.params[k]); });
+      }
+      var fetchOpts = {
+        method: method,
+        headers: { 'Authorization': 'Bearer ' + token }
+      };
+      if (opts && opts.body) {
+        fetchOpts.headers['Content-Type'] = 'application/json';
+        fetchOpts.body = JSON.stringify(opts.body);
+      }
+      var r = await fetch(url, fetchOpts);
+      if (r.status === 403) throw new Error('Forbidden');
+      return await r.json();
+    }
+
+    // ---- Tabs ----
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.toggle('active', t.getAttribute('data-tab') === tab); });
+      document.querySelectorAll('.tab-content').forEach(function(tc) { tc.classList.toggle('active', tc.id === 'tab-' + tab); });
+    }
+
+    // ---- Stats ----
+    function showStats(stats) {
+      document.getElementById('statUsers').textContent = stats.totalUsers;
+      document.getElementById('statEvents').textContent = stats.totalEvents;
+      document.getElementById('statPublished').textContent = stats.publishedEvents;
+      document.getElementById('statRsvps').textContent = stats.totalRsvps;
+      document.getElementById('statGenerations').textContent = stats.totalGenerations;
+
+      var grid = document.getElementById('usageGrid');
+      var models = Object.keys(stats.tokensByModel || {});
+      if (models.length === 0) {
+        grid.innerHTML = '<div style="color:#888;font-size:13px;padding:12px;">No generation data yet.</div>';
+        return;
+      }
+      grid.innerHTML = models.map(function(model) {
+        var m = stats.tokensByModel[model];
+        return '<div class="usage-card">'
+          + '<div class="model-name">' + escapeHtml(model) + '</div>'
+          + '<div class="usage-stats">'
+          + '<div class="usage-stat"><div class="val">' + m.generations + '</div><div class="lbl">Generations</div></div>'
+          + '<div class="usage-stat"><div class="val">' + formatNumber(m.inputTokens) + '</div><div class="lbl">Input Tokens</div></div>'
+          + '<div class="usage-stat"><div class="val">' + formatNumber(m.outputTokens) + '</div><div class="lbl">Output Tokens</div></div>'
+          + '</div></div>';
+      }).join('');
+    }
+
+    // ---- Users ----
+    async function loadUsers() {
+      try {
+        var res = await adminFetch('users');
+        allUsers = res.users || [];
+        document.getElementById('userCount').textContent = allUsers.length + ' users';
+        renderUsersTable();
+      } catch (err) {
+        document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="6" style="color:red;">Failed to load users</td></tr>';
+      }
+    }
+
+    function renderUsersTable() {
+      var tbody = document.getElementById('usersTableBody');
+      if (allUsers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color:#888;">No users yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = allUsers.map(function(u) {
+        var tierClass = u.tier === 'pro' ? 'badge-blue' : u.tier === 'business' ? 'badge-green' : 'badge-gray';
+        return '<tr>'
+          + '<td><div class="user-email">' + escapeHtml(u.email) + '</div>'
+          + (u.displayName ? '<div class="user-name">' + escapeHtml(u.displayName) + '</div>' : '') + '</td>'
+          + '<td><span class="badge ' + tierClass + '">' + escapeHtml(u.tier) + '</span></td>'
+          + '<td>' + u.events.total + '</td>'
+          + '<td>' + u.events.published + '</td>'
+          + '<td>' + formatDate(u.createdAt) + '</td>'
+          + '<td><button class="btn btn-secondary btn-sm" onclick="viewUser(\'' + u.id + '\')">View</button></td>'
+          + '</tr>';
+      }).join('');
+    }
+
+    async function viewUser(userId) {
+      var u = allUsers.find(function(x) { return x.id === userId; });
+      if (!u) return;
+
+      document.getElementById('usersListView').style.display = 'none';
+      document.getElementById('userDetailView').style.display = 'block';
+      document.getElementById('detailUserName').textContent = u.displayName || u.email;
+      document.getElementById('detailUserMeta').textContent = u.email + ' \u00B7 ' + u.tier + ' \u00B7 Joined ' + formatDate(u.createdAt);
+
+      try {
+        var res = await adminFetch('userEvents', { params: { userId: userId } });
+        var events = res.events || [];
+        document.getElementById('userEventCount').textContent = events.length + ' events';
+        var tbody = document.getElementById('userEventsBody');
+
+        if (events.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="color:#888;">No events</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = events.map(function(e) {
+          var statusClass = e.status === 'published' ? 'badge-green' : e.status === 'draft' ? 'badge-yellow' : 'badge-gray';
+          return '<tr>'
+            + '<td><strong>' + escapeHtml(e.title) + '</strong></td>'
+            + '<td>' + escapeHtml(e.eventType || '—') + '</td>'
+            + '<td>' + (e.eventDate ? formatDate(e.eventDate) : '—') + '</td>'
+            + '<td><span class="badge ' + statusClass + '">' + escapeHtml(e.status) + '</span></td>'
+            + '<td>' + (e.rsvps.total > 0
+              ? '<span class="clickable" onclick="viewRsvps(\'' + e.id + '\', \'' + escapeHtml(e.title).replace(/'/g, "\\'") + '\')">'
+                + e.rsvps.attending + ' yes, ' + e.rsvps.declined + ' no, ' + e.rsvps.maybe + ' maybe</span>'
+              : '0') + '</td>'
+            + '<td>' + (e.slug && e.status === 'published'
+              ? '<a href="/v2/event/?slug=' + e.slug + '" target="_blank" class="btn btn-secondary btn-sm">View</a>'
+              : '') + '</td>'
+            + '</tr>';
+        }).join('');
+      } catch (err) {
+        document.getElementById('userEventsBody').innerHTML = '<tr><td colspan="6" style="color:red;">Failed to load events</td></tr>';
+      }
+    }
+
+    function backToUsers() {
+      document.getElementById('userDetailView').style.display = 'none';
+      document.getElementById('usersListView').style.display = 'block';
+    }
+
+    // ---- RSVPs Modal ----
+    async function viewRsvps(eventId, title) {
+      document.getElementById('rsvpModal').style.display = 'flex';
+      document.getElementById('rsvpModalTitle').textContent = 'RSVPs — ' + title;
+      document.getElementById('rsvpModalBody').innerHTML = '<tr><td colspan="5" class="loading">Loading...</td></tr>';
+
+      try {
+        var res = await adminFetch('eventRsvps', { params: { eventId: eventId } });
+        var rsvps = res.rsvps || [];
+        var tbody = document.getElementById('rsvpModalBody');
+
+        if (rsvps.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="color:#888;">No RSVPs yet</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = rsvps.map(function(r) {
+          var statusClass = r.status === 'attending' ? 'badge-green' : r.status === 'declined' ? 'badge-yellow' : 'badge-gray';
+          return '<tr>'
+            + '<td><strong>' + escapeHtml(r.name) + '</strong></td>'
+            + '<td>' + escapeHtml(r.email || r.phone || '—') + '</td>'
+            + '<td><span class="badge ' + statusClass + '">' + escapeHtml(r.status) + '</span></td>'
+            + '<td>' + (r.plusOnes || 0) + '</td>'
+            + '<td>' + (r.respondedAt ? formatDate(r.respondedAt) : '—') + '</td>'
+            + '</tr>';
+        }).join('');
+      } catch (err) {
+        document.getElementById('rsvpModalBody').innerHTML = '<tr><td colspan="5" style="color:red;">Failed to load RSVPs</td></tr>';
+      }
+    }
+
+    function closeModal() { document.getElementById('rsvpModal').style.display = 'none'; }
+
+    // ---- Config ----
+    async function loadConfig() {
+      try {
+        var res = await adminFetch('getConfig');
+        if (res.config) {
+          document.getElementById('chatModelSelect').value = res.config.chatModel;
+          document.getElementById('themeModelSelect').value = res.config.themeModel;
+        }
+      } catch (err) {
+        console.error('Failed to load config:', err);
+      }
+    }
+
+    async function saveConfig() {
+      var btn = document.getElementById('saveConfigBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      try {
+        await adminFetch('saveConfig', {
+          method: 'POST',
+          body: {
+            chatModel: document.getElementById('chatModelSelect').value,
+            themeModel: document.getElementById('themeModelSelect').value
+          }
+        });
+        var saved = document.getElementById('configSaved');
+        saved.style.display = 'inline';
+        setTimeout(function() { saved.style.display = 'none'; }, 3000);
+      } catch (err) {
+        alert('Failed to save configuration');
+      }
+      btn.disabled = false;
+      btn.textContent = 'Save Configuration';
+    }
+
+    // ---- Utilities ----
+    function formatDate(iso) {
+      if (!iso) return '—';
+      try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+      catch (e) { return iso; }
+    }
+    function formatNumber(n) {
+      if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+      if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+      return String(n);
+    }
+    function escapeHtml(str) { var d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+    function logout() { localStorage.removeItem('sb_access_token'); localStorage.removeItem('v2_user'); window.location.href = '/v2/login/'; }
+  </script>
+</body>
+</html>

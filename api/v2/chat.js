@@ -7,8 +7,20 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Use Haiku for chat — fast and cheap for structured data extraction
-const CHAT_MODEL = 'claude-haiku-4-5-20251001';
+const DEFAULT_CHAT_MODEL = 'claude-haiku-4-5-20251001';
+
+async function getChatModel() {
+  try {
+    const { data } = await supabase
+      .from('app_config')
+      .select('value')
+      .eq('key', 'chat_model')
+      .single();
+    return data?.value || DEFAULT_CHAT_MODEL;
+  } catch {
+    return DEFAULT_CHAT_MODEL;
+  }
+}
 
 const SYSTEM_PROMPT = `You are Ryvite's event planning assistant. Help users create event invitations through natural conversation. Be warm, friendly, and concise (1-3 sentences per response).
 
@@ -106,8 +118,9 @@ export default async function handler(req, res) {
   }
 
   try {
+    const chatModel = await getChatModel();
     const response = await client.messages.create({
-      model: CHAT_MODEL,
+      model: chatModel,
       max_tokens: 1024,
       system: SYSTEM_PROMPT,
       messages: messages.map(m => ({
@@ -128,7 +141,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      model: CHAT_MODEL,
+      model: chatModel,
       ...parsed
     });
   } catch (err) {
