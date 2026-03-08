@@ -334,6 +334,53 @@ export default async function handler(req, res) {
       });
     }
 
+    if (action === 'saveFields') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { eventId, fields } = req.body || {};
+      if (!eventId || !Array.isArray(fields)) {
+        return res.status(400).json({ success: false, error: 'eventId and fields array required' });
+      }
+
+      // Verify ownership
+      const { data: event } = await supabaseAdmin
+        .from('events')
+        .select('id')
+        .eq('id', eventId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (!event) return res.status(404).json({ success: false, error: 'Event not found' });
+
+      // Delete existing custom fields for this event
+      await supabaseAdmin
+        .from('event_custom_fields')
+        .delete()
+        .eq('event_id', eventId);
+
+      // Insert new fields
+      if (fields.length > 0) {
+        const rows = fields.map((f, i) => ({
+          event_id: eventId,
+          field_key: f.field_key,
+          label: f.label,
+          field_type: f.field_type || 'text',
+          is_required: f.is_required || false,
+          options: f.options || null,
+          placeholder: f.placeholder || null,
+          sort_order: f.sort_order !== undefined ? f.sort_order : i
+        }));
+
+        const { error } = await supabaseAdmin
+          .from('event_custom_fields')
+          .insert(rows);
+
+        if (error) return res.status(400).json({ success: false, error: error.message });
+      }
+
+      return res.status(200).json({ success: true });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Events API error:', err);

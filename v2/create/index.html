@@ -36,12 +36,14 @@
     .btn-primary:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
     .btn-secondary { background: #f0f0f0; color: var(--midnight); }
     .btn-secondary:hover { background: #e0e0e0; }
+    .btn-sm { padding: 6px 14px; font-size: 12px; }
     .button-group { display: flex; gap: 12px; margin-top: 40px; }
     .button-group .btn { flex: 1; }
     .form-group { margin-bottom: 24px; }
     label { display: block; font-size: 14px; font-weight: 600; color: var(--midnight); margin-bottom: 8px; }
-    textarea { width: 100%; padding: 12px 16px; border: 1px solid #ddd; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 14px; color: var(--midnight); transition: border-color 0.2s; resize: vertical; min-height: 80px; }
-    textarea:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+    input[type="text"], select, textarea { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 14px; color: var(--midnight); transition: border-color 0.2s; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+    textarea { resize: vertical; min-height: 80px; }
     .message { padding: 12px 16px; border-radius: 6px; font-size: 14px; margin-bottom: 20px; display: none; }
     .message.error { background: #f8d7da; color: #721c24; display: block; }
     .message.success { background: #d4edda; color: #155724; display: block; }
@@ -64,12 +66,37 @@
     .chat-send { width: 48px; height: 48px; border-radius: 50%; background: var(--party-coral); color: white; border: none; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
     .chat-send:hover { background: var(--blush-pop); transform: scale(1.05); }
     .chat-send:disabled { background: #ccc; cursor: not-allowed; transform: none; }
-    .chat-extracted { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px; margin-top: 8px; }
-    .chat-extracted h4 { font-size: 13px; font-weight: 600; color: #15803d; margin-bottom: 10px; }
-    .chat-extracted-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; }
-    .chat-extracted-label { font-weight: 600; color: #666; }
+
+    /* Extracted summary card in chat */
+    .chat-extracted { background: white; border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; margin-top: 8px; align-self: flex-start; max-width: 95%; width: 100%; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .chat-extracted h4 { font-size: 14px; font-weight: 600; color: var(--midnight); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .chat-extracted-grid { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13px; margin-bottom: 16px; }
+    .chat-extracted-label { font-weight: 600; color: #888; }
     .chat-extracted-value { color: var(--midnight); }
-    .chat-proceed { margin-top: 12px; width: 100%; }
+    .chat-extracted-divider { grid-column: 1 / -1; border-top: 1px solid #eee; margin: 8px 0; }
+
+    /* RSVP field editor */
+    .rsvp-section { margin-top: 16px; border-top: 1px solid #eee; padding-top: 16px; }
+    .rsvp-section h4 { font-size: 14px; font-weight: 600; color: var(--midnight); margin-bottom: 4px; }
+    .rsvp-section p { font-size: 12px; color: #888; margin-bottom: 12px; }
+    .rsvp-defaults { font-size: 12px; color: #999; margin-bottom: 12px; padding: 8px 12px; background: #f9f9f9; border-radius: 6px; }
+    .rsvp-field-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+    .rsvp-field-row:last-child { border-bottom: none; }
+    .rsvp-field-toggle { width: 36px; height: 20px; border-radius: 10px; background: #ddd; border: none; cursor: pointer; position: relative; transition: background 0.2s; flex-shrink: 0; }
+    .rsvp-field-toggle.on { background: var(--mint-fizz); }
+    .rsvp-field-toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: white; border-radius: 50%; transition: transform 0.2s; }
+    .rsvp-field-toggle.on::after { transform: translateX(16px); }
+    .rsvp-field-info { flex: 1; min-width: 0; }
+    .rsvp-field-label { font-size: 13px; font-weight: 600; color: var(--midnight); }
+    .rsvp-field-meta { font-size: 11px; color: #999; }
+    .rsvp-add-btn { margin-top: 8px; background: none; border: 1px dashed #ccc; color: #999; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: 'Inter', sans-serif; width: 100%; transition: all 0.2s; }
+    .rsvp-add-btn:hover { border-color: var(--party-coral); color: var(--party-coral); }
+    .rsvp-add-form { margin-top: 12px; padding: 12px; background: #f9f9f9; border-radius: 8px; }
+    .rsvp-add-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    .rsvp-add-form input, .rsvp-add-form select { padding: 8px 10px; font-size: 12px; border: 1px solid #ddd; border-radius: 4px; font-family: 'Inter', sans-serif; }
+    .rsvp-add-form .form-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+    .chat-proceed { margin-top: 16px; width: 100%; }
 
     /* Creative Direction */
     .example-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
@@ -195,17 +222,19 @@
 
   <script>
     let currentStep = 1;
-    const totalSteps = 4;
+    var totalSteps = 4;
     let currentEvent = null;
     let inspirationImageBase64Array = [];
     let extractedData = {};
-    let chatHistory = []; // messages for the API
+    let rsvpFields = []; // { field_key, label, field_type, is_required, options, placeholder, enabled }
+    let chatHistory = [];
 
-    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp'];
-    const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.heic', '.heif', '.webp'];
+    var ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp'];
+    var ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.heic', '.heif', '.webp'];
+    var FIELD_TYPE_LABELS = { text: 'Text', number: 'Number', select: 'Dropdown', checkbox: 'Checkbox', email: 'Email', phone: 'Phone', textarea: 'Long text' };
 
-    const token = localStorage.getItem('sb_access_token');
-    const user = JSON.parse(localStorage.getItem('v2_user') || 'null');
+    var token = localStorage.getItem('sb_access_token');
+    var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
     if (!token || !user) { window.location.href = '/v2/login/'; }
 
     // ---- Chat Functions ----
@@ -251,12 +280,16 @@
             Object.assign(extractedData, result.extracted);
           }
 
-          // Show assistant message
           addChatBubble(result.message, 'assistant');
 
-          // If ready, show extracted summary with proceed button
+          // If ready, show full confirmation card with RSVP fields
           if (result.ready) {
-            showExtractedSummary();
+            if (result.suggestedRsvpFields && result.suggestedRsvpFields.length > 0) {
+              rsvpFields = result.suggestedRsvpFields.map(function(f) {
+                return Object.assign({}, f, { enabled: true });
+              });
+            }
+            showConfirmationCard();
           }
         } else {
           addChatBubble('Sorry, something went wrong. Please try again.', 'assistant');
@@ -285,30 +318,139 @@
       container.scrollTop = container.scrollHeight;
     }
 
-    function showExtractedSummary() {
+    // ---- Confirmation Card with RSVP field editor ----
+
+    function showConfirmationCard() {
+      // Remove any existing confirmation card
+      var existing = document.getElementById('confirmationCard');
+      if (existing) existing.remove();
+
       var d = extractedData;
       var fields = [];
       if (d.title) fields.push(['Event', d.title]);
-      if (d.eventType) fields.push(['Type', d.eventType]);
+      if (d.eventType) fields.push(['Type', formatEventType(d.eventType)]);
       if (d.startDate) fields.push(['When', formatDate(d.startDate)]);
+      if (d.endDate) fields.push(['Until', formatDate(d.endDate)]);
       if (d.locationName) fields.push(['Where', d.locationName]);
       if (d.locationAddress) fields.push(['Address', d.locationAddress]);
       if (d.dressCode) fields.push(['Dress Code', d.dressCode]);
       if (d.description) fields.push(['Details', d.description]);
 
-      var summary = document.createElement('div');
-      summary.className = 'chat-extracted';
-      summary.innerHTML = '<h4>Event Details</h4>'
+      var card = document.createElement('div');
+      card.className = 'chat-extracted';
+      card.id = 'confirmationCard';
+
+      var html = '<h4>Event Details</h4>'
         + '<div class="chat-extracted-grid">'
-        + fields.map(function(f) { return '<span class="chat-extracted-label">' + escapeHtml(f[0]) + '</span><span class="chat-extracted-value">' + escapeHtml(f[1]) + '</span>'; }).join('')
-        + '</div>'
-        + '<button class="btn btn-primary chat-proceed" onclick="proceedToCreativeDirection()">Looks good — design my invite!</button>';
-      document.getElementById('chatMessages').appendChild(summary);
+        + fields.map(function(f) {
+            return '<span class="chat-extracted-label">' + escapeHtml(f[0]) + '</span>'
+              + '<span class="chat-extracted-value">' + escapeHtml(f[1]) + '</span>';
+          }).join('')
+        + '</div>';
+
+      // RSVP Fields section
+      html += '<div class="rsvp-section">'
+        + '<h4>RSVP Form Fields</h4>'
+        + '<p>Toggle fields on/off, or add your own custom fields.</p>'
+        + '<div class="rsvp-defaults">Always included: <strong>Name</strong>, <strong>Email</strong>, <strong>RSVP Status</strong> (Attending / Declined / Maybe)</div>'
+        + '<div id="rsvpFieldList">' + renderRsvpFields() + '</div>'
+        + '<button class="rsvp-add-btn" onclick="showAddFieldForm()">+ Add custom field</button>'
+        + '<div id="addFieldContainer"></div>'
+        + '</div>';
+
+      html += '<button class="btn btn-primary chat-proceed" onclick="proceedToCreativeDirection()">Looks good — design my invite!</button>';
+
+      card.innerHTML = html;
+      document.getElementById('chatMessages').appendChild(card);
       scrollChat();
     }
 
+    function renderRsvpFields() {
+      if (rsvpFields.length === 0) return '<div style="font-size:13px;color:#999;padding:8px 0;">No additional fields suggested.</div>';
+      return rsvpFields.map(function(f, i) {
+        var toggleClass = f.enabled ? 'rsvp-field-toggle on' : 'rsvp-field-toggle';
+        var meta = (FIELD_TYPE_LABELS[f.field_type] || f.field_type);
+        if (f.is_required) meta += ' · Required';
+        if (f.options && f.options.length) meta += ' · ' + f.options.join(', ');
+        return '<div class="rsvp-field-row">'
+          + '<button class="' + toggleClass + '" onclick="toggleRsvpField(' + i + ')" title="Toggle field"></button>'
+          + '<div class="rsvp-field-info">'
+          + '<div class="rsvp-field-label">' + escapeHtml(f.label) + '</div>'
+          + '<div class="rsvp-field-meta">' + escapeHtml(meta) + '</div>'
+          + '</div>'
+          + '<button class="btn btn-secondary btn-sm" onclick="removeRsvpField(' + i + ')" style="padding:4px 10px;font-size:11px;">Remove</button>'
+          + '</div>';
+      }).join('');
+    }
+
+    function toggleRsvpField(idx) {
+      rsvpFields[idx].enabled = !rsvpFields[idx].enabled;
+      document.getElementById('rsvpFieldList').innerHTML = renderRsvpFields();
+    }
+
+    function removeRsvpField(idx) {
+      rsvpFields.splice(idx, 1);
+      document.getElementById('rsvpFieldList').innerHTML = renderRsvpFields();
+    }
+
+    function showAddFieldForm() {
+      var container = document.getElementById('addFieldContainer');
+      if (container.querySelector('.rsvp-add-form')) return; // already open
+      container.innerHTML = '<div class="rsvp-add-form">'
+        + '<div class="form-row">'
+        + '<input type="text" id="newFieldLabel" placeholder="Field label (e.g. Song Request)">'
+        + '<select id="newFieldType"><option value="text">Text</option><option value="number">Number</option><option value="select">Dropdown</option><option value="checkbox">Checkbox</option><option value="textarea">Long text</option><option value="email">Email</option><option value="phone">Phone</option></select>'
+        + '</div>'
+        + '<div class="form-row" id="newFieldOptionsRow" style="display:none;">'
+        + '<input type="text" id="newFieldOptions" placeholder="Options (comma-separated)" style="grid-column: 1/-1;">'
+        + '</div>'
+        + '<div class="form-row">'
+        + '<input type="text" id="newFieldPlaceholder" placeholder="Placeholder text (optional)">'
+        + '<label style="display:flex;align-items:center;gap:6px;font-size:12px;margin:0;"><input type="checkbox" id="newFieldRequired"> Required</label>'
+        + '</div>'
+        + '<div class="form-actions">'
+        + '<button class="btn btn-secondary btn-sm" onclick="cancelAddField()">Cancel</button>'
+        + '<button class="btn btn-primary btn-sm" onclick="addCustomField()">Add Field</button>'
+        + '</div>'
+        + '</div>';
+      document.getElementById('newFieldType').addEventListener('change', function() {
+        document.getElementById('newFieldOptionsRow').style.display = this.value === 'select' ? 'grid' : 'none';
+      });
+    }
+
+    function cancelAddField() {
+      document.getElementById('addFieldContainer').innerHTML = '';
+    }
+
+    function addCustomField() {
+      var label = document.getElementById('newFieldLabel').value.trim();
+      if (!label) { showMessage('Please enter a field label', 'error'); return; }
+      var fieldType = document.getElementById('newFieldType').value;
+      var placeholder = document.getElementById('newFieldPlaceholder').value.trim();
+      var isRequired = document.getElementById('newFieldRequired').checked;
+      var options = null;
+      if (fieldType === 'select') {
+        var optStr = document.getElementById('newFieldOptions').value.trim();
+        if (!optStr) { showMessage('Please enter options for the dropdown', 'error'); return; }
+        options = optStr.split(',').map(function(o) { return o.trim(); }).filter(Boolean);
+      }
+      var fieldKey = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+
+      rsvpFields.push({
+        field_key: fieldKey,
+        label: label,
+        field_type: fieldType,
+        is_required: isRequired,
+        options: options,
+        placeholder: placeholder || null,
+        enabled: true
+      });
+
+      document.getElementById('rsvpFieldList').innerHTML = renderRsvpFields();
+      cancelAddField();
+    }
+
     function proceedToCreativeDirection() {
-      // Pre-fill the prompt field with any vibe/style info from the chat
       if (extractedData.prompt) {
         document.getElementById('prompt').value = extractedData.prompt;
       }
@@ -320,7 +462,6 @@
     function goToStep(step) {
       if (step === 3 && currentStep === 2 && !validateStep(2)) return;
 
-      // Toggle chat container vs regular container
       document.querySelector('.chat-container').style.display = step === 1 ? 'flex' : 'none';
 
       document.querySelectorAll('.container .step').forEach(function(s) { s.classList.remove('active'); });
@@ -387,6 +528,8 @@
           var result = await res.json();
           if (result.success) {
             currentEvent = { id: result.eventId, slug: result.slug };
+            // Save enabled RSVP custom fields
+            await saveCustomFields();
           } else {
             showMessage(result.error || 'Error creating event', 'error');
             goToStep(2);
@@ -400,13 +543,13 @@
       }
 
       try {
-        var prompt = document.getElementById('prompt').value || extractedData.prompt || '';
+        var promptText = document.getElementById('prompt').value || extractedData.prompt || '';
         var res2 = await fetch('/api/v2/generate-theme', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
           body: JSON.stringify({
             eventId: currentEvent.id,
-            prompt: prompt,
+            prompt: promptText,
             eventDetails: {
               title: extractedData.title || 'Untitled Event',
               eventDate: extractedData.startDate || '',
@@ -441,6 +584,34 @@
 
     function regenerateTheme() { generateTheme(); }
 
+    async function saveCustomFields() {
+      var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+      if (enabledFields.length === 0 || !currentEvent) return;
+
+      try {
+        await fetch('/api/v2/events?action=saveFields', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({
+            eventId: currentEvent.id,
+            fields: enabledFields.map(function(f, i) {
+              return {
+                field_key: f.field_key,
+                label: f.label,
+                field_type: f.field_type,
+                is_required: f.is_required || false,
+                options: f.options || null,
+                placeholder: f.placeholder || null,
+                sort_order: i
+              };
+            })
+          })
+        });
+      } catch (err) {
+        console.error('Error saving custom fields:', err);
+      }
+    }
+
     function addPrompt(text) {
       var el = document.getElementById('prompt');
       el.value = el.value ? el.value + ' ' + text : text;
@@ -469,8 +640,6 @@
         showMessage(file.name + ' is too large (max 5MB)', 'error');
         return null;
       }
-
-      // Convert HEIC to JPG
       if (isHeicFile(file)) {
         try {
           var blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 });
@@ -481,7 +650,6 @@
           return null;
         }
       }
-
       return new Promise(function(resolve) {
         var reader = new FileReader();
         reader.onload = function(e) {
@@ -506,13 +674,10 @@
       for (var i = 0; i < files.length; i++) {
         if (inspirationImageBase64Array.length >= 4) break;
         var file = files[i];
-
-        // Show placeholder during processing
         var placeholder = document.createElement('div');
         placeholder.className = 'image-preview';
         placeholder.innerHTML = '<div class="converting">Processing...</div>';
         container.appendChild(placeholder);
-
         var result = await processFile(file);
         if (result) {
           var idx = inspirationImageBase64Array.length;
@@ -533,28 +698,16 @@
       document.querySelectorAll('.image-preview').forEach(function(el, i) { el.setAttribute('data-idx', i); });
     }
 
-    // ---- Drag & Drop ----
-
+    // Drag & Drop
     (function setupDragDrop() {
       var dropZone = document.getElementById('dropZone');
       if (!dropZone) return;
-
       ['dragenter', 'dragover'].forEach(function(evt) {
-        dropZone.addEventListener(evt, function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          dropZone.classList.add('dragover');
-        });
+        dropZone.addEventListener(evt, function(e) { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover'); });
       });
-
       ['dragleave', 'drop'].forEach(function(evt) {
-        dropZone.addEventListener(evt, function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          dropZone.classList.remove('dragover');
-        });
+        dropZone.addEventListener(evt, function(e) { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover'); });
       });
-
       dropZone.addEventListener('drop', function(e) {
         var files = Array.from(e.dataTransfer.files);
         if (files.length > 0) addFiles(files);
@@ -565,12 +718,14 @@
 
     function showSummary() {
       var d = extractedData;
+      var enabledRsvp = rsvpFields.filter(function(f) { return f.enabled; });
       var items = [
         ['Title', d.title || 'Untitled'],
         ['Date & Time', d.startDate ? formatDate(d.startDate) : 'Not set'],
         ['Location', d.locationName || 'Not set'],
-        ['Event Type', d.eventType || 'Not set'],
-        ['Design Mood', (document.getElementById('prompt').value || d.prompt || '').substring(0, 80) + '...']
+        ['Event Type', formatEventType(d.eventType || 'other')],
+        ['Design Mood', (document.getElementById('prompt').value || d.prompt || '').substring(0, 80) + '...'],
+        ['RSVP Fields', enabledRsvp.length > 0 ? enabledRsvp.map(function(f) { return f.label; }).join(', ') : 'Default only']
       ];
       document.getElementById('summaryContent').innerHTML = items.map(function(item) {
         return '<div class="summary-item"><span class="summary-label">' + escapeHtml(item[0]) + '</span><span class="summary-value">' + escapeHtml(item[1]) + '</span></div>';
@@ -601,6 +756,11 @@
       try { return new Date(iso).toLocaleString(); } catch (e) { return iso; }
     }
 
+    function formatEventType(type) {
+      var map = { birthday: 'Birthday', wedding: 'Wedding', babyShower: 'Baby Shower', graduation: 'Graduation', dinnerParty: 'Dinner Party', holiday: 'Holiday Party', corporate: 'Corporate Event', other: 'Other' };
+      return map[type] || type;
+    }
+
     function showMessage(text, type) {
       var el = document.getElementById('message');
       el.textContent = text; el.className = 'message ' + type;
@@ -609,7 +769,6 @@
 
     function escapeHtml(str) { var div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML; }
 
-    // Enter to send
     document.getElementById('chatInput').addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
     });

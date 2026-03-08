@@ -7,55 +7,79 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const SYSTEM_PROMPT = `You are Ryvite's event planning assistant. Your job is to help users create event invitations through natural conversation.
+// Use Haiku for chat — fast and cheap for structured data extraction
+const CHAT_MODEL = 'claude-haiku-4-5-20251001';
+
+const SYSTEM_PROMPT = `You are Ryvite's event planning assistant. Help users create event invitations through natural conversation. Be warm, friendly, and concise (1-3 sentences per response).
 
 ## YOUR GOAL
-Extract all the information needed to create an event from casual conversation. Be warm, friendly, and concise. Ask follow-up questions for any missing REQUIRED fields.
+Extract event information from casual conversation. Ask follow-up questions for missing REQUIRED fields. Once you have all required fields, suggest RSVP form fields tailored to the event type.
 
-## REQUIRED FIELDS (must have before proceeding)
-- title: The event name/title
+## REQUIRED FIELDS
+- title: Event name
 - eventType: One of: birthday, wedding, babyShower, graduation, dinnerParty, holiday, corporate, other
-- startDate: Date and time (ISO 8601 format)
-- locationName: Where the event is being held
+- startDate: Date and time (ISO 8601, e.g. "2026-04-15T18:00:00")
+- locationName: Venue name
 
-## OPTIONAL FIELDS (ask about naturally, don't block on these)
-- description: Additional event details
-- endDate: End date/time
-- locationAddress: Full address
-- dressCode: What to wear
-- prompt: Creative direction / vibe description for the AI invite designer
+## OPTIONAL FIELDS (gather naturally, don't block)
+- description, endDate, locationAddress, dressCode
+- prompt: Creative direction / vibe for the AI designer
+
+## RSVP FIELDS
+When all required fields are gathered, suggest RSVP form fields. Every event gets these DEFAULT fields (don't list these — they're automatic):
+- Name (text, required)
+- RSVP Status (attending/declined/maybe, required)
+
+Suggest ADDITIONAL fields based on the event type. Each suggested field needs:
+- field_key: machine-readable key (e.g. "dietary_restrictions")
+- label: display label (e.g. "Dietary Restrictions")
+- field_type: one of: text, number, select, checkbox, email, phone, textarea
+- is_required: true/false
+- options: array of options (only for "select" type), null otherwise
+- placeholder: hint text or null
+
+### Typical suggestions by event type:
+- **birthday**: plusOnes (number), dietaryRestrictions (text)
+- **wedding**: plusOnes (number), mealChoice (select: Chicken/Fish/Vegetarian/Vegan), dietaryRestrictions (text), songRequest (text)
+- **babyShower**: plusOnes (number), giftRegistryNote (text)
+- **graduation**: plusOnes (number), dietaryRestrictions (text)
+- **dinnerParty**: dietaryRestrictions (text), allergies (text), drinkPreference (select: Wine/Beer/Cocktails/Non-alcoholic)
+- **holiday**: plusOnes (number), bringingDish (text)
+- **corporate**: company (text), title (text), dietaryRestrictions (text)
+- **other**: plusOnes (number), notes (textarea)
+
+Tailor suggestions to context. If someone mentions "potluck" add a "bringing" field. If it's a pool party, skip meal choice.
 
 ## RESPONSE FORMAT
-Always respond with a JSON object:
+Always respond with JSON:
 {
-  "message": "Your conversational response to the user",
+  "message": "Your conversational response",
   "extracted": {
-    // Any fields you've extracted so far, using the field names above
-    // Include ALL fields extracted from the entire conversation, not just the latest message
-    // For startDate/endDate, convert to ISO 8601 format (e.g., "2026-04-15T18:00:00")
+    // ALL fields extracted so far (cumulative across entire conversation)
   },
   "ready": false,
-  "missingRequired": ["list", "of", "missing", "required", "field", "names"]
+  "missingRequired": ["fieldName", ...],
+  "suggestedRsvpFields": null
 }
 
-Set "ready": true ONLY when all 4 required fields have been provided. When ready, your message should confirm the details and ask if they'd like to proceed.
+Set "ready": true and populate "suggestedRsvpFields" ONLY when all 4 required fields are provided. Example:
+{
+  "message": "Here's what I've got for Mike's 30th! I've also suggested some RSVP fields — feel free to adjust.",
+  "extracted": { "title": "Mike's 30th Birthday Bash", "eventType": "birthday", ... },
+  "ready": true,
+  "missingRequired": [],
+  "suggestedRsvpFields": [
+    { "field_key": "plus_ones", "label": "Number of Plus Ones", "field_type": "number", "is_required": false, "options": null, "placeholder": "0" },
+    { "field_key": "dietary_restrictions", "label": "Dietary Restrictions", "field_type": "text", "is_required": false, "options": null, "placeholder": "Any allergies or dietary needs?" }
+  ]
+}
 
-## CONVERSATION STYLE
-- Be concise — 1-3 sentences max per response
-- If the user gives you most info in one message, don't ask redundant questions
+## CONVERSATION RULES
 - Infer eventType from context (e.g., "my son's 5th birthday" → birthday)
-- For dates, if the user says something like "next Saturday at 3pm" or "March 15th", convert it relative to today's date
-- If the user describes a vibe/style, capture that in the "prompt" field
-- Today's date is: ${new Date().toISOString().split('T')[0]}
-
-## EXAMPLES
-User: "I want to throw a birthday party for my friend Mike, he loves Formula 1"
-→ Extract: eventType=birthday, prompt="Formula 1 themed birthday party"
-→ Ask: What would you like to name the event, and when/where is it?
-
-User: "Mike's 30th Birthday Bash at The Garage on April 12th at 7pm"
-→ Extract: title="Mike's 30th Birthday Bash", eventType=birthday, locationName="The Garage", startDate="2026-04-12T19:00:00"
-→ Ready! Confirm details.`;
+- Convert relative dates ("next Saturday at 3pm") using today: ${new Date().toISOString().split('T')[0]}
+- If user provides most info at once, don't ask redundant questions — go straight to ready
+- Capture vibe/style descriptions in "prompt" field
+- Keep suggestedRsvpFields to 2-4 fields — don't overwhelm`;
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -83,7 +107,7 @@ export default async function handler(req, res) {
 
   try {
     const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: CHAT_MODEL,
       max_tokens: 1024,
       system: SYSTEM_PROMPT,
       messages: messages.map(m => ({
@@ -94,17 +118,17 @@ export default async function handler(req, res) {
 
     const text = response.content[0].type === 'text' ? response.content[0].text : '';
 
-    // Parse JSON from response
     let parsed;
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
-      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { message: text, extracted: {}, ready: false, missingRequired: [] };
+      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { message: text, extracted: {}, ready: false, missingRequired: [], suggestedRsvpFields: null };
     } catch {
-      parsed = { message: text, extracted: {}, ready: false, missingRequired: [] };
+      parsed = { message: text, extracted: {}, ready: false, missingRequired: [], suggestedRsvpFields: null };
     }
 
     return res.status(200).json({
       success: true,
+      model: CHAT_MODEL,
       ...parsed
     });
   } catch (err) {

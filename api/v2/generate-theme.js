@@ -7,6 +7,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// Theme generation model — balance cost vs quality
+// Options: 'claude-haiku-4-5-20251001' (cheapest), 'claude-sonnet-4-20250514' (best quality)
+const THEME_MODEL = process.env.THEME_MODEL || 'claude-sonnet-4-20250514';
+
 const SYSTEM_PROMPT = `You are Ryvite's invite designer — an expert at turning natural language event descriptions into beautiful, custom HTML/CSS invite themes.
 
 ## YOUR TASK
@@ -137,7 +141,7 @@ ${effectivePrompt}`;
       : [{ type: 'text', text: userMessage }];
 
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: THEME_MODEL,
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: messageContent }]
@@ -183,9 +187,9 @@ ${effectivePrompt}`;
         html: theme.theme_html,
         css: theme.theme_css,
         config: theme.theme_config,
-        model: 'claude-sonnet-4-20250514',
-        input_tokens: response.usage.input_tokens,
-        output_tokens: response.usage.output_tokens,
+        model: THEME_MODEL,
+        input_tokens: response.usage?.input_tokens || 0,
+        output_tokens: response.usage?.output_tokens || 0,
         latency_ms: latency
       })
       .select()
@@ -200,7 +204,7 @@ ${effectivePrompt}`;
       event_id: eventId,
       user_id: user.id,
       prompt: effectivePrompt,
-      model: 'claude-sonnet-4-20250514',
+      model: THEME_MODEL,
       input_tokens: response.usage.input_tokens,
       output_tokens: response.usage.output_tokens,
       latency_ms: latency,
@@ -217,7 +221,7 @@ ${effectivePrompt}`;
         config: theme.theme_config
       },
       metadata: {
-        model: 'claude-sonnet-4-20250514',
+        model: THEME_MODEL,
         latencyMs: latency,
         tokens: {
           input: response.usage.input_tokens,
@@ -233,7 +237,7 @@ ${effectivePrompt}`;
       event_id: eventId,
       user_id: user.id,
       prompt: effectivePrompt,
-      model: 'claude-sonnet-4-20250514',
+      model: THEME_MODEL,
       input_tokens: 0,
       output_tokens: 0,
       latency_ms: Date.now() - startTime,
