@@ -544,24 +544,35 @@
 
       try {
         var promptText = document.getElementById('prompt').value || extractedData.prompt || '';
+        var payload = {
+          eventId: currentEvent.id,
+          prompt: promptText,
+          eventDetails: {
+            title: extractedData.title || 'Untitled Event',
+            eventDate: extractedData.startDate || '',
+            endDate: extractedData.endDate || '',
+            locationName: extractedData.locationName || '',
+            locationAddress: extractedData.locationAddress || '',
+            dressCode: extractedData.dressCode || '',
+            eventType: extractedData.eventType || 'other'
+          },
+          inspirationImages: inspirationImageBase64Array
+        };
         var res2 = await fetch('/api/v2/generate-theme', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-          body: JSON.stringify({
-            eventId: currentEvent.id,
-            prompt: promptText,
-            eventDetails: {
-              title: extractedData.title || 'Untitled Event',
-              eventDate: extractedData.startDate || '',
-              endDate: extractedData.endDate || '',
-              locationName: extractedData.locationName || '',
-              locationAddress: extractedData.locationAddress || '',
-              dressCode: extractedData.dressCode || '',
-              eventType: extractedData.eventType || 'other'
-            },
-            inspirationImages: inspirationImageBase64Array
-          })
+          body: JSON.stringify(payload)
         });
+        if (res2.status === 413) {
+          // Payload too large — retry without images
+          console.warn('Payload too large, retrying without inspiration images');
+          payload.inspirationImages = [];
+          res2 = await fetch('/api/v2/generate-theme', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify(payload)
+          });
+        }
         var result2 = await res2.json();
         if (result2.success) {
           currentEvent.themeHtml = result2.theme.html;
@@ -631,13 +642,35 @@
       return ext === 'heic' || ext === 'heif' || file.type === 'image/heic' || file.type === 'image/heif';
     }
 
+    // Resize image to max dimension and compress to JPEG
+    function compressImage(file, maxDim, quality) {
+      return new Promise(function(resolve, reject) {
+        var img = new Image();
+        img.onload = function() {
+          var w = img.width, h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+            else { w = Math.round(w * maxDim / h); h = maxDim; }
+          }
+          var canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          var dataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve({ base64: dataUrl.split(',')[1], dataUrl: dataUrl });
+        };
+        img.onerror = function() { reject(new Error('Failed to load image')); };
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
     async function processFile(file) {
       if (!isAllowedFile(file)) {
         showMessage(file.name + ' is not a supported format. Use JPG, PNG, HEIC, or WebP.', 'error');
         return null;
       }
-      if (file.size > 5 * 1024 * 1024) {
-        showMessage(file.name + ' is too large (max 5MB)', 'error');
+      if (file.size > 10 * 1024 * 1024) {
+        showMessage(file.name + ' is too large (max 10MB)', 'error');
         return null;
       }
       if (isHeicFile(file)) {
@@ -650,13 +683,13 @@
           return null;
         }
       }
-      return new Promise(function(resolve) {
-        var reader = new FileReader();
-        reader.onload = function(e) {
-          resolve({ base64: e.target.result.split(',')[1], dataUrl: e.target.result });
-        };
-        reader.readAsDataURL(file);
-      });
+      // Compress to max 800px, JPEG quality 0.7 — keeps each image under ~200KB
+      try {
+        return await compressImage(file, 800, 0.7);
+      } catch (err) {
+        showMessage('Failed to process ' + file.name, 'error');
+        return null;
+      }
     }
 
     async function handleImageUpload(event) {

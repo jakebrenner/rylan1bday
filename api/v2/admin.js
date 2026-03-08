@@ -1,4 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseAdmin = createClient(
@@ -6,13 +5,8 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const supabaseAuth = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
-
-// Admin emails — comma-separated in env var
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+// Founder — always has admin access, cannot be removed
+const FOUNDER_EMAIL = 'jake@getmrkt.com';
 
 async function verifyAdmin(req) {
   const authHeader = req.headers.authorization;
@@ -26,9 +20,24 @@ async function verifyAdmin(req) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
 
-  if (!ADMIN_EMAILS.includes(user.email.toLowerCase())) return null;
+  const email = user.email.toLowerCase();
 
-  return user;
+  // Founder always passes
+  if (email === FOUNDER_EMAIL) return user;
+
+  // Check DB admin list
+  const { data } = await supabaseAdmin
+    .from('app_config')
+    .select('value')
+    .eq('key', 'admin_emails')
+    .single();
+
+  if (data?.value) {
+    const adminList = data.value.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    if (adminList.includes(email)) return user;
+  }
+
+  return null;
 }
 
 export default async function handler(req, res) {
@@ -239,6 +248,92 @@ export default async function handler(req, res) {
 
         if (error) return res.status(400).json({ error: error.message });
       }
+
+      return res.status(200).json({ success: true });
+    }
+
+    // ---- LIST ADMINS ----
+    if (action === 'listAdmins') {
+      const { data } = await supabaseAdmin
+        .from('app_config')
+        .select('value')
+        .eq('key', 'admin_emails')
+        .single();
+
+      const adminList = data?.value
+        ? data.value.split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
+        : [];
+
+      // Always include founder
+      if (!adminList.includes(FOUNDER_EMAIL)) {
+        adminList.unshift(FOUNDER_EMAIL);
+      }
+
+      return res.status(200).json({
+        success: true,
+        admins: adminList.map(email => ({
+          email,
+          isFounder: email === FOUNDER_EMAIL
+        }))
+      });
+    }
+
+    // ---- ADD ADMIN ----
+    if (action === 'addAdmin') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const newEmail = (req.body.email || '').trim().toLowerCase();
+      if (!newEmail || !newEmail.includes('@')) {
+        return res.status(400).json({ error: 'Valid email required' });
+      }
+
+      const { data } = await supabaseAdmin
+        .from('app_config')
+        .select('value')
+        .eq('key', 'admin_emails')
+        .single();
+
+      const currentList = data?.value
+        ? data.value.split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
+        : [];
+
+      if (currentList.includes(newEmail) || newEmail === FOUNDER_EMAIL) {
+        return res.status(400).json({ error: 'Already an admin' });
+      }
+
+      currentList.push(newEmail);
+
+      await supabaseAdmin
+        .from('app_config')
+        .upsert({ key: 'admin_emails', value: currentList.join(','), updated_by: admin.id, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+
+      return res.status(200).json({ success: true });
+    }
+
+    // ---- REMOVE ADMIN ----
+    if (action === 'removeAdmin') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const removeEmail = (req.body.email || '').trim().toLowerCase();
+      if (removeEmail === FOUNDER_EMAIL) {
+        return res.status(400).json({ error: 'Cannot remove the founder' });
+      }
+
+      const { data } = await supabaseAdmin
+        .from('app_config')
+        .select('value')
+        .eq('key', 'admin_emails')
+        .single();
+
+      const currentList = data?.value
+        ? data.value.split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
+        : [];
+
+      const updated = currentList.filter(e => e !== removeEmail);
+
+      await supabaseAdmin
+        .from('app_config')
+        .upsert({ key: 'admin_emails', value: updated.join(','), updated_by: admin.id, updated_at: new Date().toISOString() }, { onConflict: 'key' });
 
       return res.status(200).json({ success: true });
     }

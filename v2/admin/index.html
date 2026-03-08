@@ -270,6 +270,16 @@
           </tbody>
         </table>
       </div>
+
+      <div class="config-section">
+        <h3>Admin Access</h3>
+        <p style="font-size:13px;color:#888;margin-bottom:16px;">Manage who can access this admin dashboard. The founder always has access.</p>
+        <div id="adminList" style="margin-bottom:16px;"></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="email" id="newAdminEmail" placeholder="email@example.com" style="flex:1;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+          <button class="btn btn-primary" onclick="addAdmin()">Add Admin</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -314,6 +324,7 @@
         showStats(res.stats);
         loadUsers();
         loadConfig();
+        loadAdmins();
       } catch (err) {
         document.getElementById('accessDenied').style.display = 'block';
       }
@@ -514,6 +525,49 @@
       }
       btn.disabled = false;
       btn.textContent = 'Save Configuration';
+    }
+
+    // ---- Admin Management ----
+    async function loadAdmins() {
+      try {
+        var res = await adminFetch('listAdmins');
+        var list = document.getElementById('adminList');
+        if (!res.admins || res.admins.length === 0) {
+          list.innerHTML = '<div style="color:#888;font-size:13px;">No admins configured.</div>';
+          return;
+        }
+        list.innerHTML = res.admins.map(function(a) {
+          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#f9f9f9;border-radius:6px;margin-bottom:6px;">'
+            + '<div>'
+            + '<span style="font-size:14px;font-weight:600;">' + escapeHtml(a.email) + '</span>'
+            + (a.isFounder ? ' <span class="badge badge-green">Founder</span>' : '')
+            + '</div>'
+            + (a.isFounder ? '' : '<button class="btn btn-secondary btn-sm" onclick="removeAdmin(\'' + escapeHtml(a.email) + '\')">Remove</button>')
+            + '</div>';
+        }).join('');
+      } catch (err) {
+        console.error('Failed to load admins:', err);
+      }
+    }
+
+    async function addAdmin() {
+      var input = document.getElementById('newAdminEmail');
+      var email = input.value.trim();
+      if (!email || !email.includes('@')) { alert('Enter a valid email'); return; }
+      try {
+        var res = await adminFetch('addAdmin', { method: 'POST', body: { email: email } });
+        if (res.error) { alert(res.error); return; }
+        input.value = '';
+        loadAdmins();
+      } catch (err) { alert('Failed to add admin'); }
+    }
+
+    async function removeAdmin(email) {
+      if (!confirm('Remove ' + email + ' as admin?')) return;
+      try {
+        await adminFetch('removeAdmin', { method: 'POST', body: { email: email } });
+        loadAdmins();
+      } catch (err) { alert('Failed to remove admin'); }
     }
 
     // ---- Utilities ----

@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/v2/generate-theme.js": {
+      "maxDuration": 60
+    }
+  }
+}
