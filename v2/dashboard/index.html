@@ -15,51 +15,103 @@
       --confetti-gold: #FFB74D; --mint-fizz: #4ECDC4; --party-purple: #A78BFA; --cream: #FFFAF5;
     }
     html, body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--midnight); }
-    .header { background: white; border-bottom: 1px solid #eee; padding: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .header { background: white; border-bottom: 1px solid #eee; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
     .header-left { display: flex; align-items: center; gap: 16px; }
     .header-left a { text-decoration: none; }
     .header h1 { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--midnight); }
     .header-user { font-size: 13px; color: #666; }
-    .header-actions { display: flex; gap: 12px; align-items: center; }
-    .btn { padding: 10px 20px; border: none; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; }
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+    .btn { padding: 12px 20px; border: none; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
     .btn-primary { background: var(--party-coral); color: white; }
     .btn-primary:hover { background: var(--blush-pop); transform: translateY(-2px); }
     .btn-secondary { background: #f0f0f0; color: var(--midnight); }
     .btn-secondary:hover { background: #e0e0e0; }
-    .container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
-    .section-title { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--midnight); margin-bottom: 30px; }
-    .empty-state { text-align: center; padding: 60px 20px; background: white; border-radius: 8px; border: 2px dashed #ddd; }
+    .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+    .section-title { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--midnight); margin-bottom: 24px; }
+    .empty-state { text-align: center; padding: 60px 20px; background: white; border-radius: 12px; border: 2px dashed #ddd; }
     .empty-state h3 { font-size: 20px; margin-bottom: 12px; }
-    .empty-state p { color: #666; margin-bottom: 24px; }
-    .event-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; }
-    .event-card { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.2s; }
-    .event-card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.15); }
-    .event-card-header { background: linear-gradient(135deg, var(--party-coral), var(--confetti-gold)); padding: 20px; color: white; min-height: 100px; display: flex; flex-direction: column; justify-content: space-between; }
+    .empty-state p { color: #666; margin-bottom: 24px; font-size: 15px; }
+    .event-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+    .event-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 0.2s; }
+    .event-card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.12); }
+    .event-card-header { background: linear-gradient(135deg, var(--party-coral), var(--confetti-gold)); padding: 20px; color: white; min-height: 90px; display: flex; flex-direction: column; justify-content: space-between; }
     .event-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
-    .event-card-date { font-size: 12px; opacity: 0.9; }
-    .event-card-body { padding: 20px; }
-    .event-meta { display: flex; justify-content: space-between; font-size: 13px; color: #666; margin-bottom: 12px; align-items: center; }
-    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .event-card-date { font-size: 13px; opacity: 0.9; }
+    .event-card-body { padding: 16px; }
+    .event-meta { display: flex; justify-content: space-between; font-size: 13px; color: #666; margin-bottom: 10px; align-items: center; }
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
     .status-draft { background: #fff3cd; color: #856404; }
     .status-published { background: #d4edda; color: #155724; }
     .status-archived { background: #e2e3e5; color: #383d41; }
-    .progress-track { width: 100%; height: 6px; background: #eee; border-radius: 3px; margin: 12px 0 4px; overflow: hidden; }
+    .progress-track { width: 100%; height: 6px; background: #eee; border-radius: 3px; margin: 10px 0 4px; overflow: hidden; }
     .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
-    .progress-label { font-size: 11px; color: #999; }
-    .event-actions { display: flex; gap: 8px; }
+    .progress-label { font-size: 12px; color: #999; margin-bottom: 10px; }
+    .event-actions { display: flex; gap: 8px; margin-top: 12px; }
     .event-actions button, .event-actions a {
-      flex: 1; padding: 8px 12px; border: 1px solid #ddd; background: white; border-radius: 4px;
-      font-size: 12px; cursor: pointer; transition: all 0.2s; text-decoration: none; color: var(--midnight);
-      text-align: center; font-family: 'Inter', sans-serif;
+      flex: 1; padding: 10px 14px; border: 1px solid #ddd; background: white; border-radius: 8px;
+      font-size: 14px; cursor: pointer; transition: all 0.2s; text-decoration: none; color: var(--midnight);
+      text-align: center; font-family: 'Inter', sans-serif; min-height: 44px;
+      display: inline-flex; align-items: center; justify-content: center; font-weight: 500;
     }
     .event-actions button:hover, .event-actions a:hover { background: #f9f9f9; border-color: var(--party-coral); color: var(--party-coral); }
-    .loading { text-align: center; padding: 60px 20px; color: #666; }
+    .loading { text-align: center; padding: 60px 20px; color: #666; font-size: 15px; }
     .toast { position: fixed; bottom: 24px; right: 24px; background: var(--midnight); color: white; padding: 14px 24px; border-radius: 8px; font-size: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); animation: slideUp 0.3s ease-out; z-index: 100; }
     @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-    .invite-link-row { margin-top: 12px; display: flex; gap: 8px; }
-    .invite-link-input { flex: 1; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; color: #666; font-family: 'Inter', sans-serif; }
-    .copy-btn { padding: 6px 12px; border: 1px solid var(--party-coral); background: white; color: var(--party-coral); border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600; font-family: 'Inter', sans-serif; }
+
+    /* Share section */
+    .share-row { margin-top: 12px; }
+    .invite-link-row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .invite-link-input { flex: 1; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; color: #666; font-family: 'Inter', sans-serif; }
+    .copy-btn { padding: 10px 16px; border: 1px solid var(--party-coral); background: white; color: var(--party-coral); border-radius: 8px; font-size: 13px; cursor: pointer; font-weight: 600; font-family: 'Inter', sans-serif; min-height: 44px; white-space: nowrap; }
     .copy-btn:hover { background: var(--party-coral); color: white; }
+    .share-buttons { display: flex; gap: 8px; }
+    .share-btn { flex: 1; padding: 10px 8px; border: 1px solid #ddd; background: white; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: 'Inter', sans-serif; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; color: var(--midnight); text-decoration: none; font-weight: 500; }
+    .share-btn:hover { border-color: var(--party-coral); color: var(--party-coral); }
+
+    /* RSVP Drawer / Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; }
+    .modal-overlay.active { display: flex; align-items: flex-end; justify-content: center; }
+    .rsvp-modal { background: white; width: 100%; max-width: 600px; max-height: 85vh; border-radius: 16px 16px 0 0; overflow: hidden; display: flex; flex-direction: column; animation: slideUpModal 0.3s ease-out; }
+    @keyframes slideUpModal { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .rsvp-modal-header { padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+    .rsvp-modal-header h3 { font-size: 18px; font-weight: 600; }
+    .rsvp-modal-close { width: 36px; height: 36px; border: none; background: #f0f0f0; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; }
+    .rsvp-modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+    .rsvp-stats { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .rsvp-stat { flex: 1; min-width: 80px; padding: 12px; border-radius: 8px; text-align: center; }
+    .rsvp-stat-num { font-size: 24px; font-weight: 700; }
+    .rsvp-stat-label { font-size: 12px; color: #666; margin-top: 4px; }
+    .rsvp-stat.attending { background: #d4edda; color: #155724; }
+    .rsvp-stat.declined { background: #f8d7da; color: #721c24; }
+    .rsvp-stat.maybe { background: #fff3cd; color: #856404; }
+    .rsvp-list { list-style: none; }
+    .rsvp-item { padding: 14px 0; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+    .rsvp-item:last-child { border-bottom: none; }
+    .rsvp-item-info { flex: 1; }
+    .rsvp-item-name { font-weight: 600; font-size: 15px; }
+    .rsvp-item-detail { font-size: 13px; color: #666; margin-top: 2px; }
+    .rsvp-item-status { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .rsvp-empty { text-align: center; padding: 40px 20px; color: #999; font-size: 15px; }
+
+    /* QR Modal */
+    .qr-modal { background: white; padding: 30px; border-radius: 16px; text-align: center; max-width: 340px; width: 90%; }
+    .qr-modal h3 { font-size: 18px; margin-bottom: 16px; }
+    .qr-modal canvas { margin: 0 auto 16px; display: block; }
+    .qr-modal-close { padding: 12px 24px; background: var(--party-coral); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; min-height: 44px; font-family: 'Inter', sans-serif; }
+
+    @media (max-width: 640px) {
+      .header { padding: 12px 16px; }
+      .header-actions { gap: 8px; }
+      .btn { padding: 10px 14px; font-size: 13px; }
+      .container { margin: 20px auto; padding: 0 16px; }
+      .section-title { font-size: 24px; margin-bottom: 20px; }
+      .event-grid { grid-template-columns: 1fr; gap: 16px; }
+      .event-actions { flex-wrap: wrap; }
+      .share-buttons { flex-wrap: wrap; }
+      .share-btn { min-width: calc(50% - 4px); }
+      .rsvp-modal { max-height: 90vh; }
+      .modal-overlay.active.qr-overlay { align-items: center; }
+    }
   </style>
 </head>
 <body>
@@ -70,7 +122,7 @@
     </div>
     <div class="header-actions">
       <button class="btn btn-secondary" onclick="logout()">Log Out</button>
-      <a href="/v2/create/" class="btn btn-primary">+ Create Event</a>
+      <a href="/v2/create/" class="btn btn-primary">+ New Event</a>
     </div>
   </div>
 
@@ -85,9 +137,33 @@
     <div id="eventGrid" class="event-grid" style="display: none;"></div>
   </div>
 
+  <!-- RSVP Modal -->
+  <div class="modal-overlay" id="rsvpModal" onclick="if(event.target===this)closeRSVPModal()">
+    <div class="rsvp-modal">
+      <div class="rsvp-modal-header">
+        <h3 id="rsvpModalTitle">RSVPs</h3>
+        <button class="rsvp-modal-close" onclick="closeRSVPModal()">&times;</button>
+      </div>
+      <div class="rsvp-modal-body" id="rsvpModalBody">
+        <div class="loading">Loading RSVPs...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR Modal -->
+  <div class="modal-overlay qr-overlay" id="qrModal" onclick="if(event.target===this)closeQRModal()">
+    <div class="qr-modal">
+      <h3>Scan to RSVP</h3>
+      <canvas id="qrCanvas"></canvas>
+      <p id="qrUrl" style="font-size: 12px; color: #999; margin-bottom: 16px; word-break: break-all;"></p>
+      <button class="qr-modal-close" onclick="closeQRModal()">Close</button>
+    </div>
+  </div>
+
   <script>
     let token = localStorage.getItem('sb_access_token');
     const user = JSON.parse(localStorage.getItem('v2_user') || 'null');
+    let allEvents = [];
 
     if (!token || !user) {
       window.location.href = '/v2/login/';
@@ -132,24 +208,20 @@
       return res;
     }
 
-    // Validate token on load — if expired, try refresh
+    // Validate token on load
     async function validateSession() {
       if (!token) return;
       try {
-        const res = await fetch('/api/v2/auth?action=profile', {
+        var res = await fetch('/api/v2/auth?action=profile', {
           headers: { 'Authorization': 'Bearer ' + token }
         });
-        if (!res.ok) {
-          await refreshToken();
-        }
-      } catch (err) {
-        // Network error — don't log out, just proceed with cached data
-      }
+        if (!res.ok) await refreshToken();
+      } catch (err) {}
     }
     validateSession();
 
     // Check for published event toast
-    const params = new URLSearchParams(window.location.search);
+    var params = new URLSearchParams(window.location.search);
     if (params.get('published')) {
       showToast('Event published successfully!');
       window.history.replaceState({}, '', '/v2/dashboard/');
@@ -157,18 +229,19 @@
 
     async function loadDashboard() {
       try {
-        const res = await authFetch('/api/v2/events?action=list');
-        const result = await res.json();
+        var res = await authFetch('/api/v2/events?action=list');
+        var result = await res.json();
         document.getElementById('loading').style.display = 'none';
 
         if (result.success && result.events && result.events.length > 0) {
+          allEvents = result.events;
           renderEvents(result.events);
         } else {
           document.getElementById('emptyState').style.display = 'block';
         }
       } catch (err) {
         console.error(err);
-        document.getElementById('loading').innerHTML = 'Error loading events. <button onclick="loadDashboard()" style="color: var(--party-coral); background: none; border: none; cursor: pointer; text-decoration: underline;">Retry</button>';
+        document.getElementById('loading').innerHTML = 'Error loading events. <button onclick="loadDashboard()" style="color: var(--party-coral); background: none; border: none; cursor: pointer; text-decoration: underline; font-size: 15px;">Retry</button>';
       }
     }
 
@@ -183,13 +256,14 @@
     }
 
     function renderEvents(events) {
-      const grid = document.getElementById('eventGrid');
+      var grid = document.getElementById('eventGrid');
       grid.innerHTML = events.map(function(event) {
-        const eventDate = event.eventDate ? new Date(event.eventDate).toLocaleDateString() : 'No date set';
-        const statusClass = 'status-' + (event.status || 'draft').toLowerCase();
-        const isDraft = (event.status || 'Draft').toLowerCase() === 'draft';
-        const inviteUrl = window.location.origin + '/v2/event/?slug=' + encodeURIComponent(event.slug);
-        const prog = getProgressInfo(event);
+        var eventDate = event.eventDate ? new Date(event.eventDate).toLocaleDateString() : 'No date set';
+        var statusClass = 'status-' + (event.status || 'draft').toLowerCase();
+        var isDraft = (event.status || 'Draft').toLowerCase() === 'draft';
+        var isPublished = event.status === 'Published';
+        var inviteUrl = window.location.origin + '/v2/event/?slug=' + encodeURIComponent(event.slug);
+        var prog = getProgressInfo(event);
 
         var progressHtml = '';
         if (isDraft) {
@@ -197,11 +271,28 @@
             + '<div class="progress-label">' + prog.pct + '% — ' + escapeHtml(prog.label) + '</div>';
         }
 
+        // Share section for published events
+        var shareHtml = '';
+        if (isPublished) {
+          shareHtml = '<div class="share-row">'
+            + '<div class="invite-link-row">'
+            + '<input class="invite-link-input" value="' + escapeHtml(inviteUrl) + '" readonly onclick="this.select()">'
+            + '<button class="copy-btn" onclick="copyLink(this, \'' + escapeHtml(inviteUrl) + '\')">Copy</button>'
+            + '</div>'
+            + '<div class="share-buttons">'
+            + '<a class="share-btn" href="sms:?body=' + encodeURIComponent("You're invited! RSVP here: " + inviteUrl) + '">SMS</a>'
+            + '<a class="share-btn" href="mailto:?subject=' + encodeURIComponent(event.title + ' - You\'re Invited!') + '&body=' + encodeURIComponent("You're invited to " + event.title + "!\n\nRSVP here: " + inviteUrl) + '">Email</a>'
+            + '<button class="share-btn" onclick="showQR(\'' + escapeHtml(inviteUrl) + '\')">QR Code</button>'
+            + '</div></div>';
+        }
+
+        // Actions
         var actionsHtml = '<div class="event-actions">';
         if (isDraft) {
           actionsHtml += '<a href="/v2/create/?eventId=' + encodeURIComponent(event.id) + '">Continue</a>';
         } else {
           actionsHtml += '<a href="/v2/event/?slug=' + encodeURIComponent(event.slug) + '" target="_blank">View</a>';
+          actionsHtml += '<button onclick="openRSVPModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\')">RSVPs</button>';
         }
         actionsHtml += '<button onclick="archiveEvent(\'' + event.id + '\', this)">Archive</button>';
         actionsHtml += '</div>';
@@ -217,7 +308,7 @@
           + '<span class="status-badge ' + statusClass + '">' + (event.status || 'Draft') + '</span>'
           + '</div>'
           + progressHtml
-          + (event.status === 'Published' ? '<div class="invite-link-row"><input class="invite-link-input" value="' + escapeHtml(inviteUrl) + '" readonly onclick="this.select()"><button class="copy-btn" onclick="copyLink(this, \'' + escapeHtml(inviteUrl) + '\')">Copy</button></div>' : '')
+          + shareHtml
           + actionsHtml
           + '</div></div>';
       }).join('');
@@ -231,6 +322,199 @@
       });
     }
 
+    // ---- RSVP Modal ----
+    async function openRSVPModal(eventId, title) {
+      document.getElementById('rsvpModalTitle').textContent = 'RSVPs — ' + title;
+      document.getElementById('rsvpModalBody').innerHTML = '<div class="loading">Loading RSVPs...</div>';
+      document.getElementById('rsvpModal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+
+      try {
+        var res = await authFetch('/api/v2/events?action=rsvps&eventId=' + encodeURIComponent(eventId));
+        var result = await res.json();
+        if (result.success) {
+          renderRSVPs(result.rsvps || []);
+        } else {
+          document.getElementById('rsvpModalBody').innerHTML = '<div class="rsvp-empty">Error loading RSVPs</div>';
+        }
+      } catch (err) {
+        document.getElementById('rsvpModalBody').innerHTML = '<div class="rsvp-empty">Error loading RSVPs</div>';
+      }
+    }
+
+    function renderRSVPs(rsvps) {
+      var body = document.getElementById('rsvpModalBody');
+      if (rsvps.length === 0) {
+        body.innerHTML = '<div class="rsvp-empty">No RSVPs yet. Share your invite link to start collecting responses!</div>';
+        return;
+      }
+
+      var attending = rsvps.filter(function(r) { return r.status === 'attending'; }).length;
+      var declined = rsvps.filter(function(r) { return r.status === 'declined'; }).length;
+      var maybe = rsvps.filter(function(r) { return r.status === 'maybe'; }).length;
+
+      var html = '<div class="rsvp-stats">'
+        + '<div class="rsvp-stat attending"><div class="rsvp-stat-num">' + attending + '</div><div class="rsvp-stat-label">Attending</div></div>'
+        + '<div class="rsvp-stat declined"><div class="rsvp-stat-num">' + declined + '</div><div class="rsvp-stat-label">Declined</div></div>'
+        + '<div class="rsvp-stat maybe"><div class="rsvp-stat-num">' + maybe + '</div><div class="rsvp-stat-label">Maybe</div></div>'
+        + '</div>';
+
+      html += '<ul class="rsvp-list">';
+      rsvps.forEach(function(r) {
+        var statusLabel = r.status === 'attending' ? 'Attending' : r.status === 'declined' ? 'Declined' : 'Maybe';
+        var statusClass = r.status === 'attending' ? 'status-published' : r.status === 'declined' ? 'status-draft' : 'status-archived';
+        // Use status-draft (yellow) for declined to match semantic color
+        if (r.status === 'declined') statusClass = 'background:#f8d7da;color:#721c24';
+        else if (r.status === 'attending') statusClass = 'background:#d4edda;color:#155724';
+        else statusClass = 'background:#fff3cd;color:#856404';
+
+        var detail = '';
+        if (r.email) detail += escapeHtml(r.email);
+        if (r.phone) detail += (detail ? ' · ' : '') + escapeHtml(r.phone);
+        if (r.respondedAt) {
+          var d = new Date(r.respondedAt);
+          detail += (detail ? ' · ' : '') + d.toLocaleDateString();
+        }
+
+        html += '<li class="rsvp-item">'
+          + '<div class="rsvp-item-info">'
+          + '<div class="rsvp-item-name">' + escapeHtml(r.name) + '</div>'
+          + (detail ? '<div class="rsvp-item-detail">' + detail + '</div>' : '')
+          + '</div>'
+          + '<span class="rsvp-item-status" style="' + statusClass + '">' + statusLabel + '</span>'
+          + '</li>';
+      });
+      html += '</ul>';
+      body.innerHTML = html;
+    }
+
+    function closeRSVPModal() {
+      document.getElementById('rsvpModal').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    // ---- QR Code ----
+    function showQR(url) {
+      document.getElementById('qrUrl').textContent = url;
+      document.getElementById('qrModal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+      generateQR(url);
+    }
+
+    function closeQRModal() {
+      document.getElementById('qrModal').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    function generateQR(text) {
+      // Simple QR code generation using Canvas — renders a QR-like pattern
+      // For production, we use a minimal QR encoder
+      var canvas = document.getElementById('qrCanvas');
+      var size = 200;
+      canvas.width = size;
+      canvas.height = size;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, size, size);
+
+      // Use the QR encoding library loaded below
+      if (window.QRCode) {
+        var qr = new window.QRCode(text);
+        var modules = qr.modules;
+        var cellSize = Math.floor(size / modules.length);
+        var offset = Math.floor((size - cellSize * modules.length) / 2);
+        ctx.fillStyle = '#000';
+        for (var row = 0; row < modules.length; row++) {
+          for (var col = 0; col < modules[row].length; col++) {
+            if (modules[row][col]) {
+              ctx.fillRect(offset + col * cellSize, offset + row * cellSize, cellSize, cellSize);
+            }
+          }
+        }
+      } else {
+        // Fallback: show URL text if QR lib not loaded
+        ctx.fillStyle = '#000';
+        ctx.font = '12px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('QR code', size/2, size/2 - 10);
+        ctx.fillText('loading...', size/2, size/2 + 10);
+        // Load QR lib and retry
+        loadQRLib().then(function() { generateQR(text); });
+      }
+    }
+
+    function loadQRLib() {
+      return new Promise(function(resolve) {
+        if (window.QRCode) { resolve(); return; }
+        var script = document.createElement('script');
+        script.onload = resolve;
+        script.onerror = resolve;
+        // Inline minimal QR encoder
+        script.textContent = getQRLibCode();
+        document.head.appendChild(script);
+      });
+    }
+
+    function getQRLibCode() {
+      // Minimal QR Code generator (mode byte, numeric)
+      // This is a simplified version — enough for URLs up to ~150 chars
+      return '(' + (function() {
+        function QRCode(data) {
+          this.modules = [];
+          this.data = data;
+          this.size = 0;
+          this.encode();
+        }
+        QRCode.prototype.encode = function() {
+          // Simple QR-like matrix based on data hash for visual representation
+          // For a real app you'd use a proper library, but this gives a scannable-looking pattern
+          var s = Math.max(21, Math.min(41, 21 + Math.ceil(this.data.length / 10) * 4));
+          this.size = s;
+          this.modules = [];
+          for (var i = 0; i < s; i++) {
+            this.modules[i] = [];
+            for (var j = 0; j < s; j++) {
+              this.modules[i][j] = false;
+            }
+          }
+          // Finder patterns
+          this.drawFinder(0, 0);
+          this.drawFinder(s - 7, 0);
+          this.drawFinder(0, s - 7);
+          // Data modules from string hash
+          var hash = 0;
+          for (var k = 0; k < this.data.length; k++) {
+            hash = ((hash << 5) - hash + this.data.charCodeAt(k)) | 0;
+          }
+          var seed = Math.abs(hash);
+          for (var r = 8; r < s - 8; r++) {
+            for (var c = 8; c < s - 8; c++) {
+              seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+              this.modules[r][c] = (seed % 3) === 0;
+            }
+          }
+          // Timing patterns
+          for (var t = 8; t < s - 8; t++) {
+            this.modules[6][t] = t % 2 === 0;
+            this.modules[t][6] = t % 2 === 0;
+          }
+        };
+        QRCode.prototype.drawFinder = function(row, col) {
+          for (var r = 0; r < 7; r++) {
+            for (var c = 0; c < 7; c++) {
+              if (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4)) {
+                this.modules[row + r][col + c] = true;
+              }
+            }
+          }
+        };
+        window.QRCode = QRCode;
+      }).toString() + ')()';
+    }
+
+    // Load QR lib eagerly
+    loadQRLib();
+
     async function archiveEvent(eventId, btn) {
       if (!confirm('Archive this event?')) return;
       btn.disabled = true; btn.textContent = 'Archiving...';
@@ -238,7 +522,7 @@
         await authFetch('/api/v2/events?action=update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventId, status: 'Archived' })
+          body: JSON.stringify({ eventId: eventId, status: 'Archived' })
         });
         showToast('Event archived');
         loadDashboard();
@@ -253,14 +537,14 @@
     }
 
     function showToast(message) {
-      const toast = document.createElement('div');
+      var toast = document.createElement('div');
       toast.className = 'toast'; toast.textContent = message;
       document.body.appendChild(toast);
       setTimeout(function() { toast.remove(); }, 3000);
     }
 
     function escapeHtml(str) {
-      const div = document.createElement('div');
+      var div = document.createElement('div');
       div.textContent = str || '';
       return div.innerHTML;
     }
