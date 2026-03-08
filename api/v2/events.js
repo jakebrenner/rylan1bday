@@ -245,7 +245,7 @@ export default async function handler(req, res) {
     }
 
     if (action === 'list') {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('events')
         .select('*')
         .eq('user_id', user.id)
@@ -276,7 +276,7 @@ export default async function handler(req, res) {
       const { eventId } = req.query;
       if (!eventId) return res.status(400).json({ success: false, error: 'eventId required' });
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('events')
         .select('*')
         .eq('id', eventId)
@@ -317,7 +317,7 @@ export default async function handler(req, res) {
       if (!eventId) return res.status(400).json({ success: false, error: 'eventId required' });
 
       // Verify ownership
-      const { data: event } = await supabase
+      const { data: event } = await supabaseAdmin
         .from('events')
         .select('id')
         .eq('id', eventId)

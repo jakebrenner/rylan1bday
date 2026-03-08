@@ -69,13 +69,22 @@ The generated invite MUST always include ALL of the following sections. These ar
 - Add hover/active states in CSS
 
 ## DESIGN RULES
-1. The invite must be a single vertical card, centered, max-width 480px
-2. Mobile-first: must look perfect on phones (320px+)
+1. The invite must be a single vertical card, centered, max-width 393px (iPhone width)
+2. **MOBILE-FIRST** — this will be viewed primarily on phones:
+   - Design for 393px viewport width (iPhone 15)
+   - All text must be readable without zooming (body min 14px, headings 24-32px)
+   - Generous padding (20-24px sides) — never let content touch screen edges
+   - Buttons min 48px tall, full-width, single-line text
+   - Stack all sections vertically — no side-by-side layouts
+   - Keep card max-width 393px so it fills the phone screen naturally
+   - Touch targets minimum 44x44px
+   - Use relative units (em, rem, %, vw) where appropriate
 3. Use Google Fonts only (include the @import in theme_config.googleFontsImport)
 4. All images should use CSS gradients, SVG patterns, or emoji — do NOT reference external image URLs
 5. Use CSS custom properties for colors so the user can tweak them later
 6. Add subtle CSS animations (fade-ins, gentle floating) but nothing distracting
 7. The design should feel unique and custom — NOT like a template
+8. Keep overall height reasonable — the invite should fit in ~3-4 phone screen scrolls maximum
 
 ## WHAT NOT TO DO
 - No JavaScript in the output
@@ -182,7 +191,7 @@ ${effectivePrompt}`;
 
     const response = await client.messages.create({
       model: themeModel,
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: messageContent }]
     });
@@ -191,8 +200,21 @@ ${effectivePrompt}`;
     const contentBlock = response.content[0];
     let themeText = contentBlock.type === 'text' ? contentBlock.text : '';
 
-    // Parse JSON response (handle ```json wrapping)
-    themeText = themeText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+    // Parse JSON response — handle various wrapping patterns
+    themeText = themeText.trim();
+    // Remove ```json ... ``` wrapping (may have leading/trailing text)
+    const jsonBlockMatch = themeText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+    if (jsonBlockMatch) {
+      themeText = jsonBlockMatch[1].trim();
+    }
+    // Try to find the JSON object if there's surrounding prose
+    if (!themeText.startsWith('{')) {
+      const firstBrace = themeText.indexOf('{');
+      const lastBrace = themeText.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        themeText = themeText.substring(firstBrace, lastBrace + 1);
+      }
+    }
     const theme = JSON.parse(themeText);
 
     if (!theme.theme_html || !theme.theme_css || !theme.theme_config) {
