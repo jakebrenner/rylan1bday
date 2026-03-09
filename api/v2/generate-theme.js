@@ -240,10 +240,12 @@ ${tweakInstructions}`;
       });
     } catch (err) {
       console.error('Theme tweak error:', err);
-      await supabase.from('generation_log').insert({
-        event_id: eventId, user_id: user.id, prompt: 'Tweak: ' + (tweakInstructions || '').substring(0, 200),
-        model: themeModel, input_tokens: 0, output_tokens: 0, latency_ms: Date.now() - startTime, status: 'error', error: err.message
-      }).catch(() => {});
+      try {
+        await supabase.from('generation_log').insert({
+          event_id: eventId, user_id: user.id, prompt: 'Tweak: ' + (tweakInstructions || '').substring(0, 200),
+          model: themeModel, input_tokens: 0, output_tokens: 0, latency_ms: Date.now() - startTime, status: 'error', error: err.message
+        });
+      } catch {}
       return res.status(500).json({ error: 'Failed to tweak theme', message: err.message });
     }
   }

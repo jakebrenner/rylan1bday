@@ -134,15 +134,17 @@ export default async function handler(req, res) {
     const text = response.content[0].type === 'text' ? response.content[0].text : '';
 
     // Log token usage (event_id null = chat, non-null = theme)
-    await supabase.from('generation_log').insert({
-      user_id: user.id,
-      prompt: messages[messages.length - 1]?.content || '',
-      model: chatModel,
-      input_tokens: response.usage?.input_tokens || 0,
-      output_tokens: response.usage?.output_tokens || 0,
-      latency_ms: latency,
-      status: 'success'
-    }).catch(() => {});
+    try {
+      await supabase.from('generation_log').insert({
+        user_id: user.id,
+        prompt: messages[messages.length - 1]?.content || '',
+        model: chatModel,
+        input_tokens: response.usage?.input_tokens || 0,
+        output_tokens: response.usage?.output_tokens || 0,
+        latency_ms: latency,
+        status: 'success'
+      });
+    } catch {}
 
     let parsed;
     try {
