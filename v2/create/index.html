@@ -237,6 +237,13 @@
     .design-chat-chips .chip { font-size: 11px; padding: 5px 10px; }
     .design-chat-loading { display: flex; align-items: center; gap: 8px; color: #666; font-size: 13px; }
     .design-chat-loading .loading-spinner { flex-shrink: 0; }
+    .design-chat-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 16px; padding: 40px 20px; text-align: center; }
+    .design-chat-loader .loader-dots { display: flex; gap: 6px; }
+    .design-chat-loader .loader-dots span { width: 10px; height: 10px; border-radius: 50%; background: var(--party-coral); animation: loaderBounce 1.4s ease-in-out infinite; }
+    .design-chat-loader .loader-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .design-chat-loader .loader-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes loaderBounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+    .design-chat-loader .loader-pun { font-size: 14px; color: #666; font-style: italic; min-height: 20px; transition: opacity 0.3s ease; }
 
     .summary-item { background: #f9f9f9; padding: 16px; border-radius: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     .summary-label { font-weight: 600; }
@@ -340,7 +347,7 @@
       <div id="generatedView" style="display: none;">
         <h2 style="text-align:center;">Preview Your Theme</h2>
         <p class="step-desc" style="text-align:center;">Love it? Continue to publish. Switch between versions below.</p>
-        <div style="display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap;justify-content:center;max-width:900px;margin:0 auto;">
+        <div style="display:flex;gap:32px;align-items:stretch;flex-wrap:wrap;justify-content:center;max-width:900px;margin:0 auto;">
           <!-- Left: Phone preview -->
           <div style="flex:0 0 auto;">
             <div id="previewToggle" style="display:flex;justify-content:center;gap:4px;margin-bottom:12px;">
@@ -359,8 +366,8 @@
             <div id="versionGallery" class="version-gallery"></div>
           </div>
           <!-- Right: Tabbed panel (always visible) -->
-          <div id="editPanel" style="flex:1;min-width:280px;max-width:440px;">
-            <div style="background:white;border:1px solid #eee;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;">
+          <div id="editPanel" style="flex:1;min-width:280px;max-width:440px;display:flex;flex-direction:column;">
+            <div style="background:white;border:1px solid #eee;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);display:flex;flex-direction:column;overflow:hidden;height:100%;">
               <div style="display:flex;gap:8px;margin-bottom:16px;">
                 <button class="btn btn-secondary" onclick="openLivePreview()" style="flex:1;font-size:13px;padding:10px 12px;">View Live Preview</button>
                 <button class="btn btn-primary" onclick="nextStep()" style="flex:1;font-size:13px;padding:10px 12px;">Publish</button>
@@ -618,7 +625,7 @@
               document.getElementById('generatedView').style.display = 'block';
               renderPreview(themeVersions[0]);
               renderVersionGallery();
-              initDesignChatIfNeeded();
+              initDesignChatIfNeeded(true);
               goToStep(3);
             } else {
               // Has details but no theme — go to creative direction
@@ -1281,16 +1288,63 @@
       renderEditCustomFields();
     }
 
-    function initDesignChatIfNeeded() {
-      if (designChatHistory.length === 0) initDesignChat();
+    var eventPuns = [
+      "Getting this party started...",
+      "RSVPreparing your design...",
+      "Un-wrapping your invite...",
+      "Putting the 'fun' in function...",
+      "Raising the bar... and the balloon arch...",
+      "This invite is gonna be lit... erally perfect",
+      "Confetti-loading your masterpiece...",
+      "Let's get this bread... and cake... and invite...",
+      "Channeling main character energy...",
+      "Rolling out the red carpet...",
+      "Popping bottles... of creativity...",
+      "Making it rain... style points...",
+      "Your invite called. It wants to look amazing."
+    ];
+    var punIntervalId = null;
+
+    function showDesignChatLoader() {
+      var container = document.getElementById('designChatMessages');
+      var shuffled = eventPuns.slice().sort(function() { return Math.random() - 0.5; });
+      var punIndex = 0;
+      container.innerHTML = '<div class="design-chat-loader">'
+        + '<div class="loader-dots"><span></span><span></span><span></span></div>'
+        + '<div class="loader-pun">' + shuffled[0] + '</div>'
+        + '</div>';
+      punIntervalId = setInterval(function() {
+        punIndex = (punIndex + 1) % shuffled.length;
+        var el = container.querySelector('.loader-pun');
+        if (el) {
+          el.style.opacity = '0';
+          setTimeout(function() { el.textContent = shuffled[punIndex]; el.style.opacity = '1'; }, 300);
+        }
+      }, 2500);
     }
 
-    function initDesignChat() {
-      var ver = themeVersions[activeVersionIndex];
-      var config = ver ? ver.config : {};
-      var mood = config.mood || 'custom';
-      var title = extractedData.title || 'your event';
+    function hideDesignChatLoader() {
+      if (punIntervalId) { clearInterval(punIntervalId); punIntervalId = null; }
+    }
 
+    function initDesignChatIfNeeded(showLoader) {
+      if (designChatHistory.length === 0) initDesignChat(showLoader);
+    }
+
+    function initDesignChat(showLoader) {
+      if (showLoader) {
+        showDesignChatLoader();
+        setTimeout(function() {
+          hideDesignChatLoader();
+          finishDesignChatInit();
+        }, 3000);
+      } else {
+        finishDesignChatInit();
+      }
+    }
+
+    function finishDesignChatInit() {
+      var title = extractedData.title || 'your event';
       var welcomeMsg = "Hey! I'm your design assistant. I can help you tweak the look and feel of your " + title + " invite.\n\n"
         + "Here are some things I can help with:\n"
         + "- Change colors, fonts, or background\n"
