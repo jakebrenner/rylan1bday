@@ -78,22 +78,37 @@ The data-field attributes are required so the platform can update content dynami
 - Google Fonts only (via @import in googleFontsImport)
 - Use CSS gradients, SVGs, shapes, and emoji for visuals — NO external image URLs
 - CSS custom properties for colors
-- Subtle CSS animations welcome (fade-ins, floating, etc.)
+- **CSS ANIMATIONS ARE KEY** — Every invite should feel alive and premium. Include meaningful animations:
+  - Entrance animations: elements should fade in, slide up, or scale in as the page loads (use @keyframes + animation-delay to stagger them)
+  - Ambient motion: subtle floating, gentle pulsing, rotating decorative elements, twinkling/sparkling effects
+  - Interactive touches: hover effects on buttons, cards that lift on hover
+  - Decorative animation: drifting confetti, floating bubbles/shapes, swaying elements, parallax-like layered motion
+  - Use animation-delay to create a choreographed reveal — title first, then details, then RSVP button
+  - Keep animations smooth (use transform and opacity for performance) and tasteful — enhance, don't distract
 - No JavaScript in the output
 - No fixed positioning, no iframes
 - NEVER put form inputs/selects/labels inside \`.rsvp-slot\`
 - Keep height reasonable — fits in ~3-5 phone screen scrolls
 
 ## THANK YOU PAGE (theme_thankyou_html)
-Generate a matching thank you / confirmation page. Same CSS applies to both pages.
+Generate a beautiful, polished thank you page that feels like a premium continuation of the invite. Same CSS applies to both.
 
 Requirements:
-- Same visual design, fonts, colors, decorative elements as the invite
-- A celebratory heading (creative, on-theme — not generic)
+- **Same visual world** — identical backgrounds, gradients, patterns, decorative elements, fonts, colors
+- A **celebratory heading** that's creative and on-theme (not generic "Thank you!")
 - Confirmation text with \`<span class="thankyou-guest">Guest</span>\` and \`<span class="thankyou-event">Event</span>\` placeholders
-- Calendar buttons: \`<div class="calendar-buttons"><button class="cal-btn" data-cal="google">Google Calendar</button><button class="cal-btn" data-cal="apple">Apple Calendar</button><button class="cal-btn" data-cal="outlook">Outlook</button><button class="cal-btn" data-cal="yahoo">Yahoo Calendar</button></div>\`
+- **Calendar buttons — MUST be beautifully styled, not plain/default buttons:**
+  \`<div class="calendar-buttons"><button class="cal-btn" data-cal="google">Google Calendar</button><button class="cal-btn" data-cal="apple">Apple Calendar</button><button class="cal-btn" data-cal="outlook">Outlook</button><button class="cal-btn" data-cal="yahoo">Yahoo Calendar</button></div>\`
+  - Style them as elegant pills, rounded cards, or icon-style buttons that match the invite aesthetic
+  - Use the theme's colors, fonts, and border styles
+  - Add subtle hover effects and transitions
+  - Consider a 2x2 grid or horizontal scroll layout — NOT an ugly vertical stack of plain buttons
+  - Each button should feel intentionally designed, with proper padding, border-radius, and spacing
+  - NEVER leave them as unstyled browser-default buttons — this ruins the premium feel
 - Footer: "Made with Love by Ryvite" where Ryvite is \`<a href="/" style="color:inherit;text-decoration:none;">Ryvite</a>\`
-- Max-width 393px, feels like a natural continuation of the invite
+- Max-width 393px
+- Include entrance animations on the thank you page too — the guest just RSVP'd, make it feel celebratory!
+- The thank you page should feel just as polished as the invite — NOT an afterthought
 
 ## INSPIRATION IMAGES
 If provided, analyze them for color palette, visual mood, textures, typography style, and overall aesthetic. Use these as strong creative direction.`;
@@ -240,7 +255,9 @@ These allow the platform to update content dynamically. Always preserve these.
 - Google Fonts only (include @import in theme_config.googleFontsImport)
 - No JavaScript, no external images (except Google Fonts and user-uploaded photos)
 - Make minimal changes — only what the user asked for, keep everything else exactly the same
-- The thank you page must match the invite's aesthetic`;
+- The thank you page must match the invite's aesthetic — it should feel equally polished and premium
+- Calendar buttons on the thank you page should be beautifully styled (pills, rounded cards, or icon-style) — NEVER plain unstyled buttons
+- Preserve and enhance CSS animations — every invite should feel alive with entrance animations, ambient motion, and interactive hover effects`;
 
       const stream = client.messages.stream({
         model: themeModel,

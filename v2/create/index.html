@@ -1770,6 +1770,19 @@
       var hasPhoto = !!designChatPhotoUrl;
       if (!text && !hasPhoto) return;
 
+      // Detect if user mentions wanting a photo but didn't attach one
+      if (text && !hasPhoto) {
+        var photoKeywords = /\b(photo|picture|image|pic|selfie|headshot|portrait|snapshot|upload.*(photo|image|pic)|include.*(photo|image|pic)|(add|use|put|include|attach|insert).*(photo|picture|image|pic))\b/i;
+        if (photoKeywords.test(text)) {
+          designChatHistory.push({ role: 'user', content: text });
+          designChatHistory.push({ role: 'assistant', content: "It looks like you want to include a photo, but I don't see one attached! Tap the photo icon (bottom left) to upload an image, then send your message again." });
+          renderDesignChat();
+          input.value = '';
+          input.style.height = 'auto';
+          return;
+        }
+      }
+
       var userMsg = text || '(uploaded a photo)';
       if (hasPhoto && text) userMsg = text + ' (with photo)';
       else if (hasPhoto) userMsg = '(uploaded a photo)';
