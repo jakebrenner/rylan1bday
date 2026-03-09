@@ -5,6 +5,12 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// Anon-key client for user-facing auth flows (OTP emails, token refresh)
+const supabaseAnon = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
+
 const PROD_URL = 'https://ryvite.com';
 
 export default async function handler(req, res) {
@@ -34,7 +40,7 @@ export default async function handler(req, res) {
       if (error) {
         // User already exists — send magic link instead
         if (error.message.includes('already been registered')) {
-          const { error: otpError } = await supabase.auth.signInWithOtp({
+          const { error: otpError } = await supabaseAnon.auth.signInWithOtp({
             email,
             options: { emailRedirectTo: redirectTo }
           });
@@ -45,7 +51,7 @@ export default async function handler(req, res) {
       }
 
       // Send magic link for the new user
-      const { error: otpError } = await supabase.auth.signInWithOtp({
+      const { error: otpError } = await supabaseAnon.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: redirectTo }
       });
@@ -66,12 +72,15 @@ export default async function handler(req, res) {
       const { email } = req.body || {};
       if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
 
-      const { error } = await supabase.auth.signInWithOtp({
+      const { data, error } = await supabaseAnon.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: redirectTo }
       });
 
-      if (error) return res.status(400).json({ success: false, error: error.message });
+      if (error) {
+        console.error('OTP login error:', error.message, error.status);
+        return res.status(400).json({ success: false, error: error.message });
+      }
 
       return res.status(200).json({ success: true, message: 'Check your email for login link' });
     }
@@ -164,9 +173,7 @@ export default async function handler(req, res) {
       const { refreshToken } = req.body || {};
       if (!refreshToken) return res.status(400).json({ success: false, error: 'refreshToken is required' });
 
-      // Create a temporary client to perform the refresh
-      const userClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-      const { data, error } = await userClient.auth.refreshSession({ refresh_token: refreshToken });
+      const { data, error } = await supabaseAnon.auth.refreshSession({ refresh_token: refreshToken });
 
       if (error || !data.session) {
         return res.status(401).json({ success: false, error: 'Refresh failed — please log in again' });
