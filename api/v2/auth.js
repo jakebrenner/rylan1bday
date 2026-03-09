@@ -125,6 +125,61 @@ export default async function handler(req, res) {
       });
     }
 
+    if (action === 'createAdminAccount') {
+      const { email } = req.body || {};
+      if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
+
+      const FOUNDER_EMAIL = 'jake@getmrkt.com';
+      if (email.toLowerCase() !== FOUNDER_EMAIL) {
+        return res.status(403).json({ success: false, error: 'Only the founder account can be created via this endpoint' });
+      }
+
+      // Ensure the user exists in Supabase auth
+      let userId;
+      const { data: createData, error: createError } = await supabase.auth.admin.createUser({
+        email,
+        email_confirm: true,
+        user_metadata: { display_name: 'Jake', phone: '' }
+      });
+
+      if (createError) {
+        if (createError.message.includes('already been registered')) {
+          // User exists — list users to find them
+          const { data: listData } = await supabase.auth.admin.listUsers();
+          const existing = listData?.users?.find(u => u.email === email.toLowerCase());
+          if (!existing) return res.status(500).json({ success: false, error: 'User exists but could not be found' });
+          userId = existing.id;
+        } else {
+          return res.status(400).json({ success: false, error: createError.message });
+        }
+      } else {
+        userId = createData.user.id;
+      }
+
+      // Generate a magic link without sending an email (bypasses rate limit)
+      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        type: 'magiclink',
+        email,
+        options: { redirectTo: redirectTo }
+      });
+
+      if (linkError) return res.status(400).json({ success: false, error: linkError.message });
+
+      // The link properties contain the hashed_token — build the verification URL
+      const tokenHash = linkData?.properties?.hashed_token;
+      if (!tokenHash) {
+        return res.status(500).json({ success: false, error: 'Could not generate login link' });
+      }
+
+      const verifyUrl = `${process.env.SUPABASE_URL}/auth/v1/verify?token=${tokenHash}&type=magiclink&redirect_to=${encodeURIComponent(redirectTo)}`;
+
+      return res.status(200).json({
+        success: true,
+        message: 'Admin account ready. Use the link below to log in.',
+        loginUrl: verifyUrl
+      });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Auth error:', err);
