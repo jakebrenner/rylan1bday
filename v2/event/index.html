@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Invite — Ryvite</title>
+  <meta name="description" content="You're invited! RSVP to this event on Ryvite.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --party-coral: #E94560; --blush-pop: #FF6B6B; --midnight: #1A1A2E; --cream: #FFFAF5; }
+    html, body { font-family: 'Inter', sans-serif; background: #f9f9f9; color: var(--midnight); }
+    .event-container { max-width: 100%; padding: 0; }
+    #themeFrame { width: 100%; border: none; min-height: 600px; display: block; }
+    .rsvp-section { max-width: 480px; margin: 40px auto; padding: 24px; background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+    .rsvp-section h3 { font-size: 22px; margin-bottom: 24px; text-align: center; font-weight: 600; }
+    .rsvp-form-group { margin-bottom: 18px; }
+    .rsvp-form-group label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; }
+    .rsvp-form-group .required-star { color: var(--party-coral); }
+    .rsvp-form-group input, .rsvp-form-group select, .rsvp-form-group textarea {
+      width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 8px;
+      font-family: 'Inter', sans-serif; font-size: 16px; -webkit-appearance: none;
+    }
+    .rsvp-form-group textarea { resize: vertical; min-height: 80px; }
+    .rsvp-form-group input:focus, .rsvp-form-group select:focus, .rsvp-form-group textarea:focus {
+      outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1);
+    }
+    .rsvp-form-group input[type="number"] { -moz-appearance: textfield; }
+    .rsvp-form-group input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .rsvp-submit {
+      width: 100%; padding: 14px; background: var(--party-coral); color: white; border: none;
+      border-radius: 8px; font-weight: 600; font-size: 16px; cursor: pointer;
+      font-family: 'Inter', sans-serif; transition: all 0.2s; min-height: 48px;
+    }
+    .rsvp-submit:hover { background: var(--blush-pop); transform: translateY(-1px); }
+    .rsvp-submit:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+    .rsvp-success { padding: 24px; background: #d4edda; border-radius: 8px; color: #155724; text-align: center; font-weight: 600; font-size: 16px; }
+    .calendar-buttons { display: flex; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
+    .calendar-btn {
+      flex: 1; min-width: 100px; padding: 12px 16px; border: 1px solid #ddd; border-radius: 8px;
+      background: white; color: var(--midnight); font-size: 14px; cursor: pointer; transition: all 0.2s;
+      text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;
+      font-family: 'Inter', sans-serif; min-height: 48px;
+    }
+    .calendar-btn:hover { border-color: var(--party-coral); color: var(--party-coral); }
+    .loading { text-align: center; padding: 60px 20px; font-size: 16px; color: #666; }
+    .error-msg { max-width: 480px; margin: 40px auto; padding: 20px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; color: #721c24; text-align: center; }
+    .confetti-piece { position: fixed; font-size: 24px; pointer-events: none; animation: confetti-fall linear forwards; z-index: 9999; }
+    @keyframes confetti-fall { 0% { opacity: 1; } 100% { transform: translateY(100vh) rotateZ(720deg); opacity: 0; } }
+    .powered-by { clear: both; width: 100%; text-align: center; padding: 20px; font-size: 13px; color: #999; }
+    .powered-by a { color: #999; text-decoration: none; }
+    .powered-by a:hover { color: var(--party-coral); }
+    @media (max-width: 640px) {
+      .rsvp-section { margin: 20px 16px; padding: 20px; }
+      .calendar-buttons { flex-direction: column; }
+      .calendar-btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="event-container">
+    <div id="loading" class="loading">Loading your invitation...</div>
+    <div id="error" class="error-msg" style="display: none;"></div>
+    <iframe id="themeFrame" style="display: none;"></iframe>
+    <div id="rsvpSection" class="rsvp-section" style="display: none;"></div>
+    <div id="poweredBy" class="powered-by" style="display: none;">Made with Love by <a href="/">Ryvite</a></div>
+  </div>
+
+  <script>
+    let currentEventData = null;
+
+    async function loadEvent() {
+      var params = new URLSearchParams(window.location.search);
+      var slug = params.get('slug');
+      var eventId = params.get('eid');
+
+      // Support clean URLs: /v2/event/my-slug
+      if (!slug && !eventId) {
+        var pathParts = window.location.pathname.split('/').filter(Boolean);
+        // URL: /v2/event/some-slug → pathParts = ['v2', 'event', 'some-slug']
+        if (pathParts.length >= 3 && pathParts[0] === 'v2' && pathParts[1] === 'event') {
+          slug = decodeURIComponent(pathParts[2]);
+        }
+      }
+
+      if (!slug && !eventId) { showError('No event specified'); return; }
+
+      try {
+        var queryParams = slug ? 'slug=' + encodeURIComponent(slug) : 'eventId=' + encodeURIComponent(eventId);
+        var res = await fetch('/api/v2/events?action=getPublic&' + queryParams);
+        var result = await res.json();
+
+        if (!result.success || !result.event) { showError('Event not found'); return; }
+
+        currentEventData = result.event;
+        document.title = result.event.title + ' — Ryvite';
+
+        if (result.event.themeHtml && result.event.themeCss) {
+          var config = result.event.themeConfig || {};
+          var fontsImport = config.googleFontsImport || '';
+          var iframe = document.getElementById('themeFrame');
+          iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>* { margin:0; padding:0; box-sizing:border-box; } html, body { padding: 20px; background: #f9f9f9; } ' + fontsImport + '</style><style>' + result.event.themeCss + '</style></head><body>' + result.event.themeHtml + '</body></html>';
+          iframe.style.display = 'block';
+          iframe.onload = function() { try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 40, 600) + 'px'; } catch(e) {} };
+        }
+
+        renderRSVPForm(result.event);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('poweredBy').style.display = 'block';
+      } catch (err) { console.error(err); showError('Error loading event'); }
+    }
+
+    function renderRSVPForm(event) {
+      var rsvpSection = document.getElementById('rsvpSection');
+      var customFields = event.customFields || [];
+      var html = '<h3>RSVP</h3><div id="rsvpForm">';
+
+      // Name (always required)
+      html += '<div class="rsvp-form-group">'
+        + '<label for="rsvpName">Name <span class="required-star">*</span></label>'
+        + '<input type="text" id="rsvpName" placeholder="Your name" required>'
+        + '</div>';
+
+      // Email field — check if in custom fields, otherwise add default
+      var hasEmail = customFields.some(function(f) { return f.key === 'email'; });
+      if (hasEmail) {
+        var emailField = customFields.find(function(f) { return f.key === 'email'; });
+        html += renderField(emailField);
+      } else {
+        html += '<div class="rsvp-form-group">'
+          + '<label for="rsvpEmail">Email</label>'
+          + '<input type="email" id="rsvpEmail" placeholder="your@email.com">'
+          + '</div>';
+      }
+
+      // RSVP Status (always required)
+      html += '<div class="rsvp-form-group">'
+        + '<label for="rsvpStatus">RSVP Status <span class="required-star">*</span></label>'
+        + '<select id="rsvpStatus" required>'
+        + '<option value="">Select...</option>'
+        + '<option value="yes">Yes, I\'ll be there!</option>'
+        + '<option value="no">No, sorry</option>'
+        + '<option value="maybe">Maybe</option>'
+        + '</select></div>';
+
+      // Render custom fields (skip email since handled above)
+      customFields.forEach(function(field) {
+        if (field.key === 'email') return;
+        html += renderField(field);
+      });
+
+      html += '<button class="rsvp-submit" id="rsvpSubmitBtn" onclick="submitRSVP()">Submit RSVP</button>';
+      html += '</div>';
+
+      // Calendar buttons
+      html += '<div class="calendar-buttons">'
+        + '<a class="calendar-btn" href="' + generateGoogleCalendarLink(event) + '" target="_blank">Google Calendar</a>'
+        + '<a class="calendar-btn" href="' + generateOutlookLink(event) + '" target="_blank">Outlook</a>'
+        + '<button class="calendar-btn" onclick="downloadICS()">Download .ics</button>'
+        + '</div>';
+
+      rsvpSection.innerHTML = html;
+      rsvpSection.style.display = 'block';
+    }
+
+    function renderField(field) {
+      var id = 'custom_' + field.key;
+      var reqStar = field.required ? ' <span class="required-star">*</span>' : '';
+      var reqAttr = field.required ? ' required' : '';
+      var placeholder = field.placeholder || '';
+      var html = '<div class="rsvp-form-group">';
+      html += '<label for="' + id + '">' + escapeHtml(field.label) + reqStar + '</label>';
+
+      if (field.type === 'checkbox') {
+        html += '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">'
+          + '<input type="checkbox" id="' + id + '"' + reqAttr + ' style="width:18px;height:18px;">'
+          + '<span>' + escapeHtml(placeholder || field.label) + '</span></label>';
+      } else if (field.type === 'select' && field.options && field.options.length > 0) {
+        html += '<select id="' + id + '"' + reqAttr + '><option value="">Select...</option>';
+        field.options.forEach(function(opt) {
+          html += '<option value="' + escapeHtml(opt) + '">' + escapeHtml(opt) + '</option>';
+        });
+        html += '</select>';
+      } else if (field.type === 'textarea') {
+        html += '<textarea id="' + id + '" placeholder="' + escapeHtml(placeholder) + '"' + reqAttr + '></textarea>';
+      } else if (field.type === 'number') {
+        html += '<input type="number" id="' + id + '" placeholder="' + escapeHtml(placeholder) + '" min="0"' + reqAttr + '>';
+      } else if (field.type === 'email') {
+        html += '<input type="email" id="' + id + '" placeholder="' + escapeHtml(placeholder || 'your@email.com') + '"' + reqAttr + '>';
+      } else if (field.type === 'phone' || field.type === 'tel') {
+        html += '<input type="tel" id="' + id + '" placeholder="' + escapeHtml(placeholder || '(555) 123-4567') + '"' + reqAttr + '>';
+      } else {
+        html += '<input type="text" id="' + id + '" placeholder="' + escapeHtml(placeholder) + '"' + reqAttr + '>';
+      }
+      html += '</div>';
+      return html;
+    }
+
+    async function submitRSVP() {
+      var name = document.getElementById('rsvpName').value.trim();
+      var status = document.getElementById('rsvpStatus').value;
+      if (!name || !status) { alert('Please fill in your name and RSVP status'); return; }
+
+      // Collect email
+      var emailEl = document.getElementById('rsvpEmail') || document.getElementById('custom_email');
+      var email = emailEl ? emailEl.value.trim() : '';
+
+      // Collect phone
+      var phoneEl = document.getElementById('custom_phone');
+      var phone = phoneEl ? phoneEl.value.trim() : '';
+
+      // Collect custom field values
+      var customFields = currentEventData.customFields || [];
+      var responseData = {};
+      var missingRequired = false;
+
+      customFields.forEach(function(field) {
+        if (field.key === 'email') return; // handled above
+        var el = document.getElementById('custom_' + field.key);
+        if (!el) return;
+        var val;
+        if (field.type === 'checkbox') {
+          val = el.checked ? 'Yes' : '';
+          if (field.required && !el.checked) { missingRequired = true; }
+        } else {
+          val = el.value.trim();
+          if (field.required && !val) { missingRequired = true; }
+        }
+        if (val) responseData[field.key] = val;
+        if (field.key === 'phone' || field.type === 'phone' || field.type === 'tel') {
+          phone = val;
+        }
+      });
+
+      if (missingRequired) { alert('Please fill in all required fields'); return; }
+
+      // Check plus_ones
+      var plusOnes = responseData.plus_ones || responseData.plusOnes || 0;
+      if (typeof plusOnes === 'string') plusOnes = parseInt(plusOnes, 10) || 0;
+
+      var btn = document.getElementById('rsvpSubmitBtn');
+      btn.disabled = true;
+      // Show loading pun from theme config if available
+      var loadingPun = (currentEventData.themeConfig || {}).loadingPun || 'Submitting...';
+      btn.textContent = loadingPun;
+
+      // Also show a loading overlay inside the RSVP form
+      var rsvpForm = document.getElementById('rsvpForm');
+      var loadingOverlay = document.createElement('div');
+      loadingOverlay.id = 'rsvpLoadingOverlay';
+      loadingOverlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.9);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;border-radius:12px;';
+      var primaryColor = (currentEventData.themeConfig || {}).primaryColor || '#333';
+      loadingOverlay.innerHTML = '<div style="width:32px;height:32px;border:3px solid #eee;border-top-color:' + primaryColor + ';border-radius:50%;animation:rsvpSpin 0.8s linear infinite;margin-bottom:16px;"></div>'
+        + '<div style="font-size:16px;font-weight:600;color:' + primaryColor + ';text-align:center;padding:0 20px;">' + escapeHtml(loadingPun) + '</div>';
+      rsvpForm.style.position = 'relative';
+      rsvpForm.appendChild(loadingOverlay);
+
+      // Add spin animation if not present
+      if (!document.getElementById('rsvpSpinStyle')) {
+        var spinStyle = document.createElement('style');
+        spinStyle.id = 'rsvpSpinStyle';
+        spinStyle.textContent = '@keyframes rsvpSpin { to { transform: rotate(360deg); } }';
+        document.head.appendChild(spinStyle);
+      }
+
+      try {
+        var res = await fetch('/api/v2/events?action=rsvp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId: currentEventData.id,
+            name: name,
+            email: email,
+            phone: phone,
+            status: status,
+            plusOnes: plusOnes,
+            responseData: responseData
+          })
+        });
+        var result = await res.json();
+        if (result.success) {
+          showThankYouPage(name, status);
+          triggerConfetti();
+        } else { alert(result.error || 'Error submitting RSVP. Please try again.'); }
+      } catch (err) { alert('Error submitting RSVP. Please try again.'); }
+      finally {
+        btn.disabled = false; btn.textContent = 'Submit RSVP';
+        var overlay = document.getElementById('rsvpLoadingOverlay');
+        if (overlay) overlay.remove();
+      }
+    }
+
+    // Guaranteed CSS + HTML for thank you page structure
+    // AI provides: background styling, hero heading/subtitle, decorative elements, CSS
+    // We guarantee: calendar buttons, footer text, layout structure
+    function buildThankyouGuaranteedCSS(config) {
+      var pc = config.primaryColor || '#333';
+      var sc = config.secondaryColor || '#4CAF50';
+      var ac = config.accentColor || '#2196F3';
+      return '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }'
+        + '.thankyou-hero { margin-bottom:32px; }'
+        + '.thankyou-title { font-size:36px; font-weight:700; margin-bottom:12px; }'
+        + '.thankyou-subtitle { font-size:16px; line-height:1.5; opacity:0.8; }'
+        + '.thankyou-calendar-section { width:100%; max-width:320px; padding:0 8px; }'
+        + '.calendar-label { font-size:14px; margin-bottom:16px; opacity:0.7; }'
+        + '.calendar-buttons { display:flex; flex-direction:column; gap:12px; width:100%; }'
+        + '.cal-btn { display:block; width:100%; padding:16px 24px; border-radius:12px; border:none; font-family:inherit; font-size:16px; font-weight:600; cursor:pointer; transition:transform 0.15s,box-shadow 0.15s; text-align:center; color:#fff; }'
+        + '.cal-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.15); }'
+        + '.cal-apple { background:' + pc + '; color:#fff; }'
+        + '.cal-google { background:' + sc + '; color:#fff; }'
+        + '.cal-outlook { background:' + ac + '; color:#fff; }'
+        + '.thankyou-footer { font-size:12px; opacity:0.5; margin-top:40px; text-align:center; }'
+        + '.thankyou-footer a { color:inherit; text-decoration:none; }';
+    }
+
+    function stripAndInjectGuaranteedElements(tyHtml) {
+      // Strip out AI-generated calendar section and footer — we inject our own guaranteed versions
+      tyHtml = tyHtml.replace(/<div[^>]*class="[^"]*thankyou-calendar-section[^"]*"[^>]*>[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/g, '');
+      tyHtml = tyHtml.replace(/<div[^>]*class="[^"]*calendar-buttons[^"]*"[^>]*>[\s\S]*?<\/div>/g, '');
+      tyHtml = tyHtml.replace(/<button[^>]*class="[^"]*cal-btn[^"]*"[^>]*>[\s\S]*?<\/button>/g, '');
+      tyHtml = tyHtml.replace(/<p[^>]*class="[^"]*calendar-label[^"]*"[^>]*>[\s\S]*?<\/p>/g, '');
+      tyHtml = tyHtml.replace(/<p[^>]*class="[^"]*thankyou-footer[^"]*"[^>]*>[\s\S]*?<\/p>/g, '');
+      tyHtml = tyHtml.replace(/<p[^>]*>[\s\S]*?Made with[\s\S]*?<\/p>/g, '');
+
+      // Guaranteed HTML
+      var calendarHTML = '<div class="thankyou-calendar-section">'
+        + '<p class="calendar-label">Add to your calendar:</p>'
+        + '<div class="calendar-buttons">'
+        + '<button class="cal-btn cal-apple" data-cal="apple">Apple / Outlook (.ics)</button>'
+        + '<button class="cal-btn cal-google" data-cal="google">Google Calendar</button>'
+        + '<button class="cal-btn cal-outlook" data-cal="outlook">Outlook Web</button>'
+        + '</div></div>';
+      var footerHTML = '<p class="thankyou-footer">Made with &#10084; by <a href="https://www.ryvite.com">Ryvite</a></p>';
+
+      // Inject before last closing </div> (the .thankyou-page container)
+      var lastDivIdx = tyHtml.lastIndexOf('</div>');
+      if (lastDivIdx !== -1) {
+        tyHtml = tyHtml.substring(0, lastDivIdx) + calendarHTML + footerHTML + '</div>';
+      } else {
+        tyHtml += calendarHTML + footerHTML;
+      }
+      return tyHtml;
+    }
+
+    function showThankYouPage(guestName, rsvpStatus) {
+      var config = currentEventData.themeConfig || {};
+      var eventTitle = currentEventData.title || 'the event';
+      var guaranteedCSS = buildThankyouGuaranteedCSS(config);
+
+      // If we have AI-generated thank you HTML, show it in the theme iframe
+      if (config.thankyouHtml) {
+        var tyHtml = config.thankyouHtml;
+        tyHtml = tyHtml.replace(/<span class="thankyou-guest">[^<]*<\/span>/g, '<span class="thankyou-guest">' + escapeHtml(guestName) + '</span>');
+        tyHtml = tyHtml.replace(/<span class="thankyou-event">[^<]*<\/span>/g, '<span class="thankyou-event">' + escapeHtml(eventTitle) + '</span>');
+        tyHtml = stripAndInjectGuaranteedElements(tyHtml);
+
+        var fontsImport = config.googleFontsImport || '';
+        var iframe = document.getElementById('themeFrame');
+        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>* { margin:0; padding:0; box-sizing:border-box; } html, body { padding: 0; background: transparent; } ' + fontsImport + '</style><style>' + guaranteedCSS + '</style><style>' + (currentEventData.themeCss || '') + '</style></head><body>' + tyHtml + '</body></html>';
+        iframe.onload = function() { try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 40, 600) + 'px'; } catch(e) {} };
+
+        // Wire up calendar buttons inside the iframe after load
+        iframe.addEventListener('load', function() {
+          try {
+            var btns = iframe.contentDocument.querySelectorAll('.cal-btn, [data-cal]');
+            btns.forEach(function(btn) {
+              btn.style.cursor = 'pointer';
+              btn.addEventListener('click', function() {
+                var calType = btn.getAttribute('data-cal') || btn.textContent.trim().toLowerCase();
+                if (calType === 'google') { window.open(generateGoogleCalendarLink(currentEventData), '_blank'); }
+                else if (calType === 'outlook') { window.open(generateOutlookLink(currentEventData), '_blank'); }
+                else { downloadICS(); } // apple, ics, or any other
+              });
+            });
+          } catch(e) {}
+        });
+
+        // Hide the RSVP section, scroll to top
+        document.getElementById('rsvpSection').style.display = 'none';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+
+      // Fallback: show simple success in the form area with calendar buttons
+      var calHtml = buildCalendarButtons();
+      document.getElementById('rsvpForm').innerHTML = '<div class="rsvp-success">RSVP received! Thanks for confirming, ' + escapeHtml(guestName) + '.</div>' + calHtml;
+    }
+
+    function buildCalendarButtons() {
+      if (!currentEventData) return '';
+      return '<div class="calendar-buttons">'
+        + '<a class="calendar-btn" href="' + generateGoogleCalendarLink(currentEventData) + '" target="_blank">Google Calendar</a>'
+        + '<a class="calendar-btn" href="javascript:void(0)" onclick="downloadICS()">Apple Calendar</a>'
+        + '<a class="calendar-btn" href="' + generateOutlookLink(currentEventData) + '" target="_blank">Outlook</a>'
+        + '<a class="calendar-btn" href="' + generateYahooLink(currentEventData) + '" target="_blank">Yahoo Calendar</a>'
+        + '</div>';
+    }
+
+    function triggerConfetti() {
+      var emojis = ['🎉','🎊','🎈','✨','🎁','🥳','💫','⭐'];
+      for (var i = 0; i < 20; i++) {
+        (function(j) {
+          setTimeout(function() {
+            var piece = document.createElement('div');
+            piece.className = 'confetti-piece';
+            piece.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            piece.style.left = Math.random() * 100 + 'vw';
+            piece.style.top = '-30px';
+            piece.style.animationDuration = (Math.random() * 2 + 2) + 's';
+            document.body.appendChild(piece);
+            setTimeout(function() { piece.remove(); }, 5000);
+          }, j * 100);
+        })(i);
+      }
+    }
+
+    function generateGoogleCalendarLink(event) {
+      var s = new Date(event.eventDate), e = event.endDate ? new Date(event.endDate) : new Date(s.getTime() + 3600000);
+      return 'https://calendar.google.com/calendar/u/0/r/eventedit?' + new URLSearchParams({ action: 'TEMPLATE', text: event.title, dates: fmtDate(s) + '/' + fmtDate(e), location: event.locationName + (event.locationAddress ? ', ' + event.locationAddress : ''), details: event.description || '' }).toString();
+    }
+
+    function generateOutlookLink(event) {
+      var s = new Date(event.eventDate), e = event.endDate ? new Date(event.endDate) : new Date(s.getTime() + 3600000);
+      return 'https://outlook.live.com/calendar/0/deeplink/compose?' + new URLSearchParams({ path: '/calendar/action/compose', rru: 'addevent', subject: event.title, startdt: s.toISOString(), enddt: e.toISOString(), location: event.locationName + (event.locationAddress ? ', ' + event.locationAddress : ''), body: event.description || '' }).toString();
+    }
+
+    function generateYahooLink(event) {
+      var s = new Date(event.eventDate), e = event.endDate ? new Date(event.endDate) : new Date(s.getTime() + 3600000);
+      var dur = Math.round((e - s) / 3600000);
+      var durStr = (dur < 10 ? '0' : '') + dur + '00';
+      return 'https://calendar.yahoo.com/?' + new URLSearchParams({ v: '60', title: event.title, st: fmtDate(s), dur: durStr, in_loc: event.locationName + (event.locationAddress ? ', ' + event.locationAddress : ''), desc: event.description || '' }).toString();
+    }
+
+    function downloadICS() {
+      if (!currentEventData) return;
+      var ev = currentEventData, s = new Date(ev.eventDate), e = ev.endDate ? new Date(ev.endDate) : new Date(s.getTime() + 3600000);
+      var ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Ryvite//Event//EN','BEGIN:VEVENT','DTSTART:' + fmtDate(s),'DTEND:' + fmtDate(e),'SUMMARY:' + ev.title,'LOCATION:' + ev.locationName + (ev.locationAddress ? ', ' + ev.locationAddress : ''),'DESCRIPTION:' + (ev.description || '').replace(/\n/g, '\\n'),'END:VEVENT','END:VCALENDAR'].join('\r\n');
+      var blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+      var link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = ev.title.replace(/[^a-z0-9]/gi, '-').toLowerCase() + '.ics';
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    function fmtDate(d) { return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; }
+    function showError(msg) { document.getElementById('error').textContent = msg; document.getElementById('error').style.display = 'block'; document.getElementById('loading').style.display = 'none'; }
+    function escapeHtml(str) { var div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML; }
+
+    loadEvent();
+  </script>
+</body>
+</html>

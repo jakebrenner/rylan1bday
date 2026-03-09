@@ -1,0 +1,17 @@
+{
+  "functions": {
+    "api/v2/generate-theme.js": {
+      "maxDuration": 120,
+      "memory": 1024
+    },
+    "api/v2/chat.js": {
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/v2/event/:slug",
+      "destination": "/v2/event/index.html"
+    }
+  ]
+}

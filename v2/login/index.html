@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Ryvite</title>
+  <meta name="description" content="Sign in to Ryvite to create beautiful AI-designed event invitations.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --party-coral: #E94560;
+      --blush-pop: #FF6B6B;
+      --midnight: #1A1A2E;
+      --confetti-gold: #FFB74D;
+      --mint-fizz: #4ECDC4;
+      --party-purple: #A78BFA;
+      --cream: #FFFAF5;
+    }
+    html, body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, var(--midnight) 0%, #2a2a4e 100%);
+      color: var(--midnight);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .login-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+      width: 100%;
+      max-width: 420px;
+      padding: 40px;
+    }
+    .login-header { text-align: center; margin-bottom: 40px; }
+    .login-header h1 { font-family: 'Playfair Display', serif; font-size: 32px; color: var(--midnight); margin-bottom: 8px; }
+    .login-header p { font-size: 14px; color: #666; }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; font-size: 14px; font-weight: 600; color: var(--midnight); margin-bottom: 8px; }
+    input[type="email"], input[type="text"] {
+      width: 100%; padding: 12px 16px; border: 1px solid #ddd; border-radius: 6px;
+      font-family: 'Inter', sans-serif; font-size: 14px; transition: border-color 0.2s;
+    }
+    input:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.1); }
+    .btn {
+      width: 100%; padding: 12px 20px; border: none; border-radius: 6px;
+      font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-primary { background: var(--party-coral); color: white; }
+    .btn-primary:hover { background: var(--blush-pop); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(233, 69, 96, 0.3); }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+    .message { padding: 12px 16px; border-radius: 6px; font-size: 14px; margin-bottom: 20px; display: none; }
+    .message.success { background: #d4edda; color: #155724; display: block; }
+    .message.error { background: #f8d7da; color: #721c24; display: block; }
+    .message.info { background: #cce5ff; color: #004085; display: block; }
+    .loading-spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3); border-top: 2px solid white;
+      border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .divider { text-align: center; margin: 30px 0 20px; font-size: 13px; color: #999; }
+    .toggle-mode { text-align: center; font-size: 13px; }
+    .toggle-mode button {
+      background: none; border: none; color: var(--party-coral); cursor: pointer;
+      font-weight: 600; text-decoration: underline; font-family: 'Inter', sans-serif;
+    }
+    .back-link { display: block; text-align: center; margin-top: 24px; font-size: 13px; }
+    .back-link a { color: #999; text-decoration: none; }
+    .back-link a:hover { color: var(--party-coral); }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-header">
+      <svg viewBox="0 0 210 80" xmlns="http://www.w3.org/2000/svg" style="height:48px;width:auto;margin-bottom:8px;"><circle cx="32" cy="40" r="22" fill="none" stroke="var(--party-coral)" stroke-width="2.2"/><path d="M18 30 L32 42 L46 30" fill="none" stroke="var(--party-coral)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50 L46 50" fill="none" stroke="var(--party-coral)" stroke-width="1.8" stroke-linecap="round"/><circle cx="32" cy="22" r="3.5" fill="var(--confetti-gold)" opacity="0.7"/><circle cx="23" cy="26" r="2.2" fill="var(--blush-pop)" opacity="0.5"/><circle cx="41" cy="25" r="2.2" fill="var(--confetti-gold)" opacity="0.5"/><text x="64" y="52" font-family="Playfair Display, serif" font-size="34" font-weight="700" fill="var(--midnight)">Ryvite</text></svg>
+      <p>Create beautiful AI-designed event invites</p>
+    </div>
+
+    <div id="message" class="message"></div>
+
+    <!-- Login Mode -->
+    <div id="loginMode">
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" placeholder="you@example.com" required>
+      </div>
+      <button class="btn btn-primary" id="submitBtn" onclick="handleLogin()">Send Magic Link</button>
+      <div class="divider">or</div>
+      <div class="toggle-mode">
+        Don't have an account? <button onclick="toggleMode('signup')">Sign up</button>
+      </div>
+    </div>
+
+    <!-- Signup Mode -->
+    <div id="signupMode" style="display: none;">
+      <div class="form-group">
+        <label for="signupName">Name</label>
+        <input type="text" id="signupName" placeholder="Your name" required>
+      </div>
+      <div class="form-group">
+        <label for="signupEmail">Email Address</label>
+        <input type="email" id="signupEmail" placeholder="you@example.com" required>
+      </div>
+      <div class="form-group">
+        <label for="signupPhone">Phone (optional)</label>
+        <input type="text" id="signupPhone" placeholder="(555) 123-4567">
+      </div>
+      <button class="btn btn-primary" id="submitSignupBtn" onclick="handleSignup()">Create Account</button>
+      <div class="divider">or</div>
+      <div class="toggle-mode">
+        Already have an account? <button onclick="toggleMode('login')">Log in</button>
+      </div>
+    </div>
+
+    <!-- Check Email Confirmation -->
+    <div id="checkEmailMode" style="display: none; text-align: center;">
+      <div style="font-size: 48px; margin-bottom: 16px;">&#9993;</div>
+      <h2 style="font-family: 'Playfair Display', serif; font-size: 24px; color: var(--midnight); margin-bottom: 12px;">Check your email</h2>
+      <p style="font-size: 14px; color: #666; margin-bottom: 8px;">We sent a login link to</p>
+      <p id="checkEmailAddress" style="font-size: 15px; font-weight: 600; color: var(--midnight); margin-bottom: 24px;"></p>
+      <p style="font-size: 13px; color: #999; margin-bottom: 24px;">Click the link in the email to sign in. It may take a minute to arrive.</p>
+      <button class="btn btn-primary" style="background: transparent; color: var(--party-coral); border: 1px solid var(--party-coral);" onclick="toggleMode('login')">Back to login</button>
+    </div>
+
+    <div class="back-link"><a href="/">&larr; Back to Ryvite</a></div>
+  </div>
+
+  <script>
+    const messageEl = document.getElementById('message');
+
+    // On page load: check for Supabase auth callback (magic link redirect)
+    (async function init() {
+      const hash = window.location.hash;
+
+      // Handle #signup deep link from homepage
+      if (hash === '#signup') {
+        window.history.replaceState(null, '', window.location.pathname);
+        toggleMode('signup');
+        // Don't return — still check for existing session below
+      }
+
+      // Check URL hash for Supabase auth tokens (magic link callback)
+      if (hash && hash.includes('access_token')) {
+        showMessage('Verifying your login...', 'info');
+
+        // Parse the hash fragment
+        const params = new URLSearchParams(hash.substring(1));
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+
+        // Clear the hash immediately so refreshing doesn't re-process
+        window.history.replaceState(null, '', window.location.pathname);
+
+        if (accessToken) {
+          // Validate token by fetching user profile from our API
+          try {
+            const res = await fetch('/api/v2/auth?action=profile', {
+              headers: { 'Authorization': 'Bearer ' + accessToken }
+            });
+            const result = await res.json();
+
+            if (result.success) {
+              // Token is valid — store everything and redirect
+              localStorage.setItem('sb_access_token', accessToken);
+              localStorage.setItem('sb_refresh_token', refreshToken || '');
+              localStorage.setItem('v2_user', JSON.stringify(result.user));
+              showMessage('Login successful! Redirecting...', 'success');
+              setTimeout(function() { window.location.href = '/v2/dashboard/'; }, 1000);
+              return;
+            }
+          } catch (err) {
+            console.error('Profile fetch error:', err);
+          }
+
+          // Token was invalid — clear any stale data
+          localStorage.removeItem('sb_access_token');
+          localStorage.removeItem('sb_refresh_token');
+          localStorage.removeItem('v2_user');
+          showMessage('Login link expired or invalid. Please request a new one.', 'error');
+        }
+        return;
+      }
+
+      // Check if already logged in — validate the token is still good
+      const token = localStorage.getItem('sb_access_token');
+      const user = localStorage.getItem('v2_user');
+      if (token && user) {
+        try {
+          const res = await fetch('/api/v2/auth?action=profile', {
+            headers: { 'Authorization': 'Bearer ' + token }
+          });
+          const result = await res.json();
+          if (result.success) {
+            window.location.href = '/v2/dashboard/';
+            return;
+          }
+        } catch (err) {}
+        // Token is stale — clear it
+        localStorage.removeItem('sb_access_token');
+        localStorage.removeItem('sb_refresh_token');
+        localStorage.removeItem('v2_user');
+      }
+    })();
+
+    function toggleMode(mode) {
+      document.getElementById('loginMode').style.display = mode === 'login' ? 'block' : 'none';
+      document.getElementById('signupMode').style.display = mode === 'signup' ? 'block' : 'none';
+      document.getElementById('checkEmailMode').style.display = mode === 'checkEmail' ? 'block' : 'none';
+      messageEl.style.display = 'none';
+    }
+
+    async function handleLogin() {
+      const email = document.getElementById('email').value.trim();
+      if (!email) { showMessage('Please enter your email', 'error'); return; }
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner"></span>Sending...';
+
+      try {
+        const res = await fetch('/api/v2/auth?action=login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const result = await res.json();
+        if (result.success) {
+          document.getElementById('checkEmailAddress').textContent = email;
+          toggleMode('checkEmail');
+          return;
+        } else {
+          showMessage(result.error || 'Error sending link', 'error');
+        }
+      } catch (err) {
+        showMessage('Error sending link. Please try again.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Send Magic Link';
+      }
+    }
+
+    async function handleSignup() {
+      const displayName = document.getElementById('signupName').value.trim();
+      const email = document.getElementById('signupEmail').value.trim();
+      const phone = document.getElementById('signupPhone').value.trim();
+      if (!displayName || !email) { showMessage('Please fill in name and email', 'error'); return; }
+
+      const btn = document.getElementById('submitSignupBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner"></span>Creating account...';
+
+      try {
+        const res = await fetch('/api/v2/auth?action=signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ displayName, email, phone })
+        });
+        const result = await res.json();
+        if (result.success) {
+          document.getElementById('checkEmailAddress').textContent = email;
+          toggleMode('checkEmail');
+          return;
+        } else {
+          showMessage(result.error || 'Error creating account', 'error');
+        }
+      } catch (err) {
+        showMessage('Error creating account. Please try again.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Create Account';
+      }
+    }
+
+    function showMessage(text, type) {
+      messageEl.textContent = text;
+      messageEl.className = 'message ' + type;
+    }
+
+    document.getElementById('email').addEventListener('keydown', function(e) { if (e.key === 'Enter') handleLogin(); });
+    document.getElementById('signupEmail').addEventListener('keydown', function(e) { if (e.key === 'Enter') handleSignup(); });
+  </script>
+</body>
+</html>

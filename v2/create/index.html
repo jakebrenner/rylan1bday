@@ -1,0 +1,2748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Event — Ryvite</title>
+  <meta name="description" content="Create a beautiful AI-designed event invitation in minutes.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --party-coral: #E94560; --blush-pop: #FF6B6B; --midnight: #1A1A2E;
+      --confetti-gold: #FFB74D; --mint-fizz: #4ECDC4; --party-purple: #A78BFA; --cream: #FFFAF5;
+    }
+    html, body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--midnight); height: 100%; }
+    .header { background: white; border-bottom: 1px solid #eee; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .header-left { display: flex; align-items: center; }
+    .header-left > a { text-decoration: none; display: flex; align-items: center; }
+    .header-right { display: flex; gap: 12px; align-items: center; }
+    .profile-menu { position: relative; }
+    .profile-btn { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #eee; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+    .profile-btn:hover { border-color: var(--party-coral); }
+    .profile-dropdown { display: none; position: absolute; top: 52px; right: 0; background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); min-width: 220px; z-index: 100; overflow: hidden; border: 1px solid #eee; }
+    .profile-dropdown.open { display: block; }
+    .profile-dropdown-header { padding: 14px 16px; border-bottom: 1px solid #eee; }
+    .profile-dropdown-name { font-weight: 600; font-size: 14px; }
+    .profile-dropdown-email { font-size: 12px; color: #666; margin-top: 2px; }
+    .profile-dropdown-item { display: flex; align-items: center; gap: 10px; padding: 12px 16px; font-size: 14px; cursor: pointer; transition: background 0.15s; border: none; background: none; width: 100%; text-align: left; font-family: 'Inter', sans-serif; color: var(--midnight); }
+    .profile-dropdown-item:hover { background: #f5f5f5; }
+    .profile-dropdown-item.danger { color: #dc3545; }
+    .step-indicator { display: flex; gap: 8px; justify-content: center; margin: 20px 0 8px; }
+    .step-dot { width: 32px; height: 32px; border-radius: 50%; background: #eee; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #999; transition: all 0.3s; }
+    .step-dot.active { background: var(--party-coral); color: white; }
+    .step-dot.completed { background: var(--mint-fizz); color: white; }
+    .container { max-width: 900px; margin: 0 auto; padding: 0 20px; }
+    .step { display: none; animation: fadeIn 0.3s; }
+    .step.active { display: flex; flex-direction: column; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .step h2 { font-family: 'Playfair Display', serif; font-size: 28px; margin-bottom: 8px; }
+    .step p.step-desc { color: #666; margin-bottom: 20px; font-size: 14px; }
+    .btn { padding: 12px 24px; border: none; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+    .btn-primary { background: var(--party-coral); color: white; }
+    .btn-primary:hover { background: var(--blush-pop); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(233,69,96,0.3); }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-secondary { background: #f0f0f0; color: var(--midnight); }
+    .btn-secondary:hover { background: #e0e0e0; }
+    .btn-sm { padding: 6px 14px; font-size: 12px; }
+    .button-group { display: flex; gap: 10px; margin-top: 40px; flex-wrap: wrap; }
+    .button-group .btn { flex: 1; min-width: 0; white-space: nowrap; font-size: 13px; padding: 12px 16px; }
+    @media (max-width: 640px) {
+      .button-group { gap: 8px; }
+      .button-group .btn { font-size: 12px; padding: 10px 12px; }
+    }
+    @media (max-width: 420px) {
+      .button-group { flex-direction: column; }
+      .button-group .btn { flex: none; width: 100%; }
+    }
+    .form-group { margin-bottom: 24px; }
+    label { display: block; font-size: 14px; font-weight: 600; color: var(--midnight); margin-bottom: 8px; }
+    input[type="text"], select, textarea { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 14px; color: var(--midnight); transition: border-color 0.2s; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+    textarea { resize: vertical; min-height: 80px; }
+    .message { padding: 12px 16px; border-radius: 6px; font-size: 14px; margin-bottom: 20px; display: none; }
+    .message.error { background: #f8d7da; color: #721c24; display: block; }
+    .message.success { background: #d4edda; color: #155724; display: block; }
+
+    /* Chat UI */
+    .chat-container { display: flex; flex-direction: column; justify-content: center; min-height: calc(100vh - 80px); max-width: 720px; margin: 0 auto; padding: 0 20px; }
+    .chat-messages { overflow-y: auto; padding: 24px 0; display: flex; flex-direction: column; gap: 16px; max-height: 50vh; }
+    .chat-bubble { max-width: 85%; padding: 14px 18px; border-radius: 16px; font-size: 14px; line-height: 1.6; animation: fadeIn 0.3s; }
+    .chat-bubble.assistant { background: white; border: 1px solid #eee; align-self: flex-start; border-bottom-left-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+    .chat-bubble.user { background: var(--party-coral); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+    .chat-bubble.typing { display: flex; gap: 6px; padding: 16px 22px; }
+    .chat-bubble.typing span { width: 8px; height: 8px; background: #ccc; border-radius: 50%; animation: typingBounce 1.4s ease-in-out infinite; }
+    .chat-bubble.typing span:nth-child(2) { animation-delay: 0.2s; }
+    .chat-bubble.typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingBounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+    .chat-input-area { padding: 16px 0 0; }
+    .chat-input-row { display: flex; gap: 10px; }
+    .chat-input { flex: 1; padding: 14px 18px; border: 1px solid #ddd; border-radius: 24px; font-family: 'Inter', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s; background: white; }
+    .chat-input:focus { border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+    .chat-send { width: 48px; height: 48px; border-radius: 50%; background: var(--party-coral); color: white; border: none; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
+    .chat-send:hover { background: var(--blush-pop); transform: scale(1.05); }
+    .chat-send:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+
+    /* Extracted summary card in chat */
+    .chat-extracted { background: white; border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; margin-top: 8px; align-self: flex-start; max-width: 95%; width: 100%; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .chat-extracted h4 { font-size: 14px; font-weight: 600; color: var(--midnight); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .chat-extracted-grid { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13px; margin-bottom: 16px; }
+    .chat-extracted-label { font-weight: 600; color: #888; }
+    .chat-extracted-value { color: var(--midnight); }
+    .chat-extracted-divider { grid-column: 1 / -1; border-top: 1px solid #eee; margin: 8px 0; }
+
+    /* RSVP field editor */
+    .rsvp-section { margin-top: 16px; border-top: 1px solid #eee; padding-top: 16px; }
+    .rsvp-section h4 { font-size: 14px; font-weight: 600; color: var(--midnight); margin-bottom: 4px; }
+    .rsvp-section p { font-size: 12px; color: #888; margin-bottom: 12px; }
+    .rsvp-defaults { font-size: 12px; color: #999; margin-bottom: 12px; padding: 8px 12px; background: #f9f9f9; border-radius: 6px; }
+    .rsvp-field-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+    .rsvp-field-row:last-child { border-bottom: none; }
+    .rsvp-field-toggle { width: 36px; height: 20px; border-radius: 10px; background: #ddd; border: none; cursor: pointer; position: relative; transition: background 0.2s; flex-shrink: 0; }
+    .rsvp-field-toggle.on { background: var(--mint-fizz); }
+    .rsvp-field-toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: white; border-radius: 50%; transition: transform 0.2s; }
+    .rsvp-field-toggle.on::after { transform: translateX(16px); }
+    .rsvp-field-info { flex: 1; min-width: 0; }
+    .rsvp-field-label { font-size: 13px; font-weight: 600; color: var(--midnight); }
+    .rsvp-field-meta { font-size: 11px; color: #999; }
+    .rsvp-add-btn { margin-top: 8px; background: none; border: 1px dashed #ccc; color: #999; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: 'Inter', sans-serif; width: 100%; transition: all 0.2s; }
+    .rsvp-add-btn:hover { border-color: var(--party-coral); color: var(--party-coral); }
+    .rsvp-add-form { margin-top: 12px; padding: 12px; background: #f9f9f9; border-radius: 8px; }
+    .rsvp-add-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    .rsvp-add-form input, .rsvp-add-form select { padding: 8px 10px; font-size: 12px; border: 1px solid #ddd; border-radius: 4px; font-family: 'Inter', sans-serif; }
+    .rsvp-add-form .form-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+    .chat-proceed { margin-top: 16px; width: 100%; }
+
+    /* Creative Direction */
+    .example-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .chip { background: #f0f0f0; border: 1px solid #ddd; padding: 8px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; transition: all 0.2s; font-family: 'Inter', sans-serif; }
+    .chip:hover { background: var(--cream); border-color: var(--party-coral); color: var(--party-coral); }
+    .image-upload-area { border: 2px dashed #ddd; border-radius: 6px; padding: 30px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fafafa; }
+    .image-upload-area:hover, .image-upload-area.dragover { border-color: var(--party-coral); background: rgba(233,69,96,0.05); }
+    .image-upload-area p { margin: 0; color: #666; font-size: 14px; }
+    .image-previews { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 12px; margin-top: 16px; }
+    .image-preview { position: relative; width: 80px; height: 80px; border-radius: 4px; overflow: hidden; background: #eee; }
+    .image-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .image-preview .remove { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; border: none; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+    .image-preview .converting { position: absolute; inset: 0; background: rgba(0,0,0,0.5); color: white; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; }
+
+    /* Generate/Preview */
+    .loading-spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid rgba(233,69,96,0.3); border-top: 2px solid var(--party-coral); border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-state { text-align: center; padding: 60px 20px; }
+    .loading-state h3 { font-family: 'Playfair Display', serif; font-size: 24px; margin-bottom: 16px; }
+    .loading-state p { color: #666; font-size: 14px; }
+    .progress-bar { width: 100%; height: 4px; background: #eee; border-radius: 2px; margin-top: 16px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: var(--party-coral); animation: progress 3s ease-in-out infinite; }
+    @keyframes progress { 0% { width: 10%; } 50% { width: 80%; } 100% { width: 100%; } }
+    .preview-frame { width: 100%; border: 1px solid #ddd; border-radius: 6px; height: 600px; }
+
+    /* iPhone 15 mockup — 393:852 aspect ratio */
+    .phone-mockup { position: relative; width: 360px; margin: 20px auto; }
+    .phone-frame {
+      background: linear-gradient(145deg, #2a2a2e 0%, #1a1a1e 100%);
+      border-radius: 50px; padding: 12px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.08) inset;
+      position: relative;
+    }
+    /* Dynamic Island */
+    .phone-notch {
+      width: 100px; height: 28px;
+      background: #000; border-radius: 20px;
+      margin: 0 auto; position: absolute;
+      top: 18px; left: 50%; transform: translateX(-50%);
+      z-index: 3;
+    }
+    .phone-screen {
+      background: white; border-radius: 40px;
+      overflow: hidden; position: relative;
+      /* iPhone 15 ratio: 393:852 ≈ 1:2.168 */
+      aspect-ratio: 393 / 852;
+      width: 100%;
+    }
+    .phone-screen iframe {
+      width: 393px; height: 852px;
+      border: none; border-radius: 40px;
+      transform-origin: top left;
+      /* Scale 393px down to ~336px (360 - 24px padding) */
+      transform: scale(0.855);
+    }
+    .phone-home-bar { width: 110px; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; margin: 8px auto 2px; }
+
+    /* Responsive phone sizing */
+    @media (max-width: 900px) {
+      [data-step="2"] > div > div:first-child > div:first-child { flex-direction: column; align-items: center; }
+      #editPanel { max-width: 100% !important; min-width: 0 !important; width: 100%; }
+    }
+    @media (max-width: 640px) {
+      .phone-mockup { width: 280px; }
+      .phone-frame { border-radius: 44px; padding: 10px; }
+      .phone-notch { width: 90px; height: 24px; top: 16px; }
+      .phone-screen { border-radius: 36px; }
+      .phone-screen iframe { transform: scale(0.662); }
+    }
+
+    /* Version gallery */
+    .version-gallery { display: flex; gap: 8px; margin: 16px auto; justify-content: center; flex-wrap: wrap; max-width: 420px; }
+    .version-thumb { width: 48px; height: 104px; border-radius: 10px; border: 2px solid #ddd; cursor: pointer; overflow: hidden; transition: all 0.2s; position: relative; background: #f0f0f0; }
+    .version-thumb.active { border-color: var(--party-coral); box-shadow: 0 0 0 2px rgba(233,69,96,0.3); }
+    .version-thumb:hover { border-color: var(--party-coral); }
+    .version-thumb iframe { width: 393px; height: 852px; border: none; transform: scale(0.112); transform-origin: top left; pointer-events: none; }
+    .version-label { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.6); color: white; font-size: 8px; text-align: center; padding: 2px 0; font-weight: 600; }
+
+    /* Feedback modal */
+    .feedback-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s; }
+    .feedback-modal { background: white; border-radius: 12px; padding: 28px; max-width: 480px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .feedback-modal h3 { font-family: 'Playfair Display', serif; font-size: 20px; margin-bottom: 8px; }
+    .feedback-modal p { font-size: 13px; color: #666; margin-bottom: 16px; }
+    .feedback-modal textarea { width: 100%; min-height: 100px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px; resize: vertical; }
+    .feedback-modal textarea:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+    .feedback-modal .feedback-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
+
+    /* Preview toggle (Invite / Thank You) */
+    .preview-toggle-btn { padding: 6px 16px; border: 1px solid #ddd; background: white; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; color: #666; transition: all 0.2s; }
+    .preview-toggle-btn:hover { border-color: var(--party-coral); color: var(--party-coral); }
+    .preview-toggle-btn.active { background: var(--party-coral); color: white; border-color: var(--party-coral); }
+
+    /* Right panel tabs */
+    .panel-tabs { display: flex; border-bottom: 2px solid #eee; margin-bottom: 16px; }
+    .panel-tab { flex: 1; padding: 10px 8px; text-align: center; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; color: #999; transition: all 0.2s; background: none; border-top: none; border-left: none; border-right: none; font-family: 'Inter', sans-serif; }
+    .panel-tab:hover { color: var(--midnight); }
+    .panel-tab.active { color: var(--party-coral); border-bottom-color: var(--party-coral); }
+    .tab-content { display: none; }
+    .tab-content.active { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; }
+
+    /* Design chat */
+    .design-chat { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+    .design-chat-messages { flex: 1; overflow-y: auto; padding: 4px 0; display: flex; flex-direction: column; gap: 12px; }
+    .design-chat-msg { max-width: 90%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5; word-wrap: break-word; }
+    .design-chat-msg.assistant { align-self: flex-start; background: #f0f0f0; border-bottom-left-radius: 4px; }
+    .design-chat-msg.user { align-self: flex-end; background: var(--party-coral); color: white; border-bottom-right-radius: 4px; }
+    .design-chat-msg.system { align-self: center; background: #fff3cd; color: #856404; font-size: 12px; text-align: center; border-radius: 8px; }
+    .design-chat-input-area { display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid #eee; margin-top: 8px; align-items: flex-end; }
+    .design-chat-input-area textarea { flex: 1; padding: 10px 12px; border: 1px solid #ddd; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 13px; resize: none; min-height: 40px; max-height: 100px; line-height: 1.4; }
+    .design-chat-input-area textarea:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+    .design-chat-send { width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--party-coral); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.2s; }
+    .design-chat-send:hover { background: var(--blush-pop); }
+    .design-chat-send:disabled { background: #ccc; cursor: not-allowed; }
+    .design-chat-photo-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid #ddd; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; transition: all 0.2s; }
+    .design-chat-photo-btn:hover { border-color: var(--party-coral); background: rgba(233,69,96,0.05); }
+    .design-chat-photo-preview { display: flex; gap: 6px; padding: 6px 0; flex-wrap: wrap; }
+    .design-chat-photo-preview img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
+    .design-chat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .design-chat-chips .chip { font-size: 11px; padding: 5px 10px; }
+    .design-chat-loading { display: flex; flex-direction: column; align-items: stretch; gap: 8px; color: #666; font-size: 13px; }
+    .design-chat-loading span:last-child { transition: opacity 0.2s ease; }
+    .design-chat-loading .loading-spinner { flex-shrink: 0; }
+    .design-chat-progress { width: 100%; height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden; }
+    .design-chat-progress-bar { height: 100%; background: linear-gradient(90deg, var(--party-coral), #ff8a80); border-radius: 3px; transition: width 0.4s ease; width: 0%; }
+    .design-chat-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 16px; padding: 40px 20px; text-align: center; }
+    .design-chat-loader .loader-dots { display: flex; gap: 6px; }
+    .design-chat-loader .loader-dots span { width: 10px; height: 10px; border-radius: 50%; background: var(--party-coral); animation: loaderBounce 1.4s ease-in-out infinite; }
+    .design-chat-loader .loader-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .design-chat-loader .loader-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes loaderBounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+    .design-chat-loader .loader-pun { font-size: 14px; color: #666; font-style: italic; min-height: 20px; transition: opacity 0.3s ease; }
+
+    .summary-item { background: #f9f9f9; padding: 16px; border-radius: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+    .summary-label { font-weight: 600; }
+    .summary-value { color: #666; font-size: 14px; text-align: right; max-width: 60%; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <a href="/v2/dashboard/" style="display:flex;align-items:center;"><svg viewBox="0 0 210 80" xmlns="http://www.w3.org/2000/svg" style="height:56px;width:auto;"><circle cx="32" cy="40" r="22" fill="none" stroke="var(--party-coral)" stroke-width="2.2"/><path d="M18 30 L32 42 L46 30" fill="none" stroke="var(--party-coral)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50 L46 50" fill="none" stroke="var(--party-coral)" stroke-width="1.8" stroke-linecap="round"/><circle cx="32" cy="22" r="3.5" fill="var(--confetti-gold)" opacity="0.7"/><circle cx="23" cy="26" r="2.2" fill="var(--blush-pop)" opacity="0.5"/><circle cx="41" cy="25" r="2.2" fill="var(--confetti-gold)" opacity="0.5"/><text x="64" y="52" font-family="Playfair Display, serif" font-size="34" font-weight="700" fill="var(--midnight)">Ryvite</text></svg></a>
+    </div>
+    <div class="header-right">
+      <a href="/v2/create/" class="btn btn-primary" style="padding:10px 16px;font-size:13px;">+ New Event</a>
+      <div class="profile-menu">
+        <button class="profile-btn" onclick="toggleProfileMenu()" id="profileBtn">
+          <svg viewBox="0 0 24 24" style="width:22px;height:22px;fill:#666;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        </button>
+        <div class="profile-dropdown" id="profileDropdown">
+          <div class="profile-dropdown-header">
+            <div class="profile-dropdown-name" id="profileName"></div>
+            <div class="profile-dropdown-email" id="profileEmail"></div>
+          </div>
+          <button class="profile-dropdown-item" onclick="window.location.href='/v2/dashboard/'">
+            <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:#666;flex-shrink:0;"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+            Dashboard
+          </button>
+          <div style="height:1px;background:#eee;"></div>
+          <button class="profile-dropdown-item danger" onclick="logout()">
+            <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:#dc3545;flex-shrink:0;"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+            Log Out
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step indicator (in body, not header) -->
+  <div class="step-indicator" id="stepIndicator">
+    <div class="step-dot active" data-step="1">1</div>
+    <div class="step-dot" data-step="2">2</div>
+    <div class="step-dot" data-step="3">3</div>
+  </div>
+
+  <!-- Hide step 1 immediately when resuming an existing event (prevents flash) -->
+  <script>if(new URLSearchParams(window.location.search).get('eventId')){document.write('<style>.chat-container[data-step="1"]{display:none !important;}</style>');}</script>
+
+  <!-- Step 1: Chat Prompt -->
+  <div class="step active chat-container" data-step="1">
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-bubble assistant">
+        Tell me about your event! You can be as casual as you want — something like <em>"My friend Mike is turning 30, we're doing a Formula 1 themed party at The Garage on April 12th at 7pm"</em>
+      </div>
+    </div>
+    <div class="chat-input-area">
+      <div class="chat-input-row">
+        <input type="text" class="chat-input" id="chatInput" placeholder="Describe your event..." autofocus>
+        <button class="chat-send" id="chatSendBtn" onclick="sendMessage()">&#10148;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="message" class="message"></div>
+
+    <!-- Step 2: Creative Direction -->
+    <!-- Step 2: Generate & Preview -->
+    <div class="step" data-step="2">
+      <div id="generatingView">
+        <div class="loading-state">
+          <span class="loading-spinner" style="width: 40px; height: 40px; border-width: 3px;"></span>
+          <h3>Generating Your Invite...</h3>
+          <p id="generatingPun" style="transition:opacity 0.3s;">Our AI is creating a custom design based on your vision</p>
+          <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+        </div>
+      </div>
+      <div id="generatedView" style="display: none;">
+        <h2 style="text-align:center;">Create Your Invite</h2>
+        <p class="step-desc" style="text-align:center;">Love it? Continue to publish. Switch between versions below.</p>
+        <div style="display:flex;gap:32px;align-items:stretch;flex-wrap:wrap;justify-content:center;max-width:900px;margin:0 auto;">
+          <!-- Left: Tabbed panel (chat, details, versions) -->
+          <div id="editPanel" style="flex:1;min-width:280px;max-width:440px;display:flex;flex-direction:column;">
+
+            <div style="background:white;border:1px solid #eee;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);display:flex;flex-direction:column;overflow:hidden;height:100%;">
+              <div style="display:flex;gap:8px;margin-bottom:16px;">
+                <button class="btn btn-secondary" onclick="openLivePreview()" style="flex:1;font-size:13px;padding:10px 12px;">View Live Preview</button>
+                <button class="btn btn-primary" onclick="nextStep()" style="flex:1;font-size:13px;padding:10px 12px;">Publish</button>
+              </div>
+              <div class="panel-tabs">
+                <button class="panel-tab active" onclick="switchTab('design')">Design</button>
+                <button class="panel-tab" onclick="switchTab('details')">Details</button>
+                <button class="panel-tab" onclick="switchTab('versions')">Versions</button>
+              </div>
+
+              <!-- Design Assistant tab (chat interface) — default -->
+              <div id="tabDesign" class="tab-content active">
+                <div class="design-chat">
+                  <div id="designChatMessages" class="design-chat-messages"></div>
+                  <div id="designChatPhotoPreview" class="design-chat-photo-preview"></div>
+                  <div class="design-chat-input-area">
+                    <button class="design-chat-photo-btn" onclick="document.getElementById('designChatPhotoInput').click()" title="Upload a photo">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                    </button>
+                    <input type="file" id="designChatPhotoInput" accept=".jpg,.jpeg,.png,.webp,.heic,.heif" multiple style="display:none;" onchange="handleDesignChatPhoto(event)">
+                    <textarea id="designChatInput" placeholder="Add details, RSVP fields, change colors..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDesignChat()}" oninput="autoResizeTextarea(this)"></textarea>
+                    <button class="design-chat-send" onclick="sendDesignChat()" id="designChatSendBtn" title="Send">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Event Details tab -->
+              <div id="tabDetails" class="tab-content">
+                <div class="form-group" style="margin-bottom:12px;">
+                  <label style="font-size:12px;">Event Name</label>
+                  <input type="text" id="editTitle" style="font-size:13px;padding:8px 10px;">
+                </div>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                  <div class="form-group" style="flex:1;margin-bottom:0;">
+                    <label style="font-size:12px;">Start Date</label>
+                    <input type="date" id="editDate" style="font-size:13px;padding:8px 10px;">
+                  </div>
+                  <div class="form-group" style="flex:1;margin-bottom:0;">
+                    <label style="font-size:12px;">Start Time</label>
+                    <input type="time" id="editTime" style="font-size:13px;padding:8px 10px;">
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                  <div class="form-group" style="flex:1;margin-bottom:0;">
+                    <label style="font-size:12px;">End Date</label>
+                    <input type="date" id="editEndDate" style="font-size:13px;padding:8px 10px;">
+                  </div>
+                  <div class="form-group" style="flex:1;margin-bottom:0;">
+                    <label style="font-size:12px;">End Time</label>
+                    <input type="time" id="editEndTime" style="font-size:13px;padding:8px 10px;">
+                  </div>
+                </div>
+                <!-- Hidden fields to preserve data — populated by AI chat -->
+                <input type="hidden" id="editLocation">
+                <input type="hidden" id="editAddress">
+                <input type="hidden" id="editDressCode">
+                <div id="editCustomFields" style="display:none;"></div>
+                <button class="btn btn-primary btn-sm" onclick="saveEditedDetails()" style="width:100%;margin-top:8px;">Save Changes</button>
+                <p style="font-size:11px;color:#999;margin-top:8px;text-align:center;">Use the Design chat to add location, dress code, RSVP fields, and more.</p>
+              </div>
+
+              <!-- Versions tab -->
+              <div id="tabVersions" class="tab-content">
+                <div id="versionList" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-start;"></div>
+              </div>
+            </div>
+          </div>
+          <!-- Right: Phone preview -->
+          <div style="flex:0 0 auto;">
+            <div id="previewToggle" style="display:flex;justify-content:center;gap:4px;margin-bottom:12px;">
+              <button class="preview-toggle-btn active" onclick="setPreviewMode('invite')">Invite</button>
+              <button class="preview-toggle-btn" onclick="setPreviewMode('thankyou')">Thank You</button>
+            </div>
+            <div class="phone-mockup">
+              <div class="phone-frame">
+                <div class="phone-notch"></div>
+                <div class="phone-screen">
+                  <iframe id="previewFrame"></iframe>
+                </div>
+                <div class="phone-home-bar"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Review & Publish -->
+    <div class="step" data-step="3">
+      <h2>Review & Publish</h2>
+      <p class="step-desc">Confirm your event details before publishing</p>
+      <div id="summaryContent"></div>
+      <div class="button-group">
+        <button class="btn btn-secondary" onclick="previousStep()">Back</button>
+        <button class="btn btn-primary" id="publishBtn" onclick="publishEvent()">Publish Invite</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentStep = 1;
+    var totalSteps = 3;
+    var designPrompt = ''; // Collected from chat style flow
+    let currentEvent = null;
+    let inspirationImageBase64Array = [];
+    let inspirationImageUrls = []; // Supabase Storage URLs for photos to embed in the invite
+    let extractedData = {};
+    let rsvpFields = []; // { field_key, label, field_type, is_required, options, placeholder, enabled }
+    let themeVersions = []; // [{id, version, html, css, config}]
+    let activeVersionIndex = 0;
+    let chatHistory = [];
+    var currentPreviewMode = 'invite';
+
+    var ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp'];
+    var ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.heic', '.heif', '.webp'];
+    var FIELD_TYPE_LABELS = { text: 'Text', number: 'Number', select: 'Dropdown', checkbox: 'Checkbox', email: 'Email', phone: 'Phone', textarea: 'Long text' };
+
+    var token = localStorage.getItem('sb_access_token');
+    var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
+    if (!token || !user) { window.location.href = '/v2/login/'; }
+    else {
+      var pn = document.getElementById('profileName');
+      var pe = document.getElementById('profileEmail');
+      if (pn) pn.textContent = user.displayName || user.email?.split('@')[0] || '';
+      if (pe) pe.textContent = user.email || '';
+    }
+    function logout() {
+      localStorage.removeItem('sb_access_token');
+      localStorage.removeItem('sb_refresh_token');
+      localStorage.removeItem('v2_user');
+      window.location.href = '/v2/login/';
+    }
+
+    // ---- Token Refresh ----
+    var isRefreshing = false;
+    var refreshPromise = null;
+
+    async function refreshToken() {
+      if (isRefreshing) return refreshPromise;
+      isRefreshing = true;
+      refreshPromise = (async function() {
+        var rt = localStorage.getItem('sb_refresh_token');
+        if (!rt) { window.location.href = '/v2/login/'; return false; }
+        try {
+          var res = await fetch('/api/v2/auth?action=refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken: rt })
+          });
+          var result = await res.json();
+          if (result.success) {
+            token = result.accessToken;
+            localStorage.setItem('sb_access_token', result.accessToken);
+            localStorage.setItem('sb_refresh_token', result.refreshToken);
+            return true;
+          }
+        } catch (e) {}
+        window.location.href = '/v2/login/';
+        return false;
+      })();
+      isRefreshing = false;
+      return refreshPromise;
+    }
+
+    // Wrapper for fetch that auto-retries on 401 with refreshed token
+    async function authFetch(url, opts) {
+      opts = opts || {};
+      opts.headers = opts.headers || {};
+      opts.headers['Authorization'] = 'Bearer ' + token;
+      var res = await fetch(url, opts);
+      if (res.status === 401) {
+        var refreshed = await refreshToken();
+        if (refreshed) {
+          opts.headers['Authorization'] = 'Bearer ' + token;
+          res = await fetch(url, opts);
+        }
+      }
+      return res;
+    }
+
+    // Refresh on page load if token might be stale, then check for resume
+    (async function() {
+      try {
+        var res = await fetch('/api/v2/auth?action=profile', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (!res.ok) await refreshToken();
+      } catch (e) {}
+
+      // Resume existing draft if ?eventId= is in the URL
+      var urlParams = new URLSearchParams(window.location.search);
+      var resumeId = urlParams.get('eventId');
+      if (resumeId) {
+        // Immediately show loading state instead of step 1 chat
+        document.querySelector('.chat-container').style.display = 'none';
+        var resumeStep3 = document.querySelector('.container .step[data-step="2"]');
+        resumeStep3.classList.add('active');
+        var genView = document.getElementById('generatingView');
+        genView.style.display = 'block';
+        genView.innerHTML = '<div class="design-chat-loader" style="padding:80px 20px;">'
+          + '<div class="loader-dots"><span></span><span></span><span></span></div>'
+          + '<div class="loader-pun">Getting this party started...</div>'
+          + '</div>';
+        var resumePuns = eventPuns.slice().sort(function() { return Math.random() - 0.5; });
+        var resumePunIdx = 0;
+        var resumePunInterval = setInterval(function() {
+          resumePunIdx = (resumePunIdx + 1) % resumePuns.length;
+          var el = genView.querySelector('.loader-pun');
+          if (el) { el.style.opacity = '0'; setTimeout(function() { el.textContent = resumePuns[resumePunIdx]; el.style.opacity = '1'; }, 300); }
+        }, 2500);
+        try {
+          var res = await authFetch('/api/v2/events?action=get&eventId=' + encodeURIComponent(resumeId));
+          var result = await res.json();
+          if (result.success && result.event) {
+            var ev = result.event;
+            currentEvent = { id: ev.id, slug: ev.slug };
+            extractedData = {
+              title: ev.title || '',
+              eventType: ev.eventType || 'other',
+              startDate: ev.eventDate || '',
+              endDate: ev.endDate || '',
+              locationName: ev.locationName || '',
+              locationAddress: ev.locationAddress || '',
+              dressCode: ev.dressCode || '',
+              description: ev.description || '',
+              prompt: ''
+            };
+            // Restore RSVP fields
+            if (ev.customFields && ev.customFields.length > 0) {
+              rsvpFields = ev.customFields.map(function(f) {
+                return { field_key: f.key, label: f.label, field_type: f.type, is_required: f.required, options: f.options, placeholder: f.placeholder, enabled: true };
+              });
+            }
+            // Restore theme versions
+            if (ev.themeVersions && ev.themeVersions.length > 0) {
+              themeVersions = ev.themeVersions;
+              activeVersionIndex = ev.themeVersions.findIndex(function(t) { return t.isActive; });
+              if (activeVersionIndex < 0) activeVersionIndex = ev.themeVersions.length - 1;
+            } else if (ev.themeHtml) {
+              themeVersions = [{ id: null, version: 1, html: ev.themeHtml, css: ev.themeCss, config: ev.themeConfig }];
+              activeVersionIndex = 0;
+            }
+            // Stop the resume loader
+            clearInterval(resumePunInterval);
+            // Restore generatingView original content
+            genView.innerHTML = '<div class="loading-state">'
+              + '<span class="loading-spinner" style="width: 40px; height: 40px; border-width: 3px;"></span>'
+              + '<h3>Generating Your Invite...</h3>'
+              + '<p>Our AI is creating a custom design based on your vision</p>'
+              + '<div class="progress-bar"><div class="progress-bar-fill"></div></div>'
+              + '</div>';
+            // Jump to the right step (old step 3/4 → new step 2/3)
+            var step = (ev.settings && ev.settings.creation_step) || 2;
+            if (step >= 3 && themeVersions.length > 0) {
+              goToStep(3); // Review & Publish
+            } else if (step >= 2 && themeVersions.length > 0) {
+              // Has theme — show preview
+              genView.style.display = 'none';
+              document.getElementById('generatedView').style.display = 'block';
+              renderPreview(themeVersions[0]);
+              renderVersionGallery();
+              initDesignChatIfNeeded(false);
+              goToStep(2);
+            } else {
+              // Has details but no theme — go back to chat
+              goToStep(1);
+            }
+            return;
+          }
+        } catch (e) {
+          console.error('Failed to resume event:', e);
+          clearInterval(resumePunInterval);
+          // Fall back to step 1
+          resumeStep3.classList.remove('active');
+          document.querySelector('.chat-container').style.display = 'flex';
+        }
+      }
+    })();
+
+    // ---- Chat Functions ----
+
+    async function sendMessage() {
+      var input = document.getElementById('chatInput');
+      var text = input.value.trim();
+      if (!text) return;
+
+      input.value = '';
+      addChatBubble(text, 'user');
+      chatHistory.push({ role: 'user', content: text });
+
+      var sendBtn = document.getElementById('chatSendBtn');
+      sendBtn.disabled = true;
+      input.disabled = true;
+
+      // Show typing indicator
+      var typing = document.createElement('div');
+      typing.className = 'chat-bubble assistant typing';
+      typing.id = 'typingIndicator';
+      typing.innerHTML = '<span></span><span></span><span></span>';
+      document.getElementById('chatMessages').appendChild(typing);
+      scrollChat();
+
+      try {
+        var res = await authFetch('/api/v2/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: chatHistory })
+        });
+        var result = await res.json();
+
+        // Remove typing indicator
+        var typingEl = document.getElementById('typingIndicator');
+        if (typingEl) typingEl.remove();
+
+        if (result.success) {
+          chatHistory.push({ role: 'assistant', content: JSON.stringify(result) });
+
+          // Merge extracted data
+          if (result.extracted) {
+            Object.assign(extractedData, result.extracted);
+          }
+
+          addChatBubble(result.message, 'assistant');
+
+          // If ready, show full confirmation card with RSVP fields
+          if (result.ready) {
+            if (result.suggestedRsvpFields && result.suggestedRsvpFields.length > 0) {
+              rsvpFields = result.suggestedRsvpFields.map(function(f) {
+                return Object.assign({}, f, { enabled: true });
+              });
+            }
+            showConfirmationCard();
+          }
+        } else {
+          var errMsg = result.detail || result.message || result.error || 'Something went wrong';
+          console.error('Chat API error:', JSON.stringify(result));
+          addChatBubble('Sorry, something went wrong: ' + errMsg + '. Please try again.', 'assistant');
+        }
+      } catch (err) {
+        var typingEl2 = document.getElementById('typingIndicator');
+        if (typingEl2) typingEl2.remove();
+        addChatBubble('Connection error. Please try again.', 'assistant');
+      }
+
+      sendBtn.disabled = false;
+      input.disabled = false;
+      input.focus();
+    }
+
+    function addChatBubble(text, role) {
+      var bubble = document.createElement('div');
+      bubble.className = 'chat-bubble ' + role;
+      bubble.textContent = text;
+      document.getElementById('chatMessages').appendChild(bubble);
+      scrollChat();
+    }
+
+    function scrollChat() {
+      var container = document.getElementById('chatMessages');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // ---- Confirmation Card with RSVP field editor ----
+
+    function showConfirmationCard() {
+      // Remove any existing confirmation card
+      var existing = document.getElementById('confirmationCard');
+      if (existing) existing.remove();
+
+      var d = extractedData;
+      var fields = [];
+      if (d.title) fields.push(['Event', d.title]);
+      if (d.eventType) fields.push(['Type', formatEventType(d.eventType)]);
+      if (d.startDate) fields.push(['When', formatDate(d.startDate)]);
+      if (d.endDate) fields.push(['Until', formatDate(d.endDate)]);
+      if (d.locationName) fields.push(['Where', d.locationName]);
+      if (d.locationAddress) fields.push(['Address', d.locationAddress]);
+      if (d.dressCode) fields.push(['Dress Code', d.dressCode]);
+      if (d.description) fields.push(['Details', d.description]);
+
+      var card = document.createElement('div');
+      card.className = 'chat-extracted';
+      card.id = 'confirmationCard';
+
+      var html = '<h4>Event Details</h4>'
+        + '<div class="chat-extracted-grid">'
+        + fields.map(function(f) {
+            return '<span class="chat-extracted-label">' + escapeHtml(f[0]) + '</span>'
+              + '<span class="chat-extracted-value">' + escapeHtml(f[1]) + '</span>';
+          }).join('')
+        + '</div>';
+
+      // RSVP Fields — conversational toggle list
+      if (rsvpFields.length > 0) {
+        html += '<div style="margin-top:16px;border-top:1px solid #eee;padding-top:14px;">'
+          + '<h4 style="font-size:14px;font-weight:600;margin-bottom:4px;">RSVP Fields</h4>'
+          + '<p style="font-size:12px;color:#888;margin-bottom:10px;">I picked these based on your event. Toggle any you don\'t need.</p>'
+          + '<div style="font-size:11px;color:#999;margin-bottom:10px;padding:6px 10px;background:#f9f9f9;border-radius:6px;">Always included: <strong>Name</strong>, <strong>RSVP Status</strong></div>'
+          + '<div id="rsvpFieldList">' + renderRsvpFields() + '</div>'
+          + '</div>';
+      }
+
+      html += '<button class="btn btn-primary chat-proceed" onclick="confirmDetailsAndAskStyle()" style="margin-top:16px;width:100%;">Looks good!</button>';
+
+      card.innerHTML = html;
+      document.getElementById('chatMessages').appendChild(card);
+      scrollChat();
+    }
+
+    function renderRsvpFields() {
+      if (rsvpFields.length === 0) return '<div style="font-size:13px;color:#999;padding:8px 0;">No additional fields suggested.</div>';
+      return rsvpFields.map(function(f, i) {
+        var toggleClass = f.enabled ? 'rsvp-field-toggle on' : 'rsvp-field-toggle';
+        var meta = (FIELD_TYPE_LABELS[f.field_type] || f.field_type);
+        if (f.is_required) meta += ' · Required';
+        if (f.options && f.options.length) meta += ' · ' + f.options.join(', ');
+        return '<div class="rsvp-field-row">'
+          + '<button class="' + toggleClass + '" onclick="toggleRsvpField(' + i + ')" title="Toggle field"></button>'
+          + '<div class="rsvp-field-info">'
+          + '<div class="rsvp-field-label">' + escapeHtml(f.label) + '</div>'
+          + '<div class="rsvp-field-meta">' + escapeHtml(meta) + '</div>'
+          + '</div>'
+          + '<button class="btn btn-secondary btn-sm" onclick="removeRsvpField(' + i + ')" style="padding:4px 10px;font-size:11px;">Remove</button>'
+          + '</div>';
+      }).join('');
+    }
+
+    function toggleRsvpField(idx) {
+      rsvpFields[idx].enabled = !rsvpFields[idx].enabled;
+      document.getElementById('rsvpFieldList').innerHTML = renderRsvpFields();
+    }
+
+    function removeRsvpField(idx) {
+      rsvpFields.splice(idx, 1);
+      document.getElementById('rsvpFieldList').innerHTML = renderRsvpFields();
+    }
+
+    function showAddFieldForm() {
+      var container = document.getElementById('addFieldContainer');
+      if (container.querySelector('.rsvp-add-form')) return; // already open
+      container.innerHTML = '<div class="rsvp-add-form">'
+        + '<div class="form-row">'
+        + '<input type="text" id="newFieldLabel" placeholder="Field label (e.g. Song Request)">'
+        + '<select id="newFieldType"><option value="text">Text</option><option value="number">Number</option><option value="select">Dropdown</option><option value="checkbox">Checkbox</option><option value="textarea">Long text</option><option value="email">Email</option><option value="phone">Phone</option></select>'
+        + '</div>'
+        + '<div class="form-row" id="newFieldOptionsRow" style="display:none;">'
+        + '<input type="text" id="newFieldOptions" placeholder="Options (comma-separated)" style="grid-column: 1/-1;">'
+        + '</div>'
+        + '<div class="form-row">'
+        + '<input type="text" id="newFieldPlaceholder" placeholder="Placeholder text (optional)">'
+        + '<label style="display:flex;align-items:center;gap:6px;font-size:12px;margin:0;"><input type="checkbox" id="newFieldRequired"> Required</label>'
+        + '</div>'
+        + '<div class="form-actions">'
+        + '<button class="btn btn-secondary btn-sm" onclick="cancelAddField()">Cancel</button>'
+        + '<button class="btn btn-primary btn-sm" onclick="addCustomField()">Add Field</button>'
+        + '</div>'
+        + '</div>';
+      document.getElementById('newFieldType').addEventListener('change', function() {
+        document.getElementById('newFieldOptionsRow').style.display = this.value === 'select' ? 'grid' : 'none';
+      });
+    }
+
+    function cancelAddField() {
+      document.getElementById('addFieldContainer').innerHTML = '';
+    }
+
+    function addCustomField() {
+      var label = document.getElementById('newFieldLabel').value.trim();
+      if (!label) { showMessage('Please enter a field label', 'error'); return; }
+      var fieldType = document.getElementById('newFieldType').value;
+      var placeholder = document.getElementById('newFieldPlaceholder').value.trim();
+      var isRequired = document.getElementById('newFieldRequired').checked;
+      var options = null;
+      if (fieldType === 'select') {
+        var optStr = document.getElementById('newFieldOptions').value.trim();
+        if (!optStr) { showMessage('Please enter options for the dropdown', 'error'); return; }
+        options = optStr.split(',').map(function(o) { return o.trim(); }).filter(Boolean);
+      }
+      var fieldKey = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+
+      rsvpFields.push({
+        field_key: fieldKey,
+        label: label,
+        field_type: fieldType,
+        is_required: isRequired,
+        options: options,
+        placeholder: placeholder || null,
+        enabled: true
+      });
+
+      document.getElementById('rsvpFieldList').innerHTML = renderRsvpFields();
+      cancelAddField();
+    }
+
+    // ---- Style Selection Flow (in chat) ----
+
+    var brainstormAnswers = {};
+
+    async function saveEventToDB() {
+      if (currentEvent) return true;
+      try {
+        await authFetch('/api/v2/auth?action=profile');
+        var res = await authFetch('/api/v2/events?action=create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: extractedData.title || 'Untitled Event',
+            description: extractedData.description || '',
+            eventDate: extractedData.startDate || '',
+            endDate: extractedData.endDate || '',
+            locationName: extractedData.locationName || '',
+            locationAddress: extractedData.locationAddress || '',
+            dressCode: extractedData.dressCode || '',
+            eventType: extractedData.eventType || 'other',
+            settings: { creation_step: 1 }
+          })
+        });
+        var result = await res.json();
+        if (result.success) {
+          currentEvent = { id: result.eventId, slug: result.slug };
+          await saveCustomFields();
+          window.history.replaceState({}, '', '/v2/create/?eventId=' + result.eventId);
+          return true;
+        }
+        showMessage(result.error || 'Error creating event', 'error');
+        return false;
+      } catch (err) {
+        showMessage('Error saving event. Please try again.', 'error');
+        return false;
+      }
+    }
+
+    function confirmDetailsAndAskStyle() {
+      // Remove the confirmation card's button
+      var btn = document.querySelector('#confirmationCard .chat-proceed');
+      if (btn) btn.remove();
+
+      addChatBubble('Looks good!', 'user');
+
+      // Hide the chat input area — the user is done describing their event
+      document.querySelector('.chat-input-area').style.display = 'none';
+      // Allow chat messages to use full height now that input is hidden
+      document.getElementById('chatMessages').style.maxHeight = 'none';
+
+      // Ask about style preference
+      var card = document.createElement('div');
+      card.className = 'chat-bubble assistant';
+      card.innerHTML = '<div style="margin-bottom:12px;">Now let\'s design your invite! Do you already have a style in mind, or would you like to explore some options?</div>'
+        + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+        + '<button class="btn btn-primary" onclick="showCustomStyleInput()" style="padding:10px 16px;font-size:13px;">I have a style in mind</button>'
+        + '<button class="btn btn-secondary" onclick="startBrainstorm()" style="padding:10px 16px;font-size:13px;">Help me brainstorm</button>'
+        + '</div>';
+      document.getElementById('chatMessages').appendChild(card);
+      scrollChat();
+    }
+
+    // ---- "I have a style in mind" flow ----
+
+    function showCustomStyleInput() {
+      // Remove the choice buttons
+      var lastBubble = document.querySelector('#chatMessages .chat-bubble:last-child');
+      if (lastBubble) lastBubble.querySelector('div:last-child').remove();
+
+      addChatBubble('I have a style in mind', 'user');
+
+      var eventType = extractedData.eventType || 'other';
+      var photoRec = photoRecommendations[eventType];
+      var photoRecHtml = '';
+      if (photoRec) {
+        photoRecHtml = '<div style="background:rgba(233,69,96,0.06);padding:10px 14px;border-radius:8px;margin-bottom:12px;border-left:3px solid var(--party-coral);">'
+          + '<div style="font-size:13px;font-weight:600;color:var(--midnight);margin-bottom:4px;">' + photoRec.emoji + ' Photos — ' + photoRec.strength + '</div>'
+          + '<div style="font-size:12px;color:#555;">' + photoRec.text + '</div>'
+          + '</div>';
+      }
+
+      var card = document.createElement('div');
+      card.className = 'chat-bubble assistant';
+      card.id = 'customStyleCard';
+      card.innerHTML = '<div style="margin-bottom:12px;">Describe the mood, colors, and style you\'re going for. You can also upload photos and inspiration images!</div>'
+        + '<textarea id="customStyleText" placeholder="e.g., Modern minimalist with gold accents and a warm, elegant feel..." style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-family:Inter,sans-serif;min-height:80px;resize:none;margin-bottom:10px;box-sizing:border-box;"></textarea>'
+        + '<div style="margin-bottom:12px;">'
+        + '<div class="example-chips" style="margin-top:0;">'
+        + '<button class="chip" onclick="addToCustomStyle(\'Elegant and luxurious with gold accents\')">Elegant + Gold</button>'
+        + '<button class="chip" onclick="addToCustomStyle(\'Playful and colorful with confetti\')">Playful + Colorful</button>'
+        + '<button class="chip" onclick="addToCustomStyle(\'Modern minimalist with sleek typography\')">Modern + Minimal</button>'
+        + '<button class="chip" onclick="addToCustomStyle(\'Rustic and cozy with warm earth tones\')">Rustic + Warm</button>'
+        + '</div></div>'
+        + photoRecHtml
+        + '<div style="margin-bottom:12px;">'
+        + '<div class="image-upload-area" id="chatDropZone" onclick="document.getElementById(\'chatImageInput\').click()" style="padding:16px;border-radius:8px;">'
+        + '<p style="font-size:13px;">Upload photos or inspiration images</p>'
+        + '<p style="font-size:11px;color:#999;margin-top:2px;">JPG, PNG, HEIC, WebP (max 6 images)</p>'
+        + '</div>'
+        + '<input type="file" id="chatImageInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleImageUpload(event)">'
+        + '<div id="imagePreviews" class="image-previews"></div>'
+        + '</div>'
+        + '<button class="btn btn-primary" onclick="submitCustomStyle()" style="width:100%;padding:12px;font-size:14px;">Generate My Invite</button>';
+      document.getElementById('chatMessages').appendChild(card);
+      scrollChat();
+
+      // Set up drag & drop on the new drop zone
+      setupDropZone('chatDropZone');
+    }
+
+    function addToCustomStyle(text) {
+      var el = document.getElementById('customStyleText');
+      if (el) el.value = el.value ? el.value + ' ' + text : text;
+    }
+
+    async function submitCustomStyle() {
+      var text = document.getElementById('customStyleText').value.trim();
+      if (!text) {
+        document.getElementById('customStyleText').style.borderColor = '#E94560';
+        document.getElementById('customStyleText').focus();
+        return;
+      }
+      designPrompt = text;
+      // Remove the style card
+      var card = document.getElementById('customStyleCard');
+      if (card) card.remove();
+      addChatBubble(text, 'user');
+      addChatBubble('Great choice! Let me generate your invite...', 'assistant');
+
+      if (!(await saveEventToDB())) return;
+      goToStep(2);
+    }
+
+    // ---- Brainstorm flow ----
+
+    // Event-type-specific brainstorm questions
+    var brainstormBranches = {
+      kidsBirthday: [
+        { key: 'vibe', question: 'What vibe for the party?', options: [
+          { label: 'Maximalist & Colorful', emoji: '🎨', desc: 'Loud, joyful, chaotic in the best way' },
+          { label: 'Soft & Whimsical', emoji: '🦋', desc: 'Pastel, illustrated, gentle' },
+          { label: 'Bold & Graphic', emoji: '⚡', desc: 'Strong shapes, high contrast, modern' },
+          { label: 'Rustic & Warm', emoji: '🌿', desc: 'Earthy tones, natural textures' }
+        ]},
+        { key: 'theme', question: 'Any party theme?', options: [
+          { label: 'Dinosaurs', emoji: '🦕', desc: 'Roar! Prehistoric fun' },
+          { label: 'Rainbow / Colorful', emoji: '🌈', desc: 'All the colors, all the joy' },
+          { label: 'Jungle / Safari', emoji: '🦁', desc: 'Wild animal adventure' },
+          { label: 'Under the Sea', emoji: '🐠', desc: 'Ocean creatures and waves' },
+          { label: 'Outer Space', emoji: '🚀', desc: 'Stars, rockets, planets' },
+          { label: 'No theme — just fun!', emoji: '🎈', desc: 'Balloons and celebration' }
+        ]},
+        { key: 'colors', question: 'Color palette?', options: [
+          { label: 'Bright & Saturated', emoji: '🌈', desc: 'Bold, cheerful, vibrant' },
+          { label: 'Soft Pastels', emoji: '🌸', desc: 'Gentle pinks, blues, lavenders' },
+          { label: 'Earthy & Warm', emoji: '🍂', desc: 'Sage, mustard, terracotta' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Match the theme perfectly' }
+        ]}
+      ],
+      adultBirthday: [
+        { key: 'vibe', question: 'What tone are you going for?', options: [
+          { label: 'Glamorous', emoji: '✨', desc: 'Gold, champagne bubbles, luxury' },
+          { label: 'Retro / Nostalgic', emoji: '📻', desc: 'Decade-themed: 70s, 80s, 90s vibes' },
+          { label: 'Sophisticated & Minimal', emoji: '◻️', desc: 'Editorial, grown-up, clean' },
+          { label: 'Fun & Party-Forward', emoji: '🥂', desc: 'Celebratory, vibrant energy' }
+        ]},
+        { key: 'theme', question: 'Any era or theme?', options: [
+          { label: 'Gatsby / 1920s', emoji: '🎩', desc: 'Art deco, gold, elegance' },
+          { label: 'Disco / 70s-80s', emoji: '🪩', desc: 'Groovy, neon, retro' },
+          { label: 'Garden Party', emoji: '🌸', desc: 'Outdoor, floral, fresh' },
+          { label: 'Black & Gold', emoji: '🖤', desc: 'Classic, bold, timeless' },
+          { label: 'Tropical', emoji: '🌴', desc: 'Lush, vibrant, sun-drenched' },
+          { label: 'No theme', emoji: '🎉', desc: 'Just a great celebration' }
+        ]},
+        { key: 'colors', question: 'Color palette?', options: [
+          { label: 'Gold & Black', emoji: '🖤', desc: 'Glamorous, timeless' },
+          { label: 'Moody & Rich', emoji: '🍷', desc: 'Deep burgundy, navy, emerald' },
+          { label: 'Bright & Bold', emoji: '🌈', desc: 'Vibrant, saturated, lively' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on your vibe and theme' }
+        ]}
+      ],
+      babyShower: [
+        { key: 'vibe', question: 'What aesthetic direction?', options: [
+          { label: 'Soft & Botanical', emoji: '🌿', desc: 'Watercolor florals, eucalyptus' },
+          { label: 'Modern Minimal', emoji: '◻️', desc: 'Clean type, quiet luxury' },
+          { label: 'Whimsical Illustrated', emoji: '🐻', desc: 'Animals, storybook, pastel' },
+          { label: 'Boho / Earthy', emoji: '🍂', desc: 'Terracotta, sage, rattan' }
+        ]},
+        { key: 'colors', question: 'Color direction?', options: [
+          { label: 'Blue / Navy / Mint', emoji: '💙', desc: 'For a boy or neutral cool tones' },
+          { label: 'Blush / Rose / Lavender', emoji: '💗', desc: 'Soft and feminine' },
+          { label: 'Greens & Yellows', emoji: '💛', desc: 'Gender neutral, warm and fresh' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on your aesthetic' }
+        ]}
+      ],
+      engagement: [
+        { key: 'vibe', question: 'What tone for the celebration?', options: [
+          { label: 'Romantic & Dreamy', emoji: '💕', desc: 'Soft, candlelit, garden party' },
+          { label: 'Modern & Editorial', emoji: '◻️', desc: 'Bold type, architectural, cool' },
+          { label: 'Fun & Celebratory', emoji: '🥂', desc: 'Bubbly, vibrant, party energy' },
+          { label: 'Intimate & Personal', emoji: '💛', desc: 'Storytelling-first, warm' }
+        ]},
+        { key: 'colors', question: 'Color palette?', options: [
+          { label: 'Blush & Gold', emoji: '✨', desc: 'Romantic and elegant' },
+          { label: 'Modern Neutrals', emoji: '🤍', desc: 'Black, white, cream' },
+          { label: 'Rich & Moody', emoji: '🍷', desc: 'Deep tones, sophisticated' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'From your photos or vibe' }
+        ]}
+      ],
+      wedding: [
+        { key: 'vibe', question: 'Wedding aesthetic?', options: [
+          { label: 'Classic & Timeless', emoji: '🌹', desc: 'Ivory, gold, florals, serif type' },
+          { label: 'Modern Romantic', emoji: '🖤', desc: 'Architectural, moody, editorial' },
+          { label: 'Boho / Outdoor', emoji: '🌿', desc: 'Earthy, organic, wildflowers' },
+          { label: 'Art Deco / Vintage', emoji: '✨', desc: 'Geometric, gold, rich color' }
+        ]},
+        { key: 'colors', question: 'Wedding colors?', options: [
+          { label: 'Ivory & Gold', emoji: '✨', desc: 'Classic and luxurious' },
+          { label: 'Sage & Cream', emoji: '🌿', desc: 'Natural and organic' },
+          { label: 'Moody & Dark', emoji: '🖤', desc: 'Black, burgundy, forest' },
+          { label: 'Custom colors', emoji: '🎨', desc: 'I\'ll describe mine' }
+        ]}
+      ],
+      graduation: [
+        { key: 'vibe', question: 'What tone for the celebration?', options: [
+          { label: 'Proud & Celebratory', emoji: '🏆', desc: 'Achievement-forward, bold' },
+          { label: 'Fun & Party-Forward', emoji: '🎉', desc: 'Party first, graduation second' },
+          { label: 'Classy & Refined', emoji: '✨', desc: 'Underplayed, tasteful, adult' }
+        ]},
+        { key: 'colors', question: 'Color palette?', options: [
+          { label: 'School Colors', emoji: '🎓', desc: 'Match the school spirit' },
+          { label: 'Gold & Black', emoji: '🖤', desc: 'Classic achievement colors' },
+          { label: 'Bright & Bold', emoji: '🌈', desc: 'Celebratory and fun' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on the vibe' }
+        ]}
+      ],
+      holiday: [
+        { key: 'holiday', question: 'Which holiday?', options: [
+          { label: 'Christmas', emoji: '🎄', desc: 'Festive, cozy, merry' },
+          { label: 'New Year\'s Eve', emoji: '🎆', desc: 'Glamorous, countdown, sparkles' },
+          { label: 'Halloween', emoji: '🎃', desc: 'Spooky, fun, costumed' },
+          { label: 'Thanksgiving', emoji: '🦃', desc: 'Grateful, warm, harvest' },
+          { label: 'Fourth of July', emoji: '🎇', desc: 'Patriotic, BBQ, fireworks' },
+          { label: 'Other Holiday', emoji: '🎉', desc: 'Hanukkah, Diwali, Easter, etc.' }
+        ]},
+        { key: 'vibe', question: 'What tone?', options: [
+          { label: 'Classic & Traditional', emoji: '🕯️', desc: 'Timeless holiday feel' },
+          { label: 'Modern & Editorial', emoji: '◻️', desc: 'Holiday but make it fashion' },
+          { label: 'Cozy & Warm', emoji: '☕', desc: 'Fireplace, blankets, comfort' },
+          { label: 'Maximalist & Festive', emoji: '✨', desc: 'Over the top celebration' }
+        ]}
+      ],
+      dinnerParty: [
+        { key: 'vibe', question: 'What\'s the tone?', options: [
+          { label: 'Sophisticated & Minimal', emoji: '🍷', desc: 'Quiet luxury, grown-up restraint' },
+          { label: 'Warm & Convivial', emoji: '🕯️', desc: 'Candlelight, rustic, linen' },
+          { label: 'Playful & Informal', emoji: '🎉', desc: 'Bright, fun, casual' },
+          { label: 'Chic & Editorial', emoji: '✨', desc: 'Magazine-worthy, stylish' }
+        ]},
+        { key: 'colors', question: 'Color direction?', options: [
+          { label: 'Warm Neutrals', emoji: '🤎', desc: 'Cream, tan, warm gold' },
+          { label: 'Deep & Moody', emoji: '🍷', desc: 'Wine, charcoal, dark wood' },
+          { label: 'Bright & Fresh', emoji: '🌿', desc: 'Garden, citrus, airy' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Match the dinner vibe' }
+        ]}
+      ],
+      retirement: [
+        { key: 'vibe', question: 'What tone for the celebration?', options: [
+          { label: 'Celebratory & Heartfelt', emoji: '💛', desc: 'Honoring a legacy' },
+          { label: 'Fun & Roast-Forward', emoji: '😄', desc: '"Finally free!" energy' },
+          { label: 'Elegant & Refined', emoji: '✨', desc: 'Dinner-party level quality' },
+          { label: 'Nostalgic', emoji: '📸', desc: 'Career retrospective, memories' }
+        ]},
+        { key: 'colors', question: 'Color palette?', options: [
+          { label: 'Navy & Gold', emoji: '💙', desc: 'Distinguished and warm' },
+          { label: 'Warm Neutrals', emoji: '🤎', desc: 'Cream, sage, soft tones' },
+          { label: 'Bright & Celebratory', emoji: '🎉', desc: 'Fun, colorful, party' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on the tone' }
+        ]}
+      ],
+      anniversary: [
+        { key: 'vibe', question: 'What tone?', options: [
+          { label: 'Romantic & Nostalgic', emoji: '💕', desc: 'Looking back with love' },
+          { label: 'Celebratory', emoji: '🥂', desc: 'Party energy, milestone' },
+          { label: 'Intimate & Personal', emoji: '💛', desc: 'Close family and friends' }
+        ]},
+        { key: 'colors', question: 'Color palette?', options: [
+          { label: 'Gold & Warm', emoji: '✨', desc: 'Classic milestone colors' },
+          { label: 'Blush & Romantic', emoji: '💗', desc: 'Soft and loving' },
+          { label: 'Rich & Elegant', emoji: '🍷', desc: 'Deep, sophisticated tones' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on the couple' }
+        ]}
+      ],
+      sports: [
+        { key: 'vibe', question: 'What energy?', options: [
+          { label: 'Hype & Energetic', emoji: '🏟️', desc: 'Stadium energy, bold, loud' },
+          { label: 'Casual & Fun', emoji: '🍔', desc: 'Backyard BBQ vibes' },
+          { label: 'Premium Viewing', emoji: '🥂', desc: 'Sports bar elegance, VIP feel' }
+        ]},
+        { key: 'colors', question: 'Color palette?', options: [
+          { label: 'Team Colors', emoji: '🏆', desc: 'Match the team spirit' },
+          { label: 'Classic Sports', emoji: '⚽', desc: 'Green, white, bold primary' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on the sport and vibe' }
+        ]}
+      ],
+      bridalShower: [
+        { key: 'vibe', question: 'What aesthetic?', options: [
+          { label: 'Garden Party', emoji: '🌸', desc: 'Floral, lush, summery' },
+          { label: 'Brunch Chic', emoji: '🥂', desc: 'Blush, champagne, casual elegance' },
+          { label: 'Modern Minimal', emoji: '◻️', desc: 'Clean, architectural, grown-up' },
+          { label: 'Maximalist Floral', emoji: '🌺', desc: 'Over-the-top beautiful' }
+        ]},
+        { key: 'colors', question: 'Color palette?', options: [
+          { label: 'Blush & Gold', emoji: '✨', desc: 'Classic bridal' },
+          { label: 'Sage & Cream', emoji: '🌿', desc: 'Natural and fresh' },
+          { label: 'Lavender & White', emoji: '💜', desc: 'Soft and dreamy' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Match the wedding colors' }
+        ]}
+      ]
+    };
+
+    // Fallback generic questions for event types without specific branches
+    var defaultBrainstormQuestions = [
+      { key: 'vibe', question: 'What vibe are you going for?', options: [
+        { label: 'Elegant & Classy', emoji: '✨', desc: 'Sophisticated, luxurious, refined' },
+        { label: 'Fun & Playful', emoji: '🎉', desc: 'Bright colors, whimsical, energetic' },
+        { label: 'Modern & Minimal', emoji: '◻️', desc: 'Clean lines, sleek, contemporary' },
+        { label: 'Warm & Cozy', emoji: '🕯️', desc: 'Rustic, earthy, inviting' },
+        { label: 'Bold & Dramatic', emoji: '🔥', desc: 'Eye-catching, vibrant, statement' },
+        { label: 'Whimsical & Dreamy', emoji: '🌙', desc: 'Soft, magical, fairy-tale feel' }
+      ]},
+      { key: 'colors', question: 'What colors feel right?', options: [
+        { label: 'Gold & Black', emoji: '🖤', desc: 'Glamorous, timeless' },
+        { label: 'Pastels', emoji: '🌸', desc: 'Soft pinks, blues, lavenders' },
+        { label: 'Bright & Bold', emoji: '🌈', desc: 'Vibrant, saturated, lively' },
+        { label: 'Earth Tones', emoji: '🍂', desc: 'Browns, greens, warm neutrals' },
+        { label: 'Let AI decide', emoji: '🎨', desc: 'Based on your event type & vibe' }
+      ]}
+    ];
+
+    function getBrainstormQuestions() {
+      var eventType = extractedData.eventType || 'other';
+      return brainstormBranches[eventType] || defaultBrainstormQuestions;
+    }
+
+    var brainstormQuestions = [];
+
+    var brainstormStep = 0;
+
+    function startBrainstorm() {
+      // Remove the choice buttons
+      var lastBubble = document.querySelector('#chatMessages .chat-bubble:last-child');
+      if (lastBubble) lastBubble.querySelector('div:last-child').remove();
+
+      addChatBubble('Help me brainstorm', 'user');
+      brainstormStep = 0;
+      brainstormAnswers = {};
+      brainstormQuestions = getBrainstormQuestions();
+      showBrainstormQuestion(0);
+    }
+
+    function showBrainstormQuestion(idx) {
+      if (idx >= brainstormQuestions.length) {
+        finishBrainstorm();
+        return;
+      }
+      var q = brainstormQuestions[idx];
+
+      var card = document.createElement('div');
+      card.className = 'chat-bubble assistant';
+      card.id = 'brainstormQ' + idx;
+      card.innerHTML = '<div style="margin-bottom:12px;font-weight:500;">' + q.question + '</div>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
+        + q.options.map(function(opt) {
+            return '<button class="brainstorm-option" onclick="pickBrainstormOption(' + idx + ',this)" style="display:flex;flex-direction:column;align-items:center;padding:14px 10px;border:2px solid #eee;border-radius:12px;background:white;cursor:pointer;transition:all 0.2s;font-family:Inter,sans-serif;text-align:center;">'
+              + '<span style="font-size:24px;margin-bottom:6px;">' + opt.emoji + '</span>'
+              + '<span style="font-size:13px;font-weight:600;color:var(--midnight);">' + escapeHtml(opt.label) + '</span>'
+              + '<span style="font-size:11px;color:#888;margin-top:2px;">' + escapeHtml(opt.desc) + '</span>'
+              + '</button>';
+          }).join('')
+        + '</div>';
+      document.getElementById('chatMessages').appendChild(card);
+      scrollChat();
+    }
+
+    function pickBrainstormOption(qIdx, btn) {
+      var q = brainstormQuestions[qIdx];
+      var label = btn.querySelector('span:nth-child(2)').textContent;
+      brainstormAnswers[q.key] = label;
+
+      // Highlight selection and disable other buttons
+      var card = document.getElementById('brainstormQ' + qIdx);
+      card.querySelectorAll('.brainstorm-option').forEach(function(b) {
+        b.disabled = true;
+        b.style.opacity = '0.4';
+        b.style.cursor = 'default';
+      });
+      btn.style.opacity = '1';
+      btn.style.borderColor = 'var(--party-coral)';
+      btn.style.background = 'rgba(233,69,96,0.08)';
+
+      addChatBubble(label, 'user');
+
+      brainstormStep = qIdx + 1;
+      setTimeout(function() { showBrainstormQuestion(qIdx + 1); }, 400);
+    }
+
+    // Photo recommendations by event type
+    // Photo recommendations by event type
+    var photoRecommendations = {
+      kidsBirthday: { emoji: '📸', strength: 'Strongly recommended', text: 'Upload 1-6 close-up photos of the birthday child. Natural light, face fills most of the frame. These become the hero of the page with fun birthday hat overlays!' },
+      adultBirthday: { emoji: '📸', strength: 'Recommended', text: 'Upload 1-3 great photos of the birthday person — formal, candid, or a mix. Works especially well for milestone birthdays.' },
+      babyShower: { emoji: '📸', strength: 'Optional', text: 'For Sip & See: 1-3 newborn or family photos. For pre-birth: a bump photo, or skip and let the botanical design shine.' },
+      engagement: { emoji: '📸', strength: 'Highly recommended', text: 'Upload 1-3 engagement or couple photos. The design is built around them — good lighting and natural settings work best.' },
+      wedding: { emoji: '📸', strength: 'Highly recommended', text: 'Upload 1-2 engagement or pre-wedding portraits. Clean, well-lit photos work best for the editorial treatment.' },
+      graduation: { emoji: '📸', strength: 'Recommended', text: 'Upload 1-3 photos — cap-and-gown shots, candids, or favorites. A mix of formal and fun works well.' },
+      holiday: { emoji: '📸', strength: 'Optional', text: 'Family/group photo for Christmas/NYE, costume photos for Halloween, or skip and let the holiday theme carry it.' },
+      dinnerParty: { emoji: '📸', strength: 'Optional', text: 'A venue photo, table setting, or atmospheric shot works beautifully. Or skip — typography and texture can do the work.' },
+      retirement: { emoji: '📸', strength: 'Recommended', text: 'Upload 1-3 photos — a work portrait, candid, or "then and now" pairing for a career-spanning timeline feel.' },
+      anniversary: { emoji: '📸', strength: 'Highly recommended', text: 'The "then and now" treatment is powerful! Upload an old photo + recent photo of the couple, or 1-3 photos from across the years.' },
+      sports: { emoji: '📸', strength: 'Optional', text: 'A photo of you in team gear adds personality, or skip — team colors and sport iconography will carry the design.' },
+      bridalShower: { emoji: '📸', strength: 'Optional', text: 'An engagement photo or candid of the bride, or skip for a purely illustrated floral treatment.' }
+    };
+
+    async function finishBrainstorm() {
+      // Build the design prompt from brainstorm answers
+      var parts = [];
+      Object.keys(brainstormAnswers).forEach(function(key) {
+        var val = brainstormAnswers[key];
+        if (val && val !== 'Let AI decide' && val !== 'Surprise me!') {
+          if (key === 'vibe') parts.push(val + ' vibe');
+          else if (key === 'colors') parts.push(val + ' color palette');
+          else if (key === 'theme') parts.push(val + ' theme');
+          else if (key === 'holiday') parts.push(val + ' holiday');
+          else if (key === 'style') parts.push(val + ' style');
+          else parts.push(val);
+        }
+      });
+
+      designPrompt = parts.join(', ') + '. Make it feel unique, unforgettable, and custom-designed for this event.';
+      if (brainstormAnswers.colors === 'Let AI decide') designPrompt += ' Choose the most impactful colors for this event.';
+
+      // Show photo rec + inspiration upload
+      var eventType = extractedData.eventType || 'other';
+      var photoRec = photoRecommendations[eventType];
+      var photoRecHtml = '';
+      if (photoRec) {
+        photoRecHtml = '<div style="background:rgba(233,69,96,0.06);padding:10px 14px;border-radius:8px;margin-bottom:12px;border-left:3px solid var(--party-coral);">'
+          + '<div style="font-size:13px;font-weight:600;color:var(--midnight);margin-bottom:4px;">' + photoRec.emoji + ' Photos — ' + photoRec.strength + '</div>'
+          + '<div style="font-size:12px;color:#555;">' + photoRec.text + '</div>'
+          + '</div>';
+      }
+
+      var card = document.createElement('div');
+      card.className = 'chat-bubble assistant';
+      card.id = 'brainstormFinish';
+      card.innerHTML = '<div style="margin-bottom:10px;">Love it! Here\'s what I\'m going with:</div>'
+        + '<div style="background:rgba(0,0,0,0.03);padding:10px 14px;border-radius:8px;font-size:13px;font-style:italic;margin-bottom:12px;color:var(--midnight);">' + escapeHtml(designPrompt) + '</div>'
+        + photoRecHtml
+        + '<div style="margin-bottom:12px;">'
+        + '<div class="image-upload-area" id="brainstormDropZone" onclick="document.getElementById(\'brainstormImageInput\').click()" style="padding:14px;border-radius:8px;">'
+        + '<p style="font-size:13px;">Upload photos or inspiration images (optional)</p>'
+        + '<p style="font-size:11px;color:#999;margin-top:2px;">JPG, PNG, HEIC, WebP (max 6 images)</p>'
+        + '</div>'
+        + '<input type="file" id="brainstormImageInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleImageUpload(event)">'
+        + '<div id="imagePreviews" class="image-previews"></div>'
+        + '</div>'
+        + '<button class="btn btn-primary" onclick="submitBrainstorm()" style="width:100%;padding:12px;font-size:14px;">Generate My Invite</button>';
+      document.getElementById('chatMessages').appendChild(card);
+      scrollChat();
+
+      setupDropZone('brainstormDropZone');
+    }
+
+    async function submitBrainstorm() {
+      var card = document.getElementById('brainstormFinish');
+      if (card) card.remove();
+      addChatBubble('Let\'s go!', 'user');
+      addChatBubble('Creating your invite now...', 'assistant');
+
+      if (!(await saveEventToDB())) return;
+      goToStep(2);
+    }
+
+    function setupDropZone(zoneId) {
+      var zone = document.getElementById(zoneId);
+      if (!zone) return;
+      zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('dragover'); });
+      zone.addEventListener('dragleave', function() { zone.classList.remove('dragover'); });
+      zone.addEventListener('drop', function(e) {
+        e.preventDefault(); zone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) addFiles(Array.from(e.dataTransfer.files));
+      });
+    }
+
+    // Keep old function name as alias for backward compat with resume flow
+    async function proceedToCreativeDirection() {
+      confirmDetailsAndAskStyle();
+    }
+
+    // ---- Step Navigation ----
+
+    function goToStep(step) {
+      document.querySelector('.chat-container').style.display = step === 1 ? 'flex' : 'none';
+
+      document.querySelectorAll('.container .step').forEach(function(s) { s.classList.remove('active'); });
+      if (step > 1) {
+        document.querySelector('.container .step[data-step="' + step + '"]').classList.add('active');
+      }
+
+      document.querySelectorAll('.step-dot').forEach(function(dot) {
+        var ds = parseInt(dot.getAttribute('data-step'));
+        dot.classList.remove('active', 'completed');
+        if (ds === step) dot.classList.add('active');
+        else if (ds < step) dot.classList.add('completed');
+      });
+
+      currentStep = step;
+      if (step === 2 && !themeVersions.length) generateTheme();
+      else if (step === 2 && themeVersions.length) {
+        // Returning to step 2 with existing themes — show preview
+        document.getElementById('generatingView').style.display = 'none';
+        document.getElementById('generatedView').style.display = 'block';
+        renderPreview(themeVersions[activeVersionIndex]);
+        renderVersionGallery();
+      }
+      if (step === 3) {
+        showSummary();
+        if (currentEvent) {
+          authFetch('/api/v2/events?action=update', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: currentEvent.id, settings: { creation_step: 3 } })
+          }).catch(function() {});
+        }
+      }
+    }
+
+    function nextStep() { if (currentStep < totalSteps) goToStep(currentStep + 1); }
+    function previousStep() { if (currentStep > 1) goToStep(currentStep - 1); }
+
+    function validateStep(step) {
+      if (false) { // No longer needed — style prompt collected in chat
+      }
+      return true;
+    }
+
+    // ---- Theme Generation ----
+
+    var genPunIntervalId = null;
+
+    function startGeneratingPuns() {
+      var punEl = document.getElementById('generatingPun');
+      if (!punEl) return;
+      var shuffled = eventPuns.slice().sort(function() { return Math.random() - 0.5; });
+      var idx = 0;
+      punEl.textContent = shuffled[0];
+      genPunIntervalId = setInterval(function() {
+        idx = (idx + 1) % shuffled.length;
+        punEl.style.opacity = '0';
+        setTimeout(function() { punEl.textContent = shuffled[idx]; punEl.style.opacity = '1'; }, 300);
+      }, 2500);
+    }
+
+    function stopGeneratingPuns() {
+      if (genPunIntervalId) { clearInterval(genPunIntervalId); genPunIntervalId = null; }
+    }
+
+    async function generateTheme(feedback) {
+      document.getElementById('generatingView').style.display = 'block';
+      document.getElementById('generatedView').style.display = 'none';
+      startGeneratingPuns();
+
+      if (!currentEvent) {
+        showMessage('Event not saved yet. Please go back and confirm your details.', 'error');
+        goToStep(1);
+        return;
+      }
+
+      // Update progress to step 2
+      authFetch('/api/v2/events?action=update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: currentEvent.id, settings: { creation_step: 2 } })
+      }).catch(function() {});
+
+      try {
+        var promptText = designPrompt || extractedData.prompt || '';
+        var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+        var payload = {
+          eventId: currentEvent.id,
+          prompt: promptText,
+          feedback: feedback || '',
+          rsvpFields: enabledFields.map(function(f) { return { label: f.label, field_type: f.field_type, is_required: f.is_required }; }),
+          eventDetails: {
+            title: extractedData.title || 'Untitled Event',
+            eventDate: extractedData.startDate || '',
+            endDate: extractedData.endDate || '',
+            locationName: extractedData.locationName || '',
+            locationAddress: extractedData.locationAddress || '',
+            dressCode: extractedData.dressCode || '',
+            eventType: extractedData.eventType || 'other',
+            hostName: extractedData.hostName || '',
+            tagline: extractedData.tagline || ''
+          },
+          inspirationImages: inspirationImageBase64Array,
+          photoUrls: inspirationImageUrls.filter(function(u) { return !!u; })
+        };
+        var res2 = await authFetch('/api/v2/generate-theme', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res2.status === 413) {
+          // Payload too large — retry without images
+          console.warn('Payload too large, retrying without inspiration images');
+          payload.inspirationImages = [];
+          res2 = await authFetch('/api/v2/generate-theme', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        }
+        var result2 = await res2.json();
+        if (result2.success) {
+          var ver = {
+            id: result2.theme.id,
+            version: result2.theme.version,
+            html: result2.theme.html,
+            css: result2.theme.css,
+            config: result2.theme.config
+          };
+          themeVersions.push(ver);
+          activeVersionIndex = themeVersions.length - 1;
+          currentEvent.themeHtml = ver.html;
+          currentEvent.themeCss = ver.css;
+          currentEvent.themeConfig = ver.config;
+          stopGeneratingPuns();
+          document.getElementById('generatingView').style.display = 'none';
+          document.getElementById('generatedView').style.display = 'block';
+          renderPreview(ver);
+          renderVersionGallery();
+          initDesignChatIfNeeded();
+        } else {
+          stopGeneratingPuns();
+          var errMsg = result2.message || result2.error || 'Failed to generate theme';
+          // Show error on the generating screen with a retry button instead of going back
+          if (themeVersions.length > 0) {
+            showMessage(errMsg, 'error');
+            document.getElementById('generatingView').style.display = 'none';
+            document.getElementById('generatedView').style.display = 'block';
+            renderPreview(themeVersions[activeVersionIndex]);
+          } else {
+            showGeneratingError(errMsg);
+          }
+        }
+      } catch (err) {
+        stopGeneratingPuns();
+        var catchMsg = err.message || 'Error generating theme';
+        if (themeVersions.length > 0) {
+          showMessage(catchMsg, 'error');
+          document.getElementById('generatingView').style.display = 'none';
+          document.getElementById('generatedView').style.display = 'block';
+          renderPreview(themeVersions[activeVersionIndex]);
+        } else {
+          showGeneratingError(catchMsg);
+        }
+      }
+    }
+
+    function showGeneratingError(msg) {
+      var view = document.getElementById('generatingView');
+      view.innerHTML = '<div class="loading-state">'
+        + '<div style="font-size:32px;margin-bottom:12px;">😅</div>'
+        + '<h3 style="color:var(--party-coral);">Oops!</h3>'
+        + '<p style="margin-bottom:16px;">' + escapeHtml(msg) + '</p>'
+        + '<div style="display:flex;gap:8px;justify-content:center;">'
+        + '<button class="btn btn-secondary" onclick="goToStep(1)" style="font-size:13px;padding:10px 20px;">Back</button>'
+        + '<button class="btn btn-primary" onclick="retryGenerate()" style="font-size:13px;padding:10px 20px;">Try Again</button>'
+        + '</div></div>';
+    }
+
+    function retryGenerate() {
+      // Reset generating view HTML
+      document.getElementById('generatingView').innerHTML = '<div class="loading-state">'
+        + '<span class="loading-spinner" style="width: 40px; height: 40px; border-width: 3px;"></span>'
+        + '<h3>Generating Your Invite...</h3>'
+        + '<p id="generatingPun" style="transition:opacity 0.3s;">One more try...</p>'
+        + '<div class="progress-bar"><div class="progress-bar-fill"></div></div>'
+        + '</div>';
+      generateTheme();
+    }
+
+    function buildRsvpFormHtml() {
+      var config = themeVersions[activeVersionIndex] ? themeVersions[activeVersionIndex].config : {};
+      var accent = config.accentColor || config.primaryColor || '#E94560';
+      var html = '<div style="font-family:inherit;">';
+
+      // Name field (always present)
+      html += '<div style="margin-bottom:12px;">'
+        + '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;opacity:0.9;">Name <span style="color:' + accent + ';">*</span></label>'
+        + '<input type="text" placeholder="Your name" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">'
+        + '</div>';
+
+      // Email field
+      html += '<div style="margin-bottom:12px;">'
+        + '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;opacity:0.9;">Email</label>'
+        + '<input type="email" placeholder="your@email.com" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">'
+        + '</div>';
+
+      // RSVP Status — styled radio buttons
+      html += '<div style="margin-bottom:12px;">'
+        + '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;opacity:0.9;">RSVP Status <span style="color:' + accent + ';">*</span></label>'
+        + '<div style="display:flex;gap:6px;">'
+        + ['Attending', 'Declined', 'Maybe'].map(function(opt, idx) {
+          var isFirst = idx === 0;
+          return '<label style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px 6px;border:2px solid ' + (isFirst ? accent : 'rgba(255,255,255,0.3)') + ';border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;background:' + (isFirst ? accent : 'rgba(255,255,255,0.1)') + ';color:' + (isFirst ? '#fff' : 'inherit') + ';transition:all 0.2s;">'
+            + '<input type="radio" name="rsvpStatus" value="' + opt + '"' + (isFirst ? ' checked' : '') + ' disabled style="display:none;">'
+            + opt + '</label>';
+        }).join('')
+        + '</div></div>';
+
+      // Custom RSVP fields
+      rsvpFields.forEach(function(f) {
+        var reqStar = f.is_required ? ' <span style="color:' + accent + ';">*</span>' : '';
+        html += '<div style="margin-bottom:12px;">'
+          + '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;opacity:0.9;">' + escapeHtml(f.label) + reqStar + '</label>';
+        if (f.field_type === 'checkbox') {
+          html += '<label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">'
+            + '<input type="checkbox" disabled style="width:18px;height:18px;accent-color:' + accent + ';cursor:pointer;">'
+            + '<span style="opacity:0.9;">' + escapeHtml(f.placeholder || f.label) + '</span></label>';
+        } else if (f.field_type === 'select' && f.options && f.options.length > 0) {
+          html += '<select disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;-webkit-appearance:none;">'
+            + '<option>' + escapeHtml(f.options[0]) + '</option></select>';
+        } else if (f.field_type === 'textarea') {
+          html += '<textarea disabled placeholder="' + escapeHtml(f.placeholder || '') + '" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;min-height:60px;resize:none;"></textarea>';
+        } else if (f.field_type === 'number') {
+          html += '<input type="number" placeholder="' + escapeHtml(f.placeholder || '0') + '" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">';
+        } else if (f.field_type === 'email') {
+          html += '<input type="email" placeholder="' + escapeHtml(f.placeholder || 'your@email.com') + '" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">';
+        } else if (f.field_type === 'phone' || f.field_type === 'tel') {
+          html += '<input type="tel" placeholder="' + escapeHtml(f.placeholder || '(555) 123-4567') + '" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">';
+        } else {
+          html += '<input type="text" placeholder="' + escapeHtml(f.placeholder || '') + '" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">';
+        }
+        html += '</div>';
+      });
+
+      html += '</div>';
+      return html;
+    }
+
+    function formatDateTimeForDisplay(startStr, endStr) {
+      if (!startStr) return '';
+      var opts = { year: 'numeric', month: 'long', day: 'numeric' };
+      var timeOpts = { hour: 'numeric', minute: '2-digit', hour12: true };
+      var start = new Date(startStr);
+      var datePart = start.toLocaleDateString('en-US', opts);
+      var timePart = start.toLocaleTimeString('en-US', timeOpts);
+      var result = datePart + ' at ' + timePart;
+      if (endStr) {
+        var end = new Date(endStr);
+        var endTimePart = end.toLocaleTimeString('en-US', timeOpts);
+        // Same day?
+        if (start.toDateString() === end.toDateString()) {
+          result = datePart + ' · ' + timePart + ' – ' + endTimePart;
+        } else {
+          result = datePart + ' ' + timePart + ' – ' + end.toLocaleDateString('en-US', opts) + ' ' + endTimePart;
+        }
+      }
+      return result;
+    }
+
+    function buildSrcdoc(ver) {
+      var fontsImport = ver.config.googleFontsImport || '';
+      var themeHtml = ver.html;
+      // Inject functional form inputs into rsvp-slot
+      var rsvpFormHtml = buildRsvpFormHtml();
+
+      // Build detail overrides from current extractedData
+      var detailOverrides = {};
+      if (extractedData.title) detailOverrides.title = extractedData.title;
+      if (extractedData.startDate) detailOverrides.datetime = formatDateTimeForDisplay(extractedData.startDate, extractedData.endDate);
+      var locParts = [];
+      if (extractedData.locationName) locParts.push(extractedData.locationName);
+      if (extractedData.locationAddress) locParts.push(extractedData.locationAddress);
+      if (locParts.length > 0) detailOverrides.location = locParts.join('<br>');
+      if (extractedData.dressCode) detailOverrides.dresscode = extractedData.dressCode;
+
+      // Script that injects RSVP form and updates data-field elements
+      var rsvpScript = '<script>'
+        + 'document.addEventListener("DOMContentLoaded", function() {'
+        + '  var slot = document.querySelector(".rsvp-slot");'
+        + '  if (slot) {'
+        + '    var btn = slot.querySelector(".rsvp-button");'
+        + '    var btnHtml = btn ? btn.outerHTML : "";'
+        + '    slot.innerHTML = ' + JSON.stringify(rsvpFormHtml) + ' + btnHtml;'
+        + '  }'
+        + '  var overrides = ' + JSON.stringify(detailOverrides) + ';'
+        + '  Object.keys(overrides).forEach(function(key) {'
+        + '    var el = document.querySelector("[data-field=\\"" + key + "\\"]");'
+        + '    if (el) el.innerHTML = overrides[key];'
+        + '  });'
+        + '  var dc = document.querySelector("[data-field=\\"dresscode\\"]");'
+        + '  if (dc && !overrides.dresscode) { dc.style.display = "none"; }'
+        + '  else if (dc && overrides.dresscode) { dc.style.display = ""; }'
+        + '});'
+        + '<\/script>';
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; } ' + fontsImport + '</style>'
+        + '<style>' + ver.css + '</style></head><body>' + themeHtml + rsvpScript + '</body></html>';
+    }
+
+    function renderPreview(ver) {
+      if (currentPreviewMode === 'thankyou') {
+        document.getElementById('previewFrame').srcdoc = buildThankYouSrcdoc(ver);
+      } else {
+        document.getElementById('previewFrame').srcdoc = buildSrcdoc(ver);
+      }
+    }
+
+    function renderVersionGallery() {
+      // Version gallery moved to Versions tab — update list if tab is visible
+      var tabVersions = document.getElementById('tabVersions');
+      if (tabVersions && tabVersions.classList.contains('active')) renderVersionList();
+    }
+
+    function renderVersionList() {
+      var list = document.getElementById('versionList');
+      if (!list) return;
+      if (themeVersions.length === 0) { list.innerHTML = '<p style="color:#999;font-size:13px;text-align:center;padding:20px;">No versions yet.</p>'; return; }
+      // Show newest first
+      var sorted = themeVersions.map(function(v, i) { return { ver: v, idx: i }; }).reverse();
+      list.innerHTML = sorted.map(function(item) {
+        var v = item.ver;
+        var i = item.idx;
+        var isActive = i === activeVersionIndex;
+        var borderColor = isActive ? 'var(--party-coral)' : '#ddd';
+        return '<div onclick="switchVersion(' + i + ')" style="width:72px;cursor:pointer;text-align:center;" title="Version ' + v.version + (v.prompt ? ' — ' + (v.prompt || '').substring(0, 60) : '') + '">'
+          + '<div style="width:72px;height:156px;border-radius:10px;overflow:hidden;position:relative;background:#f0f0f0;border:2px solid ' + borderColor + ';' + (isActive ? 'box-shadow:0 0 0 2px rgba(233,69,96,0.3);' : '') + 'transition:all 0.2s;">'
+          + '<iframe srcdoc="' + escapeAttr(buildSrcdoc(v)) + '" style="width:393px;height:852px;border:none;transform:scale(0.168);transform-origin:top left;pointer-events:none;"></iframe>'
+          + '</div>'
+          + '<div style="margin-top:4px;font-size:11px;font-weight:' + (isActive ? '700' : '500') + ';color:' + (isActive ? 'var(--party-coral)' : '#666') + ';">v' + v.version + (isActive ? ' <span style="font-size:9px;vertical-align:middle;">(active)</span>' : '') + '</div>'
+          + '</div>';
+      }).join('');
+    }
+
+    function escapeAttr(str) {
+      return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function switchVersion(idx) {
+      activeVersionIndex = idx;
+      var ver = themeVersions[idx];
+      currentEvent.themeHtml = ver.html;
+      currentEvent.themeCss = ver.css;
+      currentEvent.themeConfig = ver.config;
+      renderPreview(ver);
+      renderVersionGallery();
+      // Activate this version in the DB
+      authFetch('/api/v2/events?action=activateTheme', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: currentEvent.id, themeId: ver.id })
+      }).catch(function() {});
+    }
+
+    // ---- Preview mode toggle (Invite / Thank You) ----
+    function setPreviewMode(mode) {
+      currentPreviewMode = mode;
+      document.querySelectorAll('.preview-toggle-btn').forEach(function(btn) { btn.classList.remove('active'); });
+      if (mode === 'invite') {
+        document.querySelectorAll('.preview-toggle-btn')[0].classList.add('active');
+      } else {
+        document.querySelectorAll('.preview-toggle-btn')[1].classList.add('active');
+      }
+      var ver = themeVersions[activeVersionIndex];
+      if (!ver) return;
+      if (mode === 'thankyou') {
+        document.getElementById('previewFrame').srcdoc = buildThankYouSrcdoc(ver);
+      } else {
+        renderPreview(ver);
+      }
+    }
+
+    // Build guaranteed thank you page structure
+    // AI provides: .thankyou-page background/decorative styling, .thankyou-hero heading + subtitle, and CSS
+    // We guarantee: calendar buttons, footer, layout structure
+    function buildThankYouSrcdoc(ver) {
+      var fontsImport = ver.config.googleFontsImport || '';
+      var guestName = 'Sarah';
+      var title = extractedData.title || 'the event';
+      var pc = ver.config.primaryColor || '#333';
+      var sc = ver.config.secondaryColor || '#4CAF50';
+      var ac = ver.config.accentColor || '#2196F3';
+
+      // Guaranteed CSS — these are the structural styles we control
+      var guaranteedCSS = '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }'
+        + '.thankyou-hero { margin-bottom:32px; }'
+        + '.thankyou-title { font-size:36px; font-weight:700; margin-bottom:12px; }'
+        + '.thankyou-subtitle { font-size:16px; line-height:1.5; opacity:0.8; }'
+        + '.thankyou-calendar-section { width:100%; max-width:320px; padding:0 8px; }'
+        + '.calendar-label { font-size:14px; margin-bottom:16px; opacity:0.7; }'
+        + '.calendar-buttons { display:flex; flex-direction:column; gap:12px; width:100%; }'
+        + '.cal-btn { display:block; width:100%; padding:16px 24px; border-radius:12px; border:none; font-family:inherit; font-size:16px; font-weight:600; cursor:pointer; transition:transform 0.15s,box-shadow 0.15s; text-align:center; color:#fff; }'
+        + '.cal-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.15); }'
+        + '.cal-apple { background:' + pc + '; color:#fff; }'
+        + '.cal-google { background:' + sc + '; color:#fff; }'
+        + '.cal-outlook { background:' + ac + '; color:#fff; }'
+        + '.thankyou-footer { font-size:12px; opacity:0.5; margin-top:40px; text-align:center; }'
+        + '.thankyou-footer a { color:inherit; text-decoration:none; }';
+
+      // Guaranteed calendar + footer HTML — never left to the AI
+      var guaranteedCalendarHTML = '<div class="thankyou-calendar-section">'
+        + '<p class="calendar-label">Add to your calendar:</p>'
+        + '<div class="calendar-buttons">'
+        + '<button class="cal-btn cal-apple" data-cal="apple">Apple / Outlook (.ics)</button>'
+        + '<button class="cal-btn cal-google" data-cal="google">Google Calendar</button>'
+        + '<button class="cal-btn cal-outlook" data-cal="outlook">Outlook Web</button>'
+        + '</div></div>';
+      var guaranteedFooterHTML = '<p class="thankyou-footer">Made with &#10084; by <a href="https://www.ryvite.com">Ryvite</a></p>';
+
+      var calScript = '<script>document.addEventListener("click",function(e){var btn=e.target.closest(".cal-btn,[data-cal]");if(btn){var t=btn.getAttribute("data-cal")||btn.textContent.trim().toLowerCase();window.parent.postMessage({type:"calendar",cal:t},"*");}});<\/script>';
+
+      if (ver.config.thankyouHtml) {
+        var tyHtml = ver.config.thankyouHtml;
+        // Replace guest/event placeholders
+        tyHtml = tyHtml.replace(/<span class="thankyou-guest">[^<]*<\/span>/g, '<span class="thankyou-guest">' + escapeHtml(guestName) + '</span>');
+        tyHtml = tyHtml.replace(/<span class="thankyou-event">[^<]*<\/span>/g, '<span class="thankyou-event">' + escapeHtml(title) + '</span>');
+
+        // Strip out AI-generated calendar section and footer — we inject our own
+        tyHtml = tyHtml.replace(/<div class="thankyou-calendar-section">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/g, '');
+        tyHtml = tyHtml.replace(/<div class="calendar-buttons">[\s\S]*?<\/div>/g, '');
+        tyHtml = tyHtml.replace(/<button[^>]*class="cal-btn[^>]*>[\s\S]*?<\/button>/g, '');
+        tyHtml = tyHtml.replace(/<p[^>]*class="calendar-label"[^>]*>[\s\S]*?<\/p>/g, '');
+        tyHtml = tyHtml.replace(/<p[^>]*class="thankyou-footer"[^>]*>[\s\S]*?<\/p>/g, '');
+        // Also catch any footer the AI invented with different text
+        tyHtml = tyHtml.replace(/<p[^>]*>[\s\S]*?Made with[\s\S]*?<\/p>/g, '');
+
+        // Inject guaranteed elements before closing .thankyou-page div
+        if (tyHtml.indexOf('</div>') !== -1) {
+          // Find the last </div> (closing .thankyou-page) and inject before it
+          var lastDivIdx = tyHtml.lastIndexOf('</div>');
+          tyHtml = tyHtml.substring(0, lastDivIdx) + guaranteedCalendarHTML + guaranteedFooterHTML + '</div>';
+        } else {
+          tyHtml += guaranteedCalendarHTML + guaranteedFooterHTML;
+        }
+
+        return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+          + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; } ' + fontsImport + '</style>'
+          + '<style>' + guaranteedCSS + '</style>'
+          + '<style>' + (ver.css || '') + '</style>'
+          + '</head><body>' + tyHtml + calScript + '</body></html>';
+      }
+
+      // Fallback: build entirely from theme config
+      var accent = ver.config.accentColor || ver.config.primaryColor || '#E94560';
+      var bgColor = ver.config.backgroundColor || '#FFFAF5';
+      var textColor = ver.config.textColor || '#1A1A2E';
+      var headlineFont = ver.config.fontHeadline || 'serif';
+      var bodyFont = ver.config.fontBody || 'sans-serif';
+
+      var thankYouHtml = '<div class="thankyou-page" style="background:' + bgColor + ';color:' + textColor + ';font-family:' + bodyFont + ',sans-serif;">'
+        + '<div class="thankyou-hero">'
+        + '<h1 class="thankyou-title" style="font-family:' + headlineFont + ',serif;color:' + accent + ';">Thank You!</h1>'
+        + '<p class="thankyou-subtitle">Thanks for RSVPing, <span class="thankyou-guest">' + escapeHtml(guestName) + '</span>! We can\'t wait to see you at <span class="thankyou-event">' + escapeHtml(title) + '</span>.</p>'
+        + '</div>'
+        + guaranteedCalendarHTML
+        + guaranteedFooterHTML
+        + '</div>';
+
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; } ' + fontsImport + '</style>'
+        + '<style>' + guaranteedCSS + '</style>'
+        + '</head><body>' + thankYouHtml + calScript + '</body></html>';
+    }
+
+    // Handle calendar button clicks from thank you preview iframe
+    window.addEventListener('message', function(e) {
+      if (e.data && e.data.type === 'calendar' && currentEvent) {
+        var ev = currentEvent;
+        if (e.data.cal === 'google') {
+          var s = new Date(ev.event_date || ev.eventDate), end = ev.end_date || ev.endDate;
+          var ed = end ? new Date(end) : new Date(s.getTime() + 3600000);
+          var fmt = function(d) { return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; };
+          window.open('https://calendar.google.com/calendar/u/0/r/eventedit?' + new URLSearchParams({ action: 'TEMPLATE', text: ev.title, dates: fmt(s) + '/' + fmt(ed), location: (ev.location_name || ev.locationName || '') + (ev.location_address || ev.locationAddress ? ', ' + (ev.location_address || ev.locationAddress) : ''), details: ev.description || '' }).toString(), '_blank');
+        } else if (e.data.cal === 'outlook') {
+          var s2 = new Date(ev.event_date || ev.eventDate), end2 = ev.end_date || ev.endDate;
+          var ed2 = end2 ? new Date(end2) : new Date(s2.getTime() + 3600000);
+          window.open('https://outlook.live.com/calendar/0/deeplink/compose?' + new URLSearchParams({ path: '/calendar/action/compose', rru: 'addevent', subject: ev.title, startdt: s2.toISOString(), enddt: ed2.toISOString(), location: (ev.location_name || ev.locationName || '') + (ev.location_address || ev.locationAddress ? ', ' + (ev.location_address || ev.locationAddress) : ''), body: ev.description || '' }).toString(), '_blank');
+        } else if (e.data.cal === 'yahoo') {
+          var s4 = new Date(ev.event_date || ev.eventDate), end4 = ev.end_date || ev.endDate;
+          var ed4 = end4 ? new Date(end4) : new Date(s4.getTime() + 3600000);
+          var fmt4 = function(d) { return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; };
+          var dur4 = Math.round((ed4 - s4) / 3600000);
+          var durStr4 = (dur4 < 10 ? '0' : '') + dur4 + '00';
+          window.open('https://calendar.yahoo.com/?' + new URLSearchParams({ v: '60', title: ev.title, st: fmt4(s4), dur: durStr4, in_loc: (ev.location_name || ev.locationName || '') + (ev.location_address || ev.locationAddress ? ', ' + (ev.location_address || ev.locationAddress) : ''), desc: ev.description || '' }).toString(), '_blank');
+        } else {
+          var s3 = new Date(ev.event_date || ev.eventDate), end3 = ev.end_date || ev.endDate;
+          var ed3 = end3 ? new Date(end3) : new Date(s3.getTime() + 3600000);
+          var fmt3 = function(d) { return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; };
+          var ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Ryvite//Event//EN','BEGIN:VEVENT','DTSTART:' + fmt3(s3),'DTEND:' + fmt3(ed3),'SUMMARY:' + ev.title,'LOCATION:' + (ev.location_name || ev.locationName || ''),'DESCRIPTION:' + (ev.description || '').replace(/\n/g, '\\n'),'END:VEVENT','END:VCALENDAR'].join('\r\n');
+          var blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+          var link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = ev.title.replace(/[^a-z0-9]/gi, '-').toLowerCase() + '.ics'; link.click(); URL.revokeObjectURL(link.href);
+        }
+      }
+    });
+
+    function openLivePreview() {
+      if (!currentEvent) { showMessage('Event not saved yet', 'error'); return; }
+      window.open('/v2/preview/?eventId=' + encodeURIComponent(currentEvent.id), '_blank');
+    }
+
+    // Profile dropdown
+    function toggleProfileMenu() {
+      document.getElementById('profileDropdown').classList.toggle('open');
+    }
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.profile-menu')) {
+        document.getElementById('profileDropdown').classList.remove('open');
+      }
+    });
+
+    // ---- Tab switching & edit panel ----
+    var designChatHistory = [];
+    var designChatPhotoBase64 = null;
+    var designChatPhotoUrl = null;
+    var designChatPhotoUrls = []; // Support multiple photo uploads
+    var pendingRedesignText = null; // Holds original message while awaiting clarification
+    var awaitingRedesignClarification = false;
+    var skipRedesignDetection = false; // Flag to skip detection when sending clarified message
+
+    function switchTab(tab) {
+      document.querySelectorAll('.panel-tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+      if (tab === 'details') {
+        document.querySelector('.panel-tab:nth-child(2)').classList.add('active');
+        document.getElementById('tabDetails').classList.add('active');
+        populateEditFields();
+      } else if (tab === 'versions') {
+        document.querySelector('.panel-tab:nth-child(3)').classList.add('active');
+        document.getElementById('tabVersions').classList.add('active');
+        renderVersionList();
+      } else {
+        document.querySelector('.panel-tab:nth-child(1)').classList.add('active');
+        document.getElementById('tabDesign').classList.add('active');
+        if (designChatHistory.length === 0) initDesignChat();
+      }
+    }
+
+    function populateEditFields() {
+      document.getElementById('editTitle').value = extractedData.title || '';
+      var start = parseISOToDateAndTime(extractedData.startDate);
+      document.getElementById('editDate').value = start.date;
+      document.getElementById('editTime').value = start.time;
+      var end = parseISOToDateAndTime(extractedData.endDate);
+      document.getElementById('editEndDate').value = end.date;
+      document.getElementById('editEndTime').value = end.time;
+      document.getElementById('editLocation').value = extractedData.locationName || '';
+      document.getElementById('editAddress').value = extractedData.locationAddress || '';
+      document.getElementById('editDressCode').value = extractedData.dressCode || '';
+      renderEditCustomFields();
+    }
+
+    var eventPuns = [
+      "Getting this party started...",
+      "RSVPreparing your design...",
+      "Un-wrapping your invite...",
+      "Putting the 'fun' in function...",
+      "Raising the bar... and the balloon arch...",
+      "This invite is gonna be lit... erally perfect",
+      "Confetti-loading your masterpiece...",
+      "Let's get this bread... and cake... and invite...",
+      "Channeling main character energy...",
+      "Rolling out the red carpet...",
+      "Popping bottles... of creativity...",
+      "Making it rain... style points...",
+      "Your invite called. It wants to look amazing."
+    ];
+    var punIntervalId = null;
+
+    function showDesignChatLoader() {
+      var container = document.getElementById('designChatMessages');
+      var shuffled = eventPuns.slice().sort(function() { return Math.random() - 0.5; });
+      var punIndex = 0;
+      container.innerHTML = '<div class="design-chat-loader">'
+        + '<div class="loader-dots"><span></span><span></span><span></span></div>'
+        + '<div class="loader-pun">' + shuffled[0] + '</div>'
+        + '</div>';
+      punIntervalId = setInterval(function() {
+        punIndex = (punIndex + 1) % shuffled.length;
+        var el = container.querySelector('.loader-pun');
+        if (el) {
+          el.style.opacity = '0';
+          setTimeout(function() { el.textContent = shuffled[punIndex]; el.style.opacity = '1'; }, 300);
+        }
+      }, 2500);
+    }
+
+    function hideDesignChatLoader() {
+      if (punIntervalId) { clearInterval(punIntervalId); punIntervalId = null; }
+    }
+
+    function initDesignChatIfNeeded(showLoader) {
+      if (designChatHistory.length === 0) initDesignChat(showLoader);
+    }
+
+    function initDesignChat(showLoader) {
+      if (showLoader) {
+        showDesignChatLoader();
+        setTimeout(function() {
+          hideDesignChatLoader();
+          finishDesignChatInit();
+        }, 3000);
+      } else {
+        finishDesignChatInit();
+      }
+    }
+
+    function finishDesignChatInit() {
+      var title = extractedData.title || 'your event';
+      var welcomeMsg = "Hey! I'm your design assistant for " + title + ". I'll help you build the perfect invite.\n\n"
+        + "Tell me about your event and I'll design everything:\n"
+        + "- Location & address\n"
+        + "- Dress code or theme\n"
+        + "- RSVP fields (plus-ones, dietary needs, song requests, etc.)\n"
+        + "- Colors, fonts, and overall vibe\n"
+        + "- Photos to feature in the design\n\n"
+        + "Just describe what you want! For example:\n"
+        + "\"Make the background darker, add a photo of the venue, and change the RSVP button to gold.\"";
+
+      designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
+      renderDesignChat();
+    }
+
+    function renderDesignChat() {
+      var container = document.getElementById('designChatMessages');
+      container.innerHTML = designChatHistory.map(function(msg) {
+        if (msg.role === 'system') {
+          var progressPct = msg.progress || 0;
+          return '<div class="design-chat-msg assistant">'
+            + '<div class="design-chat-loading">'
+            + '<div style="display:flex;align-items:center;gap:8px;">'
+            + '<span class="loading-spinner" style="width:14px;height:14px;border-width:2px;margin-right:0;"></span>'
+            + '<span>' + escapeHtml(msg.content) + '</span>'
+            + '</div>'
+            + '<div class="design-chat-progress"><div class="design-chat-progress-bar" style="width:' + progressPct + '%"></div></div>'
+            + '</div></div>';
+        }
+        var cls = msg.role === 'user' ? 'user' : 'assistant';
+        var html = '<div class="design-chat-msg ' + cls + '">' + escapeHtml(msg.content).replace(/\n/g, '<br>');
+        if (msg.options && msg.options.length > 0) {
+          html += '<div class="design-chat-options" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">';
+          msg.options.forEach(function(opt) {
+            html += '<button class="design-chat-option-btn" onclick="handleRedesignOption(this.dataset.val)" data-val="' + escapeHtml(opt.value) + '" style="background:#f0f0f0;border:1px solid #ddd;border-radius:16px;padding:6px 14px;font-size:12px;cursor:pointer;transition:all 0.15s;white-space:nowrap;"'
+              + ' onmouseover="this.style.background=\'#e0e0e0\';this.style.borderColor=\'#bbb\'"'
+              + ' onmouseout="this.style.background=\'#f0f0f0\';this.style.borderColor=\'#ddd\'">'
+              + escapeHtml(opt.label) + '</button>';
+          });
+          html += '</div>';
+        }
+        html += '</div>';
+        return html;
+      }).join('');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function autoResizeTextarea(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+    }
+
+    async function handleDesignChatPhoto(event) {
+      var files = Array.from(event.target.files);
+      if (!files.length) return;
+      // Limit to 6 total photos
+      var maxPhotos = 6;
+      if (designChatPhotoUrls.length + files.length > maxPhotos) {
+        showMessage('Maximum ' + maxPhotos + ' photos allowed. You have ' + designChatPhotoUrls.length + ' already.', 'error');
+        event.target.value = '';
+        return;
+      }
+      var preview = document.getElementById('designChatPhotoPreview');
+      for (var i = 0; i < files.length; i++) {
+        var file = files[i];
+        var uploadingEl = document.createElement('span');
+        uploadingEl.style.cssText = 'font-size:12px;color:#666;';
+        uploadingEl.textContent = 'Uploading ' + (i + 1) + '/' + files.length + '...';
+        preview.appendChild(uploadingEl);
+        try {
+          if (isHeicFile(file)) file = await convertHeic(file);
+          var result = await compressImage(file, 800, 0.8);
+          if (!result) { uploadingEl.remove(); continue; }
+          var uploadRes = await authFetch('/api/v2/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              base64: result.base64,
+              eventId: currentEvent ? currentEvent.id : null,
+              filename: file.name
+            })
+          });
+          var uploadResult = await uploadRes.json();
+          uploadingEl.remove();
+          if (uploadResult.success && uploadResult.url) {
+            designChatPhotoUrls.push(uploadResult.url);
+            // Legacy compat: keep first photo as designChatPhotoUrl
+            if (!designChatPhotoUrl) designChatPhotoUrl = uploadResult.url;
+            var thumbEl = document.createElement('div');
+            thumbEl.style.cssText = 'display:inline-flex;align-items:center;gap:2px;margin:2px;';
+            thumbEl.innerHTML = '<img src="' + result.dataUrl + '" alt="Upload" style="width:48px;height:48px;object-fit:cover;border-radius:6px;"><button onclick="removeDesignChatPhoto(this,' + (designChatPhotoUrls.length - 1) + ')" style="background:none;border:none;color:#999;cursor:pointer;font-size:14px;padding:2px;">&times;</button>';
+            preview.appendChild(thumbEl);
+          } else {
+            showMessage('Failed to upload photo: ' + (uploadResult.error || 'Unknown error'), 'error');
+          }
+        } catch (e) {
+          uploadingEl.remove();
+          showMessage('Failed to upload photo', 'error');
+        }
+      }
+      event.target.value = '';
+    }
+
+    function removeDesignChatPhoto(btn, idx) {
+      designChatPhotoUrls.splice(idx, 1);
+      designChatPhotoUrl = designChatPhotoUrls.length > 0 ? designChatPhotoUrls[0] : null;
+      btn.parentElement.remove();
+      // Re-index remaining remove buttons
+      var preview = document.getElementById('designChatPhotoPreview');
+      var thumbs = preview.querySelectorAll('div');
+      thumbs.forEach(function(t, i) {
+        var removeBtn = t.querySelector('button');
+        if (removeBtn) removeBtn.setAttribute('onclick', 'removeDesignChatPhoto(this,' + i + ')');
+      });
+    }
+
+    function clearDesignChatPhoto() {
+      designChatPhotoBase64 = null;
+      designChatPhotoUrl = null;
+      designChatPhotoUrls = [];
+      document.getElementById('designChatPhotoPreview').innerHTML = '';
+    }
+
+    async function sendDesignChat() {
+      var input = document.getElementById('designChatInput');
+      var text = input.value.trim();
+      var hasPhotos = designChatPhotoUrls.length > 0;
+      if (!text && !hasPhotos) return;
+
+      // Detect if user mentions wanting a photo but didn't attach one
+      if (text && !hasPhotos) {
+        var photoKeywords = /\b(photo|picture|image|pic|selfie|headshot|portrait|snapshot|upload.*(photo|image|pic)|include.*(photo|image|pic)|(add|use|put|include|attach|insert).*(photo|picture|image|pic))\b/i;
+        if (photoKeywords.test(text)) {
+          designChatHistory.push({ role: 'user', content: text });
+          designChatHistory.push({ role: 'assistant', content: "It looks like you want to include a photo, but I don't see one attached! Tap the photo icon (bottom left) to upload your image(s), then send your message again. You can upload up to 6 photos!" });
+          renderDesignChat();
+          input.value = '';
+          input.style.height = 'auto';
+          return;
+        }
+      }
+
+      // If we're awaiting redesign clarification, treat this message as the clarification
+      if (awaitingRedesignClarification && text) {
+        awaitingRedesignClarification = false;
+        // Remove the option buttons from the last assistant message
+        var lastAssistant = null;
+        for (var ci = designChatHistory.length - 1; ci >= 0; ci--) {
+          if (designChatHistory[ci].role === 'assistant' && designChatHistory[ci].options) {
+            lastAssistant = designChatHistory[ci];
+            break;
+          }
+        }
+        if (lastAssistant) delete lastAssistant.options;
+        // Combine the original request with clarification
+        var combined = pendingRedesignText + '\n\nClarification from user: ' + text;
+        pendingRedesignText = null;
+        skipRedesignDetection = true;
+        input.value = combined;
+        input.style.height = 'auto';
+        // Re-call sendDesignChat with the combined message
+        sendDesignChat();
+        return;
+      }
+
+      // Detect if user is asking for a new design OR is vague/unsure about what to change
+      if (text && !skipRedesignDetection) {
+        // Match explicit redesign requests
+        var redesignKeywords = /\b(new design|redesign|start over|start fresh|completely different|totally different|whole new|from scratch|different design|different look|different style|redo it|redo the|redo this|another design|new look|new theme|different theme|change everything|scrap this)\b/i;
+        // Match vague dissatisfaction / unclear change requests
+        var vagueKeywords = /\b(don'?t (like|love|know|feel)|not (sure|happy|feeling|loving|into|vibing|what)|make.{0,15}changes|change (it|this|the design)|switch it|something (different|else|new)|doesn'?t (feel|look|seem)|i'?m not |not.{0,8}right|want.{0,10}different|don'?t.{0,10}(like|love)|try.{0,5}again|meh|hmm|idk)\b/i;
+        // Only trigger clarification for vague messages — NOT for specific instructions like "make the background darker"
+        var hasSpecificInstruction = /\b(make the|change the|move the|add a|remove the|bigger|smaller|darker|lighter|bolder|font|color|background|button|text|photo|image|spacing|padding|margin|border|shadow|size|position)\b/i.test(text);
+
+        if (redesignKeywords.test(text) || (vagueKeywords.test(text) && !hasSpecificInstruction)) {
+          pendingRedesignText = text;
+          awaitingRedesignClarification = true;
+          designChatHistory.push({ role: 'user', content: text });
+
+          // Tailor the question based on whether it's a full redesign or vague dissatisfaction
+          var isFullRedesign = redesignKeywords.test(text);
+          var clarifyMsg = isFullRedesign
+            ? "Before I redesign, a couple quick questions so I nail it:\n\nWhat do you want to KEEP from the current design, and what should change?"
+            : "I'd love to help! To make sure I get it right, what specifically would you like to change?";
+
+          var clarifyOptions = isFullRedesign
+            ? [
+                { label: 'Keep theme, change layout', value: 'Keep the same theme/vibe but give me a completely different layout and visual style' },
+                { label: 'Keep colors, new design', value: 'Keep the color palette but redesign everything else' },
+                { label: 'Keep photos, change everything', value: 'Keep the photos in the design but change the theme, layout, and style completely' },
+                { label: 'Change everything', value: 'Start completely fresh — new theme, new layout, new colors, surprise me' }
+              ]
+            : [
+                { label: 'Change the theme/vibe', value: 'I want a different theme or overall vibe — the current one doesn\'t feel right' },
+                { label: 'Change the layout', value: 'I like the theme but the layout and arrangement of elements needs to change' },
+                { label: 'Change colors/fonts', value: 'The structure is fine but I want different colors and fonts' },
+                { label: 'Start fresh', value: 'Start completely fresh — new theme, new layout, new colors, surprise me' }
+              ];
+
+          designChatHistory.push({
+            role: 'assistant',
+            content: clarifyMsg,
+            options: clarifyOptions
+          });
+          renderDesignChat();
+          input.value = '';
+          input.style.height = 'auto';
+          return;
+        }
+      }
+      skipRedesignDetection = false; // Reset flag after detection check
+
+      var userMsg = text || '(uploaded photo' + (designChatPhotoUrls.length > 1 ? 's' : '') + ')';
+      if (hasPhotos && text) userMsg = text + ' (with ' + designChatPhotoUrls.length + ' photo' + (designChatPhotoUrls.length > 1 ? 's' : '') + ')';
+      else if (hasPhotos) userMsg = '(uploaded ' + designChatPhotoUrls.length + ' photo' + (designChatPhotoUrls.length > 1 ? 's' : '') + ')';
+
+      designChatHistory.push({ role: 'user', content: userMsg });
+      renderDesignChat();
+      input.value = '';
+      input.style.height = 'auto';
+
+      var sendBtn = document.getElementById('designChatSendBtn');
+      sendBtn.disabled = true;
+
+      // Add thinking message with cycling puns
+      var tweakPuns = [
+        "RSVPerfecting your design...",
+        "Putting the 'ooh' in 'ooh, fancy'...",
+        "Making your invite the +1 everyone wants...",
+        "Adding some pizzazz to the party...",
+        "Dress code: stunning. One sec...",
+        "Save the date... and the vibes...",
+        "Your invite is getting a glow-up...",
+        "Sprinkling some confetti on this...",
+        "Making it pop like champagne...",
+        "Working the guest list of great ideas...",
+        "No RSVP needed for this upgrade...",
+        "Raising the (open) bar on design...",
+        "You're cordially invited to wait just a moment..."
+      ];
+      var shuffledTweakPuns = tweakPuns.sort(function() { return Math.random() - 0.5; });
+      var tweakPunIdx = 0;
+      designChatHistory.push({ role: 'system', content: shuffledTweakPuns[0], progress: 5 });
+      renderDesignChat();
+      var tweakPunInterval = setInterval(function() {
+        tweakPunIdx = (tweakPunIdx + 1) % shuffledTweakPuns.length;
+        var sysMsg = designChatHistory.find(function(m) { return m.role === 'system'; });
+        if (sysMsg) {
+          sysMsg.content = shuffledTweakPuns[tweakPunIdx];
+          var el = document.querySelector('.design-chat-loading span:last-child');
+          if (el) { el.style.opacity = '0'; setTimeout(function() { el.textContent = shuffledTweakPuns[tweakPunIdx]; el.style.opacity = '1'; }, 200); }
+        }
+      }, 3000);
+
+      var ver = themeVersions[activeVersionIndex];
+      try {
+        var instructions = text || '';
+        if (hasPhotos) {
+          instructions += '\n\nThe user has uploaded ' + designChatPhotoUrls.length + ' photo(s). Embed them in the design.';
+        }
+        var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+        var payload = {
+          action: 'tweak',
+          eventId: currentEvent.id,
+          tweakInstructions: instructions,
+          currentHtml: ver.html,
+          currentCss: ver.css,
+          currentConfig: ver.config,
+          photoUrls: hasPhotos ? designChatPhotoUrls : undefined,
+          photoUrl: hasPhotos ? designChatPhotoUrls[0] : undefined,
+          eventDetails: {
+            title: extractedData.title || '',
+            eventDate: extractedData.startDate || '',
+            endDate: extractedData.endDate || '',
+            locationName: extractedData.locationName || '',
+            locationAddress: extractedData.locationAddress || '',
+            dressCode: extractedData.dressCode || '',
+            eventType: extractedData.eventType || 'other'
+          },
+          rsvpFields: enabledFields.map(function(f) { return { label: f.label, field_type: f.field_type, is_required: f.is_required }; })
+        };
+
+        // Use streaming SSE to avoid timeouts
+        var sseRes = await authFetch('/api/v2/generate-theme?action=tweak', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!sseRes.ok) {
+          clearInterval(tweakPunInterval);
+          designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+          if (sseRes.status === 504) {
+            designChatHistory.push({ role: 'assistant', content: 'That update took too long and timed out. Try a simpler change, or just try again!' });
+          } else {
+            var errText = '';
+            try { var errJson = await sseRes.json(); errText = errJson.error || errJson.message || ''; } catch(e) {}
+            designChatHistory.push({ role: 'assistant', content: 'Sorry, I had trouble with that change' + (errText ? ': ' + errText : '') + '. Could you try rephrasing?' });
+          }
+        } else {
+          // Read the SSE stream
+          var reader = sseRes.body.getReader();
+          var decoder = new TextDecoder();
+          var sseBuffer = '';
+          var tweakResult = null;
+          var tweakError = null;
+
+          while (true) {
+            var chunk = await reader.read();
+            if (chunk.done) break;
+            sseBuffer += decoder.decode(chunk.value, { stream: true });
+
+            // Parse SSE events from buffer
+            var lines = sseBuffer.split('\n');
+            sseBuffer = lines.pop() || ''; // keep incomplete line in buffer
+            var sseEventType = null;
+            for (var li = 0; li < lines.length; li++) {
+              var line = lines[li];
+              if (line.startsWith('event: ')) sseEventType = line.substring(7).trim();
+              else if (line.startsWith('data: ') && sseEventType) {
+                try {
+                  var eventData = JSON.parse(line.substring(6));
+                  if (sseEventType === 'progress') {
+                    // Update progress bar based on bytes received (estimate ~15KB for a theme)
+                    var estimatedTotal = 15000;
+                    var pct = Math.min(90, Math.round((eventData.bytes / estimatedTotal) * 90));
+                    var sysMsg3 = designChatHistory.find(function(m) { return m.role === 'system'; });
+                    if (sysMsg3) {
+                      sysMsg3.progress = pct;
+                      var bar = document.querySelector('.design-chat-progress-bar');
+                      if (bar) bar.style.width = pct + '%';
+                    }
+                  } else if (sseEventType === 'status' && eventData.phase === 'saving') {
+                    // Update the loading message to show we're almost done
+                    var sysMsg2 = designChatHistory.find(function(m) { return m.role === 'system'; });
+                    if (sysMsg2) {
+                      sysMsg2.content = 'Almost done — saving your new design...';
+                      sysMsg2.progress = 95;
+                      var el2 = document.querySelector('.design-chat-loading span:last-child');
+                      if (el2) el2.textContent = 'Almost done — saving your new design...';
+                      var bar2 = document.querySelector('.design-chat-progress-bar');
+                      if (bar2) bar2.style.width = '95%';
+                    }
+                  } else if (sseEventType === 'done') {
+                    tweakResult = eventData;
+                  } else if (sseEventType === 'error') {
+                    tweakError = eventData;
+                  }
+                } catch(pe) {}
+                sseEventType = null;
+              }
+            }
+          }
+
+          // Stop pun cycling and remove thinking message
+          clearInterval(tweakPunInterval);
+          designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+
+          if (tweakResult && tweakResult.success) {
+            var newVer = { id: tweakResult.theme.id, version: tweakResult.theme.version, html: tweakResult.theme.html, css: tweakResult.theme.css, config: tweakResult.theme.config };
+            themeVersions.push(newVer);
+            activeVersionIndex = themeVersions.length - 1;
+            currentEvent.themeHtml = newVer.html;
+            currentEvent.themeCss = newVer.css;
+            currentEvent.themeConfig = newVer.config;
+            renderPreview(newVer);
+            renderVersionGallery();
+            var chatMsg = (tweakResult.chatResponse || tweakResult.chat_response || 'Done! I\'ve updated the design. Take a look at the preview.') + '\n\nWant to make any more changes?';
+            designChatHistory.push({ role: 'assistant', content: chatMsg });
+          } else if (tweakError) {
+            designChatHistory.push({ role: 'assistant', content: 'Sorry, I had trouble with that change: ' + (tweakError.message || tweakError.error || 'Unknown error') + '. Could you try rephrasing?' });
+          } else {
+            designChatHistory.push({ role: 'assistant', content: 'Something went wrong. Please try again.' });
+          }
+        }
+      } catch (err) {
+        clearInterval(tweakPunInterval);
+        designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+        designChatHistory.push({ role: 'assistant', content: 'Something went wrong. Please try again.' });
+      }
+
+      clearDesignChatPhoto();
+      sendBtn.disabled = false;
+      renderDesignChat();
+    }
+
+    function handleRedesignOption(value) {
+      // Remove option buttons from the clarification message
+      for (var ci = designChatHistory.length - 1; ci >= 0; ci--) {
+        if (designChatHistory[ci].role === 'assistant' && designChatHistory[ci].options) {
+          delete designChatHistory[ci].options;
+          break;
+        }
+      }
+      awaitingRedesignClarification = false;
+      // Show the user's selection as a message
+      designChatHistory.push({ role: 'user', content: value });
+      renderDesignChat();
+      // Combine original request with clarification and send — skip redesign detection
+      var combined = (pendingRedesignText || 'Give me a new design') + '\n\nClarification from user: ' + value;
+      pendingRedesignText = null;
+      skipRedesignDetection = true;
+      var input = document.getElementById('designChatInput');
+      input.value = combined;
+      sendDesignChat();
+    }
+
+    function parseISOToDateAndTime(isoStr) {
+      if (!isoStr) return { date: '', time: '' };
+      try {
+        var d = new Date(isoStr);
+        if (isNaN(d.getTime())) return { date: '', time: '' };
+        var year = d.getFullYear();
+        var month = String(d.getMonth() + 1).padStart(2, '0');
+        var day = String(d.getDate()).padStart(2, '0');
+        var hours = String(d.getHours()).padStart(2, '0');
+        var mins = String(d.getMinutes()).padStart(2, '0');
+        return { date: year + '-' + month + '-' + day, time: hours + ':' + mins };
+      } catch (e) { return { date: '', time: '' }; }
+    }
+
+    function combineDateAndTime(dateStr, timeStr) {
+      if (!dateStr) return '';
+      if (!timeStr) timeStr = '00:00';
+      return dateStr + 'T' + timeStr;
+    }
+
+    // populateEditFields is called by switchTab('details') above
+
+    function renderEditCustomFields() {
+      var container = document.getElementById('editCustomFields');
+      if (rsvpFields.length === 0) {
+        container.innerHTML = '<p style="font-size:12px;color:#999;padding:4px 0;">No custom fields yet. Add fields to collect additional info from guests.</p>';
+        return;
+      }
+      var html = '';
+      rsvpFields.forEach(function(f, i) {
+        var meta = (FIELD_TYPE_LABELS[f.field_type] || f.field_type);
+        if (f.is_required) meta += ' · Required';
+        html += '<div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid #f0f0f0;">'
+          + '<div style="flex:1;min-width:0;">'
+          + '<div style="font-size:13px;font-weight:500;">' + escapeHtml(f.label) + '</div>'
+          + '<div style="font-size:11px;color:#999;">' + escapeHtml(meta) + '</div>'
+          + '</div>'
+          + '<button class="btn btn-secondary btn-sm" onclick="editCustomField(' + i + ')" style="padding:3px 8px;font-size:10px;" title="Edit">Edit</button>'
+          + '<button class="btn btn-secondary btn-sm" onclick="deleteCustomField(' + i + ')" style="padding:3px 8px;font-size:10px;color:#dc3545;border-color:#dc3545;" title="Delete">Delete</button>'
+          + '</div>';
+      });
+      container.innerHTML = html;
+    }
+
+    function deleteCustomField(idx) {
+      rsvpFields.splice(idx, 1);
+      renderEditCustomFields();
+      var rsvpFieldList = document.getElementById('rsvpFieldList');
+      if (rsvpFieldList) rsvpFieldList.innerHTML = renderRsvpFields();
+    }
+
+    function editCustomField(idx) {
+      var f = rsvpFields[idx];
+      document.getElementById('newFieldLabel').value = f.label || '';
+      document.getElementById('newFieldType').value = f.field_type || 'text';
+      document.getElementById('newFieldRequired').checked = !!f.is_required;
+      toggleFieldOptions();
+      if (f.field_type === 'select' && f.options) {
+        document.getElementById('newFieldOptions').value = f.options.join(', ');
+      }
+      document.getElementById('addFieldForm').style.display = 'block';
+      document.getElementById('addFieldBtn').style.display = 'none';
+      // Store edit index
+      document.getElementById('addFieldForm').setAttribute('data-edit-idx', idx);
+    }
+
+    function showAddFieldForm() {
+      document.getElementById('newFieldLabel').value = '';
+      document.getElementById('newFieldType').value = 'text';
+      document.getElementById('newFieldRequired').checked = false;
+      document.getElementById('newFieldOptions').value = '';
+      toggleFieldOptions();
+      document.getElementById('addFieldForm').style.display = 'block';
+      document.getElementById('addFieldBtn').style.display = 'none';
+      document.getElementById('addFieldForm').removeAttribute('data-edit-idx');
+    }
+
+    function cancelAddField() {
+      document.getElementById('addFieldForm').style.display = 'none';
+      document.getElementById('addFieldBtn').style.display = 'block';
+    }
+
+    function toggleFieldOptions() {
+      var type = document.getElementById('newFieldType').value;
+      document.getElementById('fieldOptionsGroup').style.display = type === 'select' ? 'block' : 'none';
+    }
+
+    function confirmAddField() {
+      var label = document.getElementById('newFieldLabel').value.trim();
+      if (!label) { showMessage('Please enter a field label', 'error'); return; }
+      var type = document.getElementById('newFieldType').value;
+      var required = document.getElementById('newFieldRequired').checked;
+      var options = null;
+      if (type === 'select') {
+        options = document.getElementById('newFieldOptions').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+        if (options.length === 0) { showMessage('Please enter at least one option', 'error'); return; }
+      }
+      var fieldKey = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+      var editIdx = document.getElementById('addFieldForm').getAttribute('data-edit-idx');
+      var field = {
+        field_key: fieldKey,
+        label: label,
+        field_type: type,
+        is_required: required,
+        options: options,
+        placeholder: '',
+        enabled: true
+      };
+      if (editIdx !== null && editIdx !== '') {
+        rsvpFields[parseInt(editIdx)] = field;
+      } else {
+        rsvpFields.push(field);
+      }
+      cancelAddField();
+      renderEditCustomFields();
+      var rsvpFieldList = document.getElementById('rsvpFieldList');
+      if (rsvpFieldList) rsvpFieldList.innerHTML = renderRsvpFields();
+    }
+
+    async function saveEditedDetails() {
+      extractedData.title = document.getElementById('editTitle').value;
+      extractedData.startDate = combineDateAndTime(document.getElementById('editDate').value, document.getElementById('editTime').value);
+      extractedData.endDate = combineDateAndTime(document.getElementById('editEndDate').value, document.getElementById('editEndTime').value);
+      extractedData.locationName = document.getElementById('editLocation').value;
+      extractedData.locationAddress = document.getElementById('editAddress').value;
+      extractedData.dressCode = document.getElementById('editDressCode').value;
+      if (currentEvent) {
+        try {
+          await authFetch('/api/v2/events?action=update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventId: currentEvent.id,
+              title: extractedData.title,
+              eventDate: extractedData.startDate,
+              endDate: extractedData.endDate,
+              locationName: extractedData.locationName,
+              locationAddress: extractedData.locationAddress,
+              dressCode: extractedData.dressCode
+            })
+          });
+          await saveCustomFields();
+        } catch (e) { /* ignore */ }
+      }
+      // Re-render preview to reflect updated fields
+      var ver = themeVersions[activeVersionIndex];
+      if (ver) renderPreview(ver);
+      showMessage('Details saved!', 'success');
+    }
+
+    async function saveCustomFields() {
+      var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+      if (enabledFields.length === 0 || !currentEvent) return;
+
+      try {
+        await authFetch('/api/v2/events?action=saveFields', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId: currentEvent.id,
+            fields: enabledFields.map(function(f, i) {
+              return {
+                field_key: f.field_key,
+                label: f.label,
+                field_type: f.field_type,
+                is_required: f.is_required || false,
+                options: f.options || null,
+                placeholder: f.placeholder || null,
+                sort_order: i
+              };
+            })
+          })
+        });
+      } catch (err) {
+        console.error('Error saving custom fields:', err);
+      }
+    }
+
+    // addPrompt removed — style chips now in chat via addToCustomStyle()
+
+    // ---- Image Upload with HEIC support and drag & drop ----
+
+    function isAllowedFile(file) {
+      var ext = '.' + file.name.split('.').pop().toLowerCase();
+      if (ALLOWED_EXTENSIONS.indexOf(ext) !== -1) return true;
+      if (ALLOWED_TYPES.indexOf(file.type) !== -1) return true;
+      return false;
+    }
+
+    function isHeicFile(file) {
+      var ext = file.name.split('.').pop().toLowerCase();
+      return ext === 'heic' || ext === 'heif' || file.type === 'image/heic' || file.type === 'image/heif';
+    }
+
+    // Try heic2any first, fall back to native browser decoding (Safari/iOS support HEIC natively)
+    async function convertHeic(file) {
+      try {
+        var blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 });
+        if (Array.isArray(blob)) blob = blob[0];
+        return new File([blob], file.name.replace(/\.heic$/i, '.jpg').replace(/\.heif$/i, '.jpg'), { type: 'image/jpeg' });
+      } catch (e) {
+        console.warn('heic2any failed, trying native decode:', e);
+        // Browser might handle HEIC natively — try loading as an image
+        return new Promise(function(resolve, reject) {
+          var img = new Image();
+          img.onload = function() {
+            var canvas = document.createElement('canvas');
+            canvas.width = img.width; canvas.height = img.height;
+            canvas.getContext('2d').drawImage(img, 0, 0);
+            canvas.toBlob(function(blob) {
+              if (blob) {
+                resolve(new File([blob], file.name.replace(/\.heic$/i, '.jpg').replace(/\.heif$/i, '.jpg'), { type: 'image/jpeg' }));
+              } else {
+                reject(new Error('Canvas toBlob failed'));
+              }
+            }, 'image/jpeg', 0.85);
+          };
+          img.onerror = function() { reject(new Error('Browser cannot decode this HEIC file')); };
+          img.src = URL.createObjectURL(file);
+        });
+      }
+    }
+
+    // Resize image to max dimension and compress to JPEG
+    function compressImage(file, maxDim, quality) {
+      return new Promise(function(resolve, reject) {
+        var img = new Image();
+        img.onload = function() {
+          var w = img.width, h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+            else { w = Math.round(w * maxDim / h); h = maxDim; }
+          }
+          var canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          var dataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve({ base64: dataUrl.split(',')[1], dataUrl: dataUrl });
+        };
+        img.onerror = function() { reject(new Error('Failed to load image')); };
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    async function processFile(file) {
+      if (!isAllowedFile(file)) {
+        showMessage(file.name + ' is not a supported format. Use JPG, PNG, HEIC, or WebP.', 'error');
+        return null;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        showMessage(file.name + ' is too large (max 10MB)', 'error');
+        return null;
+      }
+      if (isHeicFile(file)) {
+        try {
+          file = await convertHeic(file);
+        } catch (err) {
+          showMessage('Failed to convert ' + file.name + '. Try converting it to JPG first.', 'error');
+          return null;
+        }
+      }
+      // Compress to max 800px, JPEG quality 0.7 — keeps each image under ~200KB
+      try {
+        return await compressImage(file, 800, 0.7);
+      } catch (err) {
+        showMessage('Failed to process ' + file.name, 'error');
+        return null;
+      }
+    }
+
+    async function handleImageUpload(event) {
+      var files = Array.from(event.target.files);
+      await addFiles(files);
+      event.target.value = '';
+    }
+
+    async function addFiles(files) {
+      if (files.length + inspirationImageBase64Array.length > 6) {
+        showMessage('Maximum 6 images allowed', 'error');
+        return;
+      }
+      var container = document.getElementById('imagePreviews');
+      for (var i = 0; i < files.length; i++) {
+        if (inspirationImageBase64Array.length >= 6) break;
+        var file = files[i];
+        var placeholder = document.createElement('div');
+        placeholder.className = 'image-preview';
+        placeholder.innerHTML = '<div class="converting">Processing...</div>';
+        container.appendChild(placeholder);
+        var result = await processFile(file);
+        if (result) {
+          var idx = inspirationImageBase64Array.length;
+          inspirationImageBase64Array.push(result.base64);
+          placeholder.setAttribute('data-idx', idx);
+          placeholder.innerHTML = '<img src="' + result.dataUrl + '" alt="Preview"><button class="remove" onclick="removeImage(this)">&times;</button>';
+          // Also upload to Supabase Storage to get a persistent URL for embedding in the invite
+          try {
+            var uploadRes = await authFetch('/api/v2/upload', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                base64: result.base64,
+                eventId: currentEvent ? currentEvent.id : null,
+                filename: file.name || 'photo.jpg'
+              })
+            });
+            var uploadResult = await uploadRes.json();
+            if (uploadResult.success && uploadResult.url) {
+              inspirationImageUrls.push(uploadResult.url);
+            } else {
+              inspirationImageUrls.push(null);
+            }
+          } catch (e) {
+            inspirationImageUrls.push(null);
+          }
+        } else {
+          placeholder.remove();
+        }
+      }
+      // Scroll to keep the Generate button visible after adding photos
+      scrollChat();
+    }
+
+    function removeImage(btn) {
+      var preview = btn.parentElement;
+      var idx = parseInt(preview.getAttribute('data-idx'));
+      inspirationImageBase64Array.splice(idx, 1);
+      inspirationImageUrls.splice(idx, 1);
+      preview.remove();
+      document.querySelectorAll('.image-preview').forEach(function(el, i) { el.setAttribute('data-idx', i); });
+    }
+
+    // Drag & Drop setup removed — now handled dynamically via setupDropZone()
+
+    // ---- Summary & Publish ----
+
+    function showSummary() {
+      var d = extractedData;
+      var enabledRsvp = rsvpFields.filter(function(f) { return f.enabled; });
+      var items = [
+        ['Title', d.title || 'Untitled'],
+        ['Date & Time', d.startDate ? formatDate(d.startDate) : 'Not set'],
+        ['Location', d.locationName || 'Not set'],
+        ['Event Type', formatEventType(d.eventType || 'other')],
+        ['Design Mood', (designPrompt || d.prompt || '').substring(0, 80) + '...'],
+        ['RSVP Fields', enabledRsvp.length > 0 ? enabledRsvp.map(function(f) { return f.label; }).join(', ') : 'Default only']
+      ];
+      document.getElementById('summaryContent').innerHTML = items.map(function(item) {
+        return '<div class="summary-item"><span class="summary-label">' + escapeHtml(item[0]) + '</span><span class="summary-value">' + escapeHtml(item[1]) + '</span></div>';
+      }).join('');
+    }
+
+    async function publishEvent() {
+      if (!currentEvent) { showMessage('Event not created yet', 'error'); return; }
+      var btn = document.getElementById('publishBtn');
+      btn.disabled = true; btn.textContent = 'Publishing...';
+      try {
+        var res = await authFetch('/api/v2/events?action=update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: currentEvent.id, status: 'Published' })
+        });
+        var result = await res.json();
+        if (result.success) {
+          window.location.href = '/v2/dashboard/?published=' + currentEvent.id;
+        } else { showMessage(result.error || 'Failed to publish', 'error'); }
+      } catch (err) { showMessage('Error publishing event', 'error'); }
+      finally { btn.disabled = false; btn.textContent = 'Publish Invite'; }
+    }
+
+    // ---- Utilities ----
+
+    function formatDate(iso) {
+      try { return new Date(iso).toLocaleString(); } catch (e) { return iso; }
+    }
+
+    function formatEventType(type) {
+      var map = { birthday: 'Birthday', wedding: 'Wedding', babyShower: 'Baby Shower', graduation: 'Graduation', dinnerParty: 'Dinner Party', holiday: 'Holiday Party', corporate: 'Corporate Event', other: 'Other' };
+      return map[type] || type;
+    }
+
+    function showMessage(text, type) {
+      var el = document.getElementById('message');
+      el.textContent = text; el.className = 'message ' + type;
+      setTimeout(function() { el.style.display = 'none'; el.className = 'message'; }, 5000);
+    }
+
+    function escapeHtml(str) { var div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML; }
+
+    document.getElementById('chatInput').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+  </script>
+</body>
+</html>
