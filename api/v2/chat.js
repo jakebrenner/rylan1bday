@@ -102,21 +102,22 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
-  const token = authHeader.slice(7);
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-  if (authError || !user) {
-    return res.status(401).json({ error: 'Invalid session' });
-  }
+    const token = authHeader.slice(7);
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return res.status(401).json({ error: 'Invalid session' });
+    }
 
-  const { messages } = req.body;
-  if (!messages || !Array.isArray(messages) || messages.length === 0) {
-    return res.status(400).json({ error: 'Messages array is required' });
-  }
+    const { messages } = req.body;
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'Messages array is required' });
+    }
+
     const chatModel = await getChatModel();
     const startTime = Date.now();
     const response = await client.messages.create({
@@ -162,13 +163,6 @@ export default async function handler(req, res) {
       error: 'Failed to process message',
       message: err?.message || 'Unknown error',
       detail: String(err)
-    });
-  }
-  } catch (outerErr) {
-    console.error('Chat handler error:', outerErr);
-    return res.status(500).json({
-      error: 'Internal server error',
-      message: outerErr?.message || 'Unknown error'
     });
   }
 }
