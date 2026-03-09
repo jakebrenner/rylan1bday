@@ -367,7 +367,7 @@
   <script>
     var token = localStorage.getItem('sb_access_token');
     var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
-    if (!token || !user) { window.location.href = '/v2/login/'; }
+    if (!token || !user) { window.location.href = '/v2/login/?redirect=/v2/admin/'; }
 
     var allUsers = [];
 

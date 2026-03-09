@@ -133,6 +133,7 @@
 
   <script>
     const messageEl = document.getElementById('message');
+    const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/v2/dashboard/';
 
     // On page load: check for Supabase auth callback (magic link redirect)
     (async function init() {
@@ -171,7 +172,7 @@
               localStorage.setItem('sb_refresh_token', refreshToken || '');
               localStorage.setItem('v2_user', JSON.stringify(result.user));
               showMessage('Login successful! Redirecting...', 'success');
-              setTimeout(function() { window.location.href = '/v2/dashboard/'; }, 1000);
+              setTimeout(function() { window.location.href = redirectTo; }, 1000);
               return;
             }
           } catch (err) {
@@ -197,7 +198,7 @@
           });
           const result = await res.json();
           if (result.success) {
-            window.location.href = '/v2/dashboard/';
+            window.location.href = redirectTo;
             return;
           }
         } catch (err) {}
