@@ -133,6 +133,10 @@
 
   <script>
     const messageEl = document.getElementById('message');
+    // Check query param first, then localStorage, then default to dashboard
+    const qsRedirect = new URLSearchParams(window.location.search).get('redirect');
+    if (qsRedirect) localStorage.setItem('post_login_redirect', qsRedirect);
+    const redirectTo = localStorage.getItem('post_login_redirect') || '/v2/dashboard/';
 
     // On page load: check for Supabase auth callback (magic link redirect)
     (async function init() {
@@ -170,8 +174,9 @@
               localStorage.setItem('sb_access_token', accessToken);
               localStorage.setItem('sb_refresh_token', refreshToken || '');
               localStorage.setItem('v2_user', JSON.stringify(result.user));
+              localStorage.removeItem('post_login_redirect');
               showMessage('Login successful! Redirecting...', 'success');
-              setTimeout(function() { window.location.href = '/v2/dashboard/'; }, 1000);
+              setTimeout(function() { window.location.href = redirectTo; }, 1000);
               return;
             }
           } catch (err) {
@@ -197,7 +202,8 @@
           });
           const result = await res.json();
           if (result.success) {
-            window.location.href = '/v2/dashboard/';
+            localStorage.removeItem('post_login_redirect');
+            window.location.href = redirectTo;
             return;
           }
         } catch (err) {}
