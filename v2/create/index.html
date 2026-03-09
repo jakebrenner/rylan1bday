@@ -748,7 +748,17 @@
           }).join('')
         + '</div>';
 
-      html += '<button class="btn btn-primary chat-proceed" onclick="proceedToCreativeDirection()">Looks good — design my invite!</button>';
+      // RSVP Fields — conversational toggle list
+      if (rsvpFields.length > 0) {
+        html += '<div style="margin-top:16px;border-top:1px solid #eee;padding-top:14px;">'
+          + '<h4 style="font-size:14px;font-weight:600;margin-bottom:4px;">RSVP Fields</h4>'
+          + '<p style="font-size:12px;color:#888;margin-bottom:10px;">I picked these based on your event. Toggle any you don\'t need.</p>'
+          + '<div style="font-size:11px;color:#999;margin-bottom:10px;padding:6px 10px;background:#f9f9f9;border-radius:6px;">Always included: <strong>Name</strong>, <strong>RSVP Status</strong></div>'
+          + '<div id="rsvpFieldList">' + renderRsvpFields() + '</div>'
+          + '</div>';
+      }
+
+      html += '<button class="btn btn-primary chat-proceed" onclick="proceedToCreativeDirection()" style="margin-top:16px;width:100%;">Looks good — design my invite!</button>';
 
       card.innerHTML = html;
       document.getElementById('chatMessages').appendChild(card);
