@@ -599,22 +599,26 @@ ${effectivePrompt}`;
   } catch (err) {
     console.error('Theme generation error:', err);
 
-    // Log error
-    await supabase.from('generation_log').insert({
-      event_id: eventId,
-      user_id: user.id,
-      prompt: effectivePrompt,
-      model: themeModel,
-      input_tokens: 0,
-      output_tokens: 0,
-      latency_ms: Date.now() - startTime,
-      status: 'error',
-      error: err.message
-    });
+    // Log error (don't let logging failure mask the real error)
+    try {
+      await supabase.from('generation_log').insert({
+        event_id: eventId,
+        user_id: user.id,
+        prompt: effectivePrompt,
+        model: themeModel,
+        input_tokens: 0,
+        output_tokens: 0,
+        latency_ms: Date.now() - startTime,
+        status: 'error',
+        error: (err.message || '').substring(0, 500)
+      });
+    } catch (logErr) {
+      console.error('Failed to log generation error:', logErr);
+    }
 
     return res.status(500).json({
       error: 'Failed to generate theme',
-      message: err.message
+      message: err.message || 'Unknown error'
     });
   }
 }

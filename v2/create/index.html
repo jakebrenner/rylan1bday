@@ -1239,7 +1239,7 @@
           initDesignChatIfNeeded();
         } else {
           stopGeneratingPuns();
-          var errMsg = result2.error || result2.message || 'Failed to generate theme';
+          var errMsg = result2.message || result2.error || 'Failed to generate theme';
           // Show error on the generating screen with a retry button instead of going back
           if (themeVersions.length > 0) {
             showMessage(errMsg, 'error');
