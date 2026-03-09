@@ -289,6 +289,9 @@
     <div class="step-dot" data-step="4">4</div>
   </div>
 
+  <!-- Hide step 1 immediately when resuming an existing event (prevents flash) -->
+  <script>if(new URLSearchParams(window.location.search).get('eventId')){document.write('<style>.chat-container[data-step="1"]{display:none !important;}</style>');}</script>
+
   <!-- Step 1: Chat Prompt -->
   <div class="step active chat-container" data-step="1">
     <div class="chat-messages" id="chatMessages">
@@ -364,7 +367,6 @@
                 <div class="phone-home-bar"></div>
               </div>
             </div>
-            <div id="versionGallery" class="version-gallery"></div>
           </div>
           <!-- Right: Tabbed panel (always visible) -->
           <div id="editPanel" style="flex:1;min-width:280px;max-width:440px;display:flex;flex-direction:column;">
@@ -374,8 +376,9 @@
                 <button class="btn btn-primary" onclick="nextStep()" style="flex:1;font-size:13px;padding:10px 12px;">Publish</button>
               </div>
               <div class="panel-tabs">
-                <button class="panel-tab active" onclick="switchTab('design')">Design Assistant</button>
-                <button class="panel-tab" onclick="switchTab('details')">Event Details</button>
+                <button class="panel-tab active" onclick="switchTab('design')">Design</button>
+                <button class="panel-tab" onclick="switchTab('details')">Details</button>
+                <button class="panel-tab" onclick="switchTab('versions')">Versions</button>
               </div>
 
               <!-- Design Assistant tab (chat interface) — default -->
@@ -475,6 +478,11 @@
                 </div>
                 <button class="btn btn-primary btn-sm" onclick="saveEditedDetails()" style="width:100%;margin-top:8px;">Save Changes</button>
                 <p style="font-size:11px;color:#999;margin-top:8px;text-align:center;">Saves event details and updates the design preview.</p>
+              </div>
+
+              <!-- Versions tab -->
+              <div id="tabVersions" class="tab-content">
+                <div id="versionList" style="display:flex;flex-direction:column;gap:8px;"></div>
               </div>
             </div>
           </div>
@@ -1161,13 +1169,34 @@
     }
 
     function renderVersionGallery() {
-      var gallery = document.getElementById('versionGallery');
-      if (themeVersions.length <= 1) { gallery.innerHTML = ''; return; }
-      gallery.innerHTML = themeVersions.map(function(v, i) {
-        var activeClass = i === activeVersionIndex ? ' active' : '';
-        return '<div class="version-thumb' + activeClass + '" onclick="switchVersion(' + i + ')">'
-          + '<iframe srcdoc="' + escapeAttr(buildSrcdoc(v)) + '"></iframe>'
-          + '<div class="version-label">V' + v.version + '</div>'
+      // Version gallery moved to Versions tab — update list if tab is visible
+      var tabVersions = document.getElementById('tabVersions');
+      if (tabVersions && tabVersions.classList.contains('active')) renderVersionList();
+    }
+
+    function renderVersionList() {
+      var list = document.getElementById('versionList');
+      if (!list) return;
+      if (themeVersions.length === 0) { list.innerHTML = '<p style="color:#999;font-size:13px;text-align:center;padding:20px;">No versions yet.</p>'; return; }
+      // Show newest first
+      var sorted = themeVersions.map(function(v, i) { return { ver: v, idx: i }; }).reverse();
+      list.innerHTML = sorted.map(function(item) {
+        var v = item.ver;
+        var i = item.idx;
+        var isActive = i === activeVersionIndex;
+        var borderColor = isActive ? 'var(--party-coral)' : '#eee';
+        var badge = isActive ? '<span style="font-size:10px;background:var(--party-coral);color:white;padding:2px 8px;border-radius:10px;font-weight:600;">Active</span>' : '';
+        return '<div onclick="switchVersion(' + i + ')" style="display:flex;gap:12px;align-items:center;padding:10px;border:2px solid ' + borderColor + ';border-radius:10px;cursor:pointer;transition:all 0.2s;background:' + (isActive ? 'rgba(233,69,96,0.03)' : 'white') + ';">'
+          + '<div style="width:48px;height:104px;border-radius:8px;overflow:hidden;flex-shrink:0;position:relative;background:#f0f0f0;border:1px solid #ddd;">'
+          + '<iframe srcdoc="' + escapeAttr(buildSrcdoc(v)) + '" style="width:393px;height:852px;border:none;transform:scale(0.112);transform-origin:top left;pointer-events:none;"></iframe>'
+          + '</div>'
+          + '<div style="flex:1;min-width:0;">'
+          + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'
+          + '<span style="font-weight:600;font-size:14px;">Version ' + v.version + '</span>'
+          + badge
+          + '</div>'
+          + (v.prompt ? '<p style="font-size:11px;color:#888;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml((v.prompt || '').substring(0, 60)) + '</p>' : '')
+          + '</div>'
           + '</div>';
       }).join('');
     }
@@ -1306,6 +1335,10 @@
         document.querySelector('.panel-tab:nth-child(2)').classList.add('active');
         document.getElementById('tabDetails').classList.add('active');
         populateEditFields();
+      } else if (tab === 'versions') {
+        document.querySelector('.panel-tab:nth-child(3)').classList.add('active');
+        document.getElementById('tabVersions').classList.add('active');
+        renderVersionList();
       } else {
         document.querySelector('.panel-tab:nth-child(1)').classList.add('active');
         document.getElementById('tabDesign').classList.add('active');
