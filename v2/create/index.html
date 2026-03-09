@@ -1565,24 +1565,32 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        var result = await res.json();
 
         // Stop pun cycling and remove thinking message
         clearInterval(tweakPunInterval);
         designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
 
-        if (result.success) {
-          var newVer = { id: result.theme.id, version: result.theme.version, html: result.theme.html, css: result.theme.css, config: result.theme.config };
-          themeVersions.push(newVer);
-          activeVersionIndex = themeVersions.length - 1;
-          currentEvent.themeHtml = newVer.html;
-          currentEvent.themeCss = newVer.css;
-          currentEvent.themeConfig = newVer.config;
-          renderPreview(newVer);
-          renderVersionGallery();
-          designChatHistory.push({ role: 'assistant', content: 'Done! I\'ve updated the design. Take a look at the preview on the left. Want to make any more changes?' });
+        if (res.status === 504) {
+          designChatHistory.push({ role: 'assistant', content: 'That update took too long and timed out. Try a simpler change, or just try again — sometimes it just needs a second attempt!' });
+        } else if (!res.ok) {
+          var errText = '';
+          try { var errJson = await res.json(); errText = errJson.error || errJson.message || ''; } catch(e) {}
+          designChatHistory.push({ role: 'assistant', content: 'Sorry, I had trouble with that change' + (errText ? ': ' + errText : '') + '. Could you try rephrasing?' });
         } else {
-          designChatHistory.push({ role: 'assistant', content: 'Sorry, I had trouble with that change: ' + (result.error || result.message || 'Unknown error') + '. Could you try rephrasing?' });
+          var result = await res.json();
+          if (result.success) {
+            var newVer = { id: result.theme.id, version: result.theme.version, html: result.theme.html, css: result.theme.css, config: result.theme.config };
+            themeVersions.push(newVer);
+            activeVersionIndex = themeVersions.length - 1;
+            currentEvent.themeHtml = newVer.html;
+            currentEvent.themeCss = newVer.css;
+            currentEvent.themeConfig = newVer.config;
+            renderPreview(newVer);
+            renderVersionGallery();
+            designChatHistory.push({ role: 'assistant', content: 'Done! I\'ve updated the design. Take a look at the preview on the left. Want to make any more changes?' });
+          } else {
+            designChatHistory.push({ role: 'assistant', content: 'Sorry, I had trouble with that change: ' + (result.error || result.message || 'Unknown error') + '. Could you try rephrasing?' });
+          }
         }
       } catch (err) {
         clearInterval(tweakPunInterval);
