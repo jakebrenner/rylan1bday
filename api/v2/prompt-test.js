@@ -213,6 +213,74 @@ export default async function handler(req, res) {
   const admin = await verifyAdmin(req);
   if (!admin) return res.status(403).json({ error: 'Forbidden — admin access required' });
 
+  const action = req.query?.action || req.body?.action || 'test';
+
+  // ── AUTO-TAG: Analyze HTML and return suggested metadata ──
+  if (action === 'autoTag') {
+    const { html } = req.body;
+    if (!html) return res.status(400).json({ error: 'html is required' });
+
+    try {
+      const response = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        system: `You are a design analyst for an event invitation platform. Analyze HTML invite samples and return structured metadata. Be specific and descriptive — your notes will guide an AI designer.
+
+Return ONLY valid JSON with these keys:
+{
+  "name": "Short descriptive name (e.g. 'Elegant Magenta Quinceañera')",
+  "description": "One-sentence summary of the overall design aesthetic",
+  "eventTypes": ["array of matching event type keys"],
+  "tags": ["array of 4-8 descriptive tags"],
+  "designNotes": "2-3 sentences describing the specific design techniques, color palette, typography choices, animation patterns, and structural elements that make this design effective. Be concrete — mention specific CSS techniques, color values, font choices, SVG usage, animation types."
+}
+
+Valid event type keys: kidsBirthday, adultBirthday, babyShower, engagement, wedding, graduation, holiday, dinnerParty, retirement, anniversary, sports, bridalShower, corporate, other
+
+Guidelines:
+- eventTypes: Include ALL types this style could work for, not just the most obvious one. A formal gold+magenta design could work for quinceañera (kidsBirthday), adultBirthday, and graduation.
+- tags: Include colors, style words, techniques (e.g. "SVG", "confetti", "gradient", "serif", "minimalist", "maximalist")
+- designNotes: Focus on what the AI should LEARN from this sample. Mention specific CSS custom properties, animation keyframes, layout techniques, color palette strategy, and typography pairing.`,
+        messages: [{
+          role: 'user',
+          content: `Analyze this HTML invite and return metadata:\n\n\`\`\`html\n${html.substring(0, 15000)}\n\`\`\``
+        }]
+      });
+
+      const text = response.content[0]?.type === 'text' ? response.content[0].text : '';
+      let parsed;
+      try {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+      } catch {
+        parsed = null;
+      }
+
+      if (!parsed) {
+        return res.status(500).json({ error: 'Failed to parse auto-tag response' });
+      }
+
+      return res.status(200).json({
+        success: true,
+        autoTag: {
+          name: parsed.name || '',
+          description: parsed.description || '',
+          eventTypes: Array.isArray(parsed.eventTypes) ? parsed.eventTypes : [],
+          tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+          designNotes: parsed.designNotes || ''
+        },
+        tokens: {
+          input: response.usage?.input_tokens || 0,
+          output: response.usage?.output_tokens || 0
+        }
+      });
+    } catch (err) {
+      console.error('Auto-tag error:', err);
+      return res.status(500).json({ error: 'Auto-tag failed', message: err.message });
+    }
+  }
+
+  // ── TEST GENERATION ──
   const { model, eventDetails, styleLibraryIds } = req.body;
 
   if (!model || !eventDetails) {
