@@ -1708,6 +1708,9 @@
       }
     }
 
+    // Build guaranteed thank you page structure
+    // AI provides: .thankyou-page background/decorative styling, .thankyou-hero heading + subtitle, and CSS
+    // We guarantee: calendar buttons, footer, layout structure
     function buildThankYouSrcdoc(ver) {
       var fontsImport = ver.config.googleFontsImport || '';
       var guestName = 'Sarah';
@@ -1715,75 +1718,67 @@
       var pc = ver.config.primaryColor || '#333';
       var sc = ver.config.secondaryColor || '#4CAF50';
       var ac = ver.config.accentColor || '#2196F3';
-      var bg = ver.config.backgroundColor || '#fff';
 
-      // Fallback CSS that ensures thank you page buttons are ALWAYS styled
-      var fallbackTyCSS = '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 24px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }'
+      // Guaranteed CSS — these are the structural styles we control
+      var guaranteedCSS = '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }'
         + '.thankyou-hero { margin-bottom:32px; }'
         + '.thankyou-title { font-size:36px; font-weight:700; margin-bottom:12px; }'
         + '.thankyou-subtitle { font-size:16px; line-height:1.5; opacity:0.8; }'
-        + '.thankyou-calendar-section { width:100%; max-width:320px; }'
+        + '.thankyou-calendar-section { width:100%; max-width:320px; padding:0 8px; }'
         + '.calendar-label { font-size:14px; margin-bottom:16px; opacity:0.7; }'
         + '.calendar-buttons { display:flex; flex-direction:column; gap:12px; width:100%; }'
         + '.cal-btn { display:block; width:100%; padding:16px 24px; border-radius:12px; border:none; font-family:inherit; font-size:16px; font-weight:600; cursor:pointer; transition:transform 0.15s,box-shadow 0.15s; text-align:center; color:#fff; }'
         + '.cal-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.15); }'
-        + '.cal-apple, .cal-btn[data-cal="apple"] { background:' + pc + '; color:#fff; }'
-        + '.cal-google, .cal-btn[data-cal="google"] { background:' + sc + '; color:#fff; }'
-        + '.cal-outlook, .cal-btn[data-cal="outlook"] { background:' + ac + '; color:#fff; }'
-        + '.thankyou-footer { font-size:12px; opacity:0.5; margin-top:40px; }';
+        + '.cal-apple { background:' + pc + '; color:#fff; }'
+        + '.cal-google { background:' + sc + '; color:#fff; }'
+        + '.cal-outlook { background:' + ac + '; color:#fff; }'
+        + '.thankyou-footer { font-size:12px; opacity:0.5; margin-top:40px; text-align:center; }'
+        + '.thankyou-footer a { color:inherit; text-decoration:none; }';
 
-      // Use AI-generated thank you HTML if available
+      // Guaranteed calendar + footer HTML — never left to the AI
+      var guaranteedCalendarHTML = '<div class="thankyou-calendar-section">'
+        + '<p class="calendar-label">Add to your calendar:</p>'
+        + '<div class="calendar-buttons">'
+        + '<button class="cal-btn cal-apple" data-cal="apple">Apple / Outlook (.ics)</button>'
+        + '<button class="cal-btn cal-google" data-cal="google">Google Calendar</button>'
+        + '<button class="cal-btn cal-outlook" data-cal="outlook">Outlook Web</button>'
+        + '</div></div>';
+      var guaranteedFooterHTML = '<p class="thankyou-footer">Made with &#10084; by <a href="https://www.ryvite.com">Ryvite</a></p>';
+
+      var calScript = '<script>document.addEventListener("click",function(e){var btn=e.target.closest(".cal-btn,[data-cal]");if(btn){var t=btn.getAttribute("data-cal")||btn.textContent.trim().toLowerCase();window.parent.postMessage({type:"calendar",cal:t},"*");}});<\/script>';
+
       if (ver.config.thankyouHtml) {
         var tyHtml = ver.config.thankyouHtml;
-        // Replace placeholders with preview data
+        // Replace guest/event placeholders
         tyHtml = tyHtml.replace(/<span class="thankyou-guest">[^<]*<\/span>/g, '<span class="thankyou-guest">' + escapeHtml(guestName) + '</span>');
         tyHtml = tyHtml.replace(/<span class="thankyou-event">[^<]*<\/span>/g, '<span class="thankyou-event">' + escapeHtml(title) + '</span>');
 
-        // Normalize calendar buttons to 3-button stacked layout if old format detected
-        if (tyHtml.indexOf('data-cal="yahoo"') !== -1) {
-          // Remove Yahoo button
-          tyHtml = tyHtml.replace(/<button[^>]*data-cal="yahoo"[^>]*>[^<]*<\/button>/g, '');
-        }
-        // Add cal-apple/cal-google/cal-outlook classes if missing
-        if (tyHtml.indexOf('cal-apple') === -1) {
-          tyHtml = tyHtml.replace(/(class="cal-btn"[^>]*data-cal="apple")/g, 'class="cal-btn cal-apple" data-cal="apple"');
-          tyHtml = tyHtml.replace(/(data-cal="apple"[^>]*class="cal-btn")/g, 'data-cal="apple" class="cal-btn cal-apple"');
-        }
-        if (tyHtml.indexOf('cal-google') === -1) {
-          tyHtml = tyHtml.replace(/(class="cal-btn"[^>]*data-cal="google")/g, 'class="cal-btn cal-google" data-cal="google"');
-          tyHtml = tyHtml.replace(/(data-cal="google"[^>]*class="cal-btn")/g, 'data-cal="google" class="cal-btn cal-google"');
-        }
-        if (tyHtml.indexOf('cal-outlook') === -1) {
-          tyHtml = tyHtml.replace(/(class="cal-btn"[^>]*data-cal="outlook")/g, 'class="cal-btn cal-outlook" data-cal="outlook"');
-          tyHtml = tyHtml.replace(/(data-cal="outlook"[^>]*class="cal-btn")/g, 'data-cal="outlook" class="cal-btn cal-outlook"');
+        // Strip out AI-generated calendar section and footer — we inject our own
+        tyHtml = tyHtml.replace(/<div class="thankyou-calendar-section">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/g, '');
+        tyHtml = tyHtml.replace(/<div class="calendar-buttons">[\s\S]*?<\/div>/g, '');
+        tyHtml = tyHtml.replace(/<button[^>]*class="cal-btn[^>]*>[\s\S]*?<\/button>/g, '');
+        tyHtml = tyHtml.replace(/<p[^>]*class="calendar-label"[^>]*>[\s\S]*?<\/p>/g, '');
+        tyHtml = tyHtml.replace(/<p[^>]*class="thankyou-footer"[^>]*>[\s\S]*?<\/p>/g, '');
+        // Also catch any footer the AI invented with different text
+        tyHtml = tyHtml.replace(/<p[^>]*>[\s\S]*?Made with[\s\S]*?<\/p>/g, '');
+
+        // Inject guaranteed elements before closing .thankyou-page div
+        if (tyHtml.indexOf('</div>') !== -1) {
+          // Find the last </div> (closing .thankyou-page) and inject before it
+          var lastDivIdx = tyHtml.lastIndexOf('</div>');
+          tyHtml = tyHtml.substring(0, lastDivIdx) + guaranteedCalendarHTML + guaranteedFooterHTML + '</div>';
+        } else {
+          tyHtml += guaranteedCalendarHTML + guaranteedFooterHTML;
         }
 
-        // If no calendar buttons at all, inject them
-        if (tyHtml.indexOf('calendar-buttons') === -1) {
-          var calSection = '<div class="thankyou-calendar-section"><p class="calendar-label">Add to your calendar:</p>'
-            + '<div class="calendar-buttons">'
-            + '<button class="cal-btn cal-apple" data-cal="apple">Apple / Outlook (.ics)</button>'
-            + '<button class="cal-btn cal-google" data-cal="google">Google Calendar</button>'
-            + '<button class="cal-btn cal-outlook" data-cal="outlook">Outlook Web</button>'
-            + '</div></div>';
-          if (tyHtml.indexOf('thankyou-footer') !== -1) {
-            tyHtml = tyHtml.replace(/<p class="thankyou-footer"/, calSection + '<p class="thankyou-footer"');
-          } else if (tyHtml.indexOf('Made with') !== -1) {
-            tyHtml = tyHtml.replace(/(Made with)/, calSection + '$1');
-          } else {
-            tyHtml += calSection;
-          }
-        }
-
-        var calScript = '<script>document.addEventListener("click",function(e){var btn=e.target.closest(".cal-btn,[data-cal]");if(btn){var t=btn.getAttribute("data-cal")||btn.textContent.trim().toLowerCase();window.parent.postMessage({type:"calendar",cal:t},"*");}});<\/script>';
         return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
           + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; } ' + fontsImport + '</style>'
-          + '<style>' + fallbackTyCSS + '</style>'
+          + '<style>' + guaranteedCSS + '</style>'
           + '<style>' + (ver.css || '') + '</style>'
           + '</head><body>' + tyHtml + calScript + '</body></html>';
       }
 
-      // Fallback: build from theme config colors/fonts
+      // Fallback: build entirely from theme config
       var accent = ver.config.accentColor || ver.config.primaryColor || '#E94560';
       var bgColor = ver.config.backgroundColor || '#FFFAF5';
       var textColor = ver.config.textColor || '#1A1A2E';
@@ -1795,21 +1790,14 @@
         + '<h1 class="thankyou-title" style="font-family:' + headlineFont + ',serif;color:' + accent + ';">Thank You!</h1>'
         + '<p class="thankyou-subtitle">Thanks for RSVPing, <span class="thankyou-guest">' + escapeHtml(guestName) + '</span>! We can\'t wait to see you at <span class="thankyou-event">' + escapeHtml(title) + '</span>.</p>'
         + '</div>'
-        + '<div class="thankyou-calendar-section">'
-        + '<p class="calendar-label">Add to your calendar:</p>'
-        + '<div class="calendar-buttons">'
-        + '<button class="cal-btn cal-apple" data-cal="apple">Apple / Outlook (.ics)</button>'
-        + '<button class="cal-btn cal-google" data-cal="google">Google Calendar</button>'
-        + '<button class="cal-btn cal-outlook" data-cal="outlook">Outlook Web</button>'
-        + '</div></div>'
-        + '<p class="thankyou-footer">Made with love by <a href="/" style="color:inherit;text-decoration:none;">Ryvite</a></p>'
+        + guaranteedCalendarHTML
+        + guaranteedFooterHTML
         + '</div>';
 
-      var calScript2 = '<script>document.addEventListener("click",function(e){var btn=e.target.closest(".cal-btn,[data-cal]");if(btn){var t=btn.getAttribute("data-cal")||btn.textContent.trim().toLowerCase();window.parent.postMessage({type:"calendar",cal:t},"*");}});<\/script>';
       return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
         + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; } ' + fontsImport + '</style>'
-        + '<style>' + fallbackTyCSS + '</style>'
-        + '</head><body>' + thankYouHtml + calScript2 + '</body></html>';
+        + '<style>' + guaranteedCSS + '</style>'
+        + '</head><body>' + thankYouHtml + calScript + '</body></html>';
     }
 
     // Handle calendar button clicks from thank you preview iframe

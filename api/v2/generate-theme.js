@@ -231,128 +231,44 @@ If photos are provided via URL, use them in \`<img>\` tags with the exact URL pr
 - Keep height reasonable — fits in ~3-5 phone screen scrolls
 - Semantic HTML with aria-labels on interactive elements
 
-## THANK YOU PAGE (theme_thankyou_html) — CRITICAL: MUST BE POLISHED
+## THANK YOU PAGE (theme_thankyou_html)
 
-The thank you page is shown after a guest RSVPs. It must feel like a premium, intentionally designed page — NOT an afterthought. Same CSS (theme_css) applies to both the invite and thank you page.
+The thank you page appears after RSVP. Same CSS (theme_css) applies to both invite and thank you page.
 
-### REQUIRED STRUCTURE — follow this EXACTLY, no additions:
+**IMPORTANT**: The platform automatically injects calendar buttons and footer. You ONLY provide the page container with the hero content. Do NOT include calendar buttons, footer, or "Made with" text — they will be added automatically.
+
+### REQUIRED STRUCTURE — provide EXACTLY this, nothing more:
 \`\`\`html
 <div class="thankyou-page">
+  <!-- Decorative background elements reused from invite (optional) -->
   <div class="thankyou-hero">
     <h1 class="thankyou-title">Thank You!</h1>
     <p class="thankyou-subtitle"><span class="thankyou-guest">Guest</span>, we can't wait to celebrate with you!</p>
   </div>
-  <div class="thankyou-calendar-section">
-    <p class="calendar-label">Add to your calendar:</p>
-    <div class="calendar-buttons">
-      <button class="cal-btn cal-apple" data-cal="apple">Apple / Outlook (.ics)</button>
-      <button class="cal-btn cal-google" data-cal="google">Google Calendar</button>
-      <button class="cal-btn cal-outlook" data-cal="outlook">Outlook Web</button>
-    </div>
-  </div>
-  <p class="thankyou-footer">Made with love by <a href="/" style="color:inherit;text-decoration:none;">Ryvite</a></p>
+  <!-- STOP HERE — calendar buttons and footer are injected by the platform -->
 </div>
 \`\`\`
 
-### ABSOLUTE RULES for the thank you page:
-- NO emojis anywhere — no emojis in buttons, headings, footer, or anywhere else
-- NO extra sections — no dress code reminders, no event details, no bullet lists, no "mission briefings"
-- ONLY the elements shown above: heading, subtitle, calendar buttons, footer
-- The subtitle should be warm and event-appropriate (e.g., "We can't wait to celebrate with you!")
+### Rules:
+- NO emojis anywhere in the thank you page
+- NO calendar buttons, NO footer — the platform handles these
+- NO extra sections (dress code, bullet lists, event details, etc.)
 - The heading can be creative but short (e.g., "Thank You!", "You're In!", "See You There!")
+- The subtitle must include \`<span class="thankyou-guest">Guest</span>\` placeholder
+- Style .thankyou-page with same background treatment as the invite
+- Style .thankyou-title with the invite's display font and themed color
+- Include these CSS rules in theme_css:
 
-### CRITICAL CSS REQUIREMENTS — include ALL of this in theme_css:
 \`\`\`css
 .thankyou-page {
-  max-width: 393px;
-  margin: 0 auto;
-  padding: 60px 24px 40px;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  /* Use same background as invite or a clean complementary background */
+  max-width: 393px; margin: 0 auto; padding: 60px 32px 40px;
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center;
 }
-.thankyou-hero {
-  margin-bottom: 32px;
-}
-.thankyou-title {
-  font-size: 36px;
-  font-weight: 700;
-  margin-bottom: 12px;
-  /* Use invite's display font and a themed color */
-}
-.thankyou-subtitle {
-  font-size: 16px;
-  line-height: 1.5;
-  opacity: 0.8;
-}
-.thankyou-calendar-section {
-  width: 100%;
-  max-width: 320px;
-}
-.calendar-label {
-  font-size: 14px;
-  margin-bottom: 16px;
-  opacity: 0.7;
-}
-/* Calendar buttons — STACKED full-width, 3 distinct colored buttons */
-.calendar-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: 100%;
-}
-.cal-btn {
-  display: block;
-  width: 100%;
-  padding: 16px 24px;
-  border-radius: 12px;
-  border: none;
-  font-family: inherit;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
-  text-align: center;
-  /* MUST have visible solid background color — NEVER transparent or default */
-}
-.cal-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-/* Each button gets a distinct color. Pick 3 colors that complement the invite theme.
-   Example approach: darkest theme color, medium accent, lighter accent.
-   The text color MUST contrast against the button background (white text on dark bg, or dark text on light bg). */
-.cal-apple {
-  /* Darkest button — e.g. dark charcoal, navy, or deep theme color */
-  /* White or very light text */
-}
-.cal-google {
-  /* Medium button — e.g. green-toned, teal, or mid-range theme color */
-  /* White or very light text */
-}
-.cal-outlook {
-  /* Accent button — e.g. blue-toned, or complementary theme color */
-  /* White or very light text */
-}
-.thankyou-footer {
-  font-size: 12px;
-  opacity: 0.5;
-  margin-top: 40px;
-}
+.thankyou-hero { margin-bottom: 32px; }
+.thankyou-title { font-size: 36px; font-weight: 700; margin-bottom: 12px; }
+.thankyou-subtitle { font-size: 16px; line-height: 1.5; opacity: 0.8; }
 \`\`\`
-
-The calendar buttons MUST:
-- Be full-width stacked (NOT a grid, NOT side by side)
-- Each have a DISTINCT solid background color (3 different colors from the theme palette)
-- Have large text (16px), generous padding (16px+), rounded corners (12px)
-- Have high-contrast text (light text on dark buttons, dark text on light buttons)
-- Have hover effects (translateY + shadow)
-- NEVER be unstyled browser defaults
-- NEVER contain emojis
 
 ## TEXT CONTRAST — CRITICAL, NEVER VIOLATE
 - EVERY piece of text must have sufficient contrast against its background (WCAG AA minimum: 4.5:1 for body text, 3:1 for large headings)
@@ -537,7 +453,7 @@ Return ONLY a valid JSON object with these keys:
 - No JavaScript, no external images (except Google Fonts and user-uploaded photos)
 - Make minimal changes — only what the user asked for, keep everything else exactly the same
 - Preserve and enhance CSS animations — every invite should feel alive with entrance animations, ambient motion, and hover effects
-- Thank you page: must match invite aesthetic. NO emojis anywhere. Structure: .thankyou-title heading, .thankyou-subtitle with .thankyou-guest span, 3 stacked full-width calendar buttons (.cal-btn.cal-apple, .cal-btn.cal-google, .cal-btn.cal-outlook), and .thankyou-footer. Buttons: "Apple / Outlook (.ics)", "Google Calendar", "Outlook Web" — each with a DISTINCT solid background color, 16px font, 16px+ padding, 12px border-radius, high-contrast text. NEVER unstyled defaults, NEVER emojis, NEVER extra sections.
+- Thank you page: ONLY provide .thankyou-page container with .thankyou-hero (.thankyou-title + .thankyou-subtitle with .thankyou-guest span). NO calendar buttons, NO footer — the platform injects those automatically. NO emojis. Match invite's background/fonts. Style .thankyou-page, .thankyou-hero, .thankyou-title, .thankyou-subtitle in CSS.
 - TEXT CONTRAST: EVERY text element must be clearly readable against its background. Never light-on-light or dark-on-dark. Buttons must have contrasting text. This is non-negotiable.
 - For photo additions: use the EXACT URL(s) provided in <img> tags. Style with creative framing per the event type.`;
 
