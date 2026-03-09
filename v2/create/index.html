@@ -203,6 +203,11 @@
     .feedback-modal textarea:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
     .feedback-modal .feedback-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
 
+    /* Preview toggle (Invite / Thank You) */
+    .preview-toggle-btn { padding: 6px 16px; border: 1px solid #ddd; background: white; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; color: #666; transition: all 0.2s; }
+    .preview-toggle-btn:hover { border-color: var(--party-coral); color: var(--party-coral); }
+    .preview-toggle-btn.active { background: var(--party-coral); color: white; border-color: var(--party-coral); }
+
     /* Right panel tabs */
     .panel-tabs { display: flex; border-bottom: 2px solid #eee; margin-bottom: 16px; }
     .panel-tab { flex: 1; padding: 10px 8px; text-align: center; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; color: #999; transition: all 0.2s; background: none; border-top: none; border-left: none; border-right: none; font-family: 'Inter', sans-serif; }
@@ -336,6 +341,10 @@
         <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
           <!-- Left: Phone preview -->
           <div style="flex:0 0 auto;">
+            <div id="previewToggle" style="display:flex;justify-content:center;gap:4px;margin-bottom:12px;">
+              <button class="preview-toggle-btn active" onclick="setPreviewMode('invite')">Invite</button>
+              <button class="preview-toggle-btn" onclick="setPreviewMode('thankyou')">Thank You</button>
+            </div>
             <div class="phone-mockup">
               <div class="phone-frame">
                 <div class="phone-notch"></div>
@@ -447,6 +456,7 @@
     let themeVersions = []; // [{id, version, html, css, config}]
     let activeVersionIndex = 0;
     let chatHistory = [];
+    var currentPreviewMode = 'invite';
 
     var ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp'];
     var ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.heic', '.heif', '.webp'];
@@ -1057,7 +1067,11 @@
     }
 
     function renderPreview(ver) {
-      document.getElementById('previewFrame').srcdoc = buildSrcdoc(ver);
+      if (currentPreviewMode === 'thankyou') {
+        document.getElementById('previewFrame').srcdoc = buildThankYouSrcdoc(ver);
+      } else {
+        document.getElementById('previewFrame').srcdoc = buildSrcdoc(ver);
+      }
     }
 
     function renderVersionGallery() {
@@ -1090,6 +1104,53 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ eventId: currentEvent.id, themeId: ver.id })
       }).catch(function() {});
+    }
+
+    // ---- Preview mode toggle (Invite / Thank You) ----
+    function setPreviewMode(mode) {
+      currentPreviewMode = mode;
+      document.querySelectorAll('.preview-toggle-btn').forEach(function(btn) { btn.classList.remove('active'); });
+      if (mode === 'invite') {
+        document.querySelectorAll('.preview-toggle-btn')[0].classList.add('active');
+      } else {
+        document.querySelectorAll('.preview-toggle-btn')[1].classList.add('active');
+      }
+      var ver = themeVersions[activeVersionIndex];
+      if (!ver) return;
+      if (mode === 'thankyou') {
+        document.getElementById('previewFrame').srcdoc = buildThankYouSrcdoc(ver);
+      } else {
+        renderPreview(ver);
+      }
+    }
+
+    function buildThankYouSrcdoc(ver) {
+      var fontsImport = ver.config.googleFontsImport || '';
+      var accent = ver.config.accentColor || ver.config.primaryColor || '#E94560';
+      var bgColor = ver.config.backgroundColor || '#FFFAF5';
+      var textColor = ver.config.textColor || '#1A1A2E';
+      var headlineFont = ver.config.fontHeadline || 'serif';
+      var bodyFont = ver.config.fontBody || 'sans-serif';
+      var guestName = 'Sarah';
+      var title = extractedData.title || 'the event';
+
+      var thankYouHtml = '<div style="min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;background:' + bgColor + ';color:' + textColor + ';font-family:' + bodyFont + ',sans-serif;text-align:center;">'
+        + '<div style="font-size:48px;margin-bottom:16px;">&#127881;</div>'
+        + '<h1 style="font-family:' + headlineFont + ',serif;font-size:28px;margin-bottom:12px;color:' + accent + ';">You\'re all set!</h1>'
+        + '<p style="font-size:16px;line-height:1.6;margin-bottom:24px;max-width:320px;opacity:0.85;">Thanks for RSVPing, <strong>' + guestName + '</strong>! We can\'t wait to see you at <strong>' + escapeHtml(title) + '</strong>.</p>'
+        + '<div style="background:rgba(0,0,0,0.05);border-radius:12px;padding:20px;width:100%;max-width:340px;margin-bottom:24px;">'
+        + '<p style="font-size:13px;font-weight:600;margin-bottom:8px;opacity:0.7;">ADD TO CALENDAR</p>'
+        + '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">'
+        + '<span style="padding:8px 16px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;opacity:0.6;">Google</span>'
+        + '<span style="padding:8px 16px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;opacity:0.6;">Outlook</span>'
+        + '<span style="padding:8px 16px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;opacity:0.6;">.ics</span>'
+        + '</div></div>'
+        + '<p style="font-size:12px;opacity:0.5;">Made with Ryvite</p>'
+        + '</div>';
+
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; } ' + fontsImport + '</style>'
+        + '</head><body>' + thankYouHtml + '</body></html>';
     }
 
     function openLivePreview() {
