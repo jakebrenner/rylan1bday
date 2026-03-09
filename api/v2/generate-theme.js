@@ -80,12 +80,19 @@ The generated invite MUST always include ALL of the following sections. These ar
    - Keep card max-width 393px so it fills the phone screen naturally
    - Touch targets minimum 44x44px
    - Use relative units (em, rem, %, vw) where appropriate
-3. Use Google Fonts only (include the @import in theme_config.googleFontsImport)
-4. All images should use CSS gradients, SVG patterns, or emoji — do NOT reference external image URLs
-5. Use CSS custom properties for colors so the user can tweak them later
-6. Add subtle CSS animations (fade-ins, gentle floating) but nothing distracting
-7. The design should feel unique and custom — NOT like a template
-8. Keep overall height reasonable — the invite should fit in ~3-4 phone screen scrolls maximum
+3. **TEXT CONTRAST IS CRITICAL** — every piece of text must be easily readable against its background:
+   - Aim for WCAG AA contrast ratio (4.5:1 for body text, 3:1 for large headings)
+   - Light text on dark backgrounds, dark text on light backgrounds — never light-on-light or dark-on-dark
+   - When using gradient or image backgrounds, add a semi-transparent overlay or text-shadow to guarantee readability
+   - Form labels, placeholder text, and input text in the RSVP section must have strong contrast against the form background
+   - Test mentally: if the background is pastel/light, use dark text; if the background is vivid/dark, use white or very light text
+   - Button text must contrast sharply with the button background color
+4. Use Google Fonts only (include the @import in theme_config.googleFontsImport)
+5. All images should use CSS gradients, SVG patterns, or emoji — do NOT reference external image URLs
+6. Use CSS custom properties for colors so the user can tweak them later
+7. Add subtle CSS animations (fade-ins, gentle floating) but nothing distracting
+8. The design should feel unique and custom — NOT like a template
+9. Keep overall height reasonable — the invite should fit in ~3-4 phone screen scrolls maximum
 
 ## THANK YOU PAGE (theme_thankyou_html)
 Generate a matching thank you / confirmation page that shares the SAME visual design as the invite. This page is shown after a guest RSVPs.
@@ -197,7 +204,7 @@ ${tweakInstructions}`;
       const response = await client.messages.create({
         model: themeModel,
         max_tokens: 8192,
-        system: 'You are an expert HTML/CSS designer. Modify the given invite theme based on the user\'s instructions. Return ONLY a valid JSON object with theme_html, theme_css, theme_thankyou_html, and theme_config keys. Make minimal changes — only what the user asked for. The thank you page must match the invite\'s aesthetic.',
+        system: 'You are an expert HTML/CSS designer. Modify the given invite theme based on the user\'s instructions. Return ONLY a valid JSON object with theme_html, theme_css, theme_thankyou_html, and theme_config keys. Make minimal changes — only what the user asked for. The thank you page must match the invite\'s aesthetic. IMPORTANT: Always ensure text has strong contrast against its background (WCAG AA — 4.5:1 for body, 3:1 for headings). If you notice any contrast issues in the existing theme (e.g., light text on light backgrounds, dark text on dark areas, hard-to-read form labels), fix them proactively even if the user didn\'t ask.',
         messages: [{ role: 'user', content: messageContent }]
       });
 
