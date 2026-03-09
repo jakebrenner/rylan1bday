@@ -1106,13 +1106,21 @@
         var reqStar = f.is_required ? ' <span style="color:' + accent + ';">*</span>' : '';
         html += '<div style="margin-bottom:12px;">'
           + '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;opacity:0.9;">' + escapeHtml(f.label) + reqStar + '</label>';
-        if (f.field_type === 'select' && f.options && f.options.length > 0) {
+        if (f.field_type === 'checkbox') {
+          html += '<label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">'
+            + '<input type="checkbox" disabled style="width:18px;height:18px;accent-color:' + accent + ';cursor:pointer;">'
+            + '<span style="opacity:0.9;">' + escapeHtml(f.placeholder || f.label) + '</span></label>';
+        } else if (f.field_type === 'select' && f.options && f.options.length > 0) {
           html += '<select disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;-webkit-appearance:none;">'
             + '<option>' + escapeHtml(f.options[0]) + '</option></select>';
         } else if (f.field_type === 'textarea') {
           html += '<textarea disabled placeholder="' + escapeHtml(f.placeholder || '') + '" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;min-height:60px;resize:none;"></textarea>';
         } else if (f.field_type === 'number') {
           html += '<input type="number" placeholder="' + escapeHtml(f.placeholder || '0') + '" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">';
+        } else if (f.field_type === 'email') {
+          html += '<input type="email" placeholder="' + escapeHtml(f.placeholder || 'your@email.com') + '" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">';
+        } else if (f.field_type === 'phone' || f.field_type === 'tel') {
+          html += '<input type="tel" placeholder="' + escapeHtml(f.placeholder || '(555) 123-4567') + '" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">';
         } else {
           html += '<input type="text" placeholder="' + escapeHtml(f.placeholder || '') + '" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">';
         }

@@ -173,7 +173,11 @@
       var html = '<div class="rsvp-form-group">';
       html += '<label for="' + id + '">' + escapeHtml(field.label) + reqStar + '</label>';
 
-      if (field.type === 'select' && field.options && field.options.length > 0) {
+      if (field.type === 'checkbox') {
+        html += '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">'
+          + '<input type="checkbox" id="' + id + '"' + reqAttr + ' style="width:18px;height:18px;">'
+          + '<span>' + escapeHtml(placeholder || field.label) + '</span></label>';
+      } else if (field.type === 'select' && field.options && field.options.length > 0) {
         html += '<select id="' + id + '"' + reqAttr + '><option value="">Select...</option>';
         field.options.forEach(function(opt) {
           html += '<option value="' + escapeHtml(opt) + '">' + escapeHtml(opt) + '</option>';
@@ -216,8 +220,14 @@
         if (field.key === 'email') return; // handled above
         var el = document.getElementById('custom_' + field.key);
         if (!el) return;
-        var val = el.value.trim();
-        if (field.required && !val) { missingRequired = true; }
+        var val;
+        if (field.type === 'checkbox') {
+          val = el.checked ? 'Yes' : '';
+          if (field.required && !el.checked) { missingRequired = true; }
+        } else {
+          val = el.value.trim();
+          if (field.required && !val) { missingRequired = true; }
+        }
         if (val) responseData[field.key] = val;
         if (field.key === 'phone' || field.type === 'phone' || field.type === 'tel') {
           phone = val;
