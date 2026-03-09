@@ -124,7 +124,8 @@
       <h2 style="font-family: 'Playfair Display', serif; font-size: 24px; color: var(--midnight); margin-bottom: 12px;">Check your email</h2>
       <p style="font-size: 14px; color: #666; margin-bottom: 8px;">We sent a login link to</p>
       <p id="checkEmailAddress" style="font-size: 15px; font-weight: 600; color: var(--midnight); margin-bottom: 24px;"></p>
-      <p style="font-size: 13px; color: #999; margin-bottom: 24px;">Click the link in the email to sign in. It may take a minute to arrive.</p>
+      <p style="font-size: 13px; color: #999; margin-bottom: 16px;">Click the link in the email to sign in. It may take a minute to arrive.</p>
+      <p style="font-size: 13px; color: #999; margin-bottom: 24px; background: #FFF8E1; padding: 10px 14px; border-radius: 6px; color: #7B6B2E;">Don't see it? Check your <strong>spam</strong> or <strong>junk</strong> folder.</p>
       <button class="btn btn-primary" style="background: transparent; color: var(--party-coral); border: 1px solid var(--party-coral);" onclick="toggleMode('login')">Back to login</button>
     </div>
 
@@ -149,6 +150,54 @@
         // Don't return — still check for existing session below
       }
 
+      // Helper: try refreshing an expired access token using the refresh token
+      async function tryRefreshToken(rt) {
+        if (!rt) return null;
+        try {
+          const res = await fetch('/api/v2/auth?action=refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken: rt })
+          });
+          const result = await res.json();
+          if (result.success) return result;
+        } catch (e) {}
+        return null;
+      }
+
+      // Helper: validate token and return profile, or null on failure
+      async function validateToken(accessToken) {
+        try {
+          const res = await fetch('/api/v2/auth?action=profile', {
+            headers: { 'Authorization': 'Bearer ' + accessToken }
+          });
+          if (res.ok) {
+            const result = await res.json();
+            if (result.success) return result;
+          }
+        } catch (e) {}
+        return null;
+      }
+
+      // Helper: store session data and redirect
+      function storeSessionAndRedirect(accessToken, refreshToken, user, expiresAt) {
+        localStorage.setItem('sb_access_token', accessToken);
+        localStorage.setItem('sb_refresh_token', refreshToken || '');
+        if (expiresAt) localStorage.setItem('sb_token_expires_at', expiresAt);
+        localStorage.setItem('v2_user', JSON.stringify(user));
+        localStorage.removeItem('post_login_redirect');
+        showMessage('Login successful! Redirecting...', 'success');
+        setTimeout(function() { window.location.href = redirectTo; }, 1000);
+      }
+
+      // Helper: clear all session data
+      function clearSession() {
+        localStorage.removeItem('sb_access_token');
+        localStorage.removeItem('sb_refresh_token');
+        localStorage.removeItem('sb_token_expires_at');
+        localStorage.removeItem('v2_user');
+      }
+
       // Check URL hash for Supabase auth tokens (magic link callback)
       if (hash && hash.includes('access_token')) {
         showMessage('Verifying your login...', 'info');
@@ -157,36 +206,33 @@
         const params = new URLSearchParams(hash.substring(1));
         const accessToken = params.get('access_token');
         const refreshToken = params.get('refresh_token');
+        const expiresAt = params.get('expires_at');
 
         // Clear the hash immediately so refreshing doesn't re-process
         window.history.replaceState(null, '', window.location.pathname);
 
         if (accessToken) {
           // Validate token by fetching user profile from our API
-          try {
-            const res = await fetch('/api/v2/auth?action=profile', {
-              headers: { 'Authorization': 'Bearer ' + accessToken }
-            });
-            const result = await res.json();
-
-            if (result.success) {
-              // Token is valid — store everything and redirect
-              localStorage.setItem('sb_access_token', accessToken);
-              localStorage.setItem('sb_refresh_token', refreshToken || '');
-              localStorage.setItem('v2_user', JSON.stringify(result.user));
-              localStorage.removeItem('post_login_redirect');
-              showMessage('Login successful! Redirecting...', 'success');
-              setTimeout(function() { window.location.href = redirectTo; }, 1000);
-              return;
-            }
-          } catch (err) {
-            console.error('Profile fetch error:', err);
+          const profileResult = await validateToken(accessToken);
+          if (profileResult) {
+            storeSessionAndRedirect(accessToken, refreshToken, profileResult.user, expiresAt);
+            return;
           }
 
-          // Token was invalid — clear any stale data
-          localStorage.removeItem('sb_access_token');
-          localStorage.removeItem('sb_refresh_token');
-          localStorage.removeItem('v2_user');
+          // Access token failed — try refreshing if we have a refresh token
+          if (refreshToken) {
+            const refreshResult = await tryRefreshToken(refreshToken);
+            if (refreshResult) {
+              const retryProfile = await validateToken(refreshResult.accessToken);
+              if (retryProfile) {
+                storeSessionAndRedirect(refreshResult.accessToken, refreshResult.refreshToken, retryProfile.user, refreshResult.expiresAt);
+                return;
+              }
+            }
+          }
+
+          // Both failed — clear any stale data
+          clearSession();
           showMessage('Login link expired or invalid. Please request a new one.', 'error');
         }
         return;
@@ -196,21 +242,28 @@
       const token = localStorage.getItem('sb_access_token');
       const user = localStorage.getItem('v2_user');
       if (token && user) {
-        try {
-          const res = await fetch('/api/v2/auth?action=profile', {
-            headers: { 'Authorization': 'Bearer ' + token }
-          });
-          const result = await res.json();
-          if (result.success) {
-            localStorage.removeItem('post_login_redirect');
-            window.location.href = redirectTo;
-            return;
+        const profileResult = await validateToken(token);
+        if (profileResult) {
+          localStorage.removeItem('post_login_redirect');
+          window.location.href = redirectTo;
+          return;
+        }
+
+        // Access token expired — try refreshing before giving up
+        const rt = localStorage.getItem('sb_refresh_token');
+        if (rt) {
+          const refreshResult = await tryRefreshToken(rt);
+          if (refreshResult) {
+            const retryProfile = await validateToken(refreshResult.accessToken);
+            if (retryProfile) {
+              storeSessionAndRedirect(refreshResult.accessToken, refreshResult.refreshToken, retryProfile.user, refreshResult.expiresAt);
+              return;
+            }
           }
-        } catch (err) {}
-        // Token is stale — clear it
-        localStorage.removeItem('sb_access_token');
-        localStorage.removeItem('sb_refresh_token');
-        localStorage.removeItem('v2_user');
+        }
+
+        // Refresh also failed — clear stale session
+        clearSession();
       }
     })();
 

@@ -273,6 +273,7 @@
           token = result.accessToken;
           localStorage.setItem('sb_access_token', result.accessToken);
           localStorage.setItem('sb_refresh_token', result.refreshToken);
+          if (result.expiresAt) localStorage.setItem('sb_token_expires_at', result.expiresAt);
           return true;
         }
       } catch (e) {}
