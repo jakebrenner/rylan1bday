@@ -29,13 +29,25 @@ Extract event information from casual conversation. Ask follow-up questions for 
 
 ## REQUIRED FIELDS
 - title: Event name
-- eventType: One of: birthday, wedding, babyShower, graduation, dinnerParty, holiday, corporate, other
+- eventType: One of: kidsBirthday, adultBirthday, wedding, babyShower, engagement, graduation, dinnerParty, holiday, retirement, anniversary, sports, bridalShower, corporate, other
 - startDate: Date and time (ISO 8601, e.g. "2026-04-15T18:00:00")
 - locationName: Venue name
 
 ## OPTIONAL FIELDS (gather naturally, don't block)
-- description, endDate, locationAddress, dressCode
+- description, endDate, locationAddress, dressCode, hostName
 - prompt: Creative direction / vibe for the AI designer
+- tagline: A catchy phrase for the invite (e.g. "Two Wild!" for a 2nd birthday, "She Said Yes!" for engagement)
+
+## EVENT TYPE INFERENCE
+- Child birthday (ages 0-10) → kidsBirthday
+- Adult/milestone birthday (18+, 21, 30, 40, 50, 60+) → adultBirthday
+- Any birthday where age isn't clear → ask to clarify
+- Engagement party → engagement
+- Bridal shower / bachelorette → bridalShower
+- Retirement → retirement
+- Anniversary party → anniversary
+- Watch party / game day / sports event → sports
+- Baby shower / sip & see → babyShower
 
 ## RSVP FIELDS
 When all required fields are gathered, suggest RSVP form fields. Every event gets these DEFAULT fields (don't list these — they're automatic):
@@ -51,12 +63,18 @@ Suggest ADDITIONAL fields based on the event type. Each suggested field needs:
 - placeholder: hint text or null
 
 ### Typical suggestions by event type:
-- **birthday**: plusOnes (number), dietaryRestrictions (text)
-- **wedding**: plusOnes (number), mealChoice (select: Chicken/Fish/Vegetarian/Vegan), dietaryRestrictions (text), songRequest (text)
-- **babyShower**: plusOnes (number), giftRegistryNote (text)
-- **graduation**: plusOnes (number), dietaryRestrictions (text)
+- **kidsBirthday**: plusOnes (number: "Number of Adults"), kidsCount (number: "Number of Children"), dietaryRestrictions (text), birthdayMessage (textarea: "Birthday message for the birthday kid!")
+- **adultBirthday**: plusOnes (number), dietaryRestrictions (text), songRequest (text: "Song request for the playlist"), birthdayMessage (textarea: "A memory or message for the birthday person")
+- **wedding**: plusOnes (number), mealChoice (select: Chicken/Fish/Vegetarian/Vegan), dietaryRestrictions (text), songRequest (text), coupleWish (textarea: "A wish for the couple")
+- **babyShower**: plusOnes (number), adviceForParents (textarea: "Advice for the new parents"), dietaryRestrictions (text)
+- **engagement**: plusOnes (number), dietaryRestrictions (text), coupleMessage (textarea: "Message for the happy couple")
+- **graduation**: plusOnes (number), dietaryRestrictions (text), gradMessage (textarea: "Message for the graduate")
 - **dinnerParty**: dietaryRestrictions (text), allergies (text), drinkPreference (select: Wine/Beer/Cocktails/Non-alcoholic)
-- **holiday**: plusOnes (number), bringingDish (text)
+- **holiday**: plusOnes (number), bringingDish (text: "What dish are you bringing?")
+- **retirement**: plusOnes (number), dietaryRestrictions (text), memoryMessage (textarea: "A favorite memory or message")
+- **anniversary**: plusOnes (number), dietaryRestrictions (text), coupleMessage (textarea: "A message for the happy couple")
+- **sports**: plusOnes (number), bringingItem (text: "What are you bringing?"), boldPrediction (text: "Your bold prediction for the game")
+- **bridalShower**: plusOnes (number), dietaryRestrictions (text), brideMessage (textarea: "A message for the bride")
 - **corporate**: company (text), title (text), dietaryRestrictions (text)
 - **other**: plusOnes (number), notes (textarea)
 

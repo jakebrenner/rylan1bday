@@ -349,7 +349,7 @@
                     <button class="design-chat-photo-btn" onclick="document.getElementById('designChatPhotoInput').click()" title="Upload a photo">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
                     </button>
-                    <input type="file" id="designChatPhotoInput" accept=".jpg,.jpeg,.png,.webp,.heic,.heif" style="display:none;" onchange="handleDesignChatPhoto(event)">
+                    <input type="file" id="designChatPhotoInput" accept=".jpg,.jpeg,.png,.webp,.heic,.heif" multiple style="display:none;" onchange="handleDesignChatPhoto(event)">
                     <textarea id="designChatInput" placeholder="Add details, RSVP fields, change colors..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDesignChat()}" oninput="autoResizeTextarea(this)"></textarea>
                     <button class="design-chat-send" onclick="sendDesignChat()" id="designChatSendBtn" title="Send">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
@@ -889,10 +889,20 @@
 
       addChatBubble('I have a style in mind', 'user');
 
+      var eventType = extractedData.eventType || 'other';
+      var photoRec = photoRecommendations[eventType];
+      var photoRecHtml = '';
+      if (photoRec) {
+        photoRecHtml = '<div style="background:rgba(233,69,96,0.06);padding:10px 14px;border-radius:8px;margin-bottom:12px;border-left:3px solid var(--party-coral);">'
+          + '<div style="font-size:13px;font-weight:600;color:var(--midnight);margin-bottom:4px;">' + photoRec.emoji + ' Photos — ' + photoRec.strength + '</div>'
+          + '<div style="font-size:12px;color:#555;">' + photoRec.text + '</div>'
+          + '</div>';
+      }
+
       var card = document.createElement('div');
       card.className = 'chat-bubble assistant';
       card.id = 'customStyleCard';
-      card.innerHTML = '<div style="margin-bottom:12px;">Describe the mood, colors, and style you\'re going for. You can also upload inspiration images!</div>'
+      card.innerHTML = '<div style="margin-bottom:12px;">Describe the mood, colors, and style you\'re going for. You can also upload photos and inspiration images!</div>'
         + '<textarea id="customStyleText" placeholder="e.g., Modern minimalist with gold accents and a warm, elegant feel..." style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-family:Inter,sans-serif;min-height:80px;resize:none;margin-bottom:10px;box-sizing:border-box;"></textarea>'
         + '<div style="margin-bottom:12px;">'
         + '<div class="example-chips" style="margin-top:0;">'
@@ -901,10 +911,11 @@
         + '<button class="chip" onclick="addToCustomStyle(\'Modern minimalist with sleek typography\')">Modern + Minimal</button>'
         + '<button class="chip" onclick="addToCustomStyle(\'Rustic and cozy with warm earth tones\')">Rustic + Warm</button>'
         + '</div></div>'
+        + photoRecHtml
         + '<div style="margin-bottom:12px;">'
         + '<div class="image-upload-area" id="chatDropZone" onclick="document.getElementById(\'chatImageInput\').click()" style="padding:16px;border-radius:8px;">'
-        + '<p style="font-size:13px;">Drop inspiration images here or click to upload</p>'
-        + '<p style="font-size:11px;color:#999;margin-top:2px;">JPG, PNG, HEIC, WebP (max 4 images)</p>'
+        + '<p style="font-size:13px;">Upload photos or inspiration images</p>'
+        + '<p style="font-size:11px;color:#999;margin-top:2px;">JPG, PNG, HEIC, WebP (max 6 images)</p>'
         + '</div>'
         + '<input type="file" id="chatImageInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleImageUpload(event)">'
         + '<div id="imagePreviews" class="image-previews"></div>'
@@ -942,44 +953,217 @@
 
     // ---- Brainstorm flow ----
 
-    var brainstormQuestions = [
-      {
-        key: 'vibe',
-        question: 'What vibe are you going for?',
-        options: [
-          { label: 'Elegant & Classy', emoji: '✨', desc: 'Sophisticated, luxurious, refined' },
-          { label: 'Fun & Playful', emoji: '🎉', desc: 'Bright colors, whimsical, energetic' },
-          { label: 'Modern & Minimal', emoji: '◻️', desc: 'Clean lines, sleek, contemporary' },
-          { label: 'Warm & Cozy', emoji: '🕯️', desc: 'Rustic, earthy, inviting' },
-          { label: 'Bold & Dramatic', emoji: '🔥', desc: 'Eye-catching, vibrant, statement' },
-          { label: 'Whimsical & Dreamy', emoji: '🌙', desc: 'Soft, magical, fairy-tale feel' }
-        ]
-      },
-      {
-        key: 'colors',
-        question: 'What colors feel right?',
-        options: [
+    // Event-type-specific brainstorm questions
+    var brainstormBranches = {
+      kidsBirthday: [
+        { key: 'vibe', question: 'What vibe for the party?', options: [
+          { label: 'Maximalist & Colorful', emoji: '🎨', desc: 'Loud, joyful, chaotic in the best way' },
+          { label: 'Soft & Whimsical', emoji: '🦋', desc: 'Pastel, illustrated, gentle' },
+          { label: 'Bold & Graphic', emoji: '⚡', desc: 'Strong shapes, high contrast, modern' },
+          { label: 'Rustic & Warm', emoji: '🌿', desc: 'Earthy tones, natural textures' }
+        ]},
+        { key: 'theme', question: 'Any party theme?', options: [
+          { label: 'Dinosaurs', emoji: '🦕', desc: 'Roar! Prehistoric fun' },
+          { label: 'Rainbow / Colorful', emoji: '🌈', desc: 'All the colors, all the joy' },
+          { label: 'Jungle / Safari', emoji: '🦁', desc: 'Wild animal adventure' },
+          { label: 'Under the Sea', emoji: '🐠', desc: 'Ocean creatures and waves' },
+          { label: 'Outer Space', emoji: '🚀', desc: 'Stars, rockets, planets' },
+          { label: 'No theme — just fun!', emoji: '🎈', desc: 'Balloons and celebration' }
+        ]},
+        { key: 'colors', question: 'Color palette?', options: [
+          { label: 'Bright & Saturated', emoji: '🌈', desc: 'Bold, cheerful, vibrant' },
+          { label: 'Soft Pastels', emoji: '🌸', desc: 'Gentle pinks, blues, lavenders' },
+          { label: 'Earthy & Warm', emoji: '🍂', desc: 'Sage, mustard, terracotta' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Match the theme perfectly' }
+        ]}
+      ],
+      adultBirthday: [
+        { key: 'vibe', question: 'What tone are you going for?', options: [
+          { label: 'Glamorous', emoji: '✨', desc: 'Gold, champagne bubbles, luxury' },
+          { label: 'Retro / Nostalgic', emoji: '📻', desc: 'Decade-themed: 70s, 80s, 90s vibes' },
+          { label: 'Sophisticated & Minimal', emoji: '◻️', desc: 'Editorial, grown-up, clean' },
+          { label: 'Fun & Party-Forward', emoji: '🥂', desc: 'Celebratory, vibrant energy' }
+        ]},
+        { key: 'theme', question: 'Any era or theme?', options: [
+          { label: 'Gatsby / 1920s', emoji: '🎩', desc: 'Art deco, gold, elegance' },
+          { label: 'Disco / 70s-80s', emoji: '🪩', desc: 'Groovy, neon, retro' },
+          { label: 'Garden Party', emoji: '🌸', desc: 'Outdoor, floral, fresh' },
+          { label: 'Black & Gold', emoji: '🖤', desc: 'Classic, bold, timeless' },
+          { label: 'Tropical', emoji: '🌴', desc: 'Lush, vibrant, sun-drenched' },
+          { label: 'No theme', emoji: '🎉', desc: 'Just a great celebration' }
+        ]},
+        { key: 'colors', question: 'Color palette?', options: [
           { label: 'Gold & Black', emoji: '🖤', desc: 'Glamorous, timeless' },
-          { label: 'Pastels', emoji: '🌸', desc: 'Soft pinks, blues, lavenders' },
+          { label: 'Moody & Rich', emoji: '🍷', desc: 'Deep burgundy, navy, emerald' },
           { label: 'Bright & Bold', emoji: '🌈', desc: 'Vibrant, saturated, lively' },
-          { label: 'Earth Tones', emoji: '🍂', desc: 'Browns, greens, warm neutrals' },
-          { label: 'Blues & Whites', emoji: '🌊', desc: 'Cool, crisp, oceanic' },
-          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on your event type & vibe' }
-        ]
-      },
-      {
-        key: 'style',
-        question: 'Any particular style?',
-        options: [
-          { label: 'Illustrated', emoji: '🎨', desc: 'Hand-drawn feel, artistic elements' },
-          { label: 'Photo-realistic', emoji: '📸', desc: 'Gradients, rich textures' },
-          { label: 'Typography-focused', emoji: '🔤', desc: 'Beautiful fonts, minimal decoration' },
-          { label: 'Pattern-based', emoji: '🔷', desc: 'Geometric, floral, or abstract patterns' },
-          { label: 'Themed', emoji: '🎭', desc: 'Match the event theme (e.g., tropical, vintage)' },
-          { label: 'Surprise me!', emoji: '✨', desc: 'Let AI pick the best approach' }
-        ]
-      }
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on your vibe and theme' }
+        ]}
+      ],
+      babyShower: [
+        { key: 'vibe', question: 'What aesthetic direction?', options: [
+          { label: 'Soft & Botanical', emoji: '🌿', desc: 'Watercolor florals, eucalyptus' },
+          { label: 'Modern Minimal', emoji: '◻️', desc: 'Clean type, quiet luxury' },
+          { label: 'Whimsical Illustrated', emoji: '🐻', desc: 'Animals, storybook, pastel' },
+          { label: 'Boho / Earthy', emoji: '🍂', desc: 'Terracotta, sage, rattan' }
+        ]},
+        { key: 'colors', question: 'Color direction?', options: [
+          { label: 'Blue / Navy / Mint', emoji: '💙', desc: 'For a boy or neutral cool tones' },
+          { label: 'Blush / Rose / Lavender', emoji: '💗', desc: 'Soft and feminine' },
+          { label: 'Greens & Yellows', emoji: '💛', desc: 'Gender neutral, warm and fresh' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on your aesthetic' }
+        ]}
+      ],
+      engagement: [
+        { key: 'vibe', question: 'What tone for the celebration?', options: [
+          { label: 'Romantic & Dreamy', emoji: '💕', desc: 'Soft, candlelit, garden party' },
+          { label: 'Modern & Editorial', emoji: '◻️', desc: 'Bold type, architectural, cool' },
+          { label: 'Fun & Celebratory', emoji: '🥂', desc: 'Bubbly, vibrant, party energy' },
+          { label: 'Intimate & Personal', emoji: '💛', desc: 'Storytelling-first, warm' }
+        ]},
+        { key: 'colors', question: 'Color palette?', options: [
+          { label: 'Blush & Gold', emoji: '✨', desc: 'Romantic and elegant' },
+          { label: 'Modern Neutrals', emoji: '🤍', desc: 'Black, white, cream' },
+          { label: 'Rich & Moody', emoji: '🍷', desc: 'Deep tones, sophisticated' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'From your photos or vibe' }
+        ]}
+      ],
+      wedding: [
+        { key: 'vibe', question: 'Wedding aesthetic?', options: [
+          { label: 'Classic & Timeless', emoji: '🌹', desc: 'Ivory, gold, florals, serif type' },
+          { label: 'Modern Romantic', emoji: '🖤', desc: 'Architectural, moody, editorial' },
+          { label: 'Boho / Outdoor', emoji: '🌿', desc: 'Earthy, organic, wildflowers' },
+          { label: 'Art Deco / Vintage', emoji: '✨', desc: 'Geometric, gold, rich color' }
+        ]},
+        { key: 'colors', question: 'Wedding colors?', options: [
+          { label: 'Ivory & Gold', emoji: '✨', desc: 'Classic and luxurious' },
+          { label: 'Sage & Cream', emoji: '🌿', desc: 'Natural and organic' },
+          { label: 'Moody & Dark', emoji: '🖤', desc: 'Black, burgundy, forest' },
+          { label: 'Custom colors', emoji: '🎨', desc: 'I\'ll describe mine' }
+        ]}
+      ],
+      graduation: [
+        { key: 'vibe', question: 'What tone for the celebration?', options: [
+          { label: 'Proud & Celebratory', emoji: '🏆', desc: 'Achievement-forward, bold' },
+          { label: 'Fun & Party-Forward', emoji: '🎉', desc: 'Party first, graduation second' },
+          { label: 'Classy & Refined', emoji: '✨', desc: 'Underplayed, tasteful, adult' }
+        ]},
+        { key: 'colors', question: 'Color palette?', options: [
+          { label: 'School Colors', emoji: '🎓', desc: 'Match the school spirit' },
+          { label: 'Gold & Black', emoji: '🖤', desc: 'Classic achievement colors' },
+          { label: 'Bright & Bold', emoji: '🌈', desc: 'Celebratory and fun' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on the vibe' }
+        ]}
+      ],
+      holiday: [
+        { key: 'holiday', question: 'Which holiday?', options: [
+          { label: 'Christmas', emoji: '🎄', desc: 'Festive, cozy, merry' },
+          { label: 'New Year\'s Eve', emoji: '🎆', desc: 'Glamorous, countdown, sparkles' },
+          { label: 'Halloween', emoji: '🎃', desc: 'Spooky, fun, costumed' },
+          { label: 'Thanksgiving', emoji: '🦃', desc: 'Grateful, warm, harvest' },
+          { label: 'Fourth of July', emoji: '🎇', desc: 'Patriotic, BBQ, fireworks' },
+          { label: 'Other Holiday', emoji: '🎉', desc: 'Hanukkah, Diwali, Easter, etc.' }
+        ]},
+        { key: 'vibe', question: 'What tone?', options: [
+          { label: 'Classic & Traditional', emoji: '🕯️', desc: 'Timeless holiday feel' },
+          { label: 'Modern & Editorial', emoji: '◻️', desc: 'Holiday but make it fashion' },
+          { label: 'Cozy & Warm', emoji: '☕', desc: 'Fireplace, blankets, comfort' },
+          { label: 'Maximalist & Festive', emoji: '✨', desc: 'Over the top celebration' }
+        ]}
+      ],
+      dinnerParty: [
+        { key: 'vibe', question: 'What\'s the tone?', options: [
+          { label: 'Sophisticated & Minimal', emoji: '🍷', desc: 'Quiet luxury, grown-up restraint' },
+          { label: 'Warm & Convivial', emoji: '🕯️', desc: 'Candlelight, rustic, linen' },
+          { label: 'Playful & Informal', emoji: '🎉', desc: 'Bright, fun, casual' },
+          { label: 'Chic & Editorial', emoji: '✨', desc: 'Magazine-worthy, stylish' }
+        ]},
+        { key: 'colors', question: 'Color direction?', options: [
+          { label: 'Warm Neutrals', emoji: '🤎', desc: 'Cream, tan, warm gold' },
+          { label: 'Deep & Moody', emoji: '🍷', desc: 'Wine, charcoal, dark wood' },
+          { label: 'Bright & Fresh', emoji: '🌿', desc: 'Garden, citrus, airy' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Match the dinner vibe' }
+        ]}
+      ],
+      retirement: [
+        { key: 'vibe', question: 'What tone for the celebration?', options: [
+          { label: 'Celebratory & Heartfelt', emoji: '💛', desc: 'Honoring a legacy' },
+          { label: 'Fun & Roast-Forward', emoji: '😄', desc: '"Finally free!" energy' },
+          { label: 'Elegant & Refined', emoji: '✨', desc: 'Dinner-party level quality' },
+          { label: 'Nostalgic', emoji: '📸', desc: 'Career retrospective, memories' }
+        ]},
+        { key: 'colors', question: 'Color palette?', options: [
+          { label: 'Navy & Gold', emoji: '💙', desc: 'Distinguished and warm' },
+          { label: 'Warm Neutrals', emoji: '🤎', desc: 'Cream, sage, soft tones' },
+          { label: 'Bright & Celebratory', emoji: '🎉', desc: 'Fun, colorful, party' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on the tone' }
+        ]}
+      ],
+      anniversary: [
+        { key: 'vibe', question: 'What tone?', options: [
+          { label: 'Romantic & Nostalgic', emoji: '💕', desc: 'Looking back with love' },
+          { label: 'Celebratory', emoji: '🥂', desc: 'Party energy, milestone' },
+          { label: 'Intimate & Personal', emoji: '💛', desc: 'Close family and friends' }
+        ]},
+        { key: 'colors', question: 'Color palette?', options: [
+          { label: 'Gold & Warm', emoji: '✨', desc: 'Classic milestone colors' },
+          { label: 'Blush & Romantic', emoji: '💗', desc: 'Soft and loving' },
+          { label: 'Rich & Elegant', emoji: '🍷', desc: 'Deep, sophisticated tones' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on the couple' }
+        ]}
+      ],
+      sports: [
+        { key: 'vibe', question: 'What energy?', options: [
+          { label: 'Hype & Energetic', emoji: '🏟️', desc: 'Stadium energy, bold, loud' },
+          { label: 'Casual & Fun', emoji: '🍔', desc: 'Backyard BBQ vibes' },
+          { label: 'Premium Viewing', emoji: '🥂', desc: 'Sports bar elegance, VIP feel' }
+        ]},
+        { key: 'colors', question: 'Color palette?', options: [
+          { label: 'Team Colors', emoji: '🏆', desc: 'Match the team spirit' },
+          { label: 'Classic Sports', emoji: '⚽', desc: 'Green, white, bold primary' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on the sport and vibe' }
+        ]}
+      ],
+      bridalShower: [
+        { key: 'vibe', question: 'What aesthetic?', options: [
+          { label: 'Garden Party', emoji: '🌸', desc: 'Floral, lush, summery' },
+          { label: 'Brunch Chic', emoji: '🥂', desc: 'Blush, champagne, casual elegance' },
+          { label: 'Modern Minimal', emoji: '◻️', desc: 'Clean, architectural, grown-up' },
+          { label: 'Maximalist Floral', emoji: '🌺', desc: 'Over-the-top beautiful' }
+        ]},
+        { key: 'colors', question: 'Color palette?', options: [
+          { label: 'Blush & Gold', emoji: '✨', desc: 'Classic bridal' },
+          { label: 'Sage & Cream', emoji: '🌿', desc: 'Natural and fresh' },
+          { label: 'Lavender & White', emoji: '💜', desc: 'Soft and dreamy' },
+          { label: 'Let AI decide', emoji: '🎨', desc: 'Match the wedding colors' }
+        ]}
+      ]
+    };
+
+    // Fallback generic questions for event types without specific branches
+    var defaultBrainstormQuestions = [
+      { key: 'vibe', question: 'What vibe are you going for?', options: [
+        { label: 'Elegant & Classy', emoji: '✨', desc: 'Sophisticated, luxurious, refined' },
+        { label: 'Fun & Playful', emoji: '🎉', desc: 'Bright colors, whimsical, energetic' },
+        { label: 'Modern & Minimal', emoji: '◻️', desc: 'Clean lines, sleek, contemporary' },
+        { label: 'Warm & Cozy', emoji: '🕯️', desc: 'Rustic, earthy, inviting' },
+        { label: 'Bold & Dramatic', emoji: '🔥', desc: 'Eye-catching, vibrant, statement' },
+        { label: 'Whimsical & Dreamy', emoji: '🌙', desc: 'Soft, magical, fairy-tale feel' }
+      ]},
+      { key: 'colors', question: 'What colors feel right?', options: [
+        { label: 'Gold & Black', emoji: '🖤', desc: 'Glamorous, timeless' },
+        { label: 'Pastels', emoji: '🌸', desc: 'Soft pinks, blues, lavenders' },
+        { label: 'Bright & Bold', emoji: '🌈', desc: 'Vibrant, saturated, lively' },
+        { label: 'Earth Tones', emoji: '🍂', desc: 'Browns, greens, warm neutrals' },
+        { label: 'Let AI decide', emoji: '🎨', desc: 'Based on your event type & vibe' }
+      ]}
     ];
+
+    function getBrainstormQuestions() {
+      var eventType = extractedData.eventType || 'other';
+      return brainstormBranches[eventType] || defaultBrainstormQuestions;
+    }
+
+    var brainstormQuestions = [];
 
     var brainstormStep = 0;
 
@@ -991,6 +1175,7 @@
       addChatBubble('Help me brainstorm', 'user');
       brainstormStep = 0;
       brainstormAnswers = {};
+      brainstormQuestions = getBrainstormQuestions();
       showBrainstormQuestion(0);
     }
 
@@ -1040,27 +1225,61 @@
       setTimeout(function() { showBrainstormQuestion(qIdx + 1); }, 400);
     }
 
+    // Photo recommendations by event type
+    var photoRecommendations = {
+      kidsBirthday: { emoji: '📸', strength: 'Strongly recommended', text: 'Upload 1-6 close-up photos of the birthday child. Natural light, face fills most of the frame. These become the hero of the page with fun birthday hat overlays!' },
+      adultBirthday: { emoji: '📸', strength: 'Recommended', text: 'Upload 1-3 great photos of the birthday person — formal, candid, or a mix. Works especially well for milestone birthdays.' },
+      babyShower: { emoji: '📸', strength: 'Optional', text: 'For Sip & See: 1-3 newborn or family photos. For pre-birth: a bump photo, or skip and let the botanical design shine.' },
+      engagement: { emoji: '📸', strength: 'Highly recommended', text: 'Upload 1-3 engagement or couple photos. The design is built around them — good lighting and natural settings work best.' },
+      wedding: { emoji: '📸', strength: 'Highly recommended', text: 'Upload 1-2 engagement or pre-wedding portraits. Clean, well-lit photos work best for the editorial treatment.' },
+      graduation: { emoji: '📸', strength: 'Recommended', text: 'Upload 1-3 photos — cap-and-gown shots, candids, or favorites. A mix of formal and fun works well.' },
+      holiday: { emoji: '📸', strength: 'Optional', text: 'Family/group photo for Christmas/NYE, costume photos for Halloween, or skip and let the holiday theme carry it.' },
+      dinnerParty: { emoji: '📸', strength: 'Optional', text: 'A venue photo, table setting, or atmospheric shot works beautifully. Or skip — typography and texture can do the work.' },
+      retirement: { emoji: '📸', strength: 'Recommended', text: 'Upload 1-3 photos — a work portrait, candid, or "then and now" pairing for a career-spanning timeline feel.' },
+      anniversary: { emoji: '📸', strength: 'Highly recommended', text: 'The "then and now" treatment is powerful! Upload an old photo + recent photo of the couple, or 1-3 photos from across the years.' },
+      sports: { emoji: '📸', strength: 'Optional', text: 'A photo of you in team gear adds personality, or skip — team colors and sport iconography will carry the design.' },
+      bridalShower: { emoji: '📸', strength: 'Optional', text: 'An engagement photo or candid of the bride, or skip for a purely illustrated floral treatment.' }
+    };
+
     async function finishBrainstorm() {
       // Build the design prompt from brainstorm answers
       var parts = [];
-      if (brainstormAnswers.vibe) parts.push(brainstormAnswers.vibe + ' vibe');
-      if (brainstormAnswers.colors && brainstormAnswers.colors !== 'Let AI decide') parts.push(brainstormAnswers.colors + ' color palette');
-      if (brainstormAnswers.style && brainstormAnswers.style !== 'Surprise me!') parts.push(brainstormAnswers.style + ' style');
+      Object.keys(brainstormAnswers).forEach(function(key) {
+        var val = brainstormAnswers[key];
+        if (val && val !== 'Let AI decide' && val !== 'Surprise me!') {
+          if (key === 'vibe') parts.push(val + ' vibe');
+          else if (key === 'colors') parts.push(val + ' color palette');
+          else if (key === 'theme') parts.push(val + ' theme');
+          else if (key === 'holiday') parts.push(val + ' holiday');
+          else if (key === 'style') parts.push(val + ' style');
+          else parts.push(val);
+        }
+      });
 
-      designPrompt = parts.join(', ') + '. Make it feel unique and custom-designed for this event.';
-      if (brainstormAnswers.colors === 'Let AI decide') designPrompt += ' Choose colors that best match the event theme.';
-      if (brainstormAnswers.style === 'Surprise me!') designPrompt += ' Pick the most creative visual approach.';
+      designPrompt = parts.join(', ') + '. Make it feel unique, unforgettable, and custom-designed for this event.';
+      if (brainstormAnswers.colors === 'Let AI decide') designPrompt += ' Choose the most impactful colors for this event.';
 
-      // Offer chance to add inspiration images
+      // Show photo rec + inspiration upload
+      var eventType = extractedData.eventType || 'other';
+      var photoRec = photoRecommendations[eventType];
+      var photoRecHtml = '';
+      if (photoRec) {
+        photoRecHtml = '<div style="background:rgba(233,69,96,0.06);padding:10px 14px;border-radius:8px;margin-bottom:12px;border-left:3px solid var(--party-coral);">'
+          + '<div style="font-size:13px;font-weight:600;color:var(--midnight);margin-bottom:4px;">' + photoRec.emoji + ' Photos — ' + photoRec.strength + '</div>'
+          + '<div style="font-size:12px;color:#555;">' + photoRec.text + '</div>'
+          + '</div>';
+      }
+
       var card = document.createElement('div');
       card.className = 'chat-bubble assistant';
       card.id = 'brainstormFinish';
       card.innerHTML = '<div style="margin-bottom:10px;">Love it! Here\'s what I\'m going with:</div>'
         + '<div style="background:rgba(0,0,0,0.03);padding:10px 14px;border-radius:8px;font-size:13px;font-style:italic;margin-bottom:12px;color:var(--midnight);">' + escapeHtml(designPrompt) + '</div>'
+        + photoRecHtml
         + '<div style="margin-bottom:12px;">'
         + '<div class="image-upload-area" id="brainstormDropZone" onclick="document.getElementById(\'brainstormImageInput\').click()" style="padding:14px;border-radius:8px;">'
-        + '<p style="font-size:13px;">Want to add inspiration images? (optional)</p>'
-        + '<p style="font-size:11px;color:#999;margin-top:2px;">Drop images here or click to upload</p>'
+        + '<p style="font-size:13px;">Upload photos or inspiration images (optional)</p>'
+        + '<p style="font-size:11px;color:#999;margin-top:2px;">JPG, PNG, HEIC, WebP (max 6 images)</p>'
         + '</div>'
         + '<input type="file" id="brainstormImageInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleImageUpload(event)">'
         + '<div id="imagePreviews" class="image-previews"></div>'
@@ -1198,7 +1417,9 @@
             locationName: extractedData.locationName || '',
             locationAddress: extractedData.locationAddress || '',
             dressCode: extractedData.dressCode || '',
-            eventType: extractedData.eventType || 'other'
+            eventType: extractedData.eventType || 'other',
+            hostName: extractedData.hostName || '',
+            tagline: extractedData.tagline || ''
           },
           inspirationImages: inspirationImageBase64Array
         };
@@ -1590,6 +1811,7 @@
     var designChatHistory = [];
     var designChatPhotoBase64 = null;
     var designChatPhotoUrl = null;
+    var designChatPhotoUrls = []; // Support multiple photo uploads
 
     function switchTab(tab) {
       document.querySelectorAll('.panel-tab').forEach(function(t) { t.classList.remove('active'); });
@@ -1720,62 +1942,88 @@
     }
 
     async function handleDesignChatPhoto(event) {
-      var file = event.target.files[0];
-      if (!file) return;
+      var files = Array.from(event.target.files);
+      if (!files.length) return;
+      // Limit to 6 total photos
+      var maxPhotos = 6;
+      if (designChatPhotoUrls.length + files.length > maxPhotos) {
+        showMessage('Maximum ' + maxPhotos + ' photos allowed. You have ' + designChatPhotoUrls.length + ' already.', 'error');
+        event.target.value = '';
+        return;
+      }
       var preview = document.getElementById('designChatPhotoPreview');
-      preview.innerHTML = '<span style="font-size:12px;color:#666;">Uploading photo...</span>';
-      try {
-        // Compress for good quality display (800px, 0.8 quality)
-        if (isHeicFile(file)) {
-          file = await convertHeic(file);
+      for (var i = 0; i < files.length; i++) {
+        var file = files[i];
+        var uploadingEl = document.createElement('span');
+        uploadingEl.style.cssText = 'font-size:12px;color:#666;';
+        uploadingEl.textContent = 'Uploading ' + (i + 1) + '/' + files.length + '...';
+        preview.appendChild(uploadingEl);
+        try {
+          if (isHeicFile(file)) file = await convertHeic(file);
+          var result = await compressImage(file, 800, 0.8);
+          if (!result) { uploadingEl.remove(); continue; }
+          var uploadRes = await authFetch('/api/v2/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              base64: result.base64,
+              eventId: currentEvent ? currentEvent.id : null,
+              filename: file.name
+            })
+          });
+          var uploadResult = await uploadRes.json();
+          uploadingEl.remove();
+          if (uploadResult.success && uploadResult.url) {
+            designChatPhotoUrls.push(uploadResult.url);
+            // Legacy compat: keep first photo as designChatPhotoUrl
+            if (!designChatPhotoUrl) designChatPhotoUrl = uploadResult.url;
+            var thumbEl = document.createElement('div');
+            thumbEl.style.cssText = 'display:inline-flex;align-items:center;gap:2px;margin:2px;';
+            thumbEl.innerHTML = '<img src="' + result.dataUrl + '" alt="Upload" style="width:48px;height:48px;object-fit:cover;border-radius:6px;"><button onclick="removeDesignChatPhoto(this,' + (designChatPhotoUrls.length - 1) + ')" style="background:none;border:none;color:#999;cursor:pointer;font-size:14px;padding:2px;">&times;</button>';
+            preview.appendChild(thumbEl);
+          } else {
+            showMessage('Failed to upload photo: ' + (uploadResult.error || 'Unknown error'), 'error');
+          }
+        } catch (e) {
+          uploadingEl.remove();
+          showMessage('Failed to upload photo', 'error');
         }
-        var result = await compressImage(file, 800, 0.8);
-        if (!result) { preview.innerHTML = ''; return; }
-
-        // Upload to Supabase Storage to get a URL
-        var uploadRes = await authFetch('/api/v2/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            base64: result.base64,
-            eventId: currentEvent ? currentEvent.id : null,
-            filename: file.name
-          })
-        });
-        var uploadResult = await uploadRes.json();
-        if (uploadResult.success && uploadResult.url) {
-          designChatPhotoUrl = uploadResult.url;
-          designChatPhotoBase64 = null; // no longer need base64
-          preview.innerHTML = '<img src="' + result.dataUrl + '" alt="Upload"><button onclick="clearDesignChatPhoto()" style="background:none;border:none;color:#999;cursor:pointer;font-size:16px;padding:4px;">&times;</button>';
-        } else {
-          showMessage('Failed to upload photo: ' + (uploadResult.error || 'Unknown error'), 'error');
-          preview.innerHTML = '';
-        }
-      } catch (e) {
-        showMessage('Failed to upload photo', 'error');
-        preview.innerHTML = '';
       }
       event.target.value = '';
+    }
+
+    function removeDesignChatPhoto(btn, idx) {
+      designChatPhotoUrls.splice(idx, 1);
+      designChatPhotoUrl = designChatPhotoUrls.length > 0 ? designChatPhotoUrls[0] : null;
+      btn.parentElement.remove();
+      // Re-index remaining remove buttons
+      var preview = document.getElementById('designChatPhotoPreview');
+      var thumbs = preview.querySelectorAll('div');
+      thumbs.forEach(function(t, i) {
+        var removeBtn = t.querySelector('button');
+        if (removeBtn) removeBtn.setAttribute('onclick', 'removeDesignChatPhoto(this,' + i + ')');
+      });
     }
 
     function clearDesignChatPhoto() {
       designChatPhotoBase64 = null;
       designChatPhotoUrl = null;
+      designChatPhotoUrls = [];
       document.getElementById('designChatPhotoPreview').innerHTML = '';
     }
 
     async function sendDesignChat() {
       var input = document.getElementById('designChatInput');
       var text = input.value.trim();
-      var hasPhoto = !!designChatPhotoUrl;
-      if (!text && !hasPhoto) return;
+      var hasPhotos = designChatPhotoUrls.length > 0;
+      if (!text && !hasPhotos) return;
 
       // Detect if user mentions wanting a photo but didn't attach one
-      if (text && !hasPhoto) {
+      if (text && !hasPhotos) {
         var photoKeywords = /\b(photo|picture|image|pic|selfie|headshot|portrait|snapshot|upload.*(photo|image|pic)|include.*(photo|image|pic)|(add|use|put|include|attach|insert).*(photo|picture|image|pic))\b/i;
         if (photoKeywords.test(text)) {
           designChatHistory.push({ role: 'user', content: text });
-          designChatHistory.push({ role: 'assistant', content: "It looks like you want to include a photo, but I don't see one attached! Tap the photo icon (bottom left) to upload an image, then send your message again." });
+          designChatHistory.push({ role: 'assistant', content: "It looks like you want to include a photo, but I don't see one attached! Tap the photo icon (bottom left) to upload your image(s), then send your message again. You can upload up to 6 photos!" });
           renderDesignChat();
           input.value = '';
           input.style.height = 'auto';
@@ -1783,9 +2031,9 @@
         }
       }
 
-      var userMsg = text || '(uploaded a photo)';
-      if (hasPhoto && text) userMsg = text + ' (with photo)';
-      else if (hasPhoto) userMsg = '(uploaded a photo)';
+      var userMsg = text || '(uploaded photo' + (designChatPhotoUrls.length > 1 ? 's' : '') + ')';
+      if (hasPhotos && text) userMsg = text + ' (with ' + designChatPhotoUrls.length + ' photo' + (designChatPhotoUrls.length > 1 ? 's' : '') + ')';
+      else if (hasPhotos) userMsg = '(uploaded ' + designChatPhotoUrls.length + ' photo' + (designChatPhotoUrls.length > 1 ? 's' : '') + ')';
 
       designChatHistory.push({ role: 'user', content: userMsg });
       renderDesignChat();
@@ -1828,8 +2076,8 @@
       var ver = themeVersions[activeVersionIndex];
       try {
         var instructions = text || '';
-        if (hasPhoto) {
-          instructions += '\n\nThe user has uploaded a photo. Embed it in the design using this URL: ' + designChatPhotoUrl;
+        if (hasPhotos) {
+          instructions += '\n\nThe user has uploaded ' + designChatPhotoUrls.length + ' photo(s). Embed them in the design.';
         }
         var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
         var payload = {
@@ -1839,7 +2087,8 @@
           currentHtml: ver.html,
           currentCss: ver.css,
           currentConfig: ver.config,
-          photoUrl: hasPhoto ? designChatPhotoUrl : undefined,
+          photoUrls: hasPhotos ? designChatPhotoUrls : undefined,
+          photoUrl: hasPhotos ? designChatPhotoUrls[0] : undefined,
           eventDetails: {
             title: extractedData.title || '',
             eventDate: extractedData.startDate || '',

@@ -22,7 +22,137 @@ async function getThemeModel() {
   }
 }
 
-const SYSTEM_PROMPT = `You are an elite invitation designer who creates breathtaking, one-of-a-kind HTML/CSS digital invitations. Every invite you create should look like it was crafted by a top design agency — not generated from a template.
+// ── Event-type design DNA injected into the generation prompt ──
+const DESIGN_DNA = {
+  kidsBirthday: {
+    label: 'Kids Birthday (Ages 0-10)',
+    photoTreatment: 'Circular crops in a bobbing row, each with a differently colored SVG birthday hat. Animate with staggered bobble timing. Faces should fill 80% of the circle.',
+    decorative: 'Animated floating balloons, confetti bursts, bunting flags, or theme-specific elements (stars for space, leaves for jungle, etc.)',
+    typography: 'Bold, rounded display font (e.g. Fredoka One, Baloo 2, Lilita One) + warm readable body font. NEVER use Inter, Roboto, or system fonts.',
+    colorPhilosophy: 'Dominant palette of 4-5 fully saturated colors, no grays. Joyful and vibrant.',
+    motion: 'Floating/falling elements on infinite loop (balloons, confetti, stars) at 0.1-0.2 opacity. Photo bobbing. Staggered fade-up entrance. Confetti burst energy on RSVP section.',
+    standout: 'Baby/kid faces with bouncing birthday hats in a playful row'
+  },
+  adultBirthday: {
+    label: 'Adult / Milestone Birthday',
+    photoTreatment: 'Full-bleed editorial panel with stylized overlay, or large framed portrait — NOT kiddie circles. Sophisticated color grading effect.',
+    decorative: 'Atmospheric texture matching the era/tone — floating gold particles for glamour, grain texture for retro, neon glow for 80s, disco balls for 70s.',
+    typography: 'Era-appropriate or bold editorial font (Playfair Display for elegance, Bebas Neue for bold, a groovy retro font for decade themes). Strong personality.',
+    colorPhilosophy: '2-3 dominant colors with deliberate restraint OR deliberate excess — no in-between. Commit fully.',
+    motion: 'Tone-appropriate: champagne bubble float for glamour, record-scratch/spin for retro, spotlight sweep for milestone. Refined entrance animations.',
+    standout: 'The milestone number (30, 40, 50) as a massive typographic hero element'
+  },
+  babyShower: {
+    label: 'Baby Shower / Sip & See',
+    photoTreatment: 'Softly rounded oval frames with a floral or botanical wreath element overlaid. Gentle, warm treatment. For bump photos: soft vignette.',
+    decorative: 'Watercolor wash backgrounds, botanical illustration elements, pressed flowers, baby animals, or abstract organic shapes. Delicate and gentle.',
+    typography: 'Elegant script paired with refined serif (e.g. Cormorant Garamond + a flowing script). Soft, never bold or loud.',
+    colorPhilosophy: 'Soft, limited palette (2-3 colors + cream/white). Boy: blue/navy/mint. Girl: blush/rose/lavender. Neutral: greens, yellows, warm whites. Never garish.',
+    motion: 'Gentle petal/leaf fall rather than confetti explosion. Slow, dreamy fade-ins. Botanical elements with subtle sway.',
+    standout: 'Lush floral wreath framing the baby name or event title'
+  },
+  engagement: {
+    label: 'Engagement Party',
+    photoTreatment: 'Large, styled hero image of the couple with elegant typographic overlay. Sophisticated color extraction from photo tones for the palette.',
+    decorative: 'Floating rings, botanical elements, abstract ink strokes, or soft gradient meshes derived from photo tones.',
+    typography: 'Romantic script + modern sans, or bold serif editorial pairing. The couple\'s names should be the typographic hero.',
+    colorPhilosophy: 'Derived from the couple\'s photo tones if possible, otherwise romantic palette. Warm, personal, intentional.',
+    motion: 'Hearts or sparkle particles floating. Gentle parallax feel on hero image. Elegant entrance choreography.',
+    standout: 'The couple\'s photo with names in large, overlapping display typography'
+  },
+  wedding: {
+    label: 'Wedding / Reception',
+    photoTreatment: 'Full-width hero with sophisticated overlay and couple names in large display type across the image. Most refined treatment — restraint and elegance.',
+    decorative: 'Minimal and intentional — botanical borders for garden, geometric patterns for art deco, delicate line art for modern. Every element must feel earned.',
+    typography: 'Distinguished pairing (e.g. Cormorant Garamond + Jost, or luxury serif). This is the MOST refined output.',
+    colorPhilosophy: '2 colors max + neutrals. Every element intentional. Classic: ivory/gold. Modern: moody/architectural. Boho: earthy/organic.',
+    motion: 'Very subtle — slow fade-ins, gentle parallax feel on hero. NO balloon floats, NO confetti pop. Rose petals or gold particles on thank-you page.',
+    standout: 'The couple\'s names in breathtaking display typography over the hero image'
+  },
+  graduation: {
+    label: 'Graduation Party',
+    photoTreatment: 'Prominent hero treatment with school colors as accent. Mix of formal cap-and-gown and candid fun shots. Editorial but celebratory.',
+    decorative: 'Falling diplomas, confetti mortarboards, achievement-themed motifs. Celebratory but not childish.',
+    typography: 'Bold, confident display font — this isn\'t a kids party but not a wedding either. Achievement-forward.',
+    colorPhilosophy: 'School colors as accent if provided, otherwise bold celebratory palette. Triumphant energy.',
+    motion: 'Paper toss animation feel. Mortarboards floating. Celebratory but controlled entrance staging.',
+    standout: 'The graduate\'s name with massive milestone text (Class of 2026)'
+  },
+  holiday: {
+    label: 'Holiday Party',
+    photoTreatment: 'Family/group photo as atmospheric hero (Christmas/NYE). Costume photos in staggered fun row with themed borders (Halloween). Or skip for illustrated treatment.',
+    decorative: 'Holiday-SPECIFIC atmospheric animation — snowfall for Christmas, falling leaves for Thanksgiving, fireworks for NYE, bats for Halloween. NOT generic party imagery.',
+    typography: 'Match the holiday emotional register — cozy serif for Christmas, bold slab for Halloween, elegant script for NYE, retro for July 4th.',
+    colorPhilosophy: 'Holiday palette executed with a TWIST — avoid cliché execution even with classic colors. Make it feel fresh and modern.',
+    motion: 'Holiday-specific ambient: snow falling, fireworks bursting, leaves drifting, sparkle twinkling. Full atmospheric animation.',
+    standout: 'The holiday-specific atmospheric animation that makes the page feel alive'
+  },
+  dinnerParty: {
+    label: 'Dinner Party / Cocktail Hour',
+    photoTreatment: 'If provided, atmospheric hero with soft vignette and color grading. Or skip — let typography and texture do the work.',
+    decorative: 'Texture-first: linen, marble, dark wood, candlelight grain, wine stain watercolor. NO children\'s party elements whatsoever.',
+    typography: 'Editorial pairing — unexpected but refined (bold grotesque headline + elegant thin body). Adult, considered design.',
+    colorPhilosophy: 'Sophisticated: deep wines, warm golds, cream, charcoal. Or bright and convivial. Texture is as important as color.',
+    motion: 'Minimal and purposeful — slow reveals, no floating elements. Candlelight flicker effect. Quiet luxury.',
+    standout: 'Rich, textured background that sets an atmospheric mood'
+  },
+  retirement: {
+    label: 'Retirement Party',
+    photoTreatment: 'Prominent, respectful hero treatment — this person has earned it. If multiple photos: horizontal career-timeline strip. Editorial, not cute.',
+    decorative: 'Avoid anything that reads as "old." Achievement badges, timeline elements, distinguished decorative borders.',
+    typography: 'Authoritative and warm — strong serif or distinguished display font. Confident, never condescending.',
+    colorPhilosophy: 'Distinguished: navy/gold, deep green/cream, or warm sophisticated tones. Celebratory but elegant.',
+    motion: 'Meaningful and measured — elegant particle effects acceptable, no balloon floats. Career milestone reveals.',
+    standout: 'Years-of-service counter or career timeline as a design element'
+  },
+  anniversary: {
+    label: 'Anniversary Party',
+    photoTreatment: '"Then and now" side-by-side with connecting timeline line if two photos provided. Or styled hero with anniversary number overlay.',
+    decorative: 'Romantic but not saccharine. Gold accents for milestone years. Timeline elements, photo frames, elegant borders.',
+    typography: 'Romantic but confident and warm — not overly scripty. The anniversary number can be a massive typographic element.',
+    colorPhilosophy: 'Derived from couple\'s photo tones, or gold/warm neutrals for milestone years. Elegant and personal.',
+    motion: 'Gentle sparkle, floating hearts (tastefully), elegant fade-in choreography. Warm and celebratory.',
+    standout: 'The "then and now" photo treatment or massive milestone year number'
+  },
+  sports: {
+    label: 'Sports / Watch Party',
+    photoTreatment: 'Host photo in team gear, full-bleed with team color gradient overlay. Or skip — team colors and sport iconography can carry this.',
+    decorative: 'Dynamic motion: stadium lights, crowd noise visualization, score-ticker aesthetic. Sport-specific iconography.',
+    typography: 'Sports-forward — bold, condensed, athletic display fonts. Stadium scoreboard aesthetic. Maximum energy.',
+    colorPhilosophy: 'Team colors executed with maximum energy, not pastels. High contrast, bold.',
+    motion: 'Stadium light sweep, scoreboard-style reveals, dynamic entrance. High energy.',
+    standout: 'Stadium scoreboard header with team colors'
+  },
+  bridalShower: {
+    label: 'Bridal Shower',
+    photoTreatment: 'Engagement photo or candid of the bride as elegant hero. Or purely illustrated/typographic treatment with lush florals.',
+    decorative: 'Floral illustration elements — executed beautifully, NOT clipart-style. Abundant, lush, garden party energy.',
+    typography: 'Script + elegant sans or script + refined serif. Bride\'s name should be the typographic star.',
+    colorPhilosophy: 'Bride\'s wedding colors if known, otherwise seasonal palette. Blush, champagne, sage, and cream work beautifully.',
+    motion: 'Floating petals, gentle botanical sway, elegant fade-in sequence. Romantic and fresh.',
+    standout: 'Lush, hand-illustrated-style floral elements framing the design'
+  },
+  corporate: {
+    label: 'Corporate Event',
+    photoTreatment: 'Brand-aligned hero treatment. Clean, professional, but not boring.',
+    decorative: 'Geometric patterns, subtle gradients, professional but modern. Branded without being a brochure.',
+    typography: 'Clean, modern sans-serif pairing. Professional but with personality.',
+    colorPhilosophy: 'Brand colors if specified, otherwise sophisticated neutral + one accent. Clean and intentional.',
+    motion: 'Subtle, professional entrance animations. No playful floating elements.',
+    standout: 'Clean, modern design that feels premium and intentional'
+  },
+  other: {
+    label: 'Custom Event',
+    photoTreatment: 'Style based on the event description. Choose the most appropriate treatment from the options above.',
+    decorative: 'Match the event mood. Use the creative direction to guide decorative choices.',
+    typography: 'Choose fonts that match the event\'s emotional register. Bold for celebrations, refined for formal, playful for casual.',
+    colorPhilosophy: 'Derived from the creative direction. Commit fully to whatever palette you choose.',
+    motion: 'Match the energy level of the event. More for celebrations, less for formal gatherings.',
+    standout: 'Whatever makes this specific event feel special and unforgettable'
+  }
+};
+
+const SYSTEM_PROMPT = `You are building a production-grade, single-file HTML event invite and RSVP page. This page must be visually extraordinary — better than Evite, Paperless Post, Canva, or any other existing provider. It should feel like it was designed by a top creative studio, not generated by AI.
 
 ## OUTPUT FORMAT
 Return a JSON object with exactly these keys:
@@ -43,75 +173,101 @@ Return a JSON object with exactly these keys:
   }
 }
 
-## DESIGN PHILOSOPHY — BE CREATIVE, NOT TEMPLATED
-Your #1 goal is to make every invite feel **completely unique**. Avoid falling into the same layout pattern. Here's what makes a great invite:
+## CRITICAL DESIGN PHILOSOPHY
+- This must be UNFORGETTABLE. Every spacing, shadow, border-radius, and animation timing must feel intentional and designed.
+- Choose a clear aesthetic direction and execute it with total commitment.
+- Bold maximalism and refined minimalism both work — the failure mode is neither.
+- NEVER produce a generic or "bootstrap-looking" layout.
+- Use unexpected moments: overlapping elements, asymmetric composition, color blocks that break the grid, type that surprises.
 
-- **Creative typography** — Play with font sizes dramatically. The event name or a key word might be HUGE (60-100px+). Mix fonts expressively. Use letter-spacing, text-transform, and font-weight as design tools.
-- **Visual storytelling** — Use the event theme to drive the entire visual language. A beach party should FEEL like the beach. A formal gala should ooze elegance. A kid's birthday should be bursting with joy and whimsy.
-- **Decorative richness** — Scatter emoji, CSS-drawn shapes, SVG illustrations, confetti, dots, lines, patterns, and flourishes throughout the design. Don't just put them in a header — weave them into the whole page.
-- **Varied layouts** — Break out of the "title → date → location → RSVP" stack. Try:
-  - Overlapping elements and layered compositions
-  - Icon + text rows for details instead of plain text blocks
-  - Creative dividers (wavy lines, dashed borders, emoji rows, decorative SVGs)
-  - Background sections that shift color, texture, or pattern
-  - Cards within cards, floating badges, ribbon-style labels
-  - Split the title into multiple styled lines with different sizes/weights
-- **Full-page backgrounds** — The whole page should be designed, not just a card on a white background. Use gradients, patterns, textures, or color that extends edge-to-edge.
-- **Personality through details** — Add small delightful touches: a subtle animation, a clever emoji placement, a hand-drawn-style border, a spotlight effect on the title.
+## TYPOGRAPHY RULES
+- Source all fonts from Google Fonts only (include @import in googleFontsImport)
+- Choose a BOLD, characterful display font that matches the event's emotional register
+- Pair with a warm, readable body font — NEVER Inter, Roboto, Arial, or any system default
+- Typography should do heavy creative lifting, not just label things
+- Vary weight, scale, case, and tracking deliberately — type IS the design
 
-## REQUIRED ELEMENTS (include all, but layout freely)
-You have FULL creative freedom over layout, order, and presentation. But these elements must exist somewhere in the invite:
+## PAGE STRUCTURE
+Build the page with these sections (creative freedom on visual execution):
 
-1. **Event title** — the element with the title text MUST have \`data-field="title"\`
-2. **Date & time** — container MUST have \`data-field="datetime"\`. Format naturally (e.g., "Saturday, March 22, 2026 · 1:00 PM – 3:00 PM")
-3. **Location** — container MUST have \`data-field="location"\`. Show venue name and address.
-4. **Dress code** (if provided) — container MUST have \`data-field="dresscode"\`. Omit entirely if dress code is "Not specified".
-5. **RSVP section** — MUST include \`<div class="rsvp-slot"><button class="rsvp-button">...</button></div>\`. The rsvp-slot MUST contain ONLY the button — no form fields. The platform injects the real form at runtime. Make the button text fun and on-theme (not just "RSVP Now").
+1. **THEMATIC HEADER** — An animated or illustrated element specific to this event type. Must feel DESIGNED for this event, not generic.
+2. **HERO SECTION** — Large display headline with event title/names/tagline. Photo treatment if photos provided. All entrance animations staggered.
+3. **EVENT DETAILS** — Icon + text layout for date, time, location. Clear hierarchy, memorable presentation. Can be a high-contrast band, floating card, or creative strip.
+4. **RSVP SECTION** — \`<div class="rsvp-slot"><button class="rsvp-button">...</button></div>\`. The rsvp-slot MUST contain ONLY the button — the platform injects the real form at runtime. Make the button text fun and on-theme.
 
-The data-field attributes are required so the platform can update content dynamically.
+## REQUIRED DATA ATTRIBUTES (for platform dynamic content updates)
+- \`data-field="title"\` — on the element containing the event title text
+- \`data-field="datetime"\` — on the container with date/time information
+- \`data-field="location"\` — on the container with location information
+- \`data-field="dresscode"\` — on the container with dress code (omit entirely if not specified)
+- \`data-field="host"\` — on the element showing host name(s), if included
+
+## ANIMATION RULES — EVERY INVITE SHOULD FEEL ALIVE
+- **Ambient background**: floating/falling elements specific to event type on infinite loop, varied speeds, 0.1-0.2 opacity — atmospheric, not distracting
+- **Photo animations**: bobbing for kids parties, subtle scale pulse for editorial, soft glow for romantic
+- **Entrance**: staggered fade-up on page load (animation-delay: 0.1s increments) — choreographed reveal
+- **Interactive**: hover states on all buttons with smooth transitions
+- **Decorative**: gentle sway or float on header decorations
+- Use CSS only (no JavaScript). Use transform and opacity for smooth performance.
+
+## PHOTO HANDLING
+If photos are provided via URL, use them in \`<img>\` tags with the exact URL provided.
+- Photos should ANCHOR the design, not just decorate it
+- Always crop/frame with intention — a face at 80% of the circle is more powerful than 40%
+- Style with border-radius, box-shadow, border, or creative framing per the event type
+- If photos are bad quality, the treatment should save them (overlay, vignette, color grade via CSS filter)
 
 ## TECHNICAL CONSTRAINTS
-- Max-width 393px (iPhone), centered, mobile-first
-- Text must be readable: min 14px body, WCAG AA contrast ratios
-- Generous padding — content never touches edges
+- Max-width 393px (iPhone), centered, mobile-first — 90% of guests view on phones
+- Text must be readable: min 14px body, WCAG AA contrast ratios (4.5:1 body, 3:1 headings)
+- Generous padding (20-24px sides) — content never touches edges
 - RSVP button: min 48px height, prominent, high contrast, with hover states
-- Google Fonts only (via @import in googleFontsImport)
-- Use CSS gradients, SVGs, shapes, and emoji for visuals — NO external image URLs
-- CSS custom properties for colors
-- **CSS ANIMATIONS ARE KEY** — Every invite should feel alive and premium. Include meaningful animations:
-  - Entrance animations: elements should fade in, slide up, or scale in as the page loads (use @keyframes + animation-delay to stagger them)
-  - Ambient motion: subtle floating, gentle pulsing, rotating decorative elements, twinkling/sparkling effects
-  - Interactive touches: hover effects on buttons, cards that lift on hover
-  - Decorative animation: drifting confetti, floating bubbles/shapes, swaying elements, parallax-like layered motion
-  - Use animation-delay to create a choreographed reveal — title first, then details, then RSVP button
-  - Keep animations smooth (use transform and opacity for performance) and tasteful — enhance, don't distract
+- Use CSS gradients, SVGs, shapes, and emoji for decorative visuals — NO external image URLs (except user-uploaded photos)
+- CSS custom properties for all theme colors
 - No JavaScript in the output
 - No fixed positioning, no iframes
 - NEVER put form inputs/selects/labels inside \`.rsvp-slot\`
 - Keep height reasonable — fits in ~3-5 phone screen scrolls
+- Semantic HTML with aria-labels on interactive elements
 
 ## THANK YOU PAGE (theme_thankyou_html)
-Generate a beautiful, polished thank you page that feels like a premium continuation of the invite. Same CSS applies to both.
+Generate a beautiful, polished thank you page in the SAME visual world. Same CSS applies to both.
 
 Requirements:
-- **Same visual world** — identical backgrounds, gradients, patterns, decorative elements, fonts, colors
+- Same backgrounds, gradients, patterns, decorative elements, fonts, colors as the invite
 - A **celebratory heading** that's creative and on-theme (not generic "Thank you!")
 - Confirmation text with \`<span class="thankyou-guest">Guest</span>\` and \`<span class="thankyou-event">Event</span>\` placeholders
-- **Calendar buttons — MUST be beautifully styled, not plain/default buttons:**
+- **Calendar buttons — MUST be beautifully styled:**
   \`<div class="calendar-buttons"><button class="cal-btn" data-cal="google">Google Calendar</button><button class="cal-btn" data-cal="apple">Apple Calendar</button><button class="cal-btn" data-cal="outlook">Outlook</button><button class="cal-btn" data-cal="yahoo">Yahoo Calendar</button></div>\`
-  - Style them as elegant pills, rounded cards, or icon-style buttons that match the invite aesthetic
-  - Use the theme's colors, fonts, and border styles
-  - Add subtle hover effects and transitions
-  - Consider a 2x2 grid or horizontal scroll layout — NOT an ugly vertical stack of plain buttons
-  - Each button should feel intentionally designed, with proper padding, border-radius, and spacing
-  - NEVER leave them as unstyled browser-default buttons — this ruins the premium feel
-- Footer: "Made with Love by Ryvite" where Ryvite is \`<a href="/" style="color:inherit;text-decoration:none;">Ryvite</a>\`
-- Max-width 393px
-- Include entrance animations on the thank you page too — the guest just RSVP'd, make it feel celebratory!
-- The thank you page should feel just as polished as the invite — NOT an afterthought
+  Style as elegant pills, rounded cards, or icon-style buttons in a 2x2 grid. NEVER plain unstyled buttons.
+- Footer: "Made with Love by Ryvite" — Ryvite wrapped in \`<a href="/" style="color:inherit;text-decoration:none;">Ryvite</a>\`
+- Entrance animations — the guest just RSVP'd, make it celebratory!
+- Must feel just as polished as the invite
+
+## WHAT KILLS A GOOD INVITE
+- Using Inter, Roboto, or system fonts
+- Purple gradients on white backgrounds
+- Evenly spaced, equal-weight visual elements
+- Generic "party balloons" clipart as the only decoration
+- A form that looks like a Google Form
+- No animations — the page should feel alive
+- Leaving calendar buttons as unstyled defaults
 
 ## INSPIRATION IMAGES
-If provided, analyze them for color palette, visual mood, textures, typography style, and overall aesthetic. Use these as strong creative direction.`;
+If provided, analyze them for color palette, visual mood, textures, typography style, and overall aesthetic. Use as strong creative direction.`;
+
+// Build event-type-specific context for the generation prompt
+function buildEventTypeContext(eventType, eventDetails) {
+  const dna = DESIGN_DNA[eventType] || DESIGN_DNA.other;
+  let context = `\n## EVENT-SPECIFIC DESIGN DNA (${dna.label})`;
+  context += `\n- **Photo treatment**: ${dna.photoTreatment}`;
+  context += `\n- **Decorative elements**: ${dna.decorative}`;
+  context += `\n- **Typography**: ${dna.typography}`;
+  context += `\n- **Color philosophy**: ${dna.colorPhilosophy}`;
+  context += `\n- **Animation/Motion**: ${dna.motion}`;
+  context += `\n- **Standout visual element**: ${dna.standout}`;
+  return context;
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -135,7 +291,7 @@ export default async function handler(req, res) {
   }
 
   const action = req.query?.action || req.body?.action || 'generate';
-  const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages, tweakInstructions, currentHtml, currentCss, currentConfig, photoBase64, photoUrl } = req.body;
+  const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages, tweakInstructions, currentHtml, currentCss, currentConfig, photoBase64, photoUrl, photoUrls } = req.body;
 
   // --- TWEAK MODE: stream response via SSE to avoid timeouts ---
   if (action === 'tweak') {
@@ -193,8 +349,10 @@ ${tweakInstructions}
 
 IMPORTANT: The .rsvp-slot div must contain ONLY a <button class="rsvp-button"> — the platform injects the real RSVP form at runtime. Do NOT add any form inputs, selects, textareas, or labels inside .rsvp-slot.`;
 
-      if (photoUrl) {
-        tweakMessage += `\n\nThe user has uploaded a photo they want incorporated into the design. Use this EXACT URL in an <img> tag: ${photoUrl}\nPlace the photo prominently in the design where it makes sense (e.g., header area, hero section, or a dedicated photo section). Style it with appropriate sizing (max-width: 100%), border-radius, and any CSS that fits the theme.`;
+      // Handle multiple photos (new) or single photo (legacy)
+      const allPhotoUrls = photoUrls?.length > 0 ? photoUrls : (photoUrl ? [photoUrl] : []);
+      if (allPhotoUrls.length > 0) {
+        tweakMessage += `\n\nThe user has uploaded ${allPhotoUrls.length} photo(s) they want incorporated into the design. Use these EXACT URLs in <img> tags:\n${allPhotoUrls.map((url, i) => `Photo ${i + 1}: ${url}`).join('\n')}\nPlace the photos prominently in the design where they make sense. Style with appropriate sizing (max-width: 100%), border-radius, and any CSS that fits the theme. For multiple photos, consider a creative layout (row, grid, overlapping, staggered).`;
       } else if (photoBase64) {
         tweakMessage += `\n\nThe user has also provided a photo they want incorporated into the design. Use this image as an inline base64 data URI in an <img> tag where it makes sense for the design.`;
       }
@@ -216,14 +374,15 @@ IMPORTANT: The .rsvp-slot div must contain ONLY a <button class="rsvp-button"> �
       // Stream the response from Claude
       sendSSE('status', { phase: 'generating' });
 
-      const tweakSystemPrompt = `You are Ryvite's expert invite designer. You modify event invite themes based on the user's instructions via a conversational chat interface.
+      const tweakSystemPrompt = `You are an elite invite designer modifying event invites via a conversational chat interface. Your modifications should maintain the extraordinary quality standard — better than Evite, Paperless Post, or Canva.
 
 ## YOUR ROLE
-Users will ask you to update their invite design — this includes BOTH visual changes AND event content changes. Users may:
-- Add or update location, address, dress code, or other event details
+Users will ask you to update their invite design — visual changes AND event content changes. Users may:
+- Add or update location, address, dress code, host, or other event details
 - Add or modify RSVP form fields (dietary restrictions, plus-ones, song requests, etc.)
 - Change colors, fonts, backgrounds, layout, spacing
 - Add photos, decorative elements, or completely change the style
+- Ask for more/less animation, different mood, etc.
 
 ## OUTPUT FORMAT
 Return ONLY a valid JSON object with these keys:
@@ -237,27 +396,27 @@ Return ONLY a valid JSON object with these keys:
 
 ## CRITICAL RULES
 
-### Data attributes (REQUIRED on all key elements):
-- \`data-field="title"\` — on the element containing the event title
-- \`data-field="datetime"\` — on the container with date/time info
-- \`data-field="location"\` — on the container with location info
-- \`data-field="dresscode"\` — on the container with dress code info
-These allow the platform to update content dynamically. Always preserve these.
+### Data attributes (REQUIRED — always preserve):
+- \`data-field="title"\` — on the event title element
+- \`data-field="datetime"\` — on date/time container
+- \`data-field="location"\` — on location container
+- \`data-field="dresscode"\` — on dress code container
+- \`data-field="host"\` — on host name element (if present)
 
 ### RSVP form section:
-- The \`.rsvp-slot\` div must contain ONLY a \`<button class="rsvp-button">\` — NO form inputs, labels, or fields
+- \`.rsvp-slot\` MUST contain ONLY a \`<button class="rsvp-button">\` — NO form inputs, labels, or fields
 - The platform injects the real RSVP form at runtime
-- When users mention RSVP fields (e.g., "add a dietary restrictions field"), acknowledge it in chat_response but do NOT add form inputs to the HTML
+- When users mention RSVP fields, acknowledge in chat_response but do NOT add form inputs
 
 ### Design rules:
-- Max-width 393px, mobile-first design
-- WCAG AA text contrast (4.5:1 body, 3:1 headings)
+- Max-width 393px, mobile-first, WCAG AA contrast
 - Google Fonts only (include @import in theme_config.googleFontsImport)
+- NEVER use Inter, Roboto, Arial, or system fonts — always characterful fonts
 - No JavaScript, no external images (except Google Fonts and user-uploaded photos)
 - Make minimal changes — only what the user asked for, keep everything else exactly the same
-- The thank you page must match the invite's aesthetic — it should feel equally polished and premium
-- Calendar buttons on the thank you page should be beautifully styled (pills, rounded cards, or icon-style) — NEVER plain unstyled buttons
-- Preserve and enhance CSS animations — every invite should feel alive with entrance animations, ambient motion, and interactive hover effects`;
+- Preserve and enhance CSS animations — every invite should feel alive with entrance animations, ambient motion, and hover effects
+- Thank you page: must match invite aesthetic, calendar buttons MUST be beautifully styled (pills/cards/icons in 2x2 grid), NEVER plain unstyled buttons
+- For photo additions: use the EXACT URL(s) provided in <img> tags. Style with creative framing per the event type.`;
 
       const stream = client.messages.stream({
         model: themeModel,
@@ -407,9 +566,9 @@ These allow the platform to update content dynamically. Always preserve these.
   }
 
   const effectivePrompt = prompt || `Create a beautiful invite for a ${eventDetails.eventType || 'event'}`;
+  const eventType = eventDetails.eventType || 'other';
 
-
-  // Rate limiting: 20 per hour per user
+  // Rate limiting: 100 per hour per user
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const { count } = await supabase
     .from('generation_log')
@@ -427,37 +586,59 @@ These allow the platform to update content dynamically. Always preserve these.
 
   try {
     // Build RSVP fields description
-    let rsvpFieldsDesc = 'Default fields: Name, Email, RSVP Status (Attending/Declined/Maybe)';
+    let rsvpFieldsDesc = 'Default fields: Name, RSVP Status (Attending/Declined/Maybe)';
     if (rsvpFields?.length > 0) {
       rsvpFieldsDesc += '\nCustom fields: ' + rsvpFields.map(f => `${f.label} (${f.field_type}${f.is_required ? ', required' : ''})`).join(', ');
     }
 
+    // Build event-type-specific design DNA context
+    const designDnaContext = buildEventTypeContext(eventType, eventDetails);
+
+    // Collect all photo URLs (from initial upload or design chat)
+    const allPhotoUrls = photoUrls?.length > 0 ? photoUrls : (photoUrl ? [photoUrl] : []);
+
     let userMessage = `Create an invite theme for this event:
 
-**Event Details:**
+══════════════════════
+EVENT CONTEXT
+══════════════════════
+- Event Type: ${eventType}
 - Title: ${eventDetails.title}
 - Start Date/Time: ${eventDetails.eventDate || 'Not specified'}
 - End Date/Time: ${eventDetails.endDate || 'Not specified'}
 - Location Name: ${eventDetails.locationName || 'Not specified'}
 - Location Address: ${eventDetails.locationAddress || 'Not specified'}
 - Dress Code: ${eventDetails.dressCode || 'Not specified'}
-- Event Type: ${eventDetails.eventType}
+${eventDetails.hostName ? `- Hosted by: ${eventDetails.hostName}` : ''}
+${eventDetails.tagline ? `- Tagline: "${eventDetails.tagline}"` : ''}
 
-**RSVP Form — IMPORTANT:**
-The platform will inject a fully functional RSVP form into the \`.rsvp-slot\` container at runtime. You must ONLY place a styled \`<button class="rsvp-button">\` inside the \`.rsvp-slot\` div. Do NOT generate any form inputs, selects, labels, or field placeholders inside \`.rsvp-slot\` — the platform handles all form rendering.
+══════════════════════
+DESIGN DIRECTION
+══════════════════════
+${effectivePrompt}
+${designDnaContext}
 
-The following fields will be in the injected form (for your awareness of what the RSVP section will look like, but do NOT render them):
-${rsvpFieldsDesc}
+══════════════════════
+RSVP FORM
+══════════════════════
+The platform injects a fully functional RSVP form into the \`.rsvp-slot\` at runtime.
+You MUST only place a styled \`<button class="rsvp-button">\` inside \`.rsvp-slot\`. NO form inputs.
+Make the button text fun and on-theme (e.g., "Count Me In!", "I'll Be There!", "Let's Party!").
 
-**Creative Direction:**
-${effectivePrompt}`;
+Fields that will be injected (for awareness only — do NOT render):
+${rsvpFieldsDesc}`;
+
+    // Add photo URLs if user uploaded photos
+    if (allPhotoUrls.length > 0) {
+      userMessage += `\n\n══════════════════════\nPHOTOS\n══════════════════════\n${allPhotoUrls.length} photo(s) provided. Use these EXACT URLs in <img> tags:\n${allPhotoUrls.map((url, i) => `Photo ${i + 1}: ${url}`).join('\n')}\n\nApply the photo treatment described in the design DNA above. Style with appropriate sizing, border-radius, box-shadow, and creative framing.`;
+    }
 
     if (feedback) {
       userMessage += `\n\n**Feedback on previous version (incorporate this):**\n${feedback}`;
     }
 
     if (inspirationImages?.length > 0) {
-      userMessage += `\n\n**Visual Inspiration:** I've provided ${inspirationImages.length} image(s) as inspiration for color palette and mood.`;
+      userMessage += `\n\n**Visual Inspiration:** I've provided ${inspirationImages.length} image(s) as inspiration. Analyze for color palette, mood, textures, and typography cues.`;
     }
 
     const messageContent = inspirationImages?.length > 0
@@ -472,7 +653,7 @@ ${effectivePrompt}`;
 
     const response = await client.messages.create({
       model: themeModel,
-      max_tokens: 8192,
+      max_tokens: 16384,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: messageContent }]
     });
