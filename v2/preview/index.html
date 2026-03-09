@@ -65,7 +65,12 @@
         var labelStyle = 'display:block;margin-bottom:6px;font-weight:600;font-size:14px;';
         var groupStyle = 'margin-bottom:16px;';
         var rsvpFormHtml = '<div style="margin-bottom:16px;"><label style="' + labelStyle + '">Name <span style="color:#E94560;">*</span></label><input type="text" placeholder="Your name" disabled style="' + fieldStyle + '"></div>'
-          + '<div style="' + groupStyle + '"><label style="' + labelStyle + '">RSVP Status <span style="color:#E94560;">*</span></label><select disabled style="' + fieldStyle + '"><option>Yes, I\'ll be there!</option><option>Maybe</option><option>Can\'t make it</option></select></div>';
+          + '<div style="' + groupStyle + '"><label style="' + labelStyle + '">RSVP Status <span style="color:#E94560;">*</span></label>'
+          + '<div style="display:flex;gap:6px;">'
+          + '<label style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px 6px;border:2px solid #E94560;border-radius:8px;font-size:13px;font-weight:500;background:#E94560;color:#fff;"><input type="radio" name="rsvpStatus" value="Attending" checked disabled style="display:none;">Attending</label>'
+          + '<label style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px 6px;border:2px solid #ddd;border-radius:8px;font-size:13px;font-weight:500;background:#f9f9f9;color:#333;"><input type="radio" name="rsvpStatus" value="Declined" disabled style="display:none;">Declined</label>'
+          + '<label style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px 6px;border:2px solid #ddd;border-radius:8px;font-size:13px;font-weight:500;background:#f9f9f9;color:#333;"><input type="radio" name="rsvpStatus" value="Maybe" disabled style="display:none;">Maybe</label>'
+          + '</div></div>';
 
         // Add custom fields from event config
         customFields.forEach(function(f) {

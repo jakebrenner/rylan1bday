@@ -1106,12 +1106,17 @@
         + '<input type="email" placeholder="your@email.com" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">'
         + '</div>';
 
-      // RSVP Status
+      // RSVP Status — styled radio buttons
       html += '<div style="margin-bottom:12px;">'
-        + '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;opacity:0.9;">RSVP Status <span style="color:' + accent + ';">*</span></label>'
-        + '<select disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;-webkit-appearance:none;">'
-        + '<option>Attending / Declined / Maybe</option></select>'
-        + '</div>';
+        + '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;opacity:0.9;">RSVP Status <span style="color:' + accent + ';">*</span></label>'
+        + '<div style="display:flex;gap:6px;">'
+        + ['Attending', 'Declined', 'Maybe'].map(function(opt, idx) {
+          var isFirst = idx === 0;
+          return '<label style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px 6px;border:2px solid ' + (isFirst ? accent : 'rgba(255,255,255,0.3)') + ';border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;background:' + (isFirst ? accent : 'rgba(255,255,255,0.1)') + ';color:' + (isFirst ? '#fff' : 'inherit') + ';transition:all 0.2s;">'
+            + '<input type="radio" name="rsvpStatus" value="' + opt + '"' + (isFirst ? ' checked' : '') + ' disabled style="display:none;">'
+            + opt + '</label>';
+        }).join('')
+        + '</div></div>';
 
       // Custom RSVP fields
       rsvpFields.forEach(function(f) {
@@ -1143,19 +1148,60 @@
       return html;
     }
 
+    function formatDateTimeForDisplay(startStr, endStr) {
+      if (!startStr) return '';
+      var opts = { year: 'numeric', month: 'long', day: 'numeric' };
+      var timeOpts = { hour: 'numeric', minute: '2-digit', hour12: true };
+      var start = new Date(startStr);
+      var datePart = start.toLocaleDateString('en-US', opts);
+      var timePart = start.toLocaleTimeString('en-US', timeOpts);
+      var result = datePart + ' at ' + timePart;
+      if (endStr) {
+        var end = new Date(endStr);
+        var endTimePart = end.toLocaleTimeString('en-US', timeOpts);
+        // Same day?
+        if (start.toDateString() === end.toDateString()) {
+          result = datePart + ' · ' + timePart + ' – ' + endTimePart;
+        } else {
+          result = datePart + ' ' + timePart + ' – ' + end.toLocaleDateString('en-US', opts) + ' ' + endTimePart;
+        }
+      }
+      return result;
+    }
+
     function buildSrcdoc(ver) {
       var fontsImport = ver.config.googleFontsImport || '';
       var themeHtml = ver.html;
       // Inject functional form inputs into rsvp-slot
       var rsvpFormHtml = buildRsvpFormHtml();
-      // Replace contents between rsvp-slot div and the rsvp-button, inserting form fields before the button
+
+      // Build detail overrides from current extractedData
+      var detailOverrides = {};
+      if (extractedData.title) detailOverrides.title = extractedData.title;
+      if (extractedData.startDate) detailOverrides.datetime = formatDateTimeForDisplay(extractedData.startDate, extractedData.endDate);
+      var locParts = [];
+      if (extractedData.locationName) locParts.push(extractedData.locationName);
+      if (extractedData.locationAddress) locParts.push(extractedData.locationAddress);
+      if (locParts.length > 0) detailOverrides.location = locParts.join('<br>');
+      if (extractedData.dressCode) detailOverrides.dresscode = extractedData.dressCode;
+
+      // Script that injects RSVP form and updates data-field elements
       var rsvpScript = '<script>'
         + 'document.addEventListener("DOMContentLoaded", function() {'
         + '  var slot = document.querySelector(".rsvp-slot");'
-        + '  if (!slot) return;'
-        + '  var btn = slot.querySelector(".rsvp-button");'
-        + '  var btnHtml = btn ? btn.outerHTML : "";'
-        + '  slot.innerHTML = ' + JSON.stringify(rsvpFormHtml) + ' + btnHtml;'
+        + '  if (slot) {'
+        + '    var btn = slot.querySelector(".rsvp-button");'
+        + '    var btnHtml = btn ? btn.outerHTML : "";'
+        + '    slot.innerHTML = ' + JSON.stringify(rsvpFormHtml) + ' + btnHtml;'
+        + '  }'
+        + '  var overrides = ' + JSON.stringify(detailOverrides) + ';'
+        + '  Object.keys(overrides).forEach(function(key) {'
+        + '    var el = document.querySelector("[data-field=\\"" + key + "\\"]");'
+        + '    if (el) el.innerHTML = overrides[key];'
+        + '  });'
+        + '  var dc = document.querySelector("[data-field=\\"dresscode\\"]");'
+        + '  if (dc && !overrides.dresscode) { dc.style.display = "none"; }'
+        + '  else if (dc && overrides.dresscode) { dc.style.display = ""; }'
         + '});'
         + '<\/script>';
       return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'

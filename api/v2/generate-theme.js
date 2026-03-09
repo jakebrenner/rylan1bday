@@ -49,18 +49,25 @@ Return a JSON object with exactly these keys:
 ## CRITICAL — MANDATORY STRUCTURE
 The generated invite MUST always include ALL of the following sections. These are non-negotiable — the platform depends on this exact structure to function. Creative freedom applies to visual design ONLY, never to omitting required sections.
 
-### Required sections (in this order):
+### Required sections (in this order) — each MUST use the specified data attributes:
 1. **Header area** — visual impact (background, pattern, gradient, decorative elements)
-2. **Event title** — large, prominent, styled
-3. **Date & time** — clearly displayed
-4. **Location** — venue name and address
-5. **Additional details** — dress code, description, or any other event info provided
+2. **Event title** — large, prominent, styled. The element containing the title text MUST have \`data-field="title"\`
+3. **Date & time** — clearly displayed. The container holding date/time info MUST have \`data-field="datetime"\`. Format the date/time naturally (e.g., "March 22, 2026 at 1:00 PM"). If an end date/time is provided, show it as a range (e.g., "March 22, 2026 · 1:00 PM – 8:00 PM" or "March 22 – March 23, 2026").
+4. **Location** — venue name and address. The container MUST have \`data-field="location"\`. Show both venue name and address if both are provided.
+5. **Additional details** — dress code, description, or any other event info. If a dress code is provided, it MUST be displayed in its own styled section with \`data-field="dresscode"\`. Do NOT omit dress code if it is provided. If dress code is "Not specified", omit the dress code section entirely.
 6. **RSVP form section** — This is MANDATORY. You MUST include:
    - A \`<div class="rsvp-slot">\` container
-   - Inside it, a prominent, styled RSVP button: \`<button class="rsvp-button">RSVP Now</button>\`
-   - If the user has custom RSVP fields, show labels for each field inside the rsvp-slot as placeholder text (e.g., "Name", "Email", "Dietary Restrictions") — these indicate what the real form will collect
+   - Inside it, ONLY a styled RSVP button: \`<button class="rsvp-button">RSVP Now</button>\`
+   - Do NOT put any form fields (inputs, selects, labels) inside rsvp-slot — the platform injects the real form at runtime
+   - The rsvp-slot div should contain ONLY the rsvp-button, nothing else
    - Style the rsvp-button to be visually prominent — it's the primary call-to-action
-   - The platform replaces this div's contents with a real form at runtime, but the button MUST exist in the theme HTML
+
+### Data attribute requirements (CRITICAL for the platform to update content dynamically):
+- \`data-field="title"\` — on the element containing the event title text
+- \`data-field="datetime"\` — on the container with date/time information
+- \`data-field="location"\` — on the container with location information
+- \`data-field="dresscode"\` — on the container with dress code info (omit entirely if no dress code)
+These attributes allow the platform to update content when the user edits event details.
 
 ### RSVP button styling requirements:
 - Full-width or near-full-width within the card
@@ -115,6 +122,8 @@ Generate a matching thank you / confirmation page that shares the SAME visual de
 - No iframes or embedded content
 - No fixed positioning
 - NEVER omit the RSVP button section — this is the most important functional element
+- NEVER put form inputs, selects, textareas, labels, or field placeholders inside the \`.rsvp-slot\` div — ONLY the \`<button class="rsvp-button">\` goes there. The platform injects the complete form at runtime.
+- NEVER omit data-field attributes on required sections (title, datetime, location, dresscode)
 
 ## INSPIRATION IMAGES
 If the user provides inspiration images, analyze them for:
@@ -387,13 +396,17 @@ ${tweakInstructions}`;
 
 **Event Details:**
 - Title: ${eventDetails.title}
-- Date: ${eventDetails.eventDate}
-- End Date: ${eventDetails.endDate || 'Not specified'}
-- Location: ${eventDetails.locationName}${eventDetails.locationAddress ? `, ${eventDetails.locationAddress}` : ''}
+- Start Date/Time: ${eventDetails.eventDate || 'Not specified'}
+- End Date/Time: ${eventDetails.endDate || 'Not specified'}
+- Location Name: ${eventDetails.locationName || 'Not specified'}
+- Location Address: ${eventDetails.locationAddress || 'Not specified'}
 - Dress Code: ${eventDetails.dressCode || 'Not specified'}
 - Event Type: ${eventDetails.eventType}
 
-**RSVP Form Fields (must appear in the RSVP section):**
+**RSVP Form — IMPORTANT:**
+The platform will inject a fully functional RSVP form into the \`.rsvp-slot\` container at runtime. You must ONLY place a styled \`<button class="rsvp-button">\` inside the \`.rsvp-slot\` div. Do NOT generate any form inputs, selects, labels, or field placeholders inside \`.rsvp-slot\` — the platform handles all form rendering.
+
+The following fields will be in the injected form (for your awareness of what the RSVP section will look like, but do NOT render them):
 ${rsvpFieldsDesc}
 
 **Creative Direction:**
