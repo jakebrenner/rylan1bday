@@ -1302,8 +1302,8 @@
             + '<button class="cal-btn" data-cal="outlook" style="flex:1;min-width:130px;padding:10px 14px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;background:white;cursor:pointer;">Outlook</button>'
             + '<button class="cal-btn" data-cal="yahoo" style="flex:1;min-width:130px;padding:10px 14px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;background:white;cursor:pointer;">Yahoo Calendar</button>'
             + '</div>';
-          if (tyHtml.indexOf('Made with Ryvite') !== -1) {
-            tyHtml = tyHtml.replace(/(Made with Ryvite)/, calSection + '$1');
+          if (tyHtml.indexOf('Made with') !== -1 && tyHtml.indexOf('Ryvite') !== -1) {
+            tyHtml = tyHtml.replace(/(Made with.*?Ryvite)/, calSection + '$1');
           } else {
             tyHtml += calSection;
           }
@@ -1335,7 +1335,7 @@
         + '<button class="cal-btn" data-cal="outlook" style="padding:8px 16px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;opacity:0.6;background:transparent;cursor:pointer;">Outlook</button>'
         + '<button class="cal-btn" data-cal="yahoo" style="padding:8px 16px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;opacity:0.6;background:transparent;cursor:pointer;">Yahoo Calendar</button>'
         + '</div></div>'
-        + '<p style="font-size:12px;opacity:0.5;">Made with Ryvite</p>'
+        + '<p style="font-size:12px;opacity:0.5;">Made with Love by <a href="/" style="color:inherit;text-decoration:none;">Ryvite</a></p>'
         + '</div>';
 
       var calScript2 = '<script>document.addEventListener("click",function(e){var btn=e.target.closest(".cal-btn,[data-cal]");if(btn){var t=btn.getAttribute("data-cal")||btn.textContent.trim().toLowerCase();window.parent.postMessage({type:"calendar",cal:t},"*");}});<\/script>';

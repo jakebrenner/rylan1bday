@@ -65,7 +65,7 @@
     <div id="error" class="error-msg" style="display: none;"></div>
     <iframe id="themeFrame" style="display: none;"></iframe>
     <div id="rsvpSection" class="rsvp-section" style="display: none;"></div>
-    <div id="poweredBy" class="powered-by" style="display: none;"><a href="/">Made with Ryvite</a></div>
+    <div id="poweredBy" class="powered-by" style="display: none;">Made with Love by <a href="/">Ryvite</a></div>
   </div>
 
   <script>
@@ -285,8 +285,8 @@
             + '<button class="cal-btn" data-cal="yahoo" style="flex:1;min-width:130px;padding:10px 14px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;background:white;cursor:pointer;">Yahoo Calendar</button>'
             + '</div>';
           // Insert before the closing body tag or at the end
-          if (tyHtml.indexOf('Made with Ryvite') !== -1) {
-            tyHtml = tyHtml.replace(/(Made with Ryvite)/, calSection + '$1');
+          if (tyHtml.indexOf('Made with') !== -1 && tyHtml.indexOf('Ryvite') !== -1) {
+            tyHtml = tyHtml.replace(/(Made with.*?Ryvite)/, calSection + '$1');
           } else {
             tyHtml += calSection;
           }

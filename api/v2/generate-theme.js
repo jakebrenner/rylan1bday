@@ -111,7 +111,7 @@ Generate a matching thank you / confirmation page that shares the SAME visual de
   1. A celebratory heading (e.g., "You're all set!", "See you there!", etc.) — style it like the invite title
   2. A confirmation message with placeholders: \`<span class="thankyou-guest">Guest</span>\` for the guest name and \`<span class="thankyou-event">Event</span>\` for the event title (the platform replaces these at runtime)
   3. An "Add to Calendar" section with class \`calendar-buttons\`: \`<div class="calendar-buttons"><button class="cal-btn" data-cal="google">Google Calendar</button><button class="cal-btn" data-cal="apple">Apple Calendar</button><button class="cal-btn" data-cal="outlook">Outlook</button><button class="cal-btn" data-cal="yahoo">Yahoo Calendar</button></div>\` — This section is REQUIRED and must ALWAYS be included. Never omit the calendar buttons.
-  4. A "Made with Ryvite" footer
+  4. A "Made with Love by Ryvite" footer — the word "Ryvite" should be wrapped in \`<a href="/" style="color:inherit;text-decoration:none;">Ryvite</a>\`
 - Keep it vertically centered, max-width 393px, same card style as the invite
 - Reuse CSS classes from the invite theme where possible (backgrounds, card containers, etc.)
 - Should feel like a natural continuation of the invite — same world, same aesthetic
