@@ -65,8 +65,12 @@
     .event-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
     .event-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 0.2s; }
     .event-card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.12); }
-    .event-card-header { background: linear-gradient(135deg, var(--party-coral), var(--confetti-gold)); padding: 20px; color: white; min-height: 90px; display: flex; flex-direction: column; justify-content: space-between; }
-    .event-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .event-card-header { position: relative; min-height: 160px; overflow: hidden; }
+    .event-card-header.has-preview { padding: 0; }
+    .event-card-header.no-preview { background: linear-gradient(135deg, var(--party-coral), var(--confetti-gold)); padding: 20px; color: white; display: flex; flex-direction: column; justify-content: space-between; }
+    .event-card-header iframe { width: 393px; height: 852px; border: none; pointer-events: none; transform-origin: top left; position: absolute; top: 0; left: 50%; }
+    .event-card-header-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 12px 16px; background: linear-gradient(transparent, rgba(0,0,0,0.6)); color: white; z-index: 1; }
+    .event-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
     .event-card-date { font-size: 13px; opacity: 0.9; }
     .event-card-body { padding: 16px; }
     .event-meta { display: flex; justify-content: space-between; font-size: 13px; color: #666; margin-bottom: 10px; align-items: center; }
@@ -358,11 +362,27 @@
         }
         actionsHtml += '</div>';
 
+        var hasTheme = event.themeHtml && event.themeCss;
+        var headerHtml = '';
+        if (hasTheme) {
+          var config = event.themeConfig || {};
+          var fontsImport = config.googleFontsImport || '';
+          var srcdoc = '<!DOCTYPE html><html><head><meta charset=&quot;UTF-8&quot;><meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1.0&quot;><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#f9f9f9;overflow:hidden}' + fontsImport.replace(/"/g, '&quot;') + '</style><style>' + event.themeCss.replace(/"/g, '&quot;') + '</style></head><body>' + event.themeHtml.replace(/"/g, '&quot;') + '</body></html>';
+          headerHtml = '<div class="event-card-header has-preview"' + (isArchived ? ' style="opacity:0.7"' : '') + '>'
+            + '<iframe srcdoc="' + srcdoc + '" sandbox="allow-same-origin" loading="lazy"></iframe>'
+            + '<div class="event-card-header-overlay">'
+            + '<h3>' + escapeHtml(event.title) + '</h3>'
+            + '<span class="event-card-date">' + eventDate + '</span>'
+            + '</div></div>';
+        } else {
+          headerHtml = '<div class="event-card-header no-preview"' + (isArchived ? ' style="opacity:0.7"' : '') + '>'
+            + '<h3>' + escapeHtml(event.title) + '</h3>'
+            + '<span class="event-card-date">' + eventDate + '</span>'
+            + '</div>';
+        }
+
         return '<div class="event-card">'
-          + '<div class="event-card-header"' + (isArchived ? ' style="opacity:0.7"' : '') + '>'
-          + '<h3>' + escapeHtml(event.title) + '</h3>'
-          + '<span class="event-card-date">' + eventDate + '</span>'
-          + '</div>'
+          + headerHtml
           + '<div class="event-card-body">'
           + '<div class="event-meta">'
           + '<span>' + escapeHtml(event.locationName || 'No location') + '</span>'
@@ -374,6 +394,19 @@
           + '</div></div>';
       }).join('');
       grid.style.display = 'grid';
+      // Scale preview iframes to fit card width
+      requestAnimationFrame(function() {
+        grid.querySelectorAll('.event-card-header.has-preview').forEach(function(header) {
+          var iframe = header.querySelector('iframe');
+          if (!iframe) return;
+          var cardWidth = header.offsetWidth;
+          var scale = cardWidth / 393;
+          var visibleHeight = 160;
+          iframe.style.transform = 'scale(' + scale + ')';
+          iframe.style.marginLeft = '-' + (393 / 2) + 'px';
+          header.style.height = visibleHeight + 'px';
+        });
+      });
     }
 
     function copyLink(btn, url) {
@@ -463,6 +496,18 @@
     function escapeHtml(str) {
       var div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML;
     }
+
+    function rescalePreviewIframes() {
+      document.querySelectorAll('.event-card-header.has-preview').forEach(function(header) {
+        var iframe = header.querySelector('iframe');
+        if (!iframe) return;
+        var cardWidth = header.offsetWidth;
+        var scale = cardWidth / 393;
+        iframe.style.transform = 'scale(' + scale + ')';
+        iframe.style.marginLeft = '-' + (393 / 2) + 'px';
+      });
+    }
+    window.addEventListener('resize', rescalePreviewIframes);
 
     loadDashboard();
   </script>
