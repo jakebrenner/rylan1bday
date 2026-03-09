@@ -177,8 +177,23 @@ export default async function handler(req, res) {
     };
 
     try {
-      let tweakMessage = `Here is an existing invite theme. The user wants to make specific modifications WITHOUT changing the overall design.
+      // Build event context for the AI
+      let eventContext = '';
+      if (eventDetails) {
+        eventContext = `\n**Current Event Details:**
+- Title: ${eventDetails.title || 'Not set'}
+- Start: ${eventDetails.eventDate || 'Not set'}
+- End: ${eventDetails.endDate || 'Not set'}
+- Location: ${eventDetails.locationName || 'Not set'}${eventDetails.locationAddress ? `, ${eventDetails.locationAddress}` : ''}
+- Dress Code: ${eventDetails.dressCode || 'Not set'}
+`;
+      }
+      if (rsvpFields?.length > 0) {
+        eventContext += `\n**Current RSVP Fields:** ${rsvpFields.map(f => `${f.label} (${f.field_type}${f.is_required ? ', required' : ''})`).join(', ')}\n`;
+      }
 
+      let tweakMessage = `Here is an existing invite theme. The user is using the chat designer to modify their invite.
+${eventContext}
 **Current HTML:**
 \`\`\`html
 ${currentHtml}
@@ -194,8 +209,10 @@ ${currentCss}
 ${JSON.stringify(currentConfig || {})}
 \`\`\`
 
-**User's requested changes:**
-${tweakInstructions}`;
+**User's message:**
+${tweakInstructions}
+
+IMPORTANT: The .rsvp-slot div must contain ONLY a <button class="rsvp-button"> — the platform injects the real RSVP form at runtime. Do NOT add any form inputs, selects, textareas, or labels inside .rsvp-slot.`;
 
       if (photoUrl) {
         tweakMessage += `\n\nThe user has uploaded a photo they want incorporated into the design. Use this EXACT URL in an <img> tag: ${photoUrl}\nPlace the photo prominently in the design where it makes sense (e.g., header area, hero section, or a dedicated photo section). Style it with appropriate sizing (max-width: 100%), border-radius, and any CSS that fits the theme.`;
@@ -208,7 +225,7 @@ ${tweakInstructions}`;
         tweakMessage += `\n\n**Current Thank You Page HTML:**\n\`\`\`html\n${existingThankyou}\n\`\`\`\nIf your changes affect the visual style (colors, fonts, spacing, backgrounds), update the thank you page to match. If the change is content-only (e.g., changing text, adding an element to the invite), you may set theme_thankyou_html to null to keep it unchanged.`;
       }
 
-      tweakMessage += `\n\nReturn the updated theme as a JSON object: { "theme_html": "...", "theme_css": "...", "theme_thankyou_html": "..." or null if unchanged, "theme_config": { ... } }. Make ONLY the changes the user requested — keep everything else exactly the same. If the thank you page doesn't need changes, set theme_thankyou_html to null.`;
+      tweakMessage += `\n\nReturn the updated theme as a JSON object: { "theme_html": "...", "theme_css": "...", "theme_thankyou_html": "..." or null if unchanged, "theme_config": { ... }, "chat_response": "Brief friendly message about what you changed" }. Make ONLY the changes the user requested — keep everything else exactly the same. If the thank you page doesn't need changes, set theme_thankyou_html to null.`;
 
       const messageContent = photoBase64 && !photoUrl
         ? [
@@ -220,10 +237,51 @@ ${tweakInstructions}`;
       // Stream the response from Claude
       sendSSE('status', { phase: 'generating' });
 
+      const tweakSystemPrompt = `You are Ryvite's expert invite designer. You modify event invite themes based on the user's instructions via a conversational chat interface.
+
+## YOUR ROLE
+Users will ask you to update their invite design — this includes BOTH visual changes AND event content changes. Users may:
+- Add or update location, address, dress code, or other event details
+- Add or modify RSVP form fields (dietary restrictions, plus-ones, song requests, etc.)
+- Change colors, fonts, backgrounds, layout, spacing
+- Add photos, decorative elements, or completely change the style
+
+## OUTPUT FORMAT
+Return ONLY a valid JSON object with these keys:
+{
+  "theme_html": "...",
+  "theme_css": "...",
+  "theme_thankyou_html": "..." or null if unchanged,
+  "theme_config": { ... },
+  "chat_response": "A brief, friendly message (1-2 sentences) describing what you changed. Use a conversational tone."
+}
+
+## CRITICAL RULES
+
+### Data attributes (REQUIRED on all key elements):
+- \`data-field="title"\` — on the element containing the event title
+- \`data-field="datetime"\` — on the container with date/time info
+- \`data-field="location"\` — on the container with location info
+- \`data-field="dresscode"\` — on the container with dress code info
+These allow the platform to update content dynamically. Always preserve these.
+
+### RSVP form section:
+- The \`.rsvp-slot\` div must contain ONLY a \`<button class="rsvp-button">\` — NO form inputs, labels, or fields
+- The platform injects the real RSVP form at runtime
+- When users mention RSVP fields (e.g., "add a dietary restrictions field"), acknowledge it in chat_response but do NOT add form inputs to the HTML
+
+### Design rules:
+- Max-width 393px, mobile-first design
+- WCAG AA text contrast (4.5:1 body, 3:1 headings)
+- Google Fonts only (include @import in theme_config.googleFontsImport)
+- No JavaScript, no external images (except Google Fonts and user-uploaded photos)
+- Make minimal changes — only what the user asked for, keep everything else exactly the same
+- The thank you page must match the invite's aesthetic`;
+
       const stream = client.messages.stream({
         model: themeModel,
         max_tokens: 16384,
-        system: 'You are an expert HTML/CSS designer. Modify the given invite theme based on the user\'s instructions. Return ONLY a valid JSON object with theme_html, theme_css, theme_thankyou_html (or null if unchanged), and theme_config keys. Make minimal changes — only what the user asked for. The thank you page must match the invite\'s aesthetic. IMPORTANT: Always ensure text has strong contrast against its background (WCAG AA — 4.5:1 for body, 3:1 for headings). If you notice any contrast issues in the existing theme (e.g., light text on light backgrounds, dark text on dark areas, hard-to-read form labels), fix them proactively even if the user didn\'t ask.',
+        system: tweakSystemPrompt,
         messages: [{ role: 'user', content: messageContent }]
       });
 
@@ -345,7 +403,8 @@ ${tweakInstructions}`;
       // Send the final result as an SSE event
       sendSSE('done', {
         success: true,
-        theme: { id: newTheme.id, version: newTheme.version, html: theme.theme_html, css: theme.theme_css, config: tweakConfig }
+        theme: { id: newTheme.id, version: newTheme.version, html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
+        chatResponse: theme.chat_response || null
       });
 
       return res.end();

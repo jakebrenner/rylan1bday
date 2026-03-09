@@ -378,7 +378,7 @@
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
                     </button>
                     <input type="file" id="designChatPhotoInput" accept=".jpg,.jpeg,.png,.webp,.heic,.heif" style="display:none;" onchange="handleDesignChatPhoto(event)">
-                    <textarea id="designChatInput" placeholder="Describe what you'd like to change..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDesignChat()}" oninput="autoResizeTextarea(this)"></textarea>
+                    <textarea id="designChatInput" placeholder="Add details, RSVP fields, change colors..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDesignChat()}" oninput="autoResizeTextarea(this)"></textarea>
                     <button class="design-chat-send" onclick="sendDesignChat()" id="designChatSendBtn" title="Send">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
                     </button>
@@ -389,7 +389,7 @@
               <!-- Event Details tab -->
               <div id="tabDetails" class="tab-content">
                 <div class="form-group" style="margin-bottom:12px;">
-                  <label style="font-size:12px;">Title</label>
+                  <label style="font-size:12px;">Event Name</label>
                   <input type="text" id="editTitle" style="font-size:13px;padding:8px 10px;">
                 </div>
                 <div style="display:flex;gap:8px;margin-bottom:12px;">
@@ -412,59 +412,13 @@
                     <input type="time" id="editEndTime" style="font-size:13px;padding:8px 10px;">
                   </div>
                 </div>
-                <div class="form-group" style="margin-bottom:12px;">
-                  <label style="font-size:12px;">Location Name</label>
-                  <input type="text" id="editLocation" style="font-size:13px;padding:8px 10px;">
-                </div>
-                <div class="form-group" style="margin-bottom:12px;">
-                  <label style="font-size:12px;">Location Address</label>
-                  <input type="text" id="editAddress" style="font-size:13px;padding:8px 10px;">
-                </div>
-                <div class="form-group" style="margin-bottom:12px;">
-                  <label style="font-size:12px;">Dress Code</label>
-                  <input type="text" id="editDressCode" style="font-size:13px;padding:8px 10px;">
-                </div>
-                <!-- RSVP Fields section with add/edit/remove -->
-                <div style="margin-bottom:12px;">
-                  <label style="font-size:12px;font-weight:600;margin-bottom:8px;display:block;">RSVP Fields</label>
-                  <div id="editCustomFields"></div>
-                  <div id="addFieldForm" style="display:none;margin-top:8px;padding:12px;background:#f9f9f9;border-radius:8px;border:1px solid #eee;">
-                    <div class="form-group" style="margin-bottom:8px;">
-                      <label style="font-size:11px;">Field Label</label>
-                      <input type="text" id="newFieldLabel" placeholder="e.g. Dietary Restrictions" style="font-size:13px;padding:8px 10px;">
-                    </div>
-                    <div style="display:flex;gap:8px;margin-bottom:8px;">
-                      <div class="form-group" style="flex:1;margin-bottom:0;">
-                        <label style="font-size:11px;">Type</label>
-                        <select id="newFieldType" style="font-size:13px;padding:8px 10px;" onchange="toggleFieldOptions()">
-                          <option value="text">Text</option>
-                          <option value="number">Number</option>
-                          <option value="email">Email</option>
-                          <option value="phone">Phone</option>
-                          <option value="textarea">Long Text</option>
-                          <option value="select">Dropdown</option>
-                          <option value="checkbox">Checkbox</option>
-                        </select>
-                      </div>
-                      <div class="form-group" style="flex:0 0 auto;margin-bottom:0;display:flex;align-items:flex-end;">
-                        <label style="font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer;padding:8px 0;">
-                          <input type="checkbox" id="newFieldRequired"> Required
-                        </label>
-                      </div>
-                    </div>
-                    <div id="fieldOptionsGroup" class="form-group" style="margin-bottom:8px;display:none;">
-                      <label style="font-size:11px;">Options (comma-separated)</label>
-                      <input type="text" id="newFieldOptions" placeholder="Option 1, Option 2, Option 3" style="font-size:13px;padding:8px 10px;">
-                    </div>
-                    <div style="display:flex;gap:6px;">
-                      <button class="btn btn-primary btn-sm" onclick="confirmAddField()" style="flex:1;font-size:12px;">Add Field</button>
-                      <button class="btn btn-secondary btn-sm" onclick="cancelAddField()" style="font-size:12px;">Cancel</button>
-                    </div>
-                  </div>
-                  <button id="addFieldBtn" class="btn btn-secondary btn-sm" onclick="showAddFieldForm()" style="width:100%;margin-top:8px;font-size:12px;padding:6px 12px;border-style:dashed;">+ Add RSVP Field</button>
-                </div>
+                <!-- Hidden fields to preserve data — populated by AI chat -->
+                <input type="hidden" id="editLocation">
+                <input type="hidden" id="editAddress">
+                <input type="hidden" id="editDressCode">
+                <div id="editCustomFields" style="display:none;"></div>
                 <button class="btn btn-primary btn-sm" onclick="saveEditedDetails()" style="width:100%;margin-top:8px;">Save Changes</button>
-                <p style="font-size:11px;color:#999;margin-top:8px;text-align:center;">Saves event details and updates the design preview.</p>
+                <p style="font-size:11px;color:#999;margin-top:8px;text-align:center;">Use the Design chat to add location, dress code, RSVP fields, and more.</p>
               </div>
 
               <!-- Versions tab -->
@@ -1482,13 +1436,15 @@
 
     function finishDesignChatInit() {
       var title = extractedData.title || 'your event';
-      var welcomeMsg = "Hey! I'm your design assistant. I can help you tweak the look and feel of your " + title + " invite.\n\n"
-        + "Here are some things I can help with:\n"
-        + "- Change colors, fonts, or background\n"
-        + "- Adjust spacing, layout, or text sizes\n"
-        + "- Add or modify decorative elements\n"
-        + "- Completely regenerate with a new style\n\n"
-        + "You can also upload a photo to incorporate into your design. Just describe what you'd like!";
+      var welcomeMsg = "Hey! I'm your design assistant for " + title + ". I'll help you build the perfect invite.\n\n"
+        + "Tell me about your event and I'll design everything:\n"
+        + "- Location & address\n"
+        + "- Dress code or theme\n"
+        + "- RSVP fields (plus-ones, dietary needs, song requests, etc.)\n"
+        + "- Colors, fonts, and overall vibe\n"
+        + "- Photos to feature in the design\n\n"
+        + "Just describe what you want! For example:\n"
+        + "\"The venue is Rancho Santa Fe Inn, dress code is cocktail attire, and I want to collect meal preferences and plus-one names on the RSVP.\"";
 
       designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
       renderDesignChat();
@@ -1620,6 +1576,7 @@
         if (hasPhoto) {
           instructions += '\n\nThe user has uploaded a photo. Embed it in the design using this URL: ' + designChatPhotoUrl;
         }
+        var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
         var payload = {
           action: 'tweak',
           eventId: currentEvent.id,
@@ -1627,7 +1584,17 @@
           currentHtml: ver.html,
           currentCss: ver.css,
           currentConfig: ver.config,
-          photoUrl: hasPhoto ? designChatPhotoUrl : undefined
+          photoUrl: hasPhoto ? designChatPhotoUrl : undefined,
+          eventDetails: {
+            title: extractedData.title || '',
+            eventDate: extractedData.startDate || '',
+            endDate: extractedData.endDate || '',
+            locationName: extractedData.locationName || '',
+            locationAddress: extractedData.locationAddress || '',
+            dressCode: extractedData.dressCode || '',
+            eventType: extractedData.eventType || 'other'
+          },
+          rsvpFields: enabledFields.map(function(f) { return { label: f.label, field_type: f.field_type, is_required: f.is_required }; })
         };
 
         // Use streaming SSE to avoid timeouts
@@ -1715,7 +1682,8 @@
             currentEvent.themeConfig = newVer.config;
             renderPreview(newVer);
             renderVersionGallery();
-            designChatHistory.push({ role: 'assistant', content: 'Done! I\'ve updated the design. Take a look at the preview on the right. Want to make any more changes?' });
+            var chatMsg = (tweakResult.chatResponse || tweakResult.chat_response || 'Done! I\'ve updated the design. Take a look at the preview.') + '\n\nWant to make any more changes?';
+            designChatHistory.push({ role: 'assistant', content: chatMsg });
           } else if (tweakError) {
             designChatHistory.push({ role: 'assistant', content: 'Sorry, I had trouble with that change: ' + (tweakError.message || tweakError.error || 'Unknown error') + '. Could you try rephrasing?' });
           } else {
