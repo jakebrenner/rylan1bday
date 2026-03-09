@@ -526,7 +526,7 @@
                 + e.rsvps.attending + ' yes, ' + e.rsvps.declined + ' no, ' + e.rsvps.maybe + ' maybe</span>'
               : '0') + '</td>'
             + '<td>' + (e.slug && e.status === 'published'
-              ? '<a href="/v2/event/?slug=' + e.slug + '" target="_blank" class="btn btn-secondary btn-sm">View</a>'
+              ? '<a href="/v2/event/' + e.slug + '" target="_blank" class="btn btn-secondary btn-sm">View</a>'
               : '') + '</td>'
             + '</tr>';
         }).join('');

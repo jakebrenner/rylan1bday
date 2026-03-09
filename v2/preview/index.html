@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Preview — Ryvite</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    .preview-banner {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+      background: linear-gradient(135deg, #1A1A2E, #2d2d4e); color: white;
+      padding: 12px 20px; text-align: center; font-family: 'Inter', sans-serif;
+      font-size: 14px; font-weight: 500;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    }
+    .preview-banner span { opacity: 0.9; }
+    .preview-banner .close-preview {
+      position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+      background: rgba(255,255,255,0.15); border: none; color: white;
+      padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;
+      font-family: 'Inter', sans-serif;
+    }
+    .preview-banner .close-preview:hover { background: rgba(255,255,255,0.25); }
+    body { padding-top: 48px; }
+    #previewFrame { width: 100%; border: none; min-height: calc(100vh - 48px); display: block; }
+    .loading { text-align: center; padding: 60px; font-family: 'Inter', sans-serif; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="preview-banner">
+    <span>This is just a preview — form entries will not be saved</span>
+    <button class="close-preview" onclick="window.close()">Close Preview</button>
+  </div>
+  <div id="loading" class="loading">Loading preview...</div>
+  <iframe id="previewFrame" style="display:none;"></iframe>
+  <script>
+    (async function() {
+      var params = new URLSearchParams(window.location.search);
+      var eventId = params.get('eventId');
+      if (!eventId) { document.getElementById('loading').textContent = 'No event specified'; return; }
+
+      var token = localStorage.getItem('sb_access_token');
+      try {
+        var res = await fetch('/api/v2/events?action=get&eventId=' + encodeURIComponent(eventId), {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        var result = await res.json();
+        if (!result.success || !result.event) {
+          document.getElementById('loading').textContent = 'Event not found';
+          return;
+        }
+        var ev = result.event;
+        if (!ev.themeHtml || !ev.themeCss) {
+          document.getElementById('loading').textContent = 'No theme generated yet';
+          return;
+        }
+        var config = ev.themeConfig || {};
+        var fontsImport = config.googleFontsImport || '';
+        var iframe = document.getElementById('previewFrame');
+        // Build full invite page with RSVP form (non-functional in preview)
+        var rsvpHtml = '<div style="max-width:480px;margin:40px auto;padding:24px;background:white;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.1);font-family:Inter,sans-serif;">'
+          + '<h3 style="font-size:20px;margin-bottom:20px;text-align:center;font-weight:600;">RSVP</h3>'
+          + '<div style="margin-bottom:16px;"><label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;">Name</label><input type="text" placeholder="Your name" disabled style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px;background:#f9f9f9;"></div>'
+          + '<div style="margin-bottom:16px;"><label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;">RSVP Status</label><select disabled style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px;background:#f9f9f9;"><option>Yes, I\'ll be there!</option></select></div>'
+          + '<button disabled style="width:100%;padding:14px;background:#ccc;color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:not-allowed;">Preview Only — RSVP Disabled</button>'
+          + '</div>';
+
+        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
+          + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { background: #f9f9f9; } ' + fontsImport + '</style>'
+          + '<style>' + ev.themeCss + '</style></head><body>'
+          + ev.themeHtml + rsvpHtml
+          + '<div style="text-align:center;padding:20px;font-size:13px;color:#999;font-family:Inter,sans-serif;"><a href="/" style="color:#999;text-decoration:none;">Made with Ryvite</a></div>'
+          + '</body></html>';
+        iframe.style.display = 'block';
+        document.getElementById('loading').style.display = 'none';
+        iframe.onload = function() {
+          try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 48, 600) + 'px'; } catch(e) {}
+        };
+      } catch(err) {
+        document.getElementById('loading').textContent = 'Error loading preview';
+      }
+    })();
+  </script>
+</body>
+</html>

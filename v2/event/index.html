@@ -76,6 +76,15 @@
       var slug = params.get('slug');
       var eventId = params.get('eid');
 
+      // Support clean URLs: /v2/event/my-slug
+      if (!slug && !eventId) {
+        var pathParts = window.location.pathname.split('/').filter(Boolean);
+        // URL: /v2/event/some-slug → pathParts = ['v2', 'event', 'some-slug']
+        if (pathParts.length >= 3 && pathParts[0] === 'v2' && pathParts[1] === 'event') {
+          slug = decodeURIComponent(pathParts[2]);
+        }
+      }
+
       if (!slug && !eventId) { showError('No event specified'); return; }
 
       try {

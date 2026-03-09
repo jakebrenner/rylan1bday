@@ -15,19 +15,50 @@
       --confetti-gold: #FFB74D; --mint-fizz: #4ECDC4; --party-purple: #A78BFA; --cream: #FFFAF5;
     }
     html, body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--midnight); }
-    .header { background: white; border-bottom: 1px solid #eee; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
-    .header-left { display: flex; align-items: center; gap: 16px; }
-    .header-left a { text-decoration: none; }
-    .header h1 { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--midnight); }
-    .header-user { font-size: 13px; color: #666; }
-    .header-actions { display: flex; gap: 10px; align-items: center; }
+
+    /* Header */
+    .header { background: white; border-bottom: 1px solid #eee; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .header-left { display: flex; align-items: center; }
+    .header-left a { text-decoration: none; display: flex; align-items: center; }
+    .header-right { display: flex; gap: 12px; align-items: center; }
     .btn { padding: 12px 20px; border: none; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
     .btn-primary { background: var(--party-coral); color: white; }
     .btn-primary:hover { background: var(--blush-pop); transform: translateY(-2px); }
-    .btn-secondary { background: #f0f0f0; color: var(--midnight); }
-    .btn-secondary:hover { background: #e0e0e0; }
+
+    /* Profile dropdown */
+    .profile-menu { position: relative; }
+    .profile-btn {
+      width: 44px; height: 44px; border-radius: 50%; border: 2px solid #eee; background: white;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+    }
+    .profile-btn:hover { border-color: var(--party-coral); }
+    .profile-btn svg { width: 22px; height: 22px; fill: #666; }
+    .profile-dropdown {
+      display: none; position: absolute; top: 52px; right: 0; background: white;
+      border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); min-width: 240px;
+      z-index: 100; overflow: hidden; border: 1px solid #eee;
+    }
+    .profile-dropdown.open { display: block; }
+    .profile-dropdown-header { padding: 16px; border-bottom: 1px solid #eee; }
+    .profile-dropdown-name { font-weight: 600; font-size: 15px; }
+    .profile-dropdown-email { font-size: 13px; color: #666; margin-top: 2px; }
+    .profile-dropdown-item {
+      display: flex; align-items: center; gap: 10px; padding: 12px 16px; font-size: 14px;
+      cursor: pointer; transition: background 0.15s; border: none; background: none;
+      width: 100%; text-align: left; font-family: 'Inter', sans-serif; color: var(--midnight);
+    }
+    .profile-dropdown-item:hover { background: #f5f5f5; }
+    .profile-dropdown-item svg { width: 18px; height: 18px; fill: #666; flex-shrink: 0; }
+    .profile-dropdown-divider { height: 1px; background: #eee; }
+    .profile-dropdown-item.danger { color: #dc3545; }
+    .profile-dropdown-item.danger svg { fill: #dc3545; }
+
+    /* Main content */
     .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
-    .section-title { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--midnight); margin-bottom: 24px; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+    .section-title { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--midnight); }
+    .archive-toggle { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #666; cursor: pointer; user-select: none; }
+    .archive-toggle input { width: 18px; height: 18px; accent-color: var(--party-coral); cursor: pointer; }
     .empty-state { text-align: center; padding: 60px 20px; background: white; border-radius: 12px; border: 2px dashed #ddd; }
     .empty-state h3 { font-size: 20px; margin-bottom: 12px; }
     .empty-state p { color: #666; margin-bottom: 24px; font-size: 15px; }
@@ -68,14 +99,14 @@
     .share-btn { flex: 1; padding: 10px 8px; border: 1px solid #ddd; background: white; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: 'Inter', sans-serif; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; color: var(--midnight); text-decoration: none; font-weight: 500; }
     .share-btn:hover { border-color: var(--party-coral); color: var(--party-coral); }
 
-    /* RSVP Drawer / Modal */
+    /* RSVP Modal */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; }
     .modal-overlay.active { display: flex; align-items: flex-end; justify-content: center; }
     .rsvp-modal { background: white; width: 100%; max-width: 600px; max-height: 85vh; border-radius: 16px 16px 0 0; overflow: hidden; display: flex; flex-direction: column; animation: slideUpModal 0.3s ease-out; }
     @keyframes slideUpModal { from { transform: translateY(100%); } to { transform: translateY(0); } }
     .rsvp-modal-header { padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
     .rsvp-modal-header h3 { font-size: 18px; font-weight: 600; }
-    .rsvp-modal-close { width: 36px; height: 36px; border: none; background: #f0f0f0; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; }
+    .rsvp-modal-close { width: 44px; height: 44px; border: none; background: #f0f0f0; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .rsvp-modal-body { padding: 20px; overflow-y: auto; flex: 1; }
     .rsvp-stats { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
     .rsvp-stat { flex: 1; min-width: 80px; padding: 12px; border-radius: 8px; text-align: center; }
@@ -93,41 +124,63 @@
     .rsvp-item-status { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap; }
     .rsvp-empty { text-align: center; padding: 40px 20px; color: #999; font-size: 15px; }
 
-    /* QR Modal */
-    .qr-modal { background: white; padding: 30px; border-radius: 16px; text-align: center; max-width: 340px; width: 90%; }
-    .qr-modal h3 { font-size: 18px; margin-bottom: 16px; }
-    .qr-modal canvas { margin: 0 auto 16px; display: block; }
-    .qr-modal-close { padding: 12px 24px; background: var(--party-coral); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; min-height: 44px; font-family: 'Inter', sans-serif; }
-
     @media (max-width: 640px) {
-      .header { padding: 12px 16px; }
-      .header-actions { gap: 8px; }
+      .header { padding: 10px 16px; }
+      .header-right { gap: 8px; }
       .btn { padding: 10px 14px; font-size: 13px; }
       .container { margin: 20px auto; padding: 0 16px; }
-      .section-title { font-size: 24px; margin-bottom: 20px; }
+      .section-title { font-size: 24px; }
       .event-grid { grid-template-columns: 1fr; gap: 16px; }
       .event-actions { flex-wrap: wrap; }
       .share-buttons { flex-wrap: wrap; }
       .share-btn { min-width: calc(50% - 4px); }
       .rsvp-modal { max-height: 90vh; }
-      .modal-overlay.active.qr-overlay { align-items: center; }
+      .profile-dropdown { right: -8px; }
     }
   </style>
 </head>
 <body>
   <div class="header">
     <div class="header-left">
-      <a href="/" style="display:flex;align-items:center;"><svg viewBox="0 0 210 80" xmlns="http://www.w3.org/2000/svg" style="height:40px;width:auto;"><circle cx="32" cy="40" r="22" fill="none" stroke="var(--party-coral)" stroke-width="2.2"/><path d="M18 30 L32 42 L46 30" fill="none" stroke="var(--party-coral)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50 L46 50" fill="none" stroke="var(--party-coral)" stroke-width="1.8" stroke-linecap="round"/><circle cx="32" cy="22" r="3.5" fill="var(--confetti-gold)" opacity="0.7"/><circle cx="23" cy="26" r="2.2" fill="var(--blush-pop)" opacity="0.5"/><circle cx="41" cy="25" r="2.2" fill="var(--confetti-gold)" opacity="0.5"/><text x="64" y="52" font-family="Playfair Display, serif" font-size="34" font-weight="700" fill="var(--midnight)">Ryvite</text></svg></a>
-      <span class="header-user" id="headerUser"></span>
+      <a href="/"><svg viewBox="0 0 210 80" xmlns="http://www.w3.org/2000/svg" style="height:56px;width:auto;"><circle cx="32" cy="40" r="22" fill="none" stroke="var(--party-coral)" stroke-width="2.2"/><path d="M18 30 L32 42 L46 30" fill="none" stroke="var(--party-coral)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50 L46 50" fill="none" stroke="var(--party-coral)" stroke-width="1.8" stroke-linecap="round"/><circle cx="32" cy="22" r="3.5" fill="var(--confetti-gold)" opacity="0.7"/><circle cx="23" cy="26" r="2.2" fill="var(--blush-pop)" opacity="0.5"/><circle cx="41" cy="25" r="2.2" fill="var(--confetti-gold)" opacity="0.5"/><text x="64" y="52" font-family="Playfair Display, serif" font-size="34" font-weight="700" fill="var(--midnight)">Ryvite</text></svg></a>
     </div>
-    <div class="header-actions">
-      <button class="btn btn-secondary" onclick="logout()">Log Out</button>
+    <div class="header-right">
       <a href="/v2/create/" class="btn btn-primary">+ New Event</a>
+      <div class="profile-menu">
+        <button class="profile-btn" onclick="toggleProfileMenu()" id="profileBtn">
+          <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        </button>
+        <div class="profile-dropdown" id="profileDropdown">
+          <div class="profile-dropdown-header">
+            <div class="profile-dropdown-name" id="profileName"></div>
+            <div class="profile-dropdown-email" id="profileEmail"></div>
+          </div>
+          <button class="profile-dropdown-item" onclick="window.location.href='/v2/profile/'">
+            <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            Profile
+          </button>
+          <button class="profile-dropdown-item" onclick="window.location.href='/v2/settings/'">
+            <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 00-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+            Settings
+          </button>
+          <div class="profile-dropdown-divider"></div>
+          <button class="profile-dropdown-item danger" onclick="logout()">
+            <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+            Log Out
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
   <div class="container">
-    <div class="section-title">Your Events</div>
+    <div class="section-header">
+      <div class="section-title">Your Events</div>
+      <label class="archive-toggle">
+        <input type="checkbox" id="showArchived" onchange="renderEvents(allEvents)">
+        Show Archived
+      </label>
+    </div>
     <div id="loading" class="loading">Loading your events...</div>
     <div id="emptyState" class="empty-state" style="display: none;">
       <h3>No events yet</h3>
@@ -150,35 +203,35 @@
     </div>
   </div>
 
-  <!-- QR Modal -->
-  <div class="modal-overlay qr-overlay" id="qrModal" onclick="if(event.target===this)closeQRModal()">
-    <div class="qr-modal">
-      <h3>Scan to RSVP</h3>
-      <canvas id="qrCanvas"></canvas>
-      <p id="qrUrl" style="font-size: 12px; color: #999; margin-bottom: 16px; word-break: break-all;"></p>
-      <button class="qr-modal-close" onclick="closeQRModal()">Close</button>
-    </div>
-  </div>
-
   <script>
     let token = localStorage.getItem('sb_access_token');
-    const user = JSON.parse(localStorage.getItem('v2_user') || 'null');
-    let allEvents = [];
+    var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
+    var allEvents = [];
 
     if (!token || !user) {
       window.location.href = '/v2/login/';
     } else {
-      document.getElementById('headerUser').textContent = user.displayName || user.email || '';
+      document.getElementById('profileName').textContent = user.displayName || user.email?.split('@')[0] || '';
+      document.getElementById('profileEmail').textContent = user.email || '';
     }
 
-    // ---- Token Refresh ----
+    // Profile dropdown
+    function toggleProfileMenu() {
+      document.getElementById('profileDropdown').classList.toggle('open');
+    }
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.profile-menu')) {
+        document.getElementById('profileDropdown').classList.remove('open');
+      }
+    });
+
+    // Token Refresh
     async function refreshToken() {
       var rt = localStorage.getItem('sb_refresh_token');
       if (!rt) { logout(); return false; }
       try {
         var res = await fetch('/api/v2/auth?action=refresh', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken: rt })
         });
         var result = await res.json();
@@ -194,33 +247,23 @@
     }
 
     async function authFetch(url, opts) {
-      opts = opts || {};
-      opts.headers = opts.headers || {};
+      opts = opts || {}; opts.headers = opts.headers || {};
       opts.headers['Authorization'] = 'Bearer ' + token;
       var res = await fetch(url, opts);
       if (res.status === 401) {
         var refreshed = await refreshToken();
-        if (refreshed) {
-          opts.headers['Authorization'] = 'Bearer ' + token;
-          res = await fetch(url, opts);
-        }
+        if (refreshed) { opts.headers['Authorization'] = 'Bearer ' + token; res = await fetch(url, opts); }
       }
       return res;
     }
 
-    // Validate token on load
-    async function validateSession() {
+    // Validate token
+    (async function() {
       if (!token) return;
-      try {
-        var res = await fetch('/api/v2/auth?action=profile', {
-          headers: { 'Authorization': 'Bearer ' + token }
-        });
-        if (!res.ok) await refreshToken();
-      } catch (err) {}
-    }
-    validateSession();
+      try { var res = await fetch('/api/v2/auth?action=profile', { headers: { 'Authorization': 'Bearer ' + token } }); if (!res.ok) await refreshToken(); } catch (err) {}
+    })();
 
-    // Check for published event toast
+    // Published event toast
     var params = new URLSearchParams(window.location.search);
     if (params.get('published')) {
       showToast('Event published successfully!');
@@ -232,7 +275,6 @@
         var res = await authFetch('/api/v2/events?action=list');
         var result = await res.json();
         document.getElementById('loading').style.display = 'none';
-
         if (result.success && result.events && result.events.length > 0) {
           allEvents = result.events;
           renderEvents(result.events);
@@ -256,13 +298,31 @@
     }
 
     function renderEvents(events) {
+      var showArchived = document.getElementById('showArchived').checked;
+      var filtered = events.filter(function(e) {
+        if ((e.status || '').toLowerCase() === 'archived') return showArchived;
+        return true;
+      });
+
       var grid = document.getElementById('eventGrid');
-      grid.innerHTML = events.map(function(event) {
+      if (filtered.length === 0) {
+        grid.style.display = 'none';
+        document.getElementById('emptyState').style.display = showArchived ? 'none' : 'block';
+        if (showArchived && events.length > 0) {
+          grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#999;">No events to show</div>';
+          grid.style.display = 'grid';
+        }
+        return;
+      }
+
+      document.getElementById('emptyState').style.display = 'none';
+      grid.innerHTML = filtered.map(function(event) {
         var eventDate = event.eventDate ? new Date(event.eventDate).toLocaleDateString() : 'No date set';
         var statusClass = 'status-' + (event.status || 'draft').toLowerCase();
         var isDraft = (event.status || 'Draft').toLowerCase() === 'draft';
         var isPublished = event.status === 'Published';
-        var inviteUrl = window.location.origin + '/v2/event/?slug=' + encodeURIComponent(event.slug);
+        var isArchived = (event.status || '').toLowerCase() === 'archived';
+        var inviteUrl = window.location.origin + '/v2/event/' + encodeURIComponent(event.slug);
         var prog = getProgressInfo(event);
 
         var progressHtml = '';
@@ -271,7 +331,6 @@
             + '<div class="progress-label">' + prog.pct + '% — ' + escapeHtml(prog.label) + '</div>';
         }
 
-        // Share section for published events
         var shareHtml = '';
         if (isPublished) {
           shareHtml = '<div class="share-row">'
@@ -282,23 +341,25 @@
             + '<div class="share-buttons">'
             + '<a class="share-btn" href="sms:?body=' + encodeURIComponent("You're invited! RSVP here: " + inviteUrl) + '">SMS</a>'
             + '<a class="share-btn" href="mailto:?subject=' + encodeURIComponent(event.title + ' - You\'re Invited!') + '&body=' + encodeURIComponent("You're invited to " + event.title + "!\n\nRSVP here: " + inviteUrl) + '">Email</a>'
-            + '<button class="share-btn" onclick="showQR(\'' + escapeHtml(inviteUrl) + '\')">QR Code</button>'
             + '</div></div>';
         }
 
-        // Actions
         var actionsHtml = '<div class="event-actions">';
         if (isDraft) {
           actionsHtml += '<a href="/v2/create/?eventId=' + encodeURIComponent(event.id) + '">Continue</a>';
-        } else {
-          actionsHtml += '<a href="/v2/event/?slug=' + encodeURIComponent(event.slug) + '" target="_blank">View</a>';
+        } else if (!isArchived) {
+          actionsHtml += '<a href="/v2/event/' + encodeURIComponent(event.slug) + '" target="_blank">View</a>';
           actionsHtml += '<button onclick="openRSVPModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\')">RSVPs</button>';
+        } else {
+          actionsHtml += '<a href="/v2/event/' + encodeURIComponent(event.slug) + '" target="_blank">View</a>';
         }
-        actionsHtml += '<button onclick="archiveEvent(\'' + event.id + '\', this)">Archive</button>';
+        if (!isArchived) {
+          actionsHtml += '<button onclick="archiveEvent(\'' + event.id + '\', this)">Archive</button>';
+        }
         actionsHtml += '</div>';
 
         return '<div class="event-card">'
-          + '<div class="event-card-header">'
+          + '<div class="event-card-header"' + (isArchived ? ' style="opacity:0.7"' : '') + '>'
           + '<h3>' + escapeHtml(event.title) + '</h3>'
           + '<span class="event-card-date">' + eventDate + '</span>'
           + '</div>'
@@ -317,26 +378,21 @@
 
     function copyLink(btn, url) {
       navigator.clipboard.writeText(url).then(function() {
-        btn.textContent = 'Copied!';
-        setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+        btn.textContent = 'Copied!'; setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
       });
     }
 
-    // ---- RSVP Modal ----
+    // RSVP Modal
     async function openRSVPModal(eventId, title) {
       document.getElementById('rsvpModalTitle').textContent = 'RSVPs — ' + title;
       document.getElementById('rsvpModalBody').innerHTML = '<div class="loading">Loading RSVPs...</div>';
       document.getElementById('rsvpModal').classList.add('active');
       document.body.style.overflow = 'hidden';
-
       try {
         var res = await authFetch('/api/v2/events?action=rsvps&eventId=' + encodeURIComponent(eventId));
         var result = await res.json();
-        if (result.success) {
-          renderRSVPs(result.rsvps || []);
-        } else {
-          document.getElementById('rsvpModalBody').innerHTML = '<div class="rsvp-empty">Error loading RSVPs</div>';
-        }
+        if (result.success) renderRSVPs(result.rsvps || []);
+        else document.getElementById('rsvpModalBody').innerHTML = '<div class="rsvp-empty">Error loading RSVPs</div>';
       } catch (err) {
         document.getElementById('rsvpModalBody').innerHTML = '<div class="rsvp-empty">Error loading RSVPs</div>';
       }
@@ -348,7 +404,6 @@
         body.innerHTML = '<div class="rsvp-empty">No RSVPs yet. Share your invite link to start collecting responses!</div>';
         return;
       }
-
       var attending = rsvps.filter(function(r) { return r.status === 'attending'; }).length;
       var declined = rsvps.filter(function(r) { return r.status === 'declined'; }).length;
       var maybe = rsvps.filter(function(r) { return r.status === 'maybe'; }).length;
@@ -357,32 +412,17 @@
         + '<div class="rsvp-stat attending"><div class="rsvp-stat-num">' + attending + '</div><div class="rsvp-stat-label">Attending</div></div>'
         + '<div class="rsvp-stat declined"><div class="rsvp-stat-num">' + declined + '</div><div class="rsvp-stat-label">Declined</div></div>'
         + '<div class="rsvp-stat maybe"><div class="rsvp-stat-num">' + maybe + '</div><div class="rsvp-stat-label">Maybe</div></div>'
-        + '</div>';
-
-      html += '<ul class="rsvp-list">';
+        + '</div><ul class="rsvp-list">';
       rsvps.forEach(function(r) {
         var statusLabel = r.status === 'attending' ? 'Attending' : r.status === 'declined' ? 'Declined' : 'Maybe';
-        var statusClass = r.status === 'attending' ? 'status-published' : r.status === 'declined' ? 'status-draft' : 'status-archived';
-        // Use status-draft (yellow) for declined to match semantic color
-        if (r.status === 'declined') statusClass = 'background:#f8d7da;color:#721c24';
-        else if (r.status === 'attending') statusClass = 'background:#d4edda;color:#155724';
-        else statusClass = 'background:#fff3cd;color:#856404';
-
+        var style = r.status === 'attending' ? 'background:#d4edda;color:#155724' : r.status === 'declined' ? 'background:#f8d7da;color:#721c24' : 'background:#fff3cd;color:#856404';
         var detail = '';
         if (r.email) detail += escapeHtml(r.email);
         if (r.phone) detail += (detail ? ' · ' : '') + escapeHtml(r.phone);
-        if (r.respondedAt) {
-          var d = new Date(r.respondedAt);
-          detail += (detail ? ' · ' : '') + d.toLocaleDateString();
-        }
-
-        html += '<li class="rsvp-item">'
-          + '<div class="rsvp-item-info">'
-          + '<div class="rsvp-item-name">' + escapeHtml(r.name) + '</div>'
+        if (r.respondedAt) detail += (detail ? ' · ' : '') + new Date(r.respondedAt).toLocaleDateString();
+        html += '<li class="rsvp-item"><div class="rsvp-item-info"><div class="rsvp-item-name">' + escapeHtml(r.name) + '</div>'
           + (detail ? '<div class="rsvp-item-detail">' + detail + '</div>' : '')
-          + '</div>'
-          + '<span class="rsvp-item-status" style="' + statusClass + '">' + statusLabel + '</span>'
-          + '</li>';
+          + '</div><span class="rsvp-item-status" style="' + style + '">' + statusLabel + '</span></li>';
       });
       html += '</ul>';
       body.innerHTML = html;
@@ -393,135 +433,12 @@
       document.body.style.overflow = '';
     }
 
-    // ---- QR Code ----
-    function showQR(url) {
-      document.getElementById('qrUrl').textContent = url;
-      document.getElementById('qrModal').classList.add('active');
-      document.body.style.overflow = 'hidden';
-      generateQR(url);
-    }
-
-    function closeQRModal() {
-      document.getElementById('qrModal').classList.remove('active');
-      document.body.style.overflow = '';
-    }
-
-    function generateQR(text) {
-      // Simple QR code generation using Canvas — renders a QR-like pattern
-      // For production, we use a minimal QR encoder
-      var canvas = document.getElementById('qrCanvas');
-      var size = 200;
-      canvas.width = size;
-      canvas.height = size;
-      var ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, size, size);
-
-      // Use the QR encoding library loaded below
-      if (window.QRCode) {
-        var qr = new window.QRCode(text);
-        var modules = qr.modules;
-        var cellSize = Math.floor(size / modules.length);
-        var offset = Math.floor((size - cellSize * modules.length) / 2);
-        ctx.fillStyle = '#000';
-        for (var row = 0; row < modules.length; row++) {
-          for (var col = 0; col < modules[row].length; col++) {
-            if (modules[row][col]) {
-              ctx.fillRect(offset + col * cellSize, offset + row * cellSize, cellSize, cellSize);
-            }
-          }
-        }
-      } else {
-        // Fallback: show URL text if QR lib not loaded
-        ctx.fillStyle = '#000';
-        ctx.font = '12px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('QR code', size/2, size/2 - 10);
-        ctx.fillText('loading...', size/2, size/2 + 10);
-        // Load QR lib and retry
-        loadQRLib().then(function() { generateQR(text); });
-      }
-    }
-
-    function loadQRLib() {
-      return new Promise(function(resolve) {
-        if (window.QRCode) { resolve(); return; }
-        var script = document.createElement('script');
-        script.onload = resolve;
-        script.onerror = resolve;
-        // Inline minimal QR encoder
-        script.textContent = getQRLibCode();
-        document.head.appendChild(script);
-      });
-    }
-
-    function getQRLibCode() {
-      // Minimal QR Code generator (mode byte, numeric)
-      // This is a simplified version — enough for URLs up to ~150 chars
-      return '(' + (function() {
-        function QRCode(data) {
-          this.modules = [];
-          this.data = data;
-          this.size = 0;
-          this.encode();
-        }
-        QRCode.prototype.encode = function() {
-          // Simple QR-like matrix based on data hash for visual representation
-          // For a real app you'd use a proper library, but this gives a scannable-looking pattern
-          var s = Math.max(21, Math.min(41, 21 + Math.ceil(this.data.length / 10) * 4));
-          this.size = s;
-          this.modules = [];
-          for (var i = 0; i < s; i++) {
-            this.modules[i] = [];
-            for (var j = 0; j < s; j++) {
-              this.modules[i][j] = false;
-            }
-          }
-          // Finder patterns
-          this.drawFinder(0, 0);
-          this.drawFinder(s - 7, 0);
-          this.drawFinder(0, s - 7);
-          // Data modules from string hash
-          var hash = 0;
-          for (var k = 0; k < this.data.length; k++) {
-            hash = ((hash << 5) - hash + this.data.charCodeAt(k)) | 0;
-          }
-          var seed = Math.abs(hash);
-          for (var r = 8; r < s - 8; r++) {
-            for (var c = 8; c < s - 8; c++) {
-              seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-              this.modules[r][c] = (seed % 3) === 0;
-            }
-          }
-          // Timing patterns
-          for (var t = 8; t < s - 8; t++) {
-            this.modules[6][t] = t % 2 === 0;
-            this.modules[t][6] = t % 2 === 0;
-          }
-        };
-        QRCode.prototype.drawFinder = function(row, col) {
-          for (var r = 0; r < 7; r++) {
-            for (var c = 0; c < 7; c++) {
-              if (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4)) {
-                this.modules[row + r][col + c] = true;
-              }
-            }
-          }
-        };
-        window.QRCode = QRCode;
-      }).toString() + ')()';
-    }
-
-    // Load QR lib eagerly
-    loadQRLib();
-
     async function archiveEvent(eventId, btn) {
       if (!confirm('Archive this event?')) return;
       btn.disabled = true; btn.textContent = 'Archiving...';
       try {
         await authFetch('/api/v2/events?action=update', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ eventId: eventId, status: 'Archived' })
         });
         showToast('Event archived');
@@ -544,9 +461,7 @@
     }
 
     function escapeHtml(str) {
-      var div = document.createElement('div');
-      div.textContent = str || '';
-      return div.innerHTML;
+      var div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML;
     }
 
     loadDashboard();

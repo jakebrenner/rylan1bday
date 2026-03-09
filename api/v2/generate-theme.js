@@ -123,7 +123,130 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Invalid session' });
   }
 
-  const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages } = req.body;
+  const action = req.query?.action || req.body?.action || 'generate';
+  const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages, tweakInstructions, currentHtml, currentCss, currentConfig, photoBase64 } = req.body;
+
+  // --- TWEAK MODE: modify existing theme without full regeneration ---
+  if (action === 'tweak') {
+    if (!eventId || !currentHtml || !currentCss || !tweakInstructions) {
+      return res.status(400).json({ error: 'Missing required fields for tweak' });
+    }
+
+    const themeModel = await getThemeModel();
+    const startTime = Date.now();
+
+    try {
+      let tweakMessage = `Here is an existing invite theme. The user wants to make specific modifications WITHOUT changing the overall design.
+
+**Current HTML:**
+\`\`\`html
+${currentHtml}
+\`\`\`
+
+**Current CSS:**
+\`\`\`css
+${currentCss}
+\`\`\`
+
+**Current Config:**
+\`\`\`json
+${JSON.stringify(currentConfig || {})}
+\`\`\`
+
+**User's requested changes:**
+${tweakInstructions}`;
+
+      if (photoBase64) {
+        tweakMessage += `\n\nThe user has also provided a photo they want incorporated into the design. Use this image as an inline base64 data URI in an <img> tag where it makes sense for the design.`;
+      }
+
+      tweakMessage += `\n\nReturn the COMPLETE updated theme as a JSON object with the same format: { "theme_html": "...", "theme_css": "...", "theme_config": { ... } }. Make ONLY the changes the user requested — keep everything else exactly the same.`;
+
+      const messageContent = photoBase64
+        ? [
+            { type: 'text', text: tweakMessage },
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: photoBase64 } }
+          ]
+        : [{ type: 'text', text: tweakMessage }];
+
+      const response = await client.messages.create({
+        model: themeModel,
+        max_tokens: 8192,
+        system: 'You are an expert HTML/CSS designer. Modify the given invite theme based on the user\'s instructions. Return ONLY a valid JSON object with theme_html, theme_css, and theme_config keys. Make minimal changes — only what the user asked for.',
+        messages: [{ role: 'user', content: messageContent }]
+      });
+
+      const latency = Date.now() - startTime;
+      let themeText = response.content[0]?.text || '';
+      themeText = themeText.trim();
+      const jsonBlockMatch = themeText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+      if (jsonBlockMatch) themeText = jsonBlockMatch[1].trim();
+      if (!themeText.startsWith('{')) {
+        const firstBrace = themeText.indexOf('{');
+        const lastBrace = themeText.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1) themeText = themeText.substring(firstBrace, lastBrace + 1);
+      }
+      const theme = JSON.parse(themeText);
+
+      if (!theme.theme_html || !theme.theme_css) {
+        throw new Error('Invalid tweak response');
+      }
+
+      // Save as new version
+      const { data: existingThemes } = await supabase
+        .from('event_themes')
+        .select('id, version')
+        .eq('event_id', eventId)
+        .order('version', { ascending: false })
+        .limit(1);
+
+      const nextVersion = existingThemes?.length > 0 ? existingThemes[0].version + 1 : 1;
+
+      await supabase
+        .from('event_themes')
+        .update({ is_active: false })
+        .eq('event_id', eventId)
+        .eq('is_active', true);
+
+      const { data: newTheme, error: themeError } = await supabase
+        .from('event_themes')
+        .insert({
+          event_id: eventId,
+          version: nextVersion,
+          is_active: true,
+          prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
+          html: theme.theme_html,
+          css: theme.theme_css,
+          config: theme.theme_config || currentConfig || {},
+          model: themeModel,
+          input_tokens: response.usage?.input_tokens || 0,
+          output_tokens: response.usage?.output_tokens || 0,
+          latency_ms: latency
+        })
+        .select()
+        .single();
+
+      if (themeError) throw new Error('Failed to save theme: ' + themeError.message);
+
+      await supabase.from('generation_log').insert({
+        event_id: eventId, user_id: user.id, prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
+        model: themeModel, input_tokens: response.usage?.input_tokens || 0,
+        output_tokens: response.usage?.output_tokens || 0, latency_ms: latency, status: 'success'
+      });
+
+      return res.status(200).json({
+        success: true,
+        theme: { id: newTheme.id, version: newTheme.version, html: theme.theme_html, css: theme.theme_css, config: theme.theme_config || currentConfig || {} }
+      });
+    } catch (err) {
+      console.error('Theme tweak error:', err);
+      await supabase.from('generation_log').insert({
+        event_id: eventId, user_id: user.id, prompt: 'Tweak: ' + (tweakInstructions || '').substring(0, 200),
+        model: themeModel, input_tokens: 0, output_tokens: 0, latency_ms: Date.now() - startTime, status: 'error', error: err.message
+      }).catch(() => {});
+      return res.status(500).json({ error: 'Failed to tweak theme', message: err.message });
+    }
+  }
 
   if (!eventId || !eventDetails) {
     return res.status(400).json({ error: 'Missing required fields' });

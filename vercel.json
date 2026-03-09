@@ -3,5 +3,11 @@
     "api/v2/generate-theme.js": {
       "maxDuration": 60
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/v2/event/:slug",
+      "destination": "/v2/event/index.html"
+    }
+  ]
 }
