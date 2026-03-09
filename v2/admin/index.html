@@ -91,7 +91,47 @@
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s; }
     .modal { background: white; border-radius: 12px; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto; padding: 24px; }
     .modal h3 { font-size: 18px; margin-bottom: 16px; }
+    .modal-wide { max-width: 1000px; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* Prompt Lab */
+    .prompt-viewer { background: #1A1A2E; color: #e0e0e0; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 12px; line-height: 1.6; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
+    .prompt-viewer .prompt-section { color: var(--confetti-gold); font-weight: 700; }
+    .prompt-viewer .prompt-comment { color: #6a9955; }
+    .test-params-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .test-params-grid .config-field input, .test-params-grid .config-field select, .test-params-grid .config-field textarea {
+      width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px;
+      font-family: 'Inter', sans-serif; font-size: 13px; color: var(--midnight); background: white;
+    }
+    .test-params-grid .config-field textarea { resize: vertical; min-height: 60px; }
+    .test-params-grid .config-field input:focus, .test-params-grid .config-field select:focus, .test-params-grid .config-field textarea:focus {
+      outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1);
+    }
+    .preview-frame { border: 2px solid #eee; border-radius: 8px; overflow: hidden; max-width: 393px; margin: 0 auto; background: white; min-height: 300px; }
+    .preview-frame iframe { width: 100%; height: 700px; border: none; }
+    .test-meta { display: flex; gap: 16px; font-size: 12px; color: #888; margin-top: 12px; padding: 8px 12px; background: #f9f9f9; border-radius: 6px; }
+    .test-meta span { display: flex; align-items: center; gap: 4px; }
+    .test-meta .val { font-weight: 700; color: var(--midnight); }
+    .prompt-toggle { cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--midnight); padding: 10px 14px; background: #f9f9f9; border-radius: 6px; border: 1px solid #eee; margin-bottom: 12px; user-select: none; }
+    .prompt-toggle:hover { background: #f0f0f0; }
+    .prompt-toggle .arrow { transition: transform 0.2s; }
+    .prompt-toggle.open .arrow { transform: rotate(90deg); }
+
+    /* Style Library */
+    .style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+    .style-card { background: white; border: 1px solid #eee; border-radius: 8px; overflow: hidden; transition: all 0.2s; }
+    .style-card:hover { border-color: var(--party-coral); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .style-card-preview { height: 140px; overflow: hidden; background: #f9f9f9; position: relative; border-bottom: 1px solid #eee; }
+    .style-card-preview iframe { width: 393px; height: 700px; border: none; transform: scale(0.35); transform-origin: top left; pointer-events: none; }
+    .style-card-body { padding: 12px 14px; }
+    .style-card-body h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .style-card-body p { font-size: 12px; color: #888; margin-bottom: 8px; }
+    .style-card-actions { display: flex; gap: 6px; }
+    .style-tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: #f0f0f0; color: #666; margin-right: 4px; }
+    .style-checkbox { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f9f9; border-radius: 6px; cursor: pointer; margin-bottom: 6px; border: 1px solid transparent; transition: all 0.2s; }
+    .style-checkbox:hover { border-color: var(--party-coral); background: #fff5f5; }
+    .style-checkbox.selected { border-color: var(--party-coral); background: #fff0f0; }
+    .style-checkbox input { accent-color: var(--party-coral); }
 
     .loading { text-align: center; padding: 60px 20px; color: #888; }
     .access-denied { text-align: center; padding: 80px 20px; }
@@ -124,6 +164,8 @@
       <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
       <button class="tab" data-tab="users" onclick="switchTab('users')">Users</button>
       <button class="tab" data-tab="settings" onclick="switchTab('settings')">AI Models</button>
+      <button class="tab" data-tab="promptlab" onclick="switchTab('promptlab')">Prompt Lab</button>
+      <button class="tab" data-tab="stylelibrary" onclick="switchTab('stylelibrary')">Style Library</button>
     </div>
 
     <!-- Overview Tab -->
@@ -342,6 +384,219 @@
     </div>
   </div>
 
+    <!-- Prompt Lab Tab -->
+    <div class="tab-content" id="tab-promptlab">
+      <div class="config-section">
+        <h3>Theme Generation Prompt</h3>
+        <p style="font-size:13px;color:#888;margin-bottom:16px;">This is the system prompt template used when generating invite designs. It's the same prompt used in production.</p>
+        <div class="prompt-toggle" id="systemPromptToggle" onclick="togglePromptViewer('systemPrompt')">
+          <span class="arrow">&#9654;</span> System Prompt (Design Instructions)
+        </div>
+        <div id="systemPromptViewer" style="display:none;">
+          <div class="prompt-viewer" id="systemPromptContent"></div>
+        </div>
+        <div class="prompt-toggle" id="designDnaToggle" onclick="togglePromptViewer('designDna')" style="margin-top:8px;">
+          <span class="arrow">&#9654;</span> Design DNA (Event-Type-Specific Context)
+        </div>
+        <div id="designDnaViewer" style="display:none;">
+          <div style="margin-bottom:8px;">
+            <select id="designDnaSelect" onchange="showDesignDna()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+              <option value="kidsBirthday">Kids Birthday</option>
+              <option value="adultBirthday">Adult Birthday</option>
+              <option value="babyShower">Baby Shower</option>
+              <option value="engagement">Engagement</option>
+              <option value="wedding">Wedding</option>
+              <option value="graduation">Graduation</option>
+              <option value="holiday">Holiday</option>
+              <option value="dinnerParty">Dinner Party</option>
+              <option value="retirement">Retirement</option>
+              <option value="anniversary">Anniversary</option>
+              <option value="sports">Sports</option>
+              <option value="bridalShower">Bridal Shower</option>
+              <option value="corporate">Corporate</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="prompt-viewer" id="designDnaContent"></div>
+        </div>
+      </div>
+
+      <div class="config-section">
+        <h3>Test Generation</h3>
+        <p style="font-size:13px;color:#888;margin-bottom:16px;">Test the prompt with different models and event parameters. Results are <strong>not saved</strong> — this is purely for prompt tuning.</p>
+
+        <div style="margin-bottom:16px;">
+          <div class="config-field" style="margin-bottom:12px;">
+            <label>Model to Test</label>
+            <select id="testModelSelect" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+              <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fast ($0.80/1M in, $4/1M out)</option>
+              <option value="claude-sonnet-4-20250514" selected>Claude Sonnet 4 — Balanced ($3/1M in, $15/1M out)</option>
+              <option value="claude-opus-4-20250514">Claude Opus 4 — Most capable ($15/1M in, $75/1M out)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="test-params-grid">
+          <div class="config-field">
+            <label>Event Title</label>
+            <input type="text" id="testTitle" value="Emma's 5th Birthday Bash">
+          </div>
+          <div class="config-field">
+            <label>Event Type</label>
+            <select id="testEventType">
+              <option value="kidsBirthday" selected>Kids Birthday</option>
+              <option value="adultBirthday">Adult Birthday</option>
+              <option value="babyShower">Baby Shower</option>
+              <option value="engagement">Engagement</option>
+              <option value="wedding">Wedding</option>
+              <option value="graduation">Graduation</option>
+              <option value="holiday">Holiday</option>
+              <option value="dinnerParty">Dinner Party</option>
+              <option value="retirement">Retirement</option>
+              <option value="anniversary">Anniversary</option>
+              <option value="sports">Sports</option>
+              <option value="bridalShower">Bridal Shower</option>
+              <option value="corporate">Corporate</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="config-field">
+            <label>Start Date/Time</label>
+            <input type="datetime-local" id="testStartDate" value="2026-04-15T14:00">
+          </div>
+          <div class="config-field">
+            <label>End Date/Time</label>
+            <input type="datetime-local" id="testEndDate" value="2026-04-15T17:00">
+          </div>
+          <div class="config-field">
+            <label>Location Name</label>
+            <input type="text" id="testLocation" value="Sunshine Park Pavilion">
+          </div>
+          <div class="config-field">
+            <label>Location Address</label>
+            <input type="text" id="testAddress" value="123 Oak Street, Austin, TX 78701">
+          </div>
+          <div class="config-field">
+            <label>Host Name</label>
+            <input type="text" id="testHost" value="The Johnson Family">
+          </div>
+          <div class="config-field">
+            <label>Dress Code</label>
+            <input type="text" id="testDressCode" value="Casual / Outdoor">
+          </div>
+          <div class="config-field" style="grid-column:1/-1;">
+            <label>Tagline</label>
+            <input type="text" id="testTagline" value="Five is a Vibe!" style="width:100%;">
+          </div>
+          <div class="config-field" style="grid-column:1/-1;">
+            <label>Creative Prompt / Design Direction</label>
+            <textarea id="testPrompt" rows="3">Bright, playful, and full of energy. Think rainbow balloons, confetti, and a sense of pure childhood joy. Make it feel like opening a present.</textarea>
+          </div>
+        </div>
+
+        <div id="styleLibraryCheckboxes" style="margin-bottom:16px;display:none;">
+          <label style="display:block;font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Style References (optional)</label>
+          <div id="styleRefList"></div>
+        </div>
+
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
+          <button class="btn btn-primary" id="runTestBtn" onclick="runPromptTest()">Generate Test Invite</button>
+          <button class="btn btn-secondary" onclick="fillTestDefaults()">Reset to Defaults</button>
+          <span id="testStatus" style="font-size:13px;color:#888;"></span>
+        </div>
+      </div>
+
+      <!-- Test Result Preview -->
+      <div id="testResultSection" style="display:none;">
+        <div class="config-section">
+          <h3>Test Result</h3>
+          <div class="test-meta" id="testMeta"></div>
+          <div style="margin-top:16px;">
+            <div style="display:flex;gap:8px;margin-bottom:12px;">
+              <button class="btn btn-secondary btn-sm" onclick="showTestView('preview')" id="btnPreview" style="background:var(--midnight);color:white;">Preview</button>
+              <button class="btn btn-secondary btn-sm" onclick="showTestView('html')" id="btnHtml">HTML</button>
+              <button class="btn btn-secondary btn-sm" onclick="showTestView('css')" id="btnCss">CSS</button>
+              <button class="btn btn-secondary btn-sm" onclick="showTestView('config')" id="btnConfig">Config</button>
+            </div>
+            <div id="testViewPreview">
+              <div class="preview-frame">
+                <iframe id="testPreviewFrame" sandbox="allow-same-origin"></iframe>
+              </div>
+            </div>
+            <div id="testViewHtml" style="display:none;">
+              <div class="prompt-viewer" style="max-height:500px;" id="testHtmlContent"></div>
+            </div>
+            <div id="testViewCss" style="display:none;">
+              <div class="prompt-viewer" style="max-height:500px;" id="testCssContent"></div>
+            </div>
+            <div id="testViewConfig" style="display:none;">
+              <div class="prompt-viewer" style="max-height:300px;" id="testConfigContent"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Style Library Tab -->
+    <div class="tab-content" id="tab-stylelibrary">
+      <div class="config-section">
+        <h3>Style Reference Library</h3>
+        <p style="font-size:13px;color:#888;margin-bottom:16px;">
+          Upload HTML invite samples that the AI can reference during generation. These serve as visual inspiration —
+          the AI analyzes the layout patterns, color palettes, typography, and design approaches to produce better results.
+        </p>
+        <div style="display:flex;gap:8px;margin-bottom:20px;">
+          <button class="btn btn-primary" onclick="openAddStyleModal()">Add HTML Sample</button>
+          <span style="font-size:12px;color:#888;display:flex;align-items:center;" id="styleCount">0 samples in library</span>
+        </div>
+        <div class="style-grid" id="styleGrid">
+          <div style="color:#888;font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">
+            No style samples yet. Add HTML invite samples to build your reference library.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Style Modal -->
+  <div id="styleModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeStyleModal()">
+    <div class="modal modal-wide">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 id="styleModalTitle">Add Style Sample</h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeStyleModal()">Close</button>
+      </div>
+      <div class="config-field" style="margin-bottom:12px;">
+        <label>Name</label>
+        <input type="text" id="styleName" placeholder="e.g. Elegant Floral Wedding" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+      </div>
+      <div class="config-field" style="margin-bottom:12px;">
+        <label>Description (optional)</label>
+        <input type="text" id="styleDescription" placeholder="e.g. Soft watercolor florals with serif typography" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+      </div>
+      <div class="config-field" style="margin-bottom:12px;">
+        <label>Tags (comma-separated, optional)</label>
+        <input type="text" id="styleTags" placeholder="e.g. wedding, floral, elegant, serif" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+      </div>
+      <div class="config-field" style="margin-bottom:12px;">
+        <label>HTML Content</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="toggleStylePreview()">Toggle Preview</button>
+        </div>
+        <textarea id="styleHtml" rows="15" placeholder="Paste complete HTML of an invite sample here..." style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:monospace;font-size:12px;line-height:1.5;resize:vertical;"></textarea>
+        <div id="stylePreviewContainer" style="display:none;margin-top:8px;">
+          <div class="preview-frame">
+            <iframe id="stylePreviewFrame" sandbox="allow-same-origin" style="width:100%;height:500px;border:none;"></iframe>
+          </div>
+        </div>
+      </div>
+      <input type="hidden" id="styleEditId" value="">
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary" onclick="saveStyleItem()">Save Sample</button>
+        <button class="btn btn-secondary" onclick="closeStyleModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- RSVP Modal -->
   <div id="rsvpModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal()">
     <div class="modal">
@@ -384,6 +639,7 @@
         loadUsers();
         loadConfig();
         loadAdmins();
+        loadStyleLibrary();
       } catch (err) {
         document.getElementById('accessDenied').style.display = 'block';
       }
@@ -661,6 +917,395 @@
         await adminFetch('removeAdmin', { method: 'POST', body: { email: email } });
         loadAdmins();
       } catch (err) { alert('Failed to remove admin'); }
+    }
+
+    // ---- Prompt Lab ----
+    // The SYSTEM_PROMPT and DESIGN_DNA are embedded here so admins can view them
+    var THEME_SYSTEM_PROMPT = `You are building a production-grade, single-file HTML event invite and RSVP page. This page must be visually extraordinary — better than Evite, Paperless Post, Canva, or any other existing provider. It should feel like it was designed by a top creative studio, not generated by AI.
+
+## OUTPUT FORMAT
+Return a JSON object with exactly these keys:
+{
+  "theme_html": "...",
+  "theme_css": "...",
+  "theme_thankyou_html": "...",
+  "theme_config": {
+    "primaryColor": "#hex",
+    "secondaryColor": "#hex",
+    "accentColor": "#hex",
+    "backgroundColor": "#hex",
+    "textColor": "#hex",
+    "fontHeadline": "Font Name",
+    "fontBody": "Font Name",
+    "mood": "one-word mood descriptor",
+    "googleFontsImport": "@import url('...')",
+    "loadingPun": "A short, fun, on-theme pun shown while the RSVP is submitting"
+  }
+}
+
+## CRITICAL DESIGN PHILOSOPHY
+- This must be UNFORGETTABLE. Every spacing, shadow, border-radius, and animation timing must feel intentional and designed.
+- Choose a clear aesthetic direction and execute it with total commitment.
+- Bold maximalism and refined minimalism both work — the failure mode is neither.
+- NEVER produce a generic or "bootstrap-looking" layout.
+- Use unexpected moments: overlapping elements, asymmetric composition, color blocks that break the grid, type that surprises.
+
+## TYPOGRAPHY RULES
+- Source all fonts from Google Fonts only (include @import in googleFontsImport)
+- Choose a BOLD, characterful display font that matches the event's emotional register
+- Pair with a warm, readable body font — NEVER Inter, Roboto, Arial, or any system default
+- Typography should do heavy creative lifting, not just label things
+- Vary weight, scale, case, and tracking deliberately — type IS the design
+
+## PAGE STRUCTURE
+Build the page with these sections (creative freedom on visual execution):
+
+1. **THEMATIC HEADER** — An animated or illustrated element specific to this event type. Must feel DESIGNED for this event, not generic.
+2. **HERO SECTION** — Large display headline with event title/names/tagline. Photo treatment if photos provided. All entrance animations staggered.
+3. **EVENT DETAILS** — Icon + text layout for date, time, location. Clear hierarchy, memorable presentation.
+4. **RSVP SECTION** — .rsvp-slot with ONLY a styled <button class="rsvp-button">. The rsvp-slot MUST contain ONLY the button.
+
+## REQUIRED DATA ATTRIBUTES
+- data-field="title" — on the element containing the event title text
+- data-field="datetime" — on the container with date/time information
+- data-field="location" — on the container with location information
+- data-field="dresscode" — on the container with dress code (omit entirely if not specified)
+- data-field="host" — on the element showing host name(s), if included
+
+## ANIMATION RULES — EVERY INVITE SHOULD FEEL ALIVE
+- **Ambient background**: floating/falling elements specific to event type on infinite loop, varied speeds, 0.1-0.2 opacity
+- **Photo animations**: bobbing for kids parties, subtle scale pulse for editorial, soft glow for romantic
+- **Entrance**: staggered fade-up on page load (animation-delay: 0.1s increments)
+- **Interactive**: hover states on all buttons with smooth transitions
+- **Decorative**: gentle sway or float on header decorations
+- Use CSS only (no JavaScript).
+
+## TECHNICAL CONSTRAINTS
+- Max-width 393px (iPhone), centered, mobile-first
+- Text must be readable: min 14px body, WCAG AA contrast ratios (4.5:1 body, 3:1 headings)
+- Generous padding (20-24px sides)
+- RSVP button: min 48px height, prominent, high contrast
+- CSS custom properties for all theme colors
+- No JavaScript, no fixed positioning, no iframes
+- NEVER put form inputs inside .rsvp-slot
+- Keep height reasonable — 3-5 phone screen scrolls
+
+## THANK YOU PAGE (theme_thankyou_html)
+Same CSS applies. Provide ONLY .thankyou-page container with .thankyou-hero. NO calendar buttons, NO footer.
+
+## TEXT CONTRAST — CRITICAL, NEVER VIOLATE
+- EVERY piece of text must have sufficient contrast against its background (WCAG AA minimum)
+- NEVER put light text on a light background or dark text on a dark background
+- Button text MUST contrast against the button background color
+
+## INSPIRATION IMAGES
+If provided, analyze them for color palette, visual mood, textures, typography style, and overall aesthetic.`;
+
+    var DESIGN_DNA_DATA = {
+      kidsBirthday: { label: 'Kids Birthday (Ages 0-10)', photoTreatment: 'Circular crops in a bobbing row, each with a differently colored SVG birthday hat. Animate with staggered bobble timing.', decorative: 'Animated floating balloons, confetti bursts, bunting flags, or theme-specific elements (stars for space, leaves for jungle, etc.)', typography: 'Bold, rounded display font (e.g. Fredoka One, Baloo 2, Lilita One) + warm readable body font. NEVER use Inter, Roboto, or system fonts.', colorPhilosophy: 'Dominant palette of 4-5 fully saturated colors, no grays. Joyful and vibrant.', motion: 'Floating/falling elements on infinite loop at 0.1-0.2 opacity. Photo bobbing. Staggered fade-up entrance. Confetti burst energy on RSVP section.', standout: 'Baby/kid faces with bouncing birthday hats in a playful row' },
+      adultBirthday: { label: 'Adult / Milestone Birthday', photoTreatment: 'Full-bleed editorial panel with stylized overlay, or large framed portrait. Sophisticated color grading.', decorative: 'Atmospheric texture matching the era/tone — floating gold particles for glamour, grain for retro, neon glow for 80s.', typography: 'Era-appropriate or bold editorial font (Playfair Display for elegance, Bebas Neue for bold). Strong personality.', colorPhilosophy: '2-3 dominant colors with deliberate restraint OR excess — no in-between.', motion: 'Champagne bubble float for glamour, record-scratch for retro, spotlight sweep for milestone.', standout: 'The milestone number (30, 40, 50) as a massive typographic hero element' },
+      babyShower: { label: 'Baby Shower / Sip & See', photoTreatment: 'Softly rounded oval frames with floral/botanical wreath overlay. Gentle, warm treatment.', decorative: 'Watercolor wash backgrounds, botanical illustration elements, pressed flowers, baby animals.', typography: 'Elegant script paired with refined serif (e.g. Cormorant Garamond + flowing script).', colorPhilosophy: 'Soft, limited palette (2-3 colors + cream/white). Boy: blue/navy/mint. Girl: blush/rose/lavender.', motion: 'Gentle petal/leaf fall. Slow, dreamy fade-ins. Botanical elements with subtle sway.', standout: 'Lush floral wreath framing the baby name or event title' },
+      engagement: { label: 'Engagement Party', photoTreatment: 'Large, styled hero image of the couple with elegant typographic overlay.', decorative: 'Floating rings, botanical elements, abstract ink strokes, soft gradient meshes.', typography: "Romantic script + modern sans, or bold serif editorial pairing. Couple's names as typographic hero.", colorPhilosophy: "Derived from couple's photo tones if possible, otherwise romantic palette.", motion: 'Hearts or sparkle particles floating. Gentle parallax feel. Elegant entrance choreography.', standout: "Couple's photo with names in large, overlapping display typography" },
+      wedding: { label: 'Wedding / Reception', photoTreatment: 'Full-width hero with sophisticated overlay and couple names in large display type. Most refined treatment.', decorative: 'Minimal and intentional — botanical borders for garden, geometric for art deco, delicate line art for modern.', typography: 'Distinguished pairing (e.g. Cormorant Garamond + Jost). MOST refined output.', colorPhilosophy: '2 colors max + neutrals. Classic: ivory/gold. Modern: moody/architectural. Boho: earthy/organic.', motion: 'Very subtle — slow fade-ins, gentle parallax. NO balloon floats, NO confetti pop.', standout: "Couple's names in breathtaking display typography over the hero image" },
+      graduation: { label: 'Graduation Party', photoTreatment: 'Prominent hero treatment with school colors as accent.', decorative: 'Falling diplomas, confetti mortarboards. Celebratory but not childish.', typography: "Bold, confident display font — celebratory but not a kids party.", colorPhilosophy: 'School colors as accent if provided, otherwise bold celebratory palette.', motion: 'Paper toss animation feel. Mortarboards floating.', standout: "Graduate's name with massive milestone text (Class of 2026)" },
+      holiday: { label: 'Holiday Party', photoTreatment: 'Family/group photo as atmospheric hero (Christmas/NYE). Costume photos with themed borders (Halloween).', decorative: 'Holiday-SPECIFIC atmospheric animation — snowfall, falling leaves, fireworks, bats.', typography: 'Match the holiday emotional register — cozy serif, bold slab, elegant script, retro.', colorPhilosophy: 'Holiday palette executed with a TWIST — avoid clich\u00E9 execution.', motion: 'Holiday-specific ambient: snow, fireworks, leaves, sparkle.', standout: 'The holiday-specific atmospheric animation that makes the page feel alive' },
+      dinnerParty: { label: 'Dinner Party / Cocktail Hour', photoTreatment: 'Atmospheric hero with soft vignette and color grading. Or skip — let typography do the work.', decorative: 'Texture-first: linen, marble, dark wood, candlelight grain, wine stain watercolor.', typography: 'Editorial pairing — unexpected but refined. Adult, considered design.', colorPhilosophy: 'Sophisticated: deep wines, warm golds, cream, charcoal. Texture is as important as color.', motion: 'Minimal and purposeful — slow reveals, candlelight flicker. Quiet luxury.', standout: 'Rich, textured background that sets an atmospheric mood' },
+      retirement: { label: 'Retirement Party', photoTreatment: 'Prominent, respectful hero treatment. If multiple photos: horizontal career-timeline strip.', decorative: 'Achievement badges, timeline elements, distinguished decorative borders.', typography: 'Authoritative and warm — strong serif or distinguished display font.', colorPhilosophy: 'Distinguished: navy/gold, deep green/cream, warm sophisticated tones.', motion: 'Meaningful and measured — elegant particle effects, no balloon floats.', standout: 'Years-of-service counter or career timeline as a design element' },
+      anniversary: { label: 'Anniversary Party', photoTreatment: '"Then and now" side-by-side with connecting timeline if two photos provided.', decorative: 'Romantic but not saccharine. Gold accents for milestone years.', typography: 'Romantic but confident and warm — not overly scripty.', colorPhilosophy: "Derived from couple's photo tones, or gold/warm neutrals for milestone years.", motion: 'Gentle sparkle, floating hearts (tastefully), elegant fade-in choreography.', standout: 'The "then and now" photo treatment or massive milestone year number' },
+      sports: { label: 'Sports / Watch Party', photoTreatment: 'Host photo in team gear, full-bleed with team color gradient overlay.', decorative: 'Dynamic motion: stadium lights, crowd noise visualization, score-ticker aesthetic.', typography: 'Sports-forward — bold, condensed, athletic display fonts. Stadium scoreboard aesthetic.', colorPhilosophy: 'Team colors executed with maximum energy, not pastels.', motion: 'Stadium light sweep, scoreboard-style reveals, dynamic entrance.', standout: 'Stadium scoreboard header with team colors' },
+      bridalShower: { label: 'Bridal Shower', photoTreatment: 'Engagement photo or candid of the bride as elegant hero.', decorative: 'Floral illustration elements — beautiful, NOT clipart-style. Lush, garden party energy.', typography: "Script + elegant sans or serif. Bride's name as typographic star.", colorPhilosophy: "Bride's wedding colors if known, otherwise blush/champagne/sage/cream.", motion: 'Floating petals, gentle botanical sway, elegant fade-in sequence.', standout: 'Lush, hand-illustrated-style floral elements framing the design' },
+      corporate: { label: 'Corporate Event', photoTreatment: 'Brand-aligned hero treatment. Clean, professional, but not boring.', decorative: 'Geometric patterns, subtle gradients, professional but modern.', typography: 'Clean, modern sans-serif pairing. Professional but with personality.', colorPhilosophy: 'Brand colors if specified, otherwise sophisticated neutral + one accent.', motion: 'Subtle, professional entrance animations. No playful floating elements.', standout: 'Clean, modern design that feels premium and intentional' },
+      other: { label: 'Custom Event', photoTreatment: 'Style based on the event description.', decorative: 'Match the event mood.', typography: "Choose fonts that match the event's emotional register.", colorPhilosophy: 'Derived from the creative direction. Commit fully.', motion: 'Match the energy level of the event.', standout: 'Whatever makes this specific event feel special and unforgettable' }
+    };
+
+    function togglePromptViewer(which) {
+      var viewer = document.getElementById(which + 'Viewer');
+      var toggle = document.getElementById(which + 'Toggle');
+      var isOpen = viewer.style.display !== 'none';
+      viewer.style.display = isOpen ? 'none' : 'block';
+      toggle.classList.toggle('open', !isOpen);
+
+      if (!isOpen && which === 'systemPrompt') {
+        document.getElementById('systemPromptContent').textContent = THEME_SYSTEM_PROMPT;
+      }
+      if (!isOpen && which === 'designDna') {
+        showDesignDna();
+      }
+    }
+
+    function showDesignDna() {
+      var type = document.getElementById('designDnaSelect').value;
+      var dna = DESIGN_DNA_DATA[type];
+      if (!dna) return;
+      var text = 'EVENT TYPE: ' + dna.label + '\n\n';
+      text += 'Photo Treatment:\n  ' + dna.photoTreatment + '\n\n';
+      text += 'Decorative Elements:\n  ' + dna.decorative + '\n\n';
+      text += 'Typography:\n  ' + dna.typography + '\n\n';
+      text += 'Color Philosophy:\n  ' + dna.colorPhilosophy + '\n\n';
+      text += 'Animation/Motion:\n  ' + dna.motion + '\n\n';
+      text += 'Standout Visual Element:\n  ' + dna.standout;
+      document.getElementById('designDnaContent').textContent = text;
+    }
+
+    function fillTestDefaults() {
+      document.getElementById('testTitle').value = "Emma's 5th Birthday Bash";
+      document.getElementById('testEventType').value = 'kidsBirthday';
+      document.getElementById('testStartDate').value = '2026-04-15T14:00';
+      document.getElementById('testEndDate').value = '2026-04-15T17:00';
+      document.getElementById('testLocation').value = 'Sunshine Park Pavilion';
+      document.getElementById('testAddress').value = '123 Oak Street, Austin, TX 78701';
+      document.getElementById('testHost').value = 'The Johnson Family';
+      document.getElementById('testDressCode').value = 'Casual / Outdoor';
+      document.getElementById('testTagline').value = 'Five is a Vibe!';
+      document.getElementById('testPrompt').value = 'Bright, playful, and full of energy. Think rainbow balloons, confetti, and a sense of pure childhood joy. Make it feel like opening a present.';
+    }
+
+    var lastTestResult = null;
+
+    async function runPromptTest() {
+      var btn = document.getElementById('runTestBtn');
+      var status = document.getElementById('testStatus');
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+      status.textContent = 'This may take 15-60 seconds depending on model...';
+
+      // Collect selected style refs
+      var styleIds = [];
+      document.querySelectorAll('#styleRefList input[type="checkbox"]:checked').forEach(function(cb) {
+        styleIds.push(cb.value);
+      });
+
+      try {
+        var r = await fetch('/api/v2/prompt-test', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: document.getElementById('testModelSelect').value,
+            eventDetails: {
+              title: document.getElementById('testTitle').value,
+              eventType: document.getElementById('testEventType').value,
+              eventDate: document.getElementById('testStartDate').value,
+              endDate: document.getElementById('testEndDate').value,
+              locationName: document.getElementById('testLocation').value,
+              locationAddress: document.getElementById('testAddress').value,
+              hostName: document.getElementById('testHost').value,
+              dressCode: document.getElementById('testDressCode').value,
+              tagline: document.getElementById('testTagline').value,
+              prompt: document.getElementById('testPrompt').value
+            },
+            styleLibraryIds: styleIds
+          })
+        });
+
+        var data = await r.json();
+        if (!data.success) throw new Error(data.error || data.message || 'Generation failed');
+
+        lastTestResult = data;
+
+        // Show result section
+        document.getElementById('testResultSection').style.display = 'block';
+
+        // Show metadata
+        var meta = data.metadata;
+        var costPerMIn = { 'claude-haiku-4-5-20251001': 0.80, 'claude-sonnet-4-20250514': 3.00, 'claude-opus-4-20250514': 15.00 };
+        var costPerMOut = { 'claude-haiku-4-5-20251001': 4.00, 'claude-sonnet-4-20250514': 15.00, 'claude-opus-4-20250514': 75.00 };
+        var estCost = (meta.tokens.input * (costPerMIn[meta.model] || 3) + meta.tokens.output * (costPerMOut[meta.model] || 15)) / 1000000;
+        document.getElementById('testMeta').innerHTML =
+          '<span>Model: <span class="val">' + escapeHtml(meta.model) + '</span></span>' +
+          '<span>Latency: <span class="val">' + (meta.latencyMs / 1000).toFixed(1) + 's</span></span>' +
+          '<span>Input: <span class="val">' + formatNumber(meta.tokens.input) + ' tokens</span></span>' +
+          '<span>Output: <span class="val">' + formatNumber(meta.tokens.output) + ' tokens</span></span>' +
+          '<span>Est. Cost: <span class="val">' + fmtCost(estCost) + '</span></span>';
+
+        // Render preview
+        var theme = data.theme;
+        var previewHtml = '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>' +
+          (theme.config.googleFontsImport || '') + '\n' + theme.css + '</style></head><body style="margin:0;display:flex;justify-content:center;background:#f0f0f0;">' + theme.html + '</body></html>';
+        var frame = document.getElementById('testPreviewFrame');
+        frame.srcdoc = previewHtml;
+
+        // Store code for viewing
+        document.getElementById('testHtmlContent').textContent = theme.html;
+        document.getElementById('testCssContent').textContent = theme.css;
+        document.getElementById('testConfigContent').textContent = JSON.stringify(theme.config, null, 2);
+
+        showTestView('preview');
+        status.textContent = 'Done!';
+        setTimeout(function() { status.textContent = ''; }, 3000);
+
+        // Scroll to result
+        document.getElementById('testResultSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (err) {
+        status.textContent = 'Error: ' + err.message;
+        status.style.color = 'var(--party-coral)';
+        setTimeout(function() { status.style.color = '#888'; }, 5000);
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Generate Test Invite';
+    }
+
+    function showTestView(view) {
+      ['preview', 'html', 'css', 'config'].forEach(function(v) {
+        document.getElementById('testView' + v.charAt(0).toUpperCase() + v.slice(1)).style.display = v === view ? 'block' : 'none';
+        document.getElementById('btn' + v.charAt(0).toUpperCase() + v.slice(1)).style.background = v === view ? 'var(--midnight)' : '';
+        document.getElementById('btn' + v.charAt(0).toUpperCase() + v.slice(1)).style.color = v === view ? 'white' : '';
+      });
+    }
+
+    // ---- Style Library ----
+    var styleLibrary = [];
+
+    async function loadStyleLibrary() {
+      try {
+        var res = await adminFetch('getStyleLibrary');
+        styleLibrary = res.library || [];
+        renderStyleGrid();
+        renderStyleCheckboxes();
+        document.getElementById('styleCount').textContent = styleLibrary.length + ' sample' + (styleLibrary.length !== 1 ? 's' : '') + ' in library';
+      } catch (err) {
+        console.error('Failed to load style library:', err);
+      }
+    }
+
+    function renderStyleGrid() {
+      var grid = document.getElementById('styleGrid');
+      if (styleLibrary.length === 0) {
+        grid.innerHTML = '<div style="color:#888;font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">No style samples yet. Add HTML invite samples to build your reference library.</div>';
+        return;
+      }
+      grid.innerHTML = styleLibrary.map(function(item) {
+        var previewHtml = '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;">' + item.html + '</body></html>';
+        var tags = (item.tags || []).map(function(t) { return '<span class="style-tag">' + escapeHtml(t) + '</span>'; }).join('');
+        return '<div class="style-card">'
+          + '<div class="style-card-preview"><iframe srcdoc="' + escapeHtml(previewHtml) + '" sandbox="allow-same-origin"></iframe></div>'
+          + '<div class="style-card-body">'
+          + '<h4>' + escapeHtml(item.name) + '</h4>'
+          + (item.description ? '<p>' + escapeHtml(item.description) + '</p>' : '')
+          + (tags ? '<div style="margin-bottom:8px;">' + tags + '</div>' : '')
+          + '<div class="style-card-actions">'
+          + '<button class="btn btn-secondary btn-sm" onclick="viewStyleItem(\'' + item.id + '\')">View</button>'
+          + '<button class="btn btn-secondary btn-sm" onclick="editStyleItem(\'' + item.id + '\')">Edit</button>'
+          + '<button class="btn btn-secondary btn-sm" style="color:var(--party-coral);" onclick="deleteStyleItem(\'' + item.id + '\')">Delete</button>'
+          + '</div></div></div>';
+      }).join('');
+    }
+
+    function renderStyleCheckboxes() {
+      var container = document.getElementById('styleRefList');
+      var section = document.getElementById('styleLibraryCheckboxes');
+      if (styleLibrary.length === 0) {
+        section.style.display = 'none';
+        return;
+      }
+      section.style.display = 'block';
+      container.innerHTML = styleLibrary.map(function(item) {
+        return '<label class="style-checkbox">'
+          + '<input type="checkbox" value="' + item.id + '">'
+          + '<span style="font-size:13px;font-weight:600;">' + escapeHtml(item.name) + '</span>'
+          + (item.description ? '<span style="font-size:12px;color:#888;margin-left:4px;">' + escapeHtml(item.description) + '</span>' : '')
+          + '</label>';
+      }).join('');
+    }
+
+    function openAddStyleModal() {
+      document.getElementById('styleModalTitle').textContent = 'Add Style Sample';
+      document.getElementById('styleName').value = '';
+      document.getElementById('styleDescription').value = '';
+      document.getElementById('styleTags').value = '';
+      document.getElementById('styleHtml').value = '';
+      document.getElementById('styleEditId').value = '';
+      document.getElementById('stylePreviewContainer').style.display = 'none';
+      document.getElementById('styleModal').style.display = 'flex';
+    }
+
+    function editStyleItem(id) {
+      var item = styleLibrary.find(function(s) { return s.id === id; });
+      if (!item) return;
+      document.getElementById('styleModalTitle').textContent = 'Edit Style Sample';
+      document.getElementById('styleName').value = item.name;
+      document.getElementById('styleDescription').value = item.description || '';
+      document.getElementById('styleTags').value = (item.tags || []).join(', ');
+      document.getElementById('styleHtml').value = item.html;
+      document.getElementById('styleEditId').value = id;
+      document.getElementById('stylePreviewContainer').style.display = 'none';
+      document.getElementById('styleModal').style.display = 'flex';
+    }
+
+    function viewStyleItem(id) {
+      var item = styleLibrary.find(function(s) { return s.id === id; });
+      if (!item) return;
+      document.getElementById('styleModalTitle').textContent = 'View: ' + item.name;
+      document.getElementById('styleName').value = item.name;
+      document.getElementById('styleDescription').value = item.description || '';
+      document.getElementById('styleTags').value = (item.tags || []).join(', ');
+      document.getElementById('styleHtml').value = item.html;
+      document.getElementById('styleEditId').value = id;
+      // Show preview
+      document.getElementById('stylePreviewContainer').style.display = 'block';
+      var previewHtml = '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;display:flex;justify-content:center;background:#f0f0f0;">' + item.html + '</body></html>';
+      document.getElementById('stylePreviewFrame').srcdoc = previewHtml;
+      document.getElementById('styleModal').style.display = 'flex';
+    }
+
+    function closeStyleModal() {
+      document.getElementById('styleModal').style.display = 'none';
+    }
+
+    function toggleStylePreview() {
+      var container = document.getElementById('stylePreviewContainer');
+      if (container.style.display === 'none') {
+        container.style.display = 'block';
+        var html = document.getElementById('styleHtml').value;
+        var previewHtml = '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;display:flex;justify-content:center;background:#f0f0f0;">' + html + '</body></html>';
+        document.getElementById('stylePreviewFrame').srcdoc = previewHtml;
+      } else {
+        container.style.display = 'none';
+      }
+    }
+
+    async function saveStyleItem() {
+      var name = document.getElementById('styleName').value.trim();
+      var html = document.getElementById('styleHtml').value.trim();
+      if (!name || !html) { alert('Name and HTML content are required.'); return; }
+
+      var tags = document.getElementById('styleTags').value.split(',').map(function(t) { return t.trim(); }).filter(Boolean);
+      var editId = document.getElementById('styleEditId').value || null;
+
+      try {
+        var res = await adminFetch('saveStyleItem', {
+          method: 'POST',
+          body: {
+            id: editId,
+            name: name,
+            description: document.getElementById('styleDescription').value.trim(),
+            html: html,
+            tags: tags
+          }
+        });
+        styleLibrary = res.library || [];
+        renderStyleGrid();
+        renderStyleCheckboxes();
+        document.getElementById('styleCount').textContent = styleLibrary.length + ' sample' + (styleLibrary.length !== 1 ? 's' : '') + ' in library';
+        closeStyleModal();
+      } catch (err) {
+        alert('Failed to save: ' + err.message);
+      }
+    }
+
+    async function deleteStyleItem(id) {
+      var item = styleLibrary.find(function(s) { return s.id === id; });
+      if (!item || !confirm('Delete "' + item.name + '"?')) return;
+
+      try {
+        var res = await adminFetch('deleteStyleItem', { method: 'POST', body: { id: id } });
+        styleLibrary = res.library || [];
+        renderStyleGrid();
+        renderStyleCheckboxes();
+        document.getElementById('styleCount').textContent = styleLibrary.length + ' sample' + (styleLibrary.length !== 1 ? 's' : '') + ' in library';
+      } catch (err) {
+        alert('Failed to delete: ' + err.message);
+      }
     }
 
     // ---- Utilities ----

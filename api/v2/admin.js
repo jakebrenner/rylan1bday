@@ -391,6 +391,106 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    // ---- GET STYLE LIBRARY ----
+    if (action === 'getStyleLibrary') {
+      const { data } = await supabaseAdmin
+        .from('app_config')
+        .select('value')
+        .eq('key', 'style_library')
+        .single();
+
+      let library = [];
+      if (data?.value) {
+        try { library = JSON.parse(data.value); } catch {}
+      }
+
+      return res.status(200).json({ success: true, library });
+    }
+
+    // ---- SAVE STYLE LIBRARY ITEM ----
+    if (action === 'saveStyleItem') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { id, name, description, html, tags } = req.body;
+      if (!name || !html) return res.status(400).json({ error: 'name and html are required' });
+
+      // Load existing library
+      const { data } = await supabaseAdmin
+        .from('app_config')
+        .select('value')
+        .eq('key', 'style_library')
+        .single();
+
+      let library = [];
+      if (data?.value) {
+        try { library = JSON.parse(data.value); } catch {}
+      }
+
+      if (id) {
+        // Update existing item
+        const idx = library.findIndex(item => item.id === id);
+        if (idx !== -1) {
+          library[idx] = { ...library[idx], name, description: description || '', html, tags: tags || [], updatedAt: new Date().toISOString() };
+        }
+      } else {
+        // Add new item
+        library.push({
+          id: 'style_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),
+          name,
+          description: description || '',
+          html,
+          tags: tags || [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          addedBy: admin.email
+        });
+      }
+
+      await supabaseAdmin
+        .from('app_config')
+        .upsert({ key: 'style_library', value: JSON.stringify(library), updated_by: admin.id, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+
+      return res.status(200).json({ success: true, library });
+    }
+
+    // ---- DELETE STYLE LIBRARY ITEM ----
+    if (action === 'deleteStyleItem') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { id } = req.body;
+      if (!id) return res.status(400).json({ error: 'id is required' });
+
+      const { data } = await supabaseAdmin
+        .from('app_config')
+        .select('value')
+        .eq('key', 'style_library')
+        .single();
+
+      let library = [];
+      if (data?.value) {
+        try { library = JSON.parse(data.value); } catch {}
+      }
+
+      library = library.filter(item => item.id !== id);
+
+      await supabaseAdmin
+        .from('app_config')
+        .upsert({ key: 'style_library', value: JSON.stringify(library), updated_by: admin.id, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+
+      return res.status(200).json({ success: true, library });
+    }
+
+    // ---- GET PROMPTS (for admin prompt viewer) ----
+    if (action === 'getPrompts') {
+      return res.status(200).json({
+        success: true,
+        prompts: {
+          themeSystemPrompt: 'See the Prompt Lab tab for the full system prompt used in theme generation.',
+          note: 'The system prompt and DESIGN_DNA are defined in api/v2/generate-theme.js'
+        }
+      });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Admin API error:', err);
