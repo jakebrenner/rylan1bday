@@ -139,14 +139,22 @@
     .bulk-dropzone .drop-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.4; }
     .bulk-dropzone .drop-text { font-size: 14px; font-weight: 600; color: var(--midnight); margin-bottom: 4px; }
     .bulk-dropzone .drop-sub { font-size: 12px; color: #888; }
-    .bulk-progress { margin-top: 16px; }
-    .bulk-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: white; border: 1px solid #eee; border-radius: 6px; margin-bottom: 6px; font-size: 13px; }
+    .bulk-progress { position: fixed; bottom: 20px; right: 20px; width: 360px; max-height: 400px; background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); z-index: 9999; overflow: hidden; display: flex; flex-direction: column; }
+    .bulk-progress-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--midnight); color: white; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+    .bulk-progress-header .bulk-close { background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 18px; line-height: 1; padding: 0 0 0 8px; }
+    .bulk-progress-header .bulk-close:hover { color: white; }
+    .bulk-progress-bar { height: 3px; background: #eee; flex-shrink: 0; }
+    .bulk-progress-bar-fill { height: 100%; background: var(--mint-fizz); transition: width 0.3s ease; width: 0%; }
+    .bulk-progress-list { overflow-y: auto; max-height: 300px; padding: 4px 0; }
+    .bulk-item { display: flex; align-items: center; gap: 10px; padding: 7px 16px; font-size: 12px; border-bottom: 1px solid #f5f5f5; }
+    .bulk-item:last-child { border-bottom: none; }
     .bulk-item .file-name { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .bulk-item .file-status { font-size: 12px; white-space: nowrap; }
+    .bulk-item .file-status { font-size: 11px; white-space: nowrap; }
     .bulk-item .file-status.pending { color: #888; }
     .bulk-item .file-status.tagging { color: var(--confetti-gold); }
     .bulk-item .file-status.done { color: var(--mint-fizz); }
     .bulk-item .file-status.error { color: var(--party-coral); }
+    .bulk-progress-summary { padding: 10px 16px; font-size: 12px; font-weight: 600; border-top: 1px solid #eee; flex-shrink: 0; }
 
     .loading { text-align: center; padding: 60px 20px; color: #888; }
     .access-denied { text-align: center; padding: 80px 20px; }
@@ -598,7 +606,6 @@
             <div class="drop-sub">Select multiple .html files — each will be auto-tagged with AI and added to your library</div>
           </div>
           <input type="file" id="bulkFileInput" multiple accept=".html,.htm" style="display:none;" onchange="handleBulkFiles(this.files)">
-          <div class="bulk-progress" id="bulkProgress" style="display:none;"></div>
         </div>
         <div class="style-grid" id="styleGrid">
           <div style="color:#888;font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">
@@ -1525,25 +1532,41 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       if (files.length === 0) { alert('No .html files found. Please select HTML files.'); return; }
 
       var progress = document.getElementById('bulkProgress');
-      progress.style.display = 'block';
-      progress.innerHTML = '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">Processing ' + files.length + ' file' + (files.length > 1 ? 's' : '') + '...</div>';
+      progress.style.display = 'flex';
 
-      // Build the file list UI
+      // Build floating panel structure
       var items = files.map(function(f, i) {
         return { file: f, id: 'bulk_' + i, html: null, autoTag: null, status: 'pending' };
       });
-      progress.innerHTML += items.map(function(item) {
-        return '<div class="bulk-item" id="' + item.id + '">'
-          + '<span class="file-name">' + escapeHtml(item.file.name) + '</span>'
-          + '<span class="file-status pending" id="' + item.id + '_status">Queued</span>'
-          + '</div>';
-      }).join('');
+
+      progress.innerHTML = '<div class="bulk-progress-header">'
+        + '<span id="bulkHeaderText">Processing 0 / ' + files.length + '</span>'
+        + '<button class="bulk-close" onclick="document.getElementById(\'bulkProgress\').style.display=\'none\'" title="Dismiss">&times;</button>'
+        + '</div>'
+        + '<div class="bulk-progress-bar"><div class="bulk-progress-bar-fill" id="bulkBarFill"></div></div>'
+        + '<div class="bulk-progress-list" id="bulkList">'
+        + items.map(function(item) {
+            return '<div class="bulk-item" id="' + item.id + '">'
+              + '<span class="file-name">' + escapeHtml(item.file.name) + '</span>'
+              + '<span class="file-status pending" id="' + item.id + '_status">Queued</span>'
+              + '</div>';
+          }).join('')
+        + '</div>';
+
+      var headerText = document.getElementById('bulkHeaderText');
+      var barFill = document.getElementById('bulkBarFill');
+      var listEl = document.getElementById('bulkList');
 
       // Process each file sequentially (to avoid hammering the API)
       var successCount = 0;
+      var doneCount = 0;
       for (var i = 0; i < items.length; i++) {
         var item = items[i];
         var statusEl = document.getElementById(item.id + '_status');
+
+        // Scroll current item into view
+        var itemEl = document.getElementById(item.id);
+        if (itemEl) itemEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 
         // Step 1: Read the file
         try {
@@ -1553,6 +1576,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         } catch (err) {
           statusEl.textContent = 'Read error';
           statusEl.className = 'file-status error';
+          doneCount++;
+          headerText.textContent = 'Processing ' + doneCount + ' / ' + files.length;
+          barFill.style.width = Math.round((doneCount / files.length) * 100) + '%';
           continue;
         }
 
@@ -1568,7 +1594,6 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           if (!tagData.success) throw new Error(tagData.error || 'Tag failed');
           item.autoTag = tagData.autoTag;
         } catch (err) {
-          // If auto-tag fails, save with just the filename as the name
           item.autoTag = {
             name: item.file.name.replace(/\.html?$/i, '').replace(/[-_]/g, ' '),
             description: '',
@@ -1576,7 +1601,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             tags: [],
             designNotes: ''
           };
-          statusEl.textContent = 'Tag failed, saving anyway...';
+          statusEl.textContent = 'Tag failed, saving...';
         }
 
         // Step 3: Save to library
@@ -1598,22 +1623,25 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           statusEl.className = 'file-status done';
           successCount++;
         } catch (err) {
-          statusEl.textContent = 'Save failed: ' + err.message;
+          statusEl.textContent = 'Save failed';
           statusEl.className = 'file-status error';
         }
+
+        doneCount++;
+        headerText.textContent = 'Processing ' + doneCount + ' / ' + files.length;
+        barFill.style.width = Math.round((doneCount / files.length) * 100) + '%';
       }
+
+      // Done — update header
+      headerText.textContent = successCount + ' / ' + files.length + ' added';
+      barFill.style.width = '100%';
+      barFill.style.background = successCount === files.length ? 'var(--mint-fizz)' : 'var(--confetti-gold)';
 
       // Refresh the UI
       renderStyleGrid();
       renderStyleCheckboxes();
       updateStyleCount();
       updateFilterUI();
-
-      // Summary
-      var summary = document.createElement('div');
-      summary.style.cssText = 'font-size:13px;font-weight:600;margin-top:8px;color:' + (successCount === files.length ? 'var(--mint-fizz)' : 'var(--confetti-gold)') + ';';
-      summary.textContent = successCount + ' of ' + files.length + ' files added successfully.';
-      progress.appendChild(summary);
 
       // Reset file input
       document.getElementById('bulkFileInput').value = '';
@@ -1713,5 +1741,6 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     function escapeHtml(str) { var d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
     function logout() { localStorage.removeItem('sb_access_token'); localStorage.removeItem('v2_user'); window.location.href = '/v2/login/'; }
   </script>
+  <div class="bulk-progress" id="bulkProgress" style="display:none;"></div>
 </body>
 </html>
