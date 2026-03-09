@@ -133,6 +133,21 @@
     .style-checkbox.selected { border-color: var(--party-coral); background: #fff0f0; }
     .style-checkbox input { accent-color: var(--party-coral); }
 
+    /* Bulk Upload */
+    .bulk-dropzone { border: 2px dashed #ddd; border-radius: 8px; padding: 32px 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fafafa; }
+    .bulk-dropzone:hover, .bulk-dropzone.drag-over { border-color: var(--party-coral); background: #fff5f5; }
+    .bulk-dropzone .drop-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.4; }
+    .bulk-dropzone .drop-text { font-size: 14px; font-weight: 600; color: var(--midnight); margin-bottom: 4px; }
+    .bulk-dropzone .drop-sub { font-size: 12px; color: #888; }
+    .bulk-progress { margin-top: 16px; }
+    .bulk-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: white; border: 1px solid #eee; border-radius: 6px; margin-bottom: 6px; font-size: 13px; }
+    .bulk-item .file-name { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bulk-item .file-status { font-size: 12px; white-space: nowrap; }
+    .bulk-item .file-status.pending { color: #888; }
+    .bulk-item .file-status.tagging { color: var(--confetti-gold); }
+    .bulk-item .file-status.done { color: var(--mint-fizz); }
+    .bulk-item .file-status.error { color: var(--party-coral); }
+
     .loading { text-align: center; padding: 60px 20px; color: #888; }
     .access-denied { text-align: center; padding: 80px 20px; }
     .access-denied h2 { font-family: 'Playfair Display', serif; margin-bottom: 12px; }
@@ -545,9 +560,19 @@
           Upload HTML invite samples that the AI can reference during generation. These serve as visual inspiration —
           the AI analyzes the layout patterns, color palettes, typography, and design approaches to produce better results.
         </p>
-        <div style="display:flex;gap:8px;margin-bottom:20px;">
-          <button class="btn btn-primary" onclick="openAddStyleModal()">Add HTML Sample</button>
+        <div style="display:flex;gap:8px;margin-bottom:20px;align-items:center;">
+          <button class="btn btn-primary" onclick="openAddStyleModal()">Add Single Sample</button>
+          <button class="btn btn-secondary" onclick="document.getElementById('bulkUploadSection').style.display=document.getElementById('bulkUploadSection').style.display==='none'?'block':'none'">Bulk Upload</button>
           <span style="font-size:12px;color:#888;display:flex;align-items:center;" id="styleCount">0 samples in library</span>
+        </div>
+        <div id="bulkUploadSection" style="display:none;margin-bottom:20px;">
+          <div class="bulk-dropzone" id="bulkDropzone" onclick="document.getElementById('bulkFileInput').click()">
+            <div class="drop-icon">&#128194;</div>
+            <div class="drop-text">Drop HTML files here or click to browse</div>
+            <div class="drop-sub">Select multiple .html files — each will be auto-tagged with AI and added to your library</div>
+          </div>
+          <input type="file" id="bulkFileInput" multiple accept=".html,.htm" style="display:none;" onchange="handleBulkFiles(this.files)">
+          <div class="bulk-progress" id="bulkProgress" style="display:none;"></div>
         </div>
         <div class="style-grid" id="styleGrid">
           <div style="color:#888;font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">
@@ -1358,6 +1383,129 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     function closeStyleModal() {
       document.getElementById('styleModal').style.display = 'none';
+    }
+
+    // ---- Bulk Upload ----
+    (function() {
+      var dz = document.getElementById('bulkDropzone');
+      if (!dz) return;
+      dz.addEventListener('dragover', function(e) { e.preventDefault(); dz.classList.add('drag-over'); });
+      dz.addEventListener('dragleave', function() { dz.classList.remove('drag-over'); });
+      dz.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dz.classList.remove('drag-over');
+        var files = Array.from(e.dataTransfer.files).filter(function(f) {
+          return f.name.match(/\.html?$/i);
+        });
+        if (files.length > 0) handleBulkFiles(files);
+      });
+    })();
+
+    async function handleBulkFiles(fileList) {
+      var files = Array.from(fileList).filter(function(f) { return f.name.match(/\.html?$/i); });
+      if (files.length === 0) { alert('No .html files found. Please select HTML files.'); return; }
+
+      var progress = document.getElementById('bulkProgress');
+      progress.style.display = 'block';
+      progress.innerHTML = '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">Processing ' + files.length + ' file' + (files.length > 1 ? 's' : '') + '...</div>';
+
+      // Build the file list UI
+      var items = files.map(function(f, i) {
+        return { file: f, id: 'bulk_' + i, html: null, autoTag: null, status: 'pending' };
+      });
+      progress.innerHTML += items.map(function(item) {
+        return '<div class="bulk-item" id="' + item.id + '">'
+          + '<span class="file-name">' + escapeHtml(item.file.name) + '</span>'
+          + '<span class="file-status pending" id="' + item.id + '_status">Queued</span>'
+          + '</div>';
+      }).join('');
+
+      // Process each file sequentially (to avoid hammering the API)
+      var successCount = 0;
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var statusEl = document.getElementById(item.id + '_status');
+
+        // Step 1: Read the file
+        try {
+          statusEl.textContent = 'Reading...';
+          statusEl.className = 'file-status tagging';
+          item.html = await readFileAsText(item.file);
+        } catch (err) {
+          statusEl.textContent = 'Read error';
+          statusEl.className = 'file-status error';
+          continue;
+        }
+
+        // Step 2: Auto-tag with AI
+        try {
+          statusEl.textContent = 'AI tagging...';
+          var tagRes = await fetch('/api/v2/prompt-test?action=autoTag', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ html: item.html })
+          });
+          var tagData = await tagRes.json();
+          if (!tagData.success) throw new Error(tagData.error || 'Tag failed');
+          item.autoTag = tagData.autoTag;
+        } catch (err) {
+          // If auto-tag fails, save with just the filename as the name
+          item.autoTag = {
+            name: item.file.name.replace(/\.html?$/i, '').replace(/[-_]/g, ' '),
+            description: '',
+            eventTypes: [],
+            tags: [],
+            designNotes: ''
+          };
+          statusEl.textContent = 'Tag failed, saving anyway...';
+        }
+
+        // Step 3: Save to library
+        try {
+          statusEl.textContent = 'Saving...';
+          var saveRes = await adminFetch('saveStyleItem', {
+            method: 'POST',
+            body: {
+              name: item.autoTag.name,
+              description: item.autoTag.description,
+              html: item.html,
+              tags: item.autoTag.tags,
+              eventTypes: item.autoTag.eventTypes,
+              designNotes: item.autoTag.designNotes
+            }
+          });
+          styleLibrary = saveRes.library || [];
+          statusEl.textContent = 'Added';
+          statusEl.className = 'file-status done';
+          successCount++;
+        } catch (err) {
+          statusEl.textContent = 'Save failed: ' + err.message;
+          statusEl.className = 'file-status error';
+        }
+      }
+
+      // Refresh the UI
+      renderStyleGrid();
+      renderStyleCheckboxes();
+      document.getElementById('styleCount').textContent = styleLibrary.length + ' sample' + (styleLibrary.length !== 1 ? 's' : '') + ' in library';
+
+      // Summary
+      var summary = document.createElement('div');
+      summary.style.cssText = 'font-size:13px;font-weight:600;margin-top:8px;color:' + (successCount === files.length ? 'var(--mint-fizz)' : 'var(--confetti-gold)') + ';';
+      summary.textContent = successCount + ' of ' + files.length + ' files added successfully.';
+      progress.appendChild(summary);
+
+      // Reset file input
+      document.getElementById('bulkFileInput').value = '';
+    }
+
+    function readFileAsText(file) {
+      return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function() { resolve(reader.result); };
+        reader.onerror = function() { reject(new Error('Failed to read file')); };
+        reader.readAsText(file);
+      });
     }
 
     function toggleStylePreview() {
