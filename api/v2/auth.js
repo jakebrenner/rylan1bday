@@ -17,7 +17,10 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { action } = req.query;
-  const redirectTo = `${SITE_URL}/v2/login/`;
+  const postLoginRedirect = req.body?.redirect || req.query.redirect || '';
+  const redirectTo = postLoginRedirect
+    ? `${SITE_URL}/v2/login/?redirect=${encodeURIComponent(postLoginRedirect)}`
+    : `${SITE_URL}/v2/login/`;
 
   try {
     if (action === 'signup') {

@@ -228,7 +228,7 @@
         const res = await fetch('/api/v2/auth?action=login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
+          body: JSON.stringify({ email, redirect: redirectTo !== '/v2/dashboard/' ? redirectTo : '' })
         });
         const result = await res.json();
         if (result.success) {
