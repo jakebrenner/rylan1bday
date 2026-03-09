@@ -2,11 +2,11 @@
 
 ## External Scripts (Google Apps Script, SQL, etc.)
 
-Whenever Code.gs or any other external script (SQL migrations, cloud functions, etc.) is modified:
+Whenever Code.gs, SQL migrations, cloud functions, or any other external script is created or modified:
 
-1. **Always paste the FULL updated script** in your response so the user can copy-paste it directly into the external editor (Google Apps Script, database console, etc.)
-2. **Never** assume the user will find it in GitHub — they need it right in the chat
-3. After pasting, remind the user of any deployment steps required (e.g., "Deploy > Manage deployments > New version" for Google Apps Script)
+1. **Always paste the FULL script directly in the chat** so the user can copy-paste it into the external editor (Google Apps Script, Supabase SQL editor, database console, etc.)
+2. **Never** tell the user to "go find the file" or "open the migration file" — they need the complete code right in the conversation
+3. After pasting, remind the user of any deployment steps required (e.g., "Deploy > Manage deployments > New version" for Google Apps Script, or "Run in Supabase SQL editor" for migrations)
 
 ### Current Google Apps Script (Code.gs)
 
