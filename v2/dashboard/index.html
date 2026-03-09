@@ -111,6 +111,20 @@
     .share-btn { flex: 1; padding: 10px 8px; border: 1px solid #ddd; background: white; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: 'Inter', sans-serif; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; color: var(--midnight); text-decoration: none; font-weight: 500; }
     .share-btn:hover { border-color: var(--party-coral); color: var(--party-coral); }
 
+    /* Confirm Modal */
+    .confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 300; align-items: center; justify-content: center; }
+    .confirm-overlay.active { display: flex; }
+    .confirm-box { background: white; border-radius: 16px; padding: 28px; max-width: 380px; width: 90%; box-shadow: 0 12px 40px rgba(0,0,0,0.2); animation: confirmPop 0.2s ease-out; text-align: center; }
+    @keyframes confirmPop { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+    .confirm-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; color: var(--midnight); }
+    .confirm-msg { font-size: 14px; color: #666; margin-bottom: 24px; line-height: 1.5; }
+    .confirm-actions { display: flex; gap: 10px; }
+    .confirm-actions button { flex: 1; padding: 12px 16px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; min-height: 44px; border: none; transition: all 0.15s; }
+    .confirm-cancel { background: #f0f0f0; color: var(--midnight); }
+    .confirm-cancel:hover { background: #e4e4e4; }
+    .confirm-ok { color: white; }
+    .confirm-ok:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
     /* RSVP Modal */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; }
     .modal-overlay.active { display: flex; align-items: flex-end; justify-content: center; }
@@ -196,6 +210,18 @@
       <a href="/v2/create/" class="btn btn-primary">Create Your First Event</a>
     </div>
     <div id="eventGrid" class="event-grid" style="display: none;"></div>
+  </div>
+
+  <!-- Confirm Modal -->
+  <div class="confirm-overlay" id="confirmModal" onclick="if(event.target===this)closeConfirm()">
+    <div class="confirm-box">
+      <div class="confirm-title" id="confirmTitle"></div>
+      <div class="confirm-msg" id="confirmMsg"></div>
+      <div class="confirm-actions">
+        <button class="confirm-cancel" onclick="closeConfirm()">Cancel</button>
+        <button class="confirm-ok" id="confirmOk">Confirm</button>
+      </div>
+    </div>
   </div>
 
   <!-- RSVP Modal -->
@@ -477,30 +503,44 @@
       document.body.style.overflow = '';
     }
 
+    function showConfirm(title, msg, color, onConfirm) {
+      document.getElementById('confirmTitle').textContent = title;
+      document.getElementById('confirmMsg').textContent = msg;
+      var okBtn = document.getElementById('confirmOk');
+      okBtn.style.background = color;
+      okBtn.textContent = title;
+      okBtn.onclick = function() { closeConfirm(); onConfirm(); };
+      document.getElementById('confirmModal').classList.add('active');
+    }
+    function closeConfirm() {
+      document.getElementById('confirmModal').classList.remove('active');
+    }
+
     async function archiveEvent(eventId, btn) {
-      if (!confirm('Archive this event?')) return;
-      btn.disabled = true; btn.style.opacity = '0.5';
-      try {
-        await authFetch('/api/v2/events?action=update', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventId: eventId, status: 'Archived' })
-        });
-        showToast('Event archived');
-        loadDashboard();
-      } catch (err) { btn.disabled = false; btn.style.opacity = '1'; }
+      showConfirm('Archive', 'This event will be hidden from your dashboard. You can unarchive it later.', 'var(--party-coral)', async function() {
+        btn.disabled = true; btn.style.opacity = '0.5';
+        try {
+          await authFetch('/api/v2/events?action=update', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: eventId, status: 'Archived' })
+          });
+          showToast('Event archived');
+          loadDashboard();
+        } catch (err) { btn.disabled = false; btn.style.opacity = '1'; }
+      });
     }
 
     async function unarchiveEvent(eventId, btn) {
-      if (!confirm('Unarchive this event and make it active again?')) return;
-      btn.disabled = true; btn.style.opacity = '0.5';
-      try {
-        await authFetch('/api/v2/events?action=update', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventId: eventId, status: 'Published' })
-        });
-        showToast('Event unarchived');
-        loadDashboard();
-      } catch (err) { btn.disabled = false; btn.style.opacity = '1'; }
+      showConfirm('Unarchive', 'This event will be restored and made active again.', 'var(--mint-fizz)', async function() {
+        btn.disabled = true; btn.style.opacity = '0.5';
+        try {
+          await authFetch('/api/v2/events?action=update', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: eventId, status: 'Published' })
+          });
+          showToast('Event unarchived');
+          loadDashboard();
+        } catch (err) { btn.disabled = false; btn.style.opacity = '1'; }
     }
 
     function logout() {
