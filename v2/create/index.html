@@ -235,6 +235,8 @@
     .design-chat-photo-preview img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
     .design-chat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     .design-chat-chips .chip { font-size: 11px; padding: 5px 10px; }
+    .design-chat-loading { display: flex; align-items: center; gap: 8px; color: #666; font-size: 13px; }
+    .design-chat-loading .loading-spinner { flex-shrink: 0; }
 
     .summary-item { background: #f9f9f9; padding: 16px; border-radius: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     .summary-label { font-weight: 600; }
@@ -360,12 +362,30 @@
           <div id="editPanel" style="flex:1;min-width:280px;max-width:440px;">
             <div style="background:white;border:1px solid #eee;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);max-height:80vh;overflow-y:auto;">
               <div class="panel-tabs">
-                <button class="panel-tab active" onclick="switchTab('details')">Edit Details</button>
-                <button class="panel-tab" onclick="switchTab('design')">Edit Design</button>
+                <button class="panel-tab active" onclick="switchTab('design')">Design Assistant</button>
+                <button class="panel-tab" onclick="switchTab('details')">Event Details</button>
               </div>
 
-              <!-- Edit Details tab -->
-              <div id="tabDetails" class="tab-content active">
+              <!-- Design Assistant tab (chat interface) — default -->
+              <div id="tabDesign" class="tab-content active">
+                <div class="design-chat">
+                  <div id="designChatMessages" class="design-chat-messages"></div>
+                  <div id="designChatPhotoPreview" class="design-chat-photo-preview"></div>
+                  <div class="design-chat-input-area">
+                    <button class="design-chat-photo-btn" onclick="document.getElementById('designChatPhotoInput').click()" title="Upload a photo">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                    </button>
+                    <input type="file" id="designChatPhotoInput" accept=".jpg,.jpeg,.png,.webp,.heic,.heif" style="display:none;" onchange="handleDesignChatPhoto(event)">
+                    <textarea id="designChatInput" placeholder="Describe what you'd like to change..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDesignChat()}" oninput="autoResizeTextarea(this)"></textarea>
+                    <button class="design-chat-send" onclick="sendDesignChat()" id="designChatSendBtn" title="Send">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Event Details tab -->
+              <div id="tabDetails" class="tab-content">
                 <div class="form-group" style="margin-bottom:12px;">
                   <label style="font-size:12px;">Title</label>
                   <input type="text" id="editTitle" style="font-size:13px;padding:8px 10px;">
@@ -402,27 +422,47 @@
                   <label style="font-size:12px;">Dress Code</label>
                   <input type="text" id="editDressCode" style="font-size:13px;padding:8px 10px;">
                 </div>
-                <div id="editCustomFields" style="margin-bottom:12px;"></div>
-                <button class="btn btn-primary btn-sm" onclick="saveEditedDetails()" style="width:100%;margin-top:8px;">Save Changes</button>
-                <p style="font-size:11px;color:#999;margin-top:8px;text-align:center;">Changes are saved to the event. Design is not affected — use "Edit Design" to modify the theme.</p>
-              </div>
-
-              <!-- Edit Design tab (chat interface) -->
-              <div id="tabDesign" class="tab-content">
-                <div class="design-chat">
-                  <div id="designChatMessages" class="design-chat-messages"></div>
-                  <div id="designChatPhotoPreview" class="design-chat-photo-preview"></div>
-                  <div class="design-chat-input-area">
-                    <button class="design-chat-photo-btn" onclick="document.getElementById('designChatPhotoInput').click()" title="Upload a photo">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
-                    </button>
-                    <input type="file" id="designChatPhotoInput" accept=".jpg,.jpeg,.png,.webp,.heic,.heif" style="display:none;" onchange="handleDesignChatPhoto(event)">
-                    <textarea id="designChatInput" placeholder="Describe what you'd like to change..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDesignChat()}" oninput="autoResizeTextarea(this)"></textarea>
-                    <button class="design-chat-send" onclick="sendDesignChat()" id="designChatSendBtn" title="Send">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-                    </button>
+                <!-- RSVP Fields section with add/edit/remove -->
+                <div style="margin-bottom:12px;">
+                  <label style="font-size:12px;font-weight:600;margin-bottom:8px;display:block;">RSVP Fields</label>
+                  <div id="editCustomFields"></div>
+                  <div id="addFieldForm" style="display:none;margin-top:8px;padding:12px;background:#f9f9f9;border-radius:8px;border:1px solid #eee;">
+                    <div class="form-group" style="margin-bottom:8px;">
+                      <label style="font-size:11px;">Field Label</label>
+                      <input type="text" id="newFieldLabel" placeholder="e.g. Dietary Restrictions" style="font-size:13px;padding:8px 10px;">
+                    </div>
+                    <div style="display:flex;gap:8px;margin-bottom:8px;">
+                      <div class="form-group" style="flex:1;margin-bottom:0;">
+                        <label style="font-size:11px;">Type</label>
+                        <select id="newFieldType" style="font-size:13px;padding:8px 10px;" onchange="toggleFieldOptions()">
+                          <option value="text">Text</option>
+                          <option value="number">Number</option>
+                          <option value="email">Email</option>
+                          <option value="phone">Phone</option>
+                          <option value="textarea">Long Text</option>
+                          <option value="select">Dropdown</option>
+                          <option value="checkbox">Checkbox</option>
+                        </select>
+                      </div>
+                      <div class="form-group" style="flex:0 0 auto;margin-bottom:0;display:flex;align-items:flex-end;">
+                        <label style="font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer;padding:8px 0;">
+                          <input type="checkbox" id="newFieldRequired"> Required
+                        </label>
+                      </div>
+                    </div>
+                    <div id="fieldOptionsGroup" class="form-group" style="margin-bottom:8px;display:none;">
+                      <label style="font-size:11px;">Options (comma-separated)</label>
+                      <input type="text" id="newFieldOptions" placeholder="Option 1, Option 2, Option 3" style="font-size:13px;padding:8px 10px;">
+                    </div>
+                    <div style="display:flex;gap:6px;">
+                      <button class="btn btn-primary btn-sm" onclick="confirmAddField()" style="flex:1;font-size:12px;">Add Field</button>
+                      <button class="btn btn-secondary btn-sm" onclick="cancelAddField()" style="font-size:12px;">Cancel</button>
+                    </div>
                   </div>
+                  <button id="addFieldBtn" class="btn btn-secondary btn-sm" onclick="showAddFieldForm()" style="width:100%;margin-top:8px;font-size:12px;padding:6px 12px;border-style:dashed;">+ Add RSVP Field</button>
                 </div>
+                <button class="btn btn-primary btn-sm" onclick="saveEditedDetails()" style="width:100%;margin-top:8px;">Save Changes</button>
+                <p style="font-size:11px;color:#999;margin-top:8px;text-align:center;">Saves event details and updates the design preview.</p>
               </div>
             </div>
           </div>
@@ -578,7 +618,7 @@
               document.getElementById('generatedView').style.display = 'block';
               renderPreview(themeVersions[0]);
               renderVersionGallery();
-              populateEditFields();
+              initDesignChatIfNeeded();
               goToStep(3);
             } else {
               // Has details but no theme — go to creative direction
@@ -976,7 +1016,7 @@
           document.getElementById('generatedView').style.display = 'block';
           renderPreview(ver);
           renderVersionGallery();
-          populateEditFields();
+          initDesignChatIfNeeded();
         } else {
           showMessage(result2.error || result2.message || 'Failed to generate theme', 'error');
           // If we have existing themes, show them instead of going back
@@ -1176,11 +1216,11 @@
       document.querySelectorAll('.panel-tab').forEach(function(t) { t.classList.remove('active'); });
       document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
       if (tab === 'details') {
-        document.querySelector('.panel-tab:nth-child(1)').classList.add('active');
+        document.querySelector('.panel-tab:nth-child(2)').classList.add('active');
         document.getElementById('tabDetails').classList.add('active');
         populateEditFields();
       } else {
-        document.querySelector('.panel-tab:nth-child(2)').classList.add('active');
+        document.querySelector('.panel-tab:nth-child(1)').classList.add('active');
         document.getElementById('tabDesign').classList.add('active');
         if (designChatHistory.length === 0) initDesignChat();
       }
@@ -1198,6 +1238,10 @@
       document.getElementById('editAddress').value = extractedData.locationAddress || '';
       document.getElementById('editDressCode').value = extractedData.dressCode || '';
       renderEditCustomFields();
+    }
+
+    function initDesignChatIfNeeded() {
+      if (designChatHistory.length === 0) initDesignChat();
     }
 
     function initDesignChat() {
@@ -1221,7 +1265,14 @@
     function renderDesignChat() {
       var container = document.getElementById('designChatMessages');
       container.innerHTML = designChatHistory.map(function(msg) {
-        var cls = msg.role === 'user' ? 'user' : (msg.role === 'system' ? 'system' : 'assistant');
+        if (msg.role === 'system') {
+          return '<div class="design-chat-msg assistant">'
+            + '<div class="design-chat-loading">'
+            + '<span class="loading-spinner" style="width:14px;height:14px;border-width:2px;margin-right:0;"></span>'
+            + '<span>' + escapeHtml(msg.content) + '</span>'
+            + '</div></div>';
+        }
+        var cls = msg.role === 'user' ? 'user' : 'assistant';
         return '<div class="design-chat-msg ' + cls + '">' + escapeHtml(msg.content).replace(/\n/g, '<br>') + '</div>';
       }).join('');
       container.scrollTop = container.scrollHeight;
@@ -1350,19 +1401,20 @@
     function renderEditCustomFields() {
       var container = document.getElementById('editCustomFields');
       if (rsvpFields.length === 0) {
-        container.innerHTML = '';
+        container.innerHTML = '<p style="font-size:12px;color:#999;padding:4px 0;">No custom fields yet. Add fields to collect additional info from guests.</p>';
         return;
       }
-      var html = '<label style="font-size:12px;font-weight:600;margin-bottom:8px;display:block;">RSVP Fields</label>';
+      var html = '';
       rsvpFields.forEach(function(f, i) {
         var meta = (FIELD_TYPE_LABELS[f.field_type] || f.field_type);
         if (f.is_required) meta += ' · Required';
-        html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;">'
+        html += '<div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid #f0f0f0;">'
           + '<div style="flex:1;min-width:0;">'
           + '<div style="font-size:13px;font-weight:500;">' + escapeHtml(f.label) + '</div>'
           + '<div style="font-size:11px;color:#999;">' + escapeHtml(meta) + '</div>'
           + '</div>'
-          + '<button class="btn btn-secondary btn-sm" onclick="deleteCustomField(' + i + ')" style="padding:4px 10px;font-size:11px;color:#dc3545;border-color:#dc3545;">Delete</button>'
+          + '<button class="btn btn-secondary btn-sm" onclick="editCustomField(' + i + ')" style="padding:3px 8px;font-size:10px;" title="Edit">Edit</button>'
+          + '<button class="btn btn-secondary btn-sm" onclick="deleteCustomField(' + i + ')" style="padding:3px 8px;font-size:10px;color:#dc3545;border-color:#dc3545;" title="Delete">Delete</button>'
           + '</div>';
       });
       container.innerHTML = html;
@@ -1371,7 +1423,74 @@
     function deleteCustomField(idx) {
       rsvpFields.splice(idx, 1);
       renderEditCustomFields();
-      // Update in confirmation card if visible
+      var rsvpFieldList = document.getElementById('rsvpFieldList');
+      if (rsvpFieldList) rsvpFieldList.innerHTML = renderRsvpFields();
+    }
+
+    function editCustomField(idx) {
+      var f = rsvpFields[idx];
+      document.getElementById('newFieldLabel').value = f.label || '';
+      document.getElementById('newFieldType').value = f.field_type || 'text';
+      document.getElementById('newFieldRequired').checked = !!f.is_required;
+      toggleFieldOptions();
+      if (f.field_type === 'select' && f.options) {
+        document.getElementById('newFieldOptions').value = f.options.join(', ');
+      }
+      document.getElementById('addFieldForm').style.display = 'block';
+      document.getElementById('addFieldBtn').style.display = 'none';
+      // Store edit index
+      document.getElementById('addFieldForm').setAttribute('data-edit-idx', idx);
+    }
+
+    function showAddFieldForm() {
+      document.getElementById('newFieldLabel').value = '';
+      document.getElementById('newFieldType').value = 'text';
+      document.getElementById('newFieldRequired').checked = false;
+      document.getElementById('newFieldOptions').value = '';
+      toggleFieldOptions();
+      document.getElementById('addFieldForm').style.display = 'block';
+      document.getElementById('addFieldBtn').style.display = 'none';
+      document.getElementById('addFieldForm').removeAttribute('data-edit-idx');
+    }
+
+    function cancelAddField() {
+      document.getElementById('addFieldForm').style.display = 'none';
+      document.getElementById('addFieldBtn').style.display = 'block';
+    }
+
+    function toggleFieldOptions() {
+      var type = document.getElementById('newFieldType').value;
+      document.getElementById('fieldOptionsGroup').style.display = type === 'select' ? 'block' : 'none';
+    }
+
+    function confirmAddField() {
+      var label = document.getElementById('newFieldLabel').value.trim();
+      if (!label) { showMessage('Please enter a field label', 'error'); return; }
+      var type = document.getElementById('newFieldType').value;
+      var required = document.getElementById('newFieldRequired').checked;
+      var options = null;
+      if (type === 'select') {
+        options = document.getElementById('newFieldOptions').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+        if (options.length === 0) { showMessage('Please enter at least one option', 'error'); return; }
+      }
+      var fieldKey = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+      var editIdx = document.getElementById('addFieldForm').getAttribute('data-edit-idx');
+      var field = {
+        field_key: fieldKey,
+        label: label,
+        field_type: type,
+        is_required: required,
+        options: options,
+        placeholder: '',
+        enabled: true
+      };
+      if (editIdx !== null && editIdx !== '') {
+        rsvpFields[parseInt(editIdx)] = field;
+      } else {
+        rsvpFields.push(field);
+      }
+      cancelAddField();
+      renderEditCustomFields();
       var rsvpFieldList = document.getElementById('rsvpFieldList');
       if (rsvpFieldList) rsvpFieldList.innerHTML = renderRsvpFields();
     }
@@ -1398,10 +1517,12 @@
               dressCode: extractedData.dressCode
             })
           });
-          // Also save custom fields
           await saveCustomFields();
         } catch (e) { /* ignore */ }
       }
+      // Re-render preview to reflect updated fields
+      var ver = themeVersions[activeVersionIndex];
+      if (ver) renderPreview(ver);
       showMessage('Details saved!', 'success');
     }
 
