@@ -361,6 +361,10 @@
           <!-- Right: Tabbed panel (always visible) -->
           <div id="editPanel" style="flex:1;min-width:280px;max-width:440px;">
             <div style="background:white;border:1px solid #eee;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);max-height:80vh;overflow-y:auto;">
+              <div style="display:flex;gap:8px;margin-bottom:16px;">
+                <button class="btn btn-secondary" onclick="openLivePreview()" style="flex:1;font-size:13px;padding:10px 12px;">View Live Preview</button>
+                <button class="btn btn-primary" onclick="nextStep()" style="flex:1;font-size:13px;padding:10px 12px;">Publish</button>
+              </div>
               <div class="panel-tabs">
                 <button class="panel-tab active" onclick="switchTab('design')">Design Assistant</button>
                 <button class="panel-tab" onclick="switchTab('details')">Event Details</button>
@@ -466,10 +470,6 @@
               </div>
             </div>
           </div>
-        </div>
-        <div class="button-group">
-          <button class="btn btn-secondary" onclick="openLivePreview()">View Live Preview</button>
-          <button class="btn btn-primary" onclick="nextStep()">Publish</button>
         </div>
       </div>
     </div>
@@ -1175,10 +1175,12 @@
         // Replace placeholders with preview data
         tyHtml = tyHtml.replace(/<span class="thankyou-guest">[^<]*<\/span>/g, '<span class="thankyou-guest">' + escapeHtml(guestName) + '</span>');
         tyHtml = tyHtml.replace(/<span class="thankyou-event">[^<]*<\/span>/g, '<span class="thankyou-event">' + escapeHtml(title) + '</span>');
+        // Inject script to make calendar buttons post messages to parent
+        var calScript = '<script>document.addEventListener("click",function(e){var btn=e.target.closest(".cal-btn,[data-cal]");if(btn){var t=btn.getAttribute("data-cal")||btn.textContent.trim().toLowerCase();window.parent.postMessage({type:"calendar",cal:t},"*");}});<\/script>';
         return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
           + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; } ' + fontsImport + '</style>'
           + '<style>' + (ver.css || '') + '</style>'
-          + '</head><body>' + tyHtml + '</body></html>';
+          + '</head><body>' + tyHtml + calScript + '</body></html>';
       }
 
       // Fallback: build from theme config colors/fonts
@@ -1206,6 +1208,30 @@
         + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; } ' + fontsImport + '</style>'
         + '</head><body>' + thankYouHtml + '</body></html>';
     }
+
+    // Handle calendar button clicks from thank you preview iframe
+    window.addEventListener('message', function(e) {
+      if (e.data && e.data.type === 'calendar' && currentEvent) {
+        var ev = currentEvent;
+        if (e.data.cal === 'google') {
+          var s = new Date(ev.event_date || ev.eventDate), end = ev.end_date || ev.endDate;
+          var ed = end ? new Date(end) : new Date(s.getTime() + 3600000);
+          var fmt = function(d) { return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; };
+          window.open('https://calendar.google.com/calendar/u/0/r/eventedit?' + new URLSearchParams({ action: 'TEMPLATE', text: ev.title, dates: fmt(s) + '/' + fmt(ed), location: (ev.location_name || ev.locationName || '') + (ev.location_address || ev.locationAddress ? ', ' + (ev.location_address || ev.locationAddress) : ''), details: ev.description || '' }).toString(), '_blank');
+        } else if (e.data.cal === 'outlook') {
+          var s2 = new Date(ev.event_date || ev.eventDate), end2 = ev.end_date || ev.endDate;
+          var ed2 = end2 ? new Date(end2) : new Date(s2.getTime() + 3600000);
+          window.open('https://outlook.live.com/calendar/0/deeplink/compose?' + new URLSearchParams({ path: '/calendar/action/compose', rru: 'addevent', subject: ev.title, startdt: s2.toISOString(), enddt: ed2.toISOString(), location: (ev.location_name || ev.locationName || '') + (ev.location_address || ev.locationAddress ? ', ' + (ev.location_address || ev.locationAddress) : ''), body: ev.description || '' }).toString(), '_blank');
+        } else {
+          var s3 = new Date(ev.event_date || ev.eventDate), end3 = ev.end_date || ev.endDate;
+          var ed3 = end3 ? new Date(end3) : new Date(s3.getTime() + 3600000);
+          var fmt3 = function(d) { return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; };
+          var ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Ryvite//Event//EN','BEGIN:VEVENT','DTSTART:' + fmt3(s3),'DTEND:' + fmt3(ed3),'SUMMARY:' + ev.title,'LOCATION:' + (ev.location_name || ev.locationName || ''),'DESCRIPTION:' + (ev.description || '').replace(/\n/g, '\\n'),'END:VEVENT','END:VCALENDAR'].join('\r\n');
+          var blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+          var link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = ev.title.replace(/[^a-z0-9]/gi, '-').toLowerCase() + '.ics'; link.click(); URL.revokeObjectURL(link.href);
+        }
+      }
+    });
 
     function openLivePreview() {
       if (!currentEvent) { showMessage('Event not saved yet', 'error'); return; }

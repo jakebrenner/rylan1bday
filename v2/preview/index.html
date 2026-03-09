@@ -59,35 +59,49 @@
         var fontsImport = config.googleFontsImport || '';
         var iframe = document.getElementById('previewFrame');
         var customFields = ev.customFields || [];
-        // Build full invite page with RSVP form (non-functional in preview)
-        var rsvpHtml = '<div style="max-width:480px;margin:40px auto;padding:24px;background:white;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.1);font-family:Inter,sans-serif;">'
-          + '<h3 style="font-size:20px;margin-bottom:20px;text-align:center;font-weight:600;">RSVP</h3>'
-          + '<div style="margin-bottom:16px;"><label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;">Name <span style="color:#E94560;">*</span></label><input type="text" placeholder="Your name" disabled style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px;background:#f9f9f9;"></div>'
-          + '<div style="margin-bottom:16px;"><label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;">Email</label><input type="email" placeholder="your@email.com" disabled style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px;background:#f9f9f9;"></div>'
-          + '<div style="margin-bottom:16px;"><label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;">RSVP Status <span style="color:#E94560;">*</span></label><select disabled style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px;background:#f9f9f9;"><option>Yes, I\'ll be there!</option></select></div>';
-        // Render custom fields
+
+        // Build RSVP form fields from the event's actual custom fields
+        var fieldStyle = 'width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px;background:#f9f9f9;font-family:Inter,sans-serif;';
+        var labelStyle = 'display:block;margin-bottom:6px;font-weight:600;font-size:14px;';
+        var groupStyle = 'margin-bottom:16px;';
+        var rsvpFormHtml = '<div style="margin-bottom:16px;"><label style="' + labelStyle + '">Name <span style="color:#E94560;">*</span></label><input type="text" placeholder="Your name" disabled style="' + fieldStyle + '"></div>'
+          + '<div style="' + groupStyle + '"><label style="' + labelStyle + '">RSVP Status <span style="color:#E94560;">*</span></label><select disabled style="' + fieldStyle + '"><option>Yes, I\'ll be there!</option><option>Maybe</option><option>Can\'t make it</option></select></div>';
+
+        // Add custom fields from event config
         customFields.forEach(function(f) {
+          if (f.key === 'email' || f.key === 'name' || f.key === 'status') return; // skip built-ins already rendered
           var req = f.required ? ' <span style="color:#E94560;">*</span>' : '';
           var label = (f.label || f.key || '').replace(/</g, '&lt;');
-          rsvpHtml += '<div style="margin-bottom:16px;"><label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;">' + label + req + '</label>';
+          rsvpFormHtml += '<div style="' + groupStyle + '"><label style="' + labelStyle + '">' + label + req + '</label>';
           if (f.type === 'select' && f.options && f.options.length > 0) {
-            rsvpHtml += '<select disabled style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px;background:#f9f9f9;"><option>' + f.options[0].replace(/</g, '&lt;') + '</option></select>';
+            rsvpFormHtml += '<select disabled style="' + fieldStyle + '"><option>' + f.options[0].replace(/</g, '&lt;') + '</option></select>';
           } else if (f.type === 'textarea') {
-            rsvpHtml += '<textarea disabled placeholder="' + (f.placeholder || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px;background:#f9f9f9;min-height:60px;resize:none;font-family:Inter,sans-serif;"></textarea>';
+            rsvpFormHtml += '<textarea disabled placeholder="' + (f.placeholder || '').replace(/"/g, '&quot;') + '" style="' + fieldStyle + 'min-height:60px;resize:none;"></textarea>';
           } else if (f.type === 'number') {
-            rsvpHtml += '<input type="number" placeholder="' + (f.placeholder || '0').replace(/"/g, '&quot;') + '" disabled style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px;background:#f9f9f9;">';
+            rsvpFormHtml += '<input type="number" placeholder="' + (f.placeholder || '0').replace(/"/g, '&quot;') + '" disabled style="' + fieldStyle + '">';
+          } else if (f.type === 'email') {
+            rsvpFormHtml += '<input type="email" placeholder="' + (f.placeholder || 'your@email.com').replace(/"/g, '&quot;') + '" disabled style="' + fieldStyle + '">';
+          } else if (f.type === 'phone' || f.type === 'tel') {
+            rsvpFormHtml += '<input type="tel" placeholder="' + (f.placeholder || '(555) 123-4567').replace(/"/g, '&quot;') + '" disabled style="' + fieldStyle + '">';
           } else {
-            rsvpHtml += '<input type="text" placeholder="' + (f.placeholder || '').replace(/"/g, '&quot;') + '" disabled style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px;background:#f9f9f9;">';
+            rsvpFormHtml += '<input type="text" placeholder="' + (f.placeholder || '').replace(/"/g, '&quot;') + '" disabled style="' + fieldStyle + '">';
           }
-          rsvpHtml += '</div>';
+          rsvpFormHtml += '</div>';
         });
-        rsvpHtml += '<button disabled style="width:100%;padding:14px;background:#ccc;color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:not-allowed;">Preview Only — RSVP Disabled</button>'
-          + '</div>';
+
+        rsvpFormHtml += '<button disabled style="width:100%;padding:14px;background:#ccc;color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:not-allowed;font-family:Inter,sans-serif;">Preview Only — RSVP Disabled</button>';
+
+        // Inject RSVP form into the theme's .rsvp-slot container (if it exists)
+        // This replaces the placeholder RSVP button in the generated theme
+        var injectScript = '<script>'
+          + 'var slot = document.querySelector(".rsvp-slot");'
+          + 'if (slot) { slot.innerHTML = \'' + rsvpFormHtml.replace(/'/g, "\\'").replace(/\n/g, '') + '\'; }'
+          + '<\/script>';
 
         iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
           + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { background: #f9f9f9; } ' + fontsImport + '</style>'
           + '<style>' + ev.themeCss + '</style></head><body>'
-          + ev.themeHtml + rsvpHtml
+          + ev.themeHtml + injectScript
           + '<div style="text-align:center;padding:20px;font-size:13px;color:#999;font-family:Inter,sans-serif;"><a href="/" style="color:#999;text-decoration:none;">Made with Ryvite</a></div>'
           + '</body></html>';
         iframe.style.display = 'block';
