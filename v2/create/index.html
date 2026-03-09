@@ -1560,26 +1560,72 @@
           currentConfig: ver.config,
           photoUrl: hasPhoto ? designChatPhotoUrl : undefined
         };
-        var res = await authFetch('/api/v2/generate-theme?action=tweak', {
+
+        // Use streaming SSE to avoid timeouts
+        var sseRes = await authFetch('/api/v2/generate-theme?action=tweak', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
 
-        // Stop pun cycling and remove thinking message
-        clearInterval(tweakPunInterval);
-        designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
-
-        if (res.status === 504) {
-          designChatHistory.push({ role: 'assistant', content: 'That update took too long and timed out. Try a simpler change, or just try again — sometimes it just needs a second attempt!' });
-        } else if (!res.ok) {
-          var errText = '';
-          try { var errJson = await res.json(); errText = errJson.error || errJson.message || ''; } catch(e) {}
-          designChatHistory.push({ role: 'assistant', content: 'Sorry, I had trouble with that change' + (errText ? ': ' + errText : '') + '. Could you try rephrasing?' });
+        if (!sseRes.ok) {
+          clearInterval(tweakPunInterval);
+          designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+          if (sseRes.status === 504) {
+            designChatHistory.push({ role: 'assistant', content: 'That update took too long and timed out. Try a simpler change, or just try again!' });
+          } else {
+            var errText = '';
+            try { var errJson = await sseRes.json(); errText = errJson.error || errJson.message || ''; } catch(e) {}
+            designChatHistory.push({ role: 'assistant', content: 'Sorry, I had trouble with that change' + (errText ? ': ' + errText : '') + '. Could you try rephrasing?' });
+          }
         } else {
-          var result = await res.json();
-          if (result.success) {
-            var newVer = { id: result.theme.id, version: result.theme.version, html: result.theme.html, css: result.theme.css, config: result.theme.config };
+          // Read the SSE stream
+          var reader = sseRes.body.getReader();
+          var decoder = new TextDecoder();
+          var sseBuffer = '';
+          var tweakResult = null;
+          var tweakError = null;
+
+          while (true) {
+            var chunk = await reader.read();
+            if (chunk.done) break;
+            sseBuffer += decoder.decode(chunk.value, { stream: true });
+
+            // Parse SSE events from buffer
+            var lines = sseBuffer.split('\n');
+            sseBuffer = lines.pop() || ''; // keep incomplete line in buffer
+            var sseEventType = null;
+            for (var li = 0; li < lines.length; li++) {
+              var line = lines[li];
+              if (line.startsWith('event: ')) sseEventType = line.substring(7).trim();
+              else if (line.startsWith('data: ') && sseEventType) {
+                try {
+                  var eventData = JSON.parse(line.substring(6));
+                  if (sseEventType === 'status' && eventData.phase === 'saving') {
+                    // Update the loading message to show we're almost done
+                    var sysMsg2 = designChatHistory.find(function(m) { return m.role === 'system'; });
+                    if (sysMsg2) {
+                      sysMsg2.content = 'Almost done — saving your new design...';
+                      var el2 = document.querySelector('.design-chat-loading span:last-child');
+                      if (el2) el2.textContent = 'Almost done — saving your new design...';
+                    }
+                  } else if (sseEventType === 'done') {
+                    tweakResult = eventData;
+                  } else if (sseEventType === 'error') {
+                    tweakError = eventData;
+                  }
+                } catch(pe) {}
+                sseEventType = null;
+              }
+            }
+          }
+
+          // Stop pun cycling and remove thinking message
+          clearInterval(tweakPunInterval);
+          designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+
+          if (tweakResult && tweakResult.success) {
+            var newVer = { id: tweakResult.theme.id, version: tweakResult.theme.version, html: tweakResult.theme.html, css: tweakResult.theme.css, config: tweakResult.theme.config };
             themeVersions.push(newVer);
             activeVersionIndex = themeVersions.length - 1;
             currentEvent.themeHtml = newVer.html;
@@ -1588,8 +1634,10 @@
             renderPreview(newVer);
             renderVersionGallery();
             designChatHistory.push({ role: 'assistant', content: 'Done! I\'ve updated the design. Take a look at the preview on the left. Want to make any more changes?' });
+          } else if (tweakError) {
+            designChatHistory.push({ role: 'assistant', content: 'Sorry, I had trouble with that change: ' + (tweakError.message || tweakError.error || 'Unknown error') + '. Could you try rephrasing?' });
           } else {
-            designChatHistory.push({ role: 'assistant', content: 'Sorry, I had trouble with that change: ' + (result.error || result.message || 'Unknown error') + '. Could you try rephrasing?' });
+            designChatHistory.push({ role: 'assistant', content: 'Something went wrong. Please try again.' });
           }
         }
       } catch (err) {

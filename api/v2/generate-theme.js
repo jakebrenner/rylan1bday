@@ -149,7 +149,7 @@ export default async function handler(req, res) {
   const action = req.query?.action || req.body?.action || 'generate';
   const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages, tweakInstructions, currentHtml, currentCss, currentConfig, photoBase64, photoUrl } = req.body;
 
-  // --- TWEAK MODE: modify existing theme without full regeneration ---
+  // --- TWEAK MODE: stream response via SSE to avoid timeouts ---
   if (action === 'tweak') {
     if (!eventId || !currentHtml || !currentCss || !tweakInstructions) {
       return res.status(400).json({ error: 'Missing required fields for tweak' });
@@ -157,6 +157,15 @@ export default async function handler(req, res) {
 
     const themeModel = await getThemeModel();
     const startTime = Date.now();
+
+    // Set up SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const sendSSE = (event, data) => {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
 
     try {
       let tweakMessage = `Here is an existing invite theme. The user wants to make specific modifications WITHOUT changing the overall design.
@@ -187,13 +196,11 @@ ${tweakInstructions}`;
 
       const existingThankyou = currentConfig?.thankyouHtml || '';
       if (existingThankyou) {
-        tweakMessage += `\n\n**Current Thank You Page HTML:**\n\`\`\`html\n${existingThankyou}\n\`\`\`\nUpdate the thank you page to match any style/color/font changes you make to the invite.`;
+        tweakMessage += `\n\n**Current Thank You Page HTML:**\n\`\`\`html\n${existingThankyou}\n\`\`\`\nIf your changes affect the visual style (colors, fonts, spacing, backgrounds), update the thank you page to match. If the change is content-only (e.g., changing text, adding an element to the invite), you may set theme_thankyou_html to null to keep it unchanged.`;
       }
 
-      tweakMessage += `\n\nReturn the COMPLETE updated theme as a JSON object: { "theme_html": "...", "theme_css": "...", "theme_thankyou_html": "...", "theme_config": { ... } }. Make ONLY the changes the user requested — keep everything else exactly the same. The theme_thankyou_html should match the invite's aesthetic.`;
+      tweakMessage += `\n\nReturn the updated theme as a JSON object: { "theme_html": "...", "theme_css": "...", "theme_thankyou_html": "..." or null if unchanged, "theme_config": { ... } }. Make ONLY the changes the user requested — keep everything else exactly the same. If the thank you page doesn't need changes, set theme_thankyou_html to null.`;
 
-      // Use URL-based approach (no vision API needed — much faster)
-      // Only fall back to base64 vision if no URL available
       const messageContent = photoBase64 && !photoUrl
         ? [
             { type: 'text', text: tweakMessage },
@@ -201,16 +208,37 @@ ${tweakInstructions}`;
           ]
         : [{ type: 'text', text: tweakMessage }];
 
-      const response = await client.messages.create({
+      // Stream the response from Claude
+      sendSSE('status', { phase: 'generating' });
+
+      const stream = client.messages.stream({
         model: themeModel,
         max_tokens: 8192,
-        system: 'You are an expert HTML/CSS designer. Modify the given invite theme based on the user\'s instructions. Return ONLY a valid JSON object with theme_html, theme_css, theme_thankyou_html, and theme_config keys. Make minimal changes — only what the user asked for. The thank you page must match the invite\'s aesthetic. IMPORTANT: Always ensure text has strong contrast against its background (WCAG AA — 4.5:1 for body, 3:1 for headings). If you notice any contrast issues in the existing theme (e.g., light text on light backgrounds, dark text on dark areas, hard-to-read form labels), fix them proactively even if the user didn\'t ask.',
+        system: 'You are an expert HTML/CSS designer. Modify the given invite theme based on the user\'s instructions. Return ONLY a valid JSON object with theme_html, theme_css, theme_thankyou_html (or null if unchanged), and theme_config keys. Make minimal changes — only what the user asked for. The thank you page must match the invite\'s aesthetic. IMPORTANT: Always ensure text has strong contrast against its background (WCAG AA — 4.5:1 for body, 3:1 for headings). If you notice any contrast issues in the existing theme (e.g., light text on light backgrounds, dark text on dark areas, hard-to-read form labels), fix them proactively even if the user didn\'t ask.',
         messages: [{ role: 'user', content: messageContent }]
       });
 
+      // Accumulate the full response while streaming progress
+      let fullText = '';
+      let chunkCount = 0;
+
+      stream.on('text', (text) => {
+        fullText += text;
+        chunkCount++;
+        // Send progress every 20 chunks to keep connection alive without flooding
+        if (chunkCount % 20 === 0) {
+          sendSSE('progress', { chunks: chunkCount, bytes: fullText.length });
+        }
+      });
+
+      // Wait for stream to complete
+      const finalMessage = await stream.finalMessage();
       const latency = Date.now() - startTime;
-      let themeText = response.content[0]?.text || '';
-      themeText = themeText.trim();
+
+      sendSSE('status', { phase: 'saving' });
+
+      // Parse the accumulated text
+      let themeText = fullText.trim();
       const jsonBlockMatch = themeText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
       if (jsonBlockMatch) themeText = jsonBlockMatch[1].trim();
       if (!themeText.startsWith('{')) {
@@ -224,9 +252,9 @@ ${tweakInstructions}`;
         throw new Error('Invalid tweak response');
       }
 
-      // Store thank you HTML in config
+      // Merge config — use null for unchanged thank you page
       const tweakConfig = theme.theme_config || currentConfig || {};
-      if (theme.theme_thankyou_html) {
+      if (theme.theme_thankyou_html && theme.theme_thankyou_html !== null) {
         tweakConfig.thankyouHtml = theme.theme_thankyou_html;
       } else if (currentConfig?.thankyouHtml) {
         tweakConfig.thankyouHtml = currentConfig.thankyouHtml;
@@ -259,8 +287,8 @@ ${tweakInstructions}`;
           css: theme.theme_css,
           config: tweakConfig,
           model: themeModel,
-          input_tokens: response.usage?.input_tokens || 0,
-          output_tokens: response.usage?.output_tokens || 0,
+          input_tokens: finalMessage.usage?.input_tokens || 0,
+          output_tokens: finalMessage.usage?.output_tokens || 0,
           latency_ms: latency
         })
         .select()
@@ -270,14 +298,17 @@ ${tweakInstructions}`;
 
       await supabase.from('generation_log').insert({
         event_id: eventId, user_id: user.id, prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
-        model: themeModel, input_tokens: response.usage?.input_tokens || 0,
-        output_tokens: response.usage?.output_tokens || 0, latency_ms: latency, status: 'success'
+        model: themeModel, input_tokens: finalMessage.usage?.input_tokens || 0,
+        output_tokens: finalMessage.usage?.output_tokens || 0, latency_ms: latency, status: 'success'
       });
 
-      return res.status(200).json({
+      // Send the final result as an SSE event
+      sendSSE('done', {
         success: true,
         theme: { id: newTheme.id, version: newTheme.version, html: theme.theme_html, css: theme.theme_css, config: tweakConfig }
       });
+
+      return res.end();
     } catch (err) {
       console.error('Theme tweak error:', err);
       try {
@@ -286,7 +317,8 @@ ${tweakInstructions}`;
           model: themeModel, input_tokens: 0, output_tokens: 0, latency_ms: Date.now() - startTime, status: 'error', error: err.message
         });
       } catch {}
-      return res.status(500).json({ error: 'Failed to tweak theme', message: err.message });
+      sendSSE('error', { error: 'Failed to tweak theme', message: err.message });
+      return res.end();
     }
   }
 
