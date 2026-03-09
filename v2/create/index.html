@@ -1822,6 +1822,7 @@
     var designChatPhotoUrls = []; // Support multiple photo uploads
     var pendingRedesignText = null; // Holds original message while awaiting clarification
     var awaitingRedesignClarification = false;
+    var skipRedesignDetection = false; // Flag to skip detection when sending clarified message
 
     function switchTab(tab) {
       document.querySelectorAll('.panel-tab').forEach(function(t) { t.classList.remove('active'); });
@@ -2068,6 +2069,7 @@
         // Combine the original request with clarification
         var combined = pendingRedesignText + '\n\nClarification from user: ' + text;
         pendingRedesignText = null;
+        skipRedesignDetection = true;
         input.value = combined;
         input.style.height = 'auto';
         // Re-call sendDesignChat with the combined message
@@ -2076,7 +2078,7 @@
       }
 
       // Detect if user is asking for a completely new/different design
-      if (text && !awaitingRedesignClarification) {
+      if (text && !skipRedesignDetection) {
         var redesignKeywords = /\b(new design|redesign|start over|start fresh|completely different|totally different|whole new|from scratch|different design|different look|different style|redo it|redo the|redo this|try again|another design|new look|new theme|different theme|change everything|scrap this)\b/i;
         if (redesignKeywords.test(text)) {
           pendingRedesignText = text;
@@ -2098,6 +2100,7 @@
           return;
         }
       }
+      skipRedesignDetection = false; // Reset flag after detection check
 
       var userMsg = text || '(uploaded photo' + (designChatPhotoUrls.length > 1 ? 's' : '') + ')';
       if (hasPhotos && text) userMsg = text + ' (with ' + designChatPhotoUrls.length + ' photo' + (designChatPhotoUrls.length > 1 ? 's' : '') + ')';
@@ -2285,9 +2288,10 @@
       // Show the user's selection as a message
       designChatHistory.push({ role: 'user', content: value });
       renderDesignChat();
-      // Combine original request with clarification and send
+      // Combine original request with clarification and send — skip redesign detection
       var combined = (pendingRedesignText || 'Give me a new design') + '\n\nClarification from user: ' + value;
       pendingRedesignText = null;
+      skipRedesignDetection = true;
       var input = document.getElementById('designChatInput');
       input.value = combined;
       sendDesignChat();

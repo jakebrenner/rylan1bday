@@ -241,7 +241,29 @@
       if (typeof plusOnes === 'string') plusOnes = parseInt(plusOnes, 10) || 0;
 
       var btn = document.getElementById('rsvpSubmitBtn');
-      btn.disabled = true; btn.textContent = 'Submitting...';
+      btn.disabled = true;
+      // Show loading pun from theme config if available
+      var loadingPun = (currentEventData.themeConfig || {}).loadingPun || 'Submitting...';
+      btn.textContent = loadingPun;
+
+      // Also show a loading overlay inside the RSVP form
+      var rsvpForm = document.getElementById('rsvpForm');
+      var loadingOverlay = document.createElement('div');
+      loadingOverlay.id = 'rsvpLoadingOverlay';
+      loadingOverlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.9);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;border-radius:12px;';
+      var primaryColor = (currentEventData.themeConfig || {}).primaryColor || '#333';
+      loadingOverlay.innerHTML = '<div style="width:32px;height:32px;border:3px solid #eee;border-top-color:' + primaryColor + ';border-radius:50%;animation:rsvpSpin 0.8s linear infinite;margin-bottom:16px;"></div>'
+        + '<div style="font-size:16px;font-weight:600;color:' + primaryColor + ';text-align:center;padding:0 20px;">' + escapeHtml(loadingPun) + '</div>';
+      rsvpForm.style.position = 'relative';
+      rsvpForm.appendChild(loadingOverlay);
+
+      // Add spin animation if not present
+      if (!document.getElementById('rsvpSpinStyle')) {
+        var spinStyle = document.createElement('style');
+        spinStyle.id = 'rsvpSpinStyle';
+        spinStyle.textContent = '@keyframes rsvpSpin { to { transform: rotate(360deg); } }';
+        document.head.appendChild(spinStyle);
+      }
 
       try {
         var res = await fetch('/api/v2/events?action=rsvp', {
@@ -263,7 +285,11 @@
           triggerConfetti();
         } else { alert(result.error || 'Error submitting RSVP. Please try again.'); }
       } catch (err) { alert('Error submitting RSVP. Please try again.'); }
-      finally { btn.disabled = false; btn.textContent = 'Submit RSVP'; }
+      finally {
+        btn.disabled = false; btn.textContent = 'Submit RSVP';
+        var overlay = document.getElementById('rsvpLoadingOverlay');
+        if (overlay) overlay.remove();
+      }
     }
 
     function showThankYouPage(guestName, rsvpStatus) {
@@ -278,11 +304,13 @@
 
         // Always ensure calendar buttons are present in the thank you page
         if (tyHtml.indexOf('calendar-buttons') === -1) {
-          var calSection = '<div class="calendar-buttons" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:24px auto;max-width:340px;">'
-            + '<button class="cal-btn" data-cal="google" style="flex:1;min-width:130px;padding:10px 14px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;background:white;cursor:pointer;">Google Calendar</button>'
-            + '<button class="cal-btn" data-cal="apple" style="flex:1;min-width:130px;padding:10px 14px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;background:white;cursor:pointer;">Apple Calendar</button>'
-            + '<button class="cal-btn" data-cal="outlook" style="flex:1;min-width:130px;padding:10px 14px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;background:white;cursor:pointer;">Outlook</button>'
-            + '<button class="cal-btn" data-cal="yahoo" style="flex:1;min-width:130px;padding:10px 14px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;background:white;cursor:pointer;">Yahoo Calendar</button>'
+          var pc = config.primaryColor || '#333';
+          var sc = config.secondaryColor || '#4CAF50';
+          var ac = config.accentColor || '#2196F3';
+          var calSection = '<div class="calendar-buttons" style="display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;margin:24px auto;">'
+            + '<button class="cal-btn cal-apple" data-cal="apple" style="display:block;width:100%;padding:16px 24px;border-radius:12px;border:none;font-size:16px;font-weight:600;cursor:pointer;background:' + pc + ';color:#fff;">Apple / Outlook (.ics)</button>'
+            + '<button class="cal-btn cal-google" data-cal="google" style="display:block;width:100%;padding:16px 24px;border-radius:12px;border:none;font-size:16px;font-weight:600;cursor:pointer;background:' + sc + ';color:#fff;">Google Calendar</button>'
+            + '<button class="cal-btn cal-outlook" data-cal="outlook" style="display:block;width:100%;padding:16px 24px;border-radius:12px;border:none;font-size:16px;font-weight:600;cursor:pointer;background:' + ac + ';color:#fff;">Outlook Web</button>'
             + '</div>';
           // Insert before the closing body tag or at the end
           if (tyHtml.indexOf('Made with') !== -1 && tyHtml.indexOf('Ryvite') !== -1) {
@@ -294,7 +322,7 @@
 
         var fontsImport = config.googleFontsImport || '';
         var iframe = document.getElementById('themeFrame');
-        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>* { margin:0; padding:0; box-sizing:border-box; } html, body { padding: 20px; background: #f9f9f9; } ' + fontsImport + '</style><style>' + (currentEventData.themeCss || '') + '</style></head><body>' + tyHtml + '</body></html>';
+        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>* { margin:0; padding:0; box-sizing:border-box; } html, body { padding: 0; background: transparent; } ' + fontsImport + '</style><style>' + (currentEventData.themeCss || '') + '</style></head><body>' + tyHtml + '</body></html>';
         iframe.onload = function() { try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 40, 600) + 'px'; } catch(e) {} };
 
         // Wire up calendar buttons inside the iframe after load
