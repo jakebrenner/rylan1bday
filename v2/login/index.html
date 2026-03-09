@@ -227,7 +227,7 @@
         const res = await fetch('/api/v2/auth?action=login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
+          body: JSON.stringify({ email, origin: window.location.origin })
         });
         const result = await res.json();
         if (result.success) {
@@ -259,7 +259,7 @@
         const res = await fetch('/api/v2/auth?action=signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ displayName, email, phone })
+          body: JSON.stringify({ displayName, email, phone, origin: window.location.origin })
         });
         const result = await res.json();
         if (result.success) {

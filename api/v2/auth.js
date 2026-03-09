@@ -5,9 +5,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const SITE_URL = process.env.VERCEL_DOMAIN
-  ? `https://${process.env.VERCEL_DOMAIN}`
-  : 'https://ryvite.com';
+const PROD_URL = 'https://ryvite.com';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -17,7 +15,10 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { action } = req.query;
-  const redirectTo = `${SITE_URL}/v2/login/`;
+
+  // Use origin from frontend so magic links work on preview deploys
+  const clientOrigin = req.body?.origin || req.headers.origin || PROD_URL;
+  const redirectTo = `${clientOrigin}/v2/login/`;
 
   try {
     if (action === 'signup') {
