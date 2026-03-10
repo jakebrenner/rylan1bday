@@ -1620,8 +1620,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
                 lastComparisonResults[i] = result;
                 renderCompCardResult(i, result);
               } else {
-                lastComparisonResults[i] = { success: false, model: m.id, error: data.error || data.message || 'Failed' };
-                updateCompCardStatus(i, 'error', data.error || 'Generation failed');
+                var errMsg = data.message || data.error || 'Failed';
+                lastComparisonResults[i] = { success: false, model: m.id, error: errMsg };
+                updateCompCardStatus(i, 'error', errMsg);
               }
             }).catch(function(err) {
               completedCount++;
@@ -1644,7 +1645,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             body: JSON.stringify({ model: document.getElementById('testModelSelect').value, eventDetails: eventDetails, styleLibraryIds: styleIds })
           });
           var data = await r.json();
-          if (!data.success) throw new Error(data.error || data.message || 'Generation failed');
+          if (!data.success) throw new Error(data.message || data.error || 'Generation failed');
 
           lastTestResult = data;
           lastComparisonResults = null;

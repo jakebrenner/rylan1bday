@@ -100,6 +100,7 @@ function buildEventTypeContext(eventType, userPrompt) {
 
 // Extract CSS and structural summary from HTML to reduce token usage (~60% savings)
 function extractStyleEssence(html) {
+  if (!html) return '';
   // Extract <style> block contents
   const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
   const css = styleMatch ? styleMatch[1].trim() : '';
@@ -535,7 +536,8 @@ Default fields: Name, RSVP Status (Attending/Declined/Maybe)${styleContext}`;
     console.error('Prompt test error:', err);
     return res.status(500).json({
       error: 'Test generation failed',
-      message: err.message || 'Unknown error'
+      message: err.message || 'Unknown error',
+      stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined
     });
   }
 }
