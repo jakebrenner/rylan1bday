@@ -319,11 +319,37 @@
     <!-- Step 2: Generate & Preview -->
     <div class="step" data-step="2">
       <div id="generatingView">
-        <div class="loading-state">
+        <div class="loading-state" id="generatingLoadingState">
           <span class="loading-spinner" style="width: 40px; height: 40px; border-width: 3px;"></span>
           <h3>Generating Your Invite...</h3>
           <p id="generatingPun" style="transition:opacity 0.3s;">Our AI is creating a custom design based on your vision</p>
           <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+        </div>
+        <div id="generatingPaywall" style="display:none;">
+          <div style="max-width:440px;margin:40px auto;padding:0 16px;">
+            <div style="background:white;border:1px solid #eee;border-radius:16px;padding:28px;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+              <p style="font-size:15px;line-height:1.6;color:var(--midnight);margin:0 0 18px 0;" id="paywallFunMsg">Your invite is about to look incredible. Let's make it official!</p>
+              <div style="background:linear-gradient(135deg,#faf0f3,#fff5f0);border:1px solid #f0dde2;border-radius:12px;padding:20px;margin-bottom:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                  <div style="font-size:16px;font-weight:700;color:var(--midnight);" id="paywallPlanName">Single Event</div>
+                  <div id="paywallPriceTag" style="font-size:22px;font-weight:700;color:var(--party-coral);">$6.99</div>
+                </div>
+                <div id="paywallFeatures" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
+                <div id="paywallCouponArea">
+                  <a href="#" onclick="toggleCouponInput(event)" id="couponToggleLink" style="font-size:12px;color:#999;text-decoration:underline;">Have a coupon code?</a>
+                  <div id="couponInputRow" style="display:none;margin-top:8px;">
+                    <div style="display:flex;gap:6px;">
+                      <input type="text" id="paywallCouponInput" placeholder="Enter code" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:Inter,sans-serif;">
+                      <button onclick="applyPaywallCoupon()" style="padding:8px 12px;border:none;border-radius:6px;background:var(--midnight);color:white;font-size:12px;cursor:pointer;font-family:Inter,sans-serif;">Apply</button>
+                    </div>
+                    <div id="couponMessage" style="margin-top:4px;font-size:11px;"></div>
+                  </div>
+                </div>
+              </div>
+              <button class="btn btn-primary" id="paywallCheckoutBtn" onclick="startPaywallCheckout()" style="width:100%;padding:14px;font-size:15px;font-weight:600;border-radius:10px;">Continue for $6.99</button>
+              <div style="text-align:center;margin-top:10px;font-size:11px;color:#bbb;">Secure checkout powered by Stripe</div>
+            </div>
+          </div>
         </div>
       </div>
       <div id="generatedView" style="display: none;">
@@ -1060,39 +1086,40 @@
         }
         var plan = plans[0]; // Primary plan
         var funMsg = paywallFunMessages[Math.floor(Math.random() * paywallFunMessages.length)];
-
-        var card = document.createElement('div');
-        card.className = 'chat-bubble assistant';
-        card.id = 'paywallCard';
-
         var priceDisplay = '$' + (plan.priceCents / 100).toFixed(2);
-        var featuresHtml = (plan.features || []).map(function(f) {
-          return '<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#555;"><span style="color:var(--mint-fizz);font-size:14px;">✓</span> ' + escapeHtml(f) + '</div>';
+
+        // Build features list with SMS cost line
+        var features = (plan.features || []).slice();
+        features.push('+$0.10 per SMS sent');
+        var featuresHtml = features.map(function(f) {
+          var isSms = f.indexOf('$0.10') !== -1;
+          return '<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#555;">'
+            + '<span style="color:' + (isSms ? '#999' : 'var(--mint-fizz)') + ';font-size:15px;">' + (isSms ? '💬' : '✓') + '</span> '
+            + escapeHtml(f) + '</div>';
         }).join('');
 
-        card.innerHTML = '<div style="margin-bottom:14px;font-size:14px;line-height:1.6;">' + escapeHtml(funMsg) + '</div>'
-          + '<div style="background:linear-gradient(135deg,#faf0f3,#fff5f0);border:1px solid #f0dde2;border-radius:12px;padding:16px;margin-bottom:14px;">'
-          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
-          + '<div style="font-size:15px;font-weight:700;color:var(--midnight);">' + escapeHtml(plan.displayName) + '</div>'
-          + '<div id="paywallPriceTag" style="font-size:20px;font-weight:700;color:var(--party-coral);">' + priceDisplay + '</div>'
-          + '</div>'
-          + '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;">' + featuresHtml + '</div>'
-          + '<div id="paywallCouponArea">'
-          + '<a href="#" onclick="toggleCouponInput(event)" id="couponToggleLink" style="font-size:11px;color:#999;text-decoration:underline;">Have a coupon code?</a>'
-          + '<div id="couponInputRow" style="display:none;margin-top:8px;">'
-          + '<div style="display:flex;gap:6px;">'
-          + '<input type="text" id="paywallCouponInput" placeholder="Enter code" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:Inter,sans-serif;">'
-          + '<button onclick="applyPaywallCoupon()" style="padding:8px 12px;border:none;border-radius:6px;background:var(--midnight);color:white;font-size:12px;cursor:pointer;font-family:Inter,sans-serif;">Apply</button>'
-          + '</div>'
-          + '<div id="couponMessage" style="margin-top:4px;font-size:11px;"></div>'
-          + '</div>'
-          + '</div>'
-          + '</div>'
-          + '<button class="btn btn-primary" id="paywallCheckoutBtn" onclick="startPaywallCheckout()" style="width:100%;padding:13px;font-size:14px;font-weight:600;">Continue for ' + priceDisplay + '</button>'
-          + '<div style="text-align:center;margin-top:8px;font-size:11px;color:#bbb;">Secure checkout powered by Stripe</div>';
+        // Populate the paywall inside the generating view
+        document.getElementById('paywallFunMsg').textContent = funMsg;
+        document.getElementById('paywallPlanName').textContent = plan.displayName;
+        document.getElementById('paywallPriceTag').innerHTML = priceDisplay;
+        document.getElementById('paywallFeatures').innerHTML = featuresHtml;
+        document.getElementById('paywallCheckoutBtn').textContent = 'Continue for ' + priceDisplay;
 
-        document.getElementById('chatMessages').appendChild(card);
-        scrollChat();
+        // Reset coupon state
+        document.getElementById('couponToggleLink').style.display = 'inline';
+        document.getElementById('couponInputRow').style.display = 'none';
+        document.getElementById('paywallCouponInput').disabled = false;
+        document.getElementById('paywallCouponInput').value = '';
+        document.getElementById('couponMessage').innerHTML = '';
+        paywallCoupon = null;
+        paywallDiscount = null;
+
+        // Show paywall, hide loading spinner
+        document.getElementById('generatingLoadingState').style.display = 'none';
+        document.getElementById('generatingPaywall').style.display = 'block';
+
+        // Navigate to step 2 (generating view)
+        goToStep(2);
 
         // Stash the plan and callback for checkout
         window._paywallPlan = plan;
@@ -1632,7 +1659,7 @@
       });
 
       currentStep = step;
-      if (step === 2 && !themeVersions.length) generateTheme();
+      if (step === 2 && !themeVersions.length && document.getElementById('generatingPaywall').style.display === 'none') generateTheme();
       else if (step === 2 && themeVersions.length) {
         // Returning to step 2 with existing themes — show preview
         document.getElementById('generatingView').style.display = 'none';
@@ -1682,6 +1709,9 @@
     }
 
     async function generateTheme(feedback) {
+      // Hide paywall, show loading state
+      document.getElementById('generatingPaywall').style.display = 'none';
+      document.getElementById('generatingLoadingState').style.display = 'block';
       document.getElementById('generatingView').style.display = 'block';
       document.getElementById('generatedView').style.display = 'none';
       startGeneratingPuns();
@@ -1785,25 +1815,23 @@
     }
 
     function showGeneratingError(msg) {
-      var view = document.getElementById('generatingView');
-      view.innerHTML = '<div class="loading-state">'
-        + '<div style="font-size:32px;margin-bottom:12px;">😅</div>'
+      var loadingState = document.getElementById('generatingLoadingState');
+      loadingState.innerHTML = '<div style="font-size:32px;margin-bottom:12px;">😅</div>'
         + '<h3 style="color:var(--party-coral);">Oops!</h3>'
         + '<p style="margin-bottom:16px;">' + escapeHtml(msg) + '</p>'
         + '<div style="display:flex;gap:8px;justify-content:center;">'
         + '<button class="btn btn-secondary" onclick="goToStep(1)" style="font-size:13px;padding:10px 20px;">Back</button>'
         + '<button class="btn btn-primary" onclick="retryGenerate()" style="font-size:13px;padding:10px 20px;">Try Again</button>'
-        + '</div></div>';
+        + '</div>';
     }
 
     function retryGenerate() {
-      // Reset generating view HTML
-      document.getElementById('generatingView').innerHTML = '<div class="loading-state">'
-        + '<span class="loading-spinner" style="width: 40px; height: 40px; border-width: 3px;"></span>'
+      // Reset loading state HTML
+      var loadingState = document.getElementById('generatingLoadingState');
+      loadingState.innerHTML = '<span class="loading-spinner" style="width: 40px; height: 40px; border-width: 3px;"></span>'
         + '<h3>Generating Your Invite...</h3>'
         + '<p id="generatingPun" style="transition:opacity 0.3s;">One more try...</p>'
-        + '<div class="progress-bar"><div class="progress-bar-fill"></div></div>'
-        + '</div>';
+        + '<div class="progress-bar"><div class="progress-bar-fill"></div></div>';
       generateTheme();
     }
 
