@@ -606,9 +606,9 @@
               </div>
             </div>
             <div class="ud-card">
-              <div class="ud-card-header"><h4>Chat Prompts</h4><span class="count" id="udChatCount">0</span></div>
+              <div class="ud-card-header"><h4>Chat History</h4><span class="count" id="udChatCount">0</span></div>
               <div class="ud-card-body" id="udChatHistory" style="max-height:500px;overflow-y:auto;">
-                <div class="ud-empty">No chat prompts</div>
+                <div class="ud-empty">No chat messages</div>
               </div>
             </div>
           </div>
@@ -1851,24 +1851,27 @@
         }).join('');
       }
 
-      // Chat prompts (generation_log entries where event_id is null)
+      // Chat messages (from chat_messages table - full conversation threads)
       document.getElementById('udChatCount').textContent = chatHistoryData.length;
       var chatEl = document.getElementById('udChatHistory');
       if (chatHistoryData.length === 0) {
-        chatEl.innerHTML = '<div class="ud-empty">No chat prompts recorded</div>';
+        chatEl.innerHTML = '<div class="ud-empty">No chat messages yet. Messages will appear here after the user chats during event creation.</div>';
       } else {
-        chatEl.innerHTML = chatHistoryData.map(function(c) {
-          var promptText = escapeHtml(c.prompt || '').substring(0, 400);
-          if ((c.prompt || '').length > 400) promptText += '...';
-          var statusBadge = c.status === 'success' ? 'badge-green' : 'badge-yellow';
-          return '<div class="ud-chat-msg user">'
-            + '<div>' + promptText + '</div>'
+        // Reverse so oldest messages are at top (data comes in desc order)
+        var chatMsgs = chatHistoryData.slice().reverse();
+        chatEl.innerHTML = chatMsgs.map(function(c) {
+          var role = c.role || 'user';
+          var cls = role === 'assistant' ? 'assistant' : 'user';
+          var content = escapeHtml(c.content || '').substring(0, 500);
+          if ((c.content || '').length > 500) content += '...';
+          return '<div class="ud-chat-msg ' + cls + '">'
+            + '<div>' + content + '</div>'
             + '<div class="msg-meta">'
-            + '<span class="badge ' + statusBadge + '" style="font-size:9px;padding:1px 6px;">' + escapeHtml(c.status || '?') + '</span>'
-            + ' &middot; ' + shortModel(c.model)
+            + '<strong>' + escapeHtml(role) + '</strong>'
             + ' &middot; ' + formatDate(c.createdAt)
-            + ' &middot; ' + formatNumber(c.inputTokens || 0) + '/' + formatNumber(c.outputTokens || 0) + ' tokens'
-            + (c.latencyMs ? ' &middot; ' + (c.latencyMs / 1000).toFixed(1) + 's' : '')
+            + (c.model ? ' &middot; ' + shortModel(c.model) : '')
+            + (c.inputTokens ? ' &middot; ' + formatNumber(c.inputTokens) + '/' + formatNumber(c.outputTokens) + ' tokens' : '')
+            + (c.sessionId ? ' &middot; <span style="font-family:monospace;font-size:10px;color:#bbb;">' + escapeHtml(c.sessionId.substring(0, 16)) + '</span>' : '')
             + '</div></div>';
         }).join('');
       }

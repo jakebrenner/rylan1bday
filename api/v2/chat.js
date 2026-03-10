@@ -136,10 +136,13 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Invalid session' });
     }
 
-    const { messages } = req.body;
+    const { messages, sessionId } = req.body;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: 'Messages array is required' });
     }
+
+    // Use provided sessionId or generate one for grouping conversation turns
+    const chatSessionId = sessionId || `chat_${user.id}_${Date.now()}`;
 
     const chatModel = await getChatModel();
     const startTime = Date.now();
@@ -156,7 +159,7 @@ export default async function handler(req, res) {
     const latency = Date.now() - startTime;
     const text = response.content[0].type === 'text' ? response.content[0].text : '';
 
-    // Log token usage (event_id null = chat, non-null = theme)
+    // Log token usage to generation_log
     try {
       await supabase.from('generation_log').insert({
         user_id: user.id,
@@ -167,6 +170,28 @@ export default async function handler(req, res) {
         latency_ms: latency,
         status: 'success'
       });
+    } catch {}
+
+    // Persist user message + assistant response to chat_messages
+    const lastUserMsg = messages[messages.length - 1];
+    try {
+      await supabase.from('chat_messages').insert([
+        {
+          user_id: user.id,
+          session_id: chatSessionId,
+          role: 'user',
+          content: lastUserMsg?.content || ''
+        },
+        {
+          user_id: user.id,
+          session_id: chatSessionId,
+          role: 'assistant',
+          content: text,
+          model: chatModel,
+          input_tokens: response.usage?.input_tokens || 0,
+          output_tokens: response.usage?.output_tokens || 0
+        }
+      ]);
     } catch {}
 
     let parsed;
@@ -180,6 +205,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       model: chatModel,
+      sessionId: chatSessionId,
       ...parsed
     });
   } catch (err) {

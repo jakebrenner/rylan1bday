@@ -158,13 +158,14 @@ export default async function handler(req, res) {
       if (!userId) return res.status(400).json({ error: 'userId required' });
 
       // Fetch all data in parallel — only use tables/columns that actually exist
-      const [profileRes, eventsRes, subsRes, billingRes, generationsRes, smsRes] = await Promise.all([
+      const [profileRes, eventsRes, subsRes, billingRes, generationsRes, smsRes, chatRes] = await Promise.all([
         supabaseAdmin.from('profiles').select('*').eq('id', userId).single(),
         supabaseAdmin.from('events').select('id, title, event_type, event_date, status, slug, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
         supabaseAdmin.from('subscriptions').select('*, plans:plan_id (name, display_name, price_cents, max_events, max_generations)').eq('user_id', userId).order('created_at', { ascending: false }),
         supabaseAdmin.from('billing_history').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabaseAdmin.from('generation_log').select('id, event_id, model, input_tokens, output_tokens, prompt, status, latency_ms, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabaseAdmin.from('sms_messages').select('id, event_id, recipient_phone, recipient_name, message_type, status, cost_cents, created_at').eq('user_id', userId).order('created_at', { ascending: false })
+        supabaseAdmin.from('sms_messages').select('id, event_id, recipient_phone, recipient_name, message_type, status, cost_cents, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabaseAdmin.from('chat_messages').select('id, session_id, role, content, model, input_tokens, output_tokens, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(200)
       ]);
 
       const profile = profileRes.data;
@@ -389,15 +390,15 @@ export default async function handler(req, res) {
         stripePayment,
         generations,
         smsMessages,
-        // Chat history from generation_log (chat = entries where event_id is null)
-        chatHistory: chatGenerations.slice(0, 50).map(c => ({
+        // Full chat conversation history from chat_messages table
+        chatHistory: (chatRes.data || []).map(c => ({
           id: c.id,
-          prompt: c.prompt,
+          sessionId: c.session_id,
+          role: c.role,
+          content: c.content,
           model: c.model,
           inputTokens: c.input_tokens,
           outputTokens: c.output_tokens,
-          latencyMs: c.latency_ms,
-          status: c.status,
           createdAt: c.created_at
         })),
         // Theme generation history from event_themes table

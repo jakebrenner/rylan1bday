@@ -654,6 +654,7 @@
     let themeVersions = []; // [{id, version, html, css, config}]
     let activeVersionIndex = 0;
     let chatHistory = [];
+    let chatSessionId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
     let chatBubbles = []; // [{text, role}] for UI rebuild on restore
     var chatPhase = 'chatting'; // 'chatting' | 'confirmed' | 'styling'
     var currentPreviewMode = 'invite';
@@ -995,7 +996,7 @@
         var res = await authFetch('/api/v2/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: chatHistory })
+          body: JSON.stringify({ messages: chatHistory, sessionId: chatSessionId })
         });
         var result = await res.json();
 
@@ -1004,6 +1005,8 @@
         if (typingEl) typingEl.remove();
 
         if (result.success) {
+          // Use server-assigned sessionId if available
+          if (result.sessionId) chatSessionId = result.sessionId;
           chatHistory.push({ role: 'assistant', content: JSON.stringify(result) });
 
           // Merge extracted data
