@@ -523,6 +523,7 @@
     let themeVersions = []; // [{id, version, html, css, config}]
     let activeVersionIndex = 0;
     let chatHistory = [];
+    let chatBubbles = []; // [{text, role}] for UI rebuild on restore
     var currentPreviewMode = 'invite';
 
     var ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp'];
@@ -738,6 +739,22 @@
           document.querySelector('.chat-container').style.display = 'flex';
         }
       }
+
+      // Auto-restore draft on plain page load (no special URL params)
+      if (!urlParams.get('purchased') && !urlParams.get('eventId')) {
+        if (restoreDraft(false)) {
+          // If we have an eventId already, redirect to the proper resume flow
+          if (currentEvent && currentEvent.id) {
+            window.history.replaceState({}, '', '/v2/create/?eventId=' + currentEvent.id);
+            window.location.reload();
+            return;
+          }
+          // Otherwise rebuild the step 1 chat from saved bubbles
+          if (chatBubbles.length > 0) {
+            rebuildChatFromBubbles();
+          }
+        }
+      }
     })();
 
     // ---- Chat Functions ----
@@ -812,12 +829,16 @@
       input.focus();
     }
 
-    function addChatBubble(text, role) {
+    function addChatBubble(text, role, skipSave) {
       var bubble = document.createElement('div');
       bubble.className = 'chat-bubble ' + role;
       bubble.textContent = text;
       document.getElementById('chatMessages').appendChild(bubble);
       scrollChat();
+      if (!skipSave) {
+        chatBubbles.push({ text: text, role: role });
+        autoSaveDraft();
+      }
     }
 
     function scrollChat() {
@@ -992,6 +1013,7 @@
           currentEvent = { id: result.eventId, slug: result.slug };
           await saveCustomFields();
           window.history.replaceState({}, '', '/v2/create/?eventId=' + result.eventId);
+          autoSaveDraft();
           return true;
         }
         showMessage(result.error || 'Error creating event', 'error');
@@ -1127,33 +1149,86 @@
     }
 
     function saveCreateState() {
-      var state = {
-        extractedData: extractedData,
-        designPrompt: designPrompt,
-        rsvpFields: rsvpFields,
-        chatHistory: chatHistory,
-        personPhotoUrls: personPhotoUrls.filter(function(u) { return !!u; }),
-        inspirationImageUrls: inspirationImageUrls.filter(function(u) { return !!u; })
-      };
-      localStorage.setItem('ryvite_create_state', JSON.stringify(state));
+      autoSaveDraft();
     }
 
     function restoreCreateState() {
+      return restoreDraft(true);
+    }
+
+    // Auto-save draft to localStorage on every meaningful state change
+    var _autoSaveTimer = null;
+    function autoSaveDraft() {
+      // Debounce: save at most once per 500ms
+      clearTimeout(_autoSaveTimer);
+      _autoSaveTimer = setTimeout(function() {
+        try {
+          var state = {
+            extractedData: extractedData,
+            designPrompt: designPrompt,
+            rsvpFields: rsvpFields,
+            chatHistory: chatHistory,
+            chatBubbles: chatBubbles,
+            personPhotoUrls: personPhotoUrls.filter(function(u) { return !!u; }),
+            inspirationImageUrls: inspirationImageUrls.filter(function(u) { return !!u; }),
+            currentEventId: currentEvent ? currentEvent.id : null,
+            currentEventSlug: currentEvent ? currentEvent.slug : null,
+            savedAt: Date.now()
+          };
+          localStorage.setItem('ryvite_create_state', JSON.stringify(state));
+        } catch (e) {}
+      }, 500);
+    }
+
+    function restoreDraft(clearAfter) {
       try {
         var raw = localStorage.getItem('ryvite_create_state');
         if (!raw) return false;
         var state = JSON.parse(raw);
+        // Expire drafts older than 24 hours
+        if (state.savedAt && Date.now() - state.savedAt > 24 * 60 * 60 * 1000) {
+          localStorage.removeItem('ryvite_create_state');
+          return false;
+        }
         extractedData = state.extractedData || {};
         designPrompt = state.designPrompt || '';
         rsvpFields = state.rsvpFields || [];
         chatHistory = state.chatHistory || [];
+        chatBubbles = state.chatBubbles || [];
         personPhotoUrls = state.personPhotoUrls || [];
         inspirationImageUrls = state.inspirationImageUrls || [];
-        localStorage.removeItem('ryvite_create_state');
+        if (state.currentEventId) {
+          currentEvent = { id: state.currentEventId, slug: state.currentEventSlug || '' };
+        }
+        if (clearAfter) localStorage.removeItem('ryvite_create_state');
         return true;
       } catch (e) {
         return false;
       }
+    }
+
+    var INITIAL_GREETING = 'Tell me about your event! You can be as casual as you want \u2014 something like "My friend Mike is turning 30, we\'re doing a Formula 1 themed party at The Garage on April 12th at 7pm"';
+
+    function rebuildChatFromBubbles() {
+      var container = document.getElementById('chatMessages');
+      container.innerHTML = '';
+      // Always add the initial greeting first
+      var greeting = document.createElement('div');
+      greeting.className = 'chat-bubble assistant';
+      greeting.textContent = INITIAL_GREETING;
+      container.appendChild(greeting);
+      // Then add all saved bubbles
+      chatBubbles.forEach(function(b) {
+        var bubble = document.createElement('div');
+        bubble.className = 'chat-bubble ' + b.role;
+        bubble.textContent = b.text;
+        container.appendChild(bubble);
+      });
+      scrollChat();
+    }
+
+    function clearDraft() {
+      localStorage.removeItem('ryvite_create_state');
     }
 
     var paywallFunMessages = [
@@ -3179,6 +3254,7 @@
       }
       // Scroll to keep the Generate button visible after adding photos
       scrollChat();
+      autoSaveDraft();
     }
 
     function removeImage(btn, photoType) {
@@ -3229,6 +3305,7 @@
         });
         var result = await res.json();
         if (result.success) {
+          clearDraft();
           window.location.href = '/v2/dashboard/?published=' + currentEvent.id;
         } else { showMessage(result.error || 'Failed to publish', 'error'); }
       } catch (err) { showMessage('Error publishing event', 'error'); }
