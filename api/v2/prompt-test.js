@@ -280,6 +280,45 @@ Guidelines:
     }
   }
 
+  // ── DUMMY DATA: Generate realistic test event details for a given event type ──
+  if (action === 'dummyData') {
+    const { eventType, typeLabel } = req.body;
+    if (!eventType) return res.status(400).json({ error: 'eventType is required' });
+
+    try {
+      const response = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 512,
+        system: `You generate realistic dummy event data for testing an event invitation platform. Return ONLY valid JSON.`,
+        messages: [{
+          role: 'user',
+          content: `Generate realistic test data for a "${typeLabel || eventType}" event. Return JSON with exactly these keys:
+{
+  "title": "Creative event title",
+  "startDate": "2026-04-15T14:00",
+  "endDate": "2026-04-15T17:00",
+  "locationName": "Venue name",
+  "locationAddress": "Full address with city, state, zip",
+  "hostName": "Host name(s)",
+  "dressCode": "Dress code",
+  "tagline": "Short catchy tagline",
+  "prompt": "2-3 sentence creative design direction describing the visual aesthetic, colors, and mood for the invite"
+}
+Use realistic names, venues, and addresses. Make the design prompt vivid and specific.`
+        }]
+      });
+
+      const text = response.content[0].text;
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('No JSON found in response');
+      const eventDetails = JSON.parse(jsonMatch[0]);
+      return res.status(200).json({ success: true, eventDetails });
+    } catch (err) {
+      console.error('Dummy data generation error:', err);
+      return res.status(500).json({ error: 'Failed to generate dummy data', message: err.message });
+    }
+  }
+
   // ── Shared: build prompt context (reused for single & multi-model) ──
   async function buildPromptContext(eventDetails, styleLibraryIds) {
     const eventType = eventDetails.eventType || 'other';

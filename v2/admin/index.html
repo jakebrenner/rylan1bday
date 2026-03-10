@@ -123,7 +123,7 @@
     .phone-home-bar { width: 100px; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; margin: 6px auto 2px; }
 
     /* Prompt Lab layout */
-    .promptlab-layout { display: grid; grid-template-columns: 1fr 380px; gap: 24px; align-items: start; }
+    .promptlab-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start; }
     @media (max-width: 900px) { .promptlab-layout { grid-template-columns: 1fr; } }
     .promptlab-sidebar { position: sticky; top: 24px; }
     .preview-toggle-row { display: flex; justify-content: center; gap: 4px; margin-bottom: 12px; }
@@ -480,62 +480,82 @@
         <div>
           <div class="config-section">
             <h3>Event Details</h3>
-            <div class="test-params-grid">
+            <div class="config-field" style="margin-bottom:12px;">
+              <label>Event Type</label>
+              <select id="testEventType" onchange="onEventTypeChange()" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+                <option value="" disabled selected>Choose an event type...</option>
+                <option value="kidsBirthday">Kids Birthday</option>
+                <option value="adultBirthday">Adult Birthday</option>
+                <option value="babyShower">Baby Shower</option>
+                <option value="engagement">Engagement</option>
+                <option value="wedding">Wedding</option>
+                <option value="graduation">Graduation</option>
+                <option value="holiday">Holiday</option>
+                <option value="dinnerParty">Dinner Party</option>
+                <option value="retirement">Retirement</option>
+                <option value="anniversary">Anniversary</option>
+                <option value="sports">Sports</option>
+                <option value="bridalShower">Bridal Shower</option>
+                <option value="corporate">Corporate</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div id="otherTypeInput" style="display:none;margin-bottom:12px;">
               <div class="config-field">
-                <label>Event Title</label>
-                <input type="text" id="testTitle" value="Emma's 5th Birthday Bash">
+                <label>Describe the Event</label>
+                <input type="text" id="testOtherDescription" placeholder="e.g. Housewarming, Reunion, Fundraiser..." style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
               </div>
-              <div class="config-field">
-                <label>Event Type</label>
-                <select id="testEventType" onchange="onEventTypeChange()">
-                  <option value="kidsBirthday" selected>Kids Birthday</option>
-                  <option value="adultBirthday">Adult Birthday</option>
-                  <option value="babyShower">Baby Shower</option>
-                  <option value="engagement">Engagement</option>
-                  <option value="wedding">Wedding</option>
-                  <option value="graduation">Graduation</option>
-                  <option value="holiday">Holiday</option>
-                  <option value="dinnerParty">Dinner Party</option>
-                  <option value="retirement">Retirement</option>
-                  <option value="anniversary">Anniversary</option>
-                  <option value="sports">Sports</option>
-                  <option value="bridalShower">Bridal Shower</option>
-                  <option value="corporate">Corporate</option>
-                  <option value="other">Other</option>
-                </select>
+            </div>
+            <div id="eventDetailsFilled" style="display:none;padding:12px 16px;background:#f0faf0;border:1px solid #c3e6cb;border-radius:8px;margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <span style="font-size:12px;font-weight:600;color:#28a745;text-transform:uppercase;letter-spacing:0.5px;">AI-Generated Test Data</span>
+                <button class="btn btn-secondary btn-sm" onclick="toggleEventDetailsExpand()" id="expandDetailsBtn" style="font-size:11px;">Edit</button>
               </div>
-              <div class="config-field">
-                <label>Start Date/Time</label>
-                <input type="datetime-local" id="testStartDate" value="2026-04-15T14:00">
+              <div id="eventDetailsSummary" style="font-size:13px;color:#333;line-height:1.6;"></div>
+            </div>
+            <div id="eventDetailsExpanded" style="display:none;">
+              <div class="test-params-grid">
+                <div class="config-field">
+                  <label>Event Title</label>
+                  <input type="text" id="testTitle">
+                </div>
+                <div class="config-field">
+                  <label>Start Date/Time</label>
+                  <input type="datetime-local" id="testStartDate">
+                </div>
+                <div class="config-field">
+                  <label>End Date/Time</label>
+                  <input type="datetime-local" id="testEndDate">
+                </div>
+                <div class="config-field">
+                  <label>Location Name</label>
+                  <input type="text" id="testLocation">
+                </div>
+                <div class="config-field">
+                  <label>Location Address</label>
+                  <input type="text" id="testAddress">
+                </div>
+                <div class="config-field">
+                  <label>Host Name</label>
+                  <input type="text" id="testHost">
+                </div>
+                <div class="config-field">
+                  <label>Dress Code</label>
+                  <input type="text" id="testDressCode">
+                </div>
+                <div class="config-field">
+                  <label>Tagline</label>
+                  <input type="text" id="testTagline">
+                </div>
+                <div class="config-field" style="grid-column:1/-1;">
+                  <label>Creative Prompt / Design Direction</label>
+                  <textarea id="testPrompt" rows="3"></textarea>
+                </div>
               </div>
-              <div class="config-field">
-                <label>End Date/Time</label>
-                <input type="datetime-local" id="testEndDate" value="2026-04-15T17:00">
-              </div>
-              <div class="config-field">
-                <label>Location Name</label>
-                <input type="text" id="testLocation" value="Sunshine Park Pavilion">
-              </div>
-              <div class="config-field">
-                <label>Location Address</label>
-                <input type="text" id="testAddress" value="123 Oak Street, Austin, TX 78701">
-              </div>
-              <div class="config-field">
-                <label>Host Name</label>
-                <input type="text" id="testHost" value="The Johnson Family">
-              </div>
-              <div class="config-field">
-                <label>Dress Code</label>
-                <input type="text" id="testDressCode" value="Casual / Outdoor">
-              </div>
-              <div class="config-field" style="grid-column:1/-1;">
-                <label>Tagline</label>
-                <input type="text" id="testTagline" value="Five is a Vibe!" style="width:100%;">
-              </div>
-              <div class="config-field" style="grid-column:1/-1;">
-                <label>Creative Prompt / Design Direction</label>
-                <textarea id="testPrompt" rows="3">Bright, playful, and full of energy. Think rainbow balloons, confetti, and a sense of pure childhood joy. Make it feel like opening a present.</textarea>
-              </div>
+            </div>
+            <div id="eventDetailsLoading" style="display:none;padding:16px;text-align:center;color:#888;font-size:13px;">
+              <div class="generating-spinner" style="width:24px;height:24px;margin:0 auto 8px;"></div>
+              Generating test data...
             </div>
           </div>
 
@@ -550,17 +570,17 @@
               </select>
             </div>
 
-            <label class="compare-toggle" id="compareToggle" onclick="toggleCompareMode()">
-              <input type="checkbox" id="compareCheckbox">
+            <div class="compare-toggle" id="compareToggle" onclick="toggleCompareMode()">
+              <input type="checkbox" id="compareCheckbox" onclick="event.stopPropagation();">
               <div>
                 <div class="compare-label">Compare All Models</div>
                 <div class="compare-hint">Runs Haiku, Sonnet &amp; Opus in parallel. Shows side-by-side results with cost breakdown.</div>
               </div>
-            </label>
+            </div>
 
-            <div id="styleLibraryCheckboxes" style="margin-top:16px;display:none;">
-              <label style="display:block;font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Style References (auto-matched + manual)</label>
-              <div id="styleRefList"></div>
+            <div id="styleLibraryCheckboxes" style="margin-top:16px;">
+              <label style="display:block;font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Style References (auto-matched)</label>
+              <div id="styleRefList"><span style="font-size:12px;color:#aaa;">Select an event type above to see matched styles.</span></div>
             </div>
 
             <div style="display:flex;gap:12px;align-items:center;margin-top:16px;">
@@ -620,7 +640,7 @@
               <div class="phone-frame">
                 <div class="phone-notch"></div>
                 <div class="phone-screen">
-                  <iframe id="testPreviewFrame" sandbox="allow-same-origin"></iframe>
+                  <iframe id="testPreviewFrame" sandbox="allow-same-origin allow-scripts"></iframe>
                 </div>
                 <div class="phone-home-bar"></div>
               </div>
@@ -756,7 +776,7 @@
         <textarea id="styleHtml" rows="15" placeholder="Paste complete HTML of an invite sample here..." style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:monospace;font-size:12px;line-height:1.5;resize:vertical;"></textarea>
         <div id="stylePreviewContainer" style="display:none;margin-top:8px;">
           <div class="preview-frame">
-            <iframe id="stylePreviewFrame" sandbox="allow-same-origin" style="width:393px;height:700px;border:none;display:block;margin:0 auto;"></iframe>
+            <iframe id="stylePreviewFrame" sandbox="allow-same-origin allow-scripts" style="width:393px;height:700px;border:none;display:block;margin:0 auto;"></iframe>
           </div>
         </div>
       </div>
@@ -1025,8 +1045,6 @@
     // Live-update formula as user types
     document.getElementById('markupInput').addEventListener('input', updateMarkupFormula);
 
-    // Re-render style checkboxes when test event type changes (auto-match updates)
-    document.getElementById('testEventType').addEventListener('change', function() { renderStyleCheckboxes(); });
 
     async function saveConfig() {
       var btn = document.getElementById('saveConfigBtn');
@@ -1248,30 +1266,125 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     function applyPreset(type) {
-      var p = EVENT_PRESETS[type];
-      if (!p) return;
-      document.getElementById('testTitle').value = p.title;
       document.getElementById('testEventType').value = type;
-      document.getElementById('testStartDate').value = '2026-04-15T14:00';
-      document.getElementById('testEndDate').value = '2026-04-15T17:00';
-      document.getElementById('testLocation').value = p.location;
-      document.getElementById('testAddress').value = p.address;
-      document.getElementById('testHost').value = p.host;
-      document.getElementById('testDressCode').value = p.dressCode;
-      document.getElementById('testTagline').value = p.tagline;
-      document.getElementById('testPrompt').value = p.prompt;
-      // Highlight active preset
       document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.type === type); });
-      onEventTypeChange();
+      // Use preset data directly
+      var p = EVENT_PRESETS[type];
+      if (p) {
+        fillEventFields(p.title, '2026-04-15T14:00', '2026-04-15T17:00', p.location, p.address, p.host, p.dressCode, p.tagline, p.prompt);
+        showEventDetailsSummary();
+      }
+      document.getElementById('otherTypeInput').style.display = type === 'other' ? 'block' : 'none';
+      renderStyleCheckboxes();
     }
 
-    function onEventTypeChange() {
-      var type = document.getElementById('testEventType').value;
-      document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.type === type); });
+    function fillEventFields(title, startDate, endDate, location, address, host, dressCode, tagline, prompt) {
+      document.getElementById('testTitle').value = title || '';
+      document.getElementById('testStartDate').value = startDate || '';
+      document.getElementById('testEndDate').value = endDate || '';
+      document.getElementById('testLocation').value = location || '';
+      document.getElementById('testAddress').value = address || '';
+      document.getElementById('testHost').value = host || '';
+      document.getElementById('testDressCode').value = dressCode || '';
+      document.getElementById('testTagline').value = tagline || '';
+      document.getElementById('testPrompt').value = prompt || '';
     }
+
+    function showEventDetailsSummary() {
+      var title = document.getElementById('testTitle').value;
+      var host = document.getElementById('testHost').value;
+      var location = document.getElementById('testLocation').value;
+      var tagline = document.getElementById('testTagline').value;
+      var prompt = document.getElementById('testPrompt').value;
+      var summary = '<strong>' + escapeHtml(title) + '</strong>';
+      if (tagline) summary += ' &mdash; ' + escapeHtml(tagline);
+      summary += '<br>';
+      if (host) summary += 'Hosted by ' + escapeHtml(host) + ' &middot; ';
+      if (location) summary += escapeHtml(location);
+      if (prompt) summary += '<br><span style="color:#666;font-size:12px;font-style:italic;">"' + escapeHtml(prompt.substring(0, 100)) + (prompt.length > 100 ? '...' : '') + '"</span>';
+      document.getElementById('eventDetailsSummary').innerHTML = summary;
+      document.getElementById('eventDetailsFilled').style.display = 'block';
+      document.getElementById('eventDetailsLoading').style.display = 'none';
+      document.getElementById('eventDetailsExpanded').style.display = 'none';
+    }
+
+    function toggleEventDetailsExpand() {
+      var expanded = document.getElementById('eventDetailsExpanded');
+      var isShown = expanded.style.display !== 'none';
+      expanded.style.display = isShown ? 'none' : 'block';
+      document.getElementById('expandDetailsBtn').textContent = isShown ? 'Edit' : 'Collapse';
+    }
+
+    async function onEventTypeChange() {
+      var type = document.getElementById('testEventType').value;
+      if (!type) return;
+      document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.type === type); });
+      document.getElementById('otherTypeInput').style.display = type === 'other' ? 'block' : 'none';
+      renderStyleCheckboxes();
+
+      // Use preset data if available, otherwise generate with AI
+      var p = EVENT_PRESETS[type];
+      if (p) {
+        fillEventFields(p.title, '2026-04-15T14:00', '2026-04-15T17:00', p.location, p.address, p.host, p.dressCode, p.tagline, p.prompt);
+        showEventDetailsSummary();
+        return;
+      }
+      // For "other" type, wait for description input
+      if (type === 'other') return;
+
+      await generateDummyData(type);
+    }
+
+    async function generateDummyData(eventType, otherDescription) {
+      document.getElementById('eventDetailsFilled').style.display = 'none';
+      document.getElementById('eventDetailsExpanded').style.display = 'none';
+      document.getElementById('eventDetailsLoading').style.display = 'block';
+
+      var typeLabel = eventType;
+      var found = ALL_EVENT_TYPES.find(function(x) { return x.value === eventType; });
+      if (found) typeLabel = found.label;
+      if (otherDescription) typeLabel = otherDescription;
+
+      try {
+        var res = await fetch('/api/v2/prompt-test?action=dummyData', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventType: eventType, typeLabel: typeLabel })
+        });
+        var data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Failed');
+        var d = data.eventDetails;
+        fillEventFields(d.title, d.startDate, d.endDate, d.locationName, d.locationAddress, d.hostName, d.dressCode, d.tagline, d.prompt);
+        showEventDetailsSummary();
+      } catch (err) {
+        console.error('Dummy data generation failed:', err);
+        // Fallback to empty fields
+        document.getElementById('eventDetailsLoading').style.display = 'none';
+        document.getElementById('eventDetailsExpanded').style.display = 'block';
+      }
+    }
+
+    // Handle "Other" description submission
+    document.addEventListener('DOMContentLoaded', function() {
+      var otherInput = document.getElementById('testOtherDescription');
+      if (otherInput) {
+        otherInput.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter' && otherInput.value.trim()) {
+            generateDummyData('other', otherInput.value.trim());
+          }
+        });
+      }
+    });
 
     function fillTestDefaults() {
-      applyPreset('kidsBirthday');
+      document.getElementById('testEventType').value = '';
+      document.getElementById('eventDetailsFilled').style.display = 'none';
+      document.getElementById('eventDetailsExpanded').style.display = 'none';
+      document.getElementById('eventDetailsLoading').style.display = 'none';
+      document.getElementById('otherTypeInput').style.display = 'none';
+      fillEventFields('', '', '', '', '', '', '', '', '');
+      document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.remove('active'); });
+      renderStyleCheckboxes();
     }
 
     // ── Compare mode toggle ──
@@ -1579,7 +1692,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         return '<div class="comparison-card" id="compCard' + i + '">'
           + '<div class="comparison-card-header"><h4>' + label + '</h4><span class="model-badge ' + badge + '">' + badge + '</span></div>'
           + '<div class="comparison-card-body">'
-          + '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>'
+          + '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-same-origin allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>'
           + '</div>'
           + '<div class="code-tabs">'
           + '<button class="code-tab" onclick="showCompCode(' + i + ',\'html\')">HTML</button>'
@@ -1803,20 +1916,24 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     function renderStyleCheckboxes() {
       var container = document.getElementById('styleRefList');
-      var section = document.getElementById('styleLibraryCheckboxes');
-      if (styleLibrary.length === 0) {
-        section.style.display = 'none';
+      var currentType = document.getElementById('testEventType').value;
+      if (!currentType) {
+        container.innerHTML = '<span style="font-size:12px;color:#aaa;">Select an event type above to see matched styles.</span>';
         return;
       }
-      section.style.display = 'block';
-      var currentType = document.getElementById('testEventType').value;
-      container.innerHTML = styleLibrary.map(function(item) {
-        var isAutoMatch = (item.eventTypes || []).includes(currentType);
-        var matchLabel = isAutoMatch ? '<span style="font-size:10px;font-weight:700;color:var(--mint-fizz);margin-left:6px;">AUTO-MATCH</span>' : '';
-        return '<label class="style-checkbox' + (isAutoMatch ? ' selected' : '') + '">'
-          + '<input type="checkbox" value="' + item.id + '"' + (isAutoMatch ? ' checked' : '') + '>'
+      // Filter to only auto-matched items (same logic as backend: .contains('event_types', [eventType]) limit 2)
+      var matched = styleLibrary.filter(function(item) {
+        return (item.eventTypes || []).includes(currentType);
+      }).slice(0, 2);
+      if (matched.length === 0) {
+        container.innerHTML = '<span style="font-size:12px;color:#aaa;">No style references matched for this event type.</span>';
+        return;
+      }
+      container.innerHTML = matched.map(function(item) {
+        return '<label class="style-checkbox selected">'
+          + '<input type="checkbox" value="' + item.id + '" checked>'
           + '<span style="font-size:13px;font-weight:600;">' + escapeHtml(item.name) + '</span>'
-          + matchLabel
+          + '<span style="font-size:10px;font-weight:700;color:var(--mint-fizz);margin-left:6px;">AUTO-MATCH</span>'
           + (item.description ? '<span style="font-size:12px;color:#888;margin-left:4px;">' + escapeHtml(item.description) + '</span>' : '')
           + '</label>';
       }).join('');
