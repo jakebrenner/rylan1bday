@@ -39,40 +39,62 @@ async function verifyAdmin(req) {
 }
 
 // ── Import the same DESIGN_DNA and SYSTEM_PROMPT from generate-theme.js ──
+// Each entry has "must" (technique/structure) and "consider" (aesthetic suggestions the model can override)
 const DESIGN_DNA = {
-  kidsBirthday: {
-    label: 'Kids Birthday (Ages 0-10)',
-    photoTreatment: 'Circular crops in a bobbing row, each with a differently colored SVG birthday hat.',
-    decorative: 'Animated floating balloons, confetti bursts, bunting flags.',
-    typography: 'Bold, rounded display font (e.g. Fredoka One, Baloo 2, Lilita One).',
-    colorPhilosophy: 'Dominant palette of 4-5 fully saturated colors, no grays.',
-    motion: 'Floating/falling elements on infinite loop. Confetti burst energy.',
-    standout: 'Baby/kid faces with bouncing birthday hats in a playful row'
-  },
-  adultBirthday: { label: 'Adult / Milestone Birthday', photoTreatment: 'Full-bleed editorial panel with stylized overlay.', decorative: 'Atmospheric texture matching the era/tone.', typography: 'Era-appropriate or bold editorial font.', colorPhilosophy: '2-3 dominant colors with deliberate restraint OR excess.', motion: 'Tone-appropriate: champagne bubble float, spotlight sweep.', standout: 'The milestone number as a massive typographic hero element' },
-  babyShower: { label: 'Baby Shower / Sip & See', photoTreatment: 'Softly rounded oval frames with floral wreath overlay.', decorative: 'Watercolor wash backgrounds, botanical elements.', typography: 'Elegant script paired with refined serif.', colorPhilosophy: 'Soft, limited palette (2-3 colors + cream/white).', motion: 'Gentle petal/leaf fall, slow dreamy fade-ins.', standout: 'Lush floral wreath framing the baby name' },
-  engagement: { label: 'Engagement Party', photoTreatment: 'Large, styled hero image of the couple.', decorative: 'Floating rings, botanical elements, abstract ink strokes.', typography: 'Romantic script + modern sans.', colorPhilosophy: 'Derived from couple photo tones, romantic palette.', motion: 'Hearts or sparkle particles floating.', standout: 'Couple photo with names in large display typography' },
-  wedding: { label: 'Wedding / Reception', photoTreatment: 'Full-width hero with sophisticated overlay.', decorative: 'Minimal and intentional — botanical borders, geometric patterns.', typography: 'Distinguished pairing (e.g. Cormorant Garamond + Jost).', colorPhilosophy: '2 colors max + neutrals.', motion: 'Very subtle — slow fade-ins, gentle parallax feel.', standout: 'Couple names in breathtaking display typography' },
-  graduation: { label: 'Graduation Party', photoTreatment: 'Prominent hero treatment with school colors.', decorative: 'Falling diplomas, confetti mortarboards.', typography: 'Bold, confident display font.', colorPhilosophy: 'School colors as accent, bold celebratory palette.', motion: 'Paper toss animation feel. Mortarboards floating.', standout: 'Graduate name with massive milestone text' },
-  holiday: { label: 'Holiday Party', photoTreatment: 'Atmospheric hero (Christmas/NYE) or themed borders.', decorative: 'Holiday-SPECIFIC atmospheric animation.', typography: 'Match the holiday emotional register.', colorPhilosophy: 'Holiday palette with a modern TWIST.', motion: 'Holiday-specific ambient: snow, fireworks, leaves.', standout: 'Holiday-specific atmospheric animation' },
-  dinnerParty: { label: 'Dinner Party / Cocktail Hour', photoTreatment: 'Atmospheric hero with soft vignette.', decorative: 'Texture-first: linen, marble, dark wood, candlelight.', typography: 'Editorial pairing — unexpected but refined.', colorPhilosophy: 'Deep wines, warm golds, cream, charcoal.', motion: 'Minimal — slow reveals, candlelight flicker.', standout: 'Rich, textured background that sets mood' },
-  retirement: { label: 'Retirement Party', photoTreatment: 'Prominent, respectful hero treatment.', decorative: 'Achievement badges, timeline elements.', typography: 'Authoritative and warm serif or display font.', colorPhilosophy: 'Distinguished: navy/gold, deep green/cream.', motion: 'Meaningful and measured entrance animations.', standout: 'Years-of-service counter or career timeline' },
-  anniversary: { label: 'Anniversary Party', photoTreatment: 'Then and now side-by-side or styled hero.', decorative: 'Romantic but not saccharine. Gold accents.', typography: 'Romantic but confident and warm.', colorPhilosophy: 'Gold/warm neutrals for milestone years.', motion: 'Gentle sparkle, elegant fade-in choreography.', standout: 'Then and now photo treatment or milestone number' },
-  sports: { label: 'Sports / Watch Party', photoTreatment: 'Host photo in team gear with gradient overlay.', decorative: 'Dynamic: stadium lights, score-ticker aesthetic.', typography: 'Bold, condensed, athletic display fonts.', colorPhilosophy: 'Team colors with maximum energy.', motion: 'Stadium light sweep, scoreboard-style reveals.', standout: 'Stadium scoreboard header with team colors' },
-  bridalShower: { label: 'Bridal Shower', photoTreatment: 'Engagement photo as elegant hero.', decorative: 'Floral illustration elements — lush, garden party.', typography: 'Script + elegant sans or serif.', colorPhilosophy: 'Blush, champagne, sage, and cream.', motion: 'Floating petals, gentle botanical sway.', standout: 'Lush, hand-illustrated-style floral elements' },
-  corporate: { label: 'Corporate Event', photoTreatment: 'Brand-aligned hero treatment.', decorative: 'Geometric patterns, subtle gradients.', typography: 'Clean, modern sans-serif pairing.', colorPhilosophy: 'Brand colors or sophisticated neutral + accent.', motion: 'Subtle, professional entrance animations.', standout: 'Clean, modern premium design' },
-  other: { label: 'Custom Event', photoTreatment: 'Style based on event description.', decorative: 'Match the event mood.', typography: 'Fonts matching event emotional register.', colorPhilosophy: 'Derived from the creative direction.', motion: 'Match the energy level of the event.', standout: 'Whatever makes this event feel special' }
+  kidsBirthday: { label: 'Kids Birthday (Ages 0-10)', must: { photoTreatment: 'If photos provided, use circular crops that feel playful. Faces should fill 80% of the frame.', technical: 'Keep all text large and readable. Bright, high-contrast colors.' }, consider: { decorative: 'Animated floating balloons, confetti bursts, bunting flags, or theme-specific elements.', typography: 'Bold, rounded display fonts work well (e.g. Fredoka One, Baloo 2, Lilita One).', colorPhilosophy: 'Joyful and vibrant palettes with fully saturated colors tend to work best.', motion: 'Consider floating/falling elements on infinite loop at 0.1-0.2 opacity.', standout: 'Kid faces with playful decorations make a strong visual anchor' } },
+  adultBirthday: { label: 'Adult / Milestone Birthday', must: { photoTreatment: 'If photos provided, treat editorially — NOT kiddie circles.', technical: 'The milestone number should feature prominently.' }, consider: { decorative: 'Atmospheric texture matching the era/tone.', typography: 'Era-appropriate or bold editorial fonts add strong personality.', colorPhilosophy: '2-3 dominant colors with deliberate restraint OR excess.', motion: 'Tone-appropriate motion: champagne bubble float, spotlight sweep.', standout: 'The milestone number as a massive typographic hero element' } },
+  babyShower: { label: 'Baby Shower / Sip & See', must: { photoTreatment: 'Gentle, warm treatment for any photos.', technical: 'Overall tone should feel nurturing and soft.' }, consider: { decorative: 'Watercolor wash backgrounds, botanical illustrations, pressed flowers.', typography: 'Elegant script paired with refined serif.', colorPhilosophy: 'Soft, limited palettes (2-3 colors + cream/white).', motion: 'Gentle petal/leaf fall, slow dreamy fade-ins.', standout: 'Floral wreath or botanical frame around the baby name' } },
+  engagement: { label: 'Engagement Party', must: { photoTreatment: 'If couple photo provided, make it the hero.', technical: 'The couple\'s names should be prominently featured.' }, consider: { decorative: 'Floating rings, botanical elements, abstract ink strokes.', typography: 'Romantic script + modern sans. Names as typographic hero.', colorPhilosophy: 'Drawing from couple photo tones creates a personal feel.', motion: 'Hearts or sparkle particles floating.', standout: 'Couple photo with names in large display typography' } },
+  wedding: { label: 'Wedding / Reception', must: { photoTreatment: 'If photos provided, most refined treatment — restraint and elegance.', technical: 'Every element should feel intentional and earned.' }, consider: { decorative: 'Minimal and intentional — botanical borders, geometric patterns.', typography: 'Distinguished pairings set the right tone.', colorPhilosophy: 'Restraint in color tends to elevate weddings.', motion: 'Subtle motion — slow fade-ins, gentle parallax.', standout: 'Couple names in breathtaking display typography' } },
+  graduation: { label: 'Graduation Party', must: { photoTreatment: 'If photos provided, editorial but celebratory.', technical: 'Celebratory but not childish.' }, consider: { decorative: 'Falling diplomas, confetti mortarboards.', typography: 'Bold, confident display fonts.', colorPhilosophy: 'School colors as accent, bold celebratory palette.', motion: 'Paper toss animation feel. Mortarboards floating.', standout: 'Graduate name with massive milestone text' } },
+  holiday: { label: 'Holiday Party', must: { photoTreatment: 'Match the specific holiday.', technical: 'Decorative elements should be holiday-SPECIFIC, not generic.' }, consider: { decorative: 'Holiday-specific atmospheric animations.', typography: 'Match the holiday emotional register.', colorPhilosophy: 'Holiday palette with a modern twist.', motion: 'Full atmospheric animation: snow, fireworks, leaves.', standout: 'Holiday-specific atmospheric animation' } },
+  dinnerParty: { label: 'Dinner Party / Cocktail Hour', must: { photoTreatment: 'If provided, atmospheric with soft vignette.', technical: 'Adult, sophisticated. NO children\'s party elements.' }, consider: { decorative: 'Texture-first: linen, marble, dark wood, candlelight.', typography: 'Editorial pairing — unexpected but refined.', colorPhilosophy: 'Deep wines, warm golds, cream, charcoal.', motion: 'Minimal — slow reveals, candlelight flicker.', standout: 'Rich, textured background that sets mood' } },
+  retirement: { label: 'Retirement Party', must: { photoTreatment: 'Prominent, respectful hero treatment.', technical: 'Avoid anything that reads as "old" or condescending.' }, consider: { decorative: 'Achievement badges, timeline elements.', typography: 'Authoritative and warm serif or display font.', colorPhilosophy: 'Distinguished: navy/gold, deep green/cream.', motion: 'Meaningful and measured entrance animations.', standout: 'Years-of-service counter or career timeline' } },
+  anniversary: { label: 'Anniversary Party', must: { photoTreatment: 'If two photos provided, "then and now" treatment is powerful.', technical: 'Milestone year number should feature prominently.' }, consider: { decorative: 'Romantic but not saccharine. Gold accents.', typography: 'Romantic but confident and warm.', colorPhilosophy: 'Gold/warm neutrals for milestone years.', motion: 'Gentle sparkle, elegant fade-in choreography.', standout: 'Then and now photo treatment or milestone number' } },
+  sports: { label: 'Sports / Watch Party', must: { photoTreatment: 'If photos provided, team gear / action shots.', technical: 'High energy. Bold. Dynamic, not gentle.' }, consider: { decorative: 'Dynamic: stadium lights, score-ticker aesthetic.', typography: 'Bold, condensed, athletic display fonts.', colorPhilosophy: 'Team colors with maximum energy.', motion: 'Stadium light sweep, scoreboard-style reveals.', standout: 'Stadium scoreboard header with team colors' } },
+  bridalShower: { label: 'Bridal Shower', must: { photoTreatment: 'If photos provided, elegant treatment of bride.', technical: 'Floral elements should be beautiful, NEVER clipart-style.' }, consider: { decorative: 'Abundant floral illustration elements.', typography: 'Script + elegant sans or serif.', colorPhilosophy: 'Blush, champagne, sage, and cream.', motion: 'Floating petals, gentle botanical sway.', standout: 'Lush, hand-illustrated-style floral elements' } },
+  corporate: { label: 'Corporate Event', must: { photoTreatment: 'Brand-aligned, clean, professional.', technical: 'Professional but not boring. No playful floating elements.' }, consider: { decorative: 'Geometric patterns, subtle gradients.', typography: 'Clean, modern sans-serif pairing.', colorPhilosophy: 'Brand colors or sophisticated neutral + accent.', motion: 'Subtle, professional entrance animations.', standout: 'Clean, modern premium design' } },
+  other: { label: 'Custom Event', must: { photoTreatment: 'Style based on the event description.', technical: 'Let the user\'s creative direction guide all decisions.' }, consider: { decorative: 'Match the event mood.', typography: 'Fonts matching event emotional register.', colorPhilosophy: 'Derived from the creative direction.', motion: 'Match the energy level of the event.', standout: 'Whatever makes this event feel special' } }
 };
 
-function buildEventTypeContext(eventType) {
+// Assess how specific the user's creative prompt is (0-1 score)
+function assessPromptSpecificity(prompt) {
+  if (!prompt || prompt.length < 20) return 0;
+  let score = 0;
+  const lower = prompt.toLowerCase();
+  if (prompt.length > 50) score += 0.15;
+  if (prompt.length > 100) score += 0.15;
+  if (prompt.length > 200) score += 0.1;
+  if (/\b(color|palette|tone|hue|shade|red|blue|green|gold|pink|black|white|navy|blush|coral|teal|purple|orange|yellow|cream|ivory|sage|mint|lavender|burgundy|maroon|pastel|neon|muted|warm|cool|earth|jewel)\b/i.test(lower)) score += 0.15;
+  if (/\b(font|type|typeface|serif|sans|script|bold|italic|handwritten|calligraphy|monospace|display|editorial|elegant|playful|modern|retro|vintage|classic)\b/i.test(lower)) score += 0.1;
+  if (/\b(minimalist|maximalist|luxur|bohemian|boho|rustic|industrial|art deco|mid-century|scandinavian|tropical|whimsical|gothic|preppy|coastal|farmhouse|glam|chic|moody|atmospheric|ethereal|grunge|punk|disco|psychedelic|vaporwave|cottagecore)\b/i.test(lower)) score += 0.15;
+  if (/\b(gradient|texture|marble|linen|wood|grain|watercolor|illustration|geometric|organic|pattern|stripe|polka|floral|botanical|abstract)\b/i.test(lower)) score += 0.1;
+  if (/\b(animat|motion|float|fade|slide|glow|shimmer|sparkle|confetti|snow|rain|particle|parallax|pulse|bounce|spin)\b/i.test(lower)) score += 0.1;
+  return Math.min(score, 1);
+}
+
+function buildEventTypeContext(eventType, userPrompt) {
   const dna = DESIGN_DNA[eventType] || DESIGN_DNA.other;
-  let context = `\n## EVENT-SPECIFIC DESIGN DNA (${dna.label})`;
-  context += `\n- **Photo treatment**: ${dna.photoTreatment}`;
-  context += `\n- **Decorative elements**: ${dna.decorative}`;
-  context += `\n- **Typography**: ${dna.typography}`;
-  context += `\n- **Color philosophy**: ${dna.colorPhilosophy}`;
-  context += `\n- **Animation/Motion**: ${dna.motion}`;
-  context += `\n- **Standout visual element**: ${dna.standout}`;
+  const specificity = assessPromptSpecificity(userPrompt);
+
+  let context = `\n## EVENT-TYPE GUIDANCE (${dna.label})`;
+  context += `\n\n### Requirements:`;
+  context += `\n- **Photo treatment**: ${dna.must.photoTreatment}`;
+  context += `\n- **Technical**: ${dna.must.technical}`;
+
+  if (specificity >= 0.5) {
+    context += `\n\n### Suggestions (the user has a clear creative vision — prioritize THEIR direction over these):`;
+  } else if (specificity >= 0.25) {
+    context += `\n\n### Suggestions (blend these with the user's creative direction):`;
+  } else {
+    context += `\n\n### Design direction (use these as your primary creative guide):`;
+  }
+
+  context += `\n- **Decorative elements**: ${dna.consider.decorative}`;
+  context += `\n- **Typography**: ${dna.consider.typography}`;
+  context += `\n- **Color philosophy**: ${dna.consider.colorPhilosophy}`;
+  context += `\n- **Animation/Motion**: ${dna.consider.motion}`;
+  context += `\n- **Standout visual element**: ${dna.consider.standout}`;
   return context;
 }
 
@@ -111,8 +133,12 @@ function extractStyleEssence(html) {
 }
 
 // Build style context for prompt injection
-function buildStyleContext(selected) {
-  let context = '\n\n## STYLE REFERENCE LIBRARY\nThe following are design references we admire. Study the CSS patterns, color palettes, typography choices, animation techniques, and structural approaches. Use them as strong creative inspiration — do NOT copy verbatim.\n\n';
+function buildStyleContext(selected, promptSpecificity) {
+  const isHighSpecificity = (promptSpecificity || 0) >= 0.5;
+  const framing = isHighSpecificity
+    ? 'The following are design references for technical patterns (CSS techniques, animation approaches, structural layout). Borrow techniques freely, but follow the user\'s creative direction for aesthetics, colors, and mood — do NOT let these references override their vision.'
+    : 'The following are design references we admire. Study the CSS patterns, color palettes, typography choices, animation techniques, and structural approaches. Use them as creative inspiration — adapt to the user\'s direction, do NOT copy verbatim.';
+  let context = `\n\n## STYLE REFERENCE LIBRARY\n${framing}\n\n`;
 
   selected.forEach((item, i) => {
     context += `### Reference ${i + 1}: "${item.name}"\n`;
@@ -322,9 +348,13 @@ Use realistic names, venues, and addresses. Make the design prompt vivid and spe
   // ── Shared: build prompt context (reused for single & multi-model) ──
   async function buildPromptContext(eventDetails, styleLibraryIds) {
     const eventType = eventDetails.eventType || 'other';
-    const designDnaContext = buildEventTypeContext(eventType);
+    const userPrompt = eventDetails.prompt || '';
+    const promptSpecificity = assessPromptSpecificity(userPrompt);
+    const designDnaContext = buildEventTypeContext(eventType, userPrompt);
 
     // Load style library references — auto-select by event type + manual picks
+    // High-specificity prompts get fewer auto refs (1 vs 2) to avoid overriding user vision
+    const autoRefLimit = promptSpecificity >= 0.5 ? 1 : 2;
     let styleContext = '';
     {
       const selected = [];
@@ -345,16 +375,16 @@ Use realistic names, venues, and addresses. Make the design prompt vivid and spe
         .from('style_library')
         .select('*')
         .contains('event_types', [eventType])
-        .limit(2 + seenIds.size);
+        .limit(autoRefLimit + seenIds.size);
       for (const row of (autoData || [])) {
-        if (selected.length >= (styleLibraryIds?.length || 0) + 2) break;
+        if (selected.length >= (styleLibraryIds?.length || 0) + autoRefLimit) break;
         if (seenIds.has(row.id)) continue;
         selected.push({ name: row.name, description: row.description, html: row.html, eventTypes: row.event_types || [], designNotes: row.design_notes });
         seenIds.add(row.id);
       }
 
       if (selected.length > 0) {
-        styleContext = buildStyleContext(selected);
+        styleContext = buildStyleContext(selected, promptSpecificity);
       }
     }
 
@@ -374,9 +404,9 @@ ${eventDetails.hostName ? `- Hosted by: ${eventDetails.hostName}` : ''}
 ${eventDetails.tagline ? `- Tagline: "${eventDetails.tagline}"` : ''}
 
 ══════════════════════
-DESIGN DIRECTION
+CREATIVE DIRECTION FROM THE USER (this is the PRIMARY design brief — honor it)
 ══════════════════════
-${eventDetails.prompt || `Create a beautiful invite for a ${eventType}`}
+${userPrompt || `Create a beautiful invite for a ${eventType}`}
 ${designDnaContext}
 
 ══════════════════════
