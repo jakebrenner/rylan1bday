@@ -65,6 +65,10 @@ UPDATE public.profiles SET tier = 'per_event' WHERE tier IN ('pro', 'business');
 -- The existing "Anyone can view active plans" policy is sufficient for reads.
 -- Service role bypasses RLS, so admin CRUD works out of the box.
 
+-- 7. Add is_hidden column to plans (hidden plans only accessible via custom link)
+ALTER TABLE public.plans
+  ADD COLUMN IF NOT EXISTS is_hidden boolean NOT NULL DEFAULT false;
+
 -- ============================================================
 -- DONE! Pricing tiers migration complete.
 -- ============================================================

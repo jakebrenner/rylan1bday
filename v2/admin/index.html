@@ -381,8 +381,7 @@
     <div class="tabs">
       <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
       <button class="tab" data-tab="users" onclick="switchTab('users')">Users</button>
-      <button class="tab" data-tab="pricing" onclick="switchTab('pricing');loadPricingTiers();">Pricing</button>
-      <button class="tab" data-tab="subscriptions" onclick="switchTab('subscriptions');loadSubscriptions();">Billing</button>
+      <button class="tab" data-tab="subscriptions" onclick="switchTab('subscriptions');loadBillingTab();">Billing</button>
       <button class="tab" data-tab="coupons" onclick="switchTab('coupons');loadCoupons();">Coupons</button>
       <button class="tab" data-tab="settings" onclick="switchTab('settings')">AI Models</button>
       <button class="tab" data-tab="promptversions" onclick="switchTab('promptversions')">Prompt Versions</button>
@@ -572,7 +571,7 @@
               </div>
             </div>
             <div class="ud-card">
-              <div class="ud-card-header"><h4>Subscription</h4></div>
+              <div class="ud-card-header" style="display:flex;justify-content:space-between;align-items:center;"><h4>Subscription</h4><button class="btn btn-secondary btn-sm" id="udChangePlanBtn" onclick="showChangePlanUI()">Change Plan</button></div>
               <div class="ud-card-body" id="udSubscription">
                 <div class="ud-empty">No active subscription</div>
               </div>
@@ -669,20 +668,8 @@
       </div>
     </div>
 
-    <!-- Pricing Tiers Tab -->
-    <div class="tab-content" id="tab-pricing">
-      <div class="config-section">
-        <h3 style="display:flex;justify-content:space-between;align-items:center;">
-          Pricing Tiers
-          <button class="btn btn-primary btn-sm" onclick="showCreatePlanModal()">+ New Tier</button>
-        </h3>
-        <p style="font-size:13px;color:#888;margin-bottom:16px;">Manage pricing plans and their limits. Changes sync to Stripe automatically.</p>
-        <div id="pricingTiersList"></div>
-      </div>
-    </div>
-
     <!-- Plan Modal (create/edit) -->
-    <div id="planModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:none;align-items:center;justify-content:center;">
+    <div id="planModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
       <div style="background:white;border-radius:12px;padding:32px;max-width:560px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
         <h3 id="planModalTitle" style="margin-bottom:20px;">Create New Tier</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
@@ -733,6 +720,13 @@
           </div>
           <div class="config-field" style="grid-column:1/-1;">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="planHidden" style="width:16px;height:16px;" />
+              Hidden plan (only accessible via custom link)
+            </label>
+            <div class="hint">Won't appear on the public pricing page. Users sign up via a generated link.</div>
+          </div>
+          <div class="config-field" style="grid-column:1/-1;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
               <input type="checkbox" id="planCreateStripe" checked style="width:16px;height:16px;" />
               Create Stripe Product &amp; Price automatically
             </label>
@@ -756,9 +750,20 @@
       </div>
     </div>
 
-    <!-- Subscriptions / Billing Tab -->
+    <!-- Billing Tab (Subscriptions + Pricing Tiers combined) -->
     <div class="tab-content" id="tab-subscriptions">
-      <div class="table-container">
+      <!-- Pricing Tiers Section -->
+      <div class="config-section" style="margin-bottom:24px;">
+        <h3 style="display:flex;justify-content:space-between;align-items:center;">
+          Pricing Tiers
+          <button class="btn btn-primary btn-sm" onclick="showCreatePlanModal()">+ New Tier</button>
+        </h3>
+        <p style="font-size:13px;color:#888;margin-bottom:16px;">Manage pricing plans and their limits. Changes sync to Stripe automatically.</p>
+        <div id="pricingTiersList"></div>
+      </div>
+
+      <!-- Subscriptions Table -->
+      <div class="table-container" style="margin-bottom:24px;">
         <div class="table-header">
           <h3>All Subscriptions</h3>
           <span class="count" id="subCount">0</span>
@@ -779,12 +784,12 @@
             </tr>
           </thead>
           <tbody id="subsTableBody">
-            <tr><td colspan="10" class="loading">Click the Billing tab to load...</td></tr>
+            <tr><td colspan="10" class="loading">Loading...</td></tr>
           </tbody>
         </table>
       </div>
 
-      <div class="config-section" style="margin-top:24px;">
+      <div class="config-section">
         <h3>Grant Complimentary Plan</h3>
         <p style="font-size:13px;color:#888;margin-bottom:16px;">Give a user a free plan. Select the user email and plan.</p>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -1940,8 +1945,10 @@
           + detailItem('Amount Paid', '$' + ((activeSub.amountPaidCents || 0) / 100).toFixed(2))
           + detailItem('Since', formatDate(activeSub.createdAt))
           + '</div>';
+        document.getElementById('udChangePlanBtn').textContent = 'Change Plan';
       } else {
         subEl.innerHTML = '<div class="ud-empty">No active subscription</div>';
+        document.getElementById('udChangePlanBtn').textContent = 'Assign Plan';
       }
 
       // Subscription history
@@ -2131,47 +2138,21 @@
       profileEditMode = false;
       document.getElementById('udProfileEditBtn').textContent = 'Edit';
       document.getElementById('udProfileEditBtn').className = 'btn btn-secondary btn-sm';
-      var tierClass = u.tier === 'free' ? 'badge-gray' : 'badge-blue';
-      var tierDisplay = u.tier;
-      // Show the display name from plans if available
-      var matchedPlan = allPlans.find(function(p) { return p.name === u.tier; });
-      if (matchedPlan) tierDisplay = matchedPlan.displayName;
-      else if (u.tier === 'free') tierDisplay = 'Free';
-
       document.getElementById('udProfileInfo').innerHTML =
         detailItem('Display Name', escapeHtml(u.displayName || '—'))
         + detailItem('Email', escapeHtml(u.email))
         + detailItem('Phone', escapeHtml(u.phone || '—'))
-        + detailItem('Tier', '<span class="badge ' + tierClass + '">' + escapeHtml(tierDisplay) + '</span>')
         + detailItem('Referral Source', escapeHtml(u.referralSource || '—'));
     }
 
-    async function renderProfileEditForm(u) {
+    function renderProfileEditForm(u) {
       profileEditMode = true;
       document.getElementById('udProfileEditBtn').textContent = 'Cancel';
       document.getElementById('udProfileEditBtn').className = 'btn btn-secondary btn-sm';
-
-      // Load tiers from DB if not already loaded
-      if (!allPlans.length) {
-        try {
-          var plansRes = await adminFetch('listPlans');
-          allPlans = plansRes.plans || [];
-        } catch (e) { /* fallback below */ }
-      }
-
-      // Build tier options: always include "free", then all active plans
-      var tierOpts = '<option value="free"' + (u.tier === 'free' ? ' selected' : '') + '>Free</option>';
-      allPlans.forEach(function(p) {
-        if (!p.isActive) return;
-        var label = escapeHtml(p.displayName) + ' ($' + (p.priceCents / 100).toFixed(2) + ')';
-        tierOpts += '<option value="' + escapeHtml(p.name) + '"' + (p.name === u.tier ? ' selected' : '') + '>' + label + '</option>';
-      });
-
       document.getElementById('udProfileInfo').innerHTML =
         '<div class="ud-detail-item ud-edit-field"><div class="lbl">Display Name</div><input type="text" id="editDisplayName" value="' + escapeHtml(u.displayName || '') + '" placeholder="Enter display name" /></div>'
         + '<div class="ud-detail-item"><div class="lbl">Email</div><div class="val" style="padding:8px 0;">' + escapeHtml(u.email) + '</div></div>'
         + '<div class="ud-detail-item ud-edit-field"><div class="lbl">Phone</div><input type="text" id="editPhone" value="' + escapeHtml(u.phone || '') + '" placeholder="Enter phone number" /></div>'
-        + '<div class="ud-detail-item ud-edit-field"><div class="lbl">Tier</div><select id="editTier">' + tierOpts + '</select></div>'
         + '<div class="ud-detail-item ud-edit-field"><div class="lbl">Referral Source</div><input type="text" id="editReferralSource" value="' + escapeHtml(u.referralSource || '') + '" placeholder="Enter referral source" /></div>'
         + '<div class="ud-edit-actions" style="grid-column:1/-1;">'
         + '<button class="btn btn-secondary btn-sm" onclick="toggleProfileEdit()">Cancel</button>'
@@ -2198,7 +2179,6 @@
       var fields = {
         display_name: document.getElementById('editDisplayName').value.trim(),
         phone: document.getElementById('editPhone').value.trim(),
-        tier: document.getElementById('editTier').value,
         referral_source: document.getElementById('editReferralSource').value.trim()
       };
 
@@ -2210,7 +2190,6 @@
         if (res.success) {
           currentUserDetail.user.displayName = fields.display_name;
           currentUserDetail.user.phone = fields.phone;
-          currentUserDetail.user.tier = fields.tier;
           currentUserDetail.user.referralSource = fields.referral_source;
           renderUserDetail(currentUserDetail);
         } else {
@@ -2221,6 +2200,67 @@
       } catch (e) {
         alert('Error: ' + e.message);
         btn.textContent = 'Save Changes';
+        btn.disabled = false;
+      }
+    }
+
+    async function showChangePlanUI() {
+      if (!currentUserDetail) return;
+      // Load plans if needed
+      if (!allPlans.length) {
+        try { var r = await adminFetch('listPlans'); allPlans = (r && r.plans) || []; } catch (e) {}
+      }
+      var u = currentUserDetail.user;
+      var subEl = document.getElementById('udSubscription');
+      var activeSub = currentUserDetail.subscriptions.find(function(s) { return s.status === 'active'; });
+      var currentPlanName = u.tier || 'free';
+
+      var opts = '<option value="free"' + (currentPlanName === 'free' ? ' selected' : '') + '>Free (no plan)</option>';
+      allPlans.forEach(function(p) {
+        if (!p.isActive) return;
+        var label = escapeHtml(p.displayName) + ' \u2014 $' + (p.priceCents / 100).toFixed(2) + ' (' + p.maxEvents + ' event' + (p.maxEvents > 1 ? 's' : '') + ', ' + p.maxGenerations + ' gens)';
+        opts += '<option value="' + escapeHtml(p.name) + '"' + (p.name === currentPlanName ? ' selected' : '') + '>' + label + '</option>';
+      });
+
+      subEl.innerHTML = '<div style="padding:4px 0;">'
+        + '<div class="ud-edit-field" style="margin-bottom:12px;">'
+        + '<div class="lbl" style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Select Plan</div>'
+        + '<select id="changePlanSelect" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:\'Inter\',sans-serif;font-size:14px;">' + opts + '</select>'
+        + '</div>'
+        + '<p style="font-size:12px;color:#888;margin-bottom:12px;">Changing the plan will update the user\'s subscription, sync to Stripe, and immediately grant access to the new plan\'s limits.</p>'
+        + '<div style="display:flex;gap:8px;justify-content:flex-end;">'
+        + '<button class="btn btn-secondary btn-sm" onclick="renderUserDetail(currentUserDetail)">Cancel</button>'
+        + '<button class="btn btn-primary btn-sm" id="changePlanSaveBtn" onclick="changeUserPlan()">Apply Plan Change</button>'
+        + '</div></div>';
+    }
+
+    async function changeUserPlan() {
+      if (!currentUserDetail) return;
+      var newPlan = document.getElementById('changePlanSelect').value;
+      var btn = document.getElementById('changePlanSaveBtn');
+      btn.textContent = 'Applying...';
+      btn.disabled = true;
+
+      try {
+        var res = await adminFetch('updateUser', {
+          method: 'POST',
+          body: { userId: currentUserDetail.user.id, fields: { tier: newPlan } }
+        });
+        if (res.success) {
+          // Reload the full user detail to get updated subscription data
+          var detail = await adminFetch('userDetail', { params: { userId: currentUserDetail.user.id } });
+          if (detail.success) {
+            currentUserDetail = detail;
+            renderUserDetail(detail);
+          }
+        } else {
+          alert('Failed: ' + (res.error || 'Unknown error'));
+          btn.textContent = 'Apply Plan Change';
+          btn.disabled = false;
+        }
+      } catch (e) {
+        alert('Error: ' + e.message);
+        btn.textContent = 'Apply Plan Change';
         btn.disabled = false;
       }
     }
@@ -4118,6 +4158,17 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       }
     }
 
+    function getSignupLink(planSlug) {
+      return window.location.origin + '/v2/pricing/plan.html?plan=' + encodeURIComponent(planSlug);
+    }
+
+    function copySignupLink(planSlug) {
+      var link = getSignupLink(planSlug);
+      navigator.clipboard.writeText(link).then(function() {
+        alert('Signup link copied to clipboard!');
+      });
+    }
+
     function renderPricingTiers(plans) {
       var container = document.getElementById('pricingTiersList');
       if (!plans.length) {
@@ -4131,8 +4182,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           ? '<span class="badge badge-green">Active</span>'
           : '<span class="badge badge-gray">Inactive</span>';
         var stripeStatus = p.stripePriceId
-          ? '<span class="badge badge-blue" title="' + escapeHtml(p.stripePriceId) + '">Stripe linked</span>'
+          ? '<span class="badge badge-blue" title="' + escapeHtml(p.stripePriceId) + '">Stripe</span>'
           : '<span class="badge badge-yellow">No Stripe</span>';
+        var hiddenBadge = p.isHidden ? '<span class="badge" style="background:#f3e8ff;color:#7c3aed;">Hidden</span>' : '';
         var featList = (p.features || []).map(function(f) { return '<li style="font-size:12px;color:#666;">' + escapeHtml(f) + '</li>'; }).join('');
 
         html += '<div style="background:#fafafa;border:1px solid #eee;border-radius:8px;padding:20px;">'
@@ -4141,8 +4193,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           + '<div style="font-size:16px;font-weight:700;color:var(--midnight);">' + escapeHtml(p.displayName) + ' <span style="font-size:12px;font-weight:400;color:#888;font-family:monospace;">' + escapeHtml(p.name) + '</span></div>'
           + '<div style="font-size:13px;color:#888;margin-top:2px;">' + escapeHtml(p.description || '') + '</div>'
           + '</div>'
-          + '<div style="display:flex;gap:6px;align-items:center;">'
-          + statusBadge + ' ' + stripeStatus
+          + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'
+          + statusBadge + ' ' + stripeStatus + ' ' + hiddenBadge
           + '<button class="btn btn-secondary btn-sm" onclick="showEditPlanModal(\'' + p.id + '\')">Edit</button>'
           + (p.isActive ? '<button class="btn btn-sm" style="background:#fee;color:#c00;border:1px solid #fcc;" onclick="deactivatePlan(\'' + p.id + '\',\'' + escapeHtml(p.displayName) + '\')">Deactivate</button>' : '<button class="btn btn-sm" style="background:#efe;color:#060;border:1px solid #cec;" onclick="reactivatePlan(\'' + p.id + '\')">Activate</button>')
           + '</div></div>'
@@ -4153,8 +4205,17 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           + '<div><div style="font-size:11px;color:#888;text-transform:uppercase;">SMS / Event</div><div style="font-size:18px;font-weight:700;">' + (p.maxSmsPerEvent || '&infin;') + '</div></div>'
           + '<div><div style="font-size:11px;color:#888;text-transform:uppercase;">SMS Cost</div><div style="font-size:18px;font-weight:700;">$' + ((p.smsPriceCents || 0) / 100).toFixed(2) + '</div></div>'
           + '</div>'
-          + (featList ? '<div style="margin-top:8px;"><div style="font-size:11px;color:#888;text-transform:uppercase;margin-bottom:4px;">Features</div><ul style="margin:0;padding-left:18px;">' + featList + '</ul></div>' : '')
+          + (featList ? '<div style="margin-top:8px;"><div style="font-size:11px;color:#888;text-transform:uppercase;margin-bottom:4px;">Features</div><ul style="margin:0;padding-left:18px;">' + featList + '</ul></div>' : '');
+
+        // Signup link section for all plans
+        var signupUrl = getSignupLink(p.name);
+        html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid #eee;display:flex;align-items:center;gap:8px;">'
+          + '<div style="font-size:11px;color:#888;text-transform:uppercase;white-space:nowrap;">' + (p.isHidden ? 'Signup Link' : 'Direct Link') + '</div>'
+          + '<input type="text" readonly value="' + escapeHtml(signupUrl) + '" style="flex:1;font-size:12px;padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-family:monospace;color:#666;background:#f9f9f9;" onclick="this.select()" />'
+          + '<button class="btn btn-secondary btn-sm" onclick="copySignupLink(\'' + escapeHtml(p.name) + '\')">Copy</button>'
           + '</div>';
+
+        html += '</div>';
       });
       html += '</div>';
       container.innerHTML = html;
@@ -4175,6 +4236,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('planMaxSms').value = '';
       document.getElementById('planSmsPriceCents').value = '';
       document.getElementById('planFeatures').value = '';
+      document.getElementById('planHidden').checked = false;
       document.getElementById('planCreateStripe').checked = true;
       document.getElementById('planStripeProductId').value = '';
       document.getElementById('planStripePriceId').value = '';
@@ -4199,6 +4261,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('planMaxSms').value = plan.maxSmsPerEvent || '';
       document.getElementById('planSmsPriceCents').value = plan.smsPriceCents || '';
       document.getElementById('planFeatures').value = (plan.features || []).join('\n');
+      document.getElementById('planHidden').checked = plan.isHidden || false;
       document.getElementById('planCreateStripe').checked = false;
       document.getElementById('planStripeProductId').value = plan.stripeProductId || '';
       document.getElementById('planStripePriceId').value = plan.stripePriceId || '';
@@ -4234,6 +4297,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             sortOrder: parseInt(document.getElementById('planSortOrder').value) || 0,
             stripeProductId: document.getElementById('planStripeProductId').value.trim() || null,
             stripePriceId: document.getElementById('planStripePriceId').value.trim() || null,
+            isHidden: document.getElementById('planHidden').checked,
             syncStripe: document.getElementById('planCreateStripe').checked
           };
           var res = await adminFetch('updatePlan', { method: 'POST', body: body });
@@ -4251,6 +4315,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             smsPriceCents: parseInt(document.getElementById('planSmsPriceCents').value) || 10,
             features: features,
             sortOrder: parseInt(document.getElementById('planSortOrder').value) || 0,
+            isHidden: document.getElementById('planHidden').checked,
             createStripeProduct: document.getElementById('planCreateStripe').checked
           };
           if (!body.name) { alert('Plan slug is required'); btn.textContent = 'Create Tier'; btn.disabled = false; return; }
@@ -4293,6 +4358,11 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     // ---- Subscriptions ----
+
+    async function loadBillingTab() {
+      loadPricingTiers();
+      loadSubscriptions();
+    }
 
     async function loadSubscriptions() {
       try {

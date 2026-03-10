@@ -103,11 +103,18 @@ export default async function handler(req, res) {
   try {
     // ---- GET PLANS (public) ----
     if (action === 'plans') {
-      const { data: plans, error } = await supabaseAdmin
-        .from('plans')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
+      // If slug is provided, fetch that specific plan (for hidden plan signup links)
+      const slug = req.query.slug;
+      let query = supabaseAdmin.from('plans').select('*').eq('is_active', true);
+      if (slug) {
+        query = query.eq('name', slug);
+      } else {
+        // Public listing: exclude hidden plans
+        query = query.or('is_hidden.is.null,is_hidden.eq.false');
+      }
+      query = query.order('sort_order', { ascending: true });
+
+      const { data: plans, error } = await query;
 
       if (error) return res.status(400).json({ error: error.message });
 
@@ -123,7 +130,8 @@ export default async function handler(req, res) {
           maxEvents: p.max_events,
           maxGenerations: p.max_generations,
           smsPriceCents: p.sms_price_cents || 5,
-          features: p.features || []
+          features: p.features || [],
+          isHidden: p.is_hidden || false
         }))
       });
     }

@@ -1788,6 +1788,7 @@ export default async function handler(req, res) {
           smsPriceCents: p.sms_price_cents,
           features: p.features,
           isActive: p.is_active,
+          isHidden: p.is_hidden || false,
           sortOrder: p.sort_order,
           createdAt: p.created_at,
           updatedAt: p.updated_at
@@ -1849,7 +1850,8 @@ export default async function handler(req, res) {
           sort_order: sortOrder || 0,
           stripe_product_id: stripeProductId,
           stripe_price_id: stripePriceId,
-          is_active: true
+          is_active: true,
+          is_hidden: req.body.isHidden || false
         })
         .select()
         .single();
@@ -1876,6 +1878,7 @@ export default async function handler(req, res) {
       if (updates.smsPriceCents !== undefined) dbUpdates.sms_price_cents = updates.smsPriceCents;
       if (updates.features !== undefined) dbUpdates.features = updates.features;
       if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
+      if (updates.isHidden !== undefined) dbUpdates.is_hidden = updates.isHidden;
       if (updates.sortOrder !== undefined) dbUpdates.sort_order = updates.sortOrder;
       if (updates.stripePriceId !== undefined) dbUpdates.stripe_price_id = updates.stripePriceId;
       if (updates.stripeProductId !== undefined) dbUpdates.stripe_product_id = updates.stripeProductId;
