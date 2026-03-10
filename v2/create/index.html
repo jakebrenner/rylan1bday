@@ -2578,50 +2578,99 @@
             body: JSON.stringify(payload)
           });
         }
-        var result2 = await res2.json();
-        if (result2.success) {
-          var ver = {
-            id: result2.theme.id,
-            version: result2.theme.version,
-            html: result2.theme.html,
-            css: result2.theme.css,
-            config: result2.theme.config
-          };
-          themeVersions.push(ver);
-          activeVersionIndex = themeVersions.length - 1;
-          currentEvent.themeHtml = ver.html;
-          currentEvent.themeCss = ver.css;
-          currentEvent.themeConfig = ver.config;
-          stopGeneratingPuns();
-          document.getElementById('generatingView').style.display = 'none';
-          document.getElementById('generatedView').style.display = 'block';
-          renderPreview(ver);
-          renderVersionGallery();
-          initDesignChatIfNeeded();
-          // Persist creation_step so resume returns to preview
-          if (currentEvent) {
-            authFetch('/api/v2/events?action=update', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ eventId: currentEvent.id, settings: { creation_step: 2 } })
-            }).catch(function() {});
-          }
-        } else if (result2.needsPlan || result2.limitReached) {
-          // Plan or limit issue — show purchase option instead of generic error
-          stopGeneratingPuns();
-          showAdditionalEventPurchase();
 
-          showThemeRating(ver.id);
-        } else {
+        if (!res2.ok) {
           stopGeneratingPuns();
-          var errMsg = result2.message || result2.error || 'Failed to generate theme';
-          // Show error on the generating screen with a retry button instead of going back
-          if (themeVersions.length > 0) {
-            showMessage(errMsg, 'error');
+          // Try to parse error JSON from non-SSE error responses
+          var errText = '';
+          try { var errJson = await res2.json(); errText = errJson.error || errJson.message || ''; } catch(e) {}
+          if (res2.status === 403 && errText) {
+            showAdditionalEventPurchase();
+          } else if (themeVersions.length > 0) {
+            showMessage(errText || 'Failed to generate theme', 'error');
             document.getElementById('generatingView').style.display = 'none';
             document.getElementById('generatedView').style.display = 'block';
             renderPreview(themeVersions[activeVersionIndex]);
           } else {
-            showGeneratingError(errMsg);
+            showGeneratingError(errText || 'Failed to generate theme');
+          }
+        } else {
+          // Read SSE stream from generate-theme
+          var genReader = res2.body.getReader();
+          var genDecoder = new TextDecoder();
+          var genBuffer = '';
+          var genResult = null;
+          var genError = null;
+
+          while (true) {
+            var genChunk = await genReader.read();
+            if (genChunk.done) break;
+            genBuffer += genDecoder.decode(genChunk.value, { stream: true });
+
+            var genLines = genBuffer.split('\n');
+            genBuffer = genLines.pop() || '';
+            var genEventType = null;
+            for (var gi = 0; gi < genLines.length; gi++) {
+              var genLine = genLines[gi];
+              if (genLine.startsWith('event: ')) genEventType = genLine.substring(7).trim();
+              else if (genLine.startsWith('data: ') && genEventType) {
+                try {
+                  var genEventData = JSON.parse(genLine.substring(6));
+                  if (genEventType === 'progress') {
+                    // Update progress bar (estimate ~20KB for a full theme)
+                    var genPct = Math.min(85, Math.round((genEventData.bytes / 20000) * 85));
+                    var genBar = document.getElementById('genProgressBar');
+                    if (genBar) genBar.style.width = genPct + '%';
+                  } else if (genEventType === 'done') {
+                    genResult = genEventData;
+                  } else if (genEventType === 'error') {
+                    genError = genEventData;
+                  }
+                } catch(pe) {}
+                genEventType = null;
+              }
+            }
+          }
+
+          if (genResult && genResult.success) {
+            var ver = {
+              id: genResult.theme.id,
+              version: genResult.theme.version,
+              html: genResult.theme.html,
+              css: genResult.theme.css,
+              config: genResult.theme.config
+            };
+            themeVersions.push(ver);
+            activeVersionIndex = themeVersions.length - 1;
+            currentEvent.themeHtml = ver.html;
+            currentEvent.themeCss = ver.css;
+            currentEvent.themeConfig = ver.config;
+            stopGeneratingPuns();
+            document.getElementById('generatingView').style.display = 'none';
+            document.getElementById('generatedView').style.display = 'block';
+            renderPreview(ver);
+            renderVersionGallery();
+            initDesignChatIfNeeded();
+            // Persist creation_step so resume returns to preview
+            if (currentEvent) {
+              authFetch('/api/v2/events?action=update', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ eventId: currentEvent.id, settings: { creation_step: 2 } })
+              }).catch(function() {});
+            }
+
+            showThemeRating(ver.id);
+          } else {
+            stopGeneratingPuns();
+            var errMsg = (genError && (genError.message || genError.error)) || 'Failed to generate theme';
+            if (themeVersions.length > 0) {
+              showMessage(errMsg, 'error');
+              document.getElementById('generatingView').style.display = 'none';
+              document.getElementById('generatedView').style.display = 'block';
+              renderPreview(themeVersions[activeVersionIndex]);
+            } else {
+              showGeneratingError(errMsg);
+            }
           }
         }
       } catch (err) {

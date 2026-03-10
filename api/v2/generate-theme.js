@@ -943,6 +943,15 @@ Return ONLY a valid JSON object with these keys:
   const activePrompt = await getActivePrompt();
   const startTime = Date.now();
 
+  // Set up SSE headers to avoid Vercel timeout
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const sendSSE = (event, data) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
   try {
     // Build RSVP fields description
     let rsvpFieldsDesc = 'Default fields: Name, RSVP Status (Attending/Declined/Maybe)';
@@ -1027,25 +1036,38 @@ ${rsvpFieldsDesc}`;
         ]
       : [{ type: 'text', text: userMessage }];
 
-    const response = await client.messages.create({
+    sendSSE('status', { phase: 'generating' });
+
+    // Stream response to keep connection alive and avoid Vercel timeout
+    const stream = client.messages.stream({
       model: themeModel,
       max_tokens: 16384,
       system: activePrompt.systemPrompt,
       messages: [{ role: 'user', content: messageContent }]
     });
 
+    let fullText = '';
+    let chunkCount = 0;
+
+    stream.on('text', (text) => {
+      fullText += text;
+      chunkCount++;
+      if (chunkCount % 10 === 0) {
+        sendSSE('progress', { chunks: chunkCount, bytes: fullText.length });
+      }
+    });
+
+    const finalMessage = await stream.finalMessage();
     const latency = Date.now() - startTime;
-    const contentBlock = response.content[0];
-    let themeText = contentBlock.type === 'text' ? contentBlock.text : '';
+
+    sendSSE('status', { phase: 'saving' });
 
     // Parse JSON response — handle various wrapping patterns
-    themeText = themeText.trim();
-    // Remove ```json ... ``` wrapping (may have leading/trailing text)
+    let themeText = fullText.trim();
     const jsonBlockMatch = themeText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
     if (jsonBlockMatch) {
       themeText = jsonBlockMatch[1].trim();
     }
-    // Try to find the JSON object if there's surrounding prose
     if (!themeText.startsWith('{')) {
       const firstBrace = themeText.indexOf('{');
       const lastBrace = themeText.lastIndexOf('}');
@@ -1053,7 +1075,34 @@ ${rsvpFieldsDesc}`;
         themeText = themeText.substring(firstBrace, lastBrace + 1);
       }
     }
-    const theme = JSON.parse(themeText);
+
+    // Attempt to repair truncated JSON if parsing fails
+    let theme;
+    try {
+      theme = JSON.parse(themeText);
+    } catch (parseErr) {
+      let repaired = themeText;
+      const quoteCount = (repaired.match(/(?<!\\)"/g) || []).length;
+      if (quoteCount % 2 !== 0) repaired += '"';
+      let braceDepth = 0, bracketDepth = 0, inString = false;
+      for (let i = 0; i < repaired.length; i++) {
+        const ch = repaired[i];
+        if (ch === '"' && (i === 0 || repaired[i-1] !== '\\')) inString = !inString;
+        if (!inString) {
+          if (ch === '{') braceDepth++;
+          else if (ch === '}') braceDepth--;
+          else if (ch === '[') bracketDepth++;
+          else if (ch === ']') bracketDepth--;
+        }
+      }
+      for (let i = 0; i < bracketDepth; i++) repaired += ']';
+      for (let i = 0; i < braceDepth; i++) repaired += '}';
+      try {
+        theme = JSON.parse(repaired);
+      } catch (e2) {
+        throw new Error('Failed to parse theme JSON: ' + parseErr.message);
+      }
+    }
 
     if (!theme.theme_html || !theme.theme_css || !theme.theme_config) {
       throw new Error('Invalid theme response from Claude');
@@ -1091,8 +1140,8 @@ ${rsvpFieldsDesc}`;
       css: theme.theme_css,
       config: theme.theme_config,
       model: themeModel,
-      input_tokens: response.usage?.input_tokens || 0,
-      output_tokens: response.usage?.output_tokens || 0,
+      input_tokens: finalMessage.usage?.input_tokens || 0,
+      output_tokens: finalMessage.usage?.output_tokens || 0,
       latency_ms: latency,
       prompt_version_id: activePrompt.promptVersionId || null
     };
@@ -1115,8 +1164,8 @@ ${rsvpFieldsDesc}`;
       user_id: user.id,
       prompt: effectivePrompt,
       model: themeModel,
-      input_tokens: response.usage.input_tokens,
-      output_tokens: response.usage.output_tokens,
+      input_tokens: finalMessage.usage?.input_tokens || 0,
+      output_tokens: finalMessage.usage?.output_tokens || 0,
       latency_ms: latency,
       status: 'success',
       event_type: eventType,
@@ -1134,7 +1183,7 @@ ${rsvpFieldsDesc}`;
       .is('first_generation_at', null)
       .then(() => {}).catch(() => {});
 
-    return res.status(200).json({
+    sendSSE('done', {
       success: true,
       theme: {
         id: newTheme.id,
@@ -1147,11 +1196,13 @@ ${rsvpFieldsDesc}`;
         model: themeModel,
         latencyMs: latency,
         tokens: {
-          input: response.usage.input_tokens,
-          output: response.usage.output_tokens
+          input: finalMessage.usage?.input_tokens || 0,
+          output: finalMessage.usage?.output_tokens || 0
         }
       }
     });
+
+    return res.end();
   } catch (err) {
     console.error('Theme generation error:', err);
 
@@ -1177,9 +1228,7 @@ ${rsvpFieldsDesc}`;
       console.error('Failed to log generation error:', logErr);
     }
 
-    return res.status(500).json({
-      error: 'Failed to generate theme',
-      message: err.message || 'Unknown error'
-    });
+    sendSSE('error', { error: 'Failed to generate theme', message: err.message || 'Unknown error' });
+    return res.end();
   }
 }
