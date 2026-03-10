@@ -1941,7 +1941,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         previewDiv.className = 'style-card-preview';
         var iframe = document.createElement('iframe');
         iframe.sandbox = 'allow-same-origin';
-        iframe.srcdoc = wrapForPreview(item.html, false);
+        iframe.srcdoc = wrapForPreview(item.html, false, true);
         previewDiv.appendChild(iframe);
         card.appendChild(previewDiv);
 
@@ -2340,15 +2340,17 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     // ---- Utilities ----
     // Build iframe srcdoc from HTML that may be a full page or a fragment
-    function wrapForPreview(html, centered) {
+    function wrapForPreview(html, centered, stripScripts) {
       var trimmed = html.trim();
+      // Strip <script> tags for thumbnail iframes that don't allow scripts (prevents console spam)
+      if (stripScripts) trimmed = trimmed.replace(/<script[\s\S]*?<\/script>/gi, '');
       // If it's already a complete HTML document, use it directly
       if (trimmed.match(/^<!DOCTYPE/i) || trimmed.match(/^<html/i)) {
         return trimmed;
       }
       // Otherwise wrap it in a minimal page
       var bodyStyle = centered ? 'margin:0;display:flex;justify-content:center;background:#f0f0f0;' : 'margin:0;';
-      return '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="' + bodyStyle + '">' + html + '</body></html>';
+      return '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="' + bodyStyle + '">' + trimmed + '</body></html>';
     }
 
     function formatDate(iso) {
