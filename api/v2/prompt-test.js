@@ -405,12 +405,21 @@ Use realistic names, venues, and addresses. Make the design prompt vivid and spe
 
       // Fetch more candidates than needed for weighted selection by admin_rating
       const fetchLimit = Math.max((autoRefLimit + seenIds.size) * 3, 6);
-      const { data: autoData } = await supabaseAdmin
+      let autoRes = await supabaseAdmin
         .from('style_library')
         .select('*')
         .contains('event_types', [eventType])
         .order('admin_rating', { ascending: false, nullsFirst: false })
         .limit(fetchLimit);
+      // Fallback if admin_rating column doesn't exist yet (migration not run)
+      if (autoRes.error) {
+        autoRes = await supabaseAdmin
+          .from('style_library')
+          .select('*')
+          .contains('event_types', [eventType])
+          .limit(fetchLimit);
+      }
+      const autoData = autoRes.data;
       // Filter out already-selected, then weighted pick
       const candidates = (autoData || []).filter(row => !seenIds.has(row.id));
       const autoPicks = weightedStylePick(candidates, autoRefLimit);

@@ -476,12 +476,21 @@ async function loadStyleReferences(eventType, promptSpecificity = 0) {
     const limit = promptSpecificity >= 0.5 ? 1 : 2;
     // Fetch more candidates than needed so we can weight by admin_rating
     const fetchLimit = Math.max(limit * 3, 6);
-    const { data } = await supabase
+    let res = await supabase
       .from('style_library')
       .select('*')
       .contains('event_types', [eventType])
       .order('admin_rating', { ascending: false, nullsFirst: false })
       .limit(fetchLimit);
+    // Fallback if admin_rating column doesn't exist yet (migration not run)
+    if (res.error) {
+      res = await supabase
+        .from('style_library')
+        .select('*')
+        .contains('event_types', [eventType])
+        .limit(fetchLimit);
+    }
+    const data = res.data;
     if (!data || data.length === 0) return '';
     // Weighted selection: higher-rated styles get picked more often
     const selected = weightedStylePick(data, limit);
@@ -489,9 +498,9 @@ async function loadStyleReferences(eventType, promptSpecificity = 0) {
       name: row.name, description: row.description, html: row.html,
       eventTypes: row.event_types || [], designNotes: row.design_notes
     }));
-    // Track usage (fire and forget)
+    // Track usage (fire and forget — silently skip if times_used column doesn't exist)
     selected.forEach(row => {
-      supabase.from('style_library').update({ times_used: (row.times_used || 0) + 1 }).eq('id', row.id).then(() => {});
+      supabase.from('style_library').update({ times_used: (row.times_used || 0) + 1 }).eq('id', row.id).then(() => {}).catch(() => {});
     });
     return buildStyleContext(matched, promptSpecificity);
   } catch {
@@ -840,9 +849,7 @@ Return ONLY a valid JSON object with these keys:
         .eq('event_id', eventId)
         .eq('is_active', true);
 
-      const { data: newTheme, error: themeError } = await supabase
-        .from('event_themes')
-        .insert({
+      const tweakInsert = {
           event_id: eventId,
           version: nextVersion,
           is_active: true,
@@ -855,10 +862,15 @@ Return ONLY a valid JSON object with these keys:
           output_tokens: finalMessage.usage?.output_tokens || 0,
           latency_ms: latency,
           prompt_version_id: activePrompt.promptVersionId || null
-        })
-        .select()
-        .single();
-
+      };
+      let { data: newTheme, error: themeError } = await supabase
+        .from('event_themes').insert(tweakInsert).select().single();
+      // Retry without prompt_version_id if column doesn't exist yet
+      if (themeError && themeError.message?.includes('prompt_version_id')) {
+        delete tweakInsert.prompt_version_id;
+        ({ data: newTheme, error: themeError } = await supabase
+          .from('event_themes').insert(tweakInsert).select().single());
+      }
       if (themeError) throw new Error('Failed to save theme: ' + themeError.message);
 
       await supabase.from('generation_log').insert({
@@ -1050,25 +1062,28 @@ ${rsvpFieldsDesc}`;
       .eq('is_active', true);
 
     // Insert new theme as active
-    const { data: newTheme, error: themeError } = await supabase
-      .from('event_themes')
-      .insert({
-        event_id: eventId,
-        version: nextVersion,
-        is_active: true,
-        prompt: effectivePrompt,
-        html: theme.theme_html,
-        css: theme.theme_css,
-        config: theme.theme_config,
-        model: themeModel,
-        input_tokens: response.usage?.input_tokens || 0,
-        output_tokens: response.usage?.output_tokens || 0,
-        latency_ms: latency,
-        prompt_version_id: activePrompt.promptVersionId || null
-      })
-      .select()
-      .single();
-
+    const genInsert = {
+      event_id: eventId,
+      version: nextVersion,
+      is_active: true,
+      prompt: effectivePrompt,
+      html: theme.theme_html,
+      css: theme.theme_css,
+      config: theme.theme_config,
+      model: themeModel,
+      input_tokens: response.usage?.input_tokens || 0,
+      output_tokens: response.usage?.output_tokens || 0,
+      latency_ms: latency,
+      prompt_version_id: activePrompt.promptVersionId || null
+    };
+    let { data: newTheme, error: themeError } = await supabase
+      .from('event_themes').insert(genInsert).select().single();
+    // Retry without prompt_version_id if column doesn't exist yet
+    if (themeError && themeError.message?.includes('prompt_version_id')) {
+      delete genInsert.prompt_version_id;
+      ({ data: newTheme, error: themeError } = await supabase
+        .from('event_themes').insert(genInsert).select().single());
+    }
     if (themeError) {
       throw new Error('Failed to save theme: ' + themeError.message);
     }

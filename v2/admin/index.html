@@ -2419,8 +2419,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var previewDiv = document.createElement('div');
         previewDiv.className = 'style-card-preview';
         var iframe = document.createElement('iframe');
-        iframe.sandbox = 'allow-same-origin';
-        iframe.srcdoc = wrapForPreview(item.html, false, true);
+        iframe.sandbox = 'allow-same-origin allow-scripts';
+        iframe.srcdoc = wrapForPreview(item.html, false);
         previewDiv.appendChild(iframe);
         card.appendChild(previewDiv);
 
