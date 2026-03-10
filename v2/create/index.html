@@ -441,7 +441,9 @@
     var designPrompt = ''; // Collected from chat style flow
     let currentEvent = null;
     let inspirationImageBase64Array = [];
-    let inspirationImageUrls = []; // Supabase Storage URLs for photos to embed in the invite
+    let inspirationImageUrls = []; // Supabase Storage URLs (not used for embedding — just for AI reference)
+    let personPhotoBase64Array = [];
+    let personPhotoUrls = []; // Supabase Storage URLs for person photos to embed in the invite
     let extractedData = {};
     let rsvpFields = []; // { field_key, label, field_type, is_required, options, placeholder, enabled }
     let themeVersions = []; // [{id, version, html, css, config}]
@@ -919,7 +921,7 @@
       var card = document.createElement('div');
       card.className = 'chat-bubble assistant';
       card.id = 'customStyleCard';
-      card.innerHTML = '<div style="margin-bottom:12px;">Describe the mood, colors, and style you\'re going for. You can also upload photos and inspiration images!</div>'
+      card.innerHTML = '<div style="margin-bottom:12px;">Describe the mood, colors, and style you\'re going for.</div>'
         + '<textarea id="customStyleText" placeholder="e.g., Modern minimalist with gold accents and a warm, elegant feel..." style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-family:Inter,sans-serif;min-height:80px;resize:none;margin-bottom:10px;box-sizing:border-box;"></textarea>'
         + '<div style="margin-bottom:12px;">'
         + '<div class="example-chips" style="margin-top:0;">'
@@ -928,21 +930,32 @@
         + '<button class="chip" onclick="addToCustomStyle(\'Modern minimalist with sleek typography\')">Modern + Minimal</button>'
         + '<button class="chip" onclick="addToCustomStyle(\'Rustic and cozy with warm earth tones\')">Rustic + Warm</button>'
         + '</div></div>'
-        + photoRecHtml
-        + '<div style="margin-bottom:12px;">'
-        + '<div class="image-upload-area" id="chatDropZone" onclick="document.getElementById(\'chatImageInput\').click()" style="padding:16px;border-radius:8px;">'
-        + '<p style="font-size:13px;">Upload photos or inspiration images</p>'
+        + '<div style="margin-bottom:14px;">'
+        + '<div style="font-size:13px;font-weight:600;color:var(--midnight);margin-bottom:6px;">🎨 Inspiration Images <span style="font-weight:400;color:#999;">(optional)</span></div>'
+        + '<div style="font-size:12px;color:#666;margin-bottom:8px;">Upload images that capture the vibe, colors, or style you want. The AI will use these as visual references.</div>'
+        + '<div class="image-upload-area" id="chatInspoDropZone" onclick="document.getElementById(\'chatInspoInput\').click()" style="padding:14px;border-radius:8px;">'
+        + '<p style="font-size:13px;">Upload inspiration images</p>'
         + '<p style="font-size:11px;color:#999;margin-top:2px;">JPG, PNG, HEIC, WebP (max 6 images)</p>'
         + '</div>'
-        + '<input type="file" id="chatImageInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleImageUpload(event)">'
-        + '<div id="imagePreviews" class="image-previews"></div>'
+        + '<input type="file" id="chatInspoInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleInspirationUpload(event)">'
+        + '<div id="inspirationPreviews" class="image-previews"></div>'
+        + '</div>'
+        + photoRecHtml
+        + '<div style="margin-bottom:14px;">'
+        + '<div class="image-upload-area" id="chatPersonDropZone" onclick="document.getElementById(\'chatPersonInput\').click()" style="padding:14px;border-radius:8px;">'
+        + '<p style="font-size:13px;">Upload photos of the person</p>'
+        + '<p style="font-size:11px;color:#999;margin-top:2px;">JPG, PNG, HEIC, WebP (max 6 images)</p>'
+        + '</div>'
+        + '<input type="file" id="chatPersonInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handlePersonUpload(event)">'
+        + '<div id="personPreviews" class="image-previews"></div>'
         + '</div>'
         + '<button class="btn btn-primary" onclick="submitCustomStyle()" style="width:100%;padding:12px;font-size:14px;">Generate My Invite</button>';
       document.getElementById('chatMessages').appendChild(card);
       scrollChat();
 
-      // Set up drag & drop on the new drop zone
-      setupDropZone('chatDropZone');
+      // Set up drag & drop on the new drop zones
+      setupDropZone('chatInspoDropZone', 'inspiration');
+      setupDropZone('chatPersonDropZone', 'person');
     }
 
     function addToCustomStyle(text) {
@@ -1293,20 +1306,31 @@
       card.id = 'brainstormFinish';
       card.innerHTML = '<div style="margin-bottom:10px;">Love it! Here\'s what I\'m going with:</div>'
         + '<div style="background:rgba(0,0,0,0.03);padding:10px 14px;border-radius:8px;font-size:13px;font-style:italic;margin-bottom:12px;color:var(--midnight);">' + escapeHtml(designPrompt) + '</div>'
-        + photoRecHtml
-        + '<div style="margin-bottom:12px;">'
-        + '<div class="image-upload-area" id="brainstormDropZone" onclick="document.getElementById(\'brainstormImageInput\').click()" style="padding:14px;border-radius:8px;">'
-        + '<p style="font-size:13px;">Upload photos or inspiration images (optional)</p>'
+        + '<div style="margin-bottom:14px;">'
+        + '<div style="font-size:13px;font-weight:600;color:var(--midnight);margin-bottom:6px;">🎨 Inspiration Images <span style="font-weight:400;color:#999;">(optional)</span></div>'
+        + '<div style="font-size:12px;color:#666;margin-bottom:8px;">Upload images that capture the vibe, colors, or style you want. The AI will use these as visual references.</div>'
+        + '<div class="image-upload-area" id="brainstormInspoDropZone" onclick="document.getElementById(\'brainstormInspoInput\').click()" style="padding:14px;border-radius:8px;">'
+        + '<p style="font-size:13px;">Upload inspiration images</p>'
         + '<p style="font-size:11px;color:#999;margin-top:2px;">JPG, PNG, HEIC, WebP (max 6 images)</p>'
         + '</div>'
-        + '<input type="file" id="brainstormImageInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleImageUpload(event)">'
-        + '<div id="imagePreviews" class="image-previews"></div>'
+        + '<input type="file" id="brainstormInspoInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleInspirationUpload(event)">'
+        + '<div id="inspirationPreviews" class="image-previews"></div>'
+        + '</div>'
+        + photoRecHtml
+        + '<div style="margin-bottom:14px;">'
+        + '<div class="image-upload-area" id="brainstormPersonDropZone" onclick="document.getElementById(\'brainstormPersonInput\').click()" style="padding:14px;border-radius:8px;">'
+        + '<p style="font-size:13px;">Upload photos of the person</p>'
+        + '<p style="font-size:11px;color:#999;margin-top:2px;">JPG, PNG, HEIC, WebP (max 6 images)</p>'
+        + '</div>'
+        + '<input type="file" id="brainstormPersonInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handlePersonUpload(event)">'
+        + '<div id="personPreviews" class="image-previews"></div>'
         + '</div>'
         + '<button class="btn btn-primary" onclick="submitBrainstorm()" style="width:100%;padding:12px;font-size:14px;">Generate My Invite</button>';
       document.getElementById('chatMessages').appendChild(card);
       scrollChat();
 
-      setupDropZone('brainstormDropZone');
+      setupDropZone('brainstormInspoDropZone', 'inspiration');
+      setupDropZone('brainstormPersonDropZone', 'person');
     }
 
     async function submitBrainstorm() {
@@ -1319,14 +1343,14 @@
       goToStep(2);
     }
 
-    function setupDropZone(zoneId) {
+    function setupDropZone(zoneId, photoType) {
       var zone = document.getElementById(zoneId);
       if (!zone) return;
       zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('dragover'); });
       zone.addEventListener('dragleave', function() { zone.classList.remove('dragover'); });
       zone.addEventListener('drop', function(e) {
         e.preventDefault(); zone.classList.remove('dragover');
-        if (e.dataTransfer.files.length) addFiles(Array.from(e.dataTransfer.files));
+        if (e.dataTransfer.files.length) addFiles(Array.from(e.dataTransfer.files), photoType || 'inspiration');
       });
     }
 
@@ -1440,7 +1464,7 @@
             tagline: extractedData.tagline || ''
           },
           inspirationImages: inspirationImageBase64Array,
-          photoUrls: inspirationImageUrls.filter(function(u) { return !!u; })
+          photoUrls: personPhotoUrls.filter(function(u) { return !!u; })
         };
         var res2 = await authFetch('/api/v2/generate-theme', {
           method: 'POST',
@@ -2632,20 +2656,42 @@
       }
     }
 
-    async function handleImageUpload(event) {
+    async function handleInspirationUpload(event) {
       var files = Array.from(event.target.files);
-      await addFiles(files);
+      await addFiles(files, 'inspiration');
       event.target.value = '';
     }
 
-    async function addFiles(files) {
-      if (files.length + inspirationImageBase64Array.length > 6) {
-        showMessage('Maximum 6 images allowed', 'error');
+    async function handlePersonUpload(event) {
+      var files = Array.from(event.target.files);
+      await addFiles(files, 'person');
+      event.target.value = '';
+    }
+
+    // Legacy handler for backward compat
+    async function handleImageUpload(event) {
+      var files = Array.from(event.target.files);
+      await addFiles(files, 'inspiration');
+      event.target.value = '';
+    }
+
+    async function addFiles(files, photoType) {
+      photoType = photoType || 'inspiration';
+      var base64Arr = photoType === 'person' ? personPhotoBase64Array : inspirationImageBase64Array;
+      var urlArr = photoType === 'person' ? personPhotoUrls : inspirationImageUrls;
+      var previewContainerId = photoType === 'person' ? 'personPreviews' : 'inspirationPreviews';
+
+      if (files.length + base64Arr.length > 6) {
+        showMessage('Maximum 6 images allowed per category', 'error');
         return;
       }
-      var container = document.getElementById('imagePreviews');
+      var container = document.getElementById(previewContainerId);
+      if (!container) {
+        // Fallback for legacy flows
+        container = document.getElementById('imagePreviews');
+      }
       for (var i = 0; i < files.length; i++) {
-        if (inspirationImageBase64Array.length >= 6) break;
+        if (base64Arr.length >= 6) break;
         var file = files[i];
         var placeholder = document.createElement('div');
         placeholder.className = 'image-preview';
@@ -2653,11 +2699,12 @@
         container.appendChild(placeholder);
         var result = await processFile(file);
         if (result) {
-          var idx = inspirationImageBase64Array.length;
-          inspirationImageBase64Array.push(result.base64);
+          var idx = base64Arr.length;
+          base64Arr.push(result.base64);
           placeholder.setAttribute('data-idx', idx);
-          placeholder.innerHTML = '<img src="' + result.dataUrl + '" alt="Preview"><button class="remove" onclick="removeImage(this)">&times;</button>';
-          // Also upload to Supabase Storage to get a persistent URL for embedding in the invite
+          placeholder.setAttribute('data-photo-type', photoType);
+          placeholder.innerHTML = '<img src="' + result.dataUrl + '" alt="Preview"><button class="remove" onclick="removeImage(this, \'' + photoType + '\')">&times;</button>';
+          // Upload to Supabase Storage to get a persistent URL
           try {
             var uploadRes = await authFetch('/api/v2/upload', {
               method: 'POST',
@@ -2670,12 +2717,12 @@
             });
             var uploadResult = await uploadRes.json();
             if (uploadResult.success && uploadResult.url) {
-              inspirationImageUrls.push(uploadResult.url);
+              urlArr.push(uploadResult.url);
             } else {
-              inspirationImageUrls.push(null);
+              urlArr.push(null);
             }
           } catch (e) {
-            inspirationImageUrls.push(null);
+            urlArr.push(null);
           }
         } else {
           placeholder.remove();
@@ -2685,13 +2732,20 @@
       scrollChat();
     }
 
-    function removeImage(btn) {
+    function removeImage(btn, photoType) {
+      photoType = photoType || 'inspiration';
       var preview = btn.parentElement;
+      var container = preview.parentElement;
       var idx = parseInt(preview.getAttribute('data-idx'));
-      inspirationImageBase64Array.splice(idx, 1);
-      inspirationImageUrls.splice(idx, 1);
+      var base64Arr = photoType === 'person' ? personPhotoBase64Array : inspirationImageBase64Array;
+      var urlArr = photoType === 'person' ? personPhotoUrls : inspirationImageUrls;
+      base64Arr.splice(idx, 1);
+      urlArr.splice(idx, 1);
       preview.remove();
-      document.querySelectorAll('.image-preview').forEach(function(el, i) { el.setAttribute('data-idx', i); });
+      // Re-index remaining previews of the same type
+      if (container) {
+        container.querySelectorAll('.image-preview[data-photo-type="' + photoType + '"]').forEach(function(el, i) { el.setAttribute('data-idx', i); });
+      }
     }
 
     // Drag & Drop setup removed — now handled dynamically via setupDropZone()
