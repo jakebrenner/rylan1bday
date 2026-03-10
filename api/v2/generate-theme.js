@@ -471,6 +471,7 @@ function buildStyleContext(selected, promptSpecificity) {
 
 // Load style references matching event type from the library
 // When user has strong creative direction, load only 1 reference (for technique) instead of 2
+// Returns { context, selectedIds } — context is the prompt string, selectedIds for logging
 async function loadStyleReferences(eventType, promptSpecificity = 0) {
   try {
     const limit = promptSpecificity >= 0.5 ? 1 : 2;
@@ -491,9 +492,10 @@ async function loadStyleReferences(eventType, promptSpecificity = 0) {
         .limit(fetchLimit);
     }
     const data = res.data;
-    if (!data || data.length === 0) return '';
+    if (!data || data.length === 0) return { context: '', selectedIds: [] };
     // Weighted selection: higher-rated styles get picked more often
     const selected = weightedStylePick(data, limit);
+    const selectedIds = selected.map(row => row.id);
     const matched = selected.map(row => ({
       name: row.name, description: row.description, html: row.html,
       eventTypes: row.event_types || [], designNotes: row.design_notes
@@ -502,9 +504,9 @@ async function loadStyleReferences(eventType, promptSpecificity = 0) {
     selected.forEach(row => {
       supabase.from('style_library').update({ times_used: (row.times_used || 0) + 1 }).eq('id', row.id).then(() => {}).catch(() => {});
     });
-    return buildStyleContext(matched, promptSpecificity);
+    return { context: buildStyleContext(matched, promptSpecificity), selectedIds };
   } catch {
-    return '';
+    return { context: '', selectedIds: [] };
   }
 }
 
@@ -586,6 +588,19 @@ function buildEventTypeContext(eventType, userPrompt, designDnaOverride) {
   context += `\n- **Standout visual element**: ${dna.consider.standout}`;
 
   return context;
+}
+
+// Extract client metadata from request headers (Vercel provides geo headers)
+function getClientMeta(req) {
+  const ip = (req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || '').split(',')[0].trim();
+  const geo = {};
+  if (req.headers['x-vercel-ip-country']) geo.country = req.headers['x-vercel-ip-country'];
+  if (req.headers['x-vercel-ip-country-region']) geo.region = req.headers['x-vercel-ip-country-region'];
+  if (req.headers['x-vercel-ip-city']) geo.city = decodeURIComponent(req.headers['x-vercel-ip-city']);
+  if (req.headers['x-vercel-ip-latitude']) geo.latitude = req.headers['x-vercel-ip-latitude'];
+  if (req.headers['x-vercel-ip-longitude']) geo.longitude = req.headers['x-vercel-ip-longitude'];
+  const userAgent = (req.headers['user-agent'] || '').substring(0, 500);
+  return { ip, geo, userAgent };
 }
 
 export default async function handler(req, res) {
@@ -873,11 +888,14 @@ Return ONLY a valid JSON object with these keys:
       }
       if (themeError) throw new Error('Failed to save theme: ' + themeError.message);
 
+      const tweakMeta = getClientMeta(req);
       await supabase.from('generation_log').insert({
         event_id: eventId, user_id: user.id, prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
         model: themeModel, input_tokens: finalMessage.usage?.input_tokens || 0,
-        output_tokens: finalMessage.usage?.output_tokens || 0, latency_ms: latency, status: 'success'
-      });
+        output_tokens: finalMessage.usage?.output_tokens || 0, latency_ms: latency, status: 'success',
+        is_tweak: true, event_type: eventDetails?.eventType || '', client_ip: tweakMeta.ip, client_geo: tweakMeta.geo, user_agent: tweakMeta.userAgent,
+        prompt_version_id: activePrompt.promptVersionId || null
+      }).catch(() => {});
 
       // Send the final result as an SSE event
       sendSSE('done', {
@@ -889,11 +907,13 @@ Return ONLY a valid JSON object with these keys:
       return res.end();
     } catch (err) {
       console.error('Theme tweak error:', err);
+      const tweakErrMeta = getClientMeta(req);
       try {
         await supabase.from('generation_log').insert({
           event_id: eventId, user_id: user.id, prompt: 'Tweak: ' + (tweakInstructions || '').substring(0, 200),
-          model: themeModel, input_tokens: 0, output_tokens: 0, latency_ms: Date.now() - startTime, status: 'error', error: err.message
-        });
+          model: themeModel, input_tokens: 0, output_tokens: 0, latency_ms: Date.now() - startTime, status: 'error', error: err.message,
+          is_tweak: true, event_type: eventDetails?.eventType || '', client_ip: tweakErrMeta.ip, client_geo: tweakErrMeta.geo, user_agent: tweakErrMeta.userAgent
+        }).catch(() => {});
       } catch {}
       sendSSE('error', { error: 'Failed to tweak theme', message: err.message });
       return res.end();
@@ -973,9 +993,10 @@ Fields that will be injected (for awareness only — do NOT render):
 ${rsvpFieldsDesc}`;
 
     // Auto-include style references matching event type (adapts to prompt specificity)
-    const styleRefContext = await loadStyleReferences(eventType, promptSpecificity);
-    if (styleRefContext) {
-      userMessage += styleRefContext;
+    const styleRefs = await loadStyleReferences(eventType, promptSpecificity);
+    const usedStyleIds = styleRefs.selectedIds || [];
+    if (styleRefs.context) {
+      userMessage += styleRefs.context;
     }
 
     // Add photo URLs if user uploaded photos
@@ -1088,7 +1109,8 @@ ${rsvpFieldsDesc}`;
       throw new Error('Failed to save theme: ' + themeError.message);
     }
 
-    // Log successful generation
+    // Log successful generation with full metadata
+    const genMeta = getClientMeta(req);
     await supabase.from('generation_log').insert({
       event_id: eventId,
       user_id: user.id,
@@ -1097,8 +1119,21 @@ ${rsvpFieldsDesc}`;
       input_tokens: response.usage.input_tokens,
       output_tokens: response.usage.output_tokens,
       latency_ms: latency,
-      status: 'success'
-    });
+      status: 'success',
+      event_type: eventType,
+      style_library_ids: usedStyleIds,
+      prompt_version_id: activePrompt.promptVersionId || null,
+      client_ip: genMeta.ip,
+      client_geo: genMeta.geo,
+      user_agent: genMeta.userAgent
+    }).catch(() => {});
+
+    // Set first_generation_at on the event (only if not already set)
+    supabase.from('events')
+      .update({ first_generation_at: new Date().toISOString() })
+      .eq('id', eventId)
+      .is('first_generation_at', null)
+      .then(() => {}).catch(() => {});
 
     return res.status(200).json({
       success: true,
@@ -1122,6 +1157,7 @@ ${rsvpFieldsDesc}`;
     console.error('Theme generation error:', err);
 
     // Log error (don't let logging failure mask the real error)
+    const errMeta = getClientMeta(req);
     try {
       await supabase.from('generation_log').insert({
         event_id: eventId,
@@ -1132,8 +1168,12 @@ ${rsvpFieldsDesc}`;
         output_tokens: 0,
         latency_ms: Date.now() - startTime,
         status: 'error',
-        error: (err.message || '').substring(0, 500)
-      });
+        error: (err.message || '').substring(0, 500),
+        event_type: eventType,
+        client_ip: errMeta.ip,
+        client_geo: errMeta.geo,
+        user_agent: errMeta.userAgent
+      }).catch(() => {});
     } catch (logErr) {
       console.error('Failed to log generation error:', logErr);
     }

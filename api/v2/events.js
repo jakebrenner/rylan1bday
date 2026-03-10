@@ -233,6 +233,28 @@ export default async function handler(req, res) {
       // Status: frontend sends "Published"/"Draft"/"Archived" — normalize to lowercase enum
       if (updates.status !== undefined) dbUpdates.status = updates.status.toLowerCase();
 
+      // Track generations-to-publish when first published
+      if (dbUpdates.status === 'published') {
+        try {
+          // Only compute if not already published (first publish)
+          const { data: currentEvent } = await supabaseAdmin
+            .from('events')
+            .select('published_at')
+            .eq('id', eventId)
+            .single();
+          if (!currentEvent?.published_at) {
+            // Count successful generations for this event
+            const { count: genCount } = await supabaseAdmin
+              .from('generation_log')
+              .select('*', { count: 'exact', head: true })
+              .eq('event_id', eventId)
+              .eq('status', 'success');
+            dbUpdates.generations_to_publish = genCount || 1;
+            dbUpdates.published_at = new Date().toISOString();
+          }
+        } catch {} // Don't block publish if tracking fails
+      }
+
       const { data, error } = await supabaseAdmin
         .from('events')
         .update(dbUpdates)

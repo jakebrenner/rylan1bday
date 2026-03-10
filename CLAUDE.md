@@ -43,12 +43,12 @@ The backend lives in Google Apps Script and is **not auto-deployed** from this r
 | Table | Purpose |
 |-------|---------|
 | `profiles` | User profiles extending Supabase auth.users (id, email, tier) |
-| `events` | Core event data — one row per event (title, date, location, slug, status) |
+| `events` | Core event data — one row per event (title, date, location, slug, status, generations_to_publish, published_at, first_generation_at) |
 | `event_themes` | AI-generated invite designs, versioned per event (html, css, config, model, admin_rating, prompt_version_id) |
 | `event_custom_fields` | Custom RSVP form field definitions per event |
 | `guests` | Invitees and RSVP responses (name, email, phone, status, response_data) |
 | `event_collaborators` | Multi-admin access per event |
-| `generation_log` | AI generation audit trail and rate-limit source |
+| `generation_log` | AI generation audit trail — tracks model, tokens, latency, client IP/geo, style refs, prompt version, event type, is_tweak |
 | `notification_log` | SMS/email notification tracking |
 | `style_library` | HTML invite samples used as AI design references (admin_rating drives weighted selection) |
 | `app_config` | Global application settings |
@@ -74,6 +74,15 @@ Adds `style_library_ids` (text[]) and `result_thankyou_html` to `prompt_test_run
 |------|---------|
 | `test_run_analytics` | Comprehensive test run performance by prompt version, model, and event type |
 | `style_effectiveness` | How effective each style library item is as a generation reference — correlates style usage with output quality ratings |
+
+### Generation Insights (`supabase/migrate_generation_insights.sql`)
+Adds rich metadata to `generation_log` (client_ip, client_geo, style_library_ids, prompt_version_id, event_type, is_tweak, user_agent) and tracking columns to `events` (generations_to_publish, published_at, first_generation_at).
+
+| View | Purpose |
+|------|---------|
+| `generation_satisfaction` | Generations-to-publish (GTP) metrics by event type — lower GTP = higher user satisfaction |
+| `generation_geo_insights` | Generation patterns by geographic region and event type |
+| `production_model_performance` | Real production generation performance by model, event type, and prompt version |
 
 ### User-Facing Ratings (`supabase/migrate_invite_ratings.sql`)
 | Table | Purpose |
@@ -171,6 +180,12 @@ All endpoints require `Authorization: Bearer <token>` and use `?action=<name>`.
 - Higher-rated styles are more likely to be picked as references, but selection is probabilistic (not deterministic)
 - `style_library.times_used` tracks how often each style is selected (for identifying over/under-used styles)
 - `event_themes.prompt_version_id` tracks which prompt version produced each theme (set at generation time)
+
+### Key Metrics
+- **Generations-to-Publish (GTP)**: Number of theme generations before a user publishes their event. Lower = better UX. Tracked on `events.generations_to_publish`, computed when status first changes to "published".
+- **First-try publish rate**: % of events published after just 1 generation. Available via `generation_satisfaction` view.
+- **Geographic insights**: Client IP and Vercel geo headers (country, region, city, lat/lng) are logged per generation for understanding regional style preferences.
+- **Style effectiveness**: Which style library references correlate with higher quality ratings. Available via `style_effectiveness` view and `testRunStats` API.
 
 ## Development Notes
 
