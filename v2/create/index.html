@@ -909,6 +909,11 @@
       addChatBubble(text, 'user');
       chatHistory.push({ role: 'user', content: text });
 
+      // Create draft event on first message so it shows in dashboard immediately
+      if (!currentEvent) {
+        createDraftEvent();
+      }
+
       var sendBtn = document.getElementById('chatSendBtn');
       sendBtn.disabled = true;
       input.disabled = true;
@@ -1129,8 +1134,57 @@
 
     var brainstormAnswers = {};
 
+    async function createDraftEvent() {
+      if (currentEvent) return;
+      try {
+        await authFetch('/api/v2/auth?action=profile');
+        var res = await authFetch('/api/v2/events?action=create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: 'Untitled Event',
+            eventType: 'other',
+            settings: { creation_step: 0 }
+          })
+        });
+        var result = await res.json();
+        if (result.success) {
+          currentEvent = { id: result.eventId, slug: result.slug };
+          window.history.replaceState({}, '', '/v2/create/?eventId=' + result.eventId);
+        }
+      } catch (err) {
+        console.error('Draft event creation failed:', err);
+      }
+    }
+
     async function saveEventToDB() {
-      if (currentEvent) return true;
+      // If draft already exists, update it with extracted details
+      if (currentEvent) {
+        try {
+          await authFetch('/api/v2/events?action=update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventId: currentEvent.id,
+              title: extractedData.title || 'Untitled Event',
+              description: extractedData.description || '',
+              eventDate: extractedData.startDate || '',
+              endDate: extractedData.endDate || '',
+              locationName: extractedData.locationName || '',
+              locationAddress: extractedData.locationAddress || '',
+              dressCode: extractedData.dressCode || '',
+              eventType: extractedData.eventType || 'other',
+              settings: { creation_step: 1 }
+            })
+          });
+          await saveCustomFields();
+          return true;
+        } catch (err) {
+          showMessage('Error updating event. Please try again.', 'error');
+          return false;
+        }
+      }
+      // Fallback: create if draft wasn't created yet
       try {
         await authFetch('/api/v2/auth?action=profile');
         var res = await authFetch('/api/v2/events?action=create', {
