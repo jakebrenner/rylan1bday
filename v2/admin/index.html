@@ -91,7 +91,130 @@
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s; }
     .modal { background: white; border-radius: 12px; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto; padding: 24px; }
     .modal h3 { font-size: 18px; margin-bottom: 16px; }
+    .modal-wide { max-width: 1000px; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* Prompt Lab */
+    .prompt-viewer { background: #1A1A2E; color: #e0e0e0; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 12px; line-height: 1.6; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
+    .prompt-viewer .prompt-section { color: var(--confetti-gold); font-weight: 700; }
+    .prompt-viewer .prompt-comment { color: #6a9955; }
+    .test-params-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .test-params-grid .config-field input, .test-params-grid .config-field select, .test-params-grid .config-field textarea {
+      width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px;
+      font-family: 'Inter', sans-serif; font-size: 13px; color: var(--midnight); background: white;
+    }
+    .test-params-grid .config-field textarea { resize: vertical; min-height: 60px; }
+    .test-params-grid .config-field input:focus, .test-params-grid .config-field select:focus, .test-params-grid .config-field textarea:focus {
+      outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1);
+    }
+    .preview-frame { border: 2px solid #eee; border-radius: 8px; overflow: hidden; width: 393px; margin: 0 auto; background: white; min-height: 300px; }
+    .preview-frame iframe { width: 393px; height: 700px; border: none; }
+    .test-meta { display: flex; gap: 16px; font-size: 12px; color: #888; margin-top: 12px; padding: 8px 12px; background: #f9f9f9; border-radius: 6px; flex-wrap: wrap; }
+    .test-meta span { display: flex; align-items: center; gap: 4px; }
+    .test-meta .val { font-weight: 700; color: var(--midnight); }
+
+    /* Phone Mockup (same as front-end create page) */
+    .phone-mockup { position: relative; width: 320px; margin: 0 auto; }
+    .phone-mockup.phone-sm { width: 240px; }
+    .phone-frame { background: linear-gradient(145deg, #2a2a2e 0%, #1a1a1e 100%); border-radius: 44px; padding: 10px; box-shadow: 0 24px 64px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.08) inset; position: relative; }
+    .phone-notch { width: 90px; height: 24px; background: #000; border-radius: 16px; position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 3; }
+    .phone-screen { background: white; border-radius: 36px; overflow: hidden; position: relative; aspect-ratio: 393 / 852; width: 100%; }
+    .phone-screen iframe { width: 393px; height: 852px; border: none; border-radius: 36px; transform-origin: top left; }
+    .phone-home-bar { width: 100px; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; margin: 6px auto 2px; }
+
+    /* Prompt Lab layout */
+    .promptlab-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+    @media (max-width: 900px) { .promptlab-layout { grid-template-columns: 1fr; } }
+    .promptlab-sidebar { position: sticky; top: 24px; }
+    .preview-toggle-row { display: flex; justify-content: center; gap: 4px; margin-bottom: 12px; }
+    .preview-toggle-btn { padding: 6px 16px; border-radius: 20px; border: 1px solid #ddd; background: white; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; color: #888; }
+    .preview-toggle-btn.active { background: var(--midnight); color: white; border-color: var(--midnight); }
+    .preview-toggle-btn:hover:not(.active) { border-color: var(--party-coral); color: var(--party-coral); }
+
+    /* Multi-model comparison grid */
+    .comparison-grid { display: grid; gap: 24px; }
+    .comparison-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+    .comparison-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .comparison-grid.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    .comparison-card { background: white; border: 1px solid #eee; border-radius: 12px; overflow: hidden; }
+    .comparison-card-header { padding: 12px 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .comparison-card-header h4 { font-size: 13px; font-weight: 700; }
+    .comparison-card-header .model-badge { font-size: 10px; padding: 3px 8px; border-radius: 10px; font-weight: 600; }
+    .comparison-card-header .model-badge.haiku { background: #d1ecf1; color: #0c5460; }
+    .comparison-card-header .model-badge.sonnet { background: #fff3cd; color: #856404; }
+    .comparison-card-header .model-badge.opus { background: #f3e5f5; color: #6a1b9a; }
+    .comparison-card-header .model-badge.hybrid { background: #e8f5e9; color: #2e7d32; }
+    .comparison-card-body { padding: 16px; }
+    .comparison-card-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 10px 16px; background: #f9f9f9; border-top: 1px solid #eee; }
+    .comparison-card-stats .stat { text-align: center; }
+    .comparison-card-stats .stat .lbl { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.3px; }
+    .comparison-card-stats .stat .val { font-size: 13px; font-weight: 700; color: var(--midnight); }
+    .comparison-card-error { padding: 32px 16px; text-align: center; color: var(--party-coral); font-size: 13px; }
+    .comparison-card .code-tabs { display: flex; gap: 4px; padding: 8px 16px 0; }
+    .comparison-card .code-tab { padding: 4px 10px; border-radius: 4px; border: none; background: #f0f0f0; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; color: #888; }
+    .comparison-card .code-tab.active { background: var(--midnight); color: white; }
+
+    /* Quick preset buttons */
+    .preset-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+    .preset-btn { padding: 6px 12px; border-radius: 20px; border: 1px solid #ddd; background: white; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.2s; color: #666; }
+    .preset-btn:hover { border-color: var(--party-coral); color: var(--party-coral); }
+    .preset-btn.active { background: var(--party-coral); color: white; border-color: var(--party-coral); }
+
+    /* Compare checkbox */
+    .compare-toggle { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f9f9f9; border-radius: 8px; border: 1px solid #eee; cursor: pointer; user-select: none; transition: all 0.2s; }
+    .compare-toggle:hover { border-color: var(--party-coral); background: #fff5f5; }
+    .compare-toggle.active { border-color: var(--party-coral); background: #fff0f0; }
+    .compare-toggle input { accent-color: var(--party-coral); }
+    .compare-toggle .compare-label { font-size: 13px; font-weight: 600; color: var(--midnight); }
+    .compare-toggle .compare-hint { font-size: 11px; color: #888; }
+
+    /* Generating spinner */
+    .generating-overlay { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center; }
+    .generating-spinner { width: 48px; height: 48px; border: 3px solid #eee; border-top-color: var(--party-coral); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .prompt-toggle { cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--midnight); padding: 10px 14px; background: #f9f9f9; border-radius: 6px; border: 1px solid #eee; margin-bottom: 12px; user-select: none; }
+    .prompt-toggle:hover { background: #f0f0f0; }
+    .prompt-toggle .arrow { transition: transform 0.2s; }
+    .prompt-toggle.open .arrow { transform: rotate(90deg); }
+
+    /* Style Library */
+    .style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .style-card { background: white; border: 1px solid #eee; border-radius: 8px; overflow: hidden; transition: all 0.2s; }
+    .style-card:hover { border-color: var(--party-coral); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .style-card-preview { overflow: hidden; background: #f9f9f9; position: relative; border-bottom: 1px solid #eee; }
+    .style-card-preview iframe { width: 393px; height: 700px; border: none; transform-origin: top left; pointer-events: none; display: block; }
+    .style-card-body { padding: 12px 14px; }
+    .style-card-body h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .style-card-body p { font-size: 12px; color: #888; margin-bottom: 8px; }
+    .style-card-actions { display: flex; gap: 6px; }
+    .style-tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: #f0f0f0; color: #666; margin-right: 4px; }
+    .style-checkbox { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f9f9; border-radius: 6px; cursor: pointer; margin-bottom: 6px; border: 1px solid transparent; transition: all 0.2s; }
+    .style-checkbox:hover { border-color: var(--party-coral); background: #fff5f5; }
+    .style-checkbox.selected { border-color: var(--party-coral); background: #fff0f0; }
+    .style-checkbox input { accent-color: var(--party-coral); }
+
+    /* Bulk Upload */
+    .bulk-dropzone { border: 2px dashed #ddd; border-radius: 8px; padding: 32px 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fafafa; }
+    .bulk-dropzone:hover, .bulk-dropzone.drag-over { border-color: var(--party-coral); background: #fff5f5; }
+    .bulk-dropzone .drop-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.4; }
+    .bulk-dropzone .drop-text { font-size: 14px; font-weight: 600; color: var(--midnight); margin-bottom: 4px; }
+    .bulk-dropzone .drop-sub { font-size: 12px; color: #888; }
+    .bulk-progress { position: fixed; bottom: 20px; right: 20px; width: 360px; max-height: 400px; background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); z-index: 9999; overflow: hidden; display: flex; flex-direction: column; }
+    .bulk-progress-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--midnight); color: white; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+    .bulk-progress-header .bulk-close { background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 18px; line-height: 1; padding: 0 0 0 8px; }
+    .bulk-progress-header .bulk-close:hover { color: white; }
+    .bulk-progress-bar { height: 3px; background: #eee; flex-shrink: 0; }
+    .bulk-progress-bar-fill { height: 100%; background: var(--mint-fizz); transition: width 0.3s ease; width: 0%; }
+    .bulk-progress-list { overflow-y: auto; max-height: 300px; padding: 4px 0; }
+    .bulk-item { display: flex; align-items: center; gap: 10px; padding: 7px 16px; font-size: 12px; border-bottom: 1px solid #f5f5f5; }
+    .bulk-item:last-child { border-bottom: none; }
+    .bulk-item .file-name { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bulk-item .file-status { font-size: 11px; white-space: nowrap; }
+    .bulk-item .file-status.pending { color: #888; }
+    .bulk-item .file-status.tagging { color: var(--confetti-gold); }
+    .bulk-item .file-status.done { color: var(--mint-fizz); }
+    .bulk-item .file-status.error { color: var(--party-coral); }
+    .bulk-progress-summary { padding: 10px 16px; font-size: 12px; font-weight: 600; border-top: 1px solid #eee; flex-shrink: 0; }
 
     .loading { text-align: center; padding: 60px 20px; color: #888; }
     .access-denied { text-align: center; padding: 80px 20px; }
@@ -124,6 +247,8 @@
       <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
       <button class="tab" data-tab="users" onclick="switchTab('users')">Users</button>
       <button class="tab" data-tab="settings" onclick="switchTab('settings')">AI Models</button>
+      <button class="tab" data-tab="promptlab" onclick="switchTab('promptlab')">Prompt Lab</button>
+      <button class="tab" data-tab="stylelibrary" onclick="switchTab('stylelibrary')">Style Library</button>
     </div>
 
     <!-- Overview Tab -->
@@ -253,8 +378,8 @@
             <label>Chat Model (Event Details Extraction)</label>
             <select id="chatModelSelect">
               <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fastest, cheapest ($0.80/1M in, $4/1M out)</option>
-              <option value="claude-sonnet-4-20250514">Claude Sonnet 4 — Balanced ($3/1M in, $15/1M out)</option>
-              <option value="claude-opus-4-20250514">Claude Opus 4 — Most capable ($15/1M in, $75/1M out)</option>
+              <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — Balanced ($3/1M in, $15/1M out)</option>
+              <option value="claude-opus-4-6">Claude Opus 4.6 — Most capable ($15/1M in, $75/1M out)</option>
             </select>
             <div class="hint">Used for the conversational event planning chat. Haiku is recommended — it handles structured extraction well at minimal cost.</div>
           </div>
@@ -262,8 +387,8 @@
             <label>Theme Model (Invite Design Generation)</label>
             <select id="themeModelSelect">
               <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fastest, cheapest ($0.80/1M in, $4/1M out)</option>
-              <option value="claude-sonnet-4-20250514">Claude Sonnet 4 — Balanced ($3/1M in, $15/1M out)</option>
-              <option value="claude-opus-4-20250514">Claude Opus 4 — Most capable ($15/1M in, $75/1M out)</option>
+              <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — Balanced ($3/1M in, $15/1M out)</option>
+              <option value="claude-opus-4-6">Claude Opus 4.6 — Most capable ($15/1M in, $75/1M out)</option>
             </select>
             <div class="hint">Used to generate HTML/CSS invite themes. Higher-tier models produce more creative and polished designs.</div>
           </div>
@@ -342,6 +467,322 @@
     </div>
   </div>
 
+    <!-- Prompt Lab Tab -->
+    <div class="tab-content" id="tab-promptlab">
+      <!-- Main layout: config left, phone preview right -->
+      <div class="promptlab-layout" id="promptlabSingleLayout">
+        <!-- Left: Config -->
+        <div>
+          <div class="config-section">
+            <h3>Event Details</h3>
+            <div class="config-field" style="margin-bottom:12px;">
+              <label>Event Type</label>
+              <select id="testEventType" onchange="onEventTypeChange()" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+                <option value="" disabled selected>Choose an event type...</option>
+                <option value="kidsBirthday">Kids Birthday</option>
+                <option value="adultBirthday">Adult Birthday</option>
+                <option value="babyShower">Baby Shower</option>
+                <option value="engagement">Engagement</option>
+                <option value="wedding">Wedding</option>
+                <option value="graduation">Graduation</option>
+                <option value="holiday">Holiday</option>
+                <option value="dinnerParty">Dinner Party</option>
+                <option value="retirement">Retirement</option>
+                <option value="anniversary">Anniversary</option>
+                <option value="sports">Sports</option>
+                <option value="bridalShower">Bridal Shower</option>
+                <option value="corporate">Corporate</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div id="otherTypeInput" style="display:none;margin-bottom:12px;">
+              <div class="config-field">
+                <label>Describe the Event</label>
+                <input type="text" id="testOtherDescription" placeholder="e.g. Housewarming, Reunion, Fundraiser..." style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+              </div>
+            </div>
+            <div id="eventDetailsFilled" style="display:none;padding:12px 16px;background:#f0faf0;border:1px solid #c3e6cb;border-radius:8px;margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <span style="font-size:12px;font-weight:600;color:#28a745;text-transform:uppercase;letter-spacing:0.5px;">AI-Generated Test Data</span>
+                <button class="btn btn-secondary btn-sm" onclick="toggleEventDetailsExpand()" id="expandDetailsBtn" style="font-size:11px;">Edit</button>
+              </div>
+              <div id="eventDetailsSummary" style="font-size:13px;color:#333;line-height:1.6;"></div>
+            </div>
+            <div id="eventDetailsExpanded" style="display:none;">
+              <div class="test-params-grid">
+                <div class="config-field">
+                  <label>Event Title</label>
+                  <input type="text" id="testTitle">
+                </div>
+                <div class="config-field">
+                  <label>Start Date/Time</label>
+                  <input type="datetime-local" id="testStartDate">
+                </div>
+                <div class="config-field">
+                  <label>End Date/Time</label>
+                  <input type="datetime-local" id="testEndDate">
+                </div>
+                <div class="config-field">
+                  <label>Location Name</label>
+                  <input type="text" id="testLocation">
+                </div>
+                <div class="config-field">
+                  <label>Location Address</label>
+                  <input type="text" id="testAddress">
+                </div>
+                <div class="config-field">
+                  <label>Host Name</label>
+                  <input type="text" id="testHost">
+                </div>
+                <div class="config-field">
+                  <label>Dress Code</label>
+                  <input type="text" id="testDressCode">
+                </div>
+                <div class="config-field">
+                  <label>Tagline</label>
+                  <input type="text" id="testTagline">
+                </div>
+                <div class="config-field" style="grid-column:1/-1;">
+                  <label>Creative Prompt / Design Direction</label>
+                  <textarea id="testPrompt" rows="3"></textarea>
+                </div>
+              </div>
+            </div>
+            <div id="eventDetailsLoading" style="display:none;padding:16px;text-align:center;color:#888;font-size:13px;">
+              <div class="generating-spinner" style="width:24px;height:24px;margin:0 auto 8px;"></div>
+              Generating test data...
+            </div>
+          </div>
+
+          <div class="config-section">
+            <h3>Generation Settings</h3>
+            <div class="config-field" style="margin-bottom:16px;">
+              <label>Model</label>
+              <select id="testModelSelect" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+                <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fast ($0.80/$4)</option>
+                <option value="claude-sonnet-4-6" selected>Claude Sonnet 4.6 — Balanced ($3/$15)</option>
+                <option value="claude-opus-4-6">Claude Opus 4.6 — Best ($15/$75)</option>
+              </select>
+            </div>
+
+            <div class="compare-toggle" id="compareToggle" onclick="toggleCompareMode()">
+              <input type="checkbox" id="compareCheckbox" onclick="event.stopPropagation(); syncCompareMode();">
+              <div>
+                <div class="compare-label">Compare All Models</div>
+                <div class="compare-hint">Runs Haiku, Sonnet, Opus &amp; Hybrid (Haiku→Sonnet polish) in parallel. Side-by-side with cost breakdown.</div>
+              </div>
+            </div>
+
+            <div id="styleLibraryCheckboxes" style="margin-top:16px;">
+              <label style="display:block;font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Style References (auto-matched)</label>
+              <div id="styleRefList"><span style="font-size:12px;color:#aaa;">Select an event type above to see matched styles.</span></div>
+            </div>
+
+            <div style="display:flex;gap:12px;align-items:center;margin-top:16px;">
+              <button class="btn btn-primary" id="runTestBtn" onclick="runPromptTest()" style="padding:12px 24px;font-size:14px;">Generate Test Invite</button>
+              <button class="btn btn-secondary" onclick="fillTestDefaults()">Reset</button>
+              <span id="testStatus" style="font-size:13px;color:#888;"></span>
+            </div>
+          </div>
+
+          <!-- Prompt viewers (collapsed) -->
+          <div class="config-section">
+            <div class="prompt-toggle" id="systemPromptToggle" onclick="togglePromptViewer('systemPrompt')">
+              <span class="arrow">&#9654;</span> System Prompt
+            </div>
+            <div id="systemPromptViewer" style="display:none;">
+              <div class="prompt-viewer" id="systemPromptContent"></div>
+            </div>
+            <div class="prompt-toggle" id="designDnaToggle" onclick="togglePromptViewer('designDna')" style="margin-top:8px;">
+              <span class="arrow">&#9654;</span> Design DNA
+            </div>
+            <div id="designDnaViewer" style="display:none;">
+              <div style="margin-bottom:8px;">
+                <select id="designDnaSelect" onchange="showDesignDna()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+                  <option value="kidsBirthday">Kids Birthday</option>
+                  <option value="adultBirthday">Adult Birthday</option>
+                  <option value="babyShower">Baby Shower</option>
+                  <option value="engagement">Engagement</option>
+                  <option value="wedding">Wedding</option>
+                  <option value="graduation">Graduation</option>
+                  <option value="holiday">Holiday</option>
+                  <option value="dinnerParty">Dinner Party</option>
+                  <option value="retirement">Retirement</option>
+                  <option value="anniversary">Anniversary</option>
+                  <option value="sports">Sports</option>
+                  <option value="bridalShower">Bridal Shower</option>
+                  <option value="corporate">Corporate</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div class="prompt-viewer" id="designDnaContent"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Phone Preview (single model) -->
+        <div class="promptlab-sidebar" id="singlePreviewSidebar">
+          <div id="singlePreviewEmpty" style="text-align:center;padding:60px 20px;color:#999;font-size:13px;">
+            <div style="font-size:48px;margin-bottom:12px;opacity:0.3;">&#128241;</div>
+            <p>Generate a test invite to see the preview here</p>
+          </div>
+          <div id="singlePreviewContent" style="display:none;">
+            <div class="preview-toggle-row">
+              <button class="preview-toggle-btn active" onclick="setTestPreviewMode('invite')">Invite</button>
+              <button class="preview-toggle-btn" onclick="setTestPreviewMode('thankyou')">Thank You</button>
+            </div>
+            <div class="phone-mockup">
+              <div class="phone-frame">
+                <div class="phone-notch"></div>
+                <div class="phone-screen">
+                  <iframe id="testPreviewFrame" sandbox="allow-same-origin allow-scripts"></iframe>
+                </div>
+                <div class="phone-home-bar"></div>
+              </div>
+            </div>
+            <div class="test-meta" id="testMeta" style="margin-top:16px;"></div>
+            <div style="display:flex;gap:6px;margin-top:12px;">
+              <button class="btn btn-secondary btn-sm" onclick="showTestView('preview')" id="btnPreview" style="background:var(--midnight);color:white;">Preview</button>
+              <button class="btn btn-secondary btn-sm" onclick="showTestView('html')" id="btnHtml">HTML</button>
+              <button class="btn btn-secondary btn-sm" onclick="showTestView('css')" id="btnCss">CSS</button>
+              <button class="btn btn-secondary btn-sm" onclick="showTestView('config')" id="btnConfig">Config</button>
+            </div>
+            <div id="testViewPreview" style="display:none;"></div>
+            <div id="testViewHtml" style="display:none;margin-top:8px;">
+              <div class="prompt-viewer" style="max-height:400px;" id="testHtmlContent"></div>
+            </div>
+            <div id="testViewCss" style="display:none;margin-top:8px;">
+              <div class="prompt-viewer" style="max-height:400px;" id="testCssContent"></div>
+            </div>
+            <div id="testViewConfig" style="display:none;margin-top:8px;">
+              <div class="prompt-viewer" style="max-height:300px;" id="testConfigContent"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Multi-model comparison results (full width, shown when compare mode) -->
+      <div id="comparisonResultSection" style="display:none;">
+        <div class="config-section">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3>Model Comparison</h3>
+            <div class="preview-toggle-row" style="margin-bottom:0;">
+              <button class="preview-toggle-btn active" onclick="setComparisonPreviewMode('invite')">Invite</button>
+              <button class="preview-toggle-btn" onclick="setComparisonPreviewMode('thankyou')">Thank You</button>
+            </div>
+          </div>
+          <div id="comparisonGrid" class="comparison-grid cols-3"></div>
+          <div id="comparisonSummary" style="margin-top:16px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Style Library Tab -->
+    <div class="tab-content" id="tab-stylelibrary">
+      <div class="config-section">
+        <h3>Style Reference Library</h3>
+        <p style="font-size:13px;color:#888;margin-bottom:16px;">
+          Upload HTML invite samples that the AI can reference during generation. These serve as visual inspiration —
+          the AI analyzes the layout patterns, color palettes, typography, and design approaches to produce better results.
+        </p>
+        <div style="display:flex;gap:8px;margin-bottom:20px;align-items:center;">
+          <button class="btn btn-primary" onclick="openAddStyleModal()">Add Single Sample</button>
+          <button class="btn btn-secondary" onclick="document.getElementById('bulkUploadSection').style.display=document.getElementById('bulkUploadSection').style.display==='none'?'block':'none'">Bulk Upload</button>
+          <span style="font-size:12px;color:#888;display:flex;align-items:center;" id="styleCount">0 samples in library</span>
+        </div>
+        <div id="styleFilters" style="display:none;margin-bottom:16px;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <select id="filterEventType" onchange="applyStyleFilter()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+              <option value="">All Event Types</option>
+              <option value="kidsBirthday">Kids Birthday</option>
+              <option value="adultBirthday">Adult Birthday</option>
+              <option value="babyShower">Baby Shower</option>
+              <option value="engagement">Engagement</option>
+              <option value="wedding">Wedding</option>
+              <option value="graduation">Graduation</option>
+              <option value="holiday">Holiday</option>
+              <option value="dinnerParty">Dinner Party</option>
+              <option value="retirement">Retirement</option>
+              <option value="anniversary">Anniversary</option>
+              <option value="sports">Sports</option>
+              <option value="bridalShower">Bridal Shower</option>
+              <option value="corporate">Corporate</option>
+              <option value="other">Other</option>
+            </select>
+            <select id="filterTag" onchange="applyStyleFilter()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+              <option value="">All Tags</option>
+            </select>
+            <input type="text" id="filterSearch" placeholder="Search name or description..." oninput="applyStyleFilter()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;flex:1;min-width:150px;">
+            <button class="btn btn-secondary btn-sm" onclick="clearStyleFilter()">Clear</button>
+          </div>
+        </div>
+        <div id="bulkUploadSection" style="display:none;margin-bottom:20px;">
+          <div class="bulk-dropzone" id="bulkDropzone" onclick="document.getElementById('bulkFileInput').click()">
+            <div class="drop-icon">&#128194;</div>
+            <div class="drop-text">Drop HTML files here or click to browse</div>
+            <div class="drop-sub">Select multiple .html files — each will be auto-tagged with AI and added to your library</div>
+          </div>
+          <input type="file" id="bulkFileInput" multiple accept=".html,.htm" style="display:none;" onchange="handleBulkFiles(this.files)">
+        </div>
+        <div class="style-grid" id="styleGrid">
+          <div style="color:#888;font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">
+            No style samples yet. Add HTML invite samples to build your reference library.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Style Modal -->
+  <div id="styleModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeStyleModal()">
+    <div class="modal modal-wide">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 id="styleModalTitle">Add Style Sample</h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeStyleModal()">Close</button>
+      </div>
+      <div class="config-field" style="margin-bottom:12px;">
+        <label>Name</label>
+        <input type="text" id="styleName" placeholder="e.g. Elegant Floral Wedding" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+      </div>
+      <div class="config-field" style="margin-bottom:12px;">
+        <label>Description (optional)</label>
+        <input type="text" id="styleDescription" placeholder="e.g. Soft watercolor florals with serif typography" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+      </div>
+      <div class="config-field" style="margin-bottom:12px;">
+        <label>Event Types (which types does this style work for?)</label>
+        <div id="styleEventTypes" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
+        </div>
+      </div>
+      <div class="config-field" style="margin-bottom:12px;">
+        <label>Design Notes (what makes this sample great? The AI reads these.)</label>
+        <textarea id="styleDesignNotes" rows="3" placeholder="e.g. Beautiful SVG crown illustration, magenta+gold palette with confetti rain animation. Notice the arch header with floral SVG elements and the editorial card-based RSVP section with gold shadow offset." style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;line-height:1.5;resize:vertical;"></textarea>
+      </div>
+      <div class="config-field" style="margin-bottom:12px;">
+        <label>Tags (comma-separated, optional)</label>
+        <input type="text" id="styleTags" placeholder="e.g. wedding, floral, elegant, serif" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+      </div>
+      <div class="config-field" style="margin-bottom:12px;">
+        <label>HTML Content</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+          <button class="btn btn-secondary btn-sm" onclick="toggleStylePreview()">Toggle Preview</button>
+          <button class="btn btn-secondary btn-sm" id="autoTagBtn" onclick="autoTagStyle()" style="background:var(--midnight);color:white;">Auto-Tag with AI</button>
+          <span id="autoTagStatus" style="font-size:12px;color:#888;"></span>
+        </div>
+        <textarea id="styleHtml" rows="15" placeholder="Paste complete HTML of an invite sample here..." style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:monospace;font-size:12px;line-height:1.5;resize:vertical;"></textarea>
+        <div id="stylePreviewContainer" style="display:none;margin-top:8px;">
+          <div class="preview-frame">
+            <iframe id="stylePreviewFrame" sandbox="allow-same-origin allow-scripts" style="width:393px;height:700px;border:none;display:block;margin:0 auto;"></iframe>
+          </div>
+        </div>
+      </div>
+      <input type="hidden" id="styleEditId" value="">
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary" onclick="saveStyleItem()">Save Sample</button>
+        <button class="btn btn-secondary" onclick="closeStyleModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- RSVP Modal -->
   <div id="rsvpModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal()">
     <div class="modal">
@@ -384,6 +825,7 @@
         loadUsers();
         loadConfig();
         loadAdmins();
+        loadStyleLibrary();
       } catch (err) {
         document.getElementById('accessDenied').style.display = 'block';
       }
@@ -597,6 +1039,7 @@
     // Live-update formula as user types
     document.getElementById('markupInput').addEventListener('input', updateMarkupFormula);
 
+
     async function saveConfig() {
       var btn = document.getElementById('saveConfigBtn');
       btn.disabled = true;
@@ -663,7 +1106,1287 @@
       } catch (err) { alert('Failed to remove admin'); }
     }
 
+    // ---- Prompt Lab ----
+    // The SYSTEM_PROMPT and DESIGN_DNA are embedded here so admins can view them
+    var THEME_SYSTEM_PROMPT = `You are building a production-grade, single-file HTML event invite and RSVP page. This page must be visually extraordinary — better than Evite, Paperless Post, Canva, or any other existing provider. It should feel like it was designed by a top creative studio, not generated by AI.
+
+## OUTPUT FORMAT
+Return a JSON object with exactly these keys:
+{
+  "theme_html": "...",
+  "theme_css": "...",
+  "theme_thankyou_html": "...",
+  "theme_config": {
+    "primaryColor": "#hex",
+    "secondaryColor": "#hex",
+    "accentColor": "#hex",
+    "backgroundColor": "#hex",
+    "textColor": "#hex",
+    "fontHeadline": "Font Name",
+    "fontBody": "Font Name",
+    "mood": "one-word mood descriptor",
+    "googleFontsImport": "@import url('...')",
+    "loadingPun": "A short, fun, on-theme pun shown while the RSVP is submitting"
+  }
+}
+
+## CRITICAL DESIGN PHILOSOPHY
+- This must be UNFORGETTABLE. Every spacing, shadow, border-radius, and animation timing must feel intentional and designed.
+- Choose a clear aesthetic direction and execute it with total commitment.
+- Bold maximalism and refined minimalism both work — the failure mode is neither.
+- NEVER produce a generic or "bootstrap-looking" layout.
+- Use unexpected moments: overlapping elements, asymmetric composition, color blocks that break the grid, type that surprises.
+
+## TYPOGRAPHY RULES
+- Source all fonts from Google Fonts only (include @import in googleFontsImport)
+- Choose a BOLD, characterful display font that matches the event's emotional register
+- Pair with a warm, readable body font — NEVER Inter, Roboto, Arial, or any system default
+- Typography should do heavy creative lifting, not just label things
+- Vary weight, scale, case, and tracking deliberately — type IS the design
+
+## PAGE STRUCTURE
+Build the page with these sections (creative freedom on visual execution):
+
+1. **THEMATIC HEADER** — An animated or illustrated element specific to this event type. Must feel DESIGNED for this event, not generic.
+2. **HERO SECTION** — Large display headline with event title/names/tagline. Photo treatment if photos provided. All entrance animations staggered.
+3. **EVENT DETAILS** — Icon + text layout for date, time, location. Clear hierarchy, memorable presentation.
+4. **RSVP SECTION** — .rsvp-slot with ONLY a styled <button class="rsvp-button">. The rsvp-slot MUST contain ONLY the button.
+
+## REQUIRED DATA ATTRIBUTES
+- data-field="title" — on the element containing the event title text
+- data-field="datetime" — on the container with date/time information
+- data-field="location" — on the container with location information
+- data-field="dresscode" — on the container with dress code (omit entirely if not specified)
+- data-field="host" — on the element showing host name(s), if included
+
+## ANIMATION RULES — EVERY INVITE SHOULD FEEL ALIVE
+- **Ambient background**: floating/falling elements specific to event type on infinite loop, varied speeds, 0.1-0.2 opacity
+- **Photo animations**: bobbing for kids parties, subtle scale pulse for editorial, soft glow for romantic
+- **Entrance**: staggered fade-up on page load (animation-delay: 0.1s increments)
+- **Interactive**: hover states on all buttons with smooth transitions
+- **Decorative**: gentle sway or float on header decorations
+- Use CSS only (no JavaScript).
+
+## TECHNICAL CONSTRAINTS
+- Max-width 393px (iPhone), centered, mobile-first
+- Text must be readable: min 14px body, WCAG AA contrast ratios (4.5:1 body, 3:1 headings)
+- Generous padding (20-24px sides)
+- RSVP button: min 48px height, prominent, high contrast
+- CSS custom properties for all theme colors
+- No JavaScript, no fixed positioning, no iframes
+- NEVER put form inputs inside .rsvp-slot
+- Keep height reasonable — 3-5 phone screen scrolls
+
+## THANK YOU PAGE (theme_thankyou_html)
+Same CSS applies. Provide ONLY .thankyou-page container with .thankyou-hero. NO calendar buttons, NO footer.
+
+## TEXT CONTRAST — CRITICAL, NEVER VIOLATE
+- EVERY piece of text must have sufficient contrast against its background (WCAG AA minimum)
+- NEVER put light text on a light background or dark text on a dark background
+- Button text MUST contrast against the button background color
+
+## INSPIRATION IMAGES
+If provided, analyze them for color palette, visual mood, textures, typography style, and overall aesthetic.`;
+
+    var DESIGN_DNA_DATA = {
+      kidsBirthday: { label: 'Kids Birthday (Ages 0-10)', must: { photoTreatment: 'If photos provided, use circular crops that feel playful. Faces should fill 80% of the frame.', technical: 'Keep all text large and readable. Bright, high-contrast colors.' }, consider: { decorative: 'Animated floating balloons, confetti bursts, bunting flags, or theme-specific elements.', typography: 'Bold, rounded display fonts work well (e.g. Fredoka One, Baloo 2, Lilita One).', colorPhilosophy: 'Joyful and vibrant palettes with fully saturated colors tend to work best.', motion: 'Consider floating/falling elements on infinite loop at 0.1-0.2 opacity.', standout: 'Kid faces with playful decorations make a strong visual anchor' } },
+      adultBirthday: { label: 'Adult / Milestone Birthday', must: { photoTreatment: 'If photos provided, treat editorially — NOT kiddie circles.', technical: 'The milestone number should feature prominently.' }, consider: { decorative: 'Atmospheric texture matching the era/tone.', typography: 'Era-appropriate or bold editorial fonts add strong personality.', colorPhilosophy: '2-3 dominant colors with deliberate restraint OR excess.', motion: 'Tone-appropriate motion: champagne bubble float, spotlight sweep.', standout: 'The milestone number as a massive typographic hero element' } },
+      babyShower: { label: 'Baby Shower / Sip & See', must: { photoTreatment: 'Gentle, warm treatment for any photos.', technical: 'Overall tone should feel nurturing and soft.' }, consider: { decorative: 'Watercolor wash backgrounds, botanical illustrations, pressed flowers.', typography: 'Elegant script paired with refined serif.', colorPhilosophy: 'Soft, limited palettes (2-3 colors + cream/white).', motion: 'Gentle petal/leaf fall, slow dreamy fade-ins.', standout: 'Floral wreath or botanical frame around the baby name' } },
+      engagement: { label: 'Engagement Party', must: { photoTreatment: 'If couple photo provided, make it the hero.', technical: 'The couple\'s names should be prominently featured.' }, consider: { decorative: 'Floating rings, botanical elements, abstract ink strokes.', typography: 'Romantic script + modern sans. Names as typographic hero.', colorPhilosophy: 'Drawing from couple photo tones creates a personal feel.', motion: 'Hearts or sparkle particles floating.', standout: 'Couple photo with names in large display typography' } },
+      wedding: { label: 'Wedding / Reception', must: { photoTreatment: 'If photos provided, most refined treatment — restraint and elegance.', technical: 'Every element should feel intentional and earned.' }, consider: { decorative: 'Minimal and intentional — botanical borders, geometric patterns.', typography: 'Distinguished pairings set the right tone.', colorPhilosophy: 'Restraint in color tends to elevate weddings.', motion: 'Subtle motion — slow fade-ins, gentle parallax.', standout: 'Couple names in breathtaking display typography' } },
+      graduation: { label: 'Graduation Party', must: { photoTreatment: 'If photos provided, editorial but celebratory.', technical: 'Celebratory but not childish.' }, consider: { decorative: 'Falling diplomas, confetti mortarboards.', typography: 'Bold, confident display fonts.', colorPhilosophy: 'School colors as accent, bold celebratory palette.', motion: 'Paper toss animation feel. Mortarboards floating.', standout: 'Graduate name with massive milestone text' } },
+      holiday: { label: 'Holiday Party', must: { photoTreatment: 'Match the specific holiday.', technical: 'Decorative elements should be holiday-SPECIFIC, not generic.' }, consider: { decorative: 'Holiday-specific atmospheric animations.', typography: 'Match the holiday emotional register.', colorPhilosophy: 'Holiday palette with a modern twist.', motion: 'Full atmospheric animation: snow, fireworks, leaves.', standout: 'Holiday-specific atmospheric animation' } },
+      dinnerParty: { label: 'Dinner Party / Cocktail Hour', must: { photoTreatment: 'If provided, atmospheric with soft vignette.', technical: 'Adult, sophisticated. NO children\'s party elements.' }, consider: { decorative: 'Texture-first: linen, marble, dark wood, candlelight.', typography: 'Editorial pairing — unexpected but refined.', colorPhilosophy: 'Deep wines, warm golds, cream, charcoal.', motion: 'Minimal — slow reveals, candlelight flicker.', standout: 'Rich, textured background that sets mood' } },
+      retirement: { label: 'Retirement Party', must: { photoTreatment: 'Prominent, respectful hero treatment.', technical: 'Avoid anything that reads as "old" or condescending.' }, consider: { decorative: 'Achievement badges, timeline elements.', typography: 'Authoritative and warm serif or display font.', colorPhilosophy: 'Distinguished: navy/gold, deep green/cream.', motion: 'Meaningful and measured entrance animations.', standout: 'Years-of-service counter or career timeline' } },
+      anniversary: { label: 'Anniversary Party', must: { photoTreatment: 'If two photos provided, "then and now" treatment is powerful.', technical: 'Milestone year number should feature prominently.' }, consider: { decorative: 'Romantic but not saccharine. Gold accents.', typography: 'Romantic but confident and warm.', colorPhilosophy: 'Gold/warm neutrals for milestone years.', motion: 'Gentle sparkle, elegant fade-in choreography.', standout: 'Then and now photo treatment or milestone number' } },
+      sports: { label: 'Sports / Watch Party', must: { photoTreatment: 'If photos provided, team gear / action shots.', technical: 'High energy. Bold. Dynamic, not gentle.' }, consider: { decorative: 'Dynamic: stadium lights, score-ticker aesthetic.', typography: 'Bold, condensed, athletic display fonts.', colorPhilosophy: 'Team colors with maximum energy.', motion: 'Stadium light sweep, scoreboard-style reveals.', standout: 'Stadium scoreboard header with team colors' } },
+      bridalShower: { label: 'Bridal Shower', must: { photoTreatment: 'If photos provided, elegant treatment of bride.', technical: 'Floral elements should be beautiful, NEVER clipart-style.' }, consider: { decorative: 'Abundant floral illustration elements.', typography: 'Script + elegant sans or serif.', colorPhilosophy: 'Blush, champagne, sage, and cream.', motion: 'Floating petals, gentle botanical sway.', standout: 'Lush, hand-illustrated-style floral elements' } },
+      corporate: { label: 'Corporate Event', must: { photoTreatment: 'Brand-aligned, clean, professional.', technical: 'Professional but not boring. No playful floating elements.' }, consider: { decorative: 'Geometric patterns, subtle gradients.', typography: 'Clean, modern sans-serif pairing.', colorPhilosophy: 'Brand colors or sophisticated neutral + accent.', motion: 'Subtle, professional entrance animations.', standout: 'Clean, modern premium design' } },
+      other: { label: 'Custom Event', must: { photoTreatment: 'Style based on the event description.', technical: 'Let the user\'s creative direction guide all decisions.' }, consider: { decorative: 'Match the event mood.', typography: 'Fonts matching event emotional register.', colorPhilosophy: 'Derived from the creative direction.', motion: 'Match the energy level of the event.', standout: 'Whatever makes this event feel special' } }
+    };
+
+    function togglePromptViewer(which) {
+      var viewer = document.getElementById(which + 'Viewer');
+      var toggle = document.getElementById(which + 'Toggle');
+      var isOpen = viewer.style.display !== 'none';
+      viewer.style.display = isOpen ? 'none' : 'block';
+      toggle.classList.toggle('open', !isOpen);
+
+      if (!isOpen && which === 'systemPrompt') {
+        document.getElementById('systemPromptContent').textContent = THEME_SYSTEM_PROMPT;
+      }
+      if (!isOpen && which === 'designDna') {
+        showDesignDna();
+      }
+    }
+
+    function showDesignDna() {
+      var type = document.getElementById('designDnaSelect').value;
+      var dna = DESIGN_DNA_DATA[type];
+      if (!dna) return;
+      var text = 'EVENT TYPE: ' + dna.label + '\n\n';
+      text += '── REQUIREMENTS (always enforced) ──\n';
+      text += '  Photo Treatment: ' + dna.must.photoTreatment + '\n';
+      text += '  Technical: ' + dna.must.technical + '\n\n';
+      text += '── SUGGESTIONS (adapt based on user prompt specificity) ──\n';
+      text += '  Decorative: ' + dna.consider.decorative + '\n';
+      text += '  Typography: ' + dna.consider.typography + '\n';
+      text += '  Color Philosophy: ' + dna.consider.colorPhilosophy + '\n';
+      text += '  Motion: ' + dna.consider.motion + '\n';
+      text += '  Standout Element: ' + dna.consider.standout;
+      document.getElementById('designDnaContent').textContent = text;
+    }
+
+    // ── Event Presets ──
+    var EVENT_PRESETS = {
+      kidsBirthday: { title: "Emma's 5th Birthday Bash", tagline: "Five is a Vibe!", host: "The Johnson Family", dressCode: "Casual / Outdoor", location: "Sunshine Park Pavilion", address: "123 Oak Street, Austin, TX 78701", prompt: "Bright, playful, and full of energy. Think rainbow balloons, confetti, and a sense of pure childhood joy. Make it feel like opening a present." },
+      adultBirthday: { title: "Marco's 40th Birthday", tagline: "Forty & Fabulous", host: "Lisa Chen", dressCode: "Cocktail Attire", location: "The Rooftop at Soho House", address: "9200 Sunset Blvd, West Hollywood, CA 90069", prompt: "Sleek, modern, sophisticated. Gold and black with editorial typography. Think GQ meets champagne toast." },
+      babyShower: { title: "Baby Brenner on the Way!", tagline: "A Little Bundle of Joy", host: "Sarah & Friends", dressCode: "Garden Party", location: "The Botanical Gardens", address: "1000 Washington Ave, St. Louis, MO 63110", prompt: "Soft, dreamy, botanical. Watercolor washes with gentle florals. Warm and nurturing energy." },
+      wedding: { title: "Emily & James", tagline: "Together Forever", host: "The Smith & Wilson Families", dressCode: "Black Tie Optional", location: "The Grand Ballroom", address: "500 Fifth Avenue, New York, NY 10110", prompt: "Elegant, timeless, refined. Think muted earth tones, fine typography, and quiet luxury." },
+      graduation: { title: "Mia's Graduation Celebration", tagline: "Class of 2026!", host: "The Rodriguez Family", dressCode: "Smart Casual", location: "Backyard BBQ", address: "456 Elm Street, Denver, CO 80220", prompt: "Celebratory and bold. School colors (blue and gold), mortarboard motifs, achievment energy." },
+      holiday: { title: "Holiday Cocktail Party", tagline: "Eat, Drink & Be Merry", host: "The Andersons", dressCode: "Festive / Holiday Sweaters OK", location: "Our Home", address: "789 Pine Lane, Chicago, IL 60614", prompt: "Warm, cozy, festive. Think twinkling lights, evergreen branches, hot cocoa vibes with a modern twist." },
+      dinnerParty: { title: "An Evening of Wine & Jazz", tagline: "Good Company, Great Wine", host: "Chef Michael", dressCode: "Smart Casual", location: "Osteria Francescana", address: "42 Via Stella, Modena", prompt: "Atmospheric, moody, textured. Deep wines and warm golds. Candlelit sophistication." },
+      corporate: { title: "Annual Product Launch", tagline: "Innovate. Inspire. Impact.", host: "Acme Corp", dressCode: "Business Casual", location: "Convention Center Hall A", address: "1001 Market Street, San Francisco, CA 94103", prompt: "Clean, modern, professional but not boring. Think tech keynote energy with sharp design." },
+      engagement: { title: "Jake & Amanda Are Engaged!", tagline: "She Said Yes!", host: "Both Families", dressCode: "Dressy Casual", location: "Lakeside Pavilion", address: "100 Lake Shore Dr, Austin, TX 78704", prompt: "Romantic, joyful, elegant. Soft blushes and golds with lush botanical touches." },
+      bridalShower: { title: "Bridal Shower for Amanda", tagline: "Bride to Be!", host: "The Bridesmaids", dressCode: "Garden Chic", location: "The Tea Room", address: "250 Rose Blvd, Nashville, TN 37201", prompt: "Feminine, lush, garden-party energy. Blush, sage, champagne. Floral illustrations." },
+      retirement: { title: "Cheers to 35 Years!", tagline: "Happy Retirement, Bob!", host: "The Whole Team", dressCode: "Business Casual", location: "The Country Club", address: "800 Fairway Drive, Scottsdale, AZ 85251", prompt: "Distinguished, warm, celebratory. Navy and gold. Honoring a career well-lived." },
+      anniversary: { title: "25 Years of Love", tagline: "Silver Anniversary", host: "The Kids", dressCode: "Cocktail Attire", location: "The Family Estate", address: "200 Heritage Lane, Savannah, GA 31401", prompt: "Romantic, timeless, warm gold tones. Then-and-now nostalgia with elegant design." },
+      sports: { title: "Super Bowl Watch Party", tagline: "Game Day!", host: "Jake B.", dressCode: "Jerseys Welcome", location: "The Sports Bar", address: "555 Stadium Way, Dallas, TX 75201", prompt: "High energy, bold, stadium vibes. Team colors, scoreboard aesthetic, dynamic design." }
+    };
+
+    function renderEventPresets() {
+      var grid = document.getElementById('eventPresetGrid');
+      var labels = { kidsBirthday: "Kids Birthday", adultBirthday: "Adult Birthday", babyShower: "Baby Shower", wedding: "Wedding", graduation: "Graduation", holiday: "Holiday", dinnerParty: "Dinner Party", corporate: "Corporate", engagement: "Engagement", bridalShower: "Bridal Shower", retirement: "Retirement", anniversary: "Anniversary", sports: "Sports" };
+      grid.innerHTML = Object.keys(labels).map(function(key) {
+        return '<button class="preset-btn" data-type="' + key + '" onclick="applyPreset(\'' + key + '\')">' + labels[key] + '</button>';
+      }).join('');
+    }
+
+    function applyPreset(type) {
+      document.getElementById('testEventType').value = type;
+      document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.type === type); });
+      // Use preset data directly
+      var p = EVENT_PRESETS[type];
+      if (p) {
+        fillEventFields(p.title, '2026-04-15T14:00', '2026-04-15T17:00', p.location, p.address, p.host, p.dressCode, p.tagline, p.prompt);
+        showEventDetailsSummary();
+      }
+      document.getElementById('otherTypeInput').style.display = type === 'other' ? 'block' : 'none';
+      renderStyleCheckboxes();
+    }
+
+    function fillEventFields(title, startDate, endDate, location, address, host, dressCode, tagline, prompt) {
+      document.getElementById('testTitle').value = title || '';
+      document.getElementById('testStartDate').value = startDate || '';
+      document.getElementById('testEndDate').value = endDate || '';
+      document.getElementById('testLocation').value = location || '';
+      document.getElementById('testAddress').value = address || '';
+      document.getElementById('testHost').value = host || '';
+      document.getElementById('testDressCode').value = dressCode || '';
+      document.getElementById('testTagline').value = tagline || '';
+      document.getElementById('testPrompt').value = prompt || '';
+    }
+
+    function showEventDetailsSummary() {
+      var title = document.getElementById('testTitle').value;
+      var host = document.getElementById('testHost').value;
+      var location = document.getElementById('testLocation').value;
+      var tagline = document.getElementById('testTagline').value;
+      var prompt = document.getElementById('testPrompt').value;
+      var summary = '<strong>' + escapeHtml(title) + '</strong>';
+      if (tagline) summary += ' &mdash; ' + escapeHtml(tagline);
+      summary += '<br>';
+      if (host) summary += 'Hosted by ' + escapeHtml(host) + ' &middot; ';
+      if (location) summary += escapeHtml(location);
+      if (prompt) summary += '<br><span style="color:#666;font-size:12px;font-style:italic;">"' + escapeHtml(prompt.substring(0, 100)) + (prompt.length > 100 ? '...' : '') + '"</span>';
+      document.getElementById('eventDetailsSummary').innerHTML = summary;
+      document.getElementById('eventDetailsFilled').style.display = 'block';
+      document.getElementById('eventDetailsLoading').style.display = 'none';
+      document.getElementById('eventDetailsExpanded').style.display = 'none';
+    }
+
+    function toggleEventDetailsExpand() {
+      var expanded = document.getElementById('eventDetailsExpanded');
+      var isShown = expanded.style.display !== 'none';
+      expanded.style.display = isShown ? 'none' : 'block';
+      document.getElementById('expandDetailsBtn').textContent = isShown ? 'Edit' : 'Collapse';
+    }
+
+    async function onEventTypeChange() {
+      var type = document.getElementById('testEventType').value;
+      if (!type) return;
+      document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.type === type); });
+      document.getElementById('otherTypeInput').style.display = type === 'other' ? 'block' : 'none';
+      renderStyleCheckboxes();
+
+      // Use preset data if available, otherwise generate with AI
+      var p = EVENT_PRESETS[type];
+      if (p) {
+        fillEventFields(p.title, '2026-04-15T14:00', '2026-04-15T17:00', p.location, p.address, p.host, p.dressCode, p.tagline, p.prompt);
+        showEventDetailsSummary();
+        return;
+      }
+      // For "other" type, wait for description input
+      if (type === 'other') return;
+
+      await generateDummyData(type);
+    }
+
+    async function generateDummyData(eventType, otherDescription) {
+      document.getElementById('eventDetailsFilled').style.display = 'none';
+      document.getElementById('eventDetailsExpanded').style.display = 'none';
+      document.getElementById('eventDetailsLoading').style.display = 'block';
+
+      var typeLabel = eventType;
+      var found = ALL_EVENT_TYPES.find(function(x) { return x.value === eventType; });
+      if (found) typeLabel = found.label;
+      if (otherDescription) typeLabel = otherDescription;
+
+      try {
+        var res = await fetch('/api/v2/prompt-test?action=dummyData', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventType: eventType, typeLabel: typeLabel })
+        });
+        var data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Failed');
+        var d = data.eventDetails;
+        fillEventFields(d.title, d.startDate, d.endDate, d.locationName, d.locationAddress, d.hostName, d.dressCode, d.tagline, d.prompt);
+        showEventDetailsSummary();
+      } catch (err) {
+        console.error('Dummy data generation failed:', err);
+        // Fallback to empty fields
+        document.getElementById('eventDetailsLoading').style.display = 'none';
+        document.getElementById('eventDetailsExpanded').style.display = 'block';
+      }
+    }
+
+    // Handle "Other" description submission
+    document.addEventListener('DOMContentLoaded', function() {
+      var otherInput = document.getElementById('testOtherDescription');
+      if (otherInput) {
+        otherInput.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter' && otherInput.value.trim()) {
+            generateDummyData('other', otherInput.value.trim());
+          }
+        });
+      }
+    });
+
+    function fillTestDefaults() {
+      document.getElementById('testEventType').value = '';
+      document.getElementById('eventDetailsFilled').style.display = 'none';
+      document.getElementById('eventDetailsExpanded').style.display = 'none';
+      document.getElementById('eventDetailsLoading').style.display = 'none';
+      document.getElementById('otherTypeInput').style.display = 'none';
+      fillEventFields('', '', '', '', '', '', '', '', '');
+      document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.remove('active'); });
+      renderStyleCheckboxes();
+    }
+
+    // ── Compare mode toggle ──
+    var isCompareMode = false;
+
+    function toggleCompareMode() {
+      var cb = document.getElementById('compareCheckbox');
+      cb.checked = !cb.checked;
+      syncCompareMode();
+    }
+    function syncCompareMode() {
+      var cb = document.getElementById('compareCheckbox');
+      isCompareMode = cb.checked;
+      document.getElementById('compareToggle').classList.toggle('active', isCompareMode);
+      document.getElementById('testModelSelect').disabled = isCompareMode;
+      document.getElementById('testModelSelect').style.opacity = isCompareMode ? '0.5' : '1';
+    }
+
+    // ── Test preview state ──
+    var lastTestResult = null;
+    var lastComparisonResults = null;
+    var testPreviewMode = 'invite';
+
+    // ── Build proper srcdoc (same as front-end create page) ──
+    function buildTestSrcdoc(theme) {
+      var fontsImport = theme.config.googleFontsImport || '';
+      var themeHtml = theme.html;
+
+      // Build RSVP form HTML
+      var rsvpFormHtml = '<div style="padding:16px 0;">'
+        + '<div style="margin-bottom:12px;"><label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;opacity:0.7;">Your Name</label>'
+        + '<input type="text" value="Sarah" disabled style="width:100%;padding:12px 14px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-family:inherit;font-size:14px;background:rgba(255,255,255,0.8);"></div>'
+        + '<div style="margin-bottom:12px;"><label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;opacity:0.7;">RSVP Status</label>'
+        + '<select disabled style="width:100%;padding:12px 14px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-family:inherit;font-size:14px;background:rgba(255,255,255,0.8);"><option>Attending</option></select></div>'
+        + '</div>';
+
+      // Build detail overrides from test form
+      var detailOverrides = {};
+      detailOverrides.title = document.getElementById('testTitle').value;
+      var startVal = document.getElementById('testStartDate').value;
+      var endVal = document.getElementById('testEndDate').value;
+      if (startVal) {
+        var s = new Date(startVal);
+        var dateStr = s.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        var timeStr = s.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        detailOverrides.datetime = dateStr + ' &middot; ' + timeStr;
+        if (endVal) {
+          var e = new Date(endVal);
+          detailOverrides.datetime += ' – ' + e.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        }
+      }
+      var locParts = [];
+      var locName = document.getElementById('testLocation').value;
+      var locAddr = document.getElementById('testAddress').value;
+      if (locName) locParts.push(locName);
+      if (locAddr) locParts.push(locAddr);
+      if (locParts.length > 0) detailOverrides.location = locParts.join('<br>');
+      var dc = document.getElementById('testDressCode').value;
+      if (dc) detailOverrides.dresscode = dc;
+
+      var rsvpScript = '<script>'
+        + 'document.addEventListener("DOMContentLoaded", function() {'
+        + '  var slot = document.querySelector(".rsvp-slot");'
+        + '  if (slot) {'
+        + '    var btn = slot.querySelector(".rsvp-button");'
+        + '    var btnHtml = btn ? btn.outerHTML : "";'
+        + '    slot.innerHTML = ' + JSON.stringify(rsvpFormHtml) + ' + btnHtml;'
+        + '  }'
+        + '  var overrides = ' + JSON.stringify(detailOverrides) + ';'
+        + '  Object.keys(overrides).forEach(function(key) {'
+        + '    var el = document.querySelector("[data-field=\\"" + key + "\\"]");'
+        + '    if (el) el.innerHTML = overrides[key];'
+        + '  });'
+        + '  var dc = document.querySelector("[data-field=\\"dresscode\\"]");'
+        + '  if (dc && !overrides.dresscode) { dc.style.display = "none"; }'
+        + '  else if (dc && overrides.dresscode) { dc.style.display = ""; }'
+        + '});'
+        + '<\/script>';
+
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; } ' + fontsImport + '</style>'
+        + '<style>' + theme.css + '</style></head><body>' + themeHtml + rsvpScript + '</body></html>';
+    }
+
+    function buildTestThankYouSrcdoc(theme) {
+      var fontsImport = theme.config.googleFontsImport || '';
+      var guestName = 'Sarah';
+      var title = document.getElementById('testTitle').value || 'the event';
+      var pc = theme.config.primaryColor || '#333';
+      var sc = theme.config.secondaryColor || '#4CAF50';
+      var ac = theme.config.accentColor || '#2196F3';
+
+      var guaranteedCSS = '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }'
+        + '.thankyou-hero { margin-bottom:32px; }'
+        + '.thankyou-title { font-size:36px; font-weight:700; margin-bottom:12px; }'
+        + '.thankyou-subtitle { font-size:16px; line-height:1.5; opacity:0.8; }'
+        + '.thankyou-calendar-section { width:100%; max-width:320px; padding:0 8px; }'
+        + '.calendar-label { font-size:14px; margin-bottom:16px; opacity:0.7; }'
+        + '.calendar-buttons { display:flex; flex-direction:column; gap:12px; width:100%; }'
+        + '.cal-btn { display:block; width:100%; padding:16px 24px; border-radius:12px; border:none; font-family:inherit; font-size:16px; font-weight:600; cursor:pointer; transition:transform 0.15s,box-shadow 0.15s; text-align:center; color:#fff; }'
+        + '.cal-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.15); }'
+        + '.cal-apple { background:' + pc + '; }'
+        + '.cal-google { background:' + sc + '; }'
+        + '.cal-outlook { background:' + ac + '; }'
+        + '.thankyou-footer { font-size:12px; opacity:0.5; margin-top:40px; text-align:center; }'
+        + '.thankyou-footer a { color:inherit; text-decoration:none; }';
+
+      var calendarHTML = '<div class="thankyou-calendar-section">'
+        + '<p class="calendar-label">Add to your calendar:</p>'
+        + '<div class="calendar-buttons">'
+        + '<button class="cal-btn cal-apple">Apple / Outlook (.ics)</button>'
+        + '<button class="cal-btn cal-google">Google Calendar</button>'
+        + '<button class="cal-btn cal-outlook">Outlook Web</button>'
+        + '</div></div>';
+      var footerHTML = '<p class="thankyou-footer">Made with &#10084; by <a href="https://www.ryvite.com">Ryvite</a></p>';
+
+      var tyHtml = theme.thankyouHtml || '<div class="thankyou-page"><div class="thankyou-hero"><h1 class="thankyou-title">Thank You!</h1><p class="thankyou-subtitle">We can\'t wait to celebrate with you.</p></div></div>';
+
+      // Replace guest/event placeholders
+      tyHtml = tyHtml.replace(/<span class="thankyou-guest">[^<]*<\/span>/g, '<span class="thankyou-guest">' + guestName + '</span>');
+      tyHtml = tyHtml.replace(/<span class="thankyou-event">[^<]*<\/span>/g, '<span class="thankyou-event">' + escapeHtml(title) + '</span>');
+
+      // Strip AI calendar/footer and inject guaranteed ones
+      tyHtml = tyHtml.replace(/<div class="thankyou-calendar-section">[\s\S]*?<\/div>\s*<\/div>/gi, '');
+      tyHtml = tyHtml.replace(/<p class="thankyou-footer">[\s\S]*?<\/p>/gi, '');
+      var lastDiv = tyHtml.lastIndexOf('</div>');
+      if (lastDiv !== -1) {
+        tyHtml = tyHtml.substring(0, lastDiv) + calendarHTML + footerHTML + tyHtml.substring(lastDiv);
+      }
+
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; } ' + fontsImport + '</style>'
+        + '<style>' + theme.css + '</style>'
+        + '<style>' + guaranteedCSS + '</style>'
+        + '</head><body>' + tyHtml + '</body></html>';
+    }
+
+    // ── Render a theme into a phone iframe ──
+    function renderPhonePreview(iframe, theme, mode) {
+      if (!theme) return;
+      // Calculate scale to fit phone screen
+      var screenWidth = iframe.closest('.phone-screen')?.offsetWidth || 300;
+      iframe.style.transform = 'scale(' + (screenWidth / 393) + ')';
+      if (mode === 'thankyou') {
+        iframe.srcdoc = buildTestThankYouSrcdoc(theme);
+      } else {
+        iframe.srcdoc = buildTestSrcdoc(theme);
+      }
+    }
+
+    // ── Single model preview mode toggle ──
+    function setTestPreviewMode(mode) {
+      testPreviewMode = mode;
+      document.querySelectorAll('#singlePreviewContent .preview-toggle-btn').forEach(function(btn, i) {
+        btn.classList.toggle('active', (mode === 'invite' && i === 0) || (mode === 'thankyou' && i === 1));
+      });
+      if (lastTestResult) {
+        renderPhonePreview(document.getElementById('testPreviewFrame'), lastTestResult.theme, mode);
+      }
+    }
+
+    // ── Comparison preview mode toggle ──
+    function setComparisonPreviewMode(mode) {
+      testPreviewMode = mode;
+      document.querySelectorAll('#comparisonResultSection .preview-toggle-btn').forEach(function(btn, i) {
+        btn.classList.toggle('active', (mode === 'invite' && i === 0) || (mode === 'thankyou' && i === 1));
+      });
+      if (lastComparisonResults) {
+        lastComparisonResults.forEach(function(r, i) {
+          if (r && r.success) {
+            var iframe = document.querySelector('#compCard' + i + ' iframe');
+            if (iframe) renderPhonePreview(iframe, r.theme, mode);
+          }
+        });
+      }
+    }
+
+    // ── Main generation function ──
+    var COMP_MODELS = [
+      { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5', badge: 'haiku' },
+      { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6', badge: 'sonnet' },
+      { id: 'claude-opus-4-6', label: 'Opus 4.6', badge: 'opus' },
+      { id: 'hybrid', label: 'Hybrid', badge: 'hybrid', isHybrid: true, draftModel: 'claude-haiku-4-5-20251001', refineModel: 'claude-sonnet-4-6' }
+    ];
+
+    function getTestEventDetails() {
+      return {
+        title: document.getElementById('testTitle').value,
+        eventType: document.getElementById('testEventType').value,
+        eventDate: document.getElementById('testStartDate').value,
+        endDate: document.getElementById('testEndDate').value,
+        locationName: document.getElementById('testLocation').value,
+        locationAddress: document.getElementById('testAddress').value,
+        hostName: document.getElementById('testHost').value,
+        dressCode: document.getElementById('testDressCode').value,
+        tagline: document.getElementById('testTagline').value,
+        prompt: document.getElementById('testPrompt').value
+      };
+    }
+
+    function getTestStyleIds() {
+      var ids = [];
+      document.querySelectorAll('#styleRefList input[type="checkbox"]:checked').forEach(function(cb) { ids.push(cb.value); });
+      return ids;
+    }
+
+    async function runPromptTest() {
+      var btn = document.getElementById('runTestBtn');
+      var status = document.getElementById('testStatus');
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+
+      var styleIds = getTestStyleIds();
+      var eventDetails = getTestEventDetails();
+
+      try {
+        if (isCompareMode) {
+          var totalModels = COMP_MODELS.length;
+          status.textContent = 'Running ' + totalModels + ' models in parallel...';
+          lastTestResult = null;
+          lastComparisonResults = COMP_MODELS.map(function() { return null; });
+
+          // Show comparison grid immediately with loading states
+          document.getElementById('comparisonResultSection').style.display = 'block';
+          document.getElementById('singlePreviewEmpty').style.display = 'block';
+          document.getElementById('singlePreviewContent').style.display = 'none';
+          renderComparisonSkeleton();
+          document.getElementById('comparisonResultSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+          // Fire each model individually in parallel
+          var completedCount = 0;
+          var promises = COMP_MODELS.map(function(m, i) {
+            var startTime = Date.now();
+            updateCompCardStatus(i, 'generating', m.isHybrid ? 'Drafting with Haiku...' : 'Generating...');
+
+            // Build request body — hybrid uses different params
+            var reqBody;
+            if (m.isHybrid) {
+              reqBody = { hybrid: { draftModel: m.draftModel, refineModel: m.refineModel }, eventDetails: eventDetails, styleLibraryIds: styleIds };
+            } else {
+              reqBody = { model: m.id, eventDetails: eventDetails, styleLibraryIds: styleIds };
+            }
+
+            return fetch('/api/v2/prompt-test', {
+              method: 'POST',
+              headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+              body: JSON.stringify(reqBody)
+            }).then(function(r) {
+              if (!r.ok && r.status >= 500) console.error(m.label + ' returned HTTP ' + r.status);
+              return r.json();
+            }).then(function(data) {
+              completedCount++;
+              status.textContent = completedCount + '/' + totalModels + ' models complete...';
+              if (data.success) {
+                var result = { success: true, theme: data.theme, metadata: data.metadata };
+                lastComparisonResults[i] = result;
+                renderCompCardResult(i, result);
+              } else {
+                var errMsg = data.message || data.error || 'Failed';
+                lastComparisonResults[i] = { success: false, model: m.id, error: errMsg };
+                updateCompCardStatus(i, 'error', errMsg);
+              }
+            }).catch(function(err) {
+              completedCount++;
+              status.textContent = completedCount + '/' + totalModels + ' models complete...';
+              lastComparisonResults[i] = { success: false, model: m.id, error: err.message };
+              updateCompCardStatus(i, 'error', err.message);
+            });
+          });
+
+          await Promise.all(promises);
+          renderComparisonSummary(lastComparisonResults);
+          status.textContent = 'Done! All ' + totalModels + ' models complete.';
+          setTimeout(function() { status.textContent = ''; }, 3000);
+        } else {
+          status.textContent = 'This may take 15-60s...';
+          // Single model
+          var r = await fetch('/api/v2/prompt-test', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: document.getElementById('testModelSelect').value, eventDetails: eventDetails, styleLibraryIds: styleIds })
+          });
+          var data = await r.json();
+          if (!data.success) throw new Error(data.message || data.error || 'Generation failed');
+
+          lastTestResult = data;
+          lastComparisonResults = null;
+          document.getElementById('comparisonResultSection').style.display = 'none';
+          renderSingleResult(data);
+          status.textContent = 'Done!';
+          setTimeout(function() { status.textContent = ''; }, 3000);
+        }
+      } catch (err) {
+        status.textContent = 'Error: ' + err.message;
+        status.style.color = 'var(--party-coral)';
+        setTimeout(function() { status.style.color = '#888'; }, 5000);
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Generate Test Invite';
+    }
+
+    // ── Comparison: render skeleton with loading spinners ──
+    function renderComparisonSkeleton() {
+      var grid = document.getElementById('comparisonGrid');
+      grid.className = 'comparison-grid cols-' + COMP_MODELS.length;
+      grid.innerHTML = COMP_MODELS.map(function(m, i) {
+        return '<div class="comparison-card" id="compCard' + i + '">'
+          + '<div class="comparison-card-header"><h4>' + m.label + '</h4><span class="model-badge ' + m.badge + '">' + m.badge + '</span></div>'
+          + '<div class="comparison-card-body" id="compCardBody' + i + '">'
+          + '<div class="generating-overlay" id="compCardLoading' + i + '">'
+          + '<div class="generating-spinner"></div>'
+          + '<div style="font-size:13px;color:#888;" id="compCardStatusText' + i + '">Waiting to start...</div>'
+          + '<div style="margin-top:8px;width:100%;max-width:200px;height:4px;background:#eee;border-radius:2px;overflow:hidden;">'
+          + '<div id="compCardProgress' + i + '" style="height:100%;background:var(--party-coral);border-radius:2px;width:0%;transition:width 0.3s;"></div>'
+          + '</div>'
+          + '</div>'
+          + '</div></div>';
+      }).join('');
+
+      // Start progress bar animations
+      COMP_MODELS.forEach(function(m, i) {
+        animateProgress(i);
+      });
+
+      document.getElementById('comparisonSummary').innerHTML = '';
+    }
+
+    var progressTimers = {};
+    function animateProgress(idx) {
+      var bar = document.getElementById('compCardProgress' + idx);
+      if (!bar) return;
+      var pct = 0;
+      if (progressTimers[idx]) clearInterval(progressTimers[idx]);
+      progressTimers[idx] = setInterval(function() {
+        if (pct >= 90) { clearInterval(progressTimers[idx]); return; }
+        pct += Math.random() * 3 + 0.5;
+        if (pct > 90) pct = 90;
+        bar.style.width = pct + '%';
+      }, 500);
+    }
+
+    function updateCompCardStatus(idx, state, text) {
+      var statusEl = document.getElementById('compCardStatusText' + idx);
+      var progressBar = document.getElementById('compCardProgress' + idx);
+      if (statusEl) statusEl.textContent = text;
+      if (state === 'generating') {
+        if (progressBar) progressBar.style.width = '5%';
+      } else if (state === 'error') {
+        if (progressTimers[idx]) clearInterval(progressTimers[idx]);
+        if (progressBar) { progressBar.style.width = '100%'; progressBar.style.background = 'var(--party-coral)'; }
+      }
+    }
+
+    // ── Cost calculation helper ──
+    var COST_IN = { 'claude-haiku-4-5-20251001': 0.80, 'claude-sonnet-4-6': 3.00, 'claude-opus-4-6': 15.00 };
+    var COST_OUT = { 'claude-haiku-4-5-20251001': 4.00, 'claude-sonnet-4-6': 15.00, 'claude-opus-4-6': 75.00 };
+
+    function calcEstCost(meta) {
+      // Hybrid mode: calculate cost from individual steps
+      if (meta.hybrid) {
+        var d = meta.hybrid.draft, r = meta.hybrid.refine;
+        var draftCost = (d.tokens.input * (COST_IN[d.model] || 0.80) + d.tokens.output * (COST_OUT[d.model] || 4)) / 1000000;
+        var refineCost = (r.tokens.input * (COST_IN[r.model] || 3) + r.tokens.output * (COST_OUT[r.model] || 15)) / 1000000;
+        return draftCost + refineCost;
+      }
+      return (meta.tokens.input * (COST_IN[meta.model] || 3) + meta.tokens.output * (COST_OUT[meta.model] || 15)) / 1000000;
+    }
+
+    // ── Comparison: fill in a single card with its result ──
+    function renderCompCardResult(idx, result) {
+      if (progressTimers[idx]) clearInterval(progressTimers[idx]);
+      var m = COMP_MODELS[idx];
+      var meta = result.metadata;
+      var estCost = calcEstCost(meta);
+
+      var card = document.getElementById('compCard' + idx);
+      var hybridNote = m.isHybrid
+        ? (meta.warning ? '<div style="font-size:10px;color:#e65100;margin-top:2px;">⚠ ' + escapeHtml(meta.warning) + '</div>'
+          : '<div style="font-size:10px;color:#888;margin-top:2px;">Haiku draft → Sonnet polish</div>')
+        : '';
+      var headerExtra = hybridNote;
+      card.innerHTML = '<div class="comparison-card-header"><h4>' + m.label + '</h4><span class="model-badge ' + m.badge + '">' + m.badge + '</span>' + headerExtra + '</div>'
+        + '<div class="comparison-card-body">'
+        + '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-same-origin allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>'
+        + '</div>'
+        + '<div class="code-tabs">'
+        + '<button class="code-tab" onclick="showCompCode(' + idx + ',\'html\')">HTML</button>'
+        + '<button class="code-tab" onclick="showCompCode(' + idx + ',\'css\')">CSS</button>'
+        + '<button class="code-tab" onclick="showCompCode(' + idx + ',\'config\')">Config</button>'
+        + '</div>'
+        + '<div id="compCode' + idx + '" style="display:none;padding:0 16px 12px;"><div class="prompt-viewer" style="max-height:300px;" id="compCodeContent' + idx + '"></div></div>'
+        + '<div class="comparison-card-stats">'
+        + '<div class="stat"><div class="val">' + (meta.latencyMs / 1000).toFixed(1) + 's</div><div class="lbl">Latency</div></div>'
+        + '<div class="stat"><div class="val">' + formatNumber(meta.tokens.input) + '</div><div class="lbl">In Tokens</div></div>'
+        + '<div class="stat"><div class="val">' + formatNumber(meta.tokens.output) + '</div><div class="lbl">Out Tokens</div></div>'
+        + '<div class="stat"><div class="val">' + fmtCost(estCost) + '</div><div class="lbl">Est. Cost</div></div>'
+        + '</div>';
+
+      // Render preview
+      setTimeout(function() {
+        var iframe = card.querySelector('iframe');
+        if (iframe) renderPhonePreview(iframe, result.theme, testPreviewMode);
+      }, 50);
+    }
+
+    // ── Comparison summary (after all complete) ──
+    function renderComparisonSummary(results) {
+      var totalCost = 0;
+      var successCount = 0;
+      results.forEach(function(r) {
+        if (r && r.success) {
+          totalCost += calcEstCost(r.metadata);
+          successCount++;
+        }
+      });
+      document.getElementById('comparisonSummary').innerHTML =
+        '<div class="test-meta"><span>' + successCount + '/' + results.length + ' models succeeded</span>'
+        + '<span>Total cost: <span class="val">' + fmtCost(totalCost) + '</span></span></div>';
+    }
+
+    // ── Render single model result into phone sidebar ──
+    function renderSingleResult(data) {
+      document.getElementById('singlePreviewEmpty').style.display = 'none';
+      document.getElementById('singlePreviewContent').style.display = 'block';
+      testPreviewMode = 'invite';
+
+      var meta = data.metadata;
+      var estCost = calcEstCost(meta);
+
+      document.getElementById('testMeta').innerHTML =
+        '<span>Model: <span class="val">' + shortModelName(meta.model) + '</span></span>' +
+        '<span>Latency: <span class="val">' + (meta.latencyMs / 1000).toFixed(1) + 's</span></span>' +
+        '<span>Tokens: <span class="val">' + formatNumber(meta.tokens.input) + '/' + formatNumber(meta.tokens.output) + '</span></span>' +
+        '<span>Cost: <span class="val">' + fmtCost(estCost) + '</span></span>';
+
+      // Render phone preview
+      var frame = document.getElementById('testPreviewFrame');
+      renderPhonePreview(frame, data.theme, 'invite');
+
+      // Store code
+      document.getElementById('testHtmlContent').textContent = data.theme.html;
+      document.getElementById('testCssContent').textContent = data.theme.css;
+      document.getElementById('testConfigContent').textContent = JSON.stringify(data.theme.config, null, 2);
+
+      // Reset toggle buttons
+      document.querySelectorAll('#singlePreviewContent .preview-toggle-btn').forEach(function(btn, i) {
+        btn.classList.toggle('active', i === 0);
+      });
+      showTestView('preview');
+    }
+
+    function showCompCode(idx, type) {
+      var codeDiv = document.getElementById('compCode' + idx);
+      var contentDiv = document.getElementById('compCodeContent' + idx);
+      var tabs = document.querySelectorAll('#compCard' + idx + ' .code-tab');
+
+      // Toggle off if same tab clicked
+      var currentType = codeDiv.dataset.activeType;
+      if (currentType === type && codeDiv.style.display !== 'none') {
+        codeDiv.style.display = 'none';
+        tabs.forEach(function(t) { t.classList.remove('active'); });
+        return;
+      }
+
+      codeDiv.dataset.activeType = type;
+      codeDiv.style.display = 'block';
+      tabs.forEach(function(t) { t.classList.remove('active'); });
+      tabs.forEach(function(t) { if (t.textContent.toLowerCase() === type) t.classList.add('active'); });
+
+      var r = lastComparisonResults[idx];
+      if (!r || !r.success) return;
+      if (type === 'html') contentDiv.textContent = r.theme.html;
+      else if (type === 'css') contentDiv.textContent = r.theme.css;
+      else contentDiv.textContent = JSON.stringify(r.theme.config, null, 2);
+    }
+
+    function shortModelName(model) {
+      if (model && model.indexOf('→') !== -1) return 'Hybrid';
+      var names = { 'claude-haiku-4-5-20251001': 'Haiku 4.5', 'claude-sonnet-4-6': 'Sonnet 4.6', 'claude-opus-4-6': 'Opus 4.6' };
+      return names[model] || model;
+    }
+
+    function showTestView(view) {
+      var isPreview = view === 'preview';
+      ['preview', 'html', 'css', 'config'].forEach(function(v) {
+        var el = document.getElementById('testView' + v.charAt(0).toUpperCase() + v.slice(1));
+        if (el) el.style.display = v === view && !isPreview ? 'block' : 'none';
+        var btn = document.getElementById('btn' + v.charAt(0).toUpperCase() + v.slice(1));
+        if (btn) {
+          btn.style.background = v === view ? 'var(--midnight)' : '';
+          btn.style.color = v === view ? 'white' : '';
+        }
+      });
+    }
+
+    // ---- Style Library ----
+    var styleLibrary = [];
+
+    async function loadStyleLibrary() {
+      try {
+        var res = await adminFetch('getStyleLibrary');
+        styleLibrary = res.library || [];
+        renderStyleGrid();
+        renderStyleCheckboxes();
+        updateStyleCount();
+        updateFilterUI();
+      } catch (err) {
+        console.error('Failed to load style library:', err);
+      }
+    }
+
+    function updateStyleCount() {
+      document.getElementById('styleCount').textContent = styleLibrary.length + ' sample' + (styleLibrary.length !== 1 ? 's' : '') + ' in library';
+    }
+
+    function updateFilterUI() {
+      // Show/hide filters based on library size
+      document.getElementById('styleFilters').style.display = styleLibrary.length > 0 ? 'block' : 'none';
+
+      // Populate tag dropdown with all unique tags
+      var allTags = {};
+      styleLibrary.forEach(function(item) {
+        (item.tags || []).forEach(function(t) { allTags[t.toLowerCase()] = t; });
+      });
+      var tagSelect = document.getElementById('filterTag');
+      var currentTag = tagSelect.value;
+      tagSelect.innerHTML = '<option value="">All Tags</option>' +
+        Object.keys(allTags).sort().map(function(k) {
+          return '<option value="' + escapeHtml(allTags[k]) + '">' + escapeHtml(allTags[k]) + '</option>';
+        }).join('');
+      tagSelect.value = currentTag;
+    }
+
+    function applyStyleFilter() {
+      var eventType = document.getElementById('filterEventType').value;
+      var tag = document.getElementById('filterTag').value;
+      var search = document.getElementById('filterSearch').value.trim();
+      var filter = null;
+      if (eventType || tag || search) {
+        filter = {};
+        if (eventType) filter.eventType = eventType;
+        if (tag) filter.tag = tag;
+        if (search) filter.search = search;
+      }
+      renderStyleGrid(filter);
+    }
+
+    function clearStyleFilter() {
+      document.getElementById('filterEventType').value = '';
+      document.getElementById('filterTag').value = '';
+      document.getElementById('filterSearch').value = '';
+      renderStyleGrid();
+    }
+
+    function renderStyleGrid(filter) {
+      var grid = document.getElementById('styleGrid');
+      var items = styleLibrary;
+
+      // Apply filter
+      if (filter && filter.eventType) {
+        items = items.filter(function(item) { return (item.eventTypes || []).includes(filter.eventType); });
+      }
+      if (filter && filter.tag) {
+        var tagLower = filter.tag.toLowerCase();
+        items = items.filter(function(item) { return (item.tags || []).some(function(t) { return t.toLowerCase() === tagLower; }); });
+      }
+      if (filter && filter.search) {
+        var q = filter.search.toLowerCase();
+        items = items.filter(function(item) {
+          return (item.name || '').toLowerCase().includes(q)
+            || (item.description || '').toLowerCase().includes(q)
+            || (item.tags || []).some(function(t) { return t.toLowerCase().includes(q); });
+        });
+      }
+
+      if (items.length === 0) {
+        grid.innerHTML = '<div style="color:#888;font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">'
+          + (styleLibrary.length === 0 ? 'No style samples yet. Add HTML invite samples to build your reference library.' : 'No samples match the current filter.')
+          + '</div>';
+        return;
+      }
+
+      // Build cards with DOM so we can set srcdoc properly
+      grid.innerHTML = '';
+      items.forEach(function(item) {
+        var card = document.createElement('div');
+        card.className = 'style-card';
+
+        var previewDiv = document.createElement('div');
+        previewDiv.className = 'style-card-preview';
+        var iframe = document.createElement('iframe');
+        iframe.sandbox = 'allow-same-origin';
+        iframe.srcdoc = wrapForPreview(item.html, false, true);
+        previewDiv.appendChild(iframe);
+        card.appendChild(previewDiv);
+
+        var tags = (item.tags || []).map(function(t) { return '<span class="style-tag">' + escapeHtml(t) + '</span>'; }).join('');
+        var eventTypeBadges = (item.eventTypes || []).map(function(et) {
+          var etObj = ALL_EVENT_TYPES.find(function(x) { return x.value === et; });
+          return '<span class="style-tag" style="background:rgba(233,69,96,0.1);color:var(--party-coral);">' + (etObj ? etObj.label : et) + '</span>';
+        }).join('');
+
+        var body = document.createElement('div');
+        body.className = 'style-card-body';
+        body.innerHTML = '<h4>' + escapeHtml(item.name) + '</h4>'
+          + (item.description ? '<p>' + escapeHtml(item.description) + '</p>' : '')
+          + (eventTypeBadges ? '<div style="margin-bottom:4px;">' + eventTypeBadges + '</div>' : '')
+          + (tags ? '<div style="margin-bottom:8px;">' + tags + '</div>' : '')
+          + '<div class="style-card-actions">'
+          + '<button class="btn btn-secondary btn-sm" onclick="viewStyleItem(\'' + item.id + '\')">View</button>'
+          + '<button class="btn btn-secondary btn-sm" onclick="editStyleItem(\'' + item.id + '\')">Edit</button>'
+          + '<button class="btn btn-secondary btn-sm" style="color:var(--party-coral);" onclick="deleteStyleItem(\'' + item.id + '\')">Delete</button>'
+          + '</div>';
+        card.appendChild(body);
+        grid.appendChild(card);
+      });
+
+      // Dynamically scale iframes to fill card width
+      requestAnimationFrame(function() {
+        var cards = grid.querySelectorAll('.style-card-preview');
+        cards.forEach(function(preview) {
+          var cardWidth = preview.offsetWidth;
+          var iframe = preview.querySelector('iframe');
+          if (iframe && cardWidth > 0) {
+            var scale = cardWidth / 393;
+            iframe.style.transform = 'scale(' + scale + ')';
+            preview.style.height = Math.round(700 * scale * 0.4) + 'px';
+          }
+        });
+      });
+    }
+
+    function renderStyleCheckboxes() {
+      var container = document.getElementById('styleRefList');
+      var currentType = document.getElementById('testEventType').value;
+      if (!currentType) {
+        container.innerHTML = '<span style="font-size:12px;color:#aaa;">Select an event type above to see matched styles.</span>';
+        return;
+      }
+      // Filter to only auto-matched items (same logic as backend: .contains('event_types', [eventType]) limit 2)
+      var matched = styleLibrary.filter(function(item) {
+        return (item.eventTypes || []).includes(currentType);
+      }).slice(0, 2);
+      if (matched.length === 0) {
+        container.innerHTML = '<span style="font-size:12px;color:#aaa;">No style references matched for this event type.</span>';
+        return;
+      }
+      container.innerHTML = matched.map(function(item) {
+        return '<label class="style-checkbox selected">'
+          + '<input type="checkbox" value="' + item.id + '" checked>'
+          + '<span style="font-size:13px;font-weight:600;">' + escapeHtml(item.name) + '</span>'
+          + '<span style="font-size:10px;font-weight:700;color:var(--mint-fizz);margin-left:6px;">AUTO-MATCH</span>'
+          + (item.description ? '<span style="font-size:12px;color:#888;margin-left:4px;">' + escapeHtml(item.description) + '</span>' : '')
+          + '</label>';
+      }).join('');
+    }
+
+    var ALL_EVENT_TYPES = [
+      { value: 'kidsBirthday', label: 'Kids Birthday' },
+      { value: 'adultBirthday', label: 'Adult Birthday' },
+      { value: 'babyShower', label: 'Baby Shower' },
+      { value: 'engagement', label: 'Engagement' },
+      { value: 'wedding', label: 'Wedding' },
+      { value: 'graduation', label: 'Graduation' },
+      { value: 'holiday', label: 'Holiday' },
+      { value: 'dinnerParty', label: 'Dinner Party' },
+      { value: 'retirement', label: 'Retirement' },
+      { value: 'anniversary', label: 'Anniversary' },
+      { value: 'sports', label: 'Sports' },
+      { value: 'bridalShower', label: 'Bridal Shower' },
+      { value: 'corporate', label: 'Corporate' },
+      { value: 'other', label: 'Other' }
+    ];
+
+    function renderEventTypeCheckboxes(selectedTypes) {
+      var container = document.getElementById('styleEventTypes');
+      container.innerHTML = ALL_EVENT_TYPES.map(function(et) {
+        var checked = (selectedTypes || []).includes(et.value) ? ' checked' : '';
+        return '<label style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:#f9f9f9;border-radius:4px;font-size:12px;cursor:pointer;border:1px solid #eee;">'
+          + '<input type="checkbox" value="' + et.value + '"' + checked + ' style="accent-color:var(--party-coral);">'
+          + et.label + '</label>';
+      }).join('');
+    }
+
+    function getSelectedEventTypes() {
+      return Array.from(document.querySelectorAll('#styleEventTypes input[type="checkbox"]:checked')).map(function(cb) { return cb.value; });
+    }
+
+    function openAddStyleModal() {
+      document.getElementById('styleModalTitle').textContent = 'Add Style Sample';
+      document.getElementById('styleName').value = '';
+      document.getElementById('styleDescription').value = '';
+      document.getElementById('styleDesignNotes').value = '';
+      document.getElementById('styleTags').value = '';
+      document.getElementById('styleHtml').value = '';
+      document.getElementById('styleEditId').value = '';
+      document.getElementById('stylePreviewContainer').style.display = 'none';
+      renderEventTypeCheckboxes([]);
+      document.getElementById('styleModal').style.display = 'flex';
+    }
+
+    function editStyleItem(id) {
+      var item = styleLibrary.find(function(s) { return s.id === id; });
+      if (!item) return;
+      document.getElementById('styleModalTitle').textContent = 'Edit Style Sample';
+      document.getElementById('styleName').value = item.name;
+      document.getElementById('styleDescription').value = item.description || '';
+      document.getElementById('styleDesignNotes').value = item.designNotes || '';
+      document.getElementById('styleTags').value = (item.tags || []).join(', ');
+      document.getElementById('styleHtml').value = item.html;
+      document.getElementById('styleEditId').value = id;
+      document.getElementById('stylePreviewContainer').style.display = 'none';
+      renderEventTypeCheckboxes(item.eventTypes || []);
+      document.getElementById('styleModal').style.display = 'flex';
+    }
+
+    function viewStyleItem(id) {
+      var item = styleLibrary.find(function(s) { return s.id === id; });
+      if (!item) return;
+      document.getElementById('styleModalTitle').textContent = 'View: ' + item.name;
+      document.getElementById('styleName').value = item.name;
+      document.getElementById('styleDescription').value = item.description || '';
+      document.getElementById('styleDesignNotes').value = item.designNotes || '';
+      document.getElementById('styleTags').value = (item.tags || []).join(', ');
+      document.getElementById('styleHtml').value = item.html;
+      document.getElementById('styleEditId').value = id;
+      renderEventTypeCheckboxes(item.eventTypes || []);
+      // Show preview
+      document.getElementById('stylePreviewContainer').style.display = 'block';
+      document.getElementById('stylePreviewFrame').srcdoc = wrapForPreview(item.html, true);
+      document.getElementById('styleModal').style.display = 'flex';
+    }
+
+    async function autoTagStyle() {
+      var html = document.getElementById('styleHtml').value.trim();
+      if (!html) { alert('Paste HTML content first, then click Auto-Tag.'); return; }
+
+      var btn = document.getElementById('autoTagBtn');
+      var status = document.getElementById('autoTagStatus');
+      btn.disabled = true;
+      btn.textContent = 'Analyzing...';
+      status.textContent = 'AI is reviewing the design...';
+
+      try {
+        var r = await fetch('/api/v2/prompt-test?action=autoTag', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ html: html })
+        });
+        var data = await r.json();
+        if (!data.success) throw new Error(data.error || 'Auto-tag failed');
+
+        var tag = data.autoTag;
+
+        // Fill in the fields — only overwrite if currently empty or user confirms
+        var nameEl = document.getElementById('styleName');
+        var descEl = document.getElementById('styleDescription');
+        var notesEl = document.getElementById('styleDesignNotes');
+        var tagsEl = document.getElementById('styleTags');
+
+        if (!nameEl.value.trim()) nameEl.value = tag.name;
+        if (!descEl.value.trim()) descEl.value = tag.description;
+        if (!notesEl.value.trim()) notesEl.value = tag.designNotes;
+        if (!tagsEl.value.trim()) tagsEl.value = (tag.tags || []).join(', ');
+
+        // Always update event types since checkboxes are additive
+        renderEventTypeCheckboxes(tag.eventTypes || []);
+
+        status.textContent = 'Done! Review and adjust the suggestions.';
+        status.style.color = 'var(--mint-fizz)';
+        setTimeout(function() { status.textContent = ''; status.style.color = '#888'; }, 4000);
+      } catch (err) {
+        status.textContent = 'Error: ' + err.message;
+        status.style.color = 'var(--party-coral)';
+        setTimeout(function() { status.textContent = ''; status.style.color = '#888'; }, 5000);
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Auto-Tag with AI';
+    }
+
+    function closeStyleModal() {
+      document.getElementById('styleModal').style.display = 'none';
+    }
+
+    // ---- Bulk Upload ----
+    (function() {
+      var dz = document.getElementById('bulkDropzone');
+      if (!dz) return;
+      dz.addEventListener('dragover', function(e) { e.preventDefault(); dz.classList.add('drag-over'); });
+      dz.addEventListener('dragleave', function() { dz.classList.remove('drag-over'); });
+      dz.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dz.classList.remove('drag-over');
+        var files = Array.from(e.dataTransfer.files).filter(function(f) {
+          return f.name.match(/\.html?$/i);
+        });
+        if (files.length > 0) handleBulkFiles(files);
+      });
+    })();
+
+    async function handleBulkFiles(fileList) {
+      var files = Array.from(fileList).filter(function(f) { return f.name.match(/\.html?$/i); });
+      if (files.length === 0) { alert('No .html files found. Please select HTML files.'); return; }
+
+      var progress = document.getElementById('bulkProgress');
+      progress.style.display = 'flex';
+
+      // Build floating panel structure
+      var items = files.map(function(f, i) {
+        return { file: f, id: 'bulk_' + i, html: null, autoTag: null, status: 'pending' };
+      });
+
+      progress.innerHTML = '<div class="bulk-progress-header">'
+        + '<span id="bulkHeaderText">Processing 0 / ' + files.length + '</span>'
+        + '<button class="bulk-close" onclick="document.getElementById(\'bulkProgress\').style.display=\'none\'" title="Dismiss">&times;</button>'
+        + '</div>'
+        + '<div class="bulk-progress-bar"><div class="bulk-progress-bar-fill" id="bulkBarFill"></div></div>'
+        + '<div class="bulk-progress-list" id="bulkList">'
+        + items.map(function(item) {
+            return '<div class="bulk-item" id="' + item.id + '">'
+              + '<span class="file-name">' + escapeHtml(item.file.name) + '</span>'
+              + '<span class="file-status pending" id="' + item.id + '_status">Queued</span>'
+              + '</div>';
+          }).join('')
+        + '</div>';
+
+      var headerText = document.getElementById('bulkHeaderText');
+      var barFill = document.getElementById('bulkBarFill');
+      var listEl = document.getElementById('bulkList');
+
+      // Process each file sequentially (to avoid hammering the API)
+      var successCount = 0;
+      var doneCount = 0;
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var statusEl = document.getElementById(item.id + '_status');
+
+        // Scroll current item into view
+        var itemEl = document.getElementById(item.id);
+        if (itemEl) itemEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+        // Step 1: Read the file
+        try {
+          statusEl.textContent = 'Reading...';
+          statusEl.className = 'file-status tagging';
+          item.html = await readFileAsText(item.file);
+        } catch (err) {
+          statusEl.textContent = 'Read error';
+          statusEl.className = 'file-status error';
+          doneCount++;
+          headerText.textContent = 'Processing ' + doneCount + ' / ' + files.length;
+          barFill.style.width = Math.round((doneCount / files.length) * 100) + '%';
+          continue;
+        }
+
+        // Step 2: Auto-tag with AI
+        try {
+          statusEl.textContent = 'AI tagging...';
+          var tagRes = await fetch('/api/v2/prompt-test?action=autoTag', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ html: item.html })
+          });
+          var tagData = await tagRes.json();
+          if (!tagData.success) throw new Error(tagData.error || 'Tag failed');
+          item.autoTag = tagData.autoTag;
+        } catch (err) {
+          item.autoTag = {
+            name: item.file.name.replace(/\.html?$/i, '').replace(/[-_]/g, ' '),
+            description: '',
+            eventTypes: [],
+            tags: [],
+            designNotes: ''
+          };
+          statusEl.textContent = 'Tag failed, saving...';
+        }
+
+        // Step 3: Save to library
+        try {
+          statusEl.textContent = 'Saving...';
+          var saveRes = await adminFetch('saveStyleItem', {
+            method: 'POST',
+            body: {
+              name: item.autoTag.name,
+              description: item.autoTag.description,
+              html: item.html,
+              tags: item.autoTag.tags,
+              eventTypes: item.autoTag.eventTypes,
+              designNotes: item.autoTag.designNotes
+            }
+          });
+          styleLibrary = saveRes.library || [];
+          statusEl.textContent = 'Added';
+          statusEl.className = 'file-status done';
+          successCount++;
+        } catch (err) {
+          statusEl.textContent = 'Save failed';
+          statusEl.className = 'file-status error';
+        }
+
+        doneCount++;
+        headerText.textContent = 'Processing ' + doneCount + ' / ' + files.length;
+        barFill.style.width = Math.round((doneCount / files.length) * 100) + '%';
+      }
+
+      // Done — update header
+      headerText.textContent = successCount + ' / ' + files.length + ' added';
+      barFill.style.width = '100%';
+      barFill.style.background = successCount === files.length ? 'var(--mint-fizz)' : 'var(--confetti-gold)';
+
+      // Refresh the UI
+      renderStyleGrid();
+      renderStyleCheckboxes();
+      updateStyleCount();
+      updateFilterUI();
+
+      // Reset file input
+      document.getElementById('bulkFileInput').value = '';
+    }
+
+    function readFileAsText(file) {
+      return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function() { resolve(reader.result); };
+        reader.onerror = function() { reject(new Error('Failed to read file')); };
+        reader.readAsText(file);
+      });
+    }
+
+    function toggleStylePreview() {
+      var container = document.getElementById('stylePreviewContainer');
+      if (container.style.display === 'none') {
+        container.style.display = 'block';
+        var html = document.getElementById('styleHtml').value;
+        document.getElementById('stylePreviewFrame').srcdoc = wrapForPreview(html, true);
+      } else {
+        container.style.display = 'none';
+      }
+    }
+
+    async function saveStyleItem() {
+      var name = document.getElementById('styleName').value.trim();
+      var html = document.getElementById('styleHtml').value.trim();
+      if (!name || !html) { alert('Name and HTML content are required.'); return; }
+
+      var tags = document.getElementById('styleTags').value.split(',').map(function(t) { return t.trim(); }).filter(Boolean);
+      var editId = document.getElementById('styleEditId').value || null;
+
+      try {
+        var res = await adminFetch('saveStyleItem', {
+          method: 'POST',
+          body: {
+            id: editId,
+            name: name,
+            description: document.getElementById('styleDescription').value.trim(),
+            html: html,
+            tags: tags,
+            eventTypes: getSelectedEventTypes(),
+            designNotes: document.getElementById('styleDesignNotes').value.trim()
+          }
+        });
+        styleLibrary = res.library || [];
+        renderStyleGrid();
+        renderStyleCheckboxes();
+        updateStyleCount();
+        updateFilterUI();
+        closeStyleModal();
+      } catch (err) {
+        alert('Failed to save: ' + err.message);
+      }
+    }
+
+    async function deleteStyleItem(id) {
+      var item = styleLibrary.find(function(s) { return s.id === id; });
+      if (!item || !confirm('Delete "' + item.name + '"?')) return;
+
+      try {
+        var res = await adminFetch('deleteStyleItem', { method: 'POST', body: { id: id } });
+        styleLibrary = res.library || [];
+        renderStyleGrid();
+        renderStyleCheckboxes();
+        updateStyleCount();
+        updateFilterUI();
+      } catch (err) {
+        alert('Failed to delete: ' + err.message);
+      }
+    }
+
     // ---- Utilities ----
+    // Build iframe srcdoc from HTML that may be a full page or a fragment
+    function wrapForPreview(html, centered, stripScripts) {
+      var trimmed = html.trim();
+      // Strip <script> tags for thumbnail iframes that don't allow scripts (prevents console spam)
+      if (stripScripts) trimmed = trimmed.replace(/<script[\s\S]*?<\/script>/gi, '');
+      // If it's already a complete HTML document, use it directly
+      if (trimmed.match(/^<!DOCTYPE/i) || trimmed.match(/^<html/i)) {
+        return trimmed;
+      }
+      // Otherwise wrap it in a minimal page
+      var bodyStyle = centered ? 'margin:0;display:flex;justify-content:center;background:#f0f0f0;' : 'margin:0;';
+      return '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="' + bodyStyle + '">' + trimmed + '</body></html>';
+    }
+
     function formatDate(iso) {
       if (!iso) return '—';
       try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
@@ -677,5 +2400,6 @@
     function escapeHtml(str) { var d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
     function logout() { localStorage.removeItem('sb_access_token'); localStorage.removeItem('v2_user'); window.location.href = '/v2/login/'; }
   </script>
+  <div class="bulk-progress" id="bulkProgress" style="display:none;"></div>
 </body>
 </html>

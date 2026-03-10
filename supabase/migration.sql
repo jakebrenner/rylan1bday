@@ -248,8 +248,30 @@ comment on table public.app_config is 'Platform-wide configuration (model select
 -- Seed defaults
 insert into public.app_config (key, value) values
   ('chat_model', 'claude-haiku-4-5-20251001'),
-  ('theme_model', 'claude-sonnet-4-20250514')
+  ('theme_model', 'claude-sonnet-4-6')
 on conflict (key) do nothing;
+
+-- ============================================================
+-- 10. STYLE_LIBRARY — HTML invite templates for AI reference
+-- ============================================================
+
+create table public.style_library (
+  id            text primary key,
+  name          text not null,
+  description   text not null default '',
+  html          text not null,
+  tags          text[] not null default '{}',
+  event_types   text[] not null default '{}',
+  design_notes  text not null default '',
+  added_by      text not null default '',
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+
+comment on table public.style_library is 'HTML invite style samples used as AI design references during generation.';
+
+create index style_library_event_types_idx on public.style_library using gin (event_types);
+create index style_library_tags_idx on public.style_library using gin (tags);
 
 -- ============================================================
 -- SHARED FUNCTIONS & TRIGGERS
@@ -275,6 +297,10 @@ create trigger events_updated_at
 
 create trigger guests_updated_at
   before update on public.guests
+  for each row execute function public.update_updated_at();
+
+create trigger style_library_updated_at
+  before update on public.style_library
   for each row execute function public.update_updated_at();
 
 -- Auto-create profile on auth.users insert
@@ -309,6 +335,7 @@ alter table public.guests enable row level security;
 alter table public.event_collaborators enable row level security;
 alter table public.generation_log enable row level security;
 alter table public.notification_log enable row level security;
+alter table public.style_library enable row level security;
 
 -- ---- PROFILES ----
 

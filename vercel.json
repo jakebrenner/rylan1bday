@@ -6,6 +6,10 @@
     },
     "api/v2/chat.js": {
       "maxDuration": 60
+    },
+    "api/v2/prompt-test.js": {
+      "maxDuration": 180,
+      "memory": 1024
     }
   },
   "rewrites": [

@@ -194,8 +194,8 @@ export default async function handler(req, res) {
       // Pricing per 1M tokens (input / output) by model
       const MODEL_PRICING = {
         'claude-haiku-4-5-20251001':  { input: 0.80, output: 4.00 },
-        'claude-sonnet-4-20250514':   { input: 3.00, output: 15.00 },
-        'claude-opus-4-20250514':     { input: 15.00, output: 75.00 },
+        'claude-sonnet-4-6':   { input: 3.00, output: 15.00 },
+        'claude-opus-4-6':     { input: 15.00, output: 75.00 },
       };
 
       // Token usage + costs by model
@@ -277,7 +277,7 @@ export default async function handler(req, res) {
         success: true,
         config: {
           chatModel: config.chat_model || 'claude-haiku-4-5-20251001',
-          themeModel: config.theme_model || 'claude-sonnet-4-20250514',
+          themeModel: config.theme_model || 'claude-sonnet-4-6',
           costMarkupPct: parseFloat(config.cost_markup_pct) || 100
         }
       });
@@ -389,6 +389,116 @@ export default async function handler(req, res) {
         .upsert({ key: 'admin_emails', value: updated.join(','), updated_by: admin.id, updated_at: new Date().toISOString() }, { onConflict: 'key' });
 
       return res.status(200).json({ success: true });
+    }
+
+    // ---- GET STYLE LIBRARY ----
+    if (action === 'getStyleLibrary') {
+      const { data, error } = await supabaseAdmin
+        .from('style_library')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      const library = (data || []).map(row => ({
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        html: row.html,
+        tags: row.tags || [],
+        eventTypes: row.event_types || [],
+        designNotes: row.design_notes,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        addedBy: row.added_by
+      }));
+
+      return res.status(200).json({ success: true, library });
+    }
+
+    // ---- SAVE STYLE LIBRARY ITEM ----
+    if (action === 'saveStyleItem') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { id, name, description, html, tags, eventTypes, designNotes } = req.body;
+      if (!name || !html) return res.status(400).json({ error: 'name and html are required' });
+
+      const row = {
+        name,
+        description: description || '',
+        html,
+        tags: tags || [],
+        event_types: eventTypes || [],
+        design_notes: designNotes || '',
+      };
+
+      if (id) {
+        // Update existing item
+        const { error } = await supabaseAdmin
+          .from('style_library')
+          .update(row)
+          .eq('id', id);
+        if (error) return res.status(500).json({ error: 'Failed to update: ' + error.message });
+      } else {
+        // Insert new item
+        row.id = 'style_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+        row.added_by = admin.email;
+        const { error } = await supabaseAdmin
+          .from('style_library')
+          .insert(row);
+        if (error) return res.status(500).json({ error: 'Failed to insert: ' + error.message });
+      }
+
+      // Return updated library
+      const { data } = await supabaseAdmin
+        .from('style_library')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      const library = (data || []).map(r => ({
+        id: r.id, name: r.name, description: r.description, html: r.html,
+        tags: r.tags || [], eventTypes: r.event_types || [], designNotes: r.design_notes,
+        createdAt: r.created_at, updatedAt: r.updated_at, addedBy: r.added_by
+      }));
+
+      return res.status(200).json({ success: true, library });
+    }
+
+    // ---- DELETE STYLE LIBRARY ITEM ----
+    if (action === 'deleteStyleItem') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { id } = req.body;
+      if (!id) return res.status(400).json({ error: 'id is required' });
+
+      const { error } = await supabaseAdmin
+        .from('style_library')
+        .delete()
+        .eq('id', id);
+      if (error) return res.status(500).json({ error: 'Failed to delete: ' + error.message });
+
+      // Return updated library
+      const { data } = await supabaseAdmin
+        .from('style_library')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      const library = (data || []).map(r => ({
+        id: r.id, name: r.name, description: r.description, html: r.html,
+        tags: r.tags || [], eventTypes: r.event_types || [], designNotes: r.design_notes,
+        createdAt: r.created_at, updatedAt: r.updated_at, addedBy: r.added_by
+      }));
+
+      return res.status(200).json({ success: true, library });
+    }
+
+    // ---- GET PROMPTS (for admin prompt viewer) ----
+    if (action === 'getPrompts') {
+      return res.status(200).json({
+        success: true,
+        prompts: {
+          themeSystemPrompt: 'See the Prompt Lab tab for the full system prompt used in theme generation.',
+          note: 'The system prompt and DESIGN_DNA are defined in api/v2/generate-theme.js'
+        }
+      });
     }
 
     return res.status(400).json({ error: 'Unknown action' });
