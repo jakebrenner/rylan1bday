@@ -153,7 +153,7 @@ export default async function handler(req, res) {
     if (action === 'checkout') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
-      const { planId, couponCode } = req.body || {};
+      const { planId, couponCode, returnUrl } = req.body || {};
       if (!planId) return res.status(400).json({ error: 'planId required' });
 
       const { data: plan } = await supabaseAdmin
@@ -205,8 +205,8 @@ export default async function handler(req, res) {
           quantity: 1
         }],
         mode: 'payment',
-        success_url: `${baseUrl}/v2/dashboard/?purchased=true&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/v2/pricing/`,
+        success_url: returnUrl ? `${baseUrl}${returnUrl}` : `${baseUrl}/v2/dashboard/?purchased=true&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: returnUrl ? `${baseUrl}${returnUrl.split('?')[0]}` : `${baseUrl}/v2/pricing/`,
         metadata: {
           supabase_user_id: user.id,
           plan_id: plan.id,

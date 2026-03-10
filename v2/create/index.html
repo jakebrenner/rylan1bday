@@ -525,8 +525,23 @@
         if (!res.ok) await refreshToken();
       } catch (e) {}
 
-      // Resume existing draft if ?eventId= is in the URL
+      // Handle post-purchase redirect: restore state and auto-generate
       var urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('purchased') === 'true' && restoreCreateState()) {
+        // Clean the URL
+        window.history.replaceState({}, '', '/v2/create/');
+        // Show a success message and proceed
+        addChatBubble(designPrompt || 'Let\'s generate my invite!', 'user');
+        addChatBubble('Payment received — let\'s make your invite! 🎉', 'assistant');
+        // Save event to DB and start generating
+        (async function() {
+          if (!(await saveEventToDB())) return;
+          goToStep(2);
+        })();
+        return; // Skip normal init
+      }
+
+      // Resume existing draft if ?eventId= is in the URL
       var resumeId = urlParams.get('eventId');
       if (resumeId) {
         // Immediately show loading state instead of step 1 chat
@@ -963,6 +978,242 @@
       if (el) el.value = el.value ? el.value + ' ' + text : text;
     }
 
+    // ---- Paywall / Plan Check ----
+
+    var cachedPlans = null;
+    var paywallCoupon = null;
+    var paywallDiscount = null;
+
+    async function checkHasActivePlan() {
+      try {
+        var res = await authFetch('/api/v2/billing?action=subscription');
+        var data = await res.json();
+        if (data.success && data.subscription && data.subscription.status === 'active') {
+          // Check if they can still generate
+          if (data.usage && data.usage.generationsUsed >= data.usage.maxGenerations) {
+            return { hasplan: true, canGenerate: false, reason: 'You\'ve used all ' + data.usage.maxGenerations + ' generations in your plan.' };
+          }
+          return { hasplan: true, canGenerate: true };
+        }
+        return { hasplan: false, canGenerate: false };
+      } catch (e) {
+        return { hasplan: false, canGenerate: false };
+      }
+    }
+
+    async function fetchPlans() {
+      if (cachedPlans) return cachedPlans;
+      try {
+        var res = await fetch('/api/v2/billing?action=plans');
+        var data = await res.json();
+        if (data.success && data.plans && data.plans.length > 0) {
+          cachedPlans = data.plans;
+          return cachedPlans;
+        }
+      } catch (e) {}
+      return [];
+    }
+
+    function saveCreateState() {
+      var state = {
+        extractedData: extractedData,
+        designPrompt: designPrompt,
+        rsvpFields: rsvpFields,
+        chatHistory: chatHistory,
+        personPhotoUrls: personPhotoUrls.filter(function(u) { return !!u; }),
+        inspirationImageUrls: inspirationImageUrls.filter(function(u) { return !!u; })
+      };
+      localStorage.setItem('ryvite_create_state', JSON.stringify(state));
+    }
+
+    function restoreCreateState() {
+      try {
+        var raw = localStorage.getItem('ryvite_create_state');
+        if (!raw) return false;
+        var state = JSON.parse(raw);
+        extractedData = state.extractedData || {};
+        designPrompt = state.designPrompt || '';
+        rsvpFields = state.rsvpFields || [];
+        chatHistory = state.chatHistory || [];
+        personPhotoUrls = state.personPhotoUrls || [];
+        inspirationImageUrls = state.inspirationImageUrls || [];
+        localStorage.removeItem('ryvite_create_state');
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    var paywallFunMessages = [
+      'You\'ve got great taste! 🎨 Before we bring this to life, let\'s get you set up.',
+      'Almost there! Your invite is going to be amazing — just one quick step.',
+      'The AI is ready to work its magic! ✨ Let\'s unlock it.',
+      'Your invite is about to look incredible. Let\'s make it official!',
+      'Great vision! 🎉 Time to bring it to life.'
+    ];
+
+    function showPaywall(onSuccess) {
+      fetchPlans().then(function(plans) {
+        if (!plans || plans.length === 0) {
+          showMessage('Unable to load plans. Please try again.', 'error');
+          return;
+        }
+        var plan = plans[0]; // Primary plan
+        var funMsg = paywallFunMessages[Math.floor(Math.random() * paywallFunMessages.length)];
+
+        var card = document.createElement('div');
+        card.className = 'chat-bubble assistant';
+        card.id = 'paywallCard';
+
+        var priceDisplay = '$' + (plan.priceCents / 100).toFixed(2);
+        var featuresHtml = (plan.features || []).map(function(f) {
+          return '<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#555;"><span style="color:var(--mint-fizz);font-size:14px;">✓</span> ' + escapeHtml(f) + '</div>';
+        }).join('');
+
+        card.innerHTML = '<div style="margin-bottom:14px;font-size:14px;line-height:1.6;">' + escapeHtml(funMsg) + '</div>'
+          + '<div style="background:linear-gradient(135deg,#faf0f3,#fff5f0);border:1px solid #f0dde2;border-radius:12px;padding:16px;margin-bottom:14px;">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
+          + '<div style="font-size:15px;font-weight:700;color:var(--midnight);">' + escapeHtml(plan.displayName) + '</div>'
+          + '<div id="paywallPriceTag" style="font-size:20px;font-weight:700;color:var(--party-coral);">' + priceDisplay + '</div>'
+          + '</div>'
+          + '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;">' + featuresHtml + '</div>'
+          + '<div id="paywallCouponArea">'
+          + '<a href="#" onclick="toggleCouponInput(event)" id="couponToggleLink" style="font-size:11px;color:#999;text-decoration:underline;">Have a coupon code?</a>'
+          + '<div id="couponInputRow" style="display:none;margin-top:8px;">'
+          + '<div style="display:flex;gap:6px;">'
+          + '<input type="text" id="paywallCouponInput" placeholder="Enter code" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:Inter,sans-serif;">'
+          + '<button onclick="applyPaywallCoupon()" style="padding:8px 12px;border:none;border-radius:6px;background:var(--midnight);color:white;font-size:12px;cursor:pointer;font-family:Inter,sans-serif;">Apply</button>'
+          + '</div>'
+          + '<div id="couponMessage" style="margin-top:4px;font-size:11px;"></div>'
+          + '</div>'
+          + '</div>'
+          + '</div>'
+          + '<button class="btn btn-primary" id="paywallCheckoutBtn" onclick="startPaywallCheckout()" style="width:100%;padding:13px;font-size:14px;font-weight:600;">Continue for ' + priceDisplay + '</button>'
+          + '<div style="text-align:center;margin-top:8px;font-size:11px;color:#bbb;">Secure checkout powered by Stripe</div>';
+
+        document.getElementById('chatMessages').appendChild(card);
+        scrollChat();
+
+        // Stash the plan and callback for checkout
+        window._paywallPlan = plan;
+        window._paywallOnSuccess = onSuccess;
+      });
+    }
+
+    function toggleCouponInput(e) {
+      e.preventDefault();
+      var row = document.getElementById('couponInputRow');
+      var link = document.getElementById('couponToggleLink');
+      if (row.style.display === 'none') {
+        row.style.display = 'block';
+        link.style.display = 'none';
+        document.getElementById('paywallCouponInput').focus();
+      } else {
+        row.style.display = 'none';
+        link.style.display = 'inline';
+      }
+    }
+
+    async function applyPaywallCoupon() {
+      var code = document.getElementById('paywallCouponInput').value.trim();
+      var msgEl = document.getElementById('couponMessage');
+      if (!code) { msgEl.innerHTML = '<span style="color:var(--party-coral);">Enter a code first</span>'; return; }
+
+      msgEl.innerHTML = '<span style="color:#999;">Checking...</span>';
+
+      try {
+        var plan = window._paywallPlan;
+        var res = await authFetch('/api/v2/billing?action=validateCoupon&code=' + encodeURIComponent(code) + '&planName=' + encodeURIComponent(plan.name));
+        var data = await res.json();
+
+        if (data.success) {
+          paywallCoupon = data.coupon;
+          paywallDiscount = data.discount;
+
+          var origPrice = plan.priceCents / 100;
+          var finalPrice;
+          if (data.discount.type === 'percent') {
+            finalPrice = origPrice * (1 - data.discount.percent / 100);
+          } else {
+            finalPrice = Math.max(0, origPrice - data.discount.amountCents / 100);
+          }
+          finalPrice = Math.max(0, finalPrice);
+
+          var priceTag = document.getElementById('paywallPriceTag');
+          priceTag.innerHTML = '<span style="text-decoration:line-through;color:#bbb;font-size:14px;">$' + origPrice.toFixed(2) + '</span> $' + finalPrice.toFixed(2);
+
+          var btn = document.getElementById('paywallCheckoutBtn');
+          if (finalPrice === 0) {
+            btn.textContent = 'Continue for Free!';
+          } else {
+            btn.textContent = 'Continue for $' + finalPrice.toFixed(2);
+          }
+
+          msgEl.innerHTML = '<span style="color:#2ecc71;">🎉 ' + escapeHtml(data.discount.label) + ' applied!</span>';
+          document.getElementById('paywallCouponInput').disabled = true;
+        } else {
+          paywallCoupon = null;
+          paywallDiscount = null;
+          msgEl.innerHTML = '<span style="color:var(--party-coral);">' + escapeHtml(data.error || 'Invalid coupon') + '</span>';
+        }
+      } catch (e) {
+        msgEl.innerHTML = '<span style="color:var(--party-coral);">Error validating coupon</span>';
+      }
+    }
+
+    async function startPaywallCheckout() {
+      var btn = document.getElementById('paywallCheckoutBtn');
+      btn.disabled = true;
+      btn.textContent = 'Redirecting to checkout...';
+
+      // Save state so we can resume after payment
+      saveCreateState();
+
+      try {
+        var plan = window._paywallPlan;
+        var body = {
+          planId: plan.id,
+          origin: window.location.origin,
+          returnUrl: '/v2/create/?purchased=true'
+        };
+        if (paywallCoupon) {
+          body.couponCode = paywallCoupon.code;
+        }
+
+        var res = await authFetch('/api/v2/billing?action=checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        var data = await res.json();
+
+        if (data.success && data.url) {
+          window.location.href = data.url;
+        } else {
+          btn.disabled = false;
+          btn.textContent = 'Continue for ' + ('$' + (plan.priceCents / 100).toFixed(2));
+          showMessage(data.error || 'Checkout failed. Please try again.', 'error');
+        }
+      } catch (e) {
+        btn.disabled = false;
+        showMessage('Error starting checkout. Please try again.', 'error');
+      }
+    }
+
+    async function proceedAfterPlanCheck(generateCallback) {
+      var status = await checkHasActivePlan();
+      if (status.hasplan && status.canGenerate) {
+        generateCallback();
+        return;
+      }
+      if (status.hasplan && !status.canGenerate) {
+        showMessage(status.reason || 'Generation limit reached.', 'error');
+        return;
+      }
+      // No plan — show paywall
+      showPaywall(generateCallback);
+    }
+
     async function submitCustomStyle() {
       var text = document.getElementById('customStyleText').value.trim();
       if (!text) {
@@ -975,10 +1226,12 @@
       var card = document.getElementById('customStyleCard');
       if (card) card.remove();
       addChatBubble(text, 'user');
-      addChatBubble('Great choice! Let me generate your invite...', 'assistant');
 
-      if (!(await saveEventToDB())) return;
-      goToStep(2);
+      await proceedAfterPlanCheck(async function() {
+        addChatBubble('Great choice! Let me generate your invite...', 'assistant');
+        if (!(await saveEventToDB())) return;
+        goToStep(2);
+      });
     }
 
     // ---- Brainstorm flow ----
@@ -1337,10 +1590,12 @@
       var card = document.getElementById('brainstormFinish');
       if (card) card.remove();
       addChatBubble('Let\'s go!', 'user');
-      addChatBubble('Creating your invite now...', 'assistant');
 
-      if (!(await saveEventToDB())) return;
-      goToStep(2);
+      await proceedAfterPlanCheck(async function() {
+        addChatBubble('Creating your invite now...', 'assistant');
+        if (!(await saveEventToDB())) return;
+        goToStep(2);
+      });
     }
 
     function setupDropZone(zoneId, photoType) {
