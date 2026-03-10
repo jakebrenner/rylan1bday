@@ -578,13 +578,49 @@
       if (urlParams.get('purchased') === 'true' && restoreCreateState()) {
         // Clean the URL
         window.history.replaceState({}, '', '/v2/create/');
-        // Show a success message and proceed
-        addChatBubble(designPrompt || 'Let\'s generate my invite!', 'user');
-        addChatBubble('Payment received — let\'s make your invite! 🎉', 'assistant');
-        // Save event to DB and start generating
+
+        // Immediately show generating view so user sees progress
+        document.querySelector('.chat-container').style.display = 'none';
+        var step2El = document.querySelector('.container .step[data-step="2"]');
+        step2El.classList.add('active');
+        document.getElementById('generatingView').style.display = 'block';
+        document.getElementById('generatingLoadingState').style.display = 'block';
+        document.getElementById('generatingPaywall').style.display = 'none';
+        currentStep = 2;
+        startGeneratingPuns();
+
+        // Wait for subscription to be provisioned (webhook may lag behind redirect)
         (async function() {
-          if (!(await saveEventToDB())) return;
-          goToStep(2);
+          var maxAttempts = 10;
+          var attempt = 0;
+          var subscriptionReady = false;
+          while (attempt < maxAttempts && !subscriptionReady) {
+            try {
+              var checkRes = await authFetch('/api/v2/billing?action=subscription');
+              var checkData = await checkRes.json();
+              if (checkData.subscription && checkData.subscription.status === 'active') {
+                subscriptionReady = true;
+                break;
+              }
+            } catch (e) {}
+            attempt++;
+            if (!subscriptionReady) {
+              await new Promise(function(r) { setTimeout(r, 1500); });
+            }
+          }
+
+          if (!subscriptionReady) {
+            stopGeneratingPuns();
+            showGeneratingError('Payment is still processing. Please refresh in a moment.');
+            return;
+          }
+
+          if (!(await saveEventToDB())) {
+            stopGeneratingPuns();
+            showGeneratingError('Error creating event. Please try again.');
+            return;
+          }
+          generateTheme();
         })();
         return; // Skip normal init
       }
