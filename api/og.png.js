@@ -114,7 +114,7 @@ export default function handler() {
                 maxWidth: '600px',
                 textAlign: 'center',
               },
-              children: 'Beautiful, AI-powered invitations. Free for now. Beautiful forever.',
+              children: 'Beautiful, AI-powered invitations. Fairly priced per event. Beautiful forever.',
             },
           },
         ],
