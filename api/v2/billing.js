@@ -972,7 +972,8 @@ export async function checkUserLimits(userId) {
     .from('generation_log')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
-    .eq('status', 'success');
+    .eq('status', 'success')
+    .not('event_id', 'is', null);
 
   const canCreateEvent = (eventCount || 0) < maxEvents;
   const canGenerate = (genCount || 0) < maxGenerations;
