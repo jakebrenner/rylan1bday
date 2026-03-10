@@ -687,6 +687,7 @@
       // Handle post-purchase redirect: restore state and auto-generate
       var urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('purchased') === 'true' && restoreCreateState()) {
+        var stripeSessionId = urlParams.get('session_id');
         // Clean the URL
         window.history.replaceState({}, '', '/v2/create/');
 
@@ -700,20 +701,36 @@
         currentStep = 2;
         startGeneratingPuns();
 
-        // Wait for subscription to be provisioned (webhook may lag behind redirect)
+        // Verify subscription using Stripe session ID (creates subscription if webhook hasn't yet)
         (async function() {
-          var maxAttempts = 20;
+          var maxAttempts = 15;
           var attempt = 0;
           var subscriptionReady = false;
+
           while (attempt < maxAttempts && !subscriptionReady) {
             try {
-              var checkRes = await authFetch('/api/v2/billing?action=subscription');
+              // Use verify-session if we have the Stripe session ID (directly checks Stripe)
+              var checkUrl = stripeSessionId
+                ? '/api/v2/billing?action=verify-session&session_id=' + encodeURIComponent(stripeSessionId)
+                : '/api/v2/billing?action=subscription';
+              var checkRes = await authFetch(checkUrl);
               var checkData = await checkRes.json();
-              if (checkData.subscription && checkData.subscription.status === 'active') {
+
+              if (checkData.success && checkData.subscription && checkData.subscription.status === 'active') {
                 subscriptionReady = true;
                 break;
               }
-            } catch (e) {}
+              // For verify-session, if Stripe confirms payment, the subscription was created on first call
+              // So if it still fails, fall back to regular subscription check
+              if (stripeSessionId && attempt >= 2) {
+                var fallbackRes = await authFetch('/api/v2/billing?action=subscription');
+                var fallbackData = await fallbackRes.json();
+                if (fallbackData.subscription && fallbackData.subscription.status === 'active') {
+                  subscriptionReady = true;
+                  break;
+                }
+              }
+            } catch (e) { console.error('Subscription check error:', e); }
             attempt++;
             if (!subscriptionReady) {
               await new Promise(function(r) { setTimeout(r, 2000); });

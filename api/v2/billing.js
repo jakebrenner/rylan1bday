@@ -238,7 +238,9 @@ export default async function handler(req, res) {
         sessionParams.ui_mode = 'embedded';
         sessionParams.return_url = `${baseUrl}${returnUrl || '/v2/create/?purchased=true'}&session_id={CHECKOUT_SESSION_ID}`;
       } else {
-        sessionParams.success_url = returnUrl ? `${baseUrl}${returnUrl}` : `${baseUrl}/v2/dashboard/?purchased=true&session_id={CHECKOUT_SESSION_ID}`;
+        sessionParams.success_url = returnUrl
+          ? `${baseUrl}${returnUrl}${returnUrl.includes('?') ? '&' : '?'}session_id={CHECKOUT_SESSION_ID}`
+          : `${baseUrl}/v2/dashboard/?purchased=true&session_id={CHECKOUT_SESSION_ID}`;
         sessionParams.cancel_url = returnUrl ? `${baseUrl}${returnUrl.split('?')[0]}` : `${baseUrl}/v2/pricing/`;
       }
 
@@ -502,6 +504,147 @@ export default async function handler(req, res) {
           createdAt: s.created_at
         }))
       });
+    }
+
+    // ---- VERIFY CHECKOUT SESSION (fallback if webhook is slow) ----
+    if (action === 'verify-session') {
+      const sessionId = req.query.session_id || (req.body && req.body.session_id);
+      if (!sessionId) {
+        return res.status(400).json({ success: false, error: 'session_id is required' });
+      }
+
+      // First check if subscription already exists for this session
+      const { data: existingSub } = await supabaseAdmin
+        .from('subscriptions')
+        .select('id, status')
+        .eq('stripe_checkout_session_id', sessionId)
+        .maybeSingle();
+
+      if (existingSub) {
+        return res.status(200).json({ success: true, subscription: existingSub, source: 'existing' });
+      }
+
+      // Not found — check with Stripe directly
+      try {
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+        if (session.payment_status !== 'paid') {
+          return res.status(200).json({ success: false, error: 'Payment not completed yet', paymentStatus: session.payment_status });
+        }
+
+        // Payment is confirmed by Stripe but webhook hasn't created the subscription yet
+        // Create it now (same logic as handleCheckoutComplete)
+        const metadata = session.metadata || {};
+        const metaUserId = metadata.supabase_user_id;
+        const planId = metadata.plan_id;
+
+        if (!metaUserId || !planId) {
+          return res.status(400).json({ success: false, error: 'Missing metadata in checkout session' });
+        }
+
+        // Verify the authenticated user matches the session owner
+        if (metaUserId !== user.id) {
+          return res.status(403).json({ success: false, error: 'Session does not belong to this user' });
+        }
+
+        // Double-check no subscription was created in the meantime (race condition guard)
+        const { data: raceCheck } = await supabaseAdmin
+          .from('subscriptions')
+          .select('id, status')
+          .eq('stripe_checkout_session_id', sessionId)
+          .maybeSingle();
+
+        if (raceCheck) {
+          return res.status(200).json({ success: true, subscription: raceCheck, source: 'race-resolved' });
+        }
+
+        const couponId = metadata.coupon_id || null;
+        const originalAmountCents = parseInt(metadata.original_amount_cents) || 0;
+        const discountCents = parseInt(metadata.discount_cents) || 0;
+
+        const { data: subscription, error: subError } = await supabaseAdmin
+          .from('subscriptions')
+          .insert({
+            user_id: metaUserId,
+            plan_id: planId,
+            status: 'active',
+            stripe_customer_id: session.customer,
+            stripe_checkout_session_id: session.id,
+            coupon_id: couponId || null,
+            amount_paid_cents: session.amount_total || (originalAmountCents - discountCents),
+            discount_cents: discountCents,
+            events_used: 0,
+            generations_used: 0,
+            current_period_start: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (subError) {
+          // Could be duplicate key if webhook just ran
+          const { data: fallback } = await supabaseAdmin
+            .from('subscriptions')
+            .select('id, status')
+            .eq('stripe_checkout_session_id', sessionId)
+            .maybeSingle();
+
+          if (fallback) {
+            return res.status(200).json({ success: true, subscription: fallback, source: 'webhook-resolved' });
+          }
+          return res.status(500).json({ success: false, error: 'Failed to create subscription: ' + subError.message });
+        }
+
+        // Update profile tier
+        await supabaseAdmin
+          .from('profiles')
+          .update({ stripe_customer_id: session.customer, tier: 'pro' })
+          .eq('id', metaUserId);
+
+        // Create billing history
+        await supabaseAdmin
+          .from('billing_history')
+          .insert({
+            user_id: metaUserId,
+            subscription_id: subscription.id,
+            stripe_payment_intent_id: session.payment_intent,
+            amount_cents: session.amount_total || (originalAmountCents - discountCents),
+            currency: session.currency || 'usd',
+            status: 'succeeded',
+            description: `Plan purchase: ${metadata.plan_name || 'Single Event'}`,
+            receipt_url: null
+          });
+
+        // Handle coupon redemption
+        if (couponId) {
+          await supabaseAdmin
+            .from('coupon_redemptions')
+            .insert({
+              coupon_id: couponId,
+              user_id: metaUserId,
+              subscription_id: subscription.id
+            });
+
+          await supabaseAdmin.rpc('increment_coupon_usage', { coupon_uuid: couponId })
+            .catch(async () => {
+              const { data: c } = await supabaseAdmin
+                .from('coupons')
+                .select('times_used')
+                .eq('id', couponId)
+                .single();
+              if (c) {
+                await supabaseAdmin
+                  .from('coupons')
+                  .update({ times_used: (c.times_used || 0) + 1 })
+                  .eq('id', couponId);
+              }
+            });
+        }
+
+        return res.status(200).json({ success: true, subscription: { id: subscription.id, status: 'active' }, source: 'created' });
+      } catch (stripeErr) {
+        console.error('Stripe session verify error:', stripeErr);
+        return res.status(500).json({ success: false, error: 'Failed to verify session with Stripe' });
+      }
     }
 
     // ---- BILLING HISTORY ----
