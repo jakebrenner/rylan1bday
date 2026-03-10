@@ -248,7 +248,7 @@ comment on table public.app_config is 'Platform-wide configuration (model select
 -- Seed defaults
 insert into public.app_config (key, value) values
   ('chat_model', 'claude-haiku-4-5-20251001'),
-  ('theme_model', 'claude-sonnet-4-20250514')
+  ('theme_model', 'claude-sonnet-4-6-20250514')
 on conflict (key) do nothing;
 
 -- ============================================================

@@ -194,8 +194,8 @@ export default async function handler(req, res) {
       // Pricing per 1M tokens (input / output) by model
       const MODEL_PRICING = {
         'claude-haiku-4-5-20251001':  { input: 0.80, output: 4.00 },
-        'claude-sonnet-4-20250514':   { input: 3.00, output: 15.00 },
-        'claude-opus-4-20250514':     { input: 15.00, output: 75.00 },
+        'claude-sonnet-4-6-20250514':   { input: 3.00, output: 15.00 },
+        'claude-opus-4-6-20250514':     { input: 15.00, output: 75.00 },
       };
 
       // Token usage + costs by model
@@ -277,7 +277,7 @@ export default async function handler(req, res) {
         success: true,
         config: {
           chatModel: config.chat_model || 'claude-haiku-4-5-20251001',
-          themeModel: config.theme_model || 'claude-sonnet-4-20250514',
+          themeModel: config.theme_model || 'claude-sonnet-4-6-20250514',
           costMarkupPct: parseFloat(config.cost_markup_pct) || 100
         }
       });
