@@ -2020,6 +2020,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var total = combos.length;
       var isMatrix = total > 1;
 
+      // Generate a unique session ID to link all runs from this matrix test
+      var currentTestSessionId = 'ts_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+
       try {
         if (isMatrix) {
           // Matrix mode: show matrix result section
@@ -2049,7 +2052,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
                 matrixResults[i] = result;
                 renderMatrixCardResult(i, result, combo);
                 // Auto-save test run
-                saveMatrixTestRun(i, combo, data);
+                saveMatrixTestRun(i, combo, data, currentTestSessionId);
               } else {
                 matrixResults[i] = { success: false, error: data.message || data.error || 'Failed' };
                 updateMatrixCardStatus(i, 'error', data.message || data.error || 'Failed');
@@ -2086,7 +2089,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           renderSingleResult(data);
 
           // Auto-save test run
-          saveMatrixTestRun(0, combo, data);
+          saveMatrixTestRun(0, combo, data, currentTestSessionId);
 
           status.textContent = 'Done!';
           setTimeout(function() { status.textContent = ''; }, 3000);
@@ -2102,7 +2105,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     // ── Auto-save a test run to DB (fire and forget) ──
-    function saveMatrixTestRun(idx, combo, data) {
+    function saveMatrixTestRun(idx, combo, data, sessionId) {
       var meta = data.metadata;
       var eventDetails = getTestEventDetails();
       var styleIds = getTestStyleIds();
@@ -2114,6 +2117,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           eventType: eventDetails.eventType || 'other',
           eventDetails: eventDetails,
           styleLibraryIds: styleIds,
+          testSessionId: sessionId || null,
+          sessionPosition: idx,
           resultHtml: data.theme.html,
           resultCss: data.theme.css,
           resultConfig: data.theme.config,

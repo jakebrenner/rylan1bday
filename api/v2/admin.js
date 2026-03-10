@@ -882,7 +882,7 @@ export default async function handler(req, res) {
     if (action === 'saveTestRun') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
-      const { promptVersionId, model, eventType, eventDetails: testEventDetails, resultHtml, resultCss, resultConfig, resultThankyouHtml, styleLibraryIds, inputTokens, outputTokens, latencyMs, score, notes } = req.body;
+      const { promptVersionId, model, eventType, eventDetails: testEventDetails, resultHtml, resultCss, resultConfig, resultThankyouHtml, styleLibraryIds, testSessionId, sessionPosition, inputTokens, outputTokens, latencyMs, score, notes } = req.body;
 
       const insertData = {
         prompt_version_id: promptVersionId || null,
@@ -907,6 +907,12 @@ export default async function handler(req, res) {
       if (resultThankyouHtml) {
         insertData.result_thankyou_html = resultThankyouHtml;
       }
+      if (testSessionId) {
+        insertData.test_session_id = testSessionId;
+      }
+      if (sessionPosition !== undefined) {
+        insertData.session_position = sessionPosition;
+      }
 
       let { data: insertedRun, error } = await supabaseAdmin
         .from('prompt_test_runs')
@@ -915,9 +921,11 @@ export default async function handler(req, res) {
         .single();
 
       // Retry without new columns if migration hasn't been run
-      if (error && (error.message?.includes('style_library_ids') || error.message?.includes('result_thankyou_html'))) {
+      if (error && (error.message?.includes('style_library_ids') || error.message?.includes('result_thankyou_html') || error.message?.includes('test_session_id') || error.message?.includes('session_position'))) {
         delete insertData.style_library_ids;
         delete insertData.result_thankyou_html;
+        delete insertData.test_session_id;
+        delete insertData.session_position;
         ({ data: insertedRun, error } = await supabaseAdmin
           .from('prompt_test_runs')
           .insert(insertData)
@@ -950,6 +958,136 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, testRuns: data || [] });
     }
 
+    // ---- GET TEST SESSION (all runs in one session) ----
+    if (action === 'getTestSession') {
+      const sessionId = req.query.sessionId;
+      if (!sessionId) return res.status(400).json({ error: 'sessionId required' });
+
+      const { data: runs, error } = await supabaseAdmin
+        .from('prompt_test_runs')
+        .select('*')
+        .eq('test_session_id', sessionId)
+        .order('session_position', { ascending: true });
+
+      if (error) return res.status(400).json({ error: error.message });
+
+      // Get prompt version names
+      const pvIds = [...new Set((runs || []).map(r => r.prompt_version_id).filter(Boolean))];
+      let versionMap = {};
+      if (pvIds.length > 0) {
+        const { data: versions } = await supabaseAdmin.from('prompt_versions').select('id, version, name').in('id', pvIds);
+        (versions || []).forEach(v => { versionMap[v.id] = { version: v.version, name: v.name }; });
+      }
+
+      // Build comparison summary
+      const scoredRuns = (runs || []).filter(r => r.score != null);
+      const bestRun = scoredRuns.length > 0 ? scoredRuns.reduce((best, r) => r.score > best.score ? r : best, scoredRuns[0]) : null;
+      const worstRun = scoredRuns.length > 0 ? scoredRuns.reduce((worst, r) => r.score < worst.score ? r : worst, scoredRuns[0]) : null;
+
+      return res.status(200).json({
+        success: true,
+        sessionId,
+        totalRuns: (runs || []).length,
+        ratedRuns: scoredRuns.length,
+        runs: (runs || []).map(r => {
+          const pv = versionMap[r.prompt_version_id] || { version: 0, name: 'Default' };
+          return {
+            id: r.id,
+            model: r.model,
+            promptVersionId: r.prompt_version_id,
+            promptLabel: r.prompt_version_id ? `v${pv.version} – ${pv.name}` : 'Hardcoded Default',
+            eventType: r.event_type,
+            score: r.score,
+            notes: r.notes,
+            latencyMs: r.latency_ms,
+            inputTokens: r.input_tokens,
+            outputTokens: r.output_tokens,
+            position: r.session_position,
+            isBest: bestRun ? r.id === bestRun.id : false,
+            isWorst: worstRun ? r.id === worstRun.id : false
+          };
+        }),
+        comparison: scoredRuns.length >= 2 ? {
+          scoreSpread: (bestRun?.score || 0) - (worstRun?.score || 0),
+          avgScore: Math.round(scoredRuns.reduce((a, r) => a + r.score, 0) / scoredRuns.length * 100) / 100,
+          bestModel: bestRun?.model,
+          worstModel: worstRun?.model
+        } : null
+      });
+    }
+
+    // ---- SESSION INSIGHTS — aggregate session-level analytics ----
+    if (action === 'sessionInsights') {
+      // Fetch all sessions with at least 2 scored runs
+      const { data: allRuns, error } = await supabaseAdmin
+        .from('prompt_test_runs')
+        .select('test_session_id, model, prompt_version_id, score, latency_ms, event_type')
+        .not('test_session_id', 'is', null)
+        .not('score', 'is', null)
+        .order('test_session_id');
+
+      if (error) return res.status(400).json({ error: error.message });
+
+      // Group by session
+      const sessions = {};
+      (allRuns || []).forEach(r => {
+        if (!sessions[r.test_session_id]) sessions[r.test_session_id] = [];
+        sessions[r.test_session_id].push(r);
+      });
+
+      // Only sessions with 2+ scored runs
+      const validSessions = Object.entries(sessions).filter(([, runs]) => runs.length >= 2);
+
+      // Model head-to-head wins
+      const modelWins = {};
+      const modelAppearances = {};
+      const modelScores = {};
+
+      validSessions.forEach(([, runs]) => {
+        const sorted = [...runs].sort((a, b) => b.score - a.score);
+        const winner = sorted[0];
+        runs.forEach(r => {
+          if (!modelWins[r.model]) modelWins[r.model] = 0;
+          if (!modelAppearances[r.model]) modelAppearances[r.model] = 0;
+          if (!modelScores[r.model]) modelScores[r.model] = [];
+          modelAppearances[r.model]++;
+          modelScores[r.model].push(r.score);
+        });
+        modelWins[winner.model] = (modelWins[winner.model] || 0) + 1;
+      });
+
+      const headToHead = Object.keys(modelAppearances).map(model => ({
+        model,
+        wins: modelWins[model] || 0,
+        appearances: modelAppearances[model],
+        winRate: Math.round(100 * (modelWins[model] || 0) / modelAppearances[model]) / 100,
+        avgScore: Math.round(modelScores[model].reduce((a, b) => a + b, 0) / modelScores[model].length * 100) / 100
+      })).sort((a, b) => b.winRate - a.winRate);
+
+      // Common patterns: sessions with big score spreads
+      const bigSpreadSessions = validSessions
+        .map(([sessionId, runs]) => {
+          const scores = runs.map(r => r.score);
+          const spread = Math.max(...scores) - Math.min(...scores);
+          const best = runs.reduce((b, r) => r.score > b.score ? r : b, runs[0]);
+          const worst = runs.reduce((w, r) => r.score < w.score ? r : w, runs[0]);
+          return { sessionId, spread, eventType: runs[0].event_type, bestModel: best.model, worstModel: worst.model, bestScore: best.score, worstScore: worst.score, runCount: runs.length };
+        })
+        .filter(s => s.spread >= 2)
+        .sort((a, b) => b.spread - a.spread)
+        .slice(0, 20);
+
+      return res.status(200).json({
+        success: true,
+        insights: {
+          totalSessions: validSessions.length,
+          totalComparisons: validSessions.reduce((a, [, r]) => a + r.length, 0),
+          headToHead,
+          bigSpreadSessions
+        }
+      });
+    }
+
     // ---- UPDATE TEST RUN SCORE ----
     if (action === 'updateTestRunScore') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
@@ -976,7 +1114,7 @@ export default async function handler(req, res) {
       // Get all scored test runs with prompt version info
       const { data: runs, error } = await supabaseAdmin
         .from('prompt_test_runs')
-        .select('id, prompt_version_id, model, event_type, score, input_tokens, output_tokens, latency_ms, style_library_ids, created_at')
+        .select('id, prompt_version_id, model, event_type, score, input_tokens, output_tokens, latency_ms, style_library_ids, test_session_id, created_at')
         .not('score', 'is', null)
         .order('created_at', { ascending: false });
 

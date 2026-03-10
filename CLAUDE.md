@@ -57,7 +57,7 @@ The backend lives in Google Apps Script and is **not auto-deployed** from this r
 | Table | Purpose |
 |-------|---------|
 | `prompt_versions` | Versioned creative prompts for invite generation. One active version drives production. |
-| `prompt_test_runs` | Admin lab test results — stores full generated output (HTML/CSS/config/thankyou), model, tokens, latency, style_library_ids, 1-5 score, notes |
+| `prompt_test_runs` | Admin lab test results — stores full generated output (HTML/CSS/config/thankyou), model, tokens, latency, style_library_ids, test_session_id, 1-5 score, notes |
 
 ### Admin Ratings (`supabase/migrate_admin_ratings.sql`)
 Adds `admin_rating`, `admin_notes`, `rated_by`, `rated_at` columns to both `style_library` and `event_themes`.
@@ -74,6 +74,14 @@ Adds `style_library_ids` (text[]) and `result_thankyou_html` to `prompt_test_run
 |------|---------|
 | `test_run_analytics` | Comprehensive test run performance by prompt version, model, and event type |
 | `style_effectiveness` | How effective each style library item is as a generation reference — correlates style usage with output quality ratings |
+
+### Test Sessions (`supabase/migrate_test_sessions.sql`)
+Adds `test_session_id` and `session_position` to `prompt_test_runs`. Groups matrix test generations (same inputs, different prompt×model combos) so they can be compared head-to-head.
+
+| View | Purpose |
+|------|---------|
+| `test_session_comparisons` | Head-to-head comparisons within sessions — shows score rank, best/worst per session |
+| `model_head_to_head` | Model win rates across all matrix tests — which models consistently produce higher-rated output |
 
 ### Generation Insights (`supabase/migrate_generation_insights.sql`)
 Adds rich metadata to `generation_log` (client_ip, client_geo, style_library_ids, prompt_version_id, event_type, is_tweak, user_agent) and tracking columns to `events` (generations_to_publish, published_at, first_generation_at).
@@ -139,8 +147,10 @@ All endpoints require `Authorization: Bearer <token>` and use `?action=<name>`.
 - `deletePromptVersion` (POST, `{versionId}`) — cannot delete active version
 
 ### Test Runs & Lab Ratings
-- `saveTestRun` (POST) — save a lab test result, returns `{testRunId}` for later score updates
+- `saveTestRun` (POST) — save a lab test result with `testSessionId` and `sessionPosition`, returns `{testRunId}`
 - `listTestRuns` (GET, `?promptVersionId=&limit=`) — list test runs
+- `getTestSession` (GET, `?sessionId=`) — all runs in a session with head-to-head comparison data
+- `sessionInsights` (GET) — model head-to-head win rates and high-spread sessions across all matrix tests
 - `updateTestRunScore` (POST, `{testRunId, score, notes}`) — update rating on a test run
 - `testRunStats` (GET) — aggregated reporting: by prompt, by model, by combo, by event type, by style reference, score distribution
 
