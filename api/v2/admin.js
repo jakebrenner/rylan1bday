@@ -157,14 +157,14 @@ export default async function handler(req, res) {
       const userId = req.query.userId;
       if (!userId) return res.status(400).json({ error: 'userId required' });
 
-      // Fetch all data in parallel
+      // Fetch all data in parallel — only use tables/columns that actually exist
       const [profileRes, eventsRes, subsRes, billingRes, generationsRes, smsRes] = await Promise.all([
         supabaseAdmin.from('profiles').select('*').eq('id', userId).single(),
-        supabaseAdmin.from('events').select('id, title, event_type, event_date, status, slug, created_at, theme_html').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabaseAdmin.from('events').select('id, title, event_type, event_date, status, slug, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
         supabaseAdmin.from('subscriptions').select('*, plans:plan_id (name, display_name, price_cents, max_events, max_generations)').eq('user_id', userId).order('created_at', { ascending: false }),
         supabaseAdmin.from('billing_history').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabaseAdmin.from('generation_log').select('id, event_id, model, input_tokens, output_tokens, prompt_type, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabaseAdmin.from('sms_messages').select('id, event_id, recipient_phone, status, cost_cents, created_at').eq('user_id', userId).order('created_at', { ascending: false })
+        supabaseAdmin.from('generation_log').select('id, event_id, model, input_tokens, output_tokens, prompt, status, latency_ms, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabaseAdmin.from('sms_messages').select('id, event_id, recipient_phone, recipient_name, message_type, status, cost_cents, created_at').eq('user_id', userId).order('created_at', { ascending: false })
       ]);
 
       const profile = profileRes.data;
@@ -173,13 +173,18 @@ export default async function handler(req, res) {
       const events = eventsRes.data || [];
       const eventIds = events.map(e => e.id);
 
-      // Get RSVP counts per event
-      const { data: guests } = eventIds.length > 0
-        ? await supabaseAdmin.from('guests').select('event_id, status').in('event_id', eventIds)
-        : { data: [] };
+      // Get RSVP counts + event themes in parallel
+      const [guestsResult, themesResult] = await Promise.all([
+        eventIds.length > 0
+          ? supabaseAdmin.from('guests').select('event_id, status').in('event_id', eventIds)
+          : Promise.resolve({ data: [] }),
+        eventIds.length > 0
+          ? supabaseAdmin.from('event_themes').select('id, event_id, version, is_active, model, input_tokens, output_tokens, latency_ms, created_at').in('event_id', eventIds).order('created_at', { ascending: false })
+          : Promise.resolve({ data: [] })
+      ]);
 
       const rsvpCounts = {};
-      (guests || []).forEach(g => {
+      (guestsResult.data || []).forEach(g => {
         if (!rsvpCounts[g.event_id]) rsvpCounts[g.event_id] = { total: 0, attending: 0, declined: 0, maybe: 0 };
         rsvpCounts[g.event_id].total++;
         if (g.status === 'attending') rsvpCounts[g.event_id].attending++;
@@ -187,13 +192,13 @@ export default async function handler(req, res) {
         else if (g.status === 'maybe') rsvpCounts[g.event_id].maybe++;
       });
 
-      // Get chat history for user
-      const { data: chatHistory } = await supabaseAdmin
-        .from('chat_messages')
-        .select('id, event_id, role, content, model, input_tokens, output_tokens, created_at')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(100);
+      // Track which events have active themes
+      const eventThemeMap = {};
+      (themesResult.data || []).forEach(t => {
+        if (!eventThemeMap[t.event_id]) eventThemeMap[t.event_id] = { hasTheme: false, versions: 0 };
+        eventThemeMap[t.event_id].versions++;
+        if (t.is_active) eventThemeMap[t.event_id].hasTheme = true;
+      });
 
       // Cost calculations
       const MODEL_PRICING = {
@@ -210,14 +215,23 @@ export default async function handler(req, res) {
       let chatAiCost = 0;
       let themeAiCost = 0;
       const costByEvent = {};
-      const generations = (generationsRes.data || []).map(g => {
+
+      // generation_log: event_id=null means chat, event_id=X means theme generation
+      const allGenerations = generationsRes.data || [];
+      const chatGenerations = []; // chat AI calls (event_id is null)
+      const themeGenerations = []; // theme AI calls (event_id is set)
+
+      const generations = allGenerations.map(g => {
         const pricing = MODEL_PRICING[g.model] || { input: 3.00, output: 15.00 };
         const cost = ((g.input_tokens || 0) * pricing.input + (g.output_tokens || 0) * pricing.output) / 1_000_000;
         totalAiCost += cost;
         const isChat = !g.event_id;
-        if (isChat) chatAiCost += cost;
-        else {
+        if (isChat) {
+          chatAiCost += cost;
+          chatGenerations.push(g);
+        } else {
           themeAiCost += cost;
+          themeGenerations.push(g);
           if (!costByEvent[g.event_id]) costByEvent[g.event_id] = { aiCost: 0, smsCost: 0 };
           costByEvent[g.event_id].aiCost += cost;
         }
@@ -227,10 +241,21 @@ export default async function handler(req, res) {
           model: g.model,
           inputTokens: g.input_tokens,
           outputTokens: g.output_tokens,
-          promptType: g.prompt_type,
+          promptType: g.event_id ? 'theme' : 'chat',
           cost,
+          latencyMs: g.latency_ms,
           createdAt: g.created_at
         };
+      });
+
+      // Also add event_themes generation costs (themes table tracks its own tokens)
+      (themesResult.data || []).forEach(t => {
+        if (t.input_tokens || t.output_tokens) {
+          const pricing = MODEL_PRICING[t.model] || { input: 3.00, output: 15.00 };
+          const themeCost = ((t.input_tokens || 0) * pricing.input + (t.output_tokens || 0) * pricing.output) / 1_000_000;
+          // Only add if not already counted via generation_log (avoid double-counting)
+          // Theme gen writes to BOTH event_themes AND generation_log, so skip this
+        }
       });
 
       // SMS costs by event
@@ -246,6 +271,8 @@ export default async function handler(req, res) {
           id: s.id,
           eventId: s.event_id,
           recipientPhone: s.recipient_phone,
+          recipientName: s.recipient_name,
+          messageType: s.message_type,
           status: s.status,
           costCents: s.cost_cents,
           createdAt: s.created_at
@@ -309,6 +336,7 @@ export default async function handler(req, res) {
           displayName: profile.display_name,
           phone: profile.phone,
           tier: profile.tier,
+          referralSource: profile.referral_source,
           stripeCustomerId: profile.stripe_customer_id,
           createdAt: profile.created_at,
           updatedAt: profile.updated_at
@@ -323,6 +351,8 @@ export default async function handler(req, res) {
           totalSmsCost,
           smsSentCount: smsMessages.length,
           generationCount: generations.length,
+          chatCount: chatGenerations.length,
+          themeCount: themeGenerations.length,
           markupPct,
           revenueAfterMarkup: totalAiCost * markupMultiplier,
           netMargin: totalRevenue - totalPlatformCost,
@@ -336,7 +366,8 @@ export default async function handler(req, res) {
           status: e.status,
           slug: e.slug,
           createdAt: e.created_at,
-          hasTheme: !!e.theme_html,
+          hasTheme: !!(eventThemeMap[e.id] && eventThemeMap[e.id].hasTheme),
+          themeVersions: eventThemeMap[e.id] ? eventThemeMap[e.id].versions : 0,
           rsvps: rsvpCounts[e.id] || { total: 0, attending: 0, declined: 0, maybe: 0 },
           costs: costByEvent[e.id] || { aiCost: 0, smsCost: 0 }
         })),
@@ -351,21 +382,35 @@ export default async function handler(req, res) {
           discountCents: s.discount_cents,
           eventsUsed: s.events_used,
           generationsUsed: s.generations_used,
+          couponId: s.coupon_id,
           createdAt: s.created_at
         })),
         billing,
         stripePayment,
         generations,
         smsMessages,
-        chatHistory: (chatHistory || []).map(c => ({
+        // Chat history from generation_log (chat = entries where event_id is null)
+        chatHistory: chatGenerations.slice(0, 50).map(c => ({
           id: c.id,
-          eventId: c.event_id,
-          role: c.role,
-          content: c.content,
+          prompt: c.prompt,
           model: c.model,
           inputTokens: c.input_tokens,
           outputTokens: c.output_tokens,
+          latencyMs: c.latency_ms,
+          status: c.status,
           createdAt: c.created_at
+        })),
+        // Theme generation history from event_themes table
+        themeHistory: (themesResult.data || []).map(t => ({
+          id: t.id,
+          eventId: t.event_id,
+          version: t.version,
+          isActive: t.is_active,
+          model: t.model,
+          inputTokens: t.input_tokens,
+          outputTokens: t.output_tokens,
+          latencyMs: t.latency_ms,
+          createdAt: t.created_at
         }))
       });
     }
