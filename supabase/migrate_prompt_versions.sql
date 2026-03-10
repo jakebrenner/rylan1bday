@@ -2,26 +2,28 @@
 -- Prompt Version Control — Supabase Migration
 -- Run this in your Supabase SQL Editor (Dashboard > SQL Editor)
 --
--- Stores versioned system prompts (SYSTEM_PROMPT + DESIGN_DNA)
--- so you can iterate on prompts without losing working versions,
--- A/B test in the admin lab, and instantly roll back in production.
+-- Stores versioned creative prompts + Design DNA for invite generation.
+-- The system prompt is split into two layers:
+--   1. STRUCTURAL RULES (hardcoded in code — never editable, ensures platform compatibility)
+--   2. CREATIVE DIRECTION (stored here — the editable creative layer)
+-- At generation time: final prompt = STRUCTURAL_RULES + creative_direction
 -- ============================================================
 
 -- ============================================================
--- 1. PROMPT_VERSIONS — versioned system prompts
+-- 1. PROMPT_VERSIONS — versioned creative direction + design DNA
 -- ============================================================
 
 create table if not exists public.prompt_versions (
-  id            uuid primary key default gen_random_uuid(),
-  version       integer not null,
-  name          text not null,                    -- human label e.g. "v12 – better RSVP buttons"
-  description   text not null default '',         -- what changed in this version
-  system_prompt text not null,                    -- the full SYSTEM_PROMPT text
-  design_dna    jsonb not null default '{}'::jsonb, -- the full DESIGN_DNA object
-  is_active     boolean not null default false,   -- exactly one row should be active (used in production)
-  created_by    text not null default '',         -- admin email who created it
-  created_at    timestamptz not null default now(),
-  updated_at    timestamptz not null default now()
+  id                  uuid primary key default gen_random_uuid(),
+  version             integer not null,
+  name                text not null,                    -- human label e.g. "v12 – better SVG illustrations"
+  description         text not null default '',         -- what changed in this version
+  creative_direction  text not null,                    -- the editable creative layer (merged with hardcoded structural rules at runtime)
+  design_dna          jsonb not null default '{}'::jsonb, -- per-event-type guidance (14 event types)
+  is_active           boolean not null default false,   -- exactly one row should be active (used in production)
+  created_by          text not null default '',         -- admin email who created it
+  created_at          timestamptz not null default now(),
+  updated_at          timestamptz not null default now()
 );
 
 -- Ensure only one active prompt version at a time

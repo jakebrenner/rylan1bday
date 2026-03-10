@@ -776,8 +776,8 @@ export default async function handler(req, res) {
     if (action === 'savePromptVersion') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
-      const { id, name, description, systemPrompt, designDna } = req.body;
-      if (!name || !systemPrompt) return res.status(400).json({ error: 'name and systemPrompt are required' });
+      const { id, name, description, creativeDirection, designDna } = req.body;
+      if (!name || !creativeDirection) return res.status(400).json({ error: 'name and creativeDirection are required' });
 
       if (id) {
         // Update existing version
@@ -786,7 +786,7 @@ export default async function handler(req, res) {
           .update({
             name,
             description: description || '',
-            system_prompt: systemPrompt,
+            creative_direction: creativeDirection,
             design_dna: designDna || {}
           })
           .eq('id', id);
@@ -808,7 +808,7 @@ export default async function handler(req, res) {
             version: nextVersion,
             name,
             description: description || '',
-            system_prompt: systemPrompt,
+            creative_direction: creativeDirection,
             design_dna: designDna || {},
             is_active: false,
             created_by: admin.email
