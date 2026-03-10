@@ -172,6 +172,12 @@ All endpoints require `Authorization: Bearer <token>` and use `?action=<name>`.
 - If `promptVersionId` is provided, loads that version's creative_direction from DB
 - If omitted, uses the hardcoded default prompt
 
+### Ratings API (`api/v2/ratings.js`)
+No auth required — supports host, guest, and anonymous raters.
+- `submit` (POST) — submit or update a rating `{eventId, eventThemeId, rating, feedback, raterType, fingerprint}`
+- `summary` (GET, `?eventThemeId=`) — rating summary with all individual ratings
+- `check` (GET, `?eventThemeId=&fingerprint=`) — check if host already rated this theme
+
 ## Rating Systems (3 levels)
 
 | | Lab Ratings | Admin Theme Ratings | User-Facing Ratings |
@@ -182,7 +188,7 @@ All endpoints require `Authorization: Bearer <token>` and use `?action=<name>`.
 | **Purpose** | Compare prompt×model combos | Track real-world generation quality | End-user satisfaction |
 | **Feeds into** | Prompt version decisions | `admin_theme_quality` view, quality trends | `theme_rating_summary` view |
 | **Auth required** | Admin token | Admin token | None (dedup by fingerprint) |
-| **Status** | Implemented | API ready, admin UI not yet built | Schema ready, UI not yet built |
+| **Status** | Implemented | API ready, admin UI not yet built | Host rating UI live, guest UI not yet built |
 
 ### Style Library Weighted Selection
 - `style_library.admin_rating` (1-5) drives weighted random selection during generation

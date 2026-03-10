@@ -209,6 +209,37 @@
     .preview-toggle-btn:hover { border-color: var(--party-coral); color: var(--party-coral); }
     .preview-toggle-btn.active { background: var(--party-coral); color: white; border-color: var(--party-coral); }
 
+    /* Host rating widget */
+    .theme-rating { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 8px; animation: fadeIn 0.3s; }
+    .theme-rating-label { font-size: 12px; color: #666; font-weight: 500; }
+    .theme-rating-stars { display: flex; gap: 4px; }
+    .theme-rating-stars .star { width: 28px; height: 28px; cursor: pointer; transition: all 0.15s; background: none; border: none; padding: 0; }
+    .theme-rating-stars .star svg { width: 28px; height: 28px; }
+    .theme-rating-stars .star:hover { transform: scale(1.2); }
+    .theme-rating-stars .star .star-fill { fill: #ddd; transition: fill 0.15s; }
+    .theme-rating-stars .star.active .star-fill { fill: var(--confetti-gold); }
+    .theme-rating-stars .star.hover-preview .star-fill { fill: var(--confetti-gold); opacity: 0.7; }
+    .theme-rating-thanks { font-size: 12px; color: var(--mint-fizz); font-weight: 600; animation: fadeIn 0.3s; }
+
+    /* Rating feedback overlay */
+    .rating-feedback-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s; }
+    .rating-feedback-modal { background: white; border-radius: 16px; padding: 28px; max-width: 420px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); text-align: center; }
+    .rating-feedback-modal h3 { font-family: 'Playfair Display', serif; font-size: 20px; margin-bottom: 6px; }
+    .rating-feedback-modal .rating-subtitle { font-size: 13px; color: #666; margin-bottom: 16px; }
+    .rating-feedback-modal .feedback-stars { display: flex; justify-content: center; gap: 4px; margin-bottom: 16px; }
+    .rating-feedback-modal .feedback-stars .star { width: 32px; height: 32px; }
+    .rating-feedback-modal .feedback-stars .star svg { width: 32px; height: 32px; }
+    .rating-feedback-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 12px; }
+    .rating-feedback-chips .chip { font-size: 12px; padding: 6px 12px; border: 1px solid #ddd; border-radius: 20px; cursor: pointer; background: white; transition: all 0.15s; font-family: 'Inter', sans-serif; }
+    .rating-feedback-chips .chip:hover { border-color: var(--party-coral); color: var(--party-coral); }
+    .rating-feedback-chips .chip.selected { background: var(--party-coral); color: white; border-color: var(--party-coral); }
+    .rating-feedback-modal textarea { width: 100%; min-height: 70px; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 13px; resize: vertical; margin-bottom: 12px; }
+    .rating-feedback-modal textarea:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+    .rating-feedback-modal .tweak-hint { background: linear-gradient(135deg, #FFF3E0, #FFF8E1); border: 1px solid #FFE0B2; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; text-align: left; }
+    .rating-feedback-modal .tweak-hint p { font-size: 13px; color: #5D4037; line-height: 1.4; }
+    .rating-feedback-modal .tweak-hint strong { color: var(--party-coral); }
+    .rating-feedback-actions { display: flex; gap: 10px; justify-content: center; }
+
     /* Right panel tabs */
     .panel-tabs { display: flex; border-bottom: 2px solid #eee; margin-bottom: 16px; }
     .panel-tab { flex: 1; padding: 10px 8px; text-align: center; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; color: #999; transition: all 0.2s; background: none; border-top: none; border-left: none; border-right: none; font-family: 'Inter', sans-serif; }
@@ -562,9 +593,14 @@
           </div>
           <!-- Right: Phone preview -->
           <div style="flex:0 0 auto;">
-            <div id="previewToggle" style="display:flex;justify-content:center;gap:4px;margin-bottom:12px;">
+            <div id="previewToggle" style="display:flex;justify-content:center;gap:4px;margin-bottom:8px;">
               <button class="preview-toggle-btn active" onclick="setPreviewMode('invite')">Invite</button>
               <button class="preview-toggle-btn" onclick="setPreviewMode('thankyou')">Thank You</button>
+            </div>
+            <div id="themeRatingWidget" class="theme-rating" style="display:none;">
+              <span class="theme-rating-label">How does this look?</span>
+              <div class="theme-rating-stars" id="themeRatingStars"></div>
+              <span class="theme-rating-thanks" id="themeRatingThanks" style="display:none;"></span>
             </div>
             <div class="phone-mockup">
               <div class="phone-frame">
@@ -2477,6 +2513,8 @@
           // Plan or limit issue — show purchase option instead of generic error
           stopGeneratingPuns();
           showAdditionalEventPurchase();
+
+          showThemeRating(ver.id);
         } else {
           stopGeneratingPuns();
           var errMsg = result2.message || result2.error || 'Failed to generate theme';
@@ -2700,6 +2738,7 @@
       currentEvent.themeConfig = ver.config;
       renderPreview(ver);
       renderVersionGallery();
+      showThemeRating(ver.id);
       // Activate this version in the DB
       authFetch('/api/v2/events?action=activateTheme', {
         method: 'POST',
@@ -3782,6 +3821,178 @@
     function formatEventType(type) {
       var map = { birthday: 'Birthday', wedding: 'Wedding', babyShower: 'Baby Shower', graduation: 'Graduation', dinnerParty: 'Dinner Party', holiday: 'Holiday Party', corporate: 'Corporate Event', other: 'Other' };
       return map[type] || type;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // HOST THEME RATING
+    // ════════════════════════════════════════════════════════════
+    var hostRatingsByTheme = {}; // themeId → {rating, feedback}
+    var hostFingerprint = 'fp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+
+    function starSvg() {
+      return '<svg viewBox="0 0 24 24"><path class="star-fill" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>';
+    }
+
+    function showThemeRating(themeId) {
+      var widget = document.getElementById('themeRatingWidget');
+      var starsContainer = document.getElementById('themeRatingStars');
+      var thanks = document.getElementById('themeRatingThanks');
+
+      widget.style.display = 'flex';
+      thanks.style.display = 'none';
+
+      var existing = hostRatingsByTheme[themeId];
+      var currentRating = existing ? existing.rating : 0;
+
+      starsContainer.innerHTML = '';
+      for (var i = 1; i <= 5; i++) {
+        var btn = document.createElement('button');
+        btn.className = 'star' + (i <= currentRating ? ' active' : '');
+        btn.innerHTML = starSvg();
+        btn.dataset.value = i;
+        btn.dataset.themeId = themeId;
+        btn.onclick = function() { handleStarClick(this.dataset.themeId, parseInt(this.dataset.value)); };
+        btn.onmouseenter = function() { previewStars(starsContainer, parseInt(this.dataset.value)); }.bind(btn);
+        btn.onmouseleave = function() { clearStarPreview(starsContainer, currentRating); };
+        starsContainer.appendChild(btn);
+      }
+
+      if (existing) {
+        thanks.textContent = existing.rating === 5 ? 'Thanks!' : 'Rated ' + existing.rating + '/5';
+        thanks.style.display = 'inline';
+      }
+    }
+
+    function previewStars(container, upTo) {
+      container.querySelectorAll('.star').forEach(function(s) {
+        var val = parseInt(s.dataset.value);
+        s.classList.toggle('hover-preview', val <= upTo && !s.classList.contains('active'));
+      });
+    }
+
+    function clearStarPreview(container) {
+      container.querySelectorAll('.star').forEach(function(s) { s.classList.remove('hover-preview'); });
+    }
+
+    function handleStarClick(themeId, rating) {
+      hostRatingsByTheme[themeId] = { rating: rating, feedback: '' };
+
+      // Update stars UI immediately
+      var starsContainer = document.getElementById('themeRatingStars');
+      starsContainer.querySelectorAll('.star').forEach(function(s) {
+        s.classList.toggle('active', parseInt(s.dataset.value) <= rating);
+        s.classList.remove('hover-preview');
+      });
+
+      if (rating < 5) {
+        showRatingFeedbackModal(themeId, rating);
+      } else {
+        // 5 stars — just save it with a thanks
+        submitHostRating(themeId, rating, '');
+        var thanks = document.getElementById('themeRatingThanks');
+        thanks.textContent = 'Thanks! Glad you love it!';
+        thanks.style.display = 'inline';
+      }
+    }
+
+    function showRatingFeedbackModal(themeId, rating) {
+      var ratingLabels = { 1: 'Not great', 2: 'Needs work', 3: 'Decent', 4: 'Almost there' };
+      var label = ratingLabels[rating] || '';
+
+      // Quick-tap feedback chips based on rating
+      var chips = [];
+      if (rating <= 2) {
+        chips = ['Text too large', 'Wrong colors', 'Looks broken', 'Not my style', 'Hard to read', 'Too plain'];
+      } else {
+        chips = ['Colors off', 'Layout tweaks', 'Font change', 'More detail', 'Different vibe', 'Almost perfect'];
+      }
+
+      var starsHtml = '';
+      for (var i = 1; i <= 5; i++) {
+        starsHtml += '<button class="star' + (i <= rating ? ' active' : '') + '" style="pointer-events:none;">' + starSvg() + '</button>';
+      }
+
+      var chipsHtml = chips.map(function(c) {
+        return '<button class="chip" onclick="toggleFeedbackChip(this)">' + c + '</button>';
+      }).join('');
+
+      var overlay = document.createElement('div');
+      overlay.className = 'rating-feedback-overlay';
+      overlay.id = 'ratingFeedbackOverlay';
+      overlay.innerHTML = '<div class="rating-feedback-modal">'
+        + '<h3>' + label + '</h3>'
+        + '<div class="feedback-stars">' + starsHtml + '</div>'
+        + '<p class="rating-subtitle">What could be better?</p>'
+        + '<div class="rating-feedback-chips" id="feedbackChips">' + chipsHtml + '</div>'
+        + '<textarea id="ratingFeedbackText" placeholder="Tell us more (optional)..."></textarea>'
+        + '<div class="tweak-hint">'
+        + '<p>You can <strong>tweak this design</strong> using the Design chat! Just describe what you want changed and we\'ll update it instantly.</p>'
+        + '</div>'
+        + '<div class="rating-feedback-actions">'
+        + '<button class="btn btn-secondary btn-sm" onclick="closeRatingFeedback(\'' + themeId + '\', ' + rating + ', false)">Skip</button>'
+        + '<button class="btn btn-primary btn-sm" onclick="closeRatingFeedback(\'' + themeId + '\', ' + rating + ', true)">Submit & Tweak</button>'
+        + '</div>'
+        + '</div>';
+      document.body.appendChild(overlay);
+
+      // Click outside to close
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) closeRatingFeedback(themeId, rating, false);
+      });
+    }
+
+    function toggleFeedbackChip(el) {
+      el.classList.toggle('selected');
+    }
+
+    function closeRatingFeedback(themeId, rating, focusChat) {
+      var overlay = document.getElementById('ratingFeedbackOverlay');
+      if (!overlay) return;
+
+      // Collect feedback from chips + textarea
+      var selectedChips = [];
+      overlay.querySelectorAll('.chip.selected').forEach(function(c) { selectedChips.push(c.textContent); });
+      var textFeedback = (document.getElementById('ratingFeedbackText')?.value || '').trim();
+      var fullFeedback = selectedChips.concat(textFeedback ? [textFeedback] : []).join('; ');
+
+      hostRatingsByTheme[themeId] = { rating: rating, feedback: fullFeedback };
+      submitHostRating(themeId, rating, fullFeedback);
+
+      overlay.remove();
+
+      var thanks = document.getElementById('themeRatingThanks');
+      thanks.textContent = 'Feedback saved! Try the Design chat to tweak it.';
+      thanks.style.display = 'inline';
+
+      // Focus the design chat input if user clicked "Submit & Tweak"
+      if (focusChat) {
+        switchTab('design');
+        var chatInput = document.getElementById('designChatInput');
+        if (chatInput) {
+          chatInput.focus();
+          // Pre-fill with their feedback as a starting point
+          if (fullFeedback && !chatInput.value) {
+            chatInput.value = 'Can you fix: ' + fullFeedback.toLowerCase();
+            autoResizeTextarea(chatInput);
+          }
+        }
+      }
+    }
+
+    function submitHostRating(themeId, rating, feedback) {
+      if (!currentEvent) return;
+      fetch('/api/v2/ratings?action=submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId: currentEvent.id,
+          eventThemeId: themeId,
+          rating: rating,
+          feedback: feedback,
+          raterType: 'host',
+          fingerprint: hostFingerprint
+        })
+      }).catch(function() {});
     }
 
     function showMessage(text, type) {
