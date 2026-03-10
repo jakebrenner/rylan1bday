@@ -1250,6 +1250,9 @@
       // Hide the chat input area — the user is done describing their event
       document.querySelector('.chat-input-area').style.display = 'none';
 
+      // Auto-save event to DB as early as possible (silently — don't block if it fails)
+      saveEventToDB().catch(function() {});
+
       // Ask about style preference
       showStyleChoiceCard();
     }
@@ -2457,6 +2460,13 @@
           renderPreview(ver);
           renderVersionGallery();
           initDesignChatIfNeeded();
+          // Persist creation_step so resume returns to preview
+          if (currentEvent) {
+            authFetch('/api/v2/events?action=update', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ eventId: currentEvent.id, settings: { creation_step: 2 } })
+            }).catch(function() {});
+          }
         } else if (result2.needsPlan || result2.limitReached) {
           // Plan or limit issue — show purchase option instead of generic error
           stopGeneratingPuns();
