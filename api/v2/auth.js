@@ -133,6 +133,7 @@ export default async function handler(req, res) {
           phone: profile?.phone || '',
           avatarUrl: profile?.avatar_url || '',
           tier: profile?.tier || 'free',
+          referralSource: profile?.referral_source || null,
           createdAt: profile?.created_at || user.created_at,
           hasActivePlan: !!activeSub,
           subscription: activeSub ? {
@@ -160,10 +161,11 @@ export default async function handler(req, res) {
         return res.status(401).json({ success: false, error: 'Invalid session' });
       }
 
-      const { displayName, phone } = req.body || {};
+      const { displayName, phone, referralSource } = req.body || {};
       const updates = {};
       if (displayName !== undefined) updates.display_name = displayName;
       if (phone !== undefined) updates.phone = phone;
+      if (referralSource !== undefined) updates.referral_source = referralSource;
 
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({ success: false, error: 'No fields to update' });
@@ -192,6 +194,7 @@ export default async function handler(req, res) {
         phone: profile?.phone || '',
         avatarUrl: profile?.avatar_url || '',
         tier: profile?.tier || 'free',
+        referralSource: profile?.referral_source || null,
         createdAt: profile?.created_at || user.created_at
       };
 

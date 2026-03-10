@@ -249,6 +249,36 @@
     @keyframes loaderBounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
     .design-chat-loader .loader-pun { font-size: 14px; color: #666; font-style: italic; min-height: 20px; transition: opacity 0.3s ease; }
 
+    /* Generating page styles */
+    .gen-container { max-width: 480px; margin: 0 auto; padding: 32px 20px; text-align: center; }
+    .gen-emoji-float { font-size: 48px; animation: genFloat 3s ease-in-out infinite; }
+    @keyframes genFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    .gen-title { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--midnight); margin: 16px 0 6px; }
+    .gen-subtitle { font-size: 14px; color: #888; margin-bottom: 24px; font-style: italic; min-height: 20px; transition: opacity 0.3s; }
+    .gen-progress-track { width: 100%; height: 6px; background: #f0e8ea; border-radius: 3px; overflow: hidden; margin-bottom: 28px; }
+    .gen-progress-bar { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--party-coral), var(--blush-pop), var(--mint-fizz)); background-size: 200% 100%; animation: genShimmer 2s ease-in-out infinite; transition: width 0.8s ease; width: 5%; }
+    @keyframes genShimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+    .gen-stages { display: flex; flex-direction: column; gap: 12px; text-align: left; margin-bottom: 28px; }
+    .gen-stage { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; background: white; border: 1px solid #f0e8ea; transition: all 0.4s ease; }
+    .gen-stage.active { border-color: var(--party-coral); background: rgba(233,69,96,0.04); }
+    .gen-stage.done { border-color: var(--mint-fizz); background: rgba(78,205,196,0.06); }
+    .gen-stage-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; background: #f5f5f5; transition: all 0.3s; }
+    .gen-stage.active .gen-stage-icon { background: rgba(233,69,96,0.1); }
+    .gen-stage.done .gen-stage-icon { background: rgba(78,205,196,0.15); }
+    .gen-stage-text { font-size: 13px; color: #999; transition: color 0.3s; }
+    .gen-stage.active .gen-stage-text { color: var(--midnight); font-weight: 500; }
+    .gen-stage.done .gen-stage-text { color: var(--mint-fizz); }
+    .gen-stage .gen-spinner { width: 14px; height: 14px; border: 2px solid rgba(233,69,96,0.2); border-top-color: var(--party-coral); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .gen-attribution { background: white; border: 1px solid #f0e8ea; border-radius: 14px; padding: 20px; margin-top: 4px; text-align: left; animation: genFadeIn 0.5s ease; }
+    @keyframes genFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .gen-attribution h4 { font-size: 14px; font-weight: 600; color: var(--midnight); margin-bottom: 10px; }
+    .gen-attribution-options { display: flex; flex-wrap: wrap; gap: 6px; }
+    .gen-attribution-chip { padding: 8px 14px; border: 1px solid #e8e0e2; border-radius: 20px; background: white; font-size: 12px; font-family: 'Inter', sans-serif; color: #555; cursor: pointer; transition: all 0.2s; }
+    .gen-attribution-chip:hover { border-color: var(--party-coral); color: var(--party-coral); }
+    .gen-attribution-chip.selected { border-color: var(--party-coral); background: rgba(233,69,96,0.08); color: var(--party-coral); font-weight: 500; }
+    .gen-attribution-thanks { font-size: 13px; color: var(--mint-fizz); font-weight: 500; animation: genFadeIn 0.3s ease; }
+
     .summary-item { background: #f9f9f9; padding: 16px; border-radius: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     .summary-label { font-weight: 600; }
     .summary-value { color: #666; font-size: 14px; text-align: right; max-width: 60%; }
@@ -321,10 +351,27 @@
     <div class="step" data-step="2">
       <div id="generatingView">
         <div class="loading-state" id="generatingLoadingState">
-          <span class="loading-spinner" style="width: 40px; height: 40px; border-width: 3px;"></span>
-          <h3>Generating Your Invite...</h3>
-          <p id="generatingPun" style="transition:opacity 0.3s;">Our AI is creating a custom design based on your vision</p>
-          <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+          <div class="gen-container">
+            <div class="gen-emoji-float" id="genEmoji">🎨</div>
+            <h3 class="gen-title">Creating Your Invite</h3>
+            <p class="gen-subtitle" id="generatingPun">Our AI is designing something special...</p>
+            <div class="gen-progress-track"><div class="gen-progress-bar" id="genProgressBar"></div></div>
+            <div class="gen-stages" id="genStages">
+              <div class="gen-stage active" data-stage="analyze">
+                <div class="gen-stage-icon"><div class="gen-spinner"></div></div>
+                <div class="gen-stage-text">Analyzing your event details</div>
+              </div>
+              <div class="gen-stage" data-stage="design">
+                <div class="gen-stage-icon">🎨</div>
+                <div class="gen-stage-text">Designing layout & color palette</div>
+              </div>
+              <div class="gen-stage" data-stage="polish">
+                <div class="gen-stage-icon">✨</div>
+                <div class="gen-stage-text">Adding finishing touches</div>
+              </div>
+            </div>
+            <div id="genAttributionArea"></div>
+          </div>
         </div>
         <div id="generatingPaywall" style="display:none;">
           <!-- Phase 1: Pricing card -->
@@ -655,7 +702,7 @@
 
         // Wait for subscription to be provisioned (webhook may lag behind redirect)
         (async function() {
-          var maxAttempts = 10;
+          var maxAttempts = 20;
           var attempt = 0;
           var subscriptionReady = false;
           while (attempt < maxAttempts && !subscriptionReady) {
@@ -669,7 +716,7 @@
             } catch (e) {}
             attempt++;
             if (!subscriptionReady) {
-              await new Promise(function(r) { setTimeout(r, 1500); });
+              await new Promise(function(r) { setTimeout(r, 2000); });
             }
           }
 
@@ -744,12 +791,20 @@
             // Stop the resume loader
             clearInterval(resumePunInterval);
             // Restore generatingView original content
-            genView.innerHTML = '<div class="loading-state">'
-              + '<span class="loading-spinner" style="width: 40px; height: 40px; border-width: 3px;"></span>'
-              + '<h3>Generating Your Invite...</h3>'
-              + '<p>Our AI is creating a custom design based on your vision</p>'
-              + '<div class="progress-bar"><div class="progress-bar-fill"></div></div>'
-              + '</div>';
+            genView.innerHTML = '<div class="loading-state" id="generatingLoadingState">'
+              + '<div class="gen-container">'
+              + '<div class="gen-emoji-float" id="genEmoji">🎨</div>'
+              + '<h3 class="gen-title">Creating Your Invite</h3>'
+              + '<p class="gen-subtitle" id="generatingPun">Our AI is designing something special...</p>'
+              + '<div class="gen-progress-track"><div class="gen-progress-bar" id="genProgressBar"></div></div>'
+              + '<div class="gen-stages" id="genStages">'
+              + '<div class="gen-stage active" data-stage="analyze"><div class="gen-stage-icon"><div class="gen-spinner"></div></div><div class="gen-stage-text">Analyzing your event details</div></div>'
+              + '<div class="gen-stage" data-stage="design"><div class="gen-stage-icon">🎨</div><div class="gen-stage-text">Designing layout & color palette</div></div>'
+              + '<div class="gen-stage" data-stage="polish"><div class="gen-stage-icon">✨</div><div class="gen-stage-text">Adding finishing touches</div></div>'
+              + '</div>'
+              + '<div id="genAttributionArea"></div>'
+              + '</div></div>'
+              + '<div id="generatingPaywall" style="display:none;"></div>';
             // Jump to the right step (old step 3/4 → new step 2/3)
             var step = (ev.settings && ev.settings.creation_step) || 2;
             if (step >= 3 && themeVersions.length > 0) {
@@ -2099,6 +2154,8 @@
     // ---- Theme Generation ----
 
     var genPunIntervalId = null;
+    var genStageTimers = [];
+    var genEmojiList = ['🎨', '🎉', '✨', '💫', '🪄', '🎪', '💌', '🌟'];
 
     function startGeneratingPuns() {
       var punEl = document.getElementById('generatingPun');
@@ -2110,11 +2167,101 @@
         idx = (idx + 1) % shuffled.length;
         punEl.style.opacity = '0';
         setTimeout(function() { punEl.textContent = shuffled[idx]; punEl.style.opacity = '1'; }, 300);
-      }, 2500);
+      }, 3000);
+
+      // Animate emoji
+      var emojiEl = document.getElementById('genEmoji');
+      var emojiIdx = 0;
+      var emojiTimer = setInterval(function() {
+        emojiIdx = (emojiIdx + 1) % genEmojiList.length;
+        if (emojiEl) emojiEl.textContent = genEmojiList[emojiIdx];
+      }, 4000);
+      genStageTimers.push(emojiTimer);
+
+      // Progress bar animation
+      var bar = document.getElementById('genProgressBar');
+      if (bar) {
+        bar.style.width = '5%';
+        setTimeout(function() { bar.style.width = '25%'; }, 500);
+        setTimeout(function() { bar.style.width = '50%'; }, 4000);
+        setTimeout(function() { bar.style.width = '70%'; }, 10000);
+        setTimeout(function() { bar.style.width = '85%'; }, 20000);
+        setTimeout(function() { bar.style.width = '92%'; }, 30000);
+      }
+
+      // Animate stage progression
+      var stages = document.querySelectorAll('#genStages .gen-stage');
+      if (stages.length >= 3) {
+        // Stage 1 already active
+        genStageTimers.push(setTimeout(function() {
+          stages[0].classList.remove('active');
+          stages[0].classList.add('done');
+          stages[0].querySelector('.gen-stage-icon').innerHTML = '✓';
+          stages[1].classList.add('active');
+          stages[1].querySelector('.gen-stage-icon').innerHTML = '<div class="gen-spinner"></div>';
+        }, 5000));
+        genStageTimers.push(setTimeout(function() {
+          stages[1].classList.remove('active');
+          stages[1].classList.add('done');
+          stages[1].querySelector('.gen-stage-icon').innerHTML = '✓';
+          stages[2].classList.add('active');
+          stages[2].querySelector('.gen-stage-icon').innerHTML = '<div class="gen-spinner"></div>';
+        }, 15000));
+      }
+
+      // Show "How did you hear about us?" after a few seconds (first time only)
+      genStageTimers.push(setTimeout(function() { showAttributionQuestion(); }, 3000));
     }
 
     function stopGeneratingPuns() {
       if (genPunIntervalId) { clearInterval(genPunIntervalId); genPunIntervalId = null; }
+      genStageTimers.forEach(function(t) { clearTimeout(t); clearInterval(t); });
+      genStageTimers = [];
+    }
+
+    var attributionSources = [
+      'Instagram', 'TikTok', 'Google Search', 'Facebook',
+      'Friend / Word of Mouth', 'Pinterest', 'X / Twitter', 'Other'
+    ];
+
+    function showAttributionQuestion() {
+      var area = document.getElementById('genAttributionArea');
+      if (!area || area.dataset.shown === 'true') return;
+      // Only show for first-time users (no previous events)
+      var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
+      if (user && user.referralSource) return; // Already answered
+      area.dataset.shown = 'true';
+      area.innerHTML = '<div class="gen-attribution">'
+        + '<h4>Quick question while we design...</h4>'
+        + '<p style="font-size:13px;color:#888;margin-bottom:12px;">How did you hear about Ryvite?</p>'
+        + '<div class="gen-attribution-options">'
+        + attributionSources.map(function(s) {
+            return '<button class="gen-attribution-chip" onclick="selectAttribution(this,\'' + s.replace(/'/g, "\\'") + '\')">' + s + '</button>';
+          }).join('')
+        + '</div>'
+        + '</div>';
+    }
+
+    async function selectAttribution(btn, source) {
+      // Highlight selected
+      document.querySelectorAll('.gen-attribution-chip').forEach(function(c) { c.classList.remove('selected'); });
+      btn.classList.add('selected');
+      // Replace with thanks
+      setTimeout(function() {
+        var area = document.getElementById('genAttributionArea');
+        if (area) area.innerHTML = '<div class="gen-attribution-thanks">Thanks for letting us know!</div>';
+      }, 600);
+      // Save to profile
+      try {
+        await authFetch('/api/v2/auth?action=updateProfile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ referralSource: source })
+        });
+        // Update local storage so we don't ask again
+        var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
+        if (user) { user.referralSource = source; localStorage.setItem('v2_user', JSON.stringify(user)); }
+      } catch (e) { console.error('Failed to save referral source:', e); }
     }
 
     async function generateTheme(feedback) {
@@ -2225,22 +2372,31 @@
 
     function showGeneratingError(msg) {
       var loadingState = document.getElementById('generatingLoadingState');
-      loadingState.innerHTML = '<div style="font-size:32px;margin-bottom:12px;">😅</div>'
-        + '<h3 style="color:var(--party-coral);">Oops!</h3>'
-        + '<p style="margin-bottom:16px;">' + escapeHtml(msg) + '</p>'
+      loadingState.innerHTML = '<div class="gen-container">'
+        + '<div style="font-size:48px;margin-bottom:12px;">😅</div>'
+        + '<h3 class="gen-title" style="color:var(--party-coral);">Oops!</h3>'
+        + '<p style="margin-bottom:20px;font-size:14px;color:#888;">' + escapeHtml(msg) + '</p>'
         + '<div style="display:flex;gap:8px;justify-content:center;">'
         + '<button class="btn btn-secondary" onclick="goToStep(1)" style="font-size:13px;padding:10px 20px;">Back</button>'
         + '<button class="btn btn-primary" onclick="retryGenerate()" style="font-size:13px;padding:10px 20px;">Try Again</button>'
-        + '</div>';
+        + '</div></div>';
     }
 
     function retryGenerate() {
-      // Reset loading state HTML
+      // Reset loading state HTML to the full generating experience
       var loadingState = document.getElementById('generatingLoadingState');
-      loadingState.innerHTML = '<span class="loading-spinner" style="width: 40px; height: 40px; border-width: 3px;"></span>'
-        + '<h3>Generating Your Invite...</h3>'
-        + '<p id="generatingPun" style="transition:opacity 0.3s;">One more try...</p>'
-        + '<div class="progress-bar"><div class="progress-bar-fill"></div></div>';
+      loadingState.innerHTML = '<div class="gen-container">'
+        + '<div class="gen-emoji-float" id="genEmoji">🎨</div>'
+        + '<h3 class="gen-title">Creating Your Invite</h3>'
+        + '<p class="gen-subtitle" id="generatingPun">One more try...</p>'
+        + '<div class="gen-progress-track"><div class="gen-progress-bar" id="genProgressBar"></div></div>'
+        + '<div class="gen-stages" id="genStages">'
+        + '<div class="gen-stage active" data-stage="analyze"><div class="gen-stage-icon"><div class="gen-spinner"></div></div><div class="gen-stage-text">Analyzing your event details</div></div>'
+        + '<div class="gen-stage" data-stage="design"><div class="gen-stage-icon">🎨</div><div class="gen-stage-text">Designing layout & color palette</div></div>'
+        + '<div class="gen-stage" data-stage="polish"><div class="gen-stage-icon">✨</div><div class="gen-stage-text">Adding finishing touches</div></div>'
+        + '</div>'
+        + '<div id="genAttributionArea"></div>'
+        + '</div>';
       generateTheme();
     }
 
