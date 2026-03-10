@@ -9,6 +9,23 @@ const supabase = createClient(
 
 const DEFAULT_THEME_MODEL = process.env.THEME_MODEL || 'claude-sonnet-4-6';
 
+// Fetch images from URLs and convert to base64 for Claude vision
+async function fetchImagesAsBase64(urls) {
+  const results = [];
+  for (const url of urls) {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) continue;
+      const buffer = await resp.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString('base64');
+      results.push(base64);
+    } catch (e) {
+      console.warn('Failed to fetch inspiration image:', url, e.message);
+    }
+  }
+  return results;
+}
+
 async function getThemeModel() {
   try {
     const { data } = await supabase
@@ -364,6 +381,12 @@ The thank you page appears after RSVP. Same CSS (theme_css) applies to both invi
 - Button text MUST contrast against the button background color
 - This applies to the invite AND the thank you page equally
 
+### CONCRETE CONTRAST RULES FOR EACH SECTION:
+- **Event details band** (date, time, location): If the band background is dark (green, navy, black, charcoal, etc.), the text color MUST be white or very light. If the band is light, text MUST be dark. NEVER use a warm/muted color like coral, salmon, or rose on a dark background — it will be unreadable.
+- **Hero section**: If the background is dark or uses a dark gradient, title and subtitle text MUST be white/cream/very light.
+- **RSVP section**: Button text must be white on dark buttons or dark on light buttons. No exceptions.
+- **SIMPLE RULE**: For ANY section with a colored/dark background, set the text color to #FFFFFF or #FAFAFA. For any section with a light/white background, set text to #1A1A1A or darker. Do NOT try to match text color to theme accent colors on dark backgrounds — it almost always fails contrast.
+
 ## WHAT KILLS A GOOD INVITE
 - Using Inter, Roboto, or system fonts
 - Purple gradients on white backgrounds
@@ -515,8 +538,23 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Invalid session' });
   }
 
+  // Check generation limits
+  try {
+    const { checkUserLimits } = await import('./billing.js');
+    const limits = await checkUserLimits(user.id);
+    if (!limits.hasActivePlan) {
+      return res.status(403).json({ error: 'You need an active plan to generate themes.', needsPlan: true });
+    }
+    if (!limits.canGenerate) {
+      return res.status(403).json({ error: limits.reason || 'Generation limit reached for your plan.', limitReached: true });
+    }
+  } catch (e) {
+    // If billing check fails, allow generation (don't block on billing errors)
+    console.warn('Billing check failed, allowing generation:', e.message);
+  }
+
   const action = req.query?.action || req.body?.action || 'generate';
-  const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages, tweakInstructions, currentHtml, currentCss, currentConfig, photoBase64, photoUrl, photoUrls } = req.body;
+  const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages, inspirationImageUrls, tweakInstructions, currentHtml, currentCss, currentConfig, photoBase64, photoUrl, photoUrls } = req.body;
 
   // --- TWEAK MODE: stream response via SSE to avoid timeouts ---
   if (action === 'tweak') {
@@ -641,7 +679,7 @@ Return ONLY a valid JSON object with these keys:
 - Make minimal changes — only what the user asked for, keep everything else exactly the same
 - Preserve and enhance CSS animations — every invite should feel alive with entrance animations, ambient motion, and hover effects
 - Thank you page: ONLY provide .thankyou-page container with .thankyou-hero (.thankyou-title + .thankyou-subtitle with .thankyou-guest span). NO calendar buttons, NO footer — the platform injects those automatically. NO emojis. Match invite's background/fonts. Style .thankyou-page, .thankyou-hero, .thankyou-title, .thankyou-subtitle in CSS.
-- TEXT CONTRAST: EVERY text element must be clearly readable against its background. Never light-on-light or dark-on-dark. Buttons must have contrasting text. This is non-negotiable.
+- TEXT CONTRAST: EVERY text element must be clearly readable against its background. Never light-on-light or dark-on-dark. Buttons must have contrasting text. This is non-negotiable. CONCRETE RULE: on any dark/colored background section, text MUST be #FFFFFF or #FAFAFA. On light backgrounds, text MUST be #1A1A1A or darker. Do NOT use theme accent colors (coral, salmon, rose, etc.) as text on dark backgrounds.
 - For photo additions: use the EXACT URL(s) provided in <img> tags. Style with creative framing per the event type.`;
 
       const stream = client.messages.stream({
@@ -873,14 +911,20 @@ ${rsvpFieldsDesc}`;
       userMessage += `\n\n**Feedback on previous version (incorporate this):**\n${feedback}`;
     }
 
-    if (inspirationImages?.length > 0) {
-      userMessage += `\n\n**Visual Inspiration:** I've provided ${inspirationImages.length} image(s) as inspiration. Analyze for color palette, mood, textures, and typography cues.`;
+    // Resolve inspiration images: use base64 if provided, otherwise fetch from URLs
+    let resolvedInspirationImages = inspirationImages?.length > 0 ? inspirationImages : [];
+    if (resolvedInspirationImages.length === 0 && inspirationImageUrls?.length > 0) {
+      resolvedInspirationImages = await fetchImagesAsBase64(inspirationImageUrls);
     }
 
-    const messageContent = inspirationImages?.length > 0
+    if (resolvedInspirationImages.length > 0) {
+      userMessage += `\n\n**Visual Inspiration:** I've provided ${resolvedInspirationImages.length} image(s) as inspiration. Analyze for color palette, mood, textures, and typography cues.`;
+    }
+
+    const messageContent = resolvedInspirationImages.length > 0
       ? [
           { type: 'text', text: userMessage },
-          ...inspirationImages.map(img => ({
+          ...resolvedInspirationImages.map(img => ({
             type: 'image',
             source: { type: 'base64', media_type: 'image/jpeg', data: img }
           }))

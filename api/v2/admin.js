@@ -501,6 +501,239 @@ export default async function handler(req, res) {
       });
     }
 
+    // ---- LIST COUPONS ----
+    if (action === 'coupons') {
+      const { data: coupons, error } = await supabaseAdmin
+        .from('coupons')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) return res.status(400).json({ error: error.message });
+
+      return res.status(200).json({
+        success: true,
+        coupons: (coupons || []).map(c => ({
+          id: c.id,
+          code: c.code,
+          description: c.description,
+          discountType: c.discount_type,
+          discountValue: Number(c.discount_value),
+          minPurchaseCents: c.min_purchase_cents,
+          maxUses: c.max_uses,
+          timesUsed: c.times_used,
+          maxUsesPerUser: c.max_uses_per_user,
+          validFrom: c.valid_from,
+          validUntil: c.valid_until,
+          allowedPlans: c.allowed_plans,
+          allowedEmails: c.allowed_emails,
+          isActive: c.is_active,
+          createdAt: c.created_at
+        }))
+      });
+    }
+
+    // ---- CREATE COUPON ----
+    if (action === 'createCoupon') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const {
+        code, description, discountType, discountValue,
+        minPurchaseCents, maxUses, maxUsesPerUser,
+        validFrom, validUntil, allowedPlans, allowedEmails, isActive
+      } = req.body;
+
+      if (!code || !discountType || discountValue === undefined) {
+        return res.status(400).json({ error: 'code, discountType, and discountValue are required' });
+      }
+
+      if (!['percent', 'fixed'].includes(discountType)) {
+        return res.status(400).json({ error: 'discountType must be "percent" or "fixed"' });
+      }
+
+      if (discountType === 'percent' && (discountValue < 0 || discountValue > 100)) {
+        return res.status(400).json({ error: 'Percent discount must be between 0 and 100' });
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from('coupons')
+        .insert({
+          code: code.toUpperCase().trim(),
+          description: description || null,
+          discount_type: discountType,
+          discount_value: discountValue,
+          min_purchase_cents: minPurchaseCents || 0,
+          max_uses: maxUses || null,
+          max_uses_per_user: maxUsesPerUser || 1,
+          valid_from: validFrom || new Date().toISOString(),
+          valid_until: validUntil || null,
+          allowed_plans: allowedPlans && allowedPlans.length > 0 ? allowedPlans : null,
+          allowed_emails: allowedEmails && allowedEmails.length > 0 ? allowedEmails : null,
+          is_active: isActive !== false,
+          created_by: admin.id
+        })
+        .select()
+        .single();
+
+      if (error) return res.status(400).json({ error: error.message });
+
+      return res.status(200).json({ success: true, coupon: data });
+    }
+
+    // ---- UPDATE COUPON ----
+    if (action === 'updateCoupon') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { couponId, ...updates } = req.body;
+      if (!couponId) return res.status(400).json({ error: 'couponId required' });
+
+      const dbUpdates = {};
+      if (updates.code !== undefined) dbUpdates.code = updates.code.toUpperCase().trim();
+      if (updates.description !== undefined) dbUpdates.description = updates.description;
+      if (updates.discountType !== undefined) dbUpdates.discount_type = updates.discountType;
+      if (updates.discountValue !== undefined) dbUpdates.discount_value = updates.discountValue;
+      if (updates.minPurchaseCents !== undefined) dbUpdates.min_purchase_cents = updates.minPurchaseCents;
+      if (updates.maxUses !== undefined) dbUpdates.max_uses = updates.maxUses;
+      if (updates.maxUsesPerUser !== undefined) dbUpdates.max_uses_per_user = updates.maxUsesPerUser;
+      if (updates.validFrom !== undefined) dbUpdates.valid_from = updates.validFrom;
+      if (updates.validUntil !== undefined) dbUpdates.valid_until = updates.validUntil;
+      if (updates.allowedPlans !== undefined) dbUpdates.allowed_plans = updates.allowedPlans && updates.allowedPlans.length > 0 ? updates.allowedPlans : null;
+      if (updates.allowedEmails !== undefined) dbUpdates.allowed_emails = updates.allowedEmails && updates.allowedEmails.length > 0 ? updates.allowedEmails : null;
+      if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
+
+      const { error } = await supabaseAdmin
+        .from('coupons')
+        .update(dbUpdates)
+        .eq('id', couponId);
+
+      if (error) return res.status(400).json({ error: error.message });
+
+      return res.status(200).json({ success: true });
+    }
+
+    // ---- DELETE COUPON ----
+    if (action === 'deleteCoupon') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { couponId } = req.body;
+      if (!couponId) return res.status(400).json({ error: 'couponId required' });
+
+      // Soft delete — just deactivate
+      const { error } = await supabaseAdmin
+        .from('coupons')
+        .update({ is_active: false })
+        .eq('id', couponId);
+
+      if (error) return res.status(400).json({ error: error.message });
+
+      return res.status(200).json({ success: true });
+    }
+
+    // ---- SMS STATS (admin overview) ----
+    if (action === 'smsStats') {
+      const { count: totalSent } = await supabaseAdmin
+        .from('sms_messages')
+        .select('id', { count: 'exact', head: true });
+
+      const { data: costData } = await supabaseAdmin
+        .from('sms_messages')
+        .select('cost_cents');
+
+      const totalCostCents = (costData || []).reduce((sum, m) => sum + (m.cost_cents || 0), 0);
+
+      return res.status(200).json({
+        success: true,
+        totalSent: totalSent || 0,
+        totalCostCents,
+        totalRevenueCents: totalCostCents // revenue = cost to user (we charge $0.05, ClickSend costs us less)
+      });
+    }
+
+    // ---- LIST ALL SUBSCRIPTIONS (admin) ----
+    if (action === 'subscriptions') {
+      const { data: subs, error } = await supabaseAdmin
+        .from('subscriptions')
+        .select(`
+          *,
+          profiles:user_id (email, display_name),
+          plans:plan_id (name, display_name, price_cents)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) return res.status(400).json({ error: error.message });
+
+      // Get SMS counts per user
+      const userIds = [...new Set((subs || []).map(s => s.user_id))];
+      const smsCountsByUser = {};
+      if (userIds.length > 0) {
+        const { data: smsCounts } = await supabaseAdmin
+          .from('sms_messages')
+          .select('user_id, cost_cents');
+        for (const msg of (smsCounts || [])) {
+          if (!smsCountsByUser[msg.user_id]) smsCountsByUser[msg.user_id] = { count: 0, costCents: 0 };
+          smsCountsByUser[msg.user_id].count++;
+          smsCountsByUser[msg.user_id].costCents += msg.cost_cents || 0;
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        subscriptions: (subs || []).map(s => ({
+          id: s.id,
+          userId: s.user_id,
+          userEmail: s.profiles?.email,
+          userName: s.profiles?.display_name,
+          planName: s.plans?.display_name,
+          planPriceCents: s.plans?.price_cents,
+          status: s.status,
+          amountPaidCents: s.amount_paid_cents,
+          discountCents: s.discount_cents,
+          eventsUsed: s.events_used,
+          generationsUsed: s.generations_used,
+          smsSent: smsCountsByUser[s.user_id]?.count || 0,
+          smsCostCents: smsCountsByUser[s.user_id]?.costCents || 0,
+          createdAt: s.created_at
+        }))
+      });
+    }
+
+    // ---- UPDATE USER PLAN (admin) ----
+    if (action === 'updateUserPlan') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { userId, planId, status } = req.body;
+      if (!userId) return res.status(400).json({ error: 'userId required' });
+
+      if (status) {
+        // Update existing subscription status
+        const { error } = await supabaseAdmin
+          .from('subscriptions')
+          .update({ status })
+          .eq('user_id', userId)
+          .eq('status', 'active');
+
+        if (error) return res.status(400).json({ error: error.message });
+      }
+
+      if (planId) {
+        // Create a new complimentary subscription
+        const { error } = await supabaseAdmin
+          .from('subscriptions')
+          .insert({
+            user_id: userId,
+            plan_id: planId,
+            status: 'active',
+            amount_paid_cents: 0,
+            discount_cents: 0,
+            events_used: 0,
+            generations_used: 0
+          });
+
+        if (error) return res.status(400).json({ error: error.message });
+      }
+
+      return res.status(200).json({ success: true });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Admin API error:', err);

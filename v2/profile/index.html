@@ -232,14 +232,53 @@
     <!-- Plan & Billing -->
     <div class="settings-card">
       <div class="settings-card-title">Plan & Billing</div>
-      <div class="settings-card-desc">Manage your subscription and payment method</div>
+      <div class="settings-card-desc">Manage your subscription and usage</div>
       <div class="plan-row">
         <div class="plan-info">
-          <div class="plan-name" id="planName">Free</div>
-          <div class="plan-detail" id="planDetail">Create up to 3 events with AI-designed invites</div>
+          <div class="plan-name" id="planName">No Plan</div>
+          <div class="plan-detail" id="planDetail">Purchase a plan to start creating events</div>
         </div>
-        <button class="btn btn-primary" id="upgradePlanBtn" onclick="handleBilling()">Upgrade Plan</button>
+        <a href="/v2/pricing/" class="btn btn-primary" id="upgradePlanBtn">Get a Plan</a>
       </div>
+      <div id="usageSection" style="display:none;margin-top:20px;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px;">Usage</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div style="background:#f9f9f9;border-radius:8px;padding:14px;">
+            <div style="font-size:12px;color:#888;margin-bottom:4px;">Events</div>
+            <div style="font-size:20px;font-weight:700;" id="usageEvents">0 / 0</div>
+            <div style="height:4px;background:#eee;border-radius:2px;margin-top:8px;overflow:hidden;">
+              <div id="eventsBar" style="height:100%;background:var(--mint-fizz);border-radius:2px;width:0%;transition:width 0.3s;"></div>
+            </div>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:14px;">
+            <div style="font-size:12px;color:#888;margin-bottom:4px;">AI Generations</div>
+            <div style="font-size:20px;font-weight:700;" id="usageGenerations">0 / 0</div>
+            <div style="height:4px;background:#eee;border-radius:2px;margin-top:8px;overflow:hidden;">
+              <div id="gensBar" style="height:100%;background:var(--confetti-gold);border-radius:2px;width:0%;transition:width 0.3s;"></div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:12px;">
+          <div style="background:#f9f9f9;border-radius:8px;padding:14px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:12px;color:#888;margin-bottom:4px;">Text Messages Sent</div>
+              <div style="font-size:20px;font-weight:700;" id="usageSms">0</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:12px;color:#888;margin-bottom:4px;">SMS Cost</div>
+              <div style="font-size:20px;font-weight:700;color:var(--party-coral);" id="usageSmsCost">$0.00</div>
+              <div style="font-size:11px;color:#999;">$0.05 per text</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Billing History -->
+    <div class="settings-card" id="billingHistoryCard" style="display:none;">
+      <div class="settings-card-title">Billing History</div>
+      <div class="settings-card-desc">Your payment records</div>
+      <div id="billingHistoryList"></div>
     </div>
 
     <!-- Danger Zone -->
@@ -267,23 +306,15 @@
       document.getElementById('emailField').value = u.email || '';
       document.getElementById('phoneField').value = u.phone || '';
 
-      // Tier/plan info
-      var tier = u.tier || 'free';
-      var planNameEl = document.getElementById('planName');
-      var planDetailEl = document.getElementById('planDetail');
-      var upgradeBtn = document.getElementById('upgradePlanBtn');
-      planNameEl.textContent = tier.charAt(0).toUpperCase() + tier.slice(1);
-
-      if (tier === 'free') {
-        planDetailEl.textContent = 'Create up to 3 events with AI-designed invites';
-        upgradeBtn.textContent = 'Upgrade Plan';
-        upgradeBtn.style.display = '';
-      } else if (tier === 'pro') {
-        planDetailEl.textContent = 'Unlimited events, priority AI generation, custom branding';
-        upgradeBtn.textContent = 'Manage Billing';
-      } else if (tier === 'business') {
-        planDetailEl.textContent = 'Everything in Pro plus team access, analytics, and API';
-        upgradeBtn.textContent = 'Manage Billing';
+      // Plan info — initial display from cached user data, real data loaded async
+      if (u.hasActivePlan && u.subscription) {
+        document.getElementById('planName').textContent = u.subscription.planName || 'Active Plan';
+        document.getElementById('planDetail').textContent = 'Active plan';
+        document.getElementById('upgradePlanBtn').textContent = 'View Plans';
+      } else {
+        document.getElementById('planName').textContent = 'No Plan';
+        document.getElementById('planDetail').textContent = 'Purchase a plan to start creating events';
+        document.getElementById('upgradePlanBtn').textContent = 'Get a Plan';
       }
 
       // Member since
@@ -382,14 +413,62 @@
       showToast('Notification preferences saved');
     }
 
-    function handleBilling() {
-      var tier = (user.tier || 'free');
-      if (tier === 'free') {
-        showToast('Upgrade coming soon! Stay tuned.');
-      } else {
-        showToast('Billing portal coming soon!');
+    async function loadBillingData() {
+      if (!token) return;
+      try {
+        // Load subscription info
+        var subRes = await authFetch('/api/v2/billing?action=subscription');
+        var subResult = await subRes.json();
+        if (subResult.success) {
+          var sub = subResult.subscription;
+          var usage = subResult.usage;
+          if (sub) {
+            document.getElementById('planName').textContent = sub.plan?.display_name || 'Active Plan';
+            var paidStr = sub.amountPaidCents > 0 ? ' — $' + (sub.amountPaidCents / 100).toFixed(2) + ' paid' : ' — Complimentary';
+            document.getElementById('planDetail').textContent = (sub.plan?.display_name || 'Plan') + paidStr;
+            document.getElementById('upgradePlanBtn').textContent = 'View Plans';
+
+            // Show usage
+            document.getElementById('usageSection').style.display = 'block';
+            document.getElementById('usageEvents').textContent = usage.eventsUsed + ' / ' + usage.maxEvents;
+            document.getElementById('usageGenerations').textContent = usage.generationsUsed + ' / ' + usage.maxGenerations;
+            document.getElementById('eventsBar').style.width = (usage.maxEvents > 0 ? Math.min(100, usage.eventsUsed / usage.maxEvents * 100) : 0) + '%';
+            document.getElementById('gensBar').style.width = (usage.maxGenerations > 0 ? Math.min(100, usage.generationsUsed / usage.maxGenerations * 100) : 0) + '%';
+
+            // SMS usage
+            document.getElementById('usageSms').textContent = usage.smsSent || 0;
+            document.getElementById('usageSmsCost').textContent = '$' + ((usage.smsCostCents || 0) / 100).toFixed(2);
+          }
+        }
+
+        // Load billing history
+        var histRes = await authFetch('/api/v2/billing?action=history');
+        var histResult = await histRes.json();
+        if (histResult.success && histResult.history.length > 0) {
+          document.getElementById('billingHistoryCard').style.display = 'block';
+          var list = document.getElementById('billingHistoryList');
+          list.innerHTML = histResult.history.map(function(h) {
+            var statusColor = h.status === 'succeeded' ? '#155724' : h.status === 'refunded' ? '#856404' : '#721c24';
+            var statusBg = h.status === 'succeeded' ? '#d4edda' : h.status === 'refunded' ? '#fff3cd' : '#f8d7da';
+            var dateStr = new Date(h.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            return '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f0f0f0;">'
+              + '<div>'
+              + '<div style="font-size:14px;font-weight:500;">' + escapeHtml(h.description || 'Payment') + '</div>'
+              + '<div style="font-size:12px;color:#888;">' + dateStr + '</div>'
+              + '</div>'
+              + '<div style="display:flex;align-items:center;gap:8px;">'
+              + '<span style="font-weight:600;">$' + (h.amountCents / 100).toFixed(2) + '</span>'
+              + '<span style="padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;background:' + statusBg + ';color:' + statusColor + ';">' + h.status + '</span>'
+              + (h.receiptUrl ? '<a href="' + h.receiptUrl + '" target="_blank" style="font-size:12px;color:var(--party-coral);">Receipt</a>' : '')
+              + '</div></div>';
+          }).join('');
+        }
+      } catch (err) {
+        // Non-critical — billing data just won't show
       }
     }
+
+    function escapeHtml(str) { var d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
 
     function handleDeleteAccount() {
       if (!confirm('Are you sure you want to delete your account? This action cannot be undone and will permanently remove all your events and data.')) return;
@@ -424,6 +503,8 @@
           await refreshToken();
         }
       } catch (err) {}
+      // Load billing data after auth is confirmed
+      loadBillingData();
     })();
 
     // Enter key support

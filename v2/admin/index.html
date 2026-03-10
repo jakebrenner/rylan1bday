@@ -246,6 +246,8 @@
     <div class="tabs">
       <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
       <button class="tab" data-tab="users" onclick="switchTab('users')">Users</button>
+      <button class="tab" data-tab="subscriptions" onclick="switchTab('subscriptions');loadSubscriptions();">Billing</button>
+      <button class="tab" data-tab="coupons" onclick="switchTab('coupons');loadCoupons();">Coupons</button>
       <button class="tab" data-tab="settings" onclick="switchTab('settings')">AI Models</button>
       <button class="tab" data-tab="promptlab" onclick="switchTab('promptlab')">Prompt Lab</button>
       <button class="tab" data-tab="stylelibrary" onclick="switchTab('stylelibrary')">Style Library</button>
@@ -259,6 +261,8 @@
         <div class="stat-card"><div class="stat-value" id="statPublished">—</div><div class="stat-label">Published</div></div>
         <div class="stat-card"><div class="stat-value" id="statRsvps">—</div><div class="stat-label">Total RSVPs</div></div>
         <div class="stat-card"><div class="stat-value" id="statGenerations">—</div><div class="stat-label">AI Generations</div></div>
+        <div class="stat-card"><div class="stat-value" id="statSms">—</div><div class="stat-label">SMS Sent</div></div>
+        <div class="stat-card"><div class="stat-value" id="statSmsRevenue">—</div><div class="stat-label">SMS Revenue</div></div>
       </div>
 
       <!-- Cost Tracking -->
@@ -365,6 +369,116 @@
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- Subscriptions / Billing Tab -->
+    <div class="tab-content" id="tab-subscriptions">
+      <div class="table-container">
+        <div class="table-header">
+          <h3>All Subscriptions</h3>
+          <span class="count" id="subCount">0</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Plan</th>
+              <th>Paid</th>
+              <th>Discount</th>
+              <th>Status</th>
+              <th>Events</th>
+              <th>Gens</th>
+              <th>SMS Sent</th>
+              <th>SMS Cost</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="subsTableBody">
+            <tr><td colspan="10" class="loading">Click the Billing tab to load...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="config-section" style="margin-top:24px;">
+        <h3>Grant Complimentary Plan</h3>
+        <p style="font-size:13px;color:#888;margin-bottom:16px;">Give a user a free plan. Select the user email and plan.</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="email" id="grantEmail" placeholder="user@example.com" style="flex:1;min-width:200px;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+          <select id="grantPlanSelect" style="padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+            <option value="">Select plan...</option>
+          </select>
+          <button class="btn btn-primary" onclick="grantPlan()">Grant Plan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Coupons Tab -->
+    <div class="tab-content" id="tab-coupons">
+      <div class="config-section">
+        <h3>Create Coupon</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div class="config-field">
+            <label>Code</label>
+            <input type="text" id="couponCode" placeholder="SAVE20" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;text-transform:uppercase;">
+          </div>
+          <div class="config-field">
+            <label>Description</label>
+            <input type="text" id="couponDesc" placeholder="20% off for early birds" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+          </div>
+          <div class="config-field">
+            <label>Discount Type</label>
+            <select id="couponType" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" onchange="updateDiscountLabel()">
+              <option value="percent">Percentage (%)</option>
+              <option value="fixed">Fixed Amount (cents)</option>
+            </select>
+          </div>
+          <div class="config-field">
+            <label id="discountLabel">Discount Value (%)</label>
+            <input type="number" id="couponValue" placeholder="20" min="0" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+            <div class="hint" id="discountHint">Enter percentage (e.g. 20 for 20% off)</div>
+          </div>
+          <div class="config-field">
+            <label>Max Total Uses (blank = unlimited)</label>
+            <input type="number" id="couponMaxUses" placeholder="100" min="0" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+          </div>
+          <div class="config-field">
+            <label>Max Uses Per User</label>
+            <input type="number" id="couponMaxPerUser" placeholder="1" min="1" value="1" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+          </div>
+          <div class="config-field">
+            <label>Valid Until (blank = no expiry)</label>
+            <input type="date" id="couponExpiry" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+          </div>
+          <div class="config-field">
+            <label>Restrict to Emails (comma separated, blank = all)</label>
+            <input type="text" id="couponEmails" placeholder="vip@example.com, friend@test.com" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+          </div>
+        </div>
+        <button class="btn btn-primary" id="createCouponBtn" onclick="createCoupon()">Create Coupon</button>
+      </div>
+
+      <div class="table-container" style="margin-top:24px;">
+        <div class="table-header">
+          <h3>All Coupons</h3>
+          <span class="count" id="couponCount">0</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Discount</th>
+              <th>Usage</th>
+              <th>Expires</th>
+              <th>Restrictions</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="couponsTableBody">
+            <tr><td colspan="7" class="loading">Click the Coupons tab to load...</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -869,6 +983,18 @@
       document.getElementById('statPublished').textContent = stats.publishedEvents;
       document.getElementById('statRsvps').textContent = stats.totalRsvps;
       document.getElementById('statGenerations').textContent = stats.totalGenerations;
+
+      // Load SMS stats
+      (async function() {
+        try {
+          var smsRes = await adminFetch('smsStats');
+          document.getElementById('statSms').textContent = smsRes.totalSent || 0;
+          document.getElementById('statSmsRevenue').textContent = '$' + ((smsRes.totalRevenueCents || 0) / 100).toFixed(2);
+        } catch (e) {
+          document.getElementById('statSms').textContent = '0';
+          document.getElementById('statSmsRevenue').textContent = '$0.00';
+        }
+      })();
 
       // Cost tracking
       var c = stats.costs || {};
@@ -2370,6 +2496,182 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       } catch (err) {
         alert('Failed to delete: ' + err.message);
       }
+    }
+
+    // ---- Subscriptions ----
+    var allPlans = [];
+
+    async function loadSubscriptions() {
+      try {
+        var res = await adminFetch('subscriptions');
+        var subs = res.subscriptions || [];
+        document.getElementById('subCount').textContent = subs.length;
+        var tbody = document.getElementById('subsTableBody');
+
+        if (subs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="10" style="color:#888;">No subscriptions yet</td></tr>';
+        } else {
+          tbody.innerHTML = subs.map(function(s) {
+            var statusClass = s.status === 'active' ? 'badge-green' : s.status === 'cancelled' ? 'badge-yellow' : 'badge-gray';
+            return '<tr>'
+              + '<td><div class="user-email">' + escapeHtml(s.userEmail || '') + '</div>'
+              + (s.userName ? '<div class="user-name">' + escapeHtml(s.userName) + '</div>' : '') + '</td>'
+              + '<td>' + escapeHtml(s.planName || '—') + '</td>'
+              + '<td>$' + ((s.amountPaidCents || 0) / 100).toFixed(2) + '</td>'
+              + '<td>' + (s.discountCents > 0 ? '-$' + (s.discountCents / 100).toFixed(2) : '—') + '</td>'
+              + '<td><span class="badge ' + statusClass + '">' + escapeHtml(s.status) + '</span></td>'
+              + '<td>' + (s.eventsUsed || 0) + '</td>'
+              + '<td>' + (s.generationsUsed || 0) + '</td>'
+              + '<td>' + (s.smsSent || 0) + '</td>'
+              + '<td>' + (s.smsCostCents > 0 ? '$' + (s.smsCostCents / 100).toFixed(2) : '—') + '</td>'
+              + '<td>' + formatDate(s.createdAt) + '</td>'
+              + '</tr>';
+          }).join('');
+        }
+
+        // Load plans for the grant dropdown
+        if (allPlans.length === 0) {
+          var plansRes = await fetch('/api/v2/billing?action=plans');
+          var plansResult = await plansRes.json();
+          if (plansResult.success) {
+            allPlans = plansResult.plans || [];
+            var select = document.getElementById('grantPlanSelect');
+            select.innerHTML = '<option value="">Select plan...</option>' +
+              allPlans.map(function(p) { return '<option value="' + p.id + '">' + escapeHtml(p.displayName) + ' ($' + (p.priceCents / 100).toFixed(2) + ')</option>'; }).join('');
+          }
+        }
+      } catch (err) {
+        document.getElementById('subsTableBody').innerHTML = '<tr><td colspan="10" style="color:red;">Failed to load subscriptions</td></tr>';
+      }
+    }
+
+    async function grantPlan() {
+      var email = document.getElementById('grantEmail').value.trim();
+      var planId = document.getElementById('grantPlanSelect').value;
+      if (!email || !planId) { alert('Enter user email and select a plan'); return; }
+
+      // Find user ID by email
+      var u = allUsers.find(function(x) { return x.email === email; });
+      if (!u) { alert('User not found. Make sure they have an account.'); return; }
+
+      try {
+        var res = await adminFetch('updateUserPlan', { method: 'POST', body: { userId: u.id, planId: planId } });
+        if (res.error) { alert(res.error); return; }
+        document.getElementById('grantEmail').value = '';
+        alert('Plan granted successfully!');
+        loadSubscriptions();
+      } catch (err) { alert('Failed to grant plan'); }
+    }
+
+    // ---- Coupons ----
+    function updateDiscountLabel() {
+      var type = document.getElementById('couponType').value;
+      document.getElementById('discountLabel').textContent = type === 'percent' ? 'Discount Value (%)' : 'Discount Value (cents)';
+      document.getElementById('discountHint').textContent = type === 'percent' ? 'Enter percentage (e.g. 20 for 20% off)' : 'Enter amount in cents (e.g. 200 for $2.00 off)';
+    }
+
+    async function loadCoupons() {
+      try {
+        var res = await adminFetch('coupons');
+        var coupons = res.coupons || [];
+        document.getElementById('couponCount').textContent = coupons.length;
+        var tbody = document.getElementById('couponsTableBody');
+
+        if (coupons.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="color:#888;">No coupons created yet</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = coupons.map(function(c) {
+          var discountStr = c.discountType === 'percent'
+            ? c.discountValue + '% off'
+            : '$' + (c.discountValue / 100).toFixed(2) + ' off';
+          var usageStr = c.timesUsed + (c.maxUses ? ' / ' + c.maxUses : ' / unlimited');
+          var expiresStr = c.validUntil ? formatDate(c.validUntil) : 'Never';
+          var restrictions = [];
+          if (c.allowedEmails && c.allowedEmails.length) restrictions.push(c.allowedEmails.length + ' emails');
+          if (c.allowedPlans && c.allowedPlans.length) restrictions.push(c.allowedPlans.join(', '));
+          var restrictStr = restrictions.length ? restrictions.join('; ') : 'None';
+          var statusClass = c.isActive ? 'badge-green' : 'badge-gray';
+
+          return '<tr>'
+            + '<td><strong style="font-family:monospace;font-size:14px;">' + escapeHtml(c.code) + '</strong>'
+            + (c.description ? '<div class="user-name">' + escapeHtml(c.description) + '</div>' : '') + '</td>'
+            + '<td>' + discountStr + '</td>'
+            + '<td>' + usageStr + '</td>'
+            + '<td>' + expiresStr + '</td>'
+            + '<td style="font-size:12px;">' + escapeHtml(restrictStr) + '</td>'
+            + '<td><span class="badge ' + statusClass + '">' + (c.isActive ? 'Active' : 'Inactive') + '</span></td>'
+            + '<td>'
+            + (c.isActive
+              ? '<button class="btn btn-secondary btn-sm" onclick="deactivateCoupon(\'' + c.id + '\')">Deactivate</button>'
+              : '<button class="btn btn-secondary btn-sm" onclick="reactivateCoupon(\'' + c.id + '\')">Reactivate</button>')
+            + '</td>'
+            + '</tr>';
+        }).join('');
+      } catch (err) {
+        document.getElementById('couponsTableBody').innerHTML = '<tr><td colspan="7" style="color:red;">Failed to load coupons</td></tr>';
+      }
+    }
+
+    async function createCoupon() {
+      var code = document.getElementById('couponCode').value.trim();
+      var discountType = document.getElementById('couponType').value;
+      var discountValue = parseFloat(document.getElementById('couponValue').value);
+      var description = document.getElementById('couponDesc').value.trim();
+      var maxUses = document.getElementById('couponMaxUses').value ? parseInt(document.getElementById('couponMaxUses').value) : null;
+      var maxUsesPerUser = parseInt(document.getElementById('couponMaxPerUser').value) || 1;
+      var validUntil = document.getElementById('couponExpiry').value || null;
+      var emailsStr = document.getElementById('couponEmails').value.trim();
+      var allowedEmails = emailsStr ? emailsStr.split(',').map(function(e) { return e.trim(); }).filter(Boolean) : null;
+
+      if (!code || !discountValue) { alert('Code and discount value are required'); return; }
+
+      var btn = document.getElementById('createCouponBtn');
+      btn.disabled = true; btn.textContent = 'Creating...';
+
+      try {
+        var res = await adminFetch('createCoupon', {
+          method: 'POST',
+          body: {
+            code: code,
+            description: description || null,
+            discountType: discountType,
+            discountValue: discountValue,
+            maxUses: maxUses,
+            maxUsesPerUser: maxUsesPerUser,
+            validUntil: validUntil ? new Date(validUntil + 'T23:59:59').toISOString() : null,
+            allowedEmails: allowedEmails
+          }
+        });
+        if (res.error) { alert(res.error); }
+        else {
+          // Clear form
+          document.getElementById('couponCode').value = '';
+          document.getElementById('couponDesc').value = '';
+          document.getElementById('couponValue').value = '';
+          document.getElementById('couponMaxUses').value = '';
+          document.getElementById('couponExpiry').value = '';
+          document.getElementById('couponEmails').value = '';
+          loadCoupons();
+        }
+      } catch (err) { alert('Failed to create coupon'); }
+      btn.disabled = false; btn.textContent = 'Create Coupon';
+    }
+
+    async function deactivateCoupon(id) {
+      if (!confirm('Deactivate this coupon?')) return;
+      try {
+        await adminFetch('updateCoupon', { method: 'POST', body: { couponId: id, isActive: false } });
+        loadCoupons();
+      } catch (err) { alert('Failed to deactivate'); }
+    }
+
+    async function reactivateCoupon(id) {
+      try {
+        await adminFetch('updateCoupon', { method: 'POST', body: { couponId: id, isActive: true } });
+        loadCoupons();
+      } catch (err) { alert('Failed to reactivate'); }
     }
 
     // ---- Utilities ----

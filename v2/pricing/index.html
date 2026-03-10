@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pricing — Ryvite</title>
+  <meta name="description" content="Choose your Ryvite plan and start creating beautiful AI-designed event invitations.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --party-coral: #E94560; --blush-pop: #FF6B6B; --midnight: #1A1A2E;
+      --confetti-gold: #FFB74D; --mint-fizz: #4ECDC4; --party-purple: #A78BFA; --cream: #FFFAF5;
+    }
+    html, body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--midnight); }
+
+    /* Header */
+    .header { background: white; border-bottom: 1px solid #eee; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .header-left a { text-decoration: none; display: flex; align-items: center; }
+    .header-right { display: flex; gap: 12px; align-items: center; }
+    .btn { padding: 12px 20px; border: none; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+    .btn-primary { background: var(--party-coral); color: white; }
+    .btn-primary:hover { background: var(--blush-pop); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(233, 69, 96, 0.3); }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-secondary { background: white; color: var(--midnight); border: 1px solid #ddd; }
+    .btn-secondary:hover { border-color: var(--party-coral); color: var(--party-coral); }
+    .btn-large { padding: 16px 32px; font-size: 16px; border-radius: 12px; }
+
+    /* Hero */
+    .hero { text-align: center; padding: 60px 20px 40px; }
+    .hero h1 { font-family: 'Playfair Display', serif; font-size: 42px; color: var(--midnight); margin-bottom: 12px; }
+    .hero p { font-size: 18px; color: #666; max-width: 600px; margin: 0 auto; }
+
+    /* Plan cards */
+    .plans-container { max-width: 500px; margin: 0 auto 60px; padding: 0 20px; }
+    .plan-card {
+      background: white; border-radius: 16px; padding: 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+      border: 2px solid var(--party-coral); position: relative; overflow: hidden;
+    }
+    .plan-badge {
+      position: absolute; top: 16px; right: 16px; background: var(--party-coral); color: white;
+      padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .plan-name { font-family: 'Playfair Display', serif; font-size: 28px; margin-bottom: 8px; }
+    .plan-desc { font-size: 15px; color: #666; margin-bottom: 24px; }
+    .plan-price { margin-bottom: 24px; }
+    .plan-price .amount { font-size: 48px; font-weight: 700; color: var(--midnight); }
+    .plan-price .period { font-size: 16px; color: #888; }
+    .plan-price .original { text-decoration: line-through; color: #ccc; font-size: 20px; margin-right: 8px; }
+    .plan-features { list-style: none; margin-bottom: 32px; }
+    .plan-features li { padding: 10px 0; font-size: 15px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #f0f0f0; }
+    .plan-features li:last-child { border-bottom: none; }
+    .plan-features .check { color: var(--mint-fizz); font-size: 18px; font-weight: 700; flex-shrink: 0; }
+
+    /* Coupon */
+    .coupon-section { margin-bottom: 24px; }
+    .coupon-row { display: flex; gap: 8px; }
+    .coupon-input {
+      flex: 1; padding: 12px 16px; border: 1px solid #ddd; border-radius: 8px;
+      font-family: 'Inter', sans-serif; font-size: 14px; text-transform: uppercase;
+    }
+    .coupon-input:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.1); }
+    .coupon-btn { padding: 12px 20px; background: white; border: 1px solid #ddd; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .coupon-btn:hover { border-color: var(--party-coral); color: var(--party-coral); }
+    .coupon-result { margin-top: 8px; font-size: 13px; padding: 8px 12px; border-radius: 6px; }
+    .coupon-result.success { background: #d4edda; color: #155724; }
+    .coupon-result.error { background: #f8d7da; color: #721c24; }
+    .coupon-applied { display: flex; justify-content: space-between; align-items: center; background: #d4edda; padding: 10px 14px; border-radius: 8px; font-size: 14px; color: #155724; }
+    .coupon-applied button { background: none; border: none; color: #721c24; cursor: pointer; font-size: 14px; font-weight: 600; }
+
+    /* Already subscribed */
+    .already-subscribed { text-align: center; padding: 20px; background: #d4edda; border-radius: 12px; margin-bottom: 24px; }
+    .already-subscribed h3 { color: #155724; font-size: 16px; margin-bottom: 4px; }
+    .already-subscribed p { color: #155724; font-size: 13px; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--midnight); color: white; padding: 14px 24px; border-radius: 8px; font-size: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); animation: slideUp 0.3s ease-out; z-index: 100; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+    .loading { text-align: center; padding: 60px 20px; color: #666; font-size: 15px; }
+
+    @media (max-width: 640px) {
+      .hero h1 { font-size: 32px; }
+      .hero p { font-size: 16px; }
+      .plan-card { padding: 28px; }
+      .plan-price .amount { font-size: 40px; }
+      .header { padding: 10px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <a href="/"><svg viewBox="0 0 210 80" xmlns="http://www.w3.org/2000/svg" style="height:56px;width:auto;"><circle cx="32" cy="40" r="22" fill="none" stroke="var(--party-coral)" stroke-width="2.2"/><path d="M18 30 L32 42 L46 30" fill="none" stroke="var(--party-coral)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50 L46 50" fill="none" stroke="var(--party-coral)" stroke-width="1.8" stroke-linecap="round"/><text x="64" y="52" font-family="Playfair Display, serif" font-size="34" font-weight="700" fill="var(--midnight)">Ryvite</text></svg></a>
+    </div>
+    <div class="header-right" id="headerActions">
+      <a href="/v2/login/" class="btn btn-secondary">Log In</a>
+      <a href="/v2/login/#signup" class="btn btn-primary">Sign Up</a>
+    </div>
+  </div>
+
+  <div class="hero">
+    <h1>Simple, transparent pricing</h1>
+    <p>Create a stunning AI-designed invitation for your next event. Simple per-event pricing, pay only for what you use.</p>
+  </div>
+
+  <div class="plans-container">
+    <div id="loading" class="loading">Loading plans...</div>
+    <div id="planCard" style="display:none;"></div>
+  </div>
+
+  <script>
+    var token = localStorage.getItem('sb_access_token');
+    var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
+    var selectedPlan = null;
+    var appliedCoupon = null;
+    var discountInfo = null;
+
+    // Update header if logged in
+    if (token && user) {
+      document.getElementById('headerActions').innerHTML =
+        '<a href="/v2/dashboard/" class="btn btn-secondary">Dashboard</a>';
+    }
+
+    // Load plans
+    loadPlans();
+
+    async function loadPlans() {
+      try {
+        var res = await fetch('/api/v2/billing?action=plans');
+        var result = await res.json();
+        if (result.success && result.plans.length > 0) {
+          selectedPlan = result.plans[0];
+          renderPlan(selectedPlan);
+        } else {
+          document.getElementById('loading').textContent = 'No plans available yet.';
+        }
+      } catch (err) {
+        document.getElementById('loading').textContent = 'Error loading plans.';
+      }
+    }
+
+    function renderPlan(plan) {
+      document.getElementById('loading').style.display = 'none';
+      var card = document.getElementById('planCard');
+      card.style.display = 'block';
+
+      var price = plan.priceCents / 100;
+      var finalPrice = price;
+      var originalPriceHtml = '';
+
+      if (discountInfo) {
+        if (discountInfo.type === 'percent') {
+          finalPrice = price * (1 - discountInfo.percent / 100);
+          discountInfo.amountCents = Math.round(plan.priceCents * discountInfo.percent / 100);
+        } else {
+          finalPrice = Math.max(0, price - discountInfo.amountCents / 100);
+        }
+        if (finalPrice < price) {
+          originalPriceHtml = '<span class="original">$' + price.toFixed(2) + '</span>';
+        }
+      }
+
+      var hasActivePlan = user && user.hasActivePlan;
+      var subscribedHtml = hasActivePlan
+        ? '<div class="already-subscribed"><h3>You already have an active plan</h3><p>Go to your <a href="/v2/dashboard/" style="color:#155724;font-weight:600;">dashboard</a> to create your event, or <a href="/v2/profile/" style="color:#155724;font-weight:600;">profile</a> to manage your plan.</p></div>'
+        : '';
+
+      var couponHtml = '';
+      if (appliedCoupon) {
+        couponHtml = '<div class="coupon-section">'
+          + '<div class="coupon-applied">'
+          + '<span>' + escapeHtml(appliedCoupon.code) + ' — ' + escapeHtml(discountInfo.label) + '</span>'
+          + '<button onclick="removeCoupon()">Remove</button>'
+          + '</div></div>';
+      } else {
+        couponHtml = '<div class="coupon-section">'
+          + '<div style="font-size:13px;font-weight:600;margin-bottom:6px;color:#666;">Have a coupon?</div>'
+          + '<div class="coupon-row">'
+          + '<input class="coupon-input" type="text" id="couponInput" placeholder="Enter coupon code">'
+          + '<button class="coupon-btn" id="couponBtn" onclick="applyCoupon()">Apply</button>'
+          + '</div>'
+          + '<div id="couponResult"></div>'
+          + '</div>';
+      }
+
+      var features = plan.features || [];
+      var featuresHtml = features.map(function(f) {
+        return '<li><span class="check">&#10003;</span> ' + escapeHtml(f) + '</li>';
+      }).join('');
+
+      card.innerHTML = subscribedHtml
+        + '<div class="plan-card">'
+        + '<span class="plan-badge">Most Popular</span>'
+        + '<div class="plan-name">' + escapeHtml(plan.displayName) + '</div>'
+        + '<div class="plan-desc">' + escapeHtml(plan.description) + '</div>'
+        + '<div class="plan-price">'
+        + originalPriceHtml
+        + '<span class="amount">$' + finalPrice.toFixed(2) + '</span>'
+        + '<span class="period"> / event</span>'
+        + '</div>'
+        + '<div style="font-size:14px;color:#666;margin:-16px 0 24px;display:flex;align-items:center;gap:6px;">'
+        + '<span style="font-weight:600;color:var(--midnight);">+ $0.05</span> per text message sent'
+        + '</div>'
+        + couponHtml
+        + '<ul class="plan-features">' + featuresHtml + '</ul>'
+        + '<button class="btn btn-primary btn-large" style="width:100%;" id="checkoutBtn" '
+        + 'onclick="startCheckout()" '
+        + (hasActivePlan ? 'disabled' : '')
+        + '>'
+        + (hasActivePlan ? 'Already Subscribed' : 'Get Started')
+        + '</button>'
+        + '</div>';
+    }
+
+    async function applyCoupon() {
+      var code = document.getElementById('couponInput').value.trim();
+      if (!code) return;
+
+      var btn = document.getElementById('couponBtn');
+      btn.disabled = true; btn.textContent = '...';
+      var resultEl = document.getElementById('couponResult');
+
+      try {
+        var url = '/api/v2/billing?action=validateCoupon&code=' + encodeURIComponent(code);
+        if (selectedPlan) url += '&planName=' + encodeURIComponent(selectedPlan.name);
+
+        var headers = {};
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+
+        var res = await fetch(url, { headers: headers });
+        var result = await res.json();
+
+        if (result.success) {
+          appliedCoupon = result.coupon;
+          discountInfo = result.discount;
+          // Recalculate for percent discounts
+          if (discountInfo.type === 'percent' && selectedPlan) {
+            discountInfo.amountCents = Math.round(selectedPlan.priceCents * discountInfo.percent / 100);
+            discountInfo.label = discountInfo.percent + '% off';
+          }
+          renderPlan(selectedPlan);
+        } else {
+          resultEl.className = 'coupon-result error';
+          resultEl.textContent = result.error || 'Invalid coupon';
+        }
+      } catch (err) {
+        resultEl.className = 'coupon-result error';
+        resultEl.textContent = 'Error validating coupon';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Apply';
+      }
+    }
+
+    function removeCoupon() {
+      appliedCoupon = null;
+      discountInfo = null;
+      renderPlan(selectedPlan);
+    }
+
+    async function startCheckout() {
+      if (!token || !user) {
+        // Redirect to signup, then back to pricing
+        localStorage.setItem('post_login_redirect', '/v2/pricing/');
+        window.location.href = '/v2/login/#signup';
+        return;
+      }
+
+      var btn = document.getElementById('checkoutBtn');
+      btn.disabled = true; btn.textContent = 'Redirecting to checkout...';
+
+      try {
+        var res = await fetch('/api/v2/billing?action=checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({
+            planId: selectedPlan.id,
+            couponCode: appliedCoupon ? appliedCoupon.code : null,
+            origin: window.location.origin
+          })
+        });
+
+        var result = await res.json();
+        if (result.success && result.url) {
+          window.location.href = result.url;
+        } else {
+          showToast(result.error || 'Error creating checkout session');
+          btn.disabled = false; btn.textContent = 'Get Started';
+        }
+      } catch (err) {
+        showToast('Error connecting to payment provider');
+        btn.disabled = false; btn.textContent = 'Get Started';
+      }
+    }
+
+    function escapeHtml(str) { var d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+
+    function showToast(message) {
+      var toast = document.createElement('div');
+      toast.className = 'toast'; toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(function() { toast.remove(); }, 3000);
+    }
+
+    // Enter key on coupon input
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && e.target.id === 'couponInput') applyCoupon();
+    });
+  </script>
+</body>
+</html>
