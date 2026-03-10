@@ -2946,15 +2946,17 @@
 
     function finishDesignChatInit() {
       var title = extractedData.title || 'your event';
-      var welcomeMsg = "Hey! I'm your design assistant for " + title + ". I'll help you build the perfect invite.\n\n"
-        + "Tell me about your event and I'll design everything:\n"
-        + "- Location & address\n"
-        + "- Dress code or theme\n"
-        + "- RSVP fields (plus-ones, dietary needs, song requests, etc.)\n"
-        + "- Colors, fonts, and overall vibe\n"
-        + "- Photos to feature in the design\n\n"
-        + "Just describe what you want! For example:\n"
-        + "\"Make the background darker, add a photo of the venue, and change the RSVP button to gold.\"";
+      var welcomeMsg = "Hey! I'm your design assistant for " + title + ". I'm here to help with the finishing touches.\n\n"
+        + "Here are some things I can do:\n"
+        + "- \u{1F3A8} Change colors, fonts, or overall vibe\n"
+        + "- \u{1F4F7} Add your photos — upload a pic to use directly in the invite, not just for inspiration\n"
+        + "- \u{2728} Adjust animations, layout, or spacing\n"
+        + "- \u{1F58C}\uFE0F Swap the style entirely (minimalist, maximalist, editorial, etc.)\n"
+        + "- \u{1F4DD} Tweak wording on the invite\n\n"
+        + "Try something like:\n"
+        + "\"Make the background darker and the fonts more elegant\"\n"
+        + "\"Add my photo as the hero image\" (upload below)\n"
+        + "\"Switch to a gold and black color scheme\"";
 
       designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
       renderDesignChat();
