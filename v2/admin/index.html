@@ -791,7 +791,10 @@
             <div id="eventDetailsFilled" style="display:none;padding:12px 16px;background:#f0faf0;border:1px solid #c3e6cb;border-radius:8px;margin-bottom:12px;">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                 <span style="font-size:12px;font-weight:600;color:#28a745;text-transform:uppercase;letter-spacing:0.5px;">AI-Generated Test Data</span>
-                <button class="btn btn-secondary btn-sm" onclick="toggleEventDetailsExpand()" id="expandDetailsBtn" style="font-size:11px;">Edit</button>
+                <div style="display:flex;gap:6px;">
+                  <button class="btn btn-secondary btn-sm" onclick="toggleEventDetailsExpand()" id="expandDetailsBtn" style="font-size:11px;">Edit</button>
+                  <button class="btn btn-secondary btn-sm" onclick="regenDummyData()" id="regenBtn" style="font-size:11px;">AI Gen</button>
+                </div>
               </div>
               <div id="eventDetailsSummary" style="font-size:13px;color:#333;line-height:1.6;"></div>
             </div>
@@ -1650,6 +1653,12 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var isShown = expanded.style.display !== 'none';
       expanded.style.display = isShown ? 'none' : 'block';
       document.getElementById('expandDetailsBtn').textContent = isShown ? 'Edit' : 'Collapse';
+    }
+
+    function regenDummyData() {
+      var type = document.getElementById('testEventType').value;
+      if (!type) return;
+      generateDummyData(type);
     }
 
     async function onEventTypeChange() {
