@@ -376,8 +376,8 @@
             <label>Chat Model (Event Details Extraction)</label>
             <select id="chatModelSelect">
               <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fastest, cheapest ($0.80/1M in, $4/1M out)</option>
-              <option value="claude-sonnet-4-6-20250514">Claude Sonnet 4.6 — Balanced ($3/1M in, $15/1M out)</option>
-              <option value="claude-opus-4-6-20250514">Claude Opus 4.6 — Most capable ($15/1M in, $75/1M out)</option>
+              <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — Balanced ($3/1M in, $15/1M out)</option>
+              <option value="claude-opus-4-6">Claude Opus 4.6 — Most capable ($15/1M in, $75/1M out)</option>
             </select>
             <div class="hint">Used for the conversational event planning chat. Haiku is recommended — it handles structured extraction well at minimal cost.</div>
           </div>
@@ -385,8 +385,8 @@
             <label>Theme Model (Invite Design Generation)</label>
             <select id="themeModelSelect">
               <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fastest, cheapest ($0.80/1M in, $4/1M out)</option>
-              <option value="claude-sonnet-4-6-20250514">Claude Sonnet 4.6 — Balanced ($3/1M in, $15/1M out)</option>
-              <option value="claude-opus-4-6-20250514">Claude Opus 4.6 — Most capable ($15/1M in, $75/1M out)</option>
+              <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — Balanced ($3/1M in, $15/1M out)</option>
+              <option value="claude-opus-4-6">Claude Opus 4.6 — Most capable ($15/1M in, $75/1M out)</option>
             </select>
             <div class="hint">Used to generate HTML/CSS invite themes. Higher-tier models produce more creative and polished designs.</div>
           </div>
@@ -558,8 +558,8 @@
               <label>Model</label>
               <select id="testModelSelect" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
                 <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fast ($0.80/$4)</option>
-                <option value="claude-sonnet-4-6-20250514" selected>Claude Sonnet 4.6 — Balanced ($3/$15)</option>
-                <option value="claude-opus-4-6-20250514">Claude Opus 4.6 — Best ($15/$75)</option>
+                <option value="claude-sonnet-4-6" selected>Claude Sonnet 4.6 — Balanced ($3/$15)</option>
+                <option value="claude-opus-4-6">Claude Opus 4.6 — Best ($15/$75)</option>
               </select>
             </div>
 
@@ -1560,8 +1560,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     // ── Main generation function ──
     var COMP_MODELS = [
       { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5', badge: 'haiku' },
-      { id: 'claude-sonnet-4-6-20250514', label: 'Sonnet 4.6', badge: 'sonnet' },
-      { id: 'claude-opus-4-6-20250514', label: 'Opus 4.6', badge: 'opus' }
+      { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6', badge: 'sonnet' },
+      { id: 'claude-opus-4-6', label: 'Opus 4.6', badge: 'opus' }
     ];
 
     function getTestEventDetails() {
@@ -1725,8 +1725,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       if (progressTimers[idx]) clearInterval(progressTimers[idx]);
       var m = COMP_MODELS[idx];
       var meta = result.metadata;
-      var costPerMIn = { 'claude-haiku-4-5-20251001': 0.80, 'claude-sonnet-4-6-20250514': 3.00, 'claude-opus-4-6-20250514': 15.00 };
-      var costPerMOut = { 'claude-haiku-4-5-20251001': 4.00, 'claude-sonnet-4-6-20250514': 15.00, 'claude-opus-4-6-20250514': 75.00 };
+      var costPerMIn = { 'claude-haiku-4-5-20251001': 0.80, 'claude-sonnet-4-6': 3.00, 'claude-opus-4-6': 15.00 };
+      var costPerMOut = { 'claude-haiku-4-5-20251001': 4.00, 'claude-sonnet-4-6': 15.00, 'claude-opus-4-6': 75.00 };
       var estCost = (meta.tokens.input * (costPerMIn[meta.model] || 3) + meta.tokens.output * (costPerMOut[meta.model] || 15)) / 1000000;
 
       var card = document.getElementById('compCard' + idx);
@@ -1756,8 +1756,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     // ── Comparison summary (after all complete) ──
     function renderComparisonSummary(results) {
-      var costPerMIn = { 'claude-haiku-4-5-20251001': 0.80, 'claude-sonnet-4-6-20250514': 3.00, 'claude-opus-4-6-20250514': 15.00 };
-      var costPerMOut = { 'claude-haiku-4-5-20251001': 4.00, 'claude-sonnet-4-6-20250514': 15.00, 'claude-opus-4-6-20250514': 75.00 };
+      var costPerMIn = { 'claude-haiku-4-5-20251001': 0.80, 'claude-sonnet-4-6': 3.00, 'claude-opus-4-6': 15.00 };
+      var costPerMOut = { 'claude-haiku-4-5-20251001': 4.00, 'claude-sonnet-4-6': 15.00, 'claude-opus-4-6': 75.00 };
       var totalCost = 0;
       var successCount = 0;
       results.forEach(function(r) {
@@ -1779,8 +1779,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       testPreviewMode = 'invite';
 
       var meta = data.metadata;
-      var costPerMIn = { 'claude-haiku-4-5-20251001': 0.80, 'claude-sonnet-4-6-20250514': 3.00, 'claude-opus-4-6-20250514': 15.00 };
-      var costPerMOut = { 'claude-haiku-4-5-20251001': 4.00, 'claude-sonnet-4-6-20250514': 15.00, 'claude-opus-4-6-20250514': 75.00 };
+      var costPerMIn = { 'claude-haiku-4-5-20251001': 0.80, 'claude-sonnet-4-6': 3.00, 'claude-opus-4-6': 15.00 };
+      var costPerMOut = { 'claude-haiku-4-5-20251001': 4.00, 'claude-sonnet-4-6': 15.00, 'claude-opus-4-6': 75.00 };
       var estCost = (meta.tokens.input * (costPerMIn[meta.model] || 3) + meta.tokens.output * (costPerMOut[meta.model] || 15)) / 1000000;
 
       document.getElementById('testMeta').innerHTML =
@@ -1831,7 +1831,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     function shortModelName(model) {
-      var names = { 'claude-haiku-4-5-20251001': 'Haiku 4.5', 'claude-sonnet-4-6-20250514': 'Sonnet 4.6', 'claude-opus-4-6-20250514': 'Opus 4.6' };
+      var names = { 'claude-haiku-4-5-20251001': 'Haiku 4.5', 'claude-sonnet-4-6': 'Sonnet 4.6', 'claude-opus-4-6': 'Opus 4.6' };
       return names[model] || model;
     }
 

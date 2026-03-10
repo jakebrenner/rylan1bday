@@ -513,8 +513,8 @@ Default fields: Name, RSVP Status (Attending/Declined/Maybe)${styleContext}`;
         models.map(m => generateWithModel(m, userMessage))
       );
 
-      const COST_PER_M_IN = { 'claude-haiku-4-5-20251001': 0.80, 'claude-sonnet-4-6-20250514': 3.00, 'claude-opus-4-6-20250514': 15.00 };
-      const COST_PER_M_OUT = { 'claude-haiku-4-5-20251001': 4.00, 'claude-sonnet-4-6-20250514': 15.00, 'claude-opus-4-6-20250514': 75.00 };
+      const COST_PER_M_IN = { 'claude-haiku-4-5-20251001': 0.80, 'claude-sonnet-4-6': 3.00, 'claude-opus-4-6': 15.00 };
+      const COST_PER_M_OUT = { 'claude-haiku-4-5-20251001': 4.00, 'claude-sonnet-4-6': 15.00, 'claude-opus-4-6': 75.00 };
 
       const outputs = results.map((r, i) => {
         if (r.status === 'fulfilled') {
