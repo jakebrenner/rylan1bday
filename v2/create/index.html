@@ -68,8 +68,8 @@
     .message.success { background: #d4edda; color: #155724; display: block; }
 
     /* Chat UI */
-    .chat-container { display: flex; flex-direction: column; justify-content: center; min-height: calc(100vh - 80px); max-width: 720px; margin: 0 auto; padding: 0 20px; }
-    .chat-messages { overflow-y: auto; padding: 24px 0; display: flex; flex-direction: column; gap: 16px; max-height: 50vh; }
+    .chat-container { display: flex; flex-direction: column; height: calc(100vh - 110px); max-width: 720px; margin: 0 auto; padding: 0 20px; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 24px 0; display: flex; flex-direction: column; gap: 16px; min-height: 0; }
     .chat-bubble { max-width: 85%; padding: 14px 18px; border-radius: 16px; font-size: 14px; line-height: 1.6; animation: fadeIn 0.3s; }
     .chat-bubble.assistant { background: white; border: 1px solid #eee; align-self: flex-start; border-bottom-left-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
     .chat-bubble.user { background: var(--party-coral); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
@@ -78,7 +78,7 @@
     .chat-bubble.typing span:nth-child(2) { animation-delay: 0.2s; }
     .chat-bubble.typing span:nth-child(3) { animation-delay: 0.4s; }
     @keyframes typingBounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
-    .chat-input-area { padding: 16px 0 0; }
+    .chat-input-area { flex-shrink: 0; padding: 16px 0; border-top: 1px solid #eee; background: var(--cream); }
     .chat-input-row { display: flex; gap: 10px; }
     .chat-input { flex: 1; padding: 14px 18px; border: 1px solid #ddd; border-radius: 24px; font-family: 'Inter', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s; background: white; }
     .chat-input:focus { border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
@@ -656,15 +656,17 @@
             Object.assign(extractedData, result.extracted);
           }
 
+          // Always keep latest RSVP fields from the AI
+          if (result.suggestedRsvpFields && result.suggestedRsvpFields.length > 0) {
+            rsvpFields = result.suggestedRsvpFields.map(function(f) {
+              return Object.assign({}, f, { enabled: true });
+            });
+          }
+
           addChatBubble(result.message, 'assistant');
 
-          // If ready, show full confirmation card with RSVP fields
-          if (result.ready) {
-            if (result.suggestedRsvpFields && result.suggestedRsvpFields.length > 0) {
-              rsvpFields = result.suggestedRsvpFields.map(function(f) {
-                return Object.assign({}, f, { enabled: true });
-              });
-            }
+          // If confirmed, show final confirmation card with all details + RSVP fields
+          if (result.ready && result.confirmed) {
             showConfirmationCard();
           }
         } else {
@@ -726,17 +728,24 @@
           }).join('')
         + '</div>';
 
-      // RSVP Fields — conversational toggle list
-      if (rsvpFields.length > 0) {
+      // RSVP Fields — clean summary (already confirmed via chat)
+      var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+      if (enabledFields.length > 0) {
         html += '<div style="margin-top:16px;border-top:1px solid #eee;padding-top:14px;">'
-          + '<h4 style="font-size:14px;font-weight:600;margin-bottom:4px;">RSVP Fields</h4>'
-          + '<p style="font-size:12px;color:#888;margin-bottom:10px;">I picked these based on your event. Toggle any you don\'t need.</p>'
-          + '<div style="font-size:11px;color:#999;margin-bottom:10px;padding:6px 10px;background:#f9f9f9;border-radius:6px;">Always included: <strong>Name</strong>, <strong>RSVP Status</strong></div>'
-          + '<div id="rsvpFieldList">' + renderRsvpFields() + '</div>'
+          + '<h4 style="font-size:14px;font-weight:600;margin-bottom:8px;">RSVP Fields</h4>'
+          + '<div style="font-size:11px;color:#999;margin-bottom:8px;padding:6px 10px;background:#f9f9f9;border-radius:6px;">Always included: <strong>Name</strong>, <strong>RSVP Status</strong></div>'
+          + enabledFields.map(function(f) {
+              var meta = (FIELD_TYPE_LABELS[f.field_type] || f.field_type);
+              return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px;">'
+                + '<span style="color:var(--mint-fizz);font-weight:700;">&#10003;</span>'
+                + '<span style="font-weight:500;">' + escapeHtml(f.label) + '</span>'
+                + '<span style="color:#999;font-size:11px;">(' + escapeHtml(meta) + ')</span>'
+                + '</div>';
+            }).join('')
           + '</div>';
       }
 
-      html += '<button class="btn btn-primary chat-proceed" onclick="confirmDetailsAndAskStyle()" style="margin-top:16px;width:100%;">Looks good!</button>';
+      html += '<button class="btn btn-primary chat-proceed" onclick="confirmDetailsAndAskStyle()" style="margin-top:16px;width:100%;">Let\'s design it!</button>';
 
       card.innerHTML = html;
       document.getElementById('chatMessages').appendChild(card);
@@ -875,8 +884,6 @@
 
       // Hide the chat input area — the user is done describing their event
       document.querySelector('.chat-input-area').style.display = 'none';
-      // Allow chat messages to use full height now that input is hidden
-      document.getElementById('chatMessages').style.maxHeight = 'none';
 
       // Ask about style preference
       var card = document.createElement('div');
