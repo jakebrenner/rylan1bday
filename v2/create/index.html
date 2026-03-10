@@ -1394,6 +1394,10 @@
         + '</div>';
       document.getElementById('chatMessages').appendChild(card);
       scrollChat();
+      // Scroll the style choice card into view so it's centered on screen
+      setTimeout(function() {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
     }
 
     // ---- "I have a style in mind" flow ----
