@@ -103,7 +103,7 @@
 
   <div class="hero">
     <h1>Simple, transparent pricing</h1>
-    <p>Create a stunning AI-designed invitation for your next event. One plan, everything included.</p>
+    <p>Create a stunning AI-designed invitation for your next event. Simple per-event pricing, pay only for what you use.</p>
   </div>
 
   <div class="plans-container">
@@ -200,6 +200,9 @@
         + originalPriceHtml
         + '<span class="amount">$' + finalPrice.toFixed(2) + '</span>'
         + '<span class="period"> / event</span>'
+        + '</div>'
+        + '<div style="font-size:14px;color:#666;margin:-16px 0 24px;display:flex;align-items:center;gap:6px;">'
+        + '<span style="font-weight:600;color:var(--midnight);">+ $0.05</span> per text message sent'
         + '</div>'
         + couponHtml
         + '<ul class="plan-features">' + featuresHtml + '</ul>'

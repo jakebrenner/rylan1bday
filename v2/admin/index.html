@@ -261,6 +261,8 @@
         <div class="stat-card"><div class="stat-value" id="statPublished">—</div><div class="stat-label">Published</div></div>
         <div class="stat-card"><div class="stat-value" id="statRsvps">—</div><div class="stat-label">Total RSVPs</div></div>
         <div class="stat-card"><div class="stat-value" id="statGenerations">—</div><div class="stat-label">AI Generations</div></div>
+        <div class="stat-card"><div class="stat-value" id="statSms">—</div><div class="stat-label">SMS Sent</div></div>
+        <div class="stat-card"><div class="stat-value" id="statSmsRevenue">—</div><div class="stat-label">SMS Revenue</div></div>
       </div>
 
       <!-- Cost Tracking -->
@@ -385,13 +387,15 @@
               <th>Paid</th>
               <th>Discount</th>
               <th>Status</th>
-              <th>Events Used</th>
-              <th>Gens Used</th>
+              <th>Events</th>
+              <th>Gens</th>
+              <th>SMS Sent</th>
+              <th>SMS Cost</th>
               <th>Date</th>
             </tr>
           </thead>
           <tbody id="subsTableBody">
-            <tr><td colspan="8" class="loading">Click the Billing tab to load...</td></tr>
+            <tr><td colspan="10" class="loading">Click the Billing tab to load...</td></tr>
           </tbody>
         </table>
       </div>
@@ -979,6 +983,18 @@
       document.getElementById('statPublished').textContent = stats.publishedEvents;
       document.getElementById('statRsvps').textContent = stats.totalRsvps;
       document.getElementById('statGenerations').textContent = stats.totalGenerations;
+
+      // Load SMS stats
+      (async function() {
+        try {
+          var smsRes = await adminFetch('smsStats');
+          document.getElementById('statSms').textContent = smsRes.totalSent || 0;
+          document.getElementById('statSmsRevenue').textContent = '$' + ((smsRes.totalRevenueCents || 0) / 100).toFixed(2);
+        } catch (e) {
+          document.getElementById('statSms').textContent = '0';
+          document.getElementById('statSmsRevenue').textContent = '$0.00';
+        }
+      })();
 
       // Cost tracking
       var c = stats.costs || {};
@@ -2493,7 +2509,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var tbody = document.getElementById('subsTableBody');
 
         if (subs.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" style="color:#888;">No subscriptions yet</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="10" style="color:#888;">No subscriptions yet</td></tr>';
         } else {
           tbody.innerHTML = subs.map(function(s) {
             var statusClass = s.status === 'active' ? 'badge-green' : s.status === 'cancelled' ? 'badge-yellow' : 'badge-gray';
@@ -2506,6 +2522,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
               + '<td><span class="badge ' + statusClass + '">' + escapeHtml(s.status) + '</span></td>'
               + '<td>' + (s.eventsUsed || 0) + '</td>'
               + '<td>' + (s.generationsUsed || 0) + '</td>'
+              + '<td>' + (s.smsSent || 0) + '</td>'
+              + '<td>' + (s.smsCostCents > 0 ? '$' + (s.smsCostCents / 100).toFixed(2) : '—') + '</td>'
               + '<td>' + formatDate(s.createdAt) + '</td>'
               + '</tr>';
           }).join('');
@@ -2523,7 +2541,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           }
         }
       } catch (err) {
-        document.getElementById('subsTableBody').innerHTML = '<tr><td colspan="8" style="color:red;">Failed to load subscriptions</td></tr>';
+        document.getElementById('subsTableBody').innerHTML = '<tr><td colspan="10" style="color:red;">Failed to load subscriptions</td></tr>';
       }
     }
 

@@ -114,6 +114,7 @@ export default async function handler(req, res) {
           currency: p.currency,
           maxEvents: p.max_events,
           maxGenerations: p.max_generations,
+          smsPriceCents: p.sms_price_cents || 5,
           features: p.features || []
         }))
       });
@@ -250,6 +251,19 @@ export default async function handler(req, res) {
         .eq('user_id', user.id)
         .eq('status', 'success');
 
+      // SMS usage
+      const { count: smsCount } = await supabaseAdmin
+        .from('sms_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      const { data: smsCostData } = await supabaseAdmin
+        .from('sms_messages')
+        .select('cost_cents')
+        .eq('user_id', user.id);
+
+      const smsTotalCents = (smsCostData || []).reduce((sum, m) => sum + (m.cost_cents || 0), 0);
+
       const activeSub = (subscriptions || []).find(s => s.status === 'active');
 
       return res.status(200).json({
@@ -269,7 +283,10 @@ export default async function handler(req, res) {
           eventsUsed: eventCount || 0,
           generationsUsed: genCount || 0,
           maxEvents: activeSub?.plans?.max_events || 0,
-          maxGenerations: activeSub?.plans?.max_generations || 0
+          maxGenerations: activeSub?.plans?.max_generations || 0,
+          smsSent: smsCount || 0,
+          smsCostCents: smsTotalCents,
+          smsPriceCents: activeSub?.plans?.sms_price_cents || 5
         },
         allSubscriptions: (subscriptions || []).map(s => ({
           id: s.id,
@@ -301,6 +318,36 @@ export default async function handler(req, res) {
           receiptUrl: h.receipt_url,
           createdAt: h.created_at
         }))
+      });
+    }
+
+    // ---- SMS USAGE DETAILS ----
+    if (action === 'smsUsage') {
+      const { data: messages } = await supabaseAdmin
+        .from('sms_messages')
+        .select('id, event_id, recipient_phone, recipient_name, message_type, status, cost_cents, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      const totalCents = (messages || []).reduce((sum, m) => sum + (m.cost_cents || 0), 0);
+
+      return res.status(200).json({
+        success: true,
+        messages: (messages || []).map(m => ({
+          id: m.id,
+          eventId: m.event_id,
+          recipientPhone: m.recipient_phone,
+          recipientName: m.recipient_name,
+          messageType: m.message_type,
+          status: m.status,
+          costCents: m.cost_cents,
+          createdAt: m.created_at
+        })),
+        summary: {
+          totalSent: (messages || []).length,
+          totalCostCents: totalCents
+        }
       });
     }
 

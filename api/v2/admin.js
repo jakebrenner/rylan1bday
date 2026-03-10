@@ -628,6 +628,26 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    // ---- SMS STATS (admin overview) ----
+    if (action === 'smsStats') {
+      const { count: totalSent } = await supabaseAdmin
+        .from('sms_messages')
+        .select('id', { count: 'exact', head: true });
+
+      const { data: costData } = await supabaseAdmin
+        .from('sms_messages')
+        .select('cost_cents');
+
+      const totalCostCents = (costData || []).reduce((sum, m) => sum + (m.cost_cents || 0), 0);
+
+      return res.status(200).json({
+        success: true,
+        totalSent: totalSent || 0,
+        totalCostCents,
+        totalRevenueCents: totalCostCents // revenue = cost to user (we charge $0.05, ClickSend costs us less)
+      });
+    }
+
     // ---- LIST ALL SUBSCRIPTIONS (admin) ----
     if (action === 'subscriptions') {
       const { data: subs, error } = await supabaseAdmin
@@ -640,6 +660,20 @@ export default async function handler(req, res) {
         .order('created_at', { ascending: false });
 
       if (error) return res.status(400).json({ error: error.message });
+
+      // Get SMS counts per user
+      const userIds = [...new Set((subs || []).map(s => s.user_id))];
+      const smsCountsByUser = {};
+      if (userIds.length > 0) {
+        const { data: smsCounts } = await supabaseAdmin
+          .from('sms_messages')
+          .select('user_id, cost_cents');
+        for (const msg of (smsCounts || [])) {
+          if (!smsCountsByUser[msg.user_id]) smsCountsByUser[msg.user_id] = { count: 0, costCents: 0 };
+          smsCountsByUser[msg.user_id].count++;
+          smsCountsByUser[msg.user_id].costCents += msg.cost_cents || 0;
+        }
+      }
 
       return res.status(200).json({
         success: true,
@@ -655,6 +689,8 @@ export default async function handler(req, res) {
           discountCents: s.discount_cents,
           eventsUsed: s.events_used,
           generationsUsed: s.generations_used,
+          smsSent: smsCountsByUser[s.user_id]?.count || 0,
+          smsCostCents: smsCountsByUser[s.user_id]?.costCents || 0,
           createdAt: s.created_at
         }))
       });

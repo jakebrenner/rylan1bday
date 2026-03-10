@@ -258,6 +258,19 @@
             </div>
           </div>
         </div>
+        <div style="margin-top:12px;">
+          <div style="background:#f9f9f9;border-radius:8px;padding:14px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:12px;color:#888;margin-bottom:4px;">Text Messages Sent</div>
+              <div style="font-size:20px;font-weight:700;" id="usageSms">0</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:12px;color:#888;margin-bottom:4px;">SMS Cost</div>
+              <div style="font-size:20px;font-weight:700;color:var(--party-coral);" id="usageSmsCost">$0.00</div>
+              <div style="font-size:11px;color:#999;">$0.05 per text</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -421,6 +434,10 @@
             document.getElementById('usageGenerations').textContent = usage.generationsUsed + ' / ' + usage.maxGenerations;
             document.getElementById('eventsBar').style.width = (usage.maxEvents > 0 ? Math.min(100, usage.eventsUsed / usage.maxEvents * 100) : 0) + '%';
             document.getElementById('gensBar').style.width = (usage.maxGenerations > 0 ? Math.min(100, usage.generationsUsed / usage.maxGenerations * 100) : 0) + '%';
+
+            // SMS usage
+            document.getElementById('usageSms').textContent = usage.smsSent || 0;
+            document.getElementById('usageSmsCost').textContent = '$' + ((usage.smsCostCents || 0) / 100).toFixed(2);
           }
         }
 
