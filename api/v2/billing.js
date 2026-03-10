@@ -200,7 +200,7 @@ export default async function handler(req, res) {
 
       const sessionParams = {
         customer: customerId,
-        payment_method_types: ['card'],
+        ...(!embedded && { payment_method_types: ['card'] }),
         line_items: [{
           price_data: {
             currency: plan.currency || 'usd',
@@ -376,8 +376,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Unknown action' });
 
   } catch (err) {
-    console.error('Billing API error:', err);
-    return res.status(500).json({ error: 'Server error' });
+    console.error('Billing API error:', err?.message || err, err?.stack);
+    return res.status(500).json({ error: err?.message || 'Server error' });
   }
 }
 
