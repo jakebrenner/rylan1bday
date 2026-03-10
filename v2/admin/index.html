@@ -279,6 +279,73 @@
     .score-bar { display: inline-block; height: 8px; border-radius: 4px; background: var(--mint-fizz); vertical-align: middle; margin-left: 8px; }
     .score-stars { color: #f59e0b; font-size: 13px; letter-spacing: -1px; }
 
+    /* User Detail View */
+    .ud-header { display: flex; gap: 24px; align-items: flex-start; margin-bottom: 24px; }
+    .ud-avatar { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, var(--party-coral), var(--party-purple)); display: flex; align-items: center; justify-content: center; color: white; font-size: 28px; font-weight: 700; font-family: 'Playfair Display', serif; flex-shrink: 0; }
+    .ud-info { flex: 1; }
+    .ud-info h2 { font-family: 'Playfair Display', serif; font-size: 24px; margin-bottom: 4px; }
+    .ud-info .ud-meta { font-size: 13px; color: #888; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 6px; }
+    .ud-info .ud-meta .sep { color: #ddd; }
+    .ud-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: flex-start; }
+
+    .ud-nav { display: flex; gap: 4px; margin-bottom: 24px; background: white; border-radius: 8px; padding: 4px; border: 1px solid #eee; flex-wrap: wrap; }
+    .ud-nav-btn { padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; color: #888; background: transparent; border: none; font-family: 'Inter', sans-serif; white-space: nowrap; }
+    .ud-nav-btn.active { background: var(--midnight); color: white; }
+    .ud-nav-btn:hover:not(.active) { background: #f0f0f0; color: var(--midnight); }
+    .ud-section { display: none; }
+    .ud-section.active { display: block; }
+
+    .ud-kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .ud-kpi { background: white; border-radius: 8px; padding: 16px; border: 1px solid #eee; }
+    .ud-kpi .kpi-val { font-size: 24px; font-weight: 700; color: var(--midnight); }
+    .ud-kpi .kpi-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    .ud-kpi.positive .kpi-val { color: var(--mint-fizz); }
+    .ud-kpi.negative .kpi-val { color: var(--party-coral); }
+    .ud-kpi.gold .kpi-val { color: var(--confetti-gold); }
+
+    .ud-card { background: white; border-radius: 8px; border: 1px solid #eee; margin-bottom: 16px; overflow: hidden; }
+    .ud-card-header { padding: 14px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .ud-card-header h4 { font-size: 14px; font-weight: 600; }
+    .ud-card-body { padding: 16px 20px; }
+    .ud-card-body.no-pad { padding: 0; }
+
+    .ud-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .ud-detail-item { }
+    .ud-detail-item .lbl { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .ud-detail-item .val { font-size: 14px; font-weight: 500; color: var(--midnight); word-break: break-all; }
+
+    .ud-cost-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: #f0f0f0; margin: 8px 0; }
+    .ud-cost-bar .bar-segment { height: 100%; transition: width 0.3s; }
+
+    .ud-chat-msg { padding: 10px 14px; margin-bottom: 8px; border-radius: 8px; font-size: 13px; line-height: 1.5; }
+    .ud-chat-msg.user { background: #f0f0f0; margin-left: 24px; }
+    .ud-chat-msg.assistant { background: #eef6ff; margin-right: 24px; }
+    .ud-chat-msg .msg-meta { font-size: 10px; color: #888; margin-top: 4px; }
+
+    .ud-timeline { position: relative; padding-left: 20px; }
+    .ud-timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: #eee; }
+    .ud-timeline-item { position: relative; padding-bottom: 16px; }
+    .ud-timeline-item::before { content: ''; position: absolute; left: -17px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--party-coral); border: 2px solid white; box-shadow: 0 0 0 2px #eee; }
+    .ud-timeline-item.success::before { background: var(--mint-fizz); }
+    .ud-timeline-item .tl-date { font-size: 11px; color: #888; }
+    .ud-timeline-item .tl-desc { font-size: 13px; font-weight: 500; color: var(--midnight); }
+    .ud-timeline-item .tl-detail { font-size: 12px; color: #888; margin-top: 2px; }
+
+    .ud-stripe-card { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f9f9f9; border-radius: 8px; margin-bottom: 8px; }
+    .ud-stripe-card .card-icon { font-size: 24px; }
+    .ud-stripe-card .card-info { flex: 1; }
+    .ud-stripe-card .card-num { font-size: 14px; font-weight: 600; font-family: monospace; }
+    .ud-stripe-card .card-exp { font-size: 12px; color: #888; }
+    .ud-stripe-card .card-default { font-size: 10px; font-weight: 600; color: var(--mint-fizz); text-transform: uppercase; }
+
+    .ud-empty { text-align: center; padding: 40px 20px; color: #888; font-size: 13px; }
+
+    @media (max-width: 768px) {
+      .ud-header { flex-direction: column; gap: 12px; }
+      .ud-detail-grid { grid-template-columns: 1fr; }
+      .ud-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
     .loading { text-align: center; padding: 60px 20px; color: #888; }
     .access-denied { text-align: center; padding: 80px 20px; }
     .access-denied h2 { font-family: 'Playfair Display', serif; margin-bottom: 12px; }
@@ -405,34 +472,183 @@
         </div>
       </div>
 
-      <!-- User Detail View -->
+      <!-- Comprehensive User Detail View -->
       <div id="userDetailView" style="display:none;">
         <div class="back-link" onclick="backToUsers()">&#8592; Back to all users</div>
-        <div class="config-section" style="margin-bottom:16px;">
-          <h3 id="detailUserName">User</h3>
-          <div style="font-size:13px;color:#888;" id="detailUserMeta"></div>
-        </div>
-        <div class="table-container">
-          <div class="table-header">
-            <h3>Events</h3>
-            <span class="count" id="userEventCount">0 events</span>
+
+        <!-- User Header -->
+        <div class="ud-header">
+          <div class="ud-avatar" id="udAvatar">?</div>
+          <div class="ud-info">
+            <h2 id="udName">Loading...</h2>
+            <div class="ud-meta" id="udMeta"></div>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Type</th>
-                <th>Date</th>
-                <th>Status</th>
-                <th>RSVPs</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="userEventsBody">
-              <tr><td colspan="6" class="loading">Loading events...</td></tr>
-            </tbody>
-          </table>
+          <div class="ud-actions">
+            <button class="btn btn-secondary btn-sm" id="udStripeLink" style="display:none;" onclick="openStripeCustomer()">View in Stripe</button>
+          </div>
         </div>
+
+        <!-- Sub-navigation -->
+        <div class="ud-nav">
+          <button class="ud-nav-btn active" data-section="overview" onclick="switchUserSection('overview')">Overview</button>
+          <button class="ud-nav-btn" data-section="financials" onclick="switchUserSection('financials')">Financials</button>
+          <button class="ud-nav-btn" data-section="events" onclick="switchUserSection('events')">Events</button>
+          <button class="ud-nav-btn" data-section="billing" onclick="switchUserSection('billing')">Billing &amp; Payments</button>
+          <button class="ud-nav-btn" data-section="activity" onclick="switchUserSection('activity')">AI &amp; Activity</button>
+          <button class="ud-nav-btn" data-section="profile" onclick="switchUserSection('profile')">Profile</button>
+        </div>
+
+        <!-- Overview Section -->
+        <div class="ud-section active" id="ud-overview">
+          <div class="ud-kpi-grid" id="udKpiGrid"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Recent Events</h4></div>
+              <div class="ud-card-body no-pad">
+                <table style="font-size:13px;">
+                  <thead><tr><th>Event</th><th>Status</th><th>RSVPs</th></tr></thead>
+                  <tbody id="udRecentEvents"><tr><td colspan="3" class="ud-empty">Loading...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Recent Payments</h4></div>
+              <div class="ud-card-body no-pad">
+                <table style="font-size:13px;">
+                  <thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+                  <tbody id="udRecentBilling"><tr><td colspan="3" class="ud-empty">Loading...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Financials Section -->
+        <div class="ud-section" id="ud-financials">
+          <div class="ud-kpi-grid" id="udFinKpis"></div>
+          <div class="ud-card">
+            <div class="ud-card-header"><h4>Cost Breakdown</h4><span class="count" id="udCostBreakdownLabel"></span></div>
+            <div class="ud-card-body">
+              <div id="udCostBreakdown"></div>
+            </div>
+          </div>
+          <div class="ud-card">
+            <div class="ud-card-header"><h4>Revenue vs. Cost by Event</h4></div>
+            <div class="ud-card-body no-pad">
+              <table style="font-size:13px;">
+                <thead><tr><th>Event</th><th>AI Cost</th><th>SMS Cost</th><th>Total Cost</th><th>Revenue Share</th></tr></thead>
+                <tbody id="udEventCosts"><tr><td colspan="5" class="ud-empty">No events</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Events Section -->
+        <div class="ud-section" id="ud-events">
+          <div class="ud-card">
+            <div class="ud-card-header"><h4>All Events</h4><span class="count" id="udEventCount">0 events</span></div>
+            <div class="ud-card-body no-pad">
+              <table style="font-size:13px;">
+                <thead><tr><th>Title</th><th>Type</th><th>Date</th><th>Status</th><th>RSVPs</th><th>Costs</th><th></th></tr></thead>
+                <tbody id="udEventsBody"><tr><td colspan="7" class="ud-empty">Loading...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Billing & Payments Section -->
+        <div class="ud-section" id="ud-billing">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Payment Method</h4></div>
+              <div class="ud-card-body" id="udPaymentMethod">
+                <div class="ud-empty">No payment method on file</div>
+              </div>
+            </div>
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Subscription</h4></div>
+              <div class="ud-card-body" id="udSubscription">
+                <div class="ud-empty">No active subscription</div>
+              </div>
+            </div>
+          </div>
+          <div class="ud-card">
+            <div class="ud-card-header"><h4>Subscription History</h4></div>
+            <div class="ud-card-body no-pad">
+              <table style="font-size:13px;">
+                <thead><tr><th>Plan</th><th>Amount Paid</th><th>Discount</th><th>Events Used</th><th>Generations</th><th>Status</th><th>Date</th></tr></thead>
+                <tbody id="udSubHistory"><tr><td colspan="7" class="ud-empty">No history</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="ud-card">
+            <div class="ud-card-header"><h4>Billing History</h4></div>
+            <div class="ud-card-body no-pad">
+              <table style="font-size:13px;">
+                <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+                <tbody id="udBillingHistory"><tr><td colspan="5" class="ud-empty">No billing records</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI & Activity Section -->
+        <div class="ud-section" id="ud-activity">
+          <div class="ud-kpi-grid" id="udActivityKpis"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Generation Log</h4><span class="count" id="udGenCount">0</span></div>
+              <div class="ud-card-body no-pad" style="max-height:500px;overflow-y:auto;">
+                <table style="font-size:12px;">
+                  <thead><tr><th>Date</th><th>Model</th><th>Type</th><th>Tokens</th><th>Cost</th></tr></thead>
+                  <tbody id="udGenerations"><tr><td colspan="5" class="ud-empty">No generations</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Chat History</h4><span class="count" id="udChatCount">0</span></div>
+              <div class="ud-card-body" id="udChatHistory" style="max-height:500px;overflow-y:auto;">
+                <div class="ud-empty">No chat history</div>
+              </div>
+            </div>
+          </div>
+          <div class="ud-card" style="margin-top:16px;">
+            <div class="ud-card-header"><h4>SMS Messages</h4><span class="count" id="udSmsCount">0</span></div>
+            <div class="ud-card-body no-pad" style="max-height:400px;overflow-y:auto;">
+              <table style="font-size:12px;">
+                <thead><tr><th>Date</th><th>Recipient</th><th>Status</th><th>Cost</th></tr></thead>
+                <tbody id="udSmsMessages"><tr><td colspan="4" class="ud-empty">No SMS sent</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Profile Section -->
+        <div class="ud-section" id="ud-profile">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Customer Info</h4></div>
+              <div class="ud-card-body">
+                <div class="ud-detail-grid" id="udProfileInfo"></div>
+              </div>
+            </div>
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Account Details</h4></div>
+              <div class="ud-card-body">
+                <div class="ud-detail-grid" id="udAccountInfo"></div>
+              </div>
+            </div>
+          </div>
+          <div class="ud-card">
+            <div class="ud-card-header"><h4>Activity Timeline</h4></div>
+            <div class="ud-card-body">
+              <div class="ud-timeline" id="udTimeline">
+                <div class="ud-empty">Loading timeline...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -1306,8 +1522,8 @@
       tbody.innerHTML = allUsers.map(function(u) {
         var tierClass = u.tier === 'pro' ? 'badge-blue' : u.tier === 'business' ? 'badge-green' : 'badge-gray';
         return '<tr>'
-          + '<td><div class="user-email">' + escapeHtml(u.email) + '</div>'
-          + (u.displayName ? '<div class="user-name">' + escapeHtml(u.displayName) + '</div>' : '') + '</td>'
+          + '<td><div class="user-email clickable" onclick="viewUser(\'' + u.id + '\')">' + escapeHtml(u.email) + '</div>'
+          + (u.displayName ? '<div class="user-name clickable" onclick="viewUser(\'' + u.id + '\')" style="cursor:pointer;">' + escapeHtml(u.displayName) + '</div>' : '') + '</td>'
           + '<td><span class="badge ' + tierClass + '">' + escapeHtml(u.tier) + '</span></td>'
           + '<td>' + u.events.total + '</td>'
           + '<td>' + u.events.published + '</td>'
@@ -1317,50 +1533,388 @@
       }).join('');
     }
 
+    // Current user detail data
+    var currentUserDetail = null;
+
+    function switchUserSection(section) {
+      document.querySelectorAll('.ud-nav-btn').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-section') === section); });
+      document.querySelectorAll('.ud-section').forEach(function(s) { s.classList.toggle('active', s.id === 'ud-' + section); });
+    }
+
+    function getInitials(name, email) {
+      if (name) {
+        var parts = name.split(' ');
+        return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+      }
+      return email ? email[0].toUpperCase() : '?';
+    }
+
+    function cardBrandIcon(brand) {
+      var icons = { visa: '\u{1F4B3}', mastercard: '\u{1F4B3}', amex: '\u{1F4B3}', discover: '\u{1F4B3}' };
+      return icons[brand] || '\u{1F4B3}';
+    }
+
+    function openStripeCustomer() {
+      if (currentUserDetail && currentUserDetail.user.stripeCustomerId) {
+        window.open('https://dashboard.stripe.com/customers/' + currentUserDetail.user.stripeCustomerId, '_blank');
+      }
+    }
+
     async function viewUser(userId) {
       var u = allUsers.find(function(x) { return x.id === userId; });
       if (!u) return;
 
       document.getElementById('usersListView').style.display = 'none';
       document.getElementById('userDetailView').style.display = 'block';
-      document.getElementById('detailUserName').textContent = u.displayName || u.email;
-      document.getElementById('detailUserMeta').textContent = u.email + ' \u00B7 ' + u.tier + ' \u00B7 Joined ' + formatDate(u.createdAt);
 
+      // Set initial header from cached user list data
+      document.getElementById('udAvatar').textContent = getInitials(u.displayName, u.email);
+      document.getElementById('udName').textContent = u.displayName || u.email;
+      document.getElementById('udMeta').innerHTML =
+        '<span>' + escapeHtml(u.email) + '</span><span class="sep">|</span>'
+        + '<span class="badge ' + (u.tier === 'pro' ? 'badge-blue' : u.tier === 'business' ? 'badge-green' : 'badge-gray') + '">' + escapeHtml(u.tier) + '</span>'
+        + '<span class="sep">|</span><span>Joined ' + formatDate(u.createdAt) + '</span>';
+
+      // Reset to overview section
+      switchUserSection('overview');
+
+      // Load full detail
       try {
-        var res = await adminFetch('userEvents', { params: { userId: userId } });
-        var events = res.events || [];
-        document.getElementById('userEventCount').textContent = events.length + ' events';
-        var tbody = document.getElementById('userEventsBody');
+        var res = await adminFetch('userDetail', { params: { userId: userId } });
+        if (!res.success) throw new Error(res.error || 'Failed to load');
+        currentUserDetail = res;
+        renderUserDetail(res);
+      } catch (err) {
+        document.getElementById('udKpiGrid').innerHTML = '<div class="ud-empty" style="color:var(--party-coral);">Failed to load user details: ' + escapeHtml(err.message) + '</div>';
+      }
+    }
 
-        if (events.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="color:#888;">No events</td></tr>';
-          return;
-        }
+    function renderUserDetail(data) {
+      var u = data.user;
+      var f = data.financials;
 
-        tbody.innerHTML = events.map(function(e) {
-          var statusClass = e.status === 'published' ? 'badge-green' : e.status === 'draft' ? 'badge-yellow' : 'badge-gray';
+      // Update header
+      document.getElementById('udAvatar').textContent = getInitials(u.displayName, u.email);
+      document.getElementById('udName').textContent = u.displayName || u.email;
+      var tierClass = u.tier === 'pro' ? 'badge-blue' : u.tier === 'business' ? 'badge-green' : 'badge-gray';
+      document.getElementById('udMeta').innerHTML =
+        '<span>' + escapeHtml(u.email) + '</span><span class="sep">|</span>'
+        + '<span class="badge ' + tierClass + '">' + escapeHtml(u.tier) + '</span>'
+        + '<span class="sep">|</span><span>Joined ' + formatDate(u.createdAt) + '</span>'
+        + (u.phone ? '<span class="sep">|</span><span>' + escapeHtml(u.phone) + '</span>' : '');
+
+      // Stripe link
+      if (u.stripeCustomerId) {
+        document.getElementById('udStripeLink').style.display = 'inline-block';
+      } else {
+        document.getElementById('udStripeLink').style.display = 'none';
+      }
+
+      // ---- Overview KPIs ----
+      var netMargin = f.netMargin;
+      document.getElementById('udKpiGrid').innerHTML =
+        kpiCard(fmtCost(f.totalRevenue), 'Total Revenue', 'positive')
+        + kpiCard(fmtCost(f.totalPlatformCost), 'Total Platform Cost', '')
+        + kpiCard(fmtCost(netMargin), 'Net Margin', netMargin >= 0 ? 'positive' : 'negative')
+        + kpiCard(data.events.length, 'Events', '')
+        + kpiCard(f.generationCount, 'AI Generations', '')
+        + kpiCard(f.smsSentCount, 'SMS Sent', '');
+
+      // Recent events (top 5)
+      var recentEvents = data.events.slice(0, 5);
+      var reBody = document.getElementById('udRecentEvents');
+      if (recentEvents.length === 0) {
+        reBody.innerHTML = '<tr><td colspan="3" class="ud-empty">No events yet</td></tr>';
+      } else {
+        reBody.innerHTML = recentEvents.map(function(e) {
+          var sc = e.status === 'published' ? 'badge-green' : e.status === 'draft' ? 'badge-yellow' : 'badge-gray';
+          return '<tr><td><strong>' + escapeHtml(e.title) + '</strong></td>'
+            + '<td><span class="badge ' + sc + '">' + escapeHtml(e.status) + '</span></td>'
+            + '<td>' + e.rsvps.total + '</td></tr>';
+        }).join('');
+      }
+
+      // Recent billing (top 5)
+      var recentBilling = data.billing.slice(0, 5);
+      var rbBody = document.getElementById('udRecentBilling');
+      if (recentBilling.length === 0) {
+        rbBody.innerHTML = '<tr><td colspan="3" class="ud-empty">No payments</td></tr>';
+      } else {
+        rbBody.innerHTML = recentBilling.map(function(b) {
+          var sc = b.status === 'succeeded' ? 'badge-green' : b.status === 'failed' ? 'badge-yellow' : 'badge-gray';
+          return '<tr><td>' + formatDate(b.createdAt) + '</td>'
+            + '<td><strong>$' + ((b.amountCents || 0) / 100).toFixed(2) + '</strong></td>'
+            + '<td><span class="badge ' + sc + '">' + escapeHtml(b.status || 'unknown') + '</span></td></tr>';
+        }).join('');
+      }
+
+      // ---- Financials ----
+      document.getElementById('udFinKpis').innerHTML =
+        kpiCard(fmtCost(f.totalRevenue), 'Subscription Revenue', 'positive')
+        + kpiCard(fmtCost(f.totalDiscount), 'Discounts Applied', 'gold')
+        + kpiCard(fmtCost(f.totalAiCost), 'AI API Cost', '')
+        + kpiCard(fmtCost(f.chatAiCost), 'Chat Cost', '')
+        + kpiCard(fmtCost(f.themeAiCost), 'Theme Gen Cost', '')
+        + kpiCard(fmtCost(f.totalSmsCost), 'SMS Cost', '')
+        + kpiCard(fmtCost(f.revenueAfterMarkup), 'AI Revenue (w/ markup)', 'positive')
+        + kpiCard(f.markupPct + '%', 'Cost Markup', '');
+
+      // Cost breakdown visual
+      var totalCost = f.totalAiCost + f.totalSmsCost;
+      var aiPct = totalCost > 0 ? (f.totalAiCost / totalCost * 100) : 50;
+      var smsPct = totalCost > 0 ? (f.totalSmsCost / totalCost * 100) : 50;
+      document.getElementById('udCostBreakdownLabel').textContent = 'Total: ' + fmtCost(totalCost);
+      document.getElementById('udCostBreakdown').innerHTML =
+        '<div style="display:flex;gap:24px;margin-bottom:12px;">'
+        + '<div><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--party-purple);margin-right:6px;"></span>AI Cost (' + fmtCost(f.totalAiCost) + ')</div>'
+        + '<div><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--confetti-gold);margin-right:6px;"></span>SMS Cost (' + fmtCost(f.totalSmsCost) + ')</div>'
+        + '</div>'
+        + '<div class="ud-cost-bar">'
+        + '<div class="bar-segment" style="width:' + aiPct + '%;background:var(--party-purple);"></div>'
+        + '<div class="bar-segment" style="width:' + smsPct + '%;background:var(--confetti-gold);"></div>'
+        + '</div>'
+        + '<div style="display:flex;gap:24px;margin-top:12px;">'
+        + '<div><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--mint-fizz);margin-right:6px;"></span>Chat AI (' + fmtCost(f.chatAiCost) + ')</div>'
+        + '<div><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--party-coral);margin-right:6px;"></span>Theme AI (' + fmtCost(f.themeAiCost) + ')</div>'
+        + '</div>'
+        + '<div class="ud-cost-bar" style="margin-top:4px;">'
+        + '<div class="bar-segment" style="width:' + (f.totalAiCost > 0 ? f.chatAiCost / f.totalAiCost * 100 : 50) + '%;background:var(--mint-fizz);"></div>'
+        + '<div class="bar-segment" style="width:' + (f.totalAiCost > 0 ? f.themeAiCost / f.totalAiCost * 100 : 50) + '%;background:var(--party-coral);"></div>'
+        + '</div>';
+
+      // Cost by event table
+      var ecBody = document.getElementById('udEventCosts');
+      if (data.events.length === 0) {
+        ecBody.innerHTML = '<tr><td colspan="5" class="ud-empty">No events</td></tr>';
+      } else {
+        ecBody.innerHTML = data.events.map(function(e) {
+          var tc = e.costs.aiCost + e.costs.smsCost;
           return '<tr>'
             + '<td><strong>' + escapeHtml(e.title) + '</strong></td>'
+            + '<td>' + fmtCost(e.costs.aiCost) + '</td>'
+            + '<td>' + fmtCost(e.costs.smsCost) + '</td>'
+            + '<td><strong>' + fmtCost(tc) + '</strong></td>'
+            + '<td>' + (totalCost > 0 ? (tc / totalCost * 100).toFixed(1) + '%' : '—') + '</td>'
+            + '</tr>';
+        }).join('');
+      }
+
+      // ---- Events ----
+      document.getElementById('udEventCount').textContent = data.events.length + ' events';
+      var evBody = document.getElementById('udEventsBody');
+      if (data.events.length === 0) {
+        evBody.innerHTML = '<tr><td colspan="7" class="ud-empty">No events</td></tr>';
+      } else {
+        evBody.innerHTML = data.events.map(function(e) {
+          var sc = e.status === 'published' ? 'badge-green' : e.status === 'draft' ? 'badge-yellow' : 'badge-gray';
+          var ec = e.costs.aiCost + e.costs.smsCost;
+          return '<tr>'
+            + '<td><strong>' + escapeHtml(e.title) + '</strong>' + (e.hasTheme ? ' <span class="badge badge-blue" style="font-size:9px;">Themed</span>' : '') + '</td>'
             + '<td>' + escapeHtml(e.eventType || '—') + '</td>'
             + '<td>' + (e.eventDate ? formatDate(e.eventDate) : '—') + '</td>'
-            + '<td><span class="badge ' + statusClass + '">' + escapeHtml(e.status) + '</span></td>'
+            + '<td><span class="badge ' + sc + '">' + escapeHtml(e.status) + '</span></td>'
             + '<td>' + (e.rsvps.total > 0
               ? '<span class="clickable" onclick="viewRsvps(\'' + e.id + '\', \'' + escapeHtml(e.title).replace(/'/g, "\\'") + '\')">'
-                + e.rsvps.attending + ' yes, ' + e.rsvps.declined + ' no, ' + e.rsvps.maybe + ' maybe</span>'
+                + e.rsvps.attending + ' yes, ' + e.rsvps.declined + ' no</span>'
               : '0') + '</td>'
+            + '<td>' + fmtCost(ec) + '</td>'
             + '<td>' + (e.slug && e.status === 'published'
               ? '<a href="/v2/event/' + e.slug + '" target="_blank" class="btn btn-secondary btn-sm">View</a>'
               : '') + '</td>'
             + '</tr>';
         }).join('');
-      } catch (err) {
-        document.getElementById('userEventsBody').innerHTML = '<tr><td colspan="6" style="color:red;">Failed to load events</td></tr>';
       }
+
+      // ---- Billing & Payments ----
+      // Payment method
+      var pmEl = document.getElementById('udPaymentMethod');
+      if (data.stripePayment && data.stripePayment.cards && data.stripePayment.cards.length > 0) {
+        pmEl.innerHTML = data.stripePayment.cards.map(function(c) {
+          return '<div class="ud-stripe-card">'
+            + '<div class="card-icon">' + cardBrandIcon(c.brand) + '</div>'
+            + '<div class="card-info">'
+            + '<div class="card-num">' + escapeHtml(c.brand.toUpperCase()) + ' ending in ' + c.last4 + '</div>'
+            + '<div class="card-exp">Expires ' + String(c.expMonth).padStart(2, '0') + '/' + c.expYear + '</div>'
+            + '</div>'
+            + (c.isDefault ? '<div class="card-default">Default</div>' : '')
+            + '</div>';
+        }).join('');
+      } else if (data.stripePayment && data.stripePayment.customerId) {
+        pmEl.innerHTML = '<div class="ud-empty">No card on file<br><span style="font-size:11px;color:#aaa;">Stripe ID: ' + escapeHtml(data.stripePayment.customerId) + '</span></div>';
+      } else {
+        pmEl.innerHTML = '<div class="ud-empty">No Stripe account linked</div>';
+      }
+
+      // Active subscription
+      var subEl = document.getElementById('udSubscription');
+      var activeSub = data.subscriptions.find(function(s) { return s.status === 'active'; });
+      if (activeSub) {
+        subEl.innerHTML = '<div class="ud-detail-grid">'
+          + detailItem('Plan', '<span class="badge badge-blue">' + escapeHtml(activeSub.planName || 'Unknown') + '</span>')
+          + detailItem('Price', '$' + ((activeSub.planPriceCents || 0) / 100).toFixed(2))
+          + detailItem('Events Used', activeSub.eventsUsed + (activeSub.maxEvents ? ' / ' + activeSub.maxEvents : ''))
+          + detailItem('Generations Used', activeSub.generationsUsed + (activeSub.maxGenerations ? ' / ' + activeSub.maxGenerations : ''))
+          + detailItem('Amount Paid', '$' + ((activeSub.amountPaidCents || 0) / 100).toFixed(2))
+          + detailItem('Since', formatDate(activeSub.createdAt))
+          + '</div>';
+      } else {
+        subEl.innerHTML = '<div class="ud-empty">No active subscription</div>';
+      }
+
+      // Subscription history
+      var shBody = document.getElementById('udSubHistory');
+      if (data.subscriptions.length === 0) {
+        shBody.innerHTML = '<tr><td colspan="7" class="ud-empty">No subscription history</td></tr>';
+      } else {
+        shBody.innerHTML = data.subscriptions.map(function(s) {
+          var sc = s.status === 'active' ? 'badge-green' : s.status === 'cancelled' ? 'badge-yellow' : 'badge-gray';
+          return '<tr>'
+            + '<td><strong>' + escapeHtml(s.planName || 'Unknown') + '</strong></td>'
+            + '<td>$' + ((s.amountPaidCents || 0) / 100).toFixed(2) + '</td>'
+            + '<td>' + (s.discountCents > 0 ? '-$' + (s.discountCents / 100).toFixed(2) : '—') + '</td>'
+            + '<td>' + (s.eventsUsed || 0) + (s.maxEvents ? '/' + s.maxEvents : '') + '</td>'
+            + '<td>' + (s.generationsUsed || 0) + (s.maxGenerations ? '/' + s.maxGenerations : '') + '</td>'
+            + '<td><span class="badge ' + sc + '">' + escapeHtml(s.status) + '</span></td>'
+            + '<td>' + formatDate(s.createdAt) + '</td>'
+            + '</tr>';
+        }).join('');
+      }
+
+      // Billing history
+      var bhBody = document.getElementById('udBillingHistory');
+      if (data.billing.length === 0) {
+        bhBody.innerHTML = '<tr><td colspan="5" class="ud-empty">No billing records</td></tr>';
+      } else {
+        bhBody.innerHTML = data.billing.map(function(b) {
+          var sc = b.status === 'succeeded' ? 'badge-green' : b.status === 'failed' ? 'badge-yellow' : 'badge-gray';
+          return '<tr>'
+            + '<td>' + formatDate(b.createdAt) + '</td>'
+            + '<td>' + escapeHtml(b.description || '—') + '</td>'
+            + '<td><strong>$' + ((b.amountCents || 0) / 100).toFixed(2) + '</strong></td>'
+            + '<td><span class="badge ' + sc + '">' + escapeHtml(b.status || 'unknown') + '</span></td>'
+            + '<td>' + (b.receiptUrl ? '<a href="' + escapeHtml(b.receiptUrl) + '" target="_blank" class="btn btn-secondary btn-sm">Receipt</a>' : '') + '</td>'
+            + '</tr>';
+        }).join('');
+      }
+
+      // ---- AI & Activity ----
+      // Activity KPIs
+      var totalTokensIn = 0, totalTokensOut = 0;
+      data.generations.forEach(function(g) { totalTokensIn += g.inputTokens || 0; totalTokensOut += g.outputTokens || 0; });
+      document.getElementById('udActivityKpis').innerHTML =
+        kpiCard(data.generations.length, 'Total Generations', '')
+        + kpiCard(formatNumber(totalTokensIn), 'Input Tokens', '')
+        + kpiCard(formatNumber(totalTokensOut), 'Output Tokens', '')
+        + kpiCard(data.smsMessages.length, 'SMS Sent', '')
+        + kpiCard((data.chatHistory || []).length, 'Chat Messages', '');
+
+      // Generation log
+      document.getElementById('udGenCount').textContent = data.generations.length;
+      var gBody = document.getElementById('udGenerations');
+      if (data.generations.length === 0) {
+        gBody.innerHTML = '<tr><td colspan="5" class="ud-empty">No generations</td></tr>';
+      } else {
+        gBody.innerHTML = data.generations.slice(0, 100).map(function(g) {
+          return '<tr>'
+            + '<td>' + formatDate(g.createdAt) + '</td>'
+            + '<td style="font-family:monospace;font-size:11px;">' + escapeHtml(g.model || '?') + '</td>'
+            + '<td>' + escapeHtml(g.promptType || (g.eventId ? 'theme' : 'chat')) + '</td>'
+            + '<td>' + formatNumber(g.inputTokens || 0) + ' / ' + formatNumber(g.outputTokens || 0) + '</td>'
+            + '<td>' + fmtCost(g.cost) + '</td>'
+            + '</tr>';
+        }).join('');
+      }
+
+      // Chat history
+      document.getElementById('udChatCount').textContent = (data.chatHistory || []).length;
+      var chatEl = document.getElementById('udChatHistory');
+      if (!data.chatHistory || data.chatHistory.length === 0) {
+        chatEl.innerHTML = '<div class="ud-empty">No chat history</div>';
+      } else {
+        chatEl.innerHTML = data.chatHistory.slice(0, 50).map(function(c) {
+          var role = c.role || 'user';
+          var cls = role === 'assistant' ? 'assistant' : 'user';
+          var content = escapeHtml(c.content || '').substring(0, 500);
+          if ((c.content || '').length > 500) content += '...';
+          return '<div class="ud-chat-msg ' + cls + '">'
+            + '<div>' + content + '</div>'
+            + '<div class="msg-meta">' + escapeHtml(role) + ' &middot; ' + formatDate(c.createdAt)
+            + (c.model ? ' &middot; ' + escapeHtml(c.model) : '')
+            + (c.inputTokens ? ' &middot; ' + c.inputTokens + '/' + c.outputTokens + ' tokens' : '')
+            + '</div></div>';
+        }).join('');
+      }
+
+      // SMS messages
+      document.getElementById('udSmsCount').textContent = data.smsMessages.length;
+      var smsBody = document.getElementById('udSmsMessages');
+      if (data.smsMessages.length === 0) {
+        smsBody.innerHTML = '<tr><td colspan="4" class="ud-empty">No SMS messages</td></tr>';
+      } else {
+        smsBody.innerHTML = data.smsMessages.slice(0, 100).map(function(s) {
+          var sc = s.status === 'sent' || s.status === 'delivered' ? 'badge-green' : s.status === 'failed' ? 'badge-yellow' : 'badge-gray';
+          return '<tr>'
+            + '<td>' + formatDate(s.createdAt) + '</td>'
+            + '<td style="font-family:monospace;">' + escapeHtml(s.recipientPhone || '—') + '</td>'
+            + '<td><span class="badge ' + sc + '">' + escapeHtml(s.status || 'unknown') + '</span></td>'
+            + '<td>$' + ((s.costCents || 0) / 100).toFixed(2) + '</td>'
+            + '</tr>';
+        }).join('');
+      }
+
+      // ---- Profile ----
+      document.getElementById('udProfileInfo').innerHTML =
+        detailItem('Display Name', escapeHtml(u.displayName || '—'))
+        + detailItem('Email', escapeHtml(u.email))
+        + detailItem('Phone', escapeHtml(u.phone || '—'))
+        + detailItem('Tier', '<span class="badge ' + tierClass + '">' + escapeHtml(u.tier) + '</span>');
+
+      document.getElementById('udAccountInfo').innerHTML =
+        detailItem('User ID', '<span style="font-family:monospace;font-size:11px;">' + escapeHtml(u.id) + '</span>')
+        + detailItem('Stripe Customer', u.stripeCustomerId ? '<span style="font-family:monospace;font-size:11px;">' + escapeHtml(u.stripeCustomerId) + '</span>' : '—')
+        + detailItem('Created', formatDate(u.createdAt))
+        + detailItem('Last Updated', u.updatedAt ? formatDate(u.updatedAt) : '—');
+
+      // Activity timeline
+      var timelineItems = [];
+      timelineItems.push({ date: u.createdAt, desc: 'Account created', detail: u.email, success: true });
+      data.subscriptions.forEach(function(s) {
+        timelineItems.push({ date: s.createdAt, desc: 'Subscribed to ' + (s.planName || 'plan'), detail: '$' + ((s.amountPaidCents || 0) / 100).toFixed(2), success: true });
+      });
+      data.events.forEach(function(e) {
+        timelineItems.push({ date: e.createdAt, desc: 'Created event: ' + e.title, detail: e.eventType || '', success: e.status === 'published' });
+      });
+      data.billing.forEach(function(b) {
+        timelineItems.push({ date: b.createdAt, desc: 'Payment: $' + ((b.amountCents || 0) / 100).toFixed(2), detail: b.description || '', success: b.status === 'succeeded' });
+      });
+
+      timelineItems.sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
+      var tlEl = document.getElementById('udTimeline');
+      if (timelineItems.length === 0) {
+        tlEl.innerHTML = '<div class="ud-empty">No activity</div>';
+      } else {
+        tlEl.innerHTML = timelineItems.slice(0, 30).map(function(t) {
+          return '<div class="ud-timeline-item' + (t.success ? ' success' : '') + '">'
+            + '<div class="tl-date">' + formatDate(t.date) + '</div>'
+            + '<div class="tl-desc">' + escapeHtml(t.desc) + '</div>'
+            + (t.detail ? '<div class="tl-detail">' + escapeHtml(t.detail) + '</div>' : '')
+            + '</div>';
+        }).join('');
+      }
+    }
+
+    function kpiCard(value, label, cls) {
+      return '<div class="ud-kpi ' + cls + '"><div class="kpi-val">' + value + '</div><div class="kpi-label">' + label + '</div></div>';
+    }
+
+    function detailItem(label, value) {
+      return '<div class="ud-detail-item"><div class="lbl">' + label + '</div><div class="val">' + value + '</div></div>';
     }
 
     function backToUsers() {
       document.getElementById('userDetailView').style.display = 'none';
       document.getElementById('usersListView').style.display = 'block';
+      currentUserDetail = null;
     }
 
     // ---- RSVPs Modal ----

@@ -152,6 +152,224 @@ export default async function handler(req, res) {
       });
     }
 
+    // ---- GET COMPREHENSIVE USER DETAIL ----
+    if (action === 'userDetail') {
+      const userId = req.query.userId;
+      if (!userId) return res.status(400).json({ error: 'userId required' });
+
+      // Fetch all data in parallel
+      const [profileRes, eventsRes, subsRes, billingRes, generationsRes, smsRes] = await Promise.all([
+        supabaseAdmin.from('profiles').select('*').eq('id', userId).single(),
+        supabaseAdmin.from('events').select('id, title, event_type, event_date, status, slug, created_at, theme_html').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabaseAdmin.from('subscriptions').select('*, plans:plan_id (name, display_name, price_cents, max_events, max_generations)').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabaseAdmin.from('billing_history').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabaseAdmin.from('generation_log').select('id, event_id, model, input_tokens, output_tokens, prompt_type, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabaseAdmin.from('sms_messages').select('id, event_id, recipient_phone, status, cost_cents, created_at').eq('user_id', userId).order('created_at', { ascending: false })
+      ]);
+
+      const profile = profileRes.data;
+      if (!profile) return res.status(404).json({ error: 'User not found' });
+
+      const events = eventsRes.data || [];
+      const eventIds = events.map(e => e.id);
+
+      // Get RSVP counts per event
+      const { data: guests } = eventIds.length > 0
+        ? await supabaseAdmin.from('guests').select('event_id, status').in('event_id', eventIds)
+        : { data: [] };
+
+      const rsvpCounts = {};
+      (guests || []).forEach(g => {
+        if (!rsvpCounts[g.event_id]) rsvpCounts[g.event_id] = { total: 0, attending: 0, declined: 0, maybe: 0 };
+        rsvpCounts[g.event_id].total++;
+        if (g.status === 'attending') rsvpCounts[g.event_id].attending++;
+        else if (g.status === 'declined') rsvpCounts[g.event_id].declined++;
+        else if (g.status === 'maybe') rsvpCounts[g.event_id].maybe++;
+      });
+
+      // Get chat history for user
+      const { data: chatHistory } = await supabaseAdmin
+        .from('chat_messages')
+        .select('id, event_id, role, content, model, input_tokens, output_tokens, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      // Cost calculations
+      const MODEL_PRICING = {
+        'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00 },
+        'claude-sonnet-4-6': { input: 3.00, output: 15.00 },
+        'claude-opus-4-6': { input: 15.00, output: 75.00 },
+      };
+
+      const markupRes = await supabaseAdmin.from('app_config').select('value').eq('key', 'cost_markup_pct').single();
+      const markupPct = parseFloat(markupRes.data?.value) || 100;
+      const markupMultiplier = 1 + markupPct / 100;
+
+      let totalAiCost = 0;
+      let chatAiCost = 0;
+      let themeAiCost = 0;
+      const costByEvent = {};
+      const generations = (generationsRes.data || []).map(g => {
+        const pricing = MODEL_PRICING[g.model] || { input: 3.00, output: 15.00 };
+        const cost = ((g.input_tokens || 0) * pricing.input + (g.output_tokens || 0) * pricing.output) / 1_000_000;
+        totalAiCost += cost;
+        const isChat = !g.event_id;
+        if (isChat) chatAiCost += cost;
+        else {
+          themeAiCost += cost;
+          if (!costByEvent[g.event_id]) costByEvent[g.event_id] = { aiCost: 0, smsCost: 0 };
+          costByEvent[g.event_id].aiCost += cost;
+        }
+        return {
+          id: g.id,
+          eventId: g.event_id,
+          model: g.model,
+          inputTokens: g.input_tokens,
+          outputTokens: g.output_tokens,
+          promptType: g.prompt_type,
+          cost,
+          createdAt: g.created_at
+        };
+      });
+
+      // SMS costs by event
+      let totalSmsCost = 0;
+      const smsMessages = (smsRes.data || []).map(s => {
+        const costDollars = (s.cost_cents || 0) / 100;
+        totalSmsCost += costDollars;
+        if (s.event_id) {
+          if (!costByEvent[s.event_id]) costByEvent[s.event_id] = { aiCost: 0, smsCost: 0 };
+          costByEvent[s.event_id].smsCost += costDollars;
+        }
+        return {
+          id: s.id,
+          eventId: s.event_id,
+          recipientPhone: s.recipient_phone,
+          status: s.status,
+          costCents: s.cost_cents,
+          createdAt: s.created_at
+        };
+      });
+
+      // Revenue from subscriptions
+      const subscriptions = (subsRes.data || []);
+      const totalRevenue = subscriptions.reduce((sum, s) => sum + (s.amount_paid_cents || 0), 0) / 100;
+      const totalDiscount = subscriptions.reduce((sum, s) => sum + (s.discount_cents || 0), 0) / 100;
+
+      // Stripe payment info (PCI compliant - only last4, brand, expiry)
+      let stripePayment = null;
+      if (profile.stripe_customer_id) {
+        try {
+          const Stripe = (await import('stripe')).default;
+          const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
+          const paymentMethods = await stripeClient.paymentMethods.list({
+            customer: profile.stripe_customer_id,
+            type: 'card',
+            limit: 5
+          });
+          if (paymentMethods.data.length > 0) {
+            stripePayment = {
+              customerId: profile.stripe_customer_id,
+              cards: paymentMethods.data.map(pm => ({
+                id: pm.id,
+                brand: pm.card.brand,
+                last4: pm.card.last4,
+                expMonth: pm.card.exp_month,
+                expYear: pm.card.exp_year,
+                isDefault: pm.id === paymentMethods.data[0].id
+              }))
+            };
+          } else {
+            stripePayment = { customerId: profile.stripe_customer_id, cards: [] };
+          }
+        } catch (e) {
+          stripePayment = { customerId: profile.stripe_customer_id, cards: [], error: 'Could not fetch from Stripe' };
+        }
+      }
+
+      // Billing history
+      const billing = (billingRes.data || []).map(b => ({
+        id: b.id,
+        amountCents: b.amount_cents,
+        status: b.status,
+        description: b.description,
+        receiptUrl: b.receipt_url,
+        stripePaymentIntentId: b.stripe_payment_intent_id,
+        createdAt: b.created_at
+      }));
+
+      const totalPlatformCost = totalAiCost + totalSmsCost;
+
+      return res.status(200).json({
+        success: true,
+        user: {
+          id: profile.id,
+          email: profile.email,
+          displayName: profile.display_name,
+          phone: profile.phone,
+          tier: profile.tier,
+          stripeCustomerId: profile.stripe_customer_id,
+          createdAt: profile.created_at,
+          updatedAt: profile.updated_at
+        },
+        financials: {
+          totalRevenue,
+          totalDiscount,
+          totalPlatformCost,
+          totalAiCost,
+          chatAiCost,
+          themeAiCost,
+          totalSmsCost,
+          smsSentCount: smsMessages.length,
+          generationCount: generations.length,
+          markupPct,
+          revenueAfterMarkup: totalAiCost * markupMultiplier,
+          netMargin: totalRevenue - totalPlatformCost,
+          costByEvent
+        },
+        events: events.map(e => ({
+          id: e.id,
+          title: e.title,
+          eventType: e.event_type,
+          eventDate: e.event_date,
+          status: e.status,
+          slug: e.slug,
+          createdAt: e.created_at,
+          hasTheme: !!e.theme_html,
+          rsvps: rsvpCounts[e.id] || { total: 0, attending: 0, declined: 0, maybe: 0 },
+          costs: costByEvent[e.id] || { aiCost: 0, smsCost: 0 }
+        })),
+        subscriptions: subscriptions.map(s => ({
+          id: s.id,
+          planName: s.plans?.display_name || s.plans?.name,
+          planPriceCents: s.plans?.price_cents,
+          maxEvents: s.plans?.max_events,
+          maxGenerations: s.plans?.max_generations,
+          status: s.status,
+          amountPaidCents: s.amount_paid_cents,
+          discountCents: s.discount_cents,
+          eventsUsed: s.events_used,
+          generationsUsed: s.generations_used,
+          createdAt: s.created_at
+        })),
+        billing,
+        stripePayment,
+        generations,
+        smsMessages,
+        chatHistory: (chatHistory || []).map(c => ({
+          id: c.id,
+          eventId: c.event_id,
+          role: c.role,
+          content: c.content,
+          model: c.model,
+          inputTokens: c.input_tokens,
+          outputTokens: c.output_tokens,
+          createdAt: c.created_at
+        }))
+      });
+    }
+
     // ---- GET EVENT RSVPS ----
     if (action === 'eventRsvps') {
       const eventId = req.query.eventId;
