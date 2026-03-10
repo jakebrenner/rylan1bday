@@ -9,6 +9,23 @@ const supabase = createClient(
 
 const DEFAULT_THEME_MODEL = process.env.THEME_MODEL || 'claude-sonnet-4-6';
 
+// Fetch images from URLs and convert to base64 for Claude vision
+async function fetchImagesAsBase64(urls) {
+  const results = [];
+  for (const url of urls) {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) continue;
+      const buffer = await resp.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString('base64');
+      results.push(base64);
+    } catch (e) {
+      console.warn('Failed to fetch inspiration image:', url, e.message);
+    }
+  }
+  return results;
+}
+
 async function getThemeModel() {
   try {
     const { data } = await supabase
@@ -531,7 +548,7 @@ export default async function handler(req, res) {
   }
 
   const action = req.query?.action || req.body?.action || 'generate';
-  const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages, tweakInstructions, currentHtml, currentCss, currentConfig, photoBase64, photoUrl, photoUrls } = req.body;
+  const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages, inspirationImageUrls, tweakInstructions, currentHtml, currentCss, currentConfig, photoBase64, photoUrl, photoUrls } = req.body;
 
   // --- TWEAK MODE: stream response via SSE to avoid timeouts ---
   if (action === 'tweak') {
@@ -888,14 +905,20 @@ ${rsvpFieldsDesc}`;
       userMessage += `\n\n**Feedback on previous version (incorporate this):**\n${feedback}`;
     }
 
-    if (inspirationImages?.length > 0) {
-      userMessage += `\n\n**Visual Inspiration:** I've provided ${inspirationImages.length} image(s) as inspiration. Analyze for color palette, mood, textures, and typography cues.`;
+    // Resolve inspiration images: use base64 if provided, otherwise fetch from URLs
+    let resolvedInspirationImages = inspirationImages?.length > 0 ? inspirationImages : [];
+    if (resolvedInspirationImages.length === 0 && inspirationImageUrls?.length > 0) {
+      resolvedInspirationImages = await fetchImagesAsBase64(inspirationImageUrls);
     }
 
-    const messageContent = inspirationImages?.length > 0
+    if (resolvedInspirationImages.length > 0) {
+      userMessage += `\n\n**Visual Inspiration:** I've provided ${resolvedInspirationImages.length} image(s) as inspiration. Analyze for color palette, mood, textures, and typography cues.`;
+    }
+
+    const messageContent = resolvedInspirationImages.length > 0
       ? [
           { type: 'text', text: userMessage },
-          ...inspirationImages.map(img => ({
+          ...resolvedInspirationImages.map(img => ({
             type: 'image',
             source: { type: 'base64', media_type: 'image/jpeg', data: img }
           }))

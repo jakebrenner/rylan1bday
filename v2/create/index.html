@@ -1719,6 +1719,7 @@
             tagline: extractedData.tagline || ''
           },
           inspirationImages: inspirationImageBase64Array,
+          inspirationImageUrls: inspirationImageUrls.filter(function(u) { return !!u; }),
           photoUrls: personPhotoUrls.filter(function(u) { return !!u; })
         };
         var res2 = await authFetch('/api/v2/generate-theme', {
