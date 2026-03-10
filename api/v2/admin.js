@@ -508,6 +508,13 @@ export default async function handler(req, res) {
         .select('*')
         .order('created_at', { ascending: false });
 
+    // ---- LIST PROMPT VERSIONS ----
+    if (action === 'listPromptVersions') {
+      const { data, error } = await supabaseAdmin
+        .from('prompt_versions')
+        .select('id, version, name, description, is_active, created_by, created_at, updated_at')
+        .order('version', { ascending: false });
+
       if (error) return res.status(400).json({ error: error.message });
 
       return res.status(200).json({
@@ -572,6 +579,20 @@ export default async function handler(req, res) {
           created_by: admin.id
         })
         .select()
+
+        versions: data || []
+      });
+    }
+
+    // ---- GET PROMPT VERSION (full content) ----
+    if (action === 'getPromptVersion') {
+      const versionId = req.query.versionId;
+      if (!versionId) return res.status(400).json({ error: 'versionId required' });
+
+      const { data, error } = await supabaseAdmin
+        .from('prompt_versions')
+        .select('*')
+        .eq('id', versionId)
         .single();
 
       if (error) return res.status(400).json({ error: error.message });
@@ -732,6 +753,177 @@ export default async function handler(req, res) {
       }
 
       return res.status(200).json({ success: true });
+    }
+
+
+      return res.status(200).json({ success: true, version: data });
+    }
+
+    // ---- GET ACTIVE PROMPT VERSION ----
+    if (action === 'getActivePromptVersion') {
+      const { data, error } = await supabaseAdmin
+        .from('prompt_versions')
+        .select('*')
+        .eq('is_active', true)
+        .single();
+
+      if (error && error.code !== 'PGRST116') return res.status(400).json({ error: error.message });
+
+      return res.status(200).json({ success: true, version: data || null });
+    }
+
+    // ---- SAVE PROMPT VERSION (create or update) ----
+    if (action === 'savePromptVersion') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { id, name, description, systemPrompt, designDna } = req.body;
+      if (!name || !systemPrompt) return res.status(400).json({ error: 'name and systemPrompt are required' });
+
+      if (id) {
+        // Update existing version
+        const { error } = await supabaseAdmin
+          .from('prompt_versions')
+          .update({
+            name,
+            description: description || '',
+            system_prompt: systemPrompt,
+            design_dna: designDna || {}
+          })
+          .eq('id', id);
+
+        if (error) return res.status(500).json({ error: 'Failed to update: ' + error.message });
+      } else {
+        // Get next version number
+        const { data: latest } = await supabaseAdmin
+          .from('prompt_versions')
+          .select('version')
+          .order('version', { ascending: false })
+          .limit(1);
+
+        const nextVersion = (latest && latest.length > 0) ? latest[0].version + 1 : 1;
+
+        const { error } = await supabaseAdmin
+          .from('prompt_versions')
+          .insert({
+            version: nextVersion,
+            name,
+            description: description || '',
+            system_prompt: systemPrompt,
+            design_dna: designDna || {},
+            is_active: false,
+            created_by: admin.email
+          });
+
+        if (error) return res.status(500).json({ error: 'Failed to create: ' + error.message });
+      }
+
+      // Return updated list
+      const { data } = await supabaseAdmin
+        .from('prompt_versions')
+        .select('id, version, name, description, is_active, created_by, created_at, updated_at')
+        .order('version', { ascending: false });
+
+      return res.status(200).json({ success: true, versions: data || [] });
+    }
+
+    // ---- ACTIVATE PROMPT VERSION ----
+    if (action === 'activatePromptVersion') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { versionId } = req.body;
+      if (!versionId) return res.status(400).json({ error: 'versionId required' });
+
+      // Deactivate all
+      await supabaseAdmin
+        .from('prompt_versions')
+        .update({ is_active: false })
+        .eq('is_active', true);
+
+      // Activate selected
+      const { error } = await supabaseAdmin
+        .from('prompt_versions')
+        .update({ is_active: true })
+        .eq('id', versionId);
+
+      if (error) return res.status(500).json({ error: 'Failed to activate: ' + error.message });
+
+      return res.status(200).json({ success: true });
+    }
+
+    // ---- DELETE PROMPT VERSION ----
+    if (action === 'deletePromptVersion') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { versionId } = req.body;
+      if (!versionId) return res.status(400).json({ error: 'versionId required' });
+
+      // Don't allow deleting the active version
+      const { data: check } = await supabaseAdmin
+        .from('prompt_versions')
+        .select('is_active')
+        .eq('id', versionId)
+        .single();
+
+      if (check?.is_active) {
+        return res.status(400).json({ error: 'Cannot delete the active prompt version. Activate a different version first.' });
+      }
+
+      const { error } = await supabaseAdmin
+        .from('prompt_versions')
+        .delete()
+        .eq('id', versionId);
+
+      if (error) return res.status(500).json({ error: 'Failed to delete: ' + error.message });
+
+      return res.status(200).json({ success: true });
+    }
+
+    // ---- SAVE PROMPT TEST RUN ----
+    if (action === 'saveTestRun') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { promptVersionId, model, eventType, eventDetails: testEventDetails, resultHtml, resultCss, resultConfig, inputTokens, outputTokens, latencyMs, score, notes } = req.body;
+
+      const { error } = await supabaseAdmin
+        .from('prompt_test_runs')
+        .insert({
+          prompt_version_id: promptVersionId || null,
+          model: model || 'unknown',
+          event_type: eventType || 'other',
+          event_details: testEventDetails || {},
+          result_html: resultHtml || '',
+          result_css: resultCss || '',
+          result_config: resultConfig || {},
+          input_tokens: inputTokens || 0,
+          output_tokens: outputTokens || 0,
+          latency_ms: latencyMs || 0,
+          score: score || null,
+          notes: notes || '',
+          created_by: admin.email
+        });
+
+      if (error) return res.status(500).json({ error: 'Failed to save test run: ' + error.message });
+
+      return res.status(200).json({ success: true });
+    }
+
+    // ---- LIST TEST RUNS FOR A PROMPT VERSION ----
+    if (action === 'listTestRuns') {
+      const promptVersionId = req.query.promptVersionId;
+      let query = supabaseAdmin
+        .from('prompt_test_runs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (promptVersionId) {
+        query = query.eq('prompt_version_id', promptVersionId);
+      }
+
+      const { data, error } = await query;
+      if (error) return res.status(400).json({ error: error.message });
+
+      return res.status(200).json({ success: true, testRuns: data || [] });
     }
 
     return res.status(400).json({ error: 'Unknown action' });

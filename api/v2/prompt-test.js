@@ -73,8 +73,9 @@ function assessPromptSpecificity(prompt) {
   return Math.min(score, 1);
 }
 
-function buildEventTypeContext(eventType, userPrompt) {
-  const dna = DESIGN_DNA[eventType] || DESIGN_DNA.other;
+function buildEventTypeContext(eventType, userPrompt, designDnaOverride) {
+  const dnaSource = designDnaOverride || DESIGN_DNA;
+  const dna = dnaSource[eventType] || dnaSource.other || DESIGN_DNA.other;
   const specificity = assessPromptSpecificity(userPrompt);
 
   let context = `\n## EVENT-TYPE GUIDANCE (${dna.label})`;
@@ -360,11 +361,12 @@ Use realistic names, venues, and addresses. Make the design prompt vivid and spe
   }
 
   // ── Shared: build prompt context (reused for single & multi-model) ──
-  async function buildPromptContext(eventDetails, styleLibraryIds) {
+  async function buildPromptContext(eventDetails, styleLibraryIds, designDnaOverride) {
     const eventType = eventDetails.eventType || 'other';
     const userPrompt = eventDetails.prompt || '';
     const promptSpecificity = assessPromptSpecificity(userPrompt);
-    const designDnaContext = buildEventTypeContext(eventType, userPrompt);
+    const dnaSource = designDnaOverride || DESIGN_DNA;
+    const designDnaContext = buildEventTypeContext(eventType, userPrompt, dnaSource);
 
     // Load style library references — auto-select by event type + manual picks
     // High-specificity prompts get fewer auto refs (1 vs 2) to avoid overriding user vision
@@ -437,12 +439,12 @@ Default fields: Name, RSVP Status (Attending/Declined/Maybe)${styleContext}`;
   }
 
   // ── Shared: generate theme with one model ──
-  async function generateWithModel(modelId, userMessage) {
+  async function generateWithModel(modelId, userMessage, systemPromptOverride) {
     const startTime = Date.now();
     const response = await client.messages.create({
       model: modelId,
       max_tokens: 16384,
-      system: SYSTEM_PROMPT,
+      system: systemPromptOverride || SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }]
     });
 
@@ -624,7 +626,7 @@ Return a JSON object with exactly these keys:
   }
 
   // ── TEST GENERATION (single, multi-model, or hybrid) ──
-  const { model, models, eventDetails, styleLibraryIds, hybrid } = req.body;
+  const { model, models, eventDetails, styleLibraryIds, hybrid, promptVersionId } = req.body;
   const isMultiModel = Array.isArray(models) && models.length > 1;
 
   if (!eventDetails || (!model && !isMultiModel && !hybrid)) {
@@ -632,7 +634,28 @@ Return a JSON object with exactly these keys:
   }
 
   try {
-    const userMessage = await buildPromptContext(eventDetails, styleLibraryIds);
+    // Load a specific prompt version if requested, otherwise use hardcoded defaults
+    let activeSystemPrompt = SYSTEM_PROMPT;
+    let activeDesignDna = DESIGN_DNA;
+    let usedPromptVersionId = null;
+
+    if (promptVersionId) {
+      const { data: pv } = await supabaseAdmin
+        .from('prompt_versions')
+        .select('id, system_prompt, design_dna, version, name')
+        .eq('id', promptVersionId)
+        .single();
+
+      if (pv?.system_prompt) {
+        activeSystemPrompt = pv.system_prompt;
+        if (typeof pv.design_dna === 'object' && Object.keys(pv.design_dna).length > 0) {
+          activeDesignDna = pv.design_dna;
+        }
+        usedPromptVersionId = pv.id;
+      }
+    }
+
+    const userMessage = await buildPromptContext(eventDetails, styleLibraryIds, activeDesignDna);
 
     // ── HYBRID MODE: draft with cheap model, refine with better model ──
     if (hybrid) {
@@ -640,7 +663,7 @@ Return a JSON object with exactly these keys:
       const refineModel = hybrid.refineModel || 'claude-sonnet-4-6';
 
       // Step 1: Generate draft
-      const draftResult = await generateWithModel(draftModel, userMessage);
+      const draftResult = await generateWithModel(draftModel, userMessage, activeSystemPrompt);
 
       // Step 2: Refine with better model (fallback to draft if refine fails)
       let refinedResult;
@@ -679,7 +702,7 @@ Return a JSON object with exactly these keys:
     if (isMultiModel) {
       // Run all models in parallel
       const results = await Promise.allSettled(
-        models.map(m => generateWithModel(m, userMessage))
+        models.map(m => generateWithModel(m, userMessage, activeSystemPrompt))
       );
 
       const COST_PER_M_IN = { 'claude-haiku-4-5-20251001': 0.80, 'claude-sonnet-4-6': 3.00, 'claude-opus-4-6': 15.00 };
@@ -695,11 +718,11 @@ Return a JSON object with exactly these keys:
         }
       });
 
-      return res.status(200).json({ success: true, multiModel: true, results: outputs });
+      return res.status(200).json({ success: true, multiModel: true, results: outputs, promptVersionId: usedPromptVersionId });
     } else {
       // Single model
-      const result = await generateWithModel(model, userMessage);
-      return res.status(200).json({ success: true, ...result });
+      const result = await generateWithModel(model, userMessage, activeSystemPrompt);
+      return res.status(200).json({ success: true, ...result, promptVersionId: usedPromptVersionId });
     }
   } catch (err) {
     console.error('Prompt test error:', err);

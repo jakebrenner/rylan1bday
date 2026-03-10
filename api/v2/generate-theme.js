@@ -24,6 +24,27 @@ async function fetchImagesAsBase64(urls) {
     }
   }
   return results;
+
+// Load the active prompt version from DB, falling back to hardcoded defaults
+async function getActivePrompt() {
+  try {
+    const { data, error } = await supabase
+      .from('prompt_versions')
+      .select('system_prompt, design_dna')
+      .eq('is_active', true)
+      .single();
+
+    if (!error && data?.system_prompt) {
+      return {
+        systemPrompt: data.system_prompt,
+        designDna: (typeof data.design_dna === 'object' && Object.keys(data.design_dna).length > 0)
+          ? data.design_dna
+          : DESIGN_DNA
+      };
+    }
+  } catch {}
+  // Fallback to hardcoded
+  return { systemPrompt: SYSTEM_PROMPT, designDna: DESIGN_DNA };
 }
 
 async function getThemeModel() {
@@ -487,8 +508,9 @@ function assessPromptSpecificity(prompt) {
 
 // Build event-type-specific context for the generation prompt
 // Adapts DNA intensity based on how specific the user's creative direction is
-function buildEventTypeContext(eventType, userPrompt) {
-  const dna = DESIGN_DNA[eventType] || DESIGN_DNA.other;
+function buildEventTypeContext(eventType, userPrompt, designDnaOverride) {
+  const dnaSource = designDnaOverride || DESIGN_DNA;
+  const dna = dnaSource[eventType] || dnaSource.other || DESIGN_DNA.other;
   const specificity = assessPromptSpecificity(userPrompt);
 
   // "must" items are always included — these are structural/technical requirements
@@ -846,6 +868,7 @@ Return ONLY a valid JSON object with these keys:
   }
 
   const themeModel = await getThemeModel();
+  const activePrompt = await getActivePrompt();
   const startTime = Date.now();
 
   try {
@@ -859,7 +882,7 @@ Return ONLY a valid JSON object with these keys:
     const promptSpecificity = assessPromptSpecificity(effectivePrompt);
 
     // Build event-type-specific design DNA context (adapts to prompt specificity)
-    const designDnaContext = buildEventTypeContext(eventType, effectivePrompt);
+    const designDnaContext = buildEventTypeContext(eventType, effectivePrompt, activePrompt.designDna);
 
     // Collect all photo URLs (from initial upload or design chat)
     const allPhotoUrls = photoUrls?.length > 0 ? photoUrls : (photoUrl ? [photoUrl] : []);
@@ -934,7 +957,7 @@ ${rsvpFieldsDesc}`;
     const response = await client.messages.create({
       model: themeModel,
       max_tokens: 16384,
-      system: SYSTEM_PROMPT,
+      system: activePrompt.systemPrompt,
       messages: [{ role: 'user', content: messageContent }]
     });
 
