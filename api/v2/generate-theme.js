@@ -75,11 +75,11 @@ const DESIGN_DNA = {
       technical: 'Keep all text large and readable. Bright, high-contrast colors.'
     },
     consider: {
-      decorative: 'Animated floating balloons, confetti bursts, bunting flags, or theme-specific elements (stars for space, leaves for jungle, etc.)',
-      typography: 'Bold, rounded display fonts work well (e.g. Fredoka One, Baloo 2, Lilita One). Pair with a warm readable body font.',
-      colorPhilosophy: 'Joyful and vibrant palettes with fully saturated colors tend to work best. 4-5 colors is a good range.',
-      motion: 'Consider floating/falling elements on infinite loop at 0.1-0.2 opacity. Staggered fade-up entrance. Confetti burst energy near the RSVP section.',
-      standout: 'Kid faces with playful decorations (birthday hats, party elements) make a strong visual anchor'
+      decorative: 'VARY the theme widely — pick ONE of these directions and commit fully: jungle safari with hand-drawn animals, outer space with planets and rockets, underwater ocean with sea creatures, dinosaur adventure, superhero comic-book style, circus/carnival, construction zone, race cars, pirate treasure map, fairy tale castle, bug safari, robot/tech, wild west, ice cream parlor, monster mash, camping/outdoors. Avoid defaulting to generic rainbow/balloon/confetti.',
+      typography: 'Bold, rounded display fonts (e.g. Fredoka One, Baloo 2, Lilita One, Bungee, Luckiest Guy). Match the specific theme — handwritten for crafty themes, blocky for construction, futuristic for space.',
+      colorPhilosophy: 'Pick a palette that matches the SPECIFIC theme — NOT just rainbow. Jungle: greens and browns. Space: deep navy and neon. Ocean: teals and corals. Dinosaur: earthy oranges and greens. Commit to 3-4 colors that tell the theme story.',
+      motion: 'Theme-specific animations: floating stars for space, swimming fish for ocean, stomping dinos, flying rockets, etc. Avoid generic confetti/balloons unless the event specifically requests a balloon theme.',
+      standout: 'A bold illustrated hero element matching the theme — a rocket ship, a dinosaur, a treasure chest, a race car — NOT generic party decorations'
     }
   },
   adultBirthday: {
@@ -89,10 +89,10 @@ const DESIGN_DNA = {
       technical: 'The milestone number (30, 40, 50) should feature prominently as a design element.'
     },
     consider: {
-      decorative: 'Atmospheric texture matching the era/tone — floating gold particles for glamour, grain for retro, neon glow for 80s, disco balls for 70s.',
-      typography: 'Era-appropriate or bold editorial fonts add strong personality (Playfair Display for elegance, Bebas Neue for bold, groovy retro for decade themes).',
-      colorPhilosophy: '2-3 dominant colors with deliberate restraint OR deliberate excess — both can work when committed fully.',
-      motion: 'Consider tone-appropriate motion: champagne bubble float for glamour, spotlight sweep for milestone, record-scratch for retro.',
+      decorative: 'Match the vibe to the person/era — pick ONE: glamorous gold particles, retro 70s grain and earth tones, neon 80s glow, minimalist modern, dark moody lounge, maximalist pattern clash, art deco geometric, tropical island, vintage speakeasy, disco funk, editorial magazine, rustic farmhouse, industrial loft.',
+      typography: 'Era/mood-appropriate fonts add personality (Playfair Display for elegance, Bebas Neue for bold, groovy retro for decade themes, editorial serif for magazine feel).',
+      colorPhilosophy: '2-3 dominant colors with deliberate restraint OR deliberate excess — both work when committed fully. Avoid safe/generic palettes.',
+      motion: 'Tone-appropriate motion: champagne bubble float for glamour, spotlight sweep for milestone, record-scratch for retro, neon pulse for modern.',
       standout: 'The milestone number as a massive typographic hero element'
     }
   },
@@ -100,14 +100,14 @@ const DESIGN_DNA = {
     label: 'Baby Shower / Sip & See',
     must: {
       photoTreatment: 'Gentle, warm treatment for any photos. Soft framing, never harsh crops.',
-      technical: 'Overall tone should feel nurturing and soft.'
+      technical: 'Overall tone should feel nurturing and warm.'
     },
     consider: {
-      decorative: 'Watercolor wash backgrounds, botanical illustrations, pressed flowers, baby animals, or abstract organic shapes all work well.',
-      typography: 'Elegant script paired with refined serif (e.g. Cormorant Garamond + a flowing script) sets the right tone.',
-      colorPhilosophy: 'Soft, limited palettes tend to work best (2-3 colors + cream/white). Blue/navy/mint for boy themes, blush/rose/lavender for girl themes.',
-      motion: 'Gentle petal/leaf fall rather than confetti. Slow, dreamy fade-ins. Botanical elements with subtle sway.',
-      standout: 'Floral wreath or botanical frame around the baby name or event title'
+      decorative: 'VARY the aesthetic — pick ONE: celestial night sky with moons and stars, woodland creatures (foxes, owls, deer), hot air balloons in clouds, storybook illustration style, modern geometric with soft shapes, tropical with monstera leaves, safari animals, vintage stork delivery, nautical with anchors and waves, honeybee garden, constellation map, paper airplane whimsy, origami animals. Avoid defaulting to generic floral/botanical/watercolor.',
+      typography: 'Match the theme — modern sans for geometric themes, whimsical rounded for storybook, elegant script for celestial, handwritten for crafty themes.',
+      colorPhilosophy: 'Go beyond pink/blue stereotypes — sage and terracotta, navy and gold stars, warm mustard and cream, deep forest green and peach, lavender and mint. Soft does not mean pastel pink.',
+      motion: 'Theme-matched gentle animations: twinkling stars for celestial, floating clouds for sky themes, gentle leaf drift for woodland, origami unfolding.',
+      standout: 'A charming illustrated centerpiece matching the chosen theme — a crescent moon, a woodland fox, a hot air balloon, a storybook cover'
     }
   },
   engagement: {
@@ -226,14 +226,14 @@ const DESIGN_DNA = {
     label: 'Bridal Shower',
     must: {
       photoTreatment: 'If photos provided, elegant treatment of bride or engagement photo.',
-      technical: 'Floral elements should be beautiful and lush, NEVER clipart-style.'
+      technical: 'Elegant and celebratory. NEVER clipart-style elements.'
     },
     consider: {
-      decorative: 'Abundant floral illustration elements with garden party energy.',
-      typography: 'Script + elegant sans or serif. Bride\'s name as the typographic star.',
-      colorPhilosophy: 'Blush, champagne, sage, and cream palettes work beautifully. Or bride\'s wedding colors if specified.',
-      motion: 'Floating petals, gentle botanical sway, elegant fade-in sequence.',
-      standout: 'Lush, hand-illustrated-style floral elements framing the design'
+      decorative: 'VARY the aesthetic — pick ONE: lush hand-illustrated botanicals, art deco geometric arches, modern minimalist with bold type, Mediterranean tile patterns, French patisserie style, garden party with toile pattern, bohemian desert with cacti, coastal with shells and waves, Parisian café, champagne brunch editorial, citrus grove, vintage lace and pearls.',
+      typography: 'Match the chosen aesthetic — elegant script for classic, bold sans for modern, serif for editorial, handwritten for bohemian.',
+      colorPhilosophy: 'Go beyond blush — terracotta and olive for boho, navy and gold for art deco, citrus yellows and greens for garden, mauve and burgundy for moody romantic, coral and teal for coastal.',
+      motion: 'Subtle and elegant — floating petals, gentle shimmer, soft parallax, elegant fade-in sequence.',
+      standout: 'A distinctive visual element matching the chosen theme — an ornate arch, a champagne tower, a lemon wreath, a delicate lace border'
     }
   },
   corporate: {
@@ -416,8 +416,8 @@ When the user gives you minimal input, that is creative freedom, not a gap to fi
 - Small scattered details: stars, paw prints, sparkles, leaves — whatever fits the mood
 
 ## ANIMATION RULES — EVERY INVITE SHOULD FEEL ALIVE
-- **Ambient background**: floating/falling elements on infinite loop, varied speeds, 0.1-0.2 opacity
-- **Photo animations**: bobbing for kids parties, subtle scale pulse for editorial, soft glow for romantic
+- **Ambient background**: theme-specific moving elements on infinite loop, varied speeds, 0.1-0.2 opacity (match the event theme — stars for space, fish for ocean, snow for winter, etc.)
+- **Photo animations**: subtle scale pulse, soft glow, gentle parallax — match the event's energy level
 - **Entrance**: staggered fade-up on page load (animation-delay: 0.1s increments) — choreographed reveal
 - **Interactive**: hover states on all buttons with smooth transitions
 - **Decorative**: gentle sway or float on header decorations
@@ -428,10 +428,11 @@ When the user gives you minimal input, that is creative freedom, not a gap to fi
 - Using Inter, Roboto, or system fonts
 - Purple gradients on white backgrounds
 - Evenly spaced, equal-weight visual elements — hierarchy matters
-- Generic "party balloons" clipart as the only decoration
+- Generic rainbow/balloon/confetti as the default — these are overused. Pick a SPECIFIC theme and commit to it
 - No animations — the page should feel alive
 - Light text on light backgrounds or dark text on dark backgrounds
-- Playing it safe when the brief is minimal — lean into a strong POV
+- Playing it safe on a vague brief — lean into a strong, SPECIFIC visual point of view
+- Defaulting to the same aesthetic every time — be unpredictable and varied across generations
 
 ## INSPIRATION IMAGES
 If provided, analyze them for color palette, visual mood, textures, typography style, and overall aesthetic. Use as strong creative direction.`;
