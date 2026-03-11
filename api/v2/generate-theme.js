@@ -653,6 +653,25 @@ export default async function handler(req, res) {
     const themeModel = await getThemeModel();
     const startTime = Date.now();
 
+    // --- Smart routing: classify tweak as "light" or "design" ---
+    // Light tweaks: text/copy changes, RSVP field add/remove/modify, wording changes
+    // Design tweaks: colors, fonts, layout, animations, photos, style changes
+    const lowerInstructions = tweakInstructions.toLowerCase();
+    const hasPhotos = (photoUrls?.length > 0) || photoUrl || photoBase64;
+    const designKeywords = [
+      'color', 'colour', 'font', 'background', 'layout', 'animation', 'animate',
+      'style', 'theme', 'darker', 'lighter', 'bigger', 'smaller', 'spacing',
+      'margin', 'padding', 'border', 'shadow', 'gradient', 'photo', 'image',
+      'minimalist', 'maximalist', 'elegant', 'bold', 'modern', 'vintage',
+      'vibe', 'mood', 'swap', 'redesign', 'completely', 'overhaul',
+      'move', 'position', 'align', 'center', 'left', 'right',
+      'css', 'width', 'height', 'size', 'rounded', 'hover'
+    ];
+    const isLightTweak = !hasPhotos && !designKeywords.some(kw => lowerInstructions.includes(kw));
+    const tweakModel = isLightTweak ? 'claude-haiku-4-5-20251001' : themeModel;
+    const tweakMaxTokens = isLightTweak ? 8192 : 16384;
+    console.log(`[tweak] Classified as ${isLightTweak ? 'LIGHT' : 'DESIGN'} tweak, using model: ${tweakModel}`);
+
     // Set up SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -735,9 +754,22 @@ Remember: RSVP fields are rendered by the platform, NOT in theme HTML. Do NOT ad
         : [{ type: 'text', text: tweakMessage }];
 
       // Stream the response from Claude
-      sendSSE('status', { phase: 'generating' });
+      sendSSE('status', { phase: 'generating', isLightTweak });
 
-      const tweakSystemPrompt = `You are an elite invite designer modifying event invites via a conversational chat interface. Your modifications should maintain the extraordinary quality standard — better than Evite, Paperless Post, or Canva.
+      const tweakSystemPrompt = isLightTweak
+        ? `You are modifying an event invite. Make ONLY the specific text, wording, or RSVP field changes requested. Keep ALL HTML structure, CSS, animations, and styling EXACTLY the same.
+
+## OUTPUT FORMAT
+Return ONLY a valid JSON object:
+{ "theme_html": "...", "theme_css": "...", "theme_thankyou_html": null, "theme_config": { ... }, "chat_response": "Brief friendly message about what you changed.", "rsvp_field_changes": [...] or null }
+
+## RULES
+- Preserve ALL data-field attributes (data-field="title", "datetime", "location", "dresscode", "host")
+- .rsvp-slot MUST contain ONLY a <button class="rsvp-button"> — NO form inputs
+- To add/remove/modify RSVP fields, use rsvp_field_changes array: { "action": "remove"|"add"|"modify", "field_key": "...", "label": "...", "field_type": "text"|"number"|"select"|"checkbox"|"textarea", "is_required": false, "placeholder": "..." }
+- Keep theme_css EXACTLY the same unless the text change requires it
+- Set theme_thankyou_html to null (no changes needed for text-only tweaks)`
+        : `You are an elite invite designer modifying event invites via a conversational chat interface. Your modifications should maintain the extraordinary quality standard — better than Evite, Paperless Post, or Canva.
 
 ## YOUR ROLE
 Users will ask you to update their invite design — visual changes AND event content changes. Users may:
@@ -786,8 +818,8 @@ Return ONLY a valid JSON object with these keys:
 - For photo additions: use the EXACT URL(s) provided in <img> tags. Style with creative framing per the event type.`;
 
       const stream = client.messages.stream({
-        model: themeModel,
-        max_tokens: 16384,
+        model: tweakModel,
+        max_tokens: tweakMaxTokens,
         system: tweakSystemPrompt,
         messages: [{ role: 'user', content: messageContent }]
       });
@@ -920,7 +952,8 @@ Return ONLY a valid JSON object with these keys:
         success: true,
         theme: { id: 'pending', version: 0, html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
         chatResponse: theme.chat_response || null,
-        rsvpFieldChanges: theme.rsvp_field_changes || null
+        rsvpFieldChanges: theme.rsvp_field_changes || null,
+        isLightTweak
       });
 
       // Save as new version (best-effort — client already has the theme)
@@ -954,7 +987,7 @@ Return ONLY a valid JSON object with these keys:
         const tweakMeta = getClientMeta(req);
         supabase.from('generation_log').insert({
           event_id: eventId, user_id: user.id, prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
-          model: themeModel, input_tokens: 0,
+          model: tweakModel, input_tokens: 0,
           output_tokens: 0, latency_ms: latency, status: 'success',
           is_tweak: true, event_type: eventDetails?.eventType || '',
           client_ip: tweakMeta.ip, client_geo: tweakMeta.geo, user_agent: tweakMeta.userAgent
@@ -970,7 +1003,7 @@ Return ONLY a valid JSON object with these keys:
       try {
         await supabase.from('generation_log').insert({
           event_id: eventId, user_id: user.id, prompt: 'Tweak: ' + (tweakInstructions || '').substring(0, 200),
-          model: themeModel, input_tokens: 0, output_tokens: 0, latency_ms: Date.now() - startTime, status: 'error', error: err.message,
+          model: tweakModel, input_tokens: 0, output_tokens: 0, latency_ms: Date.now() - startTime, status: 'error', error: err.message,
           is_tweak: true, event_type: eventDetails?.eventType || '', client_ip: tweakErrMeta.ip, client_geo: tweakErrMeta.geo, user_agent: tweakErrMeta.userAgent
         }).catch(() => {});
       } catch {}

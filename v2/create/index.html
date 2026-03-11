@@ -275,7 +275,8 @@
     .design-chat-loading span:last-child { transition: opacity 0.2s ease; }
     .design-chat-loading .loading-spinner { flex-shrink: 0; }
     .design-chat-progress { width: 100%; height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden; }
-    .design-chat-progress-bar { height: 100%; background: linear-gradient(90deg, var(--party-coral), #ff8a80); border-radius: 3px; transition: width 0.4s ease; width: 0%; }
+    .design-chat-progress-bar { height: 100%; background: linear-gradient(90deg, var(--party-coral), #ff8a80, var(--party-coral)); background-size: 200% 100%; border-radius: 3px; transition: width 0.8s ease; width: 0%; animation: chatProgressShimmer 2s ease-in-out infinite; }
+    @keyframes chatProgressShimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
     .design-chat-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 16px; padding: 40px 20px; text-align: center; }
     .design-chat-loader .loader-dots { display: flex; gap: 6px; }
     .design-chat-loader .loader-dots span { width: 10px; height: 10px; border-radius: 50%; background: var(--party-coral); animation: loaderBounce 1.4s ease-in-out infinite; }
@@ -3511,17 +3512,27 @@
       ];
       var shuffledTweakPuns = tweakPuns.sort(function() { return Math.random() - 0.5; });
       var tweakPunIdx = 0;
-      designChatHistory.push({ role: 'system', content: shuffledTweakPuns[0], progress: 5 });
+      var tweakProgress = 5;
+      designChatHistory.push({ role: 'system', content: shuffledTweakPuns[0], progress: tweakProgress });
       renderDesignChat();
       var tweakPunInterval = setInterval(function() {
         tweakPunIdx = (tweakPunIdx + 1) % shuffledTweakPuns.length;
+        // Increment progress bar — fast ramp then slow crawl, cap at 92%
+        if (tweakProgress < 40) tweakProgress += 12;
+        else if (tweakProgress < 70) tweakProgress += 8;
+        else if (tweakProgress < 92) tweakProgress += 3;
         var sysMsg = designChatHistory.find(function(m) { return m.role === 'system'; });
         if (sysMsg) {
           sysMsg.content = shuffledTweakPuns[tweakPunIdx];
+          sysMsg.progress = tweakProgress;
+          // Update pun text with fade
           var el = document.querySelector('.design-chat-loading span:last-child');
           if (el) { el.style.opacity = '0'; setTimeout(function() { el.textContent = shuffledTweakPuns[tweakPunIdx]; el.style.opacity = '1'; }, 200); }
+          // Update progress bar directly (avoid full re-render)
+          var bar = document.querySelector('.design-chat-progress-bar');
+          if (bar) bar.style.width = tweakProgress + '%';
         }
-      }, 3000);
+      }, 2000);
 
       var ver = themeVersions[activeVersionIndex];
       try {
@@ -3599,7 +3610,7 @@
           clearInterval(tweakPunInterval);
           designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
 
-          console.log('[tweak] Parse result:', !!tweakResult, 'Error:', tweakError, 'Lines:', tweakLines.length, 'Text preview:', tweakFullText.substring(0, 500), 'Build: 2026-03-11g');
+          console.log('[tweak] Parse result:', !!tweakResult, 'Error:', tweakError, 'Lines:', tweakLines.length, 'Text preview:', tweakFullText.substring(0, 500), 'Build: 2026-03-11h');
 
           if (tweakResult && tweakResult.success) {
             var newVer = { id: tweakResult.theme.id, version: tweakResult.theme.version, html: tweakResult.theme.html, css: tweakResult.theme.css, config: tweakResult.theme.config };
