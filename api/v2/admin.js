@@ -13,7 +13,11 @@ async function verifyAdmin(req) {
   if (!authHeader?.startsWith('Bearer ')) return { error: 'no_token' };
 
   const token = authHeader.slice(7);
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${token}` } }
+  });
+
+  const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: 'invalid_token' };
 
   const email = user.email.toLowerCase();
@@ -54,7 +58,6 @@ export default async function handler(req, res) {
     const admin = authResult.user;
 
     const action = req.query.action || req.body?.action;
-
     // ---- LIST ALL USERS ----
     if (action === 'users') {
       const { data: profiles, error } = await supabaseAdmin
@@ -510,13 +513,6 @@ export default async function handler(req, res) {
         .select('*')
         .order('created_at', { ascending: false });
 
-    // ---- LIST PROMPT VERSIONS ----
-    if (action === 'listPromptVersions') {
-      const { data, error } = await supabaseAdmin
-        .from('prompt_versions')
-        .select('id, version, name, description, is_active, created_by, created_at, updated_at')
-        .order('version', { ascending: false });
-
       if (error) return res.status(400).json({ error: error.message });
 
       return res.status(200).json({
@@ -538,6 +534,21 @@ export default async function handler(req, res) {
           isActive: c.is_active,
           createdAt: c.created_at
         }))
+      });
+    }
+
+    // ---- LIST PROMPT VERSIONS ----
+    if (action === 'listPromptVersions') {
+      const { data, error } = await supabaseAdmin
+        .from('prompt_versions')
+        .select('id, version, name, description, is_active, created_by, created_at, updated_at')
+        .order('version', { ascending: false });
+
+      if (error) return res.status(400).json({ error: error.message });
+
+      return res.status(200).json({
+        success: true,
+        versions: data || []
       });
     }
 
@@ -581,9 +592,11 @@ export default async function handler(req, res) {
           created_by: admin.id
         })
         .select()
+        .single();
 
-        versions: data || []
-      });
+      if (error) return res.status(400).json({ error: error.message });
+
+      return res.status(200).json({ success: true, coupon: data });
     }
 
     // ---- GET PROMPT VERSION (full content) ----
@@ -599,7 +612,7 @@ export default async function handler(req, res) {
 
       if (error) return res.status(400).json({ error: error.message });
 
-      return res.status(200).json({ success: true, coupon: data });
+      return res.status(200).json({ success: true, version: data });
     }
 
     // ---- UPDATE COUPON ----
@@ -755,10 +768,6 @@ export default async function handler(req, res) {
       }
 
       return res.status(200).json({ success: true });
-    }
-
-
-      return res.status(200).json({ success: true, version: data });
     }
 
     // ---- GET ACTIVE PROMPT VERSION ----

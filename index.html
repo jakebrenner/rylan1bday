@@ -430,6 +430,17 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
 </footer>
 
 <script>
+// ===== MAGIC LINK CATCH =====
+// Supabase magic links may land here if emailRedirectTo isn't in the allowlist.
+// Forward the hash tokens to /v2/login/ which knows how to handle them.
+(function() {
+  var h = window.location.hash;
+  if (h && h.indexOf('access_token') !== -1) {
+    var redirect = localStorage.getItem('post_login_redirect') || '';
+    var url = '/v2/login/' + (redirect ? '?redirect=' + encodeURIComponent(redirect) : '') + h;
+    window.location.replace(url);
+  }
+})();
 // ===== HERO PARTICLES =====
 var heroColors=["#E94560","#FFB74D","#4ECDC4","#A78BFA","#FF6B6B","#FFD89B"];
 var rylanFaces=[
