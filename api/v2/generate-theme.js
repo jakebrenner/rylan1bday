@@ -801,22 +801,22 @@ Return ONLY a valid JSON object with these keys:
         stream.on('end', done);
         stream.on('error', (err) => { if (!resolved) { resolved = true; clearInterval(idleCheck); reject(err); } });
 
-        // Safety: if text was flowing but stopped for 5s, assume done
+        // Safety: if text was flowing but stopped for 10s AND we have substantial content, assume done
         const idleCheck = setInterval(() => {
-          if (chunkCount > 0 && Date.now() - lastChunkTime > 5000) {
+          if (chunkCount > 0 && Date.now() - lastChunkTime > 10000 && fullText.length > 1000) {
             console.log('[stream] Idle timeout after', chunkCount, 'chunks,', fullText.length, 'bytes');
             done();
           }
         }, 1000);
 
-        // Hard timeout: 50s (leave buffer before Vercel kills function)
+        // Hard timeout: 55s (leave buffer before Vercel kills function)
         setTimeout(() => {
           if (!resolved) {
             console.log('[stream] Hard timeout at 50s, chunks:', chunkCount, 'bytes:', fullText.length);
             if (fullText.length > 0) done();
             else { resolved = true; clearInterval(idleCheck); reject(new Error('Stream timeout - no content received')); }
           }
-        }, 50000);
+        }, 55000);
       });
 
       const latency = Date.now() - startTime;
@@ -864,7 +864,7 @@ Return ONLY a valid JSON object with these keys:
         try {
           theme = JSON.parse(repaired);
         } catch (e2) {
-          throw new Error('Failed to parse theme JSON: ' + parseErr.message);
+          throw new Error('Failed to parse theme JSON: ' + parseErr.message + ' | First 300 chars: ' + themeText.substring(0, 300));
         }
       }
 
@@ -1158,7 +1158,7 @@ ${rsvpFieldsDesc}`;
       try {
         theme = JSON.parse(repaired);
       } catch (e2) {
-        throw new Error('Failed to parse theme JSON: ' + parseErr.message);
+        throw new Error('Failed to parse theme JSON: ' + parseErr.message + ' | First 300 chars: ' + themeText.substring(0, 300));
       }
     }
 
