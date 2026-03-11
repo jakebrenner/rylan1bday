@@ -2568,6 +2568,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
+        console.log('[generate-theme] Response status:', res2.status, 'Content-Type:', res2.headers.get('content-type'));
         if (res2.status === 413) {
           // Payload too large — retry without images
           console.warn('Payload too large, retrying without inspiration images');
@@ -2577,13 +2578,19 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
+          console.log('[generate-theme] Retry status:', res2.status);
         }
 
         if (!res2.ok) {
           stopGeneratingPuns();
+          console.error('[generate-theme] HTTP error:', res2.status, res2.statusText);
           // Try to parse error JSON from non-SSE error responses
           var errText = '';
-          try { var errJson = await res2.json(); errText = errJson.error || errJson.message || ''; } catch(e) {}
+          try {
+            var errBody = await res2.text();
+            console.error('[generate-theme] Error body:', errBody);
+            try { var errJson = JSON.parse(errBody); errText = errJson.error || errJson.message || ''; } catch(e) { errText = errBody; }
+          } catch(e) { console.error('[generate-theme] Could not read error body:', e); }
           if (res2.status === 403 && errText) {
             showAdditionalEventPurchase();
           } else if (themeVersions.length > 0) {
@@ -2592,20 +2599,25 @@
             document.getElementById('generatedView').style.display = 'block';
             renderPreview(themeVersions[activeVersionIndex]);
           } else {
-            showGeneratingError(errText || 'Failed to generate theme');
+            showGeneratingError(errText || 'Failed to generate theme (HTTP ' + res2.status + ')');
           }
         } else {
           // Read SSE stream from generate-theme
+          console.log('[generate-theme] Starting SSE stream read...');
           var genReader = res2.body.getReader();
           var genDecoder = new TextDecoder();
           var genBuffer = '';
           var genResult = null;
           var genError = null;
+          var genRawChunks = 0;
 
           while (true) {
             var genChunk = await genReader.read();
             if (genChunk.done) break;
-            genBuffer += genDecoder.decode(genChunk.value, { stream: true });
+            genRawChunks++;
+            var chunkText = genDecoder.decode(genChunk.value, { stream: true });
+            genBuffer += chunkText;
+            if (genRawChunks <= 3) console.log('[generate-theme] SSE chunk #' + genRawChunks + ':', chunkText.substring(0, 200));
 
             var genLines = genBuffer.split('\n');
             genBuffer = genLines.pop() || '';
@@ -2616,6 +2628,7 @@
               else if (genLine.startsWith('data: ') && genEventType) {
                 try {
                   var genEventData = JSON.parse(genLine.substring(6));
+                  console.log('[generate-theme] SSE event:', genEventType, genEventType === 'progress' ? '(' + genEventData.bytes + ' bytes)' : JSON.stringify(genEventData).substring(0, 200));
                   if (genEventType === 'progress') {
                     // Update progress bar (estimate ~20KB for a full theme)
                     var genPct = Math.min(85, Math.round((genEventData.bytes / 20000) * 85));
@@ -2626,11 +2639,13 @@
                   } else if (genEventType === 'error') {
                     genError = genEventData;
                   }
-                } catch(pe) {}
+                } catch(pe) { console.warn('[generate-theme] Failed to parse SSE data:', genLine.substring(0, 200), pe); }
                 genEventType = null;
               }
             }
           }
+
+          console.log('[generate-theme] Stream complete. Chunks:', genRawChunks, 'Result:', !!genResult, 'Error:', genError);
 
           if (genResult && genResult.success) {
             var ver = {
@@ -2662,7 +2677,8 @@
             showThemeRating(ver.id);
           } else {
             stopGeneratingPuns();
-            var errMsg = (genError && (genError.message || genError.error)) || 'Failed to generate theme';
+            console.error('[generate-theme] Generation failed. genError:', genError, 'genResult:', genResult ? JSON.stringify(genResult).substring(0, 500) : null, 'buffer remainder:', genBuffer.substring(0, 300));
+            var errMsg = (genError && (genError.message || genError.error)) || (genResult && !genResult.success ? 'Server returned failure' : 'No response received from server (stream ended without result)');
             if (themeVersions.length > 0) {
               showMessage(errMsg, 'error');
               document.getElementById('generatingView').style.display = 'none';
@@ -2674,6 +2690,7 @@
           }
         }
       } catch (err) {
+        console.error('[generate-theme] CATCH error:', err, err.stack);
         stopGeneratingPuns();
         var catchMsg = err.message || 'Error generating theme';
         if (themeVersions.length > 0) {
