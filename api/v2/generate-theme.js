@@ -1193,9 +1193,37 @@ ${rsvpFieldsDesc}`;
       }
     }
 
-    // If config is missing, create a default with Google Fonts extracted from CSS/HTML
-    if (!theme.theme_config) {
-      theme.theme_config = {};
+    // If HTML is a full document, extract body content and head styles
+    if (theme.theme_html && theme.theme_html.includes('<!DOCTYPE')) {
+      // Extract <style> from <head> if not already done
+      if (!theme.theme_css) {
+        const headStyleMatch = theme.theme_html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+        if (headStyleMatch) {
+          theme.theme_css = headStyleMatch.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+        }
+      }
+      // Extract Google Fonts <link> tags
+      const linkMatches = theme.theme_html.match(/<link[^>]*href=["'](https:\/\/fonts\.googleapis\.com\/[^"']+)["'][^>]*>/gi);
+      if (linkMatches) {
+        const fontUrl = linkMatches.map(l => { const m = l.match(/href=["']([^"']+)["']/); return m ? m[1] : null; }).filter(Boolean)[0];
+        if (fontUrl && !theme.theme_config?.googleFontsImport) {
+          if (!theme.theme_config) theme.theme_config = {};
+          theme.theme_config.googleFontsImport = fontUrl;
+        }
+      }
+      // Extract body content
+      const bodyMatch = theme.theme_html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      if (bodyMatch) {
+        theme.theme_html = bodyMatch[1].trim();
+      }
+    }
+
+    // Default empty CSS/config if still missing
+    if (!theme.theme_css) theme.theme_css = '';
+    if (!theme.theme_config) theme.theme_config = {};
+
+    // If config is missing Google Fonts, try to extract from CSS @import
+    if (!theme.theme_config.googleFontsImport) {
       const fontImportMatch = (theme.theme_css || '').match(/@import\s+url\(['"]?(https:\/\/fonts\.googleapis\.com[^'"\)]+)['"]?\)/);
       if (fontImportMatch) {
         theme.theme_config.googleFontsImport = fontImportMatch[1];
@@ -1203,9 +1231,9 @@ ${rsvpFieldsDesc}`;
       }
     }
 
-    if (!theme.theme_html || !theme.theme_css || !theme.theme_config) {
+    if (!theme.theme_html) {
       const keys = Object.keys(theme).join(', ');
-      throw new Error('Invalid theme response — missing required fields. Got keys: [' + keys + ']. First 300 chars: ' + JSON.stringify(theme).substring(0, 300));
+      throw new Error('Invalid theme response — missing theme_html. Got keys: [' + keys + ']. First 300 chars: ' + JSON.stringify(theme).substring(0, 300));
     }
 
     // Store thank you HTML in config to avoid DB schema change
