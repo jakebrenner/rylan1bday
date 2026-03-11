@@ -68,6 +68,20 @@
     .settings-card-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
     .settings-card-desc { font-size: 13px; color: #666; margin-bottom: 20px; }
 
+    /* Payment method card */
+    .pm-card { display: flex; align-items: center; gap: 14px; padding: 14px 18px; background: #f9f9f9; border-radius: 10px; margin-bottom: 12px; }
+    .pm-card-icon { font-size: 28px; flex-shrink: 0; }
+    .pm-card-info { flex: 1; }
+    .pm-card-num { font-size: 14px; font-weight: 600; font-family: monospace; }
+    .pm-card-exp { font-size: 12px; color: #888; }
+    .pm-card-actions { display: flex; gap: 8px; }
+    .pm-card-actions button { font-size: 12px; padding: 6px 12px; border-radius: 6px; border: 1px solid #ddd; background: white; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 500; transition: all 0.2s; }
+    .pm-card-actions button:hover { border-color: var(--party-coral); color: var(--party-coral); }
+    .pm-card-actions button.danger:hover { border-color: #dc3545; color: #dc3545; }
+    .pm-setup-form { border: 1px solid #eee; border-radius: 10px; padding: 16px; margin-top: 12px; }
+    .pm-setup-form #card-element { padding: 12px; border: 1px solid #ddd; border-radius: 8px; background: white; }
+    .pm-setup-form .pm-form-actions { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+
     /* Form elements */
     .form-group { margin-bottom: 20px; }
     .form-group:last-child { margin-bottom: 0; }
@@ -274,6 +288,15 @@
       </div>
     </div>
 
+    <!-- Payment Method -->
+    <div class="settings-card" id="paymentMethodCard" style="display:none;">
+      <div class="settings-card-title">Payment Method</div>
+      <div class="settings-card-desc">Manage your saved card for usage-based billing</div>
+      <div id="pmContent">
+        <div id="pmLoading" style="color:#888;font-size:13px;">Loading...</div>
+      </div>
+    </div>
+
     <!-- Billing History -->
     <div class="settings-card" id="billingHistoryCard" style="display:none;">
       <div class="settings-card-title">Billing History</div>
@@ -470,6 +493,176 @@
 
     function escapeHtml(str) { var d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
 
+    // ── Payment Method Management ──
+    var stripeInstance = null;
+    var cardElement = null;
+    var currentPaymentMethodId = null;
+
+    async function loadPaymentMethod() {
+      if (!token) return;
+      try {
+        var res = await authFetch('/api/v2/billing?action=payment-method');
+        var result = await res.json();
+        if (result.success) {
+          document.getElementById('paymentMethodCard').style.display = 'block';
+          if (result.hasPaymentMethod) {
+            currentPaymentMethodId = result.paymentMethodId;
+            renderSavedCard(result.card);
+          } else {
+            renderNoCard();
+          }
+        }
+      } catch (e) {
+        // Non-critical
+      }
+    }
+
+    function renderSavedCard(card) {
+      var brandIcons = { visa: '💳', mastercard: '💳', amex: '💳', discover: '💳' };
+      var brandNames = { visa: 'Visa', mastercard: 'Mastercard', amex: 'Amex', discover: 'Discover' };
+      var icon = brandIcons[card.brand] || '💳';
+      var name = brandNames[card.brand] || card.brand;
+      document.getElementById('pmContent').innerHTML =
+        '<div class="pm-card">'
+        + '<div class="pm-card-icon">' + icon + '</div>'
+        + '<div class="pm-card-info">'
+        + '<div class="pm-card-num">' + escapeHtml(name) + ' •••• ' + escapeHtml(card.last4) + '</div>'
+        + '<div class="pm-card-exp">Expires ' + card.expMonth + '/' + card.expYear + '</div>'
+        + '</div>'
+        + '<div class="pm-card-actions">'
+        + '<button onclick="showUpdateCard()">Update</button>'
+        + '<button class="danger" onclick="removeCard()">Remove</button>'
+        + '</div>'
+        + '</div>';
+    }
+
+    function renderNoCard() {
+      document.getElementById('pmContent').innerHTML =
+        '<div style="text-align:center;padding:16px 0;color:#888;font-size:13px;">'
+        + '<p>No payment method on file.</p>'
+        + '<button class="btn btn-secondary" style="margin-top:12px;font-size:13px;padding:8px 16px;" onclick="showUpdateCard()">Add Card</button>'
+        + '</div>';
+    }
+
+    async function showUpdateCard() {
+      // Load Stripe.js if not already loaded
+      if (!stripeInstance) {
+        var configRes = await authFetch('/api/v2/billing?action=config');
+        var configData = await configRes.json();
+        if (!window.Stripe) {
+          var script = document.createElement('script');
+          script.src = 'https://js.stripe.com/v3/';
+          script.onload = function() { initStripeForm(configData.publishableKey); };
+          document.head.appendChild(script);
+          return;
+        }
+        initStripeForm(configData.publishableKey);
+        return;
+      }
+      showCardForm();
+    }
+
+    function initStripeForm(publishableKey) {
+      stripeInstance = Stripe(publishableKey);
+      showCardForm();
+    }
+
+    async function showCardForm() {
+      // Create setup intent on the server
+      var res = await authFetch('/api/v2/billing?action=create-setup-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}'
+      });
+      var data = await res.json();
+      if (!data.success) {
+        showToast('Error setting up card form');
+        return;
+      }
+
+      var clientSecret = data.clientSecret;
+      var elements = stripeInstance.elements({ clientSecret: clientSecret });
+      cardElement = elements.create('payment');
+
+      var container = document.getElementById('pmContent');
+      var existing = container.innerHTML;
+      container.innerHTML += '<div class="pm-setup-form" id="pmSetupForm">'
+        + '<div id="card-element"></div>'
+        + '<div id="card-errors" style="color:#dc3545;font-size:12px;margin-top:8px;"></div>'
+        + '<div class="pm-form-actions">'
+        + '<button class="btn btn-secondary" style="font-size:13px;padding:8px 16px;" onclick="cancelCardUpdate()">Cancel</button>'
+        + '<button class="btn btn-primary" style="font-size:13px;padding:8px 16px;" id="pmSaveBtn" onclick="saveNewCard()">Save Card</button>'
+        + '</div></div>';
+
+      cardElement.mount('#card-element');
+      window._pmClientSecret = clientSecret;
+    }
+
+    async function saveNewCard() {
+      var btn = document.getElementById('pmSaveBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      document.getElementById('card-errors').textContent = '';
+
+      try {
+        var result = await stripeInstance.confirmSetup({
+          elements: cardElement._elements || stripeInstance.elements({ clientSecret: window._pmClientSecret }),
+          clientSecret: window._pmClientSecret,
+          confirmParams: {
+            return_url: window.location.href
+          },
+          redirect: 'if_required'
+        });
+
+        if (result.error) {
+          document.getElementById('card-errors').textContent = result.error.message;
+          btn.disabled = false;
+          btn.textContent = 'Save Card';
+          return;
+        }
+
+        // Confirm on server
+        await authFetch('/api/v2/billing?action=confirm-setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ setupIntentId: result.setupIntent.id })
+        });
+
+        showToast('Card saved successfully');
+        loadPaymentMethod();
+      } catch (e) {
+        document.getElementById('card-errors').textContent = e.message || 'Failed to save card';
+        btn.disabled = false;
+        btn.textContent = 'Save Card';
+      }
+    }
+
+    function cancelCardUpdate() {
+      var form = document.getElementById('pmSetupForm');
+      if (form) form.remove();
+    }
+
+    async function removeCard() {
+      if (!confirm('Remove this payment method? You will need to add a new card before your next usage charge.')) return;
+      try {
+        var res = await authFetch('/api/v2/billing?action=delete-payment-method', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentMethodId: currentPaymentMethodId })
+        });
+        var data = await res.json();
+        if (data.success) {
+          showToast('Card removed');
+          currentPaymentMethodId = null;
+          renderNoCard();
+        } else {
+          showToast('Error: ' + (data.error || 'Failed to remove card'));
+        }
+      } catch (e) {
+        showToast('Error removing card');
+      }
+    }
+
     function handleDeleteAccount() {
       if (!confirm('Are you sure you want to delete your account? This action cannot be undone and will permanently remove all your events and data.')) return;
       showToast('Account deletion coming soon. Please contact support.');
@@ -503,8 +696,9 @@
           await refreshToken();
         }
       } catch (err) {}
-      // Load billing data after auth is confirmed
+      // Load billing data and payment method after auth is confirmed
       loadBillingData();
+      loadPaymentMethod();
     })();
 
     // Enter key support

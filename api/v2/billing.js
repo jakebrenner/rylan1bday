@@ -400,6 +400,94 @@ export default async function handler(req, res) {
       }
     }
 
+    // ---- CREATE SETUP INTENT (update/add payment method) ----
+    if (action === 'create-setup-intent') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('stripe_customer_id')
+        .eq('id', user.id)
+        .single();
+
+      let customerId = profile?.stripe_customer_id;
+
+      // Create Stripe customer if they don't have one
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          metadata: { supabase_user_id: user.id }
+        });
+        customerId = customer.id;
+        await supabaseAdmin
+          .from('profiles')
+          .update({ stripe_customer_id: customerId })
+          .eq('id', user.id);
+      }
+
+      const setupIntent = await stripe.setupIntents.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+        metadata: { supabase_user_id: user.id }
+      });
+
+      return res.status(200).json({
+        success: true,
+        clientSecret: setupIntent.client_secret
+      });
+    }
+
+    // ---- CONFIRM SETUP INTENT (after Stripe Elements completes) ----
+    if (action === 'confirm-setup') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { setupIntentId } = req.body || {};
+      if (!setupIntentId) return res.status(400).json({ error: 'setupIntentId required' });
+
+      const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
+
+      if (setupIntent.status !== 'succeeded') {
+        return res.status(400).json({ error: 'Setup intent not completed', status: setupIntent.status });
+      }
+
+      // Set as default payment method for the customer
+      if (setupIntent.customer && setupIntent.payment_method) {
+        await stripe.customers.update(setupIntent.customer, {
+          invoice_settings: { default_payment_method: setupIntent.payment_method }
+        });
+      }
+
+      return res.status(200).json({ success: true });
+    }
+
+    // ---- DELETE PAYMENT METHOD ----
+    if (action === 'delete-payment-method') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { paymentMethodId } = req.body || {};
+      if (!paymentMethodId) return res.status(400).json({ error: 'paymentMethodId required' });
+
+      // Verify this payment method belongs to the user
+      const { data: pmProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('stripe_customer_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!pmProfile?.stripe_customer_id) {
+        return res.status(400).json({ error: 'No Stripe customer found' });
+      }
+
+      const pm = await stripe.paymentMethods.retrieve(paymentMethodId);
+      if (pm.customer !== pmProfile.stripe_customer_id) {
+        return res.status(403).json({ error: 'Payment method does not belong to this user' });
+      }
+
+      await stripe.paymentMethods.detach(paymentMethodId);
+
+      return res.status(200).json({ success: true });
+    }
+
     // ---- QUICK CHARGE (saved card) ----
     if (action === 'quick-charge') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });

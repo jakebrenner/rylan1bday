@@ -13,6 +13,20 @@ const DEFAULT_THEME_MODEL = process.env.THEME_MODEL || 'claude-sonnet-4-6';
 // Allow up to 300s on Vercel Pro (caps at 60s on Hobby)
 export const config = { maxDuration: 300 };
 
+// AI model pricing per 1M tokens (must match billing.js)
+const AI_MODEL_PRICING = {
+  'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00 },
+  'claude-sonnet-4-6': { input: 3.00, output: 15.00 },
+  'claude-opus-4-6': { input: 15.00, output: 75.00 },
+};
+
+function calcGenerationCost(model, inputTokens, outputTokens, markupPct = 50) {
+  const pricing = AI_MODEL_PRICING[model] || { input: 3.00, output: 15.00 };
+  const rawCost = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
+  const withMarkup = rawCost * (1 + markupPct / 100);
+  return { rawCostCents: Math.round(rawCost * 100), totalCostCents: Math.round(withMarkup * 100) };
+}
+
 // Fetch images from URLs and convert to base64 for Claude vision
 async function fetchImagesAsBase64(urls) {
   const results = [];
@@ -1030,7 +1044,8 @@ Return ONLY a valid JSON object with these keys:
       }, 3000);
 
       // Use .on('text') (proven to work) + resolve on 'finalMessage' event
-      // Fallback: idle timeout resolves if no text for 5s after text started
+      // Capture finalMessage to get token usage for cost tracking
+      let tweakFinalMessage = null;
       await new Promise((resolve, reject) => {
         let resolved = false;
         let lastChunkTime = Date.now();
@@ -1044,7 +1059,7 @@ Return ONLY a valid JSON object with these keys:
             sendSSE('progress', { chunks: chunkCount, bytes: fullText.length });
           }
         });
-        stream.on('finalMessage', done);
+        stream.on('finalMessage', (msg) => { tweakFinalMessage = msg; done(); });
         stream.on('end', done);
         stream.on('error', (err) => { if (!resolved) { resolved = true; clearInterval(idleCheck); clearInterval(keepalive); reject(err); } });
 
@@ -1066,6 +1081,8 @@ Return ONLY a valid JSON object with these keys:
         }, 120000);
       });
 
+      const tweakInputTokens = tweakFinalMessage?.usage?.input_tokens || 0;
+      const tweakOutputTokens = tweakFinalMessage?.usage?.output_tokens || 0;
       const latency = Date.now() - startTime;
 
       sendSSE('status', { phase: 'saving' });
@@ -1127,12 +1144,19 @@ Return ONLY a valid JSON object with these keys:
       }
 
       // Send result to client FIRST — Vercel may kill us before DB saves complete
+      const tweakCost = calcGenerationCost(tweakModel, tweakInputTokens, tweakOutputTokens);
       sendSSE('done', {
         success: true,
         theme: { id: 'pending', version: 0, html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
         chatResponse: theme.chat_response || null,
         rsvpFieldChanges: theme.rsvp_field_changes || null,
-        isLightTweak
+        isLightTweak,
+        metadata: {
+          model: tweakModel,
+          latencyMs: latency,
+          tokens: { input: tweakInputTokens, output: tweakOutputTokens },
+          cost: tweakCost
+        }
       });
 
       // Save as new version (best-effort — client already has the theme)
@@ -1156,8 +1180,8 @@ Return ONLY a valid JSON object with these keys:
           event_id: eventId, version: nextVersion, is_active: true,
           prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
           html: theme.theme_html, css: theme.theme_css, config: tweakConfig,
-          model: themeModel, input_tokens: 0,
-          output_tokens: 0, latency_ms: latency
+          model: tweakModel, input_tokens: tweakInputTokens,
+          output_tokens: tweakOutputTokens, latency_ms: latency
         };
         let { error: tweakThemeError } = await supabase
           .from('event_themes').insert(tweakInsert).select().single();
@@ -1166,8 +1190,8 @@ Return ONLY a valid JSON object with these keys:
         const tweakMeta = getClientMeta(req);
         supabase.from('generation_log').insert({
           event_id: eventId, user_id: user.id, prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
-          model: tweakModel, input_tokens: 0,
-          output_tokens: 0, latency_ms: latency, status: 'success',
+          model: tweakModel, input_tokens: tweakInputTokens,
+          output_tokens: tweakOutputTokens, latency_ms: latency, status: 'success',
           is_tweak: true, event_type: eventDetails?.eventType || '',
           client_ip: tweakMeta.ip, client_geo: tweakMeta.geo, user_agent: tweakMeta.userAgent
         }).catch(() => {});
@@ -1346,7 +1370,8 @@ This is the most common failure mode. Double-check it.`;
     }, 3000);
 
     // Use .on('text') (proven to work) + resolve on 'finalMessage' event
-    // Fallback: idle timeout resolves if no text for 5s after text started
+    // Capture finalMessage to get token usage for cost tracking
+    let genFinalMessage = null;
     await new Promise((resolve, reject) => {
       let resolved = false;
       let lastChunkTime = Date.now();
@@ -1360,7 +1385,7 @@ This is the most common failure mode. Double-check it.`;
           sendSSE('progress', { chunks: chunkCount, bytes: fullText.length });
         }
       });
-      stream.on('finalMessage', done);
+      stream.on('finalMessage', (msg) => { genFinalMessage = msg; done(); });
       stream.on('end', done);
       stream.on('error', (err) => { if (!resolved) { resolved = true; clearInterval(idleCheck); clearInterval(keepalive); reject(err); } });
 
@@ -1383,6 +1408,8 @@ This is the most common failure mode. Double-check it.`;
       }, 120000);
     });
 
+    const genInputTokens = genFinalMessage?.usage?.input_tokens || 0;
+    const genOutputTokens = genFinalMessage?.usage?.output_tokens || 0;
     const latency = Date.now() - startTime;
 
     sendSSE('status', { phase: 'saving' });
@@ -1414,6 +1441,7 @@ This is the most common failure mode. Double-check it.`;
     // CRITICAL: Send theme to client IMMEDIATELY before DB saves.
     // Vercel may kill the function at 60s — the user must have their invite first.
     // DB saves happen after; if they fail, the user still sees the invite (it just won't be persisted).
+    const genCost = calcGenerationCost(themeModel, genInputTokens, genOutputTokens);
     sendSSE('done', {
       success: true,
       theme: {
@@ -1427,9 +1455,10 @@ This is the most common failure mode. Double-check it.`;
         model: themeModel,
         latencyMs: latency,
         tokens: {
-          input: 0,
-          output: 0
-        }
+          input: genInputTokens,
+          output: genOutputTokens
+        },
+        cost: genCost
       }
     });
 
@@ -1459,8 +1488,8 @@ This is the most common failure mode. Double-check it.`;
         css: theme.theme_css,
         config: theme.theme_config,
         model: themeModel,
-        input_tokens: 0,
-        output_tokens: 0,
+        input_tokens: genInputTokens,
+        output_tokens: genOutputTokens,
         latency_ms: latency,
         prompt_version_id: activePrompt.promptVersionId || null
       };
@@ -1477,8 +1506,8 @@ This is the most common failure mode. Double-check it.`;
       const genMeta = getClientMeta(req);
       supabase.from('generation_log').insert({
         event_id: eventId, user_id: user.id, prompt: effectivePrompt,
-        model: themeModel, input_tokens: 0,
-        output_tokens: 0, latency_ms: latency,
+        model: themeModel, input_tokens: genInputTokens,
+        output_tokens: genOutputTokens, latency_ms: latency,
         status: 'success', event_type: eventType, style_library_ids: usedStyleIds,
         prompt_version_id: activePrompt.promptVersionId || null,
         client_ip: genMeta.ip, client_geo: genMeta.geo, user_agent: genMeta.userAgent

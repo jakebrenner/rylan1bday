@@ -285,6 +285,24 @@
     @keyframes loaderBounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
     .design-chat-loader .loader-pun { font-size: 14px; color: #666; font-style: italic; min-height: 20px; transition: opacity 0.3s ease; }
 
+    /* Generation cost tracker */
+    .cost-tracker { background: white; border: 1px solid #eee; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px; transition: all 0.3s; }
+    .cost-tracker.hidden { display: none; }
+    .cost-tracker-row { display: flex; justify-content: space-between; align-items: center; }
+    .cost-tracker-label { color: #888; font-weight: 500; }
+    .cost-tracker-value { font-weight: 700; color: var(--midnight); }
+    .cost-tracker-details { margin-top: 8px; padding-top: 8px; border-top: 1px solid #f0f0f0; display: none; }
+    .cost-tracker-details.open { display: block; }
+    .cost-tracker-line { display: flex; justify-content: space-between; padding: 3px 0; color: #888; font-size: 11px; }
+    .cost-tracker-line .ct-val { color: var(--midnight); font-weight: 600; }
+    .cost-threshold-bar { height: 4px; background: #f0f0f0; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+    .cost-threshold-fill { height: 100%; border-radius: 2px; transition: width 0.5s, background 0.3s; }
+    .cost-tracker-toggle { background: none; border: none; cursor: pointer; font-size: 10px; color: #aaa; padding: 0; margin-left: 8px; }
+    .cost-flash { animation: costFlash 0.6s ease; }
+    @keyframes costFlash { 0% { background: #fff3cd; } 100% { background: white; } }
+    .cost-warning { background: #fff3cd; border-color: #ffc107; }
+    .cost-warning .cost-tracker-value { color: #856404; }
+
     /* Generating page styles */
     .gen-container { max-width: 480px; margin: 0 auto; padding: 32px 20px; text-align: center; }
     .gen-emoji-float { font-size: 48px; animation: genFloat 3s ease-in-out infinite; }
@@ -526,6 +544,30 @@
           <!-- Left: Tabbed panel (chat, details, versions) -->
           <div id="editPanel" style="flex:1;min-width:280px;max-width:440px;display:flex;flex-direction:column;">
 
+            <!-- Generation cost tracker (visible for usage-plan users) -->
+            <div id="costTracker" class="cost-tracker hidden">
+              <div class="cost-tracker-row">
+                <span class="cost-tracker-label">Session Cost</span>
+                <span>
+                  <span class="cost-tracker-value" id="costTrackerTotal">$0.00</span>
+                  <button class="cost-tracker-toggle" id="costTrackerToggle" onclick="toggleCostDetails()">&#9662;</button>
+                </span>
+              </div>
+              <div class="cost-tracker-details" id="costTrackerDetails">
+                <div class="cost-tracker-line"><span>This generation</span><span class="ct-val" id="costLastGen">$0.00</span></div>
+                <div class="cost-tracker-line"><span>Generations</span><span class="ct-val" id="costGenCount">0</span></div>
+                <div class="cost-tracker-line" style="margin-top:4px;padding-top:4px;border-top:1px solid #f0f0f0;">
+                  <span>Unbilled balance</span><span class="ct-val" id="costUnbilled">$0.00</span>
+                </div>
+                <div class="cost-threshold-bar">
+                  <div class="cost-threshold-fill" id="costThresholdFill" style="width:0%;background:var(--mint-fizz);"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;color:#aaa;margin-top:2px;">
+                  <span>$0</span><span id="costThresholdLabel">Auto-charge at $5.00</span>
+                </div>
+              </div>
+            </div>
+
             <div style="background:white;border:1px solid #eee;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);display:flex;flex-direction:column;overflow:hidden;height:100%;">
               <div style="display:flex;gap:8px;margin-bottom:16px;">
                 <button class="btn btn-secondary" onclick="openLivePreview()" style="flex:1;font-size:13px;padding:10px 12px;">View Live Preview</button>
@@ -658,6 +700,14 @@
     let chatBubbles = []; // [{text, role}] for UI rebuild on restore
     var chatPhase = 'chatting'; // 'chatting' | 'confirmed' | 'styling'
     var currentPreviewMode = 'invite';
+
+    // Cost tracking state
+    var sessionCostCents = 0;
+    var sessionGenCount = 0;
+    var lastGenCostCents = 0;
+    var usagePlanUser = false;
+    var userThresholdCents = 500;
+    var userUnbilledCents = 0;
 
     var ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp'];
     var ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.heic', '.heif', '.webp'];
@@ -799,6 +849,7 @@
           renderPreview(themeVersions[activeVersionIndex]);
           renderVersionGallery();
           goToStep(2);
+          initCostTracker();
           // Still fetch fresh data in background to update event details
           authFetch('/api/v2/events?action=get&eventId=' + encodeURIComponent(resumeId)).then(function(res) {
             return res.json();
@@ -2746,6 +2797,9 @@
             renderPreview(ver);
             renderVersionGallery();
             initDesignChatIfNeeded();
+            // Track generation cost
+            if (genResult.metadata) updateCostFromGeneration(genResult.metadata);
+            if (sessionGenCount <= 1) initCostTracker();
             // Persist creation_step so resume returns to preview
             if (currentEvent) {
               authFetch('/api/v2/events?action=update', {
@@ -2965,6 +3019,78 @@
       } else {
         document.getElementById('previewFrame').srcdoc = buildSrcdoc(ver);
       }
+    }
+
+    // ── Cost tracking functions ──
+    async function initCostTracker() {
+      if (!token) return;
+      try {
+        var res = await authFetch('/api/v2/billing?action=usage_summary');
+        if (!res.ok) return;
+        var data = await res.json();
+        if (!data.success || !data.usage) return;
+        var u = data.usage;
+        // Only show cost tracker for usage-plan users
+        if (u.ai.unbilledCount === 0 && u.threshold.cents === 0) return;
+        usagePlanUser = true;
+        userThresholdCents = u.threshold.cents || 500;
+        userUnbilledCents = u.afterCreditsCents || 0;
+        updateCostTrackerUI();
+        document.getElementById('costTracker').classList.remove('hidden');
+      } catch (e) {
+        // Non-critical — cost tracker just won't show
+      }
+    }
+
+    function updateCostFromGeneration(metadata) {
+      if (!metadata || !metadata.cost) return;
+      lastGenCostCents = metadata.cost.totalCostCents || 0;
+      sessionCostCents += lastGenCostCents;
+      sessionGenCount++;
+      userUnbilledCents += lastGenCostCents;
+      if (usagePlanUser) {
+        document.getElementById('costTracker').classList.remove('hidden');
+        updateCostTrackerUI();
+        // Flash animation
+        var el = document.getElementById('costTracker');
+        el.classList.remove('cost-flash');
+        void el.offsetWidth;
+        el.classList.add('cost-flash');
+        // Threshold warning
+        if (userUnbilledCents > userThresholdCents * 0.8) {
+          el.classList.add('cost-warning');
+        } else {
+          el.classList.remove('cost-warning');
+        }
+      }
+    }
+
+    function updateCostTrackerUI() {
+      document.getElementById('costTrackerTotal').textContent = formatCents(sessionCostCents);
+      document.getElementById('costLastGen').textContent = formatCents(lastGenCostCents);
+      document.getElementById('costGenCount').textContent = sessionGenCount;
+      document.getElementById('costUnbilled').textContent = formatCents(userUnbilledCents);
+      var pct = userThresholdCents > 0 ? Math.min(100, Math.round(userUnbilledCents / userThresholdCents * 100)) : 0;
+      var fill = document.getElementById('costThresholdFill');
+      fill.style.width = pct + '%';
+      fill.style.background = pct >= 80 ? 'var(--party-coral)' : pct >= 50 ? 'var(--confetti-gold)' : 'var(--mint-fizz)';
+      document.getElementById('costThresholdLabel').textContent = 'Auto-charge at ' + formatCents(userThresholdCents);
+    }
+
+    function toggleCostDetails() {
+      var el = document.getElementById('costTrackerDetails');
+      var btn = document.getElementById('costTrackerToggle');
+      if (el.classList.contains('open')) {
+        el.classList.remove('open');
+        btn.innerHTML = '&#9662;';
+      } else {
+        el.classList.add('open');
+        btn.innerHTML = '&#9652;';
+      }
+    }
+
+    function formatCents(cents) {
+      return '$' + (cents / 100).toFixed(2);
     }
 
     function renderVersionGallery() {
@@ -3906,6 +4032,8 @@
             // Update sessionStorage cache
             try { if (currentEvent) sessionStorage.setItem('ryvite_theme_' + currentEvent.id, JSON.stringify(themeVersions)); } catch(e) {}
             var chatMsg = (tweakResult.chatResponse || tweakResult.chat_response || 'Done! I\'ve updated the design. Take a look at the preview.') + '\n\nWant to make any more changes?';
+            // Track tweak cost
+            if (tweakResult.metadata) updateCostFromGeneration(tweakResult.metadata);
             designChatHistory.push({ role: 'assistant', content: chatMsg });
           } else if (tweakError) {
             designChatHistory.push({ role: 'assistant', content: 'Sorry, I had trouble with that change: ' + (tweakError.message || tweakError.error || 'Unknown error') + '. Could you try rephrasing?' });
