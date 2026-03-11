@@ -3078,31 +3078,23 @@
 
     // ── Cost tracking functions ──
     async function initCostTracker() {
-      if (!token) return;
+      if (!token || !currentEvent || !currentEvent.id) return;
       try {
-        // Check if user is on a usage plan
-        var res = await authFetch('/api/v2/billing?action=usage_summary');
-        if (!res.ok) return;
-        var data = await res.json();
-        if (!data.success || !data.usage) return;
-        var u = data.usage;
-        if (u.ai.unbilledCount === 0 && u.threshold.cents === 0) return;
+        // Load per-event cumulative cost from DB
+        var costRes = await authFetch('/api/v2/billing?action=event_cost&eventId=' + encodeURIComponent(currentEvent.id));
+        if (!costRes.ok) return;
+        var costData = await costRes.json();
+        if (!costData.success) return;
+
+        eventCostCents = costData.totalCostCents || 0;
+        eventGenCount = costData.generationCount || 0;
         usagePlanUser = true;
 
-        // Load per-event cumulative cost from DB
-        if (currentEvent && currentEvent.id) {
-          var costRes = await authFetch('/api/v2/billing?action=event_cost&eventId=' + encodeURIComponent(currentEvent.id));
-          if (costRes.ok) {
-            var costData = await costRes.json();
-            if (costData.success) {
-              eventCostCents = costData.totalCostCents || 0;
-              eventGenCount = costData.generationCount || 0;
-            }
-          }
-        }
-
         updateCostTrackerUI();
-        document.getElementById('costTracker').classList.remove('hidden');
+        // Show tracker if there are any costs
+        if (eventCostCents > 0 || eventGenCount > 0) {
+          document.getElementById('costTracker').classList.remove('hidden');
+        }
       } catch (e) {
         // Non-critical — cost tracker just won't show
       }

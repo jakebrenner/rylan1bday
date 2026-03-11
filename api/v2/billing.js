@@ -783,15 +783,17 @@ export default async function handler(req, res) {
         return res.status(403).json({ success: false, error: 'Not your event' });
       }
 
-      // Get markup from user's active usage plan
-      const { data: usageSub } = await supabaseAdmin
+      // Get markup from user's active usage plan (default 50% if no plan found)
+      let markupPct = 50;
+      const { data: usageSubs } = await supabaseAdmin
         .from('subscriptions')
-        .select('*, plans:plan_id (ai_markup_pct)')
+        .select('plans:plan_id (ai_markup_pct)')
         .eq('user_id', user.id)
         .eq('status', 'active')
-        .limit(1)
-        .single();
-      const markupPct = usageSub?.plans?.ai_markup_pct || 50;
+        .limit(1);
+      if (usageSubs && usageSubs.length > 0 && usageSubs[0].plans?.ai_markup_pct) {
+        markupPct = usageSubs[0].plans.ai_markup_pct;
+      }
 
       // Sum all generations for this event
       const { data: gens } = await supabaseAdmin
