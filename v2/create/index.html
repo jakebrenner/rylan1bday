@@ -173,7 +173,8 @@
     /* Responsive phone sizing */
     @media (max-width: 900px) {
       [data-step="2"] > div > div:first-child > div:first-child { flex-direction: column; align-items: center; }
-      #editPanel { max-width: 100% !important; min-width: 0 !important; width: 100%; }
+      #editPanel { max-width: 100% !important; min-width: 0 !important; width: 100%; order: 2; }
+      #previewColumn { order: 1; width: 100%; display: flex; flex-direction: column; align-items: center; }
     }
     @media (max-width: 640px) {
       .phone-mockup { width: 280px; }
@@ -588,7 +589,7 @@
             </div>
           </div>
           <!-- Right: Phone preview -->
-          <div style="flex:0 0 auto;">
+          <div id="previewColumn" style="flex:0 0 auto;">
             <div id="previewToggle" style="display:flex;justify-content:center;gap:4px;margin-bottom:8px;">
               <button class="preview-toggle-btn active" onclick="setPreviewMode('invite')">Invite</button>
               <button class="preview-toggle-btn" onclick="setPreviewMode('thankyou')">Thank You</button>
@@ -605,6 +606,13 @@
                   <iframe id="previewFrame"></iframe>
                 </div>
                 <div class="phone-home-bar"></div>
+              </div>
+            </div>
+            <!-- Mobile action buttons below preview -->
+            <div id="mobilePreviewActions" style="display:none;margin-top:16px;width:100%;max-width:360px;">
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-primary" onclick="nextStep()" style="flex:1;font-size:14px;padding:12px;">Publish</button>
+                <button class="btn btn-secondary" onclick="retryGenerate()" style="flex:1;font-size:14px;padding:12px;">Regenerate</button>
               </div>
             </div>
           </div>
@@ -761,7 +769,56 @@
       // Resume existing draft if ?eventId= is in the URL
       var resumeId = urlParams.get('eventId');
       if (resumeId) {
-        // Immediately show loading state instead of step 1 chat
+        // Fast path: if we have cached themes in sessionStorage, show them instantly
+        var cachedThemes = null;
+        try { cachedThemes = JSON.parse(sessionStorage.getItem('ryvite_theme_' + resumeId)); } catch(e) {}
+        if (cachedThemes && cachedThemes.length > 0) {
+          document.querySelector('.chat-container').style.display = 'none';
+          var resumeStep3 = document.querySelector('.container .step[data-step="2"]');
+          resumeStep3.classList.add('active');
+          currentEvent = { id: resumeId, slug: null }; // Minimal — background fetch fills in full data
+          themeVersions = cachedThemes;
+          activeVersionIndex = cachedThemes.findIndex(function(t) { return t.isActive; });
+          if (activeVersionIndex < 0) activeVersionIndex = cachedThemes.length - 1;
+          var genView = document.getElementById('generatingView');
+          genView.style.display = 'none';
+          document.getElementById('generatedView').style.display = 'block';
+          renderPreview(themeVersions[activeVersionIndex]);
+          renderVersionGallery();
+          goToStep(2);
+          // Still fetch fresh data in background to update event details
+          authFetch('/api/v2/events?action=get&eventId=' + encodeURIComponent(resumeId)).then(function(res) {
+            return res.json();
+          }).then(function(result) {
+            if (result.success && result.event) {
+              var ev = result.event;
+              currentEvent = { id: ev.id, slug: ev.slug };
+              extractedData = {
+                title: ev.title || '', eventType: ev.eventType || 'other',
+                startDate: ev.eventDate || '', endDate: ev.endDate || '',
+                locationName: ev.locationName || '', locationAddress: ev.locationAddress || '',
+                dressCode: ev.dressCode || '', description: ev.description || '', prompt: ''
+              };
+              if (ev.customFields && ev.customFields.length > 0) {
+                rsvpFields = ev.customFields.map(function(f) {
+                  return { field_key: f.key, label: f.label, field_type: f.type, is_required: f.required, options: f.options, placeholder: f.placeholder, enabled: true };
+                });
+              }
+              // Update themes if server has newer data
+              if (ev.themeVersions && ev.themeVersions.length > 0) {
+                themeVersions = ev.themeVersions;
+                activeVersionIndex = ev.themeVersions.findIndex(function(t) { return t.isActive; });
+                if (activeVersionIndex < 0) activeVersionIndex = ev.themeVersions.length - 1;
+                renderPreview(themeVersions[activeVersionIndex]);
+                renderVersionGallery();
+                sessionStorage.setItem('ryvite_theme_' + ev.id, JSON.stringify(themeVersions));
+              }
+              initDesignChatIfNeeded(false);
+            }
+          }).catch(function(e) { console.warn('Background refresh failed:', e); });
+          return;
+        }
+        // Slow path: no cache, show loading state
         document.querySelector('.chat-container').style.display = 'none';
         var resumeStep3 = document.querySelector('.container .step[data-step="2"]');
         resumeStep3.classList.add('active');
@@ -839,6 +896,8 @@
               renderVersionGallery();
               initDesignChatIfNeeded(false);
               goToStep(2);
+              // Cache themes for fast reload
+              try { sessionStorage.setItem('ryvite_theme_' + ev.id, JSON.stringify(themeVersions)); } catch(e2) {}
             } else {
               // Has details but no theme — go straight to generation (step 2)
               // goToStep(2) auto-triggers generateTheme() when no themes exist
@@ -2379,6 +2438,7 @@
         document.getElementById('generatedView').style.display = 'block';
         renderPreview(themeVersions[activeVersionIndex]);
         renderVersionGallery();
+        updateMobileLayout();
       }
       if (step === 3) {
         showSummary();
@@ -2390,6 +2450,44 @@
         }
       }
     }
+
+    function updateMobileLayout() {
+      var isMobile = window.innerWidth <= 900;
+      var mobileActions = document.getElementById('mobilePreviewActions');
+      var editPanel = document.getElementById('editPanel');
+      var generatedView = document.getElementById('generatedView');
+      if (!mobileActions || !generatedView) return;
+      var isGenerated = generatedView.style.display !== 'none';
+      mobileActions.style.display = (isMobile && isGenerated) ? 'block' : 'none';
+      // On mobile, collapse edit panel by default so phone preview is hero
+      if (editPanel && isMobile && isGenerated) {
+        editPanel.style.display = editPanel.dataset.mobileCollapsed === 'false' ? '' : 'none';
+        // Show a toggle to expand/collapse
+        var toggle = document.getElementById('mobileEditToggle');
+        if (!toggle) {
+          toggle = document.createElement('button');
+          toggle.id = 'mobileEditToggle';
+          toggle.className = 'btn btn-secondary';
+          toggle.style.cssText = 'width:100%;max-width:360px;margin-top:8px;font-size:13px;padding:10px;';
+          toggle.textContent = 'Edit Details & Design';
+          toggle.onclick = function() {
+            var collapsed = editPanel.style.display === 'none';
+            editPanel.style.display = collapsed ? '' : 'none';
+            editPanel.dataset.mobileCollapsed = collapsed ? 'false' : 'true';
+            toggle.textContent = collapsed ? 'Hide Editor' : 'Edit Details & Design';
+            if (collapsed) editPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          };
+          mobileActions.appendChild(toggle);
+        }
+        toggle.style.display = isMobile ? 'block' : 'none';
+      } else if (editPanel && !isMobile) {
+        editPanel.style.display = '';
+        editPanel.dataset.mobileCollapsed = '';
+        var toggle = document.getElementById('mobileEditToggle');
+        if (toggle) toggle.style.display = 'none';
+      }
+    }
+    window.addEventListener('resize', updateMobileLayout);
 
     function nextStep() { if (currentStep < totalSteps) goToStep(currentStep + 1); }
     function previousStep() { if (currentStep > 1) goToStep(currentStep - 1); }
@@ -2671,6 +2769,9 @@
             }
 
             showThemeRating(ver.id);
+            updateMobileLayout();
+            // Cache theme in sessionStorage for fast reload
+            try { sessionStorage.setItem('ryvite_theme_' + currentEvent.id, JSON.stringify(themeVersions)); } catch(e) {}
           } else {
             stopGeneratingPuns();
             console.error('[generate-theme] Generation failed. genError:', genError, 'genResult:', genResult ? JSON.stringify(genResult).substring(0, 500) : null, 'buffer remainder:', genBuffer.substring(0, 300));
@@ -3531,6 +3632,8 @@
             currentEvent.themeConfig = newVer.config;
             renderPreview(newVer);
             renderVersionGallery();
+            // Update sessionStorage cache
+            try { if (currentEvent) sessionStorage.setItem('ryvite_theme_' + currentEvent.id, JSON.stringify(themeVersions)); } catch(e) {}
             var chatMsg = (tweakResult.chatResponse || tweakResult.chat_response || 'Done! I\'ve updated the design. Take a look at the preview.') + '\n\nWant to make any more changes?';
             designChatHistory.push({ role: 'assistant', content: chatMsg });
           } else if (tweakError) {
