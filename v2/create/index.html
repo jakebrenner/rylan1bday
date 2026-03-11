@@ -2919,7 +2919,20 @@
         + '  var overrides = ' + JSON.stringify(detailOverrides) + ';'
         + '  Object.keys(overrides).forEach(function(key) {'
         + '    var el = document.querySelector("[data-field=\\"" + key + "\\"]");'
-        + '    if (el) el.innerHTML = overrides[key];'
+        + '    if (!el) return;'
+        // Preserve text color: capture the computed color from the element or its first
+        // styled child before replacing innerHTML, then re-apply it. This prevents the
+        // "flash of wrong color" when AI puts color on child elements that get stripped.
+        + '    var cs = window.getComputedStyle(el);'
+        + '    var origColor = cs.color;'
+        // Also check first child — AI often puts color on a span/p inside the data-field container
+        + '    if (el.firstElementChild) {'
+        + '      var childColor = window.getComputedStyle(el.firstElementChild).color;'
+        + '      if (childColor !== origColor) origColor = childColor;'
+        + '    }'
+        + '    el.innerHTML = overrides[key];'
+        // Re-apply the color to the container so the new plain text inherits it
+        + '    if (origColor && !el.style.color) el.style.color = origColor;'
         + '  });'
         + '  var dc = document.querySelector("[data-field=\\"dresscode\\"]");'
         + '  if (dc && !overrides.dresscode) { dc.style.display = "none"; }'
