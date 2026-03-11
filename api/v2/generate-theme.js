@@ -868,8 +868,15 @@ Return ONLY a valid JSON object with these keys:
         }
       }
 
+      // Accept both snake_case and camelCase keys from Claude
+      if (!theme.theme_html && theme.html) { theme.theme_html = theme.html; }
+      if (!theme.theme_css && theme.css) { theme.theme_css = theme.css; }
+      if (!theme.theme_config && theme.config) { theme.theme_config = theme.config; }
+      if (!theme.theme_thankyou_html && theme.thankyou_html) { theme.theme_thankyou_html = theme.thankyou_html; }
+
       if (!theme.theme_html || !theme.theme_css) {
-        throw new Error('Invalid tweak response');
+        const keys = Object.keys(theme).join(', ');
+        throw new Error('Invalid tweak response — got keys: [' + keys + ']');
       }
 
       // Merge config — use null for unchanged thank you page
@@ -1162,8 +1169,15 @@ ${rsvpFieldsDesc}`;
       }
     }
 
+    // Accept both snake_case and camelCase keys from Claude
+    if (!theme.theme_html && theme.html) { theme.theme_html = theme.html; }
+    if (!theme.theme_css && theme.css) { theme.theme_css = theme.css; }
+    if (!theme.theme_config && theme.config) { theme.theme_config = theme.config; }
+    if (!theme.theme_thankyou_html && theme.thankyou_html) { theme.theme_thankyou_html = theme.thankyou_html; }
+
     if (!theme.theme_html || !theme.theme_css || !theme.theme_config) {
-      throw new Error('Invalid theme response from Claude');
+      const keys = Object.keys(theme).join(', ');
+      throw new Error('Invalid theme response — missing required fields. Got keys: [' + keys + ']. First 300 chars: ' + JSON.stringify(theme).substring(0, 300));
     }
 
     // Store thank you HTML in config to avoid DB schema change
