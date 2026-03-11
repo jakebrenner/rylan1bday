@@ -993,6 +993,13 @@
       var text = input.value.trim();
       if (!text) return;
 
+      // Easter egg: test mode — skip chat, populate fake data, jump to generate
+      if (text === 'engage_test_mode' && chatHistory.length === 0) {
+        input.value = '';
+        runTestMode();
+        return;
+      }
+
       input.value = '';
       addChatBubble(text, 'user');
       chatHistory.push({ role: 'user', content: text });
@@ -1075,6 +1082,77 @@
       sendBtn.disabled = false;
       input.disabled = false;
       input.focus();
+    }
+
+    async function runTestMode() {
+      var delay = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
+
+      addChatBubble('engage_test_mode', 'user');
+      await delay(300);
+      addChatBubble('🧪 Test mode activated! Simulating event creation...', 'assistant');
+      await delay(400);
+
+      // Simulate user describing an event
+      addChatBubble('I\'m throwing a birthday party for my daughter Emma. She\'s turning 7 on April 15th at Sunshine Park from 2-5pm. It\'s a rainbow unicorn theme!', 'user');
+      await delay(500);
+
+      // Populate extracted data
+      extractedData = {
+        title: 'Emma\'s 7th Birthday Party',
+        eventType: 'kidsBirthday',
+        startDate: '2026-04-15T14:00:00',
+        endDate: '2026-04-15T17:00:00',
+        locationName: 'Sunshine Park',
+        locationAddress: '123 Rainbow Lane',
+        dressCode: 'Casual & colorful',
+        description: 'Rainbow unicorn themed birthday party for Emma\'s 7th birthday! Join us for cake, games, and magical fun.',
+        prompt: 'Whimsical rainbow unicorn theme with sparkles, pastel colors, and playful typography'
+      };
+
+      rsvpFields = [
+        { field_key: 'email', label: 'Email', field_type: 'email', is_required: false, options: null, placeholder: 'your@email.com', enabled: true },
+        { field_key: 'dietary_restrictions', label: 'Dietary Restrictions', field_type: 'text', is_required: false, options: null, placeholder: 'Any allergies or dietary needs?', enabled: true },
+        { field_key: 'number_of_kids', label: 'Number of Kids Attending', field_type: 'number', is_required: true, options: null, placeholder: '1', enabled: true }
+      ];
+
+      // Fake chat history so it looks like a real conversation happened
+      chatHistory = [
+        { role: 'user', content: 'engage_test_mode' },
+        { role: 'user', content: 'Birthday party for Emma, turning 7, April 15th at Sunshine Park 2-5pm, rainbow unicorn theme' },
+        { role: 'assistant', content: JSON.stringify({ success: true, message: 'Got it!', extracted: extractedData, suggestedRsvpFields: rsvpFields, ready: true, confirmed: true }) }
+      ];
+
+      addChatBubble('Got it! Here\'s what I have for Emma\'s birthday party. Let me set everything up...', 'assistant');
+      await delay(400);
+
+      // Create draft event
+      await createDraftEvent();
+
+      // Show confirmation card and immediately proceed
+      chatPhase = 'confirmed';
+      showConfirmationCard();
+      await delay(600);
+
+      // Auto-proceed to styling
+      confirmDetailsAndAskStyle();
+      await delay(400);
+
+      // Set design prompt and auto-proceed to generation
+      designPrompt = extractedData.prompt;
+      addChatBubble(designPrompt, 'user');
+      await delay(300);
+
+      await proceedAfterPlanCheck(async function() {
+        addChatBubble('Great choice! Let me generate your invite...', 'assistant');
+        var saveResult = await saveEventToDB();
+        if (saveResult && saveResult.limitReached) {
+          goToStep(2);
+          showAdditionalEventPurchase();
+          return;
+        }
+        if (saveResult !== true) return;
+        goToStep(2);
+      });
     }
 
     function addChatBubble(text, role, skipSave) {
