@@ -211,6 +211,7 @@ Return a JSON object with exactly these keys:
 - Full-width (width: 100% or min 280px), min-height: 56px, generous padding (16px 32px)
 - Centered text via flexbox, 16-18px bold, appearance:none, explicit styling
 - NEVER put form inputs/selects/labels inside \`.rsvp-slot\` — ONLY the button
+- RSVP fields and buttons MUST ALWAYS be single-column (stacked vertically, full-width). NEVER use two-column grid, flex-row, or side-by-side layouts for form fields or the RSVP button — the platform injects form fields that break when laid out in columns on mobile. This is a 393px viewport.
 
 ## RSVP FORM LAYOUT — CRITICAL (platform injects form at runtime)
 - The platform replaces the \`.rsvp-slot\` contents with form fields (name, status, custom fields) + the button

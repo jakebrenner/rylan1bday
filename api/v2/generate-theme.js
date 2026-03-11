@@ -323,6 +323,7 @@ Build the page with these sections (creative freedom on visual execution):
 - Smooth hover transition (transform scale 1.02-1.05, subtle shadow lift, or color shift)
 - NEVER overflow, clip, or break layout at 393px viewport width
 - NEVER put form inputs/selects/labels inside \`.rsvp-slot\` — ONLY the button
+- RSVP fields and buttons MUST ALWAYS be single-column (stacked vertically, full-width). NEVER use two-column grid, flex-row, or side-by-side layouts for form fields or the RSVP button — the platform injects form fields that break when laid out in columns on mobile. This is a 393px viewport.
 
 ## RSVP FORM LAYOUT — CRITICAL (platform injects form at runtime)
 - The platform replaces the \`.rsvp-slot\` contents with form fields (name, status, custom fields) + the button
@@ -1296,6 +1297,7 @@ RSVP FORM
 The platform injects a fully functional RSVP form into the \`.rsvp-slot\` at runtime.
 You MUST only place a styled \`<button class="rsvp-button">\` inside \`.rsvp-slot\`. NO form inputs.
 Make the button text fun and on-theme (e.g., "Count Me In!", "I'll Be There!", "Let's Party!").
+RSVP fields and the button MUST be single-column, stacked vertically, full-width. NEVER use two-column or grid layouts for form elements.
 
 Fields that will be injected (for awareness only — do NOT render):
 ${rsvpFieldsDesc}`;
