@@ -3599,6 +3599,8 @@
           clearInterval(tweakPunInterval);
           designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
 
+          console.log('[tweak] Parse result:', !!tweakResult, 'Error:', tweakError, 'Lines:', tweakLines.length, 'Text preview:', tweakFullText.substring(0, 500), 'Build: 2026-03-11f');
+
           if (tweakResult && tweakResult.success) {
             var newVer = { id: tweakResult.theme.id, version: tweakResult.theme.version, html: tweakResult.theme.html, css: tweakResult.theme.css, config: tweakResult.theme.config };
             themeVersions.push(newVer);
@@ -3615,13 +3617,31 @@
           } else if (tweakError) {
             designChatHistory.push({ role: 'assistant', content: 'Sorry, I had trouble with that change: ' + (tweakError.message || tweakError.error || 'Unknown error') + '. Could you try rephrasing?' });
           } else {
-            designChatHistory.push({ role: 'assistant', content: 'Something went wrong. Please try again.' });
+            // Debug: show what we actually received so we can diagnose
+            var debugInfo = 'Status: ' + sseRes.status + ' | Bytes: ' + tweakFullText.length + ' | Lines: ' + tweakLines.length;
+            var hasEventLines = tweakLines.filter(function(l) { return l.startsWith('event:'); }).length;
+            var hasDataLines = tweakLines.filter(function(l) { return l.startsWith('data:'); }).length;
+            debugInfo += ' | Events: ' + hasEventLines + ' | Data: ' + hasDataLines;
+            // Check if we got a JSON error response instead of SSE
+            if (tweakFullText.startsWith('{')) {
+              try {
+                var jsonResp = JSON.parse(tweakFullText);
+                var jsonErr = jsonResp.error || jsonResp.message || JSON.stringify(jsonResp).substring(0, 200);
+                designChatHistory.push({ role: 'assistant', content: 'Error: ' + jsonErr });
+              } catch(e) {
+                designChatHistory.push({ role: 'assistant', content: 'Something went wrong (no result in response).\n\nDebug: ' + debugInfo + '\nFirst 200 chars: ' + tweakFullText.substring(0, 200) });
+              }
+            } else {
+              designChatHistory.push({ role: 'assistant', content: 'Something went wrong (no result in response).\n\nDebug: ' + debugInfo + '\nFirst 200 chars: ' + tweakFullText.substring(0, 200) });
+            }
+            console.error('[tweak] No result found. Debug:', debugInfo, 'Full text:', tweakFullText.substring(0, 1000));
           }
         }
       } catch (err) {
+        console.error('[tweak] CATCH error:', err, err.stack);
         clearInterval(tweakPunInterval);
         designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
-        designChatHistory.push({ role: 'assistant', content: 'Something went wrong. Please try again.' });
+        designChatHistory.push({ role: 'assistant', content: 'Connection error: ' + (err.message || 'Unknown') + '. This usually means the request timed out or was interrupted. Try again!' });
       }
 
       clearDesignChatPhoto();
