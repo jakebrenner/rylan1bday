@@ -173,14 +173,21 @@
     /* Responsive phone sizing */
     @media (max-width: 900px) {
       [data-step="2"] > div > div:first-child > div:first-child { flex-direction: column; align-items: center; }
+      .generated-layout { gap: 16px !important; }
       #editPanel { max-width: 100% !important; min-width: 0 !important; width: 100%; order: 2; }
       #previewColumn { order: 1; width: 100%; display: flex; flex-direction: column; align-items: center; }
     }
     @media (max-width: 640px) {
-      .phone-mockup { width: 280px; }
+      .phone-mockup { width: 320px; margin: 12px auto; }
       .phone-frame { border-radius: 44px; padding: 10px; }
       .phone-notch { width: 90px; height: 24px; top: 16px; }
       .phone-screen { border-radius: 36px; }
+      /* 320px mockup - 20px padding = 300px screen / 393px = 0.763 */
+      .phone-screen iframe { transform: scale(0.763); }
+    }
+    @media (max-width: 370px) {
+      .phone-mockup { width: 280px; }
+      /* 280px - 20px = 260px / 393px = 0.662 */
       .phone-screen iframe { transform: scale(0.662); }
     }
 
@@ -514,7 +521,7 @@
       <div id="generatedView" style="display: none;">
         <h2 style="text-align:center;">Create Your Invite</h2>
         <p class="step-desc" style="text-align:center;">Love it? Continue to publish. Switch between versions below.</p>
-        <div style="display:flex;gap:32px;align-items:stretch;flex-wrap:wrap;justify-content:center;max-width:900px;margin:0 auto;">
+        <div class="generated-layout" style="display:flex;gap:32px;align-items:stretch;flex-wrap:wrap;justify-content:center;max-width:900px;margin:0 auto;">
           <!-- Left: Tabbed panel (chat, details, versions) -->
           <div id="editPanel" style="flex:1;min-width:280px;max-width:440px;display:flex;flex-direction:column;">
 
