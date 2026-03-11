@@ -205,7 +205,7 @@ Return a JSON object with exactly these keys:
 1. **THEMATIC HEADER** — An animated or illustrated element specific to this event type.
 2. **HERO SECTION** — Large display headline with event title/names/tagline.
 3. **EVENT DETAILS** — Icon + text layout for date, time, location.
-4. **RSVP SECTION** — \`<div class="rsvp-slot"><button class="rsvp-button">...</button></div>\`. The rsvp-slot MUST contain ONLY the button.
+4. **RSVP SECTION** — \`<div class="rsvp-slot"><button class="rsvp-button">...</button></div>\`. The rsvp-slot MUST contain ONLY the button. Make the button text fun and on-theme but NEVER use commitment words like "I'm Coming", "Count Me In", "I'll Be There", "RSVP Yes", "Sign Me Up". The RSVP status is handled by the form — the button just opens it. Use neutral action phrases like "Let's Party!", "RSVP Now!", "Open the Invite!", "Get the Details!" instead.
 
 ## RSVP BUTTON — CRITICAL PLATFORM RULES
 - Full-width (width: 100% or min 280px), min-height: 56px, MAX-HEIGHT: 72px — NEVER taller than 72px. Normal button, NOT a giant vertical element.

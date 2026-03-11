@@ -316,6 +316,43 @@
     .summary-item { background: #f9f9f9; padding: 16px; border-radius: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     .summary-label { font-weight: 600; }
     .summary-value { color: #666; font-size: 14px; text-align: right; max-width: 60%; }
+
+    /* Step 3: Invite People */
+    .invite-page { max-width: 640px; margin: 0 auto; }
+    .invite-section { background: white; border: 1px solid #eee; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .invite-section h3 { font-size: 16px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .contact-search { width: 100%; padding: 10px 14px 10px 36px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.2s; background: white; }
+    .contact-search:focus { border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+    .contact-search-wrap { position: relative; margin-bottom: 12px; }
+    .contact-search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #aaa; }
+    .contact-list { max-height: 280px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; }
+    .contact-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #f5f5f5; cursor: pointer; transition: background 0.15s; font-size: 13px; }
+    .contact-item:last-child { border-bottom: none; }
+    .contact-item:hover { background: #fafafa; }
+    .contact-item.selected { background: rgba(233,69,96,0.06); }
+    .contact-check { width: 20px; height: 20px; border-radius: 4px; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+    .contact-item.selected .contact-check { border-color: var(--party-coral); background: var(--party-coral); color: white; }
+    .contact-name { font-weight: 500; flex: 1; }
+    .contact-detail { color: #999; font-size: 12px; }
+    .contact-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+    .contact-tag-pill { font-size: 10px; padding: 2px 8px; border-radius: 10px; background: #f0f0f0; color: #666; }
+    .guest-list { margin-top: 12px; }
+    .guest-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #f9f9f9; border-radius: 8px; margin-bottom: 6px; font-size: 13px; }
+    .guest-item .guest-name { font-weight: 500; flex: 1; }
+    .guest-item .guest-contact { color: #888; font-size: 12px; }
+    .guest-remove { background: none; border: none; color: #ccc; cursor: pointer; padding: 4px; font-size: 16px; transition: color 0.15s; }
+    .guest-remove:hover { color: var(--party-coral); }
+    .add-new-contact { border: 1px dashed #ddd; border-radius: 8px; padding: 14px; margin-top: 12px; }
+    .add-contact-row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .add-contact-row input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: 'Inter', sans-serif; }
+    .add-contact-row input:focus { outline: none; border-color: var(--party-coral); }
+    .tag-filter-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .tag-filter-btn { padding: 4px 12px; border-radius: 14px; border: 1px solid #ddd; background: white; font-size: 12px; cursor: pointer; transition: all 0.15s; font-family: 'Inter', sans-serif; }
+    .tag-filter-btn:hover { border-color: var(--party-coral); }
+    .tag-filter-btn.active { border-color: var(--party-coral); background: rgba(233,69,96,0.08); color: var(--party-coral); font-weight: 500; }
+    .invited-count { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: rgba(78,205,196,0.12); color: var(--mint-fizz); border-radius: 12px; font-size: 12px; font-weight: 600; }
+    .empty-contacts { text-align: center; padding: 32px 16px; color: #999; font-size: 14px; }
+    .empty-contacts svg { margin-bottom: 8px; }
   </style>
 </head>
 <body>
@@ -543,7 +580,7 @@
                 </div>
               </div>
               <div style="margin-bottom:16px;">
-                <button class="btn" onclick="nextStep()" style="width:100%;font-size:14px;padding:12px;background:var(--mint-fizz);color:white;font-weight:600;border-radius:10px;">Publish</button>
+                <button class="btn" onclick="nextStep()" style="width:100%;font-size:14px;padding:12px;background:var(--mint-fizz);color:white;font-weight:600;border-radius:10px;">Invite People</button>
               </div>
               <div class="panel-tabs">
                 <button class="panel-tab active" onclick="switchTab('design')">Design</button>
@@ -628,7 +665,7 @@
             <!-- Mobile action buttons below preview -->
             <div id="mobilePreviewActions" style="display:none;margin-top:16px;width:100%;max-width:360px;">
               <div style="display:flex;gap:8px;">
-                <button class="btn btn-primary" onclick="nextStep()" style="flex:1;font-size:14px;padding:12px;">Publish</button>
+                <button class="btn btn-primary" onclick="nextStep()" style="flex:1;font-size:14px;padding:12px;">Invite People</button>
                 <button class="btn btn-secondary" onclick="retryGenerate()" style="flex:1;font-size:14px;padding:12px;">Regenerate</button>
               </div>
             </div>
@@ -639,12 +676,53 @@
 
     <!-- Step 4: Review & Publish -->
     <div class="step" data-step="3">
-      <h2>Review & Publish</h2>
-      <p class="step-desc">Confirm your event details before publishing</p>
-      <div id="summaryContent"></div>
-      <div class="button-group">
-        <button class="btn btn-secondary" onclick="previousStep()">Back</button>
-        <button class="btn btn-primary" id="publishBtn" onclick="publishEvent()">Publish Invite</button>
+      <h2>Invite People</h2>
+      <p class="step-desc">Add guests to your event — you can always add more later</p>
+      <div class="invite-page">
+        <!-- Added guests section -->
+        <div class="invite-section">
+          <h3><span>👥</span> Guest List <span class="invited-count" id="guestCount">0 invited</span></h3>
+          <div id="guestList" class="guest-list">
+            <div class="empty-contacts" id="noGuestsMsg">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+              <div>No guests added yet</div>
+              <div style="font-size:12px;margin-top:4px;">Search your contacts below or add someone new</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add from contacts -->
+        <div class="invite-section">
+          <h3><span>📇</span> Add from Contacts</h3>
+          <div id="tagFilterBar" class="tag-filter-bar"></div>
+          <div class="contact-search-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" class="contact-search" id="contactSearch" placeholder="Search by name, email, or phone..." oninput="filterContacts()">
+          </div>
+          <div id="contactListContainer" class="contact-list"></div>
+          <button class="btn btn-primary btn-sm" id="addSelectedBtn" onclick="addSelectedContacts()" style="margin-top:10px;display:none;">Add Selected</button>
+        </div>
+
+        <!-- Add new contact -->
+        <div class="invite-section">
+          <h3><span>➕</span> Add Someone New</h3>
+          <div class="add-new-contact">
+            <div class="add-contact-row">
+              <input type="text" id="newGuestName" placeholder="Name *">
+              <input type="email" id="newGuestEmail" placeholder="Email">
+            </div>
+            <div class="add-contact-row">
+              <input type="tel" id="newGuestPhone" placeholder="Phone">
+              <button class="btn btn-primary btn-sm" onclick="addNewGuest()" style="white-space:nowrap;">Add Guest</button>
+            </div>
+            <div id="newGuestMsg" style="font-size:12px;margin-top:4px;display:none;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="button-group" style="max-width:640px;margin:24px auto 0;">
+        <button class="btn btn-secondary" onclick="previousStep()">Back to Design</button>
+        <button class="btn btn-primary" id="publishBtn" onclick="publishEvent()">Publish & Send Invites</button>
       </div>
     </div>
   </div>
@@ -4580,22 +4658,254 @@
 
     // Drag & Drop setup removed — now handled dynamically via setupDropZone()
 
-    // ---- Summary & Publish ----
+    // ---- Invite People (Step 3) ----
+
+    var allContacts = [];
+    var allTags = [];
+    var selectedContactIds = new Set();
+    var addedGuests = []; // { id, name, email, phone, contactId, isNew }
+    var activeTagFilter = null;
 
     function showSummary() {
-      var d = extractedData;
-      var enabledRsvp = rsvpFields.filter(function(f) { return f.enabled; });
-      var items = [
-        ['Title', d.title || 'Untitled'],
-        ['Date & Time', d.startDate ? formatDate(d.startDate) : 'Not set'],
-        ['Location', d.locationName || 'Not set'],
-        ['Event Type', formatEventType(d.eventType || 'other')],
-        ['Design Mood', (designPrompt || d.prompt || '').substring(0, 80) + '...'],
-        ['RSVP Fields', enabledRsvp.length > 0 ? enabledRsvp.map(function(f) { return f.label; }).join(', ') : 'Default only']
-      ];
-      document.getElementById('summaryContent').innerHTML = items.map(function(item) {
-        return '<div class="summary-item"><span class="summary-label">' + escapeHtml(item[0]) + '</span><span class="summary-value">' + escapeHtml(item[1]) + '</span></div>';
+      // Now loads the contacts/invite page
+      loadContactsForInvite();
+    }
+
+    async function loadContactsForInvite() {
+      try {
+        var [contactsRes, tagsRes] = await Promise.all([
+          authFetch('/api/v2/contacts?action=list'),
+          authFetch('/api/v2/contacts?action=listTags')
+        ]);
+        var contactsData = await contactsRes.json();
+        var tagsData = await tagsRes.json();
+        if (contactsData.success) allContacts = contactsData.contacts || [];
+        if (tagsData.success) allTags = tagsData.tags || [];
+      } catch (e) {
+        allContacts = [];
+        allTags = [];
+      }
+      renderTagFilters();
+      filterContacts();
+      renderGuestList();
+    }
+
+    function renderTagFilters() {
+      var bar = document.getElementById('tagFilterBar');
+      if (!allTags.length) { bar.innerHTML = ''; return; }
+      bar.innerHTML = '<button class="tag-filter-btn' + (!activeTagFilter ? ' active' : '') + '" onclick="setTagFilter(null)">All</button>'
+        + allTags.map(function(t) {
+          return '<button class="tag-filter-btn' + (activeTagFilter === t.id ? ' active' : '') + '" onclick="setTagFilter(\'' + t.id + '\')">'
+            + escapeHtml(t.name) + ' <span style="color:#999;">(' + t.count + ')</span></button>';
+        }).join('');
+    }
+
+    function setTagFilter(tagId) {
+      activeTagFilter = tagId;
+      renderTagFilters();
+      filterContacts();
+    }
+
+    function filterContacts() {
+      var search = (document.getElementById('contactSearch').value || '').toLowerCase().trim();
+      var addedContactIds = new Set(addedGuests.filter(function(g) { return g.contactId; }).map(function(g) { return g.contactId; }));
+
+      var filtered = allContacts.filter(function(c) {
+        // Exclude already-added contacts
+        if (addedContactIds.has(c.id)) return false;
+        // Tag filter
+        if (activeTagFilter) {
+          var hasTags = c.tags && c.tags.some(function(t) { return t.id === activeTagFilter; });
+          if (!hasTags) return false;
+        }
+        // Search filter
+        if (search) {
+          return (c.name && c.name.toLowerCase().includes(search))
+            || (c.email && c.email.toLowerCase().includes(search))
+            || (c.phone && c.phone.includes(search));
+        }
+        return true;
+      });
+
+      var container = document.getElementById('contactListContainer');
+      if (!filtered.length) {
+        container.innerHTML = '<div style="padding:16px;text-align:center;color:#999;font-size:13px;">'
+          + (allContacts.length ? 'No contacts match your search' : 'No contacts yet — add someone new below!')
+          + '</div>';
+        document.getElementById('addSelectedBtn').style.display = 'none';
+        return;
+      }
+
+      container.innerHTML = filtered.map(function(c) {
+        var isSelected = selectedContactIds.has(c.id);
+        var detail = c.email || c.phone || '';
+        var tagHtml = (c.tags || []).map(function(t) {
+          return '<span class="contact-tag-pill" style="' + (t.color ? 'background:' + t.color + '20;color:' + t.color : '') + '">' + escapeHtml(t.name) + '</span>';
+        }).join('');
+        return '<div class="contact-item' + (isSelected ? ' selected' : '') + '" onclick="toggleContactSelect(\'' + c.id + '\')">'
+          + '<div class="contact-check">' + (isSelected ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '') + '</div>'
+          + '<span class="contact-name">' + escapeHtml(c.name) + '</span>'
+          + (tagHtml ? '<span class="contact-tags">' + tagHtml + '</span>' : '')
+          + '<span class="contact-detail">' + escapeHtml(detail) + '</span>'
+          + '</div>';
       }).join('');
+
+      document.getElementById('addSelectedBtn').style.display = selectedContactIds.size > 0 ? 'inline-flex' : 'none';
+      document.getElementById('addSelectedBtn').textContent = 'Add Selected (' + selectedContactIds.size + ')';
+    }
+
+    function toggleContactSelect(contactId) {
+      if (selectedContactIds.has(contactId)) {
+        selectedContactIds.delete(contactId);
+      } else {
+        selectedContactIds.add(contactId);
+      }
+      filterContacts();
+    }
+
+    async function addSelectedContacts() {
+      if (!selectedContactIds.size || !currentEvent) return;
+      var btn = document.getElementById('addSelectedBtn');
+      btn.disabled = true;
+      btn.textContent = 'Adding...';
+
+      var ids = Array.from(selectedContactIds);
+      try {
+        var res = await authFetch('/api/v2/events?action=addGuests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: currentEvent.id, contactIds: ids })
+        });
+        var result = await res.json();
+        if (result.success) {
+          // Add to local guest list
+          ids.forEach(function(cid) {
+            var contact = allContacts.find(function(c) { return c.id === cid; });
+            if (contact) {
+              addedGuests.push({ id: 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2,4), name: contact.name, email: contact.email, phone: contact.phone, contactId: cid });
+            }
+          });
+          selectedContactIds.clear();
+          renderGuestList();
+          filterContacts();
+        } else {
+          showMessage(result.error || 'Failed to add contacts', 'error');
+        }
+      } catch (e) {
+        showMessage('Error adding contacts', 'error');
+      }
+      btn.disabled = false;
+    }
+
+    function renderGuestList() {
+      var container = document.getElementById('guestList');
+      var noMsg = document.getElementById('noGuestsMsg');
+      var countEl = document.getElementById('guestCount');
+      countEl.textContent = addedGuests.length + ' invited';
+
+      if (!addedGuests.length) {
+        if (noMsg) noMsg.style.display = 'block';
+        // Clear any guest items but keep the empty message
+        container.querySelectorAll('.guest-item').forEach(function(el) { el.remove(); });
+        return;
+      }
+
+      if (noMsg) noMsg.style.display = 'none';
+      // Rebuild guest items
+      var html = addedGuests.map(function(g, i) {
+        var detail = g.email || g.phone || '';
+        return '<div class="guest-item">'
+          + '<span class="guest-name">' + escapeHtml(g.name) + '</span>'
+          + '<span class="guest-contact">' + escapeHtml(detail) + '</span>'
+          + '<button class="guest-remove" onclick="removeGuest(' + i + ')" title="Remove">&times;</button>'
+          + '</div>';
+      }).join('');
+      container.innerHTML = html;
+    }
+
+    async function removeGuest(idx) {
+      var guest = addedGuests[idx];
+      if (!guest) return;
+      // Remove from server if we have event context
+      if (currentEvent && guest.serverId) {
+        try {
+          await authFetch('/api/v2/events?action=removeGuests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: currentEvent.id, guestIds: [guest.serverId] })
+          });
+        } catch (e) {}
+      }
+      addedGuests.splice(idx, 1);
+      renderGuestList();
+      filterContacts();
+    }
+
+    async function addNewGuest() {
+      var name = document.getElementById('newGuestName').value.trim();
+      var email = document.getElementById('newGuestEmail').value.trim();
+      var phone = document.getElementById('newGuestPhone').value.trim();
+      var msgEl = document.getElementById('newGuestMsg');
+
+      if (!name) {
+        msgEl.textContent = 'Name is required';
+        msgEl.style.color = '#E94560';
+        msgEl.style.display = 'block';
+        return;
+      }
+
+      msgEl.textContent = 'Adding...';
+      msgEl.style.color = '#666';
+      msgEl.style.display = 'block';
+
+      try {
+        // Create contact first
+        var contactRes = await authFetch('/api/v2/contacts?action=create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name, email: email || null, phone: phone || null, source: 'event_create', sourceEventId: currentEvent ? currentEvent.id : null })
+        });
+        var contactResult = await contactRes.json();
+        var contactId = null;
+
+        if (contactResult.success) {
+          contactId = contactResult.contact.id;
+        } else if (contactResult.existingContactId) {
+          // Contact already exists — use existing
+          contactId = contactResult.existingContactId;
+        } else {
+          msgEl.textContent = contactResult.error || 'Failed to create contact';
+          msgEl.style.color = '#E94560';
+          return;
+        }
+
+        // Add as guest to event
+        if (currentEvent && contactId) {
+          await authFetch('/api/v2/events?action=addGuests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: currentEvent.id, contactIds: [contactId] })
+          });
+        }
+
+        addedGuests.push({ id: 'guest_' + Date.now(), name: name, email: email, phone: phone, contactId: contactId, isNew: true });
+        // Refresh contact list
+        allContacts.push({ id: contactId, name: name, email: email, phone: phone, tags: [] });
+
+        // Clear form
+        document.getElementById('newGuestName').value = '';
+        document.getElementById('newGuestEmail').value = '';
+        document.getElementById('newGuestPhone').value = '';
+        msgEl.textContent = name + ' added!';
+        msgEl.style.color = 'var(--mint-fizz)';
+        setTimeout(function() { msgEl.style.display = 'none'; }, 2000);
+
+        renderGuestList();
+        filterContacts();
+      } catch (e) {
+        msgEl.textContent = 'Error adding guest';
+        msgEl.style.color = '#E94560';
+      }
     }
 
     async function publishEvent() {
@@ -4614,7 +4924,7 @@
           window.location.href = '/v2/dashboard/?published=' + currentEvent.id;
         } else { showMessage(result.error || 'Failed to publish', 'error'); }
       } catch (err) { showMessage('Error publishing event', 'error'); }
-      finally { btn.disabled = false; btn.textContent = 'Publish Invite'; }
+      finally { btn.disabled = false; btn.textContent = 'Publish & Send Invites'; }
     }
 
     // ---- Utilities ----
@@ -4727,14 +5037,10 @@
     }
 
     async function handleStarClick(themeId, rating) {
-      if (rating === 5) {
-        hostRatingsByTheme[themeId] = { rating: rating, feedback: '' };
-        submitHostRating(themeId, rating, '');
-        renderDesignChat();
-        scrollDesignChat();
-      } else if (rating === 1) {
-        // 1-star: submit immediately, handle credit-back
-        hostRatingsByTheme[themeId] = { rating: rating, feedback: '', pendingFeedback: true };
+      // Always submit immediately — no chips/send-feedback step
+      hostRatingsByTheme[themeId] = { rating: rating, feedback: '' };
+
+      if (rating === 1) {
         hostOneStarCount++;
         var result = await submitHostRating(themeId, rating, '');
         if (result && result.oneStarCredit) {
@@ -4745,82 +5051,26 @@
         } else if (result && result.supportRequired) {
           hostRatingsByTheme[themeId].supportMessage = 'Dang it, maybe something is wrong if we keep getting this wrong. Please contact support at support@ryvite.com and provide them ' + (currentEvent ? currentEvent.id : 'your event ID') + ' so they can investigate.';
         }
-        renderDesignChat();
-        // Append feedback chips to the rendered widget
-        var ratingEl = document.getElementById('chatRating-' + themeId);
-        if (ratingEl) showInlineRatingFeedback(ratingEl, themeId, rating);
-        scrollDesignChat();
       } else {
-        // 2-4 stars: show feedback chips
-        hostRatingsByTheme[themeId] = { rating: rating, feedback: '', pendingFeedback: true };
-        renderDesignChat();
-        var ratingEl = document.getElementById('chatRating-' + themeId);
-        if (ratingEl) showInlineRatingFeedback(ratingEl, themeId, rating);
-        scrollDesignChat();
+        submitHostRating(themeId, rating, '');
       }
-    }
 
-    function showInlineRatingFeedback(ratingEl, themeId, rating) {
-      var chips = rating <= 2
-        ? ['Text too large', 'Wrong colors', 'Looks broken', 'Not my style', 'Hard to read', 'Too plain']
-        : ['Colors off', 'Layout tweaks', 'Font change', 'More detail', 'Different vibe', 'Almost perfect'];
-
-      var chipsDiv = document.createElement('div');
-      chipsDiv.className = 'chat-rating-chips';
-      chips.forEach(function(c) {
-        var chip = document.createElement('button');
-        chip.className = 'chip';
-        chip.textContent = c;
-        chip.onclick = function() {
-          this.classList.toggle('selected');
-        };
-        chipsDiv.appendChild(chip);
-      });
-      ratingEl.appendChild(chipsDiv);
-
-      // Add a small "Send feedback" link
-      var sendRow = document.createElement('div');
-      sendRow.style.cssText = 'margin-top:8px;display:flex;gap:8px;align-items:center;';
-      sendRow.innerHTML = '<button class="btn btn-primary btn-sm" style="font-size:11px;padding:5px 12px;" onclick="submitInlineRating(\'' + themeId + '\', ' + rating + ')">Send feedback</button>'
-        + '<span style="font-size:11px;color:#999;">Tap issues above, then send</span>';
-      ratingEl.appendChild(sendRow);
-      scrollDesignChat();
-    }
-
-    async function submitInlineRating(themeId, rating) {
-      var ratingEl = document.getElementById('chatRating-' + themeId);
-      if (!ratingEl) return;
-
-      var selectedChips = [];
-      ratingEl.querySelectorAll('.chip.selected').forEach(function(c) { selectedChips.push(c.textContent); });
-      var fullFeedback = selectedChips.join('; ');
-
-      // Preserve credit/support messages, clear pendingFeedback
-      var prev = hostRatingsByTheme[themeId] || {};
-      hostRatingsByTheme[themeId] = { rating: rating, feedback: fullFeedback, creditMessage: prev.creditMessage, supportMessage: prev.supportMessage };
-      // For 1-star, the credit was already handled on star click — this just updates feedback
-      submitHostRating(themeId, rating, fullFeedback);
-
-      // Replace chips with thanks + pre-fill chat
-      var chipsDiv = ratingEl.querySelector('.chat-rating-chips');
-      var sendRow = ratingEl.querySelector('div[style*="margin-top:8px"]');
-      if (chipsDiv) chipsDiv.remove();
-      if (sendRow) sendRow.remove();
-
-      var thanks = document.createElement('div');
-      thanks.className = 'chat-rating-thanks';
-      thanks.textContent = 'Feedback saved!';
-      ratingEl.appendChild(thanks);
-
-      // Pre-fill chat input with feedback to encourage tweaking
-      if (fullFeedback) {
-        var chatInput = document.getElementById('designChatInput');
-        if (chatInput && !chatInput.value) {
-          chatInput.value = 'Can you fix: ' + fullFeedback.toLowerCase();
-          autoResizeTextarea(chatInput);
-          chatInput.focus();
-        }
+      // Inject assistant response based on rating
+      var assistantMsg;
+      if (rating >= 4) {
+        assistantMsg = rating === 5
+          ? 'Awesome, glad you love it! Are there any final tweaks you\'d like, or shall we publish and start inviting people?'
+          : 'Great, almost there! Any small tweaks you\'d like me to make, or are you ready to publish and invite some people?';
+      } else if (rating === 3) {
+        assistantMsg = 'Thanks for the feedback! What would you like me to change? I can adjust colors, fonts, layout, or try a completely different style.';
+      } else {
+        assistantMsg = rating === 1
+          ? 'I can do better! Tell me what you\'d like — a completely different style, different colors, different layout? Or describe the vibe you\'re going for.'
+          : 'Got it, let\'s improve this. What\'s not working for you? I can change the colors, fonts, layout, or go in a totally different direction.';
       }
+      designChatHistory.push({ role: 'assistant', content: assistantMsg });
+
+      renderDesignChat();
       scrollDesignChat();
     }
 

@@ -311,7 +311,7 @@ Build the page with these sections (creative freedom on visual execution):
 1. **THEMATIC HEADER** — An animated or illustrated element specific to this event type.
 2. **HERO SECTION** — Large display headline with event title/names/tagline. Photo treatment if photos provided.
 3. **EVENT DETAILS** — Icon + text layout for date, time, location.
-4. **RSVP SECTION** — \`<div class="rsvp-slot"><button class="rsvp-button">...</button></div>\`. The rsvp-slot MUST contain ONLY the button — the platform injects the real form at runtime. Make the button text fun and on-theme.
+4. **RSVP SECTION** — \`<div class="rsvp-slot"><button class="rsvp-button">...</button></div>\`. The rsvp-slot MUST contain ONLY the button — the platform injects the real form at runtime. Make the button text fun and on-theme but NEVER use commitment words like "I'm Coming", "Count Me In", "I'll Be There", "RSVP Yes", "Sign Me Up", etc. The RSVP status (attending/declined/maybe) is handled by the form — the button just opens it. Use action phrases like "Let's Party!", "Open the Invite!", "Get the Details!", "Join the Fun!", "See What's Inside!", "Reserve Your Spot!" instead.
 
 ## RSVP BUTTON — CRITICAL PLATFORM RULES
 - Full-width within its container (width: 100% or at least 280px) — NEVER shrink to fit text
@@ -1352,7 +1352,7 @@ RSVP FORM
 ══════════════════════
 The platform injects a fully functional RSVP form into the \`.rsvp-slot\` at runtime.
 You MUST only place a styled \`<button class="rsvp-button">\` inside \`.rsvp-slot\`. NO form inputs.
-Make the button text fun and on-theme (e.g., "Count Me In!", "I'll Be There!", "Let's Party!").
+Make the button text fun and on-theme but NEVER imply commitment or attendance (no "Count Me In", "I'll Be There", "I'm Coming", "Sign Me Up"). The button opens the RSVP form where guests choose attending/declined/maybe — so use neutral action phrases like "Let's Party!", "RSVP Now!", "Open the Invite!", "Get the Details!".
 RSVP fields and the button MUST be single-column, stacked vertically, full-width. NEVER use two-column or grid layouts for form elements.
 
 Fields that will be injected (for awareness only — do NOT render):
