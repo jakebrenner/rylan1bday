@@ -1776,22 +1776,31 @@
           var funMsg = paywallFunMessages[Math.floor(Math.random() * paywallFunMessages.length)];
           var isUsagePlan = plan.billingType === 'usage' && plan.priceCents === 0;
 
-          // Build features list with SMS cost line
-          var features = (plan.features || []).slice();
-          features.push('+$0.10 per SMS sent');
-
-          // For usage plans, fetch estimated cost per invite and add as a feature
+          // Build features list
+          var features;
           if (isUsagePlan) {
+            // Curated feature list for usage plans
+            features = [];
+            // Fetch estimated cost per invite and add as first feature
             try {
               var estRes = await fetch('/api/v2/billing?action=estimateCost&planSlug=' + encodeURIComponent(plan.name));
               var estData = await estRes.json();
               if (estData.success && estData.estimate) {
                 var estCents = estData.estimate.aiCostCents;
                 var estDisplay = '$' + (estCents / 100).toFixed(2);
-                // Insert estimated cost as first feature for visibility
-                features.unshift('Estimated ~' + estDisplay + ' per invite (AI design + 4 tweaks)');
+                features.push('Estimated ~' + estDisplay + ' per invite (AI design + 4 tweaks)');
               }
             } catch (e) {}
+            features.push('100% personal AI designed');
+            features.push('Unlimited events');
+            features.push('Unlimited RSVPs');
+            features.push('Guest tracking');
+            features.push('Share via link, SMS, or email');
+            features.push('No upfront cost — pay only for usage');
+            features.push('+$0.10 per SMS sent');
+          } else {
+            features = (plan.features || []).slice();
+            features.push('+$0.10 per SMS sent');
           }
 
           var featuresHtml = buildFeaturesHtml(features);
@@ -1799,7 +1808,8 @@
           document.getElementById('paywallFunMsg').textContent = funMsg;
           document.getElementById('paywallPlanType').textContent = isUsagePlan ? 'Pay as you go' : 'One-time purchase';
           document.getElementById('paywallPlanName').textContent = plan.displayName;
-          document.getElementById('paywallPriceTag').innerHTML = isUsagePlan ? '$0' : priceDisplay;
+          document.getElementById('paywallPriceTag').style.display = isUsagePlan ? 'none' : '';
+          document.getElementById('paywallPriceTag').innerHTML = isUsagePlan ? '' : priceDisplay;
           document.getElementById('paywallFeatures').innerHTML = featuresHtml;
           document.getElementById('paywallCheckoutBtn').textContent = isUsagePlan ? 'Add Card & Start Designing' : 'Continue for ' + priceDisplay;
 
@@ -2088,14 +2098,20 @@
         // Use cached features HTML if available (includes estimate), otherwise rebuild
         var featuresEl = document.getElementById('paywallFeatures');
         if (!featuresEl.innerHTML) {
-          var features = (plan.features || []).slice();
-          features.push('+$0.10 per SMS sent');
+          var features;
+          if (isUsagePlan) {
+            features = ['100% personal AI designed', 'Unlimited events', 'Unlimited RSVPs', 'Guest tracking', 'Share via link, SMS, or email', 'No upfront cost — pay only for usage', '+$0.10 per SMS sent'];
+          } else {
+            features = (plan.features || []).slice();
+            features.push('+$0.10 per SMS sent');
+          }
           featuresEl.innerHTML = buildFeaturesHtml(features);
         }
         document.getElementById('paywallFunMsg').textContent = funMsg;
         document.getElementById('paywallPlanType').textContent = isUsagePlan ? 'Pay as you go' : 'One-time purchase';
         document.getElementById('paywallPlanName').textContent = plan.displayName;
-        document.getElementById('paywallPriceTag').innerHTML = isUsagePlan ? '$0' : priceDisplay;
+        document.getElementById('paywallPriceTag').style.display = isUsagePlan ? 'none' : '';
+        document.getElementById('paywallPriceTag').innerHTML = isUsagePlan ? '' : priceDisplay;
         document.getElementById('paywallCheckoutBtn').textContent = isUsagePlan ? 'Add Card & Start Designing' : 'Continue for ' + priceDisplay;
         document.getElementById('paywallCheckoutBtn').disabled = false;
       }
