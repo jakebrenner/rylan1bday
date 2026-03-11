@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
+import { checkAndChargeAiUsage } from './billing.js';
 
 const client = new Anthropic();
 const supabase = createClient(
@@ -1170,6 +1171,9 @@ Return ONLY a valid JSON object with these keys:
           is_tweak: true, event_type: eventDetails?.eventType || '',
           client_ip: tweakMeta.ip, client_geo: tweakMeta.geo, user_agent: tweakMeta.userAgent
         }).catch(() => {});
+
+        // Check if usage-based AI billing threshold is reached
+        checkAndChargeAiUsage(user.id).catch(e => console.error('AI billing check error:', e.message));
       } catch (saveErr) {
         console.error('Tweak DB save error (theme already sent to client):', saveErr);
       }
@@ -1483,6 +1487,9 @@ This is the most common failure mode. Double-check it.`;
         .update({ first_generation_at: new Date().toISOString() })
         .eq('id', eventId).is('first_generation_at', null)
         .then(() => {}).catch(() => {});
+
+      // Check if usage-based AI billing threshold is reached
+      checkAndChargeAiUsage(user.id).catch(e => console.error('AI billing check error:', e.message));
     } catch (saveErr) {
       console.error('DB save error (theme already sent to client):', saveErr);
     }
@@ -1499,8 +1506,8 @@ This is the most common failure mode. Double-check it.`;
         user_id: user.id,
         prompt: effectivePrompt,
         model: themeModel,
-        input_tokens: 0,
-        output_tokens: 0,
+        input_tokens: typeof actualInputTokens !== 'undefined' ? actualInputTokens : 0,
+        output_tokens: typeof actualOutputTokens !== 'undefined' ? actualOutputTokens : 0,
         latency_ms: Date.now() - startTime,
         status: 'error',
         error: (err.message || '').substring(0, 500),

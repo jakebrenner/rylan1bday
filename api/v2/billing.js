@@ -127,6 +127,8 @@ export default async function handler(req, res) {
           description: p.description,
           priceCents: p.price_cents,
           currency: p.currency,
+          billingType: p.billing_type || 'fixed',
+          aiMarkupPct: p.ai_markup_pct || 50,
           maxEvents: p.max_events,
           maxGenerations: p.max_generations,
           smsPriceCents: p.sms_price_cents || 5,
@@ -169,6 +171,78 @@ export default async function handler(req, res) {
       });
     }
 
+    // ---- ESTIMATED COST PER EVENT (public) ----
+    if (action === 'estimateCost') {
+      // Model pricing per 1M tokens (input / output)
+      const MODEL_PRICING = {
+        'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00, label: 'Haiku 4.5' },
+        'claude-sonnet-4-6': { input: 3.00, output: 15.00, label: 'Sonnet 4.6' },
+        'claude-opus-4-6': { input: 15.00, output: 75.00, label: 'Opus 4.6' },
+      };
+
+      // Fetch admin-configured theme model
+      const { data: configData } = await supabaseAdmin
+        .from('app_config')
+        .select('key, value')
+        .in('key', ['theme_model', 'chat_model']);
+      const config = {};
+      (configData || []).forEach(row => { config[row.key] = row.value; });
+      const themeModel = config.theme_model || 'claude-sonnet-4-6';
+      const chatModel = config.chat_model || 'claude-haiku-4-5-20251001';
+
+      // Typical token usage per generation (based on system prompt + theme output)
+      // Initial generation: ~4K input, ~8K output
+      // Tweak: ~6K input (includes current theme), ~8K output
+      // Chat message: ~1.5K input, ~0.5K output
+      const TYPICAL_INITIAL_GEN = { input: 4000, output: 8000 };
+      const TYPICAL_TWEAK = { input: 6000, output: 8000 };
+      const TYPICAL_CHAT_MSG = { input: 1500, output: 500 };
+
+      // Assume per event: 1 initial gen + 3 tweaks + 4 chat messages
+      const themePricing = MODEL_PRICING[themeModel] || MODEL_PRICING['claude-sonnet-4-6'];
+      const chatPricing = MODEL_PRICING[chatModel] || MODEL_PRICING['claude-haiku-4-5-20251001'];
+
+      const initialGenCost = (TYPICAL_INITIAL_GEN.input * themePricing.input + TYPICAL_INITIAL_GEN.output * themePricing.output) / 1_000_000;
+      const tweakCost = (TYPICAL_TWEAK.input * themePricing.input + TYPICAL_TWEAK.output * themePricing.output) / 1_000_000;
+      const chatCost = (TYPICAL_CHAT_MSG.input * chatPricing.input + TYPICAL_CHAT_MSG.output * chatPricing.output) / 1_000_000;
+
+      const numTweaks = 3;
+      const numChatMsgs = 4;
+
+      const rawAiCost = initialGenCost + (tweakCost * numTweaks) + (chatCost * numChatMsgs);
+      const markupPct = 50;
+      const aiCostWithMarkup = rawAiCost * (1 + markupPct / 100);
+
+      // SMS estimate: assume ~20 invites sent
+      const smsCount = 20;
+      const smsCostPer = 0.05;
+      const smsCostTotal = smsCount * smsCostPer;
+
+      const totalEstimate = aiCostWithMarkup + smsCostTotal;
+
+      return res.status(200).json({
+        success: true,
+        estimate: {
+          totalCents: Math.round(totalEstimate * 100),
+          aiCostCents: Math.round(aiCostWithMarkup * 100),
+          smsCostCents: Math.round(smsCostTotal * 100),
+          breakdown: {
+            themeModel: themeModel,
+            themeModelLabel: themePricing.label,
+            chatModel: chatModel,
+            chatModelLabel: chatPricing.label,
+            initialGenerations: 1,
+            tweaks: numTweaks,
+            chatMessages: numChatMsgs,
+            smsMessages: smsCount,
+            aiMarkupPct: markupPct,
+            rawAiCostCents: Math.round(rawAiCost * 100),
+            smsCostPerMessage: smsCostPer
+          }
+        }
+      });
+    }
+
     // ---- AUTHENTICATED ENDPOINTS ----
     const user = await getUser(req);
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
@@ -188,6 +262,30 @@ export default async function handler(req, res) {
         .single();
 
       if (!plan) return res.status(404).json({ error: 'Plan not found' });
+
+      // Usage-based plans with $0 upfront: collect payment method via setup mode
+      if (plan.billing_type === 'usage' && plan.price_cents === 0) {
+        const customerId = await getOrCreateStripeCustomer(user);
+        const baseUrl = getBaseUrl(req);
+
+        const session = await stripe.checkout.sessions.create({
+          customer: customerId,
+          mode: 'setup',
+          payment_method_types: ['card'],
+          metadata: {
+            supabase_user_id: user.id,
+            plan_id: plan.id,
+            plan_name: plan.name,
+            checkout_type: 'usage_setup'
+          },
+          success_url: returnUrl
+            ? `${baseUrl}${returnUrl}${returnUrl.includes('?') ? '&' : '?'}session_id={CHECKOUT_SESSION_ID}`
+            : `${baseUrl}/v2/dashboard/?purchased=true&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${baseUrl}/v2/pricing/`
+        });
+
+        return res.status(200).json({ success: true, sessionId: session.id, url: session.url });
+      }
 
       let discount = null;
       let coupon = null;
@@ -546,11 +644,18 @@ export default async function handler(req, res) {
       try {
         const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-        if (session.payment_status !== 'paid') {
+        const isUsageSetup = (session.metadata || {}).checkout_type === 'usage_setup';
+
+        if (!isUsageSetup && session.payment_status !== 'paid') {
           return res.status(200).json({ success: false, error: 'Payment not completed yet', paymentStatus: session.payment_status });
         }
 
-        // Payment is confirmed by Stripe but webhook hasn't created the subscription yet
+        // For setup mode, check that setup succeeded
+        if (isUsageSetup && session.status !== 'complete') {
+          return res.status(200).json({ success: false, error: 'Setup not completed yet' });
+        }
+
+        // Payment/setup is confirmed by Stripe but webhook hasn't created the subscription yet
         // Create it now (same logic as handleCheckoutComplete)
         const metadata = session.metadata || {};
         const metaUserId = metadata.supabase_user_id;
@@ -589,7 +694,7 @@ export default async function handler(req, res) {
             stripe_customer_id: session.customer,
             stripe_checkout_session_id: session.id,
             coupon_id: couponId || null,
-            amount_paid_cents: session.amount_total || (originalAmountCents - discountCents),
+            amount_paid_cents: isUsageSetup ? 0 : (session.amount_total || (originalAmountCents - discountCents)),
             discount_cents: discountCents,
             events_used: 0,
             generations_used: 0,
@@ -790,6 +895,9 @@ async function handleCheckoutComplete(session) {
     return;
   }
 
+  // Usage-based plan setup (no payment, just saved card)
+  const isUsageSetup = metadata.checkout_type === 'usage_setup';
+
   const { data: subscription, error: subError } = await supabaseAdmin
     .from('subscriptions')
     .insert({
@@ -799,7 +907,7 @@ async function handleCheckoutComplete(session) {
       stripe_customer_id: session.customer,
       stripe_checkout_session_id: session.id,
       coupon_id: couponId || null,
-      amount_paid_cents: session.amount_total || (originalAmountCents - discountCents),
+      amount_paid_cents: isUsageSetup ? 0 : (session.amount_total || (originalAmountCents - discountCents)),
       discount_cents: discountCents,
       events_used: 0,
       generations_used: 0,
@@ -1108,6 +1216,137 @@ export async function checkAndChargeSmsUsage(userId) {
     return { charged: true, amountCents: totalCents, messageCount: unbilledMessages.length };
   } catch (e) {
     console.error('SMS billing error:', e.message);
+    return { charged: false, error: e.message };
+  }
+}
+
+// ---- AI COST THRESHOLD BILLING ----
+// Charges accumulated AI generation costs when they reach the threshold.
+// Only applies to users on 'usage' billing type plans.
+// Called after each AI generation. Batches charges to avoid micro-transactions.
+const AI_BILLING_THRESHOLD_CENTS = 500; // $5.00
+
+const AI_MODEL_PRICING = {
+  'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00 },
+  'claude-sonnet-4-6': { input: 3.00, output: 15.00 },
+  'claude-opus-4-6': { input: 15.00, output: 75.00 },
+};
+
+export async function checkAndChargeAiUsage(userId) {
+  try {
+    // Check if user is on a usage-based plan
+    const { data: activeSubs } = await supabaseAdmin
+      .from('subscriptions')
+      .select('id, plan_id, plans:plan_id (billing_type, ai_markup_pct)')
+      .eq('user_id', userId)
+      .eq('status', 'active');
+
+    const usageSub = (activeSubs || []).find(s => s.plans?.billing_type === 'usage');
+    if (!usageSub) return { charged: false, reason: 'not_usage_plan' };
+
+    const markupPct = usageSub.plans.ai_markup_pct || 50;
+
+    // Get unbilled AI generation costs
+    const { data: unbilledGens } = await supabaseAdmin
+      .from('generation_log')
+      .select('id, model, input_tokens, output_tokens')
+      .eq('user_id', userId)
+      .eq('billed', false)
+      .eq('status', 'success');
+
+    if (!unbilledGens || unbilledGens.length === 0) return { charged: false };
+
+    // Calculate raw cost
+    let rawCostDollars = 0;
+    for (const g of unbilledGens) {
+      const pricing = AI_MODEL_PRICING[g.model] || { input: 3.00, output: 15.00 };
+      rawCostDollars += ((g.input_tokens || 0) * pricing.input + (g.output_tokens || 0) * pricing.output) / 1_000_000;
+    }
+
+    // Apply markup
+    const markedUpDollars = rawCostDollars * (1 + markupPct / 100);
+    const totalCents = Math.round(markedUpDollars * 100);
+
+    if (totalCents < AI_BILLING_THRESHOLD_CENTS) {
+      return { charged: false, pendingCents: totalCents, threshold: AI_BILLING_THRESHOLD_CENTS };
+    }
+
+    // Get saved payment method
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('stripe_customer_id')
+      .eq('id', userId)
+      .single();
+
+    if (!profile?.stripe_customer_id) {
+      console.warn('AI billing: no Stripe customer for user', userId);
+      return { charged: false, error: 'No payment method on file' };
+    }
+
+    const paymentMethods = await stripe.paymentMethods.list({
+      customer: profile.stripe_customer_id,
+      type: 'card',
+      limit: 1
+    });
+
+    if (paymentMethods.data.length === 0) {
+      console.warn('AI billing: no payment method for user', userId);
+      return { charged: false, error: 'No payment method on file' };
+    }
+
+    // Charge the accumulated AI costs
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: totalCents,
+      currency: 'usd',
+      customer: profile.stripe_customer_id,
+      payment_method: paymentMethods.data[0].id,
+      off_session: true,
+      confirm: true,
+      description: `AI usage: ${unbilledGens.length} generations (${markupPct}% markup)`,
+      metadata: {
+        supabase_user_id: userId,
+        charge_type: 'ai_usage',
+        generation_count: String(unbilledGens.length),
+        raw_cost_cents: String(Math.round(rawCostDollars * 100)),
+        markup_pct: String(markupPct),
+        total_cents: String(totalCents)
+      }
+    });
+
+    if (paymentIntent.status !== 'succeeded') {
+      console.error('AI billing: payment failed for user', userId);
+      return { charged: false, error: 'Payment failed' };
+    }
+
+    // Mark generations as billed
+    const genIds = unbilledGens.map(g => g.id);
+    await supabaseAdmin
+      .from('generation_log')
+      .update({ billed: true })
+      .in('id', genIds);
+
+    // Record in billing history
+    let receiptUrl = null;
+    try {
+      if (paymentIntent.latest_charge) {
+        const charge = await stripe.charges.retrieve(paymentIntent.latest_charge);
+        receiptUrl = charge.receipt_url || null;
+      }
+    } catch (e) {}
+
+    await supabaseAdmin.from('billing_history').insert({
+      user_id: userId,
+      stripe_payment_intent_id: paymentIntent.id,
+      amount_cents: totalCents,
+      currency: 'usd',
+      status: 'succeeded',
+      description: `AI usage: ${unbilledGens.length} generations`,
+      receipt_url: receiptUrl
+    });
+
+    return { charged: true, amountCents: totalCents, generationCount: unbilledGens.length };
+  } catch (e) {
+    console.error('AI billing error:', e.message);
     return { charged: false, error: e.message };
   }
 }

@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
+import { checkAndChargeAiUsage } from './billing.js';
 
 const client = new Anthropic();
 const supabase = createClient(
@@ -172,6 +173,9 @@ export default async function handler(req, res) {
       });
     } catch {}
 
+    // Check if usage-based AI billing threshold is reached
+    checkAndChargeAiUsage(user.id).catch(e => console.error('AI billing check error:', e.message));
+
     // Persist user message + assistant response to chat_messages
     const lastUserMsg = messages[messages.length - 1];
     try {
@@ -210,6 +214,18 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error('Chat error:', err?.message, err?.status, JSON.stringify(err));
+    // Log error to generation_log so failed API calls that still consumed tokens are tracked
+    try {
+      await supabase.from('generation_log').insert({
+        user_id: user?.id,
+        model: 'unknown',
+        input_tokens: 0,
+        output_tokens: 0,
+        latency_ms: 0,
+        status: 'error',
+        error: (err?.message || '').substring(0, 500)
+      });
+    } catch {}
     return res.status(500).json({
       error: 'Failed to process message',
       message: err?.message || 'Unknown error',

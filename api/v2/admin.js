@@ -1786,6 +1786,9 @@ export default async function handler(req, res) {
           maxGenerations: p.max_generations,
           maxSmsPerEvent: p.max_sms_per_event,
           smsPriceCents: p.sms_price_cents,
+          billingType: p.billing_type || 'fixed',
+          aiMarkupPct: p.ai_markup_pct || 50,
+          smsBaseCostCents: p.sms_base_cost_cents || 3,
           features: p.features,
           isActive: p.is_active,
           isHidden: p.is_hidden || false,
@@ -1846,6 +1849,9 @@ export default async function handler(req, res) {
           max_generations: maxGenerations || 20,
           max_sms_per_event: maxSmsPerEvent || null,
           sms_price_cents: smsPriceCents || 10,
+          billing_type: req.body.billingType || 'fixed',
+          ai_markup_pct: req.body.aiMarkupPct || 50,
+          sms_base_cost_cents: req.body.smsBaseCostCents || 3,
           features: features || [],
           sort_order: sortOrder || 0,
           stripe_product_id: stripeProductId,
@@ -1879,6 +1885,9 @@ export default async function handler(req, res) {
       if (updates.features !== undefined) dbUpdates.features = updates.features;
       if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
       if (updates.isHidden !== undefined) dbUpdates.is_hidden = updates.isHidden;
+      if (updates.billingType !== undefined) dbUpdates.billing_type = updates.billingType;
+      if (updates.aiMarkupPct !== undefined) dbUpdates.ai_markup_pct = updates.aiMarkupPct;
+      if (updates.smsBaseCostCents !== undefined) dbUpdates.sms_base_cost_cents = updates.smsBaseCostCents;
       if (updates.sortOrder !== undefined) dbUpdates.sort_order = updates.sortOrder;
       if (updates.stripePriceId !== undefined) dbUpdates.stripe_price_id = updates.stripePriceId;
       if (updates.stripeProductId !== undefined) dbUpdates.stripe_product_id = updates.stripeProductId;

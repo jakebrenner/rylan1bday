@@ -718,6 +718,24 @@
             <label>Features (one per line)</label>
             <textarea id="planFeatures" rows="4" placeholder="AI-designed invite&#10;Unlimited RSVPs&#10;Guest tracking" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;resize:vertical;"></textarea>
           </div>
+          <div class="config-field">
+            <label>Billing Type</label>
+            <select id="planBillingType" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" onchange="toggleUsageFields()">
+              <option value="fixed">Fixed Price</option>
+              <option value="usage">Usage-Based (Cost + Markup)</option>
+            </select>
+            <div class="hint">Usage plans bill for actual AI + SMS costs with markup</div>
+          </div>
+          <div class="config-field" id="aiMarkupField" style="display:none;">
+            <label>AI Markup %</label>
+            <input type="number" id="planAiMarkupPct" placeholder="50" value="50" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" />
+            <div class="hint">50 = charge 1.5x the raw API cost</div>
+          </div>
+          <div class="config-field" id="smsBaseCostField" style="display:none;">
+            <label>SMS Base Cost (cents)</label>
+            <input type="number" id="planSmsBaseCost" placeholder="3" value="3" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" />
+            <div class="hint">Actual provider cost per SMS (e.g., 3 = $0.03)</div>
+          </div>
           <div class="config-field" style="grid-column:1/-1;">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
               <input type="checkbox" id="planHidden" style="width:16px;height:16px;" />
@@ -4185,6 +4203,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           ? '<span class="badge badge-blue" title="' + escapeHtml(p.stripePriceId) + '">Stripe</span>'
           : '<span class="badge badge-yellow">No Stripe</span>';
         var hiddenBadge = p.isHidden ? '<span class="badge" style="background:#f3e8ff;color:#7c3aed;">Hidden</span>' : '';
+        var billingBadge = p.billingType === 'usage' ? '<span class="badge" style="background:#fef3c7;color:#92400e;">Usage-Based</span>' : '';
         var featList = (p.features || []).map(function(f) { return '<li style="font-size:12px;color:#666;">' + escapeHtml(f) + '</li>'; }).join('');
 
         html += '<div style="background:#fafafa;border:1px solid #eee;border-radius:8px;padding:20px;">'
@@ -4194,7 +4213,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           + '<div style="font-size:13px;color:#888;margin-top:2px;">' + escapeHtml(p.description || '') + '</div>'
           + '</div>'
           + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'
-          + statusBadge + ' ' + stripeStatus + ' ' + hiddenBadge
+          + statusBadge + ' ' + stripeStatus + ' ' + hiddenBadge + ' ' + billingBadge
           + '<button class="btn btn-secondary btn-sm" onclick="showEditPlanModal(\'' + p.id + '\')">Edit</button>'
           + (p.isActive ? '<button class="btn btn-sm" style="background:#fee;color:#c00;border:1px solid #fcc;" onclick="deactivatePlan(\'' + p.id + '\',\'' + escapeHtml(p.displayName) + '\')">Deactivate</button>' : '<button class="btn btn-sm" style="background:#efe;color:#060;border:1px solid #cec;" onclick="reactivatePlan(\'' + p.id + '\')">Activate</button>')
           + '</div></div>'
@@ -4204,6 +4223,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           + '<div><div style="font-size:11px;color:#888;text-transform:uppercase;">Generations</div><div style="font-size:18px;font-weight:700;">' + p.maxGenerations + '</div></div>'
           + '<div><div style="font-size:11px;color:#888;text-transform:uppercase;">SMS / Event</div><div style="font-size:18px;font-weight:700;">' + (p.maxSmsPerEvent || '&infin;') + '</div></div>'
           + '<div><div style="font-size:11px;color:#888;text-transform:uppercase;">SMS Cost</div><div style="font-size:18px;font-weight:700;">$' + ((p.smsPriceCents || 0) / 100).toFixed(2) + '</div></div>'
+          + (p.billingType === 'usage' ? '<div><div style="font-size:11px;color:#888;text-transform:uppercase;">AI Markup</div><div style="font-size:18px;font-weight:700;">' + (p.aiMarkupPct || 50) + '%</div></div>' : '')
           + '</div>'
           + (featList ? '<div style="margin-top:8px;"><div style="font-size:11px;color:#888;text-transform:uppercase;margin-bottom:4px;">Features</div><ul style="margin:0;padding-left:18px;">' + featList + '</ul></div>' : '');
 
@@ -4221,6 +4241,12 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       container.innerHTML = html;
     }
 
+    function toggleUsageFields() {
+      var isUsage = document.getElementById('planBillingType').value === 'usage';
+      document.getElementById('aiMarkupField').style.display = isUsage ? '' : 'none';
+      document.getElementById('smsBaseCostField').style.display = isUsage ? '' : 'none';
+    }
+
     function showCreatePlanModal() {
       editingPlanId = null;
       document.getElementById('planModalTitle').textContent = 'Create New Tier';
@@ -4236,10 +4262,14 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('planMaxSms').value = '';
       document.getElementById('planSmsPriceCents').value = '';
       document.getElementById('planFeatures').value = '';
+      document.getElementById('planBillingType').value = 'fixed';
+      document.getElementById('planAiMarkupPct').value = '50';
+      document.getElementById('planSmsBaseCost').value = '3';
       document.getElementById('planHidden').checked = false;
       document.getElementById('planCreateStripe').checked = true;
       document.getElementById('planStripeProductId').value = '';
       document.getElementById('planStripePriceId').value = '';
+      toggleUsageFields();
       var modal = document.getElementById('planModal');
       modal.style.display = 'flex';
     }
@@ -4261,10 +4291,14 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('planMaxSms').value = plan.maxSmsPerEvent || '';
       document.getElementById('planSmsPriceCents').value = plan.smsPriceCents || '';
       document.getElementById('planFeatures').value = (plan.features || []).join('\n');
+      document.getElementById('planBillingType').value = plan.billingType || 'fixed';
+      document.getElementById('planAiMarkupPct').value = plan.aiMarkupPct || 50;
+      document.getElementById('planSmsBaseCost').value = plan.smsBaseCostCents || 3;
       document.getElementById('planHidden').checked = plan.isHidden || false;
       document.getElementById('planCreateStripe').checked = false;
       document.getElementById('planStripeProductId').value = plan.stripeProductId || '';
       document.getElementById('planStripePriceId').value = plan.stripePriceId || '';
+      toggleUsageFields();
       var modal = document.getElementById('planModal');
       modal.style.display = 'flex';
     }
@@ -4293,6 +4327,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             maxGenerations: parseInt(document.getElementById('planMaxGenerations').value) || 20,
             maxSmsPerEvent: maxSms ? parseInt(maxSms) : null,
             smsPriceCents: parseInt(document.getElementById('planSmsPriceCents').value) || 10,
+            billingType: document.getElementById('planBillingType').value,
+            aiMarkupPct: parseInt(document.getElementById('planAiMarkupPct').value) || 50,
+            smsBaseCostCents: parseInt(document.getElementById('planSmsBaseCost').value) || 3,
             features: features,
             sortOrder: parseInt(document.getElementById('planSortOrder').value) || 0,
             stripeProductId: document.getElementById('planStripeProductId').value.trim() || null,
@@ -4313,6 +4350,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             maxGenerations: parseInt(document.getElementById('planMaxGenerations').value) || 20,
             maxSmsPerEvent: maxSms ? parseInt(maxSms) : null,
             smsPriceCents: parseInt(document.getElementById('planSmsPriceCents').value) || 10,
+            billingType: document.getElementById('planBillingType').value,
+            aiMarkupPct: parseInt(document.getElementById('planAiMarkupPct').value) || 50,
+            smsBaseCostCents: parseInt(document.getElementById('planSmsBaseCost').value) || 3,
             features: features,
             sortOrder: parseInt(document.getElementById('planSortOrder').value) || 0,
             isHidden: document.getElementById('planHidden').checked,
