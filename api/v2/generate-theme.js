@@ -801,22 +801,22 @@ Return ONLY a valid JSON object with these keys:
         stream.on('end', done);
         stream.on('error', (err) => { if (!resolved) { resolved = true; clearInterval(idleCheck); reject(err); } });
 
-        // Safety: if text was flowing but stopped for 10s AND we have substantial content, assume done
+        // Safety: if text was flowing but stopped for 15s AND we have substantial content, assume done
         const idleCheck = setInterval(() => {
-          if (chunkCount > 0 && Date.now() - lastChunkTime > 10000 && fullText.length > 1000) {
+          if (chunkCount > 0 && Date.now() - lastChunkTime > 15000 && fullText.length > 3000) {
             console.log('[stream] Idle timeout after', chunkCount, 'chunks,', fullText.length, 'bytes');
             done();
           }
         }, 1000);
 
-        // Hard timeout: 55s (leave buffer before Vercel kills function)
+        // Hard timeout: 120s (Vercel Pro allows up to 300s via maxDuration config)
         setTimeout(() => {
           if (!resolved) {
-            console.log('[stream] Hard timeout at 50s, chunks:', chunkCount, 'bytes:', fullText.length);
+            console.log('[stream] Hard timeout at 120s, chunks:', chunkCount, 'bytes:', fullText.length);
             if (fullText.length > 0) done();
             else { resolved = true; clearInterval(idleCheck); reject(new Error('Stream timeout - no content received')); }
           }
-        }, 55000);
+        }, 120000);
       });
 
       const latency = Date.now() - startTime;
@@ -1112,22 +1112,23 @@ ${rsvpFieldsDesc}`;
       stream.on('end', done);
       stream.on('error', (err) => { if (!resolved) { resolved = true; clearInterval(idleCheck); reject(err); } });
 
-      // Safety: if text was flowing but stopped for 5s, assume done
+      // Safety: if text was flowing but stopped for 15s AND we have substantial content, assume done
+      // Full invites with SVG illustrations can be 20-40KB — don't cut off early
       const idleCheck = setInterval(() => {
-        if (chunkCount > 0 && Date.now() - lastChunkTime > 5000) {
+        if (chunkCount > 0 && Date.now() - lastChunkTime > 15000 && fullText.length > 5000) {
           console.log('[stream] Idle timeout after', chunkCount, 'chunks,', fullText.length, 'bytes');
           done();
         }
       }, 1000);
 
-      // Hard timeout: 50s (leave buffer before Vercel kills function)
+      // Hard timeout: 120s (Vercel Pro allows up to 300s via maxDuration config)
       setTimeout(() => {
         if (!resolved) {
-          console.log('[stream] Hard timeout at 50s, chunks:', chunkCount, 'bytes:', fullText.length);
+          console.log('[stream] Hard timeout at 120s, chunks:', chunkCount, 'bytes:', fullText.length);
           if (fullText.length > 0) done();
           else { resolved = true; clearInterval(idleCheck); reject(new Error('Stream timeout - no content received')); }
         }
-      }, 50000);
+      }, 120000);
     });
 
     const latency = Date.now() - startTime;
@@ -1234,6 +1235,17 @@ ${rsvpFieldsDesc}`;
     if (!theme.theme_html) {
       const keys = Object.keys(theme).join(', ');
       throw new Error('Invalid theme response — missing theme_html. Got keys: [' + keys + ']. First 300 chars: ' + JSON.stringify(theme).substring(0, 300));
+    }
+
+    // Validate invite completeness — check for required sections
+    const hasRsvpSlot = theme.theme_html.includes('rsvp-slot') || theme.theme_html.includes('rsvp-button');
+    const hasDataFields = theme.theme_html.includes('data-field=');
+    if (!hasRsvpSlot || !hasDataFields) {
+      console.warn('[generate-theme] Possibly truncated invite! rsvp-slot:', hasRsvpSlot, 'data-fields:', hasDataFields, 'html length:', theme.theme_html.length, 'bytes, chunks:', chunkCount);
+      // If HTML is very short (< 3KB) and missing RSVP, it's likely truncated
+      if (theme.theme_html.length < 3000 && !hasRsvpSlot) {
+        throw new Error('Generated invite appears truncated (missing RSVP section, only ' + theme.theme_html.length + ' bytes). Please try again.');
+      }
     }
 
     // Store thank you HTML in config to avoid DB schema change
