@@ -524,6 +524,10 @@ This is the most common failure mode. Double-check it.`;
       theme = JSON.parse(themeText);
     } catch (parseErr) {
       let repaired = themeText;
+      // Remove trailing commas before } or ]
+      repaired = repaired.replace(/,\s*([\]}])/g, '$1');
+      // Fix unquoted keys (common with some models)
+      repaired = repaired.replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":');
       const quoteCount = (repaired.match(/(?<!\\)"/g) || []).length;
       if (quoteCount % 2 !== 0) repaired += '"';
       let braceDepth = 0, bracketDepth = 0, inString = false;
@@ -542,12 +546,57 @@ This is the most common failure mode. Double-check it.`;
       try {
         theme = JSON.parse(repaired);
       } catch (e2) {
-        throw new Error('Failed to parse theme JSON: ' + parseErr.message);
+        throw new Error('Failed to parse theme JSON: ' + parseErr.message + ' | First 300 chars: ' + themeText.substring(0, 300));
       }
     }
 
-    if (!theme.theme_html || !theme.theme_css) {
-      throw new Error('Invalid theme response — missing theme_html or theme_css');
+    // Accept both snake_case and camelCase keys from Claude
+    if (!theme.theme_html && theme.html) { theme.theme_html = theme.html; }
+    if (!theme.theme_css && theme.css) { theme.theme_css = theme.css; }
+    if (!theme.theme_config && theme.config) { theme.theme_config = theme.config; }
+    if (!theme.theme_thankyou_html && theme.thankyou_html) { theme.theme_thankyou_html = theme.thankyou_html; }
+    if (!theme.theme_thankyou_html && theme.thankyouHtml) { theme.theme_thankyou_html = theme.thankyouHtml; }
+    if (!theme.theme_html && theme.themeHtml) { theme.theme_html = theme.themeHtml; }
+    if (!theme.theme_css && theme.themeCss) { theme.theme_css = theme.themeCss; }
+
+    // If CSS is missing but embedded in HTML <style> tags, extract it
+    if (theme.theme_html && !theme.theme_css) {
+      const styleMatch = theme.theme_html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+      if (styleMatch) {
+        theme.theme_css = styleMatch.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+        theme.theme_html = theme.theme_html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+      }
+    }
+
+    // If HTML is a full document, extract body content and head styles
+    if (theme.theme_html && theme.theme_html.includes('<!DOCTYPE')) {
+      if (!theme.theme_css) {
+        const headStyleMatch = theme.theme_html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+        if (headStyleMatch) {
+          theme.theme_css = headStyleMatch.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+        }
+      }
+      const bodyMatch = theme.theme_html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      if (bodyMatch) {
+        theme.theme_html = bodyMatch[1].trim();
+      }
+    }
+
+    if (!theme.theme_css) theme.theme_css = '';
+    if (!theme.theme_config) theme.theme_config = {};
+
+    // Extract Google Fonts @import from CSS into config if missing
+    if (!theme.theme_config.googleFontsImport) {
+      const fontImportMatch = (theme.theme_css || '').match(/@import\s+url\(['"]?(https:\/\/fonts\.googleapis\.com[^'"\)]+)['"]?\)/);
+      if (fontImportMatch) {
+        theme.theme_config.googleFontsImport = "@import url('" + fontImportMatch[1] + "');";
+        theme.theme_css = theme.theme_css.replace(/@import\s+url\([^)]+\);?\s*/g, '');
+      }
+    }
+
+    if (!theme.theme_html) {
+      const keys = Object.keys(theme).join(', ');
+      throw new Error('Invalid theme response — missing theme_html. Got keys: [' + keys + ']');
     }
 
     return {
