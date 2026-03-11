@@ -1,14 +1,14 @@
 {
   "functions": {
     "api/v2/generate-theme.js": {
-      "maxDuration": 120,
+      "maxDuration": 300,
       "memory": 1024
     },
     "api/v2/chat.js": {
-      "maxDuration": 60
+      "maxDuration": 120
     },
     "api/v2/prompt-test.js": {
-      "maxDuration": 180,
+      "maxDuration": 300,
       "memory": 1024
     },
     "api/v2/billing.js": {

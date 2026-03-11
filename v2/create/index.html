@@ -2700,6 +2700,7 @@
           var genError = null;
           var genRawChunks = 0;
           var genStartTime = Date.now();
+          var genEventType = null; // Persists across chunks so split event/data lines work
 
           try {
           while (true) {
@@ -2712,11 +2713,11 @@
 
             var genLines = genBuffer.split('\n');
             genBuffer = genLines.pop() || '';
-            var genEventType = null;
             for (var gi = 0; gi < genLines.length; gi++) {
               var genLine = genLines[gi];
-              if (genLine.startsWith('event: ')) genEventType = genLine.substring(7).trim();
-              else if (genLine.startsWith('data: ') && genEventType) {
+              if (genLine.startsWith('event: ')) {
+                genEventType = genLine.substring(7).trim();
+              } else if (genLine.startsWith('data: ') && genEventType) {
                 try {
                   var genEventData = JSON.parse(genLine.substring(6));
                   console.log('[generate-theme] SSE event:', genEventType, genEventType === 'progress' ? '(' + genEventData.bytes + ' bytes)' : JSON.stringify(genEventData).substring(0, 200));
@@ -2816,7 +2817,7 @@
         + '<h3 class="gen-title" style="color:var(--party-coral);">Oops!</h3>'
         + '<p style="margin-bottom:12px;font-size:14px;color:#888;">' + escapeHtml(msg) + '</p>'
         + '<details style="margin-bottom:20px;text-align:left;max-width:100%;"><summary style="font-size:11px;color:#aaa;cursor:pointer;">Debug info</summary>'
-        + '<pre style="font-size:10px;color:#999;background:#f5f5f5;padding:8px;border-radius:6px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto;margin-top:4px;">' + escapeHtml(window._lastGenDebug || 'No debug info') + '\nBuild: 2026-03-11c</pre></details>'
+        + '<pre style="font-size:10px;color:#999;background:#f5f5f5;padding:8px;border-radius:6px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto;margin-top:4px;">' + escapeHtml(window._lastGenDebug || 'No debug info') + '\nBuild: 2026-03-11d</pre></details>'
         + buttons + '</div>';
     }
 
