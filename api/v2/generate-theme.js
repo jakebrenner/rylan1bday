@@ -9,6 +9,9 @@ const supabase = createClient(
 
 const DEFAULT_THEME_MODEL = process.env.THEME_MODEL || 'claude-sonnet-4-6';
 
+// Allow up to 300s on Vercel Pro (caps at 60s on Hobby)
+export const config = { maxDuration: 300 };
+
 // Fetch images from URLs and convert to base64 for Claude vision
 async function fetchImagesAsBase64(urls) {
   const results = [];
@@ -847,61 +850,52 @@ Return ONLY a valid JSON object with these keys:
         tweakConfig.thankyouHtml = currentConfig.thankyouHtml;
       }
 
-      // Save as new version
-      const { data: existingThemes } = await supabase
-        .from('event_themes')
-        .select('id, version')
-        .eq('event_id', eventId)
-        .order('version', { ascending: false })
-        .limit(1);
-
-      const nextVersion = existingThemes?.length > 0 ? existingThemes[0].version + 1 : 1;
-
-      await supabase
-        .from('event_themes')
-        .update({ is_active: false })
-        .eq('event_id', eventId)
-        .eq('is_active', true);
-
-      const tweakInsert = {
-          event_id: eventId,
-          version: nextVersion,
-          is_active: true,
-          prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
-          html: theme.theme_html,
-          css: theme.theme_css,
-          config: tweakConfig,
-          model: themeModel,
-          input_tokens: finalMessage.usage?.input_tokens || 0,
-          output_tokens: finalMessage.usage?.output_tokens || 0,
-          latency_ms: latency,
-          prompt_version_id: activePrompt.promptVersionId || null
-      };
-      let { data: newTheme, error: themeError } = await supabase
-        .from('event_themes').insert(tweakInsert).select().single();
-      // Retry without prompt_version_id if column doesn't exist yet
-      if (themeError && themeError.message?.includes('prompt_version_id')) {
-        delete tweakInsert.prompt_version_id;
-        ({ data: newTheme, error: themeError } = await supabase
-          .from('event_themes').insert(tweakInsert).select().single());
-      }
-      if (themeError) throw new Error('Failed to save theme: ' + themeError.message);
-
-      const tweakMeta = getClientMeta(req);
-      await supabase.from('generation_log').insert({
-        event_id: eventId, user_id: user.id, prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
-        model: themeModel, input_tokens: finalMessage.usage?.input_tokens || 0,
-        output_tokens: finalMessage.usage?.output_tokens || 0, latency_ms: latency, status: 'success',
-        is_tweak: true, event_type: eventDetails?.eventType || '', client_ip: tweakMeta.ip, client_geo: tweakMeta.geo, user_agent: tweakMeta.userAgent,
-        prompt_version_id: activePrompt.promptVersionId || null
-      }).catch(() => {});
-
-      // Send the final result as an SSE event
+      // Send result to client FIRST — Vercel may kill us before DB saves complete
       sendSSE('done', {
         success: true,
-        theme: { id: newTheme.id, version: newTheme.version, html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
+        theme: { id: 'pending', version: 0, html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
         chatResponse: theme.chat_response || null
       });
+
+      // Save as new version (best-effort — client already has the theme)
+      try {
+        const { data: existingThemes } = await supabase
+          .from('event_themes')
+          .select('id, version')
+          .eq('event_id', eventId)
+          .order('version', { ascending: false })
+          .limit(1);
+
+        const nextVersion = existingThemes?.length > 0 ? existingThemes[0].version + 1 : 1;
+
+        await supabase
+          .from('event_themes')
+          .update({ is_active: false })
+          .eq('event_id', eventId)
+          .eq('is_active', true);
+
+        const tweakInsert = {
+          event_id: eventId, version: nextVersion, is_active: true,
+          prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
+          html: theme.theme_html, css: theme.theme_css, config: tweakConfig,
+          model: themeModel, input_tokens: finalMessage.usage?.input_tokens || 0,
+          output_tokens: finalMessage.usage?.output_tokens || 0, latency_ms: latency
+        };
+        let { error: tweakThemeError } = await supabase
+          .from('event_themes').insert(tweakInsert).select().single();
+        if (tweakThemeError) console.error('Failed to save tweak theme:', tweakThemeError.message);
+
+        const tweakMeta = getClientMeta(req);
+        supabase.from('generation_log').insert({
+          event_id: eventId, user_id: user.id, prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
+          model: themeModel, input_tokens: finalMessage.usage?.input_tokens || 0,
+          output_tokens: finalMessage.usage?.output_tokens || 0, latency_ms: latency, status: 'success',
+          is_tweak: true, event_type: eventDetails?.eventType || '',
+          client_ip: tweakMeta.ip, client_geo: tweakMeta.geo, user_agent: tweakMeta.userAgent
+        }).catch(() => {});
+      } catch (saveErr) {
+        console.error('Tweak DB save error (theme already sent to client):', saveErr);
+      }
 
       return res.end();
     } catch (err) {
@@ -1113,81 +1107,14 @@ ${rsvpFieldsDesc}`;
       theme.theme_config.thankyouHtml = theme.theme_thankyou_html;
     }
 
-    // Determine next version number
-    const { data: existingThemes } = await supabase
-      .from('event_themes')
-      .select('id, version')
-      .eq('event_id', eventId)
-      .order('version', { ascending: false })
-      .limit(1);
-
-    const nextVersion = existingThemes?.length > 0 ? existingThemes[0].version + 1 : 1;
-
-    // Deactivate any currently active theme for this event
-    await supabase
-      .from('event_themes')
-      .update({ is_active: false })
-      .eq('event_id', eventId)
-      .eq('is_active', true);
-
-    // Insert new theme as active
-    const genInsert = {
-      event_id: eventId,
-      version: nextVersion,
-      is_active: true,
-      prompt: effectivePrompt,
-      html: theme.theme_html,
-      css: theme.theme_css,
-      config: theme.theme_config,
-      model: themeModel,
-      input_tokens: finalMessage.usage?.input_tokens || 0,
-      output_tokens: finalMessage.usage?.output_tokens || 0,
-      latency_ms: latency,
-      prompt_version_id: activePrompt.promptVersionId || null
-    };
-    let { data: newTheme, error: themeError } = await supabase
-      .from('event_themes').insert(genInsert).select().single();
-    // Retry without prompt_version_id if column doesn't exist yet
-    if (themeError && themeError.message?.includes('prompt_version_id')) {
-      delete genInsert.prompt_version_id;
-      ({ data: newTheme, error: themeError } = await supabase
-        .from('event_themes').insert(genInsert).select().single());
-    }
-    if (themeError) {
-      throw new Error('Failed to save theme: ' + themeError.message);
-    }
-
-    // Log successful generation with full metadata
-    const genMeta = getClientMeta(req);
-    await supabase.from('generation_log').insert({
-      event_id: eventId,
-      user_id: user.id,
-      prompt: effectivePrompt,
-      model: themeModel,
-      input_tokens: finalMessage.usage?.input_tokens || 0,
-      output_tokens: finalMessage.usage?.output_tokens || 0,
-      latency_ms: latency,
-      status: 'success',
-      event_type: eventType,
-      style_library_ids: usedStyleIds,
-      prompt_version_id: activePrompt.promptVersionId || null,
-      client_ip: genMeta.ip,
-      client_geo: genMeta.geo,
-      user_agent: genMeta.userAgent
-    }).catch(() => {});
-
-    // Set first_generation_at on the event (only if not already set)
-    supabase.from('events')
-      .update({ first_generation_at: new Date().toISOString() })
-      .eq('id', eventId)
-      .is('first_generation_at', null)
-      .then(() => {}).catch(() => {});
-
+    // CRITICAL: Send theme to client IMMEDIATELY before DB saves.
+    // Vercel may kill the function at 60s — the user must have their invite first.
+    // DB saves happen after; if they fail, the user still sees the invite (it just won't be persisted).
     sendSSE('done', {
       success: true,
       theme: {
-        id: newTheme.id,
-        version: newTheme.version,
+        id: 'pending', // Will be updated by DB save, but client doesn't need it yet
+        version: 1,
         html: theme.theme_html,
         css: theme.theme_css,
         config: theme.theme_config
@@ -1201,6 +1128,64 @@ ${rsvpFieldsDesc}`;
         }
       }
     });
+
+    // Now save to DB — if Vercel kills us here, the user already has their invite
+    try {
+      const { data: existingThemes } = await supabase
+        .from('event_themes')
+        .select('id, version')
+        .eq('event_id', eventId)
+        .order('version', { ascending: false })
+        .limit(1);
+
+      const nextVersion = existingThemes?.length > 0 ? existingThemes[0].version + 1 : 1;
+
+      await supabase
+        .from('event_themes')
+        .update({ is_active: false })
+        .eq('event_id', eventId)
+        .eq('is_active', true);
+
+      const genInsert = {
+        event_id: eventId,
+        version: nextVersion,
+        is_active: true,
+        prompt: effectivePrompt,
+        html: theme.theme_html,
+        css: theme.theme_css,
+        config: theme.theme_config,
+        model: themeModel,
+        input_tokens: finalMessage.usage?.input_tokens || 0,
+        output_tokens: finalMessage.usage?.output_tokens || 0,
+        latency_ms: latency,
+        prompt_version_id: activePrompt.promptVersionId || null
+      };
+      let { data: newTheme, error: themeError } = await supabase
+        .from('event_themes').insert(genInsert).select().single();
+      if (themeError && themeError.message?.includes('prompt_version_id')) {
+        delete genInsert.prompt_version_id;
+        ({ data: newTheme, error: themeError } = await supabase
+          .from('event_themes').insert(genInsert).select().single());
+      }
+      if (themeError) console.error('Failed to save theme:', themeError.message);
+
+      // Fire-and-forget: generation log + first_generation_at
+      const genMeta = getClientMeta(req);
+      supabase.from('generation_log').insert({
+        event_id: eventId, user_id: user.id, prompt: effectivePrompt,
+        model: themeModel, input_tokens: finalMessage.usage?.input_tokens || 0,
+        output_tokens: finalMessage.usage?.output_tokens || 0, latency_ms: latency,
+        status: 'success', event_type: eventType, style_library_ids: usedStyleIds,
+        prompt_version_id: activePrompt.promptVersionId || null,
+        client_ip: genMeta.ip, client_geo: genMeta.geo, user_agent: genMeta.userAgent
+      }).catch(() => {});
+      supabase.from('events')
+        .update({ first_generation_at: new Date().toISOString() })
+        .eq('id', eventId).is('first_generation_at', null)
+        .then(() => {}).catch(() => {});
+    } catch (saveErr) {
+      console.error('DB save error (theme already sent to client):', saveErr);
+    }
 
     return res.end();
   } catch (err) {
