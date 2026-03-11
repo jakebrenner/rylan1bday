@@ -353,7 +353,7 @@
   </div>
 
   <!-- Hide step 1 immediately when resuming an existing event (prevents flash) -->
-  <script>if(new URLSearchParams(window.location.search).get('eventId')){document.write('<style>.chat-container[data-step="1"]{display:none !important;}</style>');}</script>
+  <script>if(new URLSearchParams(window.location.search).get('eventId')){document.write('<style id="resumeHideChat">.chat-container[data-step="1"]{display:none !important;}</style>');}</script>
 
   <!-- Step 1: Chat Prompt -->
   <div class="step active chat-container" data-step="1">
@@ -840,24 +840,9 @@
               initDesignChatIfNeeded(false);
               goToStep(2);
             } else {
-              // Has details but no theme — go back to chat
-              // Restore chat bubbles and show confirmation card
-              if (restoreDraft(false) && chatBubbles.length > 0) {
-                rebuildChatFromBubbles();
-                if (chatPhase === 'confirmed' || chatPhase === 'styling') {
-                  showConfirmationCard();
-                }
-                if (chatPhase === 'styling') {
-                  var proceedBtn = document.querySelector('#confirmationCard .chat-proceed');
-                  if (proceedBtn) proceedBtn.remove();
-                  document.querySelector('.chat-input-area').style.display = 'none';
-                  showStyleChoiceCard();
-                }
-              } else {
-                // No saved chat — show confirmation from extractedData
-                showConfirmationCard();
-              }
-              goToStep(1);
+              // Has details but no theme — go straight to generation (step 2)
+              // goToStep(2) auto-triggers generateTheme() when no themes exist
+              goToStep(2);
             }
             return;
           }
