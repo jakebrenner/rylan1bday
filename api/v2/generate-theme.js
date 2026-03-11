@@ -782,12 +782,17 @@ Return ONLY a valid JSON object with these keys:
       let fullText = '';
       let chunkCount = 0;
 
+      // Keepalive: send SSE comment every 3s to prevent mobile Safari from killing the connection
+      const keepalive = setInterval(() => {
+        try { res.write(': keepalive\n\n'); } catch (e) { /* connection already closed */ }
+      }, 3000);
+
       // Use .on('text') (proven to work) + resolve on 'finalMessage' event
       // Fallback: idle timeout resolves if no text for 5s after text started
       await new Promise((resolve, reject) => {
         let resolved = false;
         let lastChunkTime = Date.now();
-        const done = () => { if (!resolved) { resolved = true; clearInterval(idleCheck); resolve(); } };
+        const done = () => { if (!resolved) { resolved = true; clearInterval(idleCheck); clearInterval(keepalive); resolve(); } };
 
         stream.on('text', (text) => {
           fullText += text;
@@ -799,7 +804,7 @@ Return ONLY a valid JSON object with these keys:
         });
         stream.on('finalMessage', done);
         stream.on('end', done);
-        stream.on('error', (err) => { if (!resolved) { resolved = true; clearInterval(idleCheck); reject(err); } });
+        stream.on('error', (err) => { if (!resolved) { resolved = true; clearInterval(idleCheck); clearInterval(keepalive); reject(err); } });
 
         // Safety: if text was flowing but stopped for 15s AND we have substantial content, assume done
         const idleCheck = setInterval(() => {
@@ -814,7 +819,7 @@ Return ONLY a valid JSON object with these keys:
           if (!resolved) {
             console.log('[stream] Hard timeout at 120s, chunks:', chunkCount, 'bytes:', fullText.length);
             if (fullText.length > 0) done();
-            else { resolved = true; clearInterval(idleCheck); reject(new Error('Stream timeout - no content received')); }
+            else { resolved = true; clearInterval(idleCheck); clearInterval(keepalive); reject(new Error('Stream timeout - no content received')); }
           }
         }, 120000);
       });
@@ -1093,12 +1098,17 @@ ${rsvpFieldsDesc}`;
     let fullText = '';
     let chunkCount = 0;
 
+    // Keepalive: send SSE comment every 3s to prevent mobile Safari from killing the connection
+    const keepalive = setInterval(() => {
+      try { res.write(': keepalive\n\n'); } catch (e) { /* connection already closed */ }
+    }, 3000);
+
     // Use .on('text') (proven to work) + resolve on 'finalMessage' event
     // Fallback: idle timeout resolves if no text for 5s after text started
     await new Promise((resolve, reject) => {
       let resolved = false;
       let lastChunkTime = Date.now();
-      const done = () => { if (!resolved) { resolved = true; clearInterval(idleCheck); resolve(); } };
+      const done = () => { if (!resolved) { resolved = true; clearInterval(idleCheck); clearInterval(keepalive); resolve(); } };
 
       stream.on('text', (text) => {
         fullText += text;
@@ -1110,7 +1120,7 @@ ${rsvpFieldsDesc}`;
       });
       stream.on('finalMessage', done);
       stream.on('end', done);
-      stream.on('error', (err) => { if (!resolved) { resolved = true; clearInterval(idleCheck); reject(err); } });
+      stream.on('error', (err) => { if (!resolved) { resolved = true; clearInterval(idleCheck); clearInterval(keepalive); reject(err); } });
 
       // Safety: if text was flowing but stopped for 15s AND we have substantial content, assume done
       // Full invites with SVG illustrations can be 20-40KB — don't cut off early
@@ -1126,7 +1136,7 @@ ${rsvpFieldsDesc}`;
         if (!resolved) {
           console.log('[stream] Hard timeout at 120s, chunks:', chunkCount, 'bytes:', fullText.length);
           if (fullText.length > 0) done();
-          else { resolved = true; clearInterval(idleCheck); reject(new Error('Stream timeout - no content received')); }
+          else { resolved = true; clearInterval(idleCheck); clearInterval(keepalive); reject(new Error('Stream timeout - no content received')); }
         }
       }, 120000);
     });
