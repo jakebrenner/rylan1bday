@@ -239,7 +239,7 @@
     .panel-tab:hover { color: var(--midnight); }
     .panel-tab.active { color: var(--party-coral); border-bottom-color: var(--party-coral); }
     .tab-content { display: none; }
-    .tab-content.active { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; }
+    .tab-content.active { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
 
     /* Design chat */
     .design-chat { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
@@ -572,7 +572,7 @@
               </div>
 
               <!-- Event Details tab -->
-              <div id="tabDetails" class="tab-content">
+              <div id="tabDetails" class="tab-content" style="overflow-y:auto;">
                 <div class="form-group" style="margin-bottom:12px;">
                   <label style="font-size:12px;">Event Name</label>
                   <input type="text" id="editTitle" style="font-size:13px;padding:8px 10px;">
@@ -607,7 +607,7 @@
               </div>
 
               <!-- Versions tab -->
-              <div id="tabVersions" class="tab-content">
+              <div id="tabVersions" class="tab-content" style="overflow-y:auto;">
                 <div id="versionList" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-start;"></div>
               </div>
             </div>
@@ -2593,16 +2593,20 @@
       var previewCol = document.getElementById('previewColumn');
       if (!editPanel || !previewCol) return;
       if (window.innerWidth <= 900) {
+        editPanel.style.height = '';
         editPanel.style.maxHeight = '';
         return;
       }
-      // Use requestAnimationFrame to get accurate rendered height
-      requestAnimationFrame(function() {
+      function apply() {
         var previewHeight = previewCol.offsetHeight;
-        if (previewHeight > 0) {
+        if (previewHeight > 100) {
+          editPanel.style.height = previewHeight + 'px';
           editPanel.style.maxHeight = previewHeight + 'px';
         }
-      });
+      }
+      requestAnimationFrame(apply);
+      // Fallback: re-sync after fonts/images load
+      setTimeout(apply, 300);
     }
 
     function nextStep() { if (currentStep < totalSteps) goToStep(currentStep + 1); }
