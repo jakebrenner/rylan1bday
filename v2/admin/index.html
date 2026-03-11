@@ -122,10 +122,10 @@
     .phone-screen iframe { width: 393px; height: 852px; border: none; border-radius: 36px; transform-origin: top left; }
     .phone-home-bar { width: 100px; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; margin: 6px auto 2px; }
 
-    /* Prompt Lab layout */
-    .promptlab-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
-    @media (max-width: 900px) { .promptlab-layout { grid-template-columns: 1fr; } }
-    .promptlab-sidebar { position: sticky; top: 24px; }
+    /* Prompt Lab layout — single column stacked */
+    .promptlab-layout { display: flex; flex-direction: column; gap: 0; }
+    .promptlab-config { max-width: 700px; }
+    .promptlab-config .config-section { margin-bottom: 0; }
     .preview-toggle-row { display: flex; justify-content: center; gap: 4px; margin-bottom: 12px; }
     .preview-toggle-btn { padding: 6px 16px; border-radius: 20px; border: 1px solid #ddd; background: white; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; color: #888; }
     .preview-toggle-btn.active { background: var(--midnight); color: white; border-color: var(--midnight); }
@@ -770,10 +770,9 @@
 
     <!-- Prompt Lab Tab -->
     <div class="tab-content" id="tab-promptlab">
-      <!-- Main layout: config left, phone preview right -->
       <div class="promptlab-layout" id="promptlabSingleLayout">
-        <!-- Left: Config -->
-        <div>
+        <!-- Config -->
+        <div class="promptlab-config">
           <div class="config-section">
             <h3>Event Details</h3>
             <div class="config-field" style="margin-bottom:12px;">
@@ -939,51 +938,64 @@
           </div>
         </div>
 
-        <!-- Right: Phone Preview (single model) -->
-        <div class="promptlab-sidebar" id="singlePreviewSidebar">
-          <div id="singlePreviewEmpty" style="text-align:center;padding:60px 20px;color:#999;font-size:13px;">
-            <div style="font-size:48px;margin-bottom:12px;opacity:0.3;">&#128241;</div>
-            <p>Generate a test invite to see the preview here</p>
-          </div>
-          <div id="singlePreviewContent" style="display:none;">
-            <div class="preview-toggle-row">
+      </div>
+
+      <!-- Results section (single model or matrix, shown after generation) -->
+      <div id="singlePreviewSection" style="display:none;">
+        <div class="config-section">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3>Result</h3>
+            <div class="preview-toggle-row" style="margin-bottom:0;">
               <button class="preview-toggle-btn active" onclick="setTestPreviewMode('invite')">Invite</button>
               <button class="preview-toggle-btn" onclick="setTestPreviewMode('thankyou')">Thank You</button>
             </div>
-            <div class="phone-mockup">
-              <div class="phone-frame">
-                <div class="phone-notch"></div>
-                <div class="phone-screen">
-                  <iframe id="testPreviewFrame" sandbox="allow-same-origin allow-scripts"></iframe>
+          </div>
+          <div id="singlePreviewContent" style="display:flex;gap:24px;flex-wrap:wrap;">
+            <div style="flex:0 0 auto;">
+              <div class="phone-mockup">
+                <div class="phone-frame">
+                  <div class="phone-notch"></div>
+                  <div class="phone-screen">
+                    <iframe id="testPreviewFrame" sandbox="allow-same-origin allow-scripts"></iframe>
+                  </div>
+                  <div class="phone-home-bar"></div>
                 </div>
-                <div class="phone-home-bar"></div>
               </div>
             </div>
-            <div class="test-meta" id="testMeta" style="margin-top:16px;"></div>
-            <div style="margin-top:10px;">
-              <button class="save-to-library-btn" id="singleSaveToLibraryBtn" onclick="saveToStyleLibrary(0, this)" title="Save to Style Library" style="padding:6px 14px;font-size:12px;">&#128230; Save to Style Library</button>
-            </div>
-            <div style="display:flex;gap:6px;margin-top:12px;">
-              <button class="btn btn-secondary btn-sm" onclick="showTestView('preview')" id="btnPreview" style="background:var(--midnight);color:white;">Preview</button>
-              <button class="btn btn-secondary btn-sm" onclick="showTestView('html')" id="btnHtml">HTML</button>
-              <button class="btn btn-secondary btn-sm" onclick="showTestView('css')" id="btnCss">CSS</button>
-              <button class="btn btn-secondary btn-sm" onclick="showTestView('config')" id="btnConfig">Config</button>
-            </div>
-            <div id="testViewPreview" style="display:none;"></div>
-            <div id="testViewHtml" style="display:none;margin-top:8px;">
-              <div class="prompt-viewer" style="max-height:400px;" id="testHtmlContent"></div>
-            </div>
-            <div id="testViewCss" style="display:none;margin-top:8px;">
-              <div class="prompt-viewer" style="max-height:400px;" id="testCssContent"></div>
-            </div>
-            <div id="testViewConfig" style="display:none;margin-top:8px;">
-              <div class="prompt-viewer" style="max-height:300px;" id="testConfigContent"></div>
+            <div style="flex:1;min-width:250px;">
+              <div class="star-rating" data-idx="0" style="margin-bottom:8px;">
+                <span class="star" data-score="1">&#9733;</span>
+                <span class="star" data-score="2">&#9733;</span>
+                <span class="star" data-score="3">&#9733;</span>
+                <span class="star" data-score="4">&#9733;</span>
+                <span class="star" data-score="5">&#9733;</span>
+                <span class="star-label" id="starLabel0">Rate this</span>
+              </div>
+              <div class="test-meta" id="testMeta" style="margin-top:0;margin-bottom:12px;"></div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+                <button class="save-to-library-btn" id="singleSaveToLibraryBtn" onclick="saveToStyleLibrary(0, this)" title="Save to Style Library" style="padding:6px 14px;font-size:12px;">&#128230; Save to Style Library</button>
+              </div>
+              <div style="display:flex;gap:6px;margin-bottom:8px;">
+                <button class="btn btn-secondary btn-sm" onclick="showTestView('preview')" id="btnPreview" style="background:var(--midnight);color:white;">Preview</button>
+                <button class="btn btn-secondary btn-sm" onclick="showTestView('html')" id="btnHtml">HTML</button>
+                <button class="btn btn-secondary btn-sm" onclick="showTestView('css')" id="btnCss">CSS</button>
+                <button class="btn btn-secondary btn-sm" onclick="showTestView('config')" id="btnConfig">Config</button>
+              </div>
+              <div id="testViewPreview" style="display:none;"></div>
+              <div id="testViewHtml" style="display:none;">
+                <div class="prompt-viewer" style="max-height:400px;" id="testHtmlContent"></div>
+              </div>
+              <div id="testViewCss" style="display:none;">
+                <div class="prompt-viewer" style="max-height:400px;" id="testCssContent"></div>
+              </div>
+              <div id="testViewConfig" style="display:none;">
+                <div class="prompt-viewer" style="max-height:300px;" id="testConfigContent"></div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Matrix results (full width, shown after generation) -->
       <div id="matrixResultSection" style="display:none;">
         <div class="config-section">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
@@ -1980,7 +1992,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     // ── Single model preview mode toggle ──
     function setTestPreviewMode(mode) {
       testPreviewMode = mode;
-      document.querySelectorAll('#singlePreviewContent .preview-toggle-btn').forEach(function(btn, i) {
+      document.querySelectorAll('#singlePreviewSection .preview-toggle-btn').forEach(function(btn, i) {
         btn.classList.toggle('active', (mode === 'invite' && i === 0) || (mode === 'thankyou' && i === 1));
       });
       if (lastTestResult) {
@@ -2104,8 +2116,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           status.textContent = 'Running ' + total + ' generations in parallel...';
           matrixResults = combos.map(function() { return null; });
           document.getElementById('matrixResultSection').style.display = 'block';
-          document.getElementById('singlePreviewEmpty').style.display = 'block';
-          document.getElementById('singlePreviewContent').style.display = 'none';
+          document.getElementById('singlePreviewSection').style.display = 'none';
 
           // Render skeleton
           renderMatrixSkeleton(combos);
@@ -2161,7 +2172,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
           lastTestResult = data;
           matrixResults = [{ success: true, theme: data.theme, metadata: data.metadata, promptVersionId: combo.promptVersionId, promptLabel: combo.promptLabel, model: combo.model, modelLabel: combo.modelLabel, score: 0, testRunId: null }];
+          document.getElementById('matrixResultSection').style.display = 'none';
           renderSingleResult(data);
+          document.getElementById('singlePreviewSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
           // Auto-save test run
           saveMatrixTestRun(0, combo, data, currentTestSessionId);
@@ -2473,10 +2486,11 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       }
     }
 
-    // ── Render single model result into phone sidebar ──
+    // ── Render single model result ──
     function renderSingleResult(data) {
-      document.getElementById('singlePreviewEmpty').style.display = 'none';
-      document.getElementById('singlePreviewContent').style.display = 'block';
+      document.getElementById('singlePreviewSection').style.display = 'block';
+      document.getElementById('matrixResultSection').style.display = 'none';
+      document.getElementById('singlePreviewContent').style.display = 'flex';
       testPreviewMode = 'invite';
 
       var meta = data.metadata;
@@ -2498,7 +2512,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('testConfigContent').textContent = JSON.stringify(data.theme.config, null, 2);
 
       // Reset toggle buttons
-      document.querySelectorAll('#singlePreviewContent .preview-toggle-btn').forEach(function(btn, i) {
+      document.querySelectorAll('#singlePreviewSection .preview-toggle-btn').forEach(function(btn, i) {
         btn.classList.toggle('active', i === 0);
       });
       showTestView('preview');
