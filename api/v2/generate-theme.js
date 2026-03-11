@@ -707,7 +707,10 @@ Rules:
       'move', 'position', 'align', 'center', 'left', 'right',
       'css', 'width', 'height', 'size', 'rounded', 'hover'
     ];
-    const isLightTweak = !hasPhotos && !designKeywords.some(kw => lowerInstructions.includes(kw));
+    // Text swap patterns ("change X to Y") are always light, even if they contain design-ish words
+    const isTextSwap = /\b(?:change|replace|update|switch)\b.+\b(?:to|with|for|into)\b/i.test(lowerInstructions)
+      && !/\b(?:color|colour|font|background|layout|theme|style)\s+(?:to|with|for|into)\b/i.test(lowerInstructions);
+    const isLightTweak = isTextSwap || (!hasPhotos && !designKeywords.some(kw => lowerInstructions.includes(kw)));
     const tweakModel = isLightTweak ? 'claude-haiku-4-5-20251001' : themeModel;
     const tweakMaxTokens = isLightTweak ? 4096 : 16384;
     console.log(`[tweak] Classified as ${isLightTweak ? 'LIGHT' : 'DESIGN'} tweak, using model: ${tweakModel}`);

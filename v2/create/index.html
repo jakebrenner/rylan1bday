@@ -3286,63 +3286,105 @@
     }
 
     // ── Instant RSVP field change detection (no AI needed) ──
+    // Returns an array of actions detected (supports multi-action messages)
     function tryInstantRsvpFieldChange(text, hasPhotos) {
       if (!text || hasPhotos) return null;
       var lower = text.toLowerCase().trim();
       var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+      var results = [];
 
-      // --- REMOVE field ---
-      var removeMatch = lower.match(/(?:remove|delete|drop|get rid of|take off|take out|hide|no more)\s+(?:the\s+)?(?:"([^"]+)"|'([^']+)'|(.+?))\s*(?:field|input|question|section|form field)?$/i);
-      if (!removeMatch) removeMatch = lower.match(/(?:remove|delete|drop|get rid of|take off|take out|hide|no more)\s+(?:the\s+)?(?:"([^"]+)"|'([^']+)'|(.+?))\s*(?:field|input|question|section|form field)?/i);
-      if (removeMatch) {
-        var searchTerm = (removeMatch[1] || removeMatch[2] || removeMatch[3] || '').trim().toLowerCase().replace(/[\s_-]+/g, '');
-        if (searchTerm) {
-          var matchedField = enabledFields.find(function(f) {
+      // --- Split on "and" / "&" / "," to handle compound requests ---
+      // But only split on "and" that separates clauses (preceded by field/add/remove action words)
+      var parts = [lower];
+      var compoundSplit = lower.split(/\s+and\s+|\s*&\s*|\s*,\s*(?:also|then|and)?\s*/i);
+      if (compoundSplit.length > 1) parts = compoundSplit;
+
+      for (var pi = 0; pi < parts.length; pi++) {
+        var part = parts[pi].trim();
+        if (!part) continue;
+
+        // --- REMOVE field ---
+        var removeMatch = part.match(/(?:remove|delete|drop|get rid of|take off|take out|hide|no more)\s+(?:the\s+)?(?:"([^"]+)"|'([^']+)'|(.+?))\s*(?:field|input|question|section|form field)?$/i);
+        if (!removeMatch) removeMatch = part.match(/(?:remove|delete|drop|get rid of|take off|take out|hide|no more)\s+(?:the\s+)?(?:"([^"]+)"|'([^']+)'|(.+?))\s*(?:field|input|question|section|form field)?/i);
+        if (removeMatch) {
+          var searchTerm = (removeMatch[1] || removeMatch[2] || removeMatch[3] || '').trim().toLowerCase().replace(/[\s_-]+/g, '');
+          if (searchTerm) {
+            var matchedField = enabledFields.find(function(f) {
+              var fKey = (f.field_key || '').toLowerCase().replace(/[\s_-]+/g, '');
+              var fLabel = (f.label || '').toLowerCase().replace(/[\s_-]+/g, '');
+              return fKey === searchTerm || fLabel === searchTerm
+                || fKey.indexOf(searchTerm) !== -1 || fLabel.indexOf(searchTerm) !== -1
+                || searchTerm.indexOf(fKey) !== -1 || searchTerm.indexOf(fLabel) !== -1;
+            });
+            if (matchedField) {
+              results.push({ action: 'remove', field_key: matchedField.field_key, label: matchedField.label });
+              // Remove from enabledFields so subsequent parts don't see it
+              enabledFields = enabledFields.filter(function(f) { return f.field_key !== matchedField.field_key; });
+              continue;
+            }
+          }
+        }
+
+        // --- ADD field (detected client-side, interpreted by quick AI call) ---
+        var addDetected = /\b(?:add|include|put|create|insert)\b/i.test(part)
+          && (/\b(?:field|input|question|section|form field)\b/i.test(part)
+            || /\b(?:for|called|named|asking|about)\b/i.test(part));
+        if (!addDetected) addDetected = /\b(?:i want|i need|can you add|could you add|please add)\b/i.test(part)
+          && /\b(?:field|question|ask|input)\b/i.test(part);
+        if (addDetected) {
+          // Use the original text for the AI call (more context is better)
+          results.push({ action: 'add_async', userMessage: text });
+          continue;
+        }
+
+        // --- MAKE REQUIRED / OPTIONAL ---
+        var reqMatch = part.match(/(?:make|set)\s+(?:the\s+)?(?:"([^"]+)"|'([^']+)'|(.+?))\s*(?:field\s+)?(?:required|mandatory|optional)/i);
+        if (reqMatch) {
+          var reqTerm = (reqMatch[1] || reqMatch[2] || reqMatch[3] || '').trim().toLowerCase().replace(/[\s_-]+/g, '');
+          var isRequired = /required|mandatory/.test(part);
+          var reqField = enabledFields.find(function(f) {
             var fKey = (f.field_key || '').toLowerCase().replace(/[\s_-]+/g, '');
             var fLabel = (f.label || '').toLowerCase().replace(/[\s_-]+/g, '');
-            return fKey === searchTerm || fLabel === searchTerm
-              || fKey.indexOf(searchTerm) !== -1 || fLabel.indexOf(searchTerm) !== -1
-              || searchTerm.indexOf(fKey) !== -1 || searchTerm.indexOf(fLabel) !== -1;
+            return fKey.indexOf(reqTerm) !== -1 || fLabel.indexOf(reqTerm) !== -1 || reqTerm.indexOf(fKey) !== -1 || reqTerm.indexOf(fLabel) !== -1;
           });
-          if (matchedField) {
-            return {
-              action: 'remove',
-              changes: [{ action: 'remove', field_key: matchedField.field_key, label: matchedField.label }],
-              chatResponse: 'Done! The "' + matchedField.label + '" field has been removed from the RSVP form.'
-            };
+          if (reqField) {
+            results.push({ action: 'modify', field_key: reqField.field_key, is_required: isRequired });
+            continue;
           }
         }
       }
 
-      // --- ADD field (detected client-side, interpreted by quick AI call) ---
-      var addDetected = /\b(?:add|include|put|create|insert)\b.*\b(?:field|input|question|section|form field)\b/i.test(lower)
-        || /\b(?:add|include|put|create|insert)\b.*\b(?:for|called|named|asking|about)\b/i.test(lower)
-        || /\b(?:i want|i need|can you add|could you add|please add)\b.*\b(?:field|question|ask|input)\b/i.test(lower);
-      if (addDetected) {
-        // Return a marker so the caller knows to do an async AI interpretation
-        return { action: 'add_async', userMessage: text };
-      }
+      if (results.length === 0) return null;
 
-      // --- MAKE REQUIRED / OPTIONAL ---
-      var reqMatch = lower.match(/(?:make|set)\s+(?:the\s+)?(?:"([^"]+)"|'([^']+)'|(.+?))\s*(?:field\s+)?(?:required|mandatory|optional)/i);
-      if (reqMatch) {
-        var reqTerm = (reqMatch[1] || reqMatch[2] || reqMatch[3] || '').trim().toLowerCase().replace(/[\s_-]+/g, '');
-        var isRequired = /required|mandatory/.test(lower);
-        var reqField = enabledFields.find(function(f) {
-          var fKey = (f.field_key || '').toLowerCase().replace(/[\s_-]+/g, '');
-          var fLabel = (f.label || '').toLowerCase().replace(/[\s_-]+/g, '');
-          return fKey.indexOf(reqTerm) !== -1 || fLabel.indexOf(reqTerm) !== -1 || reqTerm.indexOf(fKey) !== -1 || reqTerm.indexOf(fLabel) !== -1;
-        });
-        if (reqField) {
-          return {
-            action: 'modify',
-            changes: [{ action: 'modify', field_key: reqField.field_key, is_required: isRequired }],
-            chatResponse: 'Done! The "' + reqField.label + '" field is now ' + (isRequired ? 'required' : 'optional') + '.'
-          };
-        }
-      }
+      // Check if any of the results are add_async
+      var hasAddAsync = results.some(function(r) { return r.action === 'add_async'; });
+      var syncChanges = results.filter(function(r) { return r.action !== 'add_async'; });
+      var addAsyncResult = results.find(function(r) { return r.action === 'add_async'; });
 
-      return null; // Not a pure field change — fall through to AI
+      // Build response messages for sync changes
+      var responseMessages = syncChanges.map(function(r) {
+        if (r.action === 'remove') return 'Removed the "' + r.label + '" field';
+        if (r.action === 'modify') return 'Made "' + (r.label || r.field_key) + '" ' + (r.is_required ? 'required' : 'optional');
+        return '';
+      }).filter(Boolean);
+
+      if (hasAddAsync && syncChanges.length > 0) {
+        // Mixed: sync changes + async add — return both
+        return {
+          action: 'mixed',
+          syncChanges: syncChanges,
+          syncResponse: responseMessages.join('. ') + '.',
+          addAsync: addAsyncResult
+        };
+      } else if (hasAddAsync) {
+        return { action: 'add_async', userMessage: addAsyncResult.userMessage };
+      } else {
+        return {
+          action: syncChanges[0].action,
+          changes: syncChanges,
+          chatResponse: 'Done! ' + responseMessages.join('. ') + '.'
+        };
+      }
     }
 
     // ── Apply RSVP field changes and save ──
@@ -3387,6 +3429,36 @@
       });
       saveCustomFields();
       if (typeof renderRsvpFields === 'function') renderRsvpFields();
+    }
+
+    // ── Instant text swap detection for "change X to Y" requests ──
+    function tryInstantTextSwap(text, hasPhotos) {
+      if (!text || hasPhotos) return null;
+      var lower = text.toLowerCase().trim();
+
+      // Match patterns like:
+      // "change X to Y", "replace X with Y", "swap X for Y", "update X to Y"
+      // "change 'send max birthday love' to 'send max birthday vibes'"
+      var patterns = [
+        /(?:change|replace|update|switch|swap)\s+(?:the\s+)?(?:text\s+)?(?:"([^"]+)"|'([^']+)'|(?:from\s+)?(.+?))\s+(?:to|with|for|into)\s+(?:"([^"]+)"|'([^']+)'|(.+?))\s*$/i,
+      ];
+
+      for (var i = 0; i < patterns.length; i++) {
+        var m = text.match(patterns[i]);
+        if (m) {
+          var oldText = (m[1] || m[2] || m[3] || '').trim();
+          var newText = (m[4] || m[5] || m[6] || '').trim();
+          if (!oldText || !newText || oldText.length < 2 || newText.length < 2) continue;
+          // Don't match if these look like design instructions (colors, fonts, styles)
+          var combined = (oldText + ' ' + newText).toLowerCase();
+          var designWords = ['color', 'colour', 'font', 'background', 'theme', 'style', 'layout', 'animation', 'dark', 'light', 'bold', 'italic', 'gradient', 'shadow', 'minimalist', 'maximalist', 'elegant', 'modern', 'vintage'];
+          var isDesign = designWords.some(function(w) { return combined.indexOf(w) !== -1; });
+          if (isDesign) continue;
+
+          return { oldText: oldText, newText: newText };
+        }
+      }
+      return null;
     }
 
     function renderDesignChat() {
@@ -3600,7 +3672,7 @@
 
       // ── TIER 1: Instant client-side RSVP field changes (no AI call) ──
       var rsvpFieldResult = tryInstantRsvpFieldChange(text, hasPhotos);
-      if (rsvpFieldResult && rsvpFieldResult.action !== 'add_async') {
+      if (rsvpFieldResult && rsvpFieldResult.action !== 'add_async' && rsvpFieldResult.action !== 'mixed') {
         console.log('[tweak] INSTANT field change:', rsvpFieldResult.action);
         applyRsvpFieldChanges(rsvpFieldResult.changes);
         renderPreview(themeVersions[activeVersionIndex]);
@@ -3612,15 +3684,24 @@
       }
 
       // ── TIER 1.5: Quick AI field interpretation for "add" requests (~1s) ──
-      if (rsvpFieldResult && rsvpFieldResult.action === 'add_async') {
-        console.log('[tweak] Quick AI field interpretation for:', rsvpFieldResult.userMessage);
+      // Also handles "mixed" (sync remove/modify + async add in same message)
+      if (rsvpFieldResult && (rsvpFieldResult.action === 'add_async' || rsvpFieldResult.action === 'mixed')) {
+        // Apply any sync changes first (e.g. removes)
+        if (rsvpFieldResult.action === 'mixed' && rsvpFieldResult.syncChanges) {
+          console.log('[tweak] Applying sync changes from mixed command:', rsvpFieldResult.syncChanges);
+          applyRsvpFieldChanges(rsvpFieldResult.syncChanges);
+          renderPreview(themeVersions[activeVersionIndex]);
+        }
+        var addMsg = rsvpFieldResult.action === 'mixed' ? rsvpFieldResult.addAsync.userMessage : rsvpFieldResult.userMessage;
+        var syncNote = rsvpFieldResult.action === 'mixed' ? rsvpFieldResult.syncResponse + ' ' : '';
+        console.log('[tweak] Quick AI field interpretation for:', addMsg);
         try {
           var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
           var interpretRes = await authFetch('/api/v2/generate-theme?action=interpretField', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              userMessage: rsvpFieldResult.userMessage,
+              userMessage: addMsg,
               existingFields: enabledFields.map(function(f) { return { label: f.label, field_key: f.field_key }; })
             })
           });
@@ -3634,9 +3715,9 @@
               if (!exists) {
                 applyRsvpFieldChanges([{ action: 'add', field_key: f.field_key, label: f.label, field_type: f.field_type || 'text', is_required: f.is_required || false, placeholder: f.placeholder || null }]);
                 renderPreview(themeVersions[activeVersionIndex]);
-                designChatHistory.push({ role: 'assistant', content: 'Done! I\'ve added a "' + f.label + '" field to your RSVP form.\n\nWant to make any more changes?' });
+                designChatHistory.push({ role: 'assistant', content: 'Done! ' + syncNote + 'Added a "' + f.label + '" field to your RSVP form.\n\nWant to make any more changes?' });
               } else {
-                designChatHistory.push({ role: 'assistant', content: 'That field already exists in your RSVP form!\n\nWant to make any other changes?' });
+                designChatHistory.push({ role: 'assistant', content: syncNote + 'That field already exists in your RSVP form!\n\nWant to make any other changes?' });
               }
               clearDesignChatPhoto();
               sendBtn.disabled = false;
@@ -3647,7 +3728,41 @@
         } catch (err) {
           console.error('[tweak] interpretField error:', err);
         }
-        // If interpretation failed, fall through to full AI tweak
+        // If interpretation failed but we had sync changes, still report those
+        if (rsvpFieldResult.action === 'mixed' && syncNote) {
+          designChatHistory.push({ role: 'assistant', content: syncNote + 'I couldn\'t figure out the field to add though — could you try rephrasing that part?\n\nWant to make any more changes?' });
+          clearDesignChatPhoto();
+          sendBtn.disabled = false;
+          renderDesignChat();
+          return;
+        }
+        // Full fallthrough to AI tweak
+      }
+
+      // ── TIER 1.75: Instant text swap for "change X to Y" requests ──
+      var textSwap = tryInstantTextSwap(text, hasPhotos);
+      if (textSwap) {
+        var ver = themeVersions[activeVersionIndex];
+        if (ver && ver.html) {
+          // Case-insensitive search in the HTML
+          var htmlLower = ver.html.toLowerCase();
+          var searchLower = textSwap.oldText.toLowerCase();
+          var idx = htmlLower.indexOf(searchLower);
+          if (idx !== -1) {
+            // Preserve the case structure: replace the exact substring found
+            var originalSubstr = ver.html.substring(idx, idx + textSwap.oldText.length);
+            ver.html = ver.html.substring(0, idx) + textSwap.newText + ver.html.substring(idx + originalSubstr.length);
+            themeVersions[activeVersionIndex] = ver;
+            renderPreview(ver);
+            designChatHistory.push({ role: 'assistant', content: 'Done! Changed "' + originalSubstr + '" to "' + textSwap.newText + '".\n\nWant to make any more changes?' });
+            clearDesignChatPhoto();
+            sendBtn.disabled = false;
+            renderDesignChat();
+            return;
+          }
+          // Text not found — fall through to AI (it might be in CSS or need more context)
+          console.log('[tweak] Text swap: "' + textSwap.oldText + '" not found in HTML, falling through to AI');
+        }
       }
 
       // ── TIER 2 & 3: AI-powered tweaks (text-only via Haiku or design via Sonnet) ──
@@ -3767,7 +3882,7 @@
           clearInterval(tweakPunInterval);
           designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
 
-          console.log('[tweak] Parse result:', !!tweakResult, 'Error:', tweakError, 'Lines:', tweakLines.length, 'Text preview:', tweakFullText.substring(0, 500), 'Build: 2026-03-11j');
+          console.log('[tweak] Parse result:', !!tweakResult, 'Error:', tweakError, 'Lines:', tweakLines.length, 'Text preview:', tweakFullText.substring(0, 500), 'Build: 2026-03-11k');
 
           if (tweakResult && tweakResult.success) {
             var newVer = { id: tweakResult.theme.id, version: tweakResult.theme.version, html: tweakResult.theme.html, css: tweakResult.theme.css, config: tweakResult.theme.config };
