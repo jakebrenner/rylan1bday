@@ -18,8 +18,12 @@
 
     /* Header */
     .header { background: white; border-bottom: 1px solid #eee; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
-    .header-left { display: flex; align-items: center; }
+    .header-left { display: flex; align-items: center; gap: 24px; }
     .header-left a { text-decoration: none; display: flex; align-items: center; }
+    .header-nav { display: flex; gap: 4px; }
+    .header-nav a { text-decoration: none; padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: 500; color: #666; transition: all 0.2s; }
+    .header-nav a:hover { background: #f5f5f5; color: var(--midnight); }
+    .header-nav a.active { background: rgba(233,69,96,0.08); color: var(--party-coral); font-weight: 600; }
     .header-right { display: flex; gap: 12px; align-items: center; }
     .btn { padding: 12px 20px; border: none; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
     .btn-primary { background: var(--party-coral); color: white; }
@@ -150,9 +154,31 @@
     .rsvp-item-status { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap; }
     .rsvp-empty { text-align: center; padding: 40px 20px; color: #999; font-size: 15px; }
 
+    /* Contacts summary card */
+    .contacts-card { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; }
+    .contacts-card-left { display: flex; align-items: center; gap: 16px; }
+    .contacts-card-icon { width: 48px; height: 48px; border-radius: 12px; background: rgba(167,139,250,0.12); display: flex; align-items: center; justify-content: center; }
+    .contacts-card-icon svg { width: 24px; height: 24px; fill: var(--party-purple); }
+    .contacts-card-count { font-size: 28px; font-weight: 700; }
+    .contacts-card-label { font-size: 13px; color: #666; margin-top: 2px; }
+    .contacts-card-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .contacts-card-tag { padding: 4px 12px; border-radius: 14px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; text-decoration: none; }
+    .contacts-card-tag:hover { transform: translateY(-1px); }
+    .contacts-card-link { font-size: 14px; font-weight: 600; color: var(--party-coral); text-decoration: none; white-space: nowrap; }
+    .contacts-card-link:hover { text-decoration: underline; }
+
+    /* Shared events section */
+    .shared-section { margin-top: 36px; }
+    .shared-section .section-title { font-size: 22px; }
+    .collab-badge { display: inline-block; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-left: 8px; }
+    .collab-editor { background: rgba(167,139,250,0.15); color: #7c3aed; }
+    .collab-viewer { background: rgba(78,205,196,0.15); color: #0d9488; }
+
     @media (max-width: 640px) {
       .header { padding: 10px 16px; }
       .header-right { gap: 8px; }
+      .header-nav { display: none; }
+      .contacts-card { flex-direction: column; gap: 12px; align-items: flex-start; }
       .btn { padding: 10px 14px; font-size: 13px; }
       .container { margin: 20px auto; padding: 0 16px; }
       .section-title { font-size: 24px; }
@@ -169,6 +195,10 @@
   <div class="header">
     <div class="header-left">
       <a href="/"><svg viewBox="0 0 210 80" xmlns="http://www.w3.org/2000/svg" style="height:56px;width:auto;"><circle cx="32" cy="40" r="22" fill="none" stroke="var(--party-coral)" stroke-width="2.2"/><path d="M18 30 L32 42 L46 30" fill="none" stroke="var(--party-coral)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50 L46 50" fill="none" stroke="var(--party-coral)" stroke-width="1.8" stroke-linecap="round"/><text x="64" y="52" font-family="Playfair Display, serif" font-size="34" font-weight="700" fill="var(--midnight)">Ryvite</text></svg></a>
+      <nav class="header-nav">
+        <a href="/v2/dashboard/" class="active">Events</a>
+        <a href="/v2/contacts/">Contacts</a>
+      </nav>
     </div>
     <div class="header-right">
       <a href="/v2/create/?new=1" class="btn btn-primary">+ New Event</a>
@@ -196,6 +226,23 @@
   </div>
 
   <div class="container">
+    <!-- Contacts Summary Card -->
+    <div class="contacts-card" id="contactsCard" style="display:none;">
+      <div class="contacts-card-left">
+        <div class="contacts-card-icon">
+          <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        </div>
+        <div>
+          <div class="contacts-card-count" id="contactsCount">0</div>
+          <div class="contacts-card-label">contacts in your book</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div class="contacts-card-tags" id="contactsTopTags"></div>
+        <a href="/v2/contacts/" class="contacts-card-link">View All →</a>
+      </div>
+    </div>
+
     <div class="section-header">
       <div class="section-title">Your Events</div>
       <label class="archive-toggle">
@@ -210,6 +257,14 @@
       <a href="/v2/create/?new=1" class="btn btn-primary">Create Your First Event</a>
     </div>
     <div id="eventGrid" class="event-grid" style="display: none;"></div>
+
+    <!-- Shared Events (co-hosted) -->
+    <div class="shared-section" id="sharedSection" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">Shared with You</div>
+      </div>
+      <div id="sharedGrid" class="event-grid"></div>
+    </div>
   </div>
 
   <!-- Confirm Modal -->
@@ -326,10 +381,93 @@
         } else {
           document.getElementById('emptyState').style.display = 'block';
         }
+
+        // Render shared events
+        if (result.sharedEvents && result.sharedEvents.length > 0) {
+          renderSharedEvents(result.sharedEvents);
+        }
       } catch (err) {
         console.error(err);
         document.getElementById('loading').innerHTML = 'Error loading events. <button onclick="loadDashboard()" style="color: var(--party-coral); background: none; border: none; cursor: pointer; text-decoration: underline; font-size: 15px;">Retry</button>';
       }
+    }
+
+    function renderSharedEvents(events) {
+      var section = document.getElementById('sharedSection');
+      var grid = document.getElementById('sharedGrid');
+      if (!events || events.length === 0) { section.style.display = 'none'; return; }
+
+      section.style.display = 'block';
+      grid.innerHTML = events.map(function(event) {
+        var eventDate = event.eventDate ? new Date(event.eventDate).toLocaleDateString() : 'No date set';
+        var statusClass = 'status-' + (event.status || 'draft').toLowerCase();
+        var roleBadge = event.collaboratorRole === 'editor'
+          ? '<span class="collab-badge collab-editor">Co-Host</span>'
+          : '<span class="collab-badge collab-viewer">Viewer</span>';
+        var inviteUrl = window.location.origin + '/v2/event/' + encodeURIComponent(event.slug);
+
+        var hasTheme = event.themeHtml && event.themeCss;
+        var headerHtml = '';
+        if (hasTheme) {
+          var config = event.themeConfig || {};
+          var fontsImport = config.googleFontsImport || '';
+          var srcdoc = '<!DOCTYPE html><html><head><meta charset=&quot;UTF-8&quot;><meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1.0&quot;><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#f9f9f9;overflow:hidden}' + fontsImport.replace(/"/g, '&quot;') + '</style><style>' + event.themeCss.replace(/"/g, '&quot;') + '</style></head><body>' + event.themeHtml.replace(/"/g, '&quot;') + '</body></html>';
+          headerHtml = '<div class="event-card-header has-preview">'
+            + '<iframe srcdoc="' + srcdoc + '" sandbox="allow-same-origin" loading="lazy"></iframe>'
+            + '<div class="event-card-header-overlay">'
+            + '<h3>' + escapeHtml(event.title) + '</h3>'
+            + '<span class="event-card-date">' + eventDate + '</span>'
+            + '</div></div>';
+        } else {
+          headerHtml = '<div class="event-card-header no-preview">'
+            + '<h3>' + escapeHtml(event.title) + '</h3>'
+            + '<span class="event-card-date">' + eventDate + '</span>'
+            + '</div>';
+        }
+
+        return '<div class="event-card">'
+          + headerHtml
+          + '<div class="event-card-body">'
+          + '<div class="event-meta">'
+          + '<span>' + escapeHtml(event.locationName || 'No location') + '</span>'
+          + '<span>' + roleBadge + ' <span class="status-badge ' + statusClass + '">' + (event.status || 'Draft') + '</span></span>'
+          + '</div>'
+          + '<div class="event-actions">'
+          + '<a href="/v2/event/' + encodeURIComponent(event.slug) + '" target="_blank">View</a>'
+          + '<button onclick="openRSVPModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\')">RSVPs</button>'
+          + '</div></div></div>';
+      }).join('');
+
+      requestAnimationFrame(function() {
+        grid.querySelectorAll('.event-card-header.has-preview').forEach(function(header) {
+          var iframe = header.querySelector('iframe');
+          if (!iframe) return;
+          var cardWidth = header.offsetWidth;
+          var scale = cardWidth / 393;
+          iframe.style.transform = 'scale(' + scale + ')';
+          iframe.style.marginLeft = '-' + (393 / 2) + 'px';
+          header.style.height = '160px';
+        });
+      });
+    }
+
+    // Load contacts summary
+    async function loadContactsSummary() {
+      try {
+        var res = await authFetch('/api/v2/contacts?action=stats');
+        var result = await res.json();
+        if (result.success) {
+          var card = document.getElementById('contactsCard');
+          document.getElementById('contactsCount').textContent = result.stats.total;
+          var tagsEl = document.getElementById('contactsTopTags');
+          tagsEl.innerHTML = (result.topTags || []).map(function(t) {
+            var bg = t.color ? t.color + '18' : '#eee';
+            var fg = t.color || '#666';
+            return '<a href="/v2/contacts/" class="contacts-card-tag" style="background:' + bg + ';color:' + fg + ';">' + escapeHtml(t.name) + '</a>';
+          }).join('');
+          card.style.display = 'flex';
+        }
+      } catch (err) {}
     }
 
     function getProgressInfo(event) {
@@ -503,10 +641,27 @@
         if (r.respondedAt) detail += (detail ? ' · ' : '') + new Date(r.respondedAt).toLocaleDateString();
         html += '<li class="rsvp-item"><div class="rsvp-item-info"><div class="rsvp-item-name">' + escapeHtml(r.name) + '</div>'
           + (detail ? '<div class="rsvp-item-detail">' + detail + '</div>' : '')
-          + '</div><span class="rsvp-item-status" style="' + style + '">' + statusLabel + '</span></li>';
+          + '</div><button onclick="saveGuestToContacts(\'' + r.id + '\', this)" style="padding:4px 10px;border:1px solid #ddd;border-radius:6px;background:white;font-size:11px;cursor:pointer;font-family:Inter,sans-serif;color:#666;margin-right:8px;white-space:nowrap;transition:all 0.15s;" onmouseover="this.style.borderColor=\'var(--party-coral)\';this.style.color=\'var(--party-coral)\'" onmouseout="this.style.borderColor=\'#ddd\';this.style.color=\'#666\'">Save</button><span class="rsvp-item-status" style="' + style + '">' + statusLabel + '</span></li>';
       });
       html += '</ul>';
       body.innerHTML = html;
+    }
+
+    async function saveGuestToContacts(guestId, btn) {
+      btn.disabled = true; btn.textContent = 'Saving...';
+      try {
+        var res = await authFetch('/api/v2/events?action=saveGuestToContacts', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ guestId: guestId })
+        });
+        var result = await res.json();
+        if (result.success) {
+          btn.textContent = result.alreadySaved ? 'Already saved' : 'Saved!';
+          btn.style.borderColor = 'var(--mint-fizz)'; btn.style.color = 'var(--mint-fizz)';
+        } else {
+          btn.textContent = 'Error'; btn.disabled = false;
+        }
+      } catch (err) { btn.textContent = 'Error'; btn.disabled = false; }
     }
 
     function closeRSVPModal() {
@@ -586,6 +741,7 @@
     window.addEventListener('resize', rescalePreviewIframes);
 
     loadDashboard();
+    loadContactsSummary();
   </script>
 </body>
 </html>

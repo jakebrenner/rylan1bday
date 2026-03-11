@@ -37,6 +37,10 @@
     {
       "source": "/v2/event/:slug",
       "destination": "/v2/event/index.html"
+    },
+    {
+      "source": "/v2/cohost",
+      "destination": "/v2/cohost/index.html"
     }
   ]
 }

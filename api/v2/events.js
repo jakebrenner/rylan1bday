@@ -105,7 +105,7 @@ export default async function handler(req, res) {
       // Fire Zapier webhook if configured
       const { data: event } = await supabaseAdmin
         .from('events')
-        .select('zapier_webhook')
+        .select('zapier_webhook, user_id')
         .eq('id', eventId)
         .single();
 
@@ -115,6 +115,11 @@ export default async function handler(req, res) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ eventId, name, status: guestStatus, email, phone, responseData })
         }).catch(() => {}); // fire and forget
+      }
+
+      // Auto-capture RSVP to host's contact book
+      if (event?.user_id) {
+        autoCapture(event.user_id, eventId, data.id, { name, email, phone, responseData }).catch(() => {});
       }
 
       return res.status(200).json({ success: true, guestId: data.id });
@@ -277,6 +282,7 @@ export default async function handler(req, res) {
     }
 
     if (action === 'list') {
+      // Fetch user's own events
       const { data, error } = await supabaseAdmin
         .from('events')
         .select('*')
@@ -285,8 +291,26 @@ export default async function handler(req, res) {
 
       if (error) return res.status(400).json({ success: false, error: error.message });
 
+      // Fetch events where user is a collaborator
+      const { data: collabs } = await supabaseAdmin
+        .from('event_collaborators')
+        .select('event_id, role')
+        .eq('user_id', user.id);
+
+      let sharedEvents = [];
+      if (collabs?.length) {
+        const collabEventIds = collabs.map(c => c.event_id);
+        const { data: shared } = await supabaseAdmin
+          .from('events')
+          .select('*')
+          .in('id', collabEventIds)
+          .order('created_at', { ascending: false });
+        sharedEvents = shared || [];
+      }
+
       // Fetch active themes for all events in one query
-      const eventIds = (data || []).map(e => e.id);
+      const allEvents = [...(data || []), ...sharedEvents];
+      const eventIds = allEvents.map(e => e.id);
       const { data: themes } = eventIds.length > 0
         ? await supabaseAdmin
             .from('event_themes')
@@ -298,9 +322,18 @@ export default async function handler(req, res) {
       const themeMap = {};
       (themes || []).forEach(t => { themeMap[t.event_id] = t; });
 
+      // Build collaborator role map
+      const collabRoleMap = {};
+      (collabs || []).forEach(c => { collabRoleMap[c.event_id] = c.role; });
+
       return res.status(200).json({
         success: true,
-        events: (data || []).map(e => formatEvent(e, themeMap[e.id]))
+        events: (data || []).map(e => formatEvent(e, themeMap[e.id])),
+        sharedEvents: sharedEvents.map(e => {
+          const formatted = formatEvent(e, themeMap[e.id]);
+          formatted.collaboratorRole = collabRoleMap[e.id] || 'viewer';
+          return formatted;
+        })
       });
     }
 
@@ -308,11 +341,13 @@ export default async function handler(req, res) {
       const { eventId } = req.query;
       if (!eventId) return res.status(400).json({ success: false, error: 'eventId required' });
 
+      const access = await checkEventAccess(user.id, eventId, 'viewer');
+      if (!access.allowed) return res.status(404).json({ success: false, error: 'Event not found' });
+
       const { data, error } = await supabaseAdmin
         .from('events')
         .select('*')
         .eq('id', eventId)
-        .eq('user_id', user.id)
         .single();
 
       if (error || !data) return res.status(404).json({ success: false, error: 'Event not found' });
@@ -348,15 +383,9 @@ export default async function handler(req, res) {
       const { eventId } = req.query;
       if (!eventId) return res.status(400).json({ success: false, error: 'eventId required' });
 
-      // Verify ownership
-      const { data: event } = await supabaseAdmin
-        .from('events')
-        .select('id')
-        .eq('id', eventId)
-        .eq('user_id', user.id)
-        .single();
-
-      if (!event) return res.status(404).json({ success: false, error: 'Event not found' });
+      // Verify ownership or collaborator access
+      const access = await checkEventAccess(user.id, eventId, 'viewer');
+      if (!access.allowed) return res.status(404).json({ success: false, error: 'Event not found' });
 
       const { data, error } = await supabaseAdmin
         .from('guests')
@@ -448,10 +477,356 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    // ---- ADD GUESTS FROM CONTACTS ----
+    if (action === 'addGuests') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { eventId, contactIds } = req.body || {};
+      if (!eventId || !contactIds?.length) {
+        return res.status(400).json({ success: false, error: 'eventId and contactIds required' });
+      }
+
+      const access = await checkEventAccess(user.id, eventId, 'editor');
+      if (!access.allowed) return res.status(403).json({ success: false, error: 'Not authorized' });
+
+      // Fetch contacts
+      const { data: contacts } = await supabaseAdmin
+        .from('contacts')
+        .select('id, name, email, phone')
+        .in('id', contactIds)
+        .eq('user_id', user.id);
+
+      if (!contacts?.length) return res.status(400).json({ success: false, error: 'No valid contacts found' });
+
+      // Check for existing guests to skip duplicates
+      const { data: existingGuests } = await supabaseAdmin
+        .from('guests')
+        .select('contact_id')
+        .eq('event_id', eventId)
+        .not('contact_id', 'is', null);
+
+      const existingContactIds = new Set((existingGuests || []).map(g => g.contact_id));
+
+      const newGuests = contacts
+        .filter(c => !existingContactIds.has(c.id))
+        .map(c => ({
+          event_id: eventId,
+          contact_id: c.id,
+          name: c.name,
+          email: c.email || null,
+          phone: c.phone || null,
+          status: 'invited',
+          invited_at: new Date().toISOString()
+        }));
+
+      if (newGuests.length === 0) {
+        return res.status(200).json({ success: true, added: 0, skipped: contacts.length });
+      }
+
+      const { error } = await supabaseAdmin.from('guests').insert(newGuests);
+      if (error) return res.status(400).json({ success: false, error: error.message });
+
+      return res.status(200).json({
+        success: true,
+        added: newGuests.length,
+        skipped: contacts.length - newGuests.length
+      });
+    }
+
+    // ---- ADD GUESTS BY TAG ----
+    if (action === 'addGuestsByTag') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { eventId, tagId } = req.body || {};
+      if (!eventId || !tagId) {
+        return res.status(400).json({ success: false, error: 'eventId and tagId required' });
+      }
+
+      const access = await checkEventAccess(user.id, eventId, 'editor');
+      if (!access.allowed) return res.status(403).json({ success: false, error: 'Not authorized' });
+
+      // Get all contacts with this tag
+      const { data: assignments } = await supabaseAdmin
+        .from('contact_tag_assignments')
+        .select('contact_id')
+        .eq('tag_id', tagId);
+
+      const contactIds = (assignments || []).map(a => a.contact_id);
+      if (!contactIds.length) return res.status(200).json({ success: true, added: 0, skipped: 0 });
+
+      // Fetch contacts
+      const { data: contacts } = await supabaseAdmin
+        .from('contacts')
+        .select('id, name, email, phone')
+        .in('id', contactIds)
+        .eq('user_id', user.id);
+
+      // Check existing
+      const { data: existingGuests } = await supabaseAdmin
+        .from('guests')
+        .select('contact_id')
+        .eq('event_id', eventId)
+        .not('contact_id', 'is', null);
+
+      const existingContactIds = new Set((existingGuests || []).map(g => g.contact_id));
+
+      const newGuests = (contacts || [])
+        .filter(c => !existingContactIds.has(c.id))
+        .map(c => ({
+          event_id: eventId,
+          contact_id: c.id,
+          name: c.name,
+          email: c.email || null,
+          phone: c.phone || null,
+          status: 'invited',
+          invited_at: new Date().toISOString()
+        }));
+
+      if (newGuests.length > 0) {
+        const { error } = await supabaseAdmin.from('guests').insert(newGuests);
+        if (error) return res.status(400).json({ success: false, error: error.message });
+      }
+
+      return res.status(200).json({
+        success: true,
+        added: newGuests.length,
+        skipped: (contacts || []).length - newGuests.length
+      });
+    }
+
+    // ---- ADD GUESTS FROM ANOTHER EVENT ----
+    if (action === 'addGuestsFromEvent') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { eventId, sourceEventId, statusFilter } = req.body || {};
+      if (!eventId || !sourceEventId) {
+        return res.status(400).json({ success: false, error: 'eventId and sourceEventId required' });
+      }
+
+      const access = await checkEventAccess(user.id, eventId, 'editor');
+      if (!access.allowed) return res.status(403).json({ success: false, error: 'Not authorized' });
+
+      // Verify source event ownership
+      const sourceAccess = await checkEventAccess(user.id, sourceEventId, 'viewer');
+      if (!sourceAccess.allowed) return res.status(403).json({ success: false, error: 'Cannot access source event' });
+
+      // Fetch guests from source event
+      let sourceQuery = supabaseAdmin
+        .from('guests')
+        .select('name, email, phone, contact_id')
+        .eq('event_id', sourceEventId);
+
+      if (statusFilter) sourceQuery = sourceQuery.eq('status', statusFilter);
+
+      const { data: sourceGuests } = await sourceQuery;
+      if (!sourceGuests?.length) return res.status(200).json({ success: true, added: 0, skipped: 0 });
+
+      // Check existing guests in target event
+      const { data: existingGuests } = await supabaseAdmin
+        .from('guests')
+        .select('email, phone, contact_id')
+        .eq('event_id', eventId);
+
+      const existingEmails = new Set((existingGuests || []).filter(g => g.email).map(g => g.email.toLowerCase()));
+      const existingContactIds = new Set((existingGuests || []).filter(g => g.contact_id).map(g => g.contact_id));
+
+      const newGuests = sourceGuests
+        .filter(g => {
+          if (g.contact_id && existingContactIds.has(g.contact_id)) return false;
+          if (g.email && existingEmails.has(g.email.toLowerCase())) return false;
+          return true;
+        })
+        .map(g => ({
+          event_id: eventId,
+          contact_id: g.contact_id || null,
+          name: g.name,
+          email: g.email || null,
+          phone: g.phone || null,
+          status: 'invited',
+          invited_at: new Date().toISOString()
+        }));
+
+      if (newGuests.length > 0) {
+        const { error } = await supabaseAdmin.from('guests').insert(newGuests);
+        if (error) return res.status(400).json({ success: false, error: error.message });
+      }
+
+      return res.status(200).json({
+        success: true,
+        added: newGuests.length,
+        skipped: sourceGuests.length - newGuests.length
+      });
+    }
+
+    // ---- REMOVE GUESTS ----
+    if (action === 'removeGuests') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { eventId, guestIds } = req.body || {};
+      if (!eventId || !guestIds?.length) {
+        return res.status(400).json({ success: false, error: 'eventId and guestIds required' });
+      }
+
+      const access = await checkEventAccess(user.id, eventId, 'editor');
+      if (!access.allowed) return res.status(403).json({ success: false, error: 'Not authorized' });
+
+      const { error } = await supabaseAdmin
+        .from('guests')
+        .delete()
+        .in('id', guestIds)
+        .eq('event_id', eventId);
+
+      if (error) return res.status(400).json({ success: false, error: error.message });
+
+      return res.status(200).json({ success: true, removed: guestIds.length });
+    }
+
+    // ---- SAVE RSVP TO CONTACTS ----
+    if (action === 'saveGuestToContacts') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { guestId } = req.body || {};
+      if (!guestId) return res.status(400).json({ success: false, error: 'guestId required' });
+
+      // Fetch guest
+      const { data: guest } = await supabaseAdmin
+        .from('guests')
+        .select('*, events(user_id)')
+        .eq('id', guestId)
+        .single();
+
+      if (!guest || guest.events?.user_id !== user.id) {
+        return res.status(404).json({ success: false, error: 'Guest not found' });
+      }
+
+      if (guest.contact_id) {
+        return res.status(200).json({ success: true, contactId: guest.contact_id, alreadySaved: true });
+      }
+
+      // Try auto-capture
+      const contactId = await autoCapture(user.id, guest.event_id, guest.id, {
+        name: guest.name,
+        email: guest.email,
+        phone: guest.phone,
+        responseData: guest.response_data
+      });
+
+      return res.status(200).json({ success: true, contactId, alreadySaved: false });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Events API error:', err);
     return res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// Check if a user has access to an event (owner or collaborator)
+async function checkEventAccess(userId, eventId, requiredRole = 'viewer') {
+  const { data: event } = await supabaseAdmin
+    .from('events')
+    .select('user_id')
+    .eq('id', eventId)
+    .single();
+
+  if (!event) return { allowed: false, role: null };
+  if (event.user_id === userId) return { allowed: true, role: 'owner' };
+
+  const { data: collab } = await supabaseAdmin
+    .from('event_collaborators')
+    .select('role')
+    .eq('event_id', eventId)
+    .eq('user_id', userId)
+    .single();
+
+  if (!collab) return { allowed: false, role: null };
+
+  const hierarchy = { owner: 3, editor: 2, viewer: 1 };
+  return {
+    allowed: (hierarchy[collab.role] || 0) >= (hierarchy[requiredRole] || 0),
+    role: collab.role
+  };
+}
+
+// Auto-capture an RSVP guest to the host's contact book
+async function autoCapture(hostUserId, eventId, guestId, { name, email, phone, responseData }) {
+  try {
+    let contactId = null;
+
+    // Check for existing contact by email
+    if (email) {
+      const { data: existing } = await supabaseAdmin
+        .from('contacts')
+        .select('id, metadata')
+        .eq('user_id', hostUserId)
+        .ilike('email', email)
+        .single();
+
+      if (existing) {
+        contactId = existing.id;
+        // Merge new info
+        const mergeUpdates = {};
+        if (phone && !existing.phone) mergeUpdates.phone = phone;
+        if (responseData && Object.keys(responseData).length > 0) {
+          mergeUpdates.metadata = { ...(existing.metadata || {}), ...responseData };
+        }
+        if (Object.keys(mergeUpdates).length > 0) {
+          await supabaseAdmin.from('contacts').update(mergeUpdates).eq('id', existing.id);
+        }
+      }
+    }
+
+    // Check by phone if no email match
+    if (!contactId && phone) {
+      const digits = phone.replace(/\D/g, '');
+      const normalized = digits.length >= 10 ? digits.slice(-10) : null;
+      if (normalized) {
+        const { data: phoneContacts } = await supabaseAdmin
+          .from('contacts')
+          .select('id, phone')
+          .eq('user_id', hostUserId)
+          .not('phone', 'is', null);
+
+        const match = (phoneContacts || []).find(c => {
+          const cd = c.phone.replace(/\D/g, '');
+          return cd.length >= 10 && cd.slice(-10) === normalized;
+        });
+
+        if (match) contactId = match.id;
+      }
+    }
+
+    // Create new contact if no match
+    if (!contactId) {
+      const { data: newContact } = await supabaseAdmin
+        .from('contacts')
+        .insert({
+          user_id: hostUserId,
+          name,
+          email: email || null,
+          phone: phone || null,
+          metadata: responseData || {},
+          source: 'rsvp',
+          source_event_id: eventId
+        })
+        .select('id')
+        .single();
+
+      if (newContact) contactId = newContact.id;
+    }
+
+    // Link guest to contact
+    if (contactId) {
+      await supabaseAdmin
+        .from('guests')
+        .update({ contact_id: contactId })
+        .eq('id', guestId);
+    }
+
+    return contactId;
+  } catch (err) {
+    console.error('Auto-capture error:', err);
+    return null;
   }
 }
 

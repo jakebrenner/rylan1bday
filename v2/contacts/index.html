@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contacts — Ryvite</title>
+  <meta name="description" content="Manage your contact book, tags, and households on Ryvite.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --party-coral: #E94560; --blush-pop: #FF6B6B; --midnight: #1A1A2E;
+      --confetti-gold: #FFB74D; --mint-fizz: #4ECDC4; --party-purple: #A78BFA; --cream: #FFFAF5;
+    }
+    html, body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--midnight); }
+
+    /* Header */
+    .header { background: white; border-bottom: 1px solid #eee; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .header-left { display: flex; align-items: center; gap: 24px; }
+    .header-left a { text-decoration: none; display: flex; align-items: center; }
+    .header-nav { display: flex; gap: 4px; }
+    .header-nav a { text-decoration: none; padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: 500; color: #666; transition: all 0.2s; }
+    .header-nav a:hover { background: #f5f5f5; color: var(--midnight); }
+    .header-nav a.active { background: rgba(233,69,96,0.08); color: var(--party-coral); font-weight: 600; }
+    .header-right { display: flex; gap: 12px; align-items: center; }
+    .btn { padding: 12px 20px; border: none; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+    .btn-primary { background: var(--party-coral); color: white; }
+    .btn-primary:hover { background: var(--blush-pop); transform: translateY(-2px); }
+    .btn-outline { background: white; border: 1px solid #ddd; color: var(--midnight); }
+    .btn-outline:hover { border-color: var(--party-coral); color: var(--party-coral); }
+
+    /* Profile dropdown */
+    .profile-menu { position: relative; }
+    .profile-btn { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #eee; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+    .profile-btn:hover { border-color: var(--party-coral); }
+    .profile-btn svg { width: 22px; height: 22px; fill: #666; }
+    .profile-dropdown { display: none; position: absolute; top: 52px; right: 0; background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); min-width: 240px; z-index: 100; overflow: hidden; border: 1px solid #eee; }
+    .profile-dropdown.open { display: block; }
+    .profile-dropdown-header { padding: 16px; border-bottom: 1px solid #eee; }
+    .profile-dropdown-name { font-weight: 600; font-size: 15px; }
+    .profile-dropdown-email { font-size: 13px; color: #666; margin-top: 2px; }
+    .profile-dropdown-item { display: flex; align-items: center; gap: 10px; padding: 12px 16px; font-size: 14px; cursor: pointer; transition: background 0.15s; border: none; background: none; width: 100%; text-align: left; font-family: 'Inter', sans-serif; color: var(--midnight); }
+    .profile-dropdown-item:hover { background: #f5f5f5; }
+    .profile-dropdown-item svg { width: 18px; height: 18px; fill: #666; flex-shrink: 0; }
+    .profile-dropdown-divider { height: 1px; background: #eee; }
+    .profile-dropdown-item.danger { color: #dc3545; }
+    .profile-dropdown-item.danger svg { fill: #dc3545; }
+
+    /* Layout */
+    .page-layout { max-width: 1200px; margin: 0 auto; padding: 24px 20px; display: flex; gap: 24px; }
+
+    /* Sidebar */
+    .sidebar { width: 240px; flex-shrink: 0; }
+    .sidebar-section { margin-bottom: 24px; }
+    .sidebar-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #999; padding: 0 12px; margin-bottom: 8px; }
+    .sidebar-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: all 0.15s; font-size: 14px; color: var(--midnight); border: none; background: none; width: 100%; text-align: left; font-family: 'Inter', sans-serif; }
+    .sidebar-item:hover { background: #f0ede8; }
+    .sidebar-item.active { background: rgba(233,69,96,0.08); color: var(--party-coral); font-weight: 600; }
+    .sidebar-count { font-size: 12px; color: #999; background: #f0f0f0; padding: 2px 8px; border-radius: 10px; }
+    .sidebar-item.active .sidebar-count { background: rgba(233,69,96,0.12); color: var(--party-coral); }
+    .tag-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-right: 8px; }
+    .sidebar-item-left { display: flex; align-items: center; }
+    .add-tag-btn { display: flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: 13px; color: #999; cursor: pointer; border: none; background: none; width: 100%; font-family: 'Inter', sans-serif; transition: color 0.2s; }
+    .add-tag-btn:hover { color: var(--party-coral); }
+
+    /* Main content */
+    .main-content { flex: 1; min-width: 0; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; flex-wrap: wrap; }
+    .toolbar-left { display: flex; gap: 8px; align-items: center; flex: 1; }
+    .toolbar-right { display: flex; gap: 8px; }
+    .search-input { flex: 1; max-width: 320px; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.2s; }
+    .search-input:focus { border-color: var(--party-coral); }
+
+    /* Bulk actions bar */
+    .bulk-bar { display: none; background: var(--midnight); color: white; padding: 12px 20px; border-radius: 10px; margin-bottom: 16px; align-items: center; justify-content: space-between; animation: slideDown 0.2s ease; }
+    .bulk-bar.visible { display: flex; }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    .bulk-bar-left { font-size: 14px; font-weight: 500; }
+    .bulk-bar-actions { display: flex; gap: 8px; }
+    .bulk-btn { padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid rgba(255,255,255,0.2); background: transparent; color: white; font-family: 'Inter', sans-serif; transition: all 0.15s; }
+    .bulk-btn:hover { background: rgba(255,255,255,0.1); }
+    .bulk-btn.danger:hover { background: rgba(220,53,69,0.3); border-color: #dc3545; }
+
+    /* Contact list */
+    .contact-list { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .contact-row { display: flex; align-items: center; padding: 14px 20px; border-bottom: 1px solid #f0f0f0; transition: background 0.1s; cursor: pointer; }
+    .contact-row:last-child { border-bottom: none; }
+    .contact-row:hover { background: #fafafa; }
+    .contact-row.selected { background: rgba(233,69,96,0.04); }
+    .contact-check { width: 20px; height: 20px; margin-right: 14px; accent-color: var(--party-coral); cursor: pointer; flex-shrink: 0; }
+    .contact-avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--party-coral), var(--confetti-gold)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 15px; margin-right: 14px; flex-shrink: 0; }
+    .contact-info { flex: 1; min-width: 0; }
+    .contact-name { font-weight: 600; font-size: 15px; }
+    .contact-detail { font-size: 13px; color: #666; margin-top: 2px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .contact-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-left: auto; padding-left: 12px; }
+    .tag-pill { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .contact-source { font-size: 11px; color: #bbb; margin-left: 12px; flex-shrink: 0; }
+
+    .empty-state { text-align: center; padding: 60px 20px; background: white; border-radius: 12px; border: 2px dashed #ddd; }
+    .empty-state h3 { font-size: 20px; margin-bottom: 12px; }
+    .empty-state p { color: #666; margin-bottom: 24px; font-size: 15px; }
+    .loading { text-align: center; padding: 60px 20px; color: #666; font-size: 15px; }
+
+    /* Modals */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; }
+    .modal-overlay.active { display: flex; align-items: center; justify-content: center; }
+    .modal { background: white; width: 90%; max-width: 500px; border-radius: 16px; overflow: hidden; animation: modalPop 0.2s ease-out; max-height: 90vh; display: flex; flex-direction: column; }
+    @keyframes modalPop { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    .modal-header { padding: 20px 24px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .modal-header h3 { font-size: 18px; font-weight: 600; }
+    .modal-close { width: 36px; height: 36px; border: none; background: #f0f0f0; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .modal-body { padding: 24px; overflow-y: auto; flex: 1; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 8px; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #555; }
+    .form-input { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.2s; }
+    .form-input:focus { border-color: var(--party-coral); }
+    .form-textarea { resize: vertical; min-height: 60px; }
+    .form-row { display: flex; gap: 12px; }
+    .form-row .form-group { flex: 1; }
+
+    /* Tag input */
+    .tag-input-wrap { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 10px; border: 1px solid #ddd; border-radius: 8px; min-height: 42px; align-items: center; cursor: text; transition: border-color 0.2s; }
+    .tag-input-wrap:focus-within { border-color: var(--party-coral); }
+    .tag-input-wrap .tag-pill { display: flex; align-items: center; gap: 4px; }
+    .tag-pill-remove { cursor: pointer; font-size: 14px; opacity: 0.6; }
+    .tag-pill-remove:hover { opacity: 1; }
+    .tag-input-field { border: none; outline: none; font-size: 13px; font-family: 'Inter', sans-serif; min-width: 80px; flex: 1; padding: 4px; }
+    .tag-suggestions { position: absolute; background: white; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); max-height: 160px; overflow-y: auto; z-index: 10; width: 200px; }
+    .tag-suggestion { padding: 8px 12px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    .tag-suggestion:hover { background: #f5f5f5; }
+    .tag-suggestion-new { color: var(--party-coral); font-weight: 500; }
+
+    /* Slide-out detail panel */
+    .detail-panel { position: fixed; top: 0; right: -480px; width: 480px; height: 100vh; background: white; box-shadow: -4px 0 24px rgba(0,0,0,0.1); z-index: 150; transition: right 0.3s ease; overflow-y: auto; }
+    .detail-panel.open { right: 0; }
+    .detail-panel-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 149; }
+    .detail-panel-overlay.open { display: block; }
+    .detail-header { padding: 20px 24px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .detail-header h3 { font-size: 18px; font-weight: 600; }
+    .detail-body { padding: 24px; }
+    .detail-section { margin-bottom: 24px; }
+    .detail-section-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #999; margin-bottom: 10px; }
+    .detail-field { margin-bottom: 12px; }
+    .detail-field-label { font-size: 12px; color: #999; margin-bottom: 2px; }
+    .detail-field-value { font-size: 15px; }
+    .detail-event-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
+    .detail-event-item:last-child { border-bottom: none; }
+    .detail-event-title { font-size: 14px; font-weight: 500; }
+    .detail-event-date { font-size: 12px; color: #999; }
+    .detail-event-status { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+
+    /* Import modal */
+    .import-area { border: 2px dashed #ddd; border-radius: 12px; padding: 32px 20px; text-align: center; cursor: pointer; transition: border-color 0.2s; }
+    .import-area:hover { border-color: var(--party-coral); }
+    .import-area.dragover { border-color: var(--party-coral); background: rgba(233,69,96,0.04); }
+    .import-area p { color: #666; font-size: 14px; margin-top: 8px; }
+    .import-preview { margin-top: 16px; }
+    .import-preview-count { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+    .import-preview-list { max-height: 200px; overflow-y: auto; font-size: 13px; color: #666; }
+
+    /* Phone Import / Contact Picker */
+    .safari-setup { display: none; background: #FFF9E6; border: 1px solid #FFE082; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .safari-setup.visible { display: block; }
+    .safari-setup-title { font-size: 14px; font-weight: 600; color: #856404; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .safari-setup-title svg { width: 18px; height: 18px; }
+    .safari-dismiss { background: none; border: none; font-size: 20px; color: #856404; cursor: pointer; margin-left: auto; padding: 0 4px; line-height: 1; }
+    .safari-steps { list-style: none; counter-reset: step; }
+    .safari-steps li { position: relative; padding: 10px 0 10px 44px; font-size: 14px; color: #555; line-height: 1.5; border-bottom: 1px solid #f0e6c8; }
+    .safari-steps li:last-child { border-bottom: none; }
+    .safari-steps li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 10px; width: 28px; height: 28px; background: var(--party-coral); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+    .safari-steps li strong { color: var(--midnight); }
+
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--midnight); color: white; padding: 14px 24px; border-radius: 8px; font-size: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); animation: slideUp 0.3s ease-out; z-index: 300; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Confirm Modal */
+    .confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 300; align-items: center; justify-content: center; }
+    .confirm-overlay.active { display: flex; }
+    .confirm-box { background: white; border-radius: 16px; padding: 28px; max-width: 380px; width: 90%; box-shadow: 0 12px 40px rgba(0,0,0,0.2); text-align: center; }
+    .confirm-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .confirm-msg { font-size: 14px; color: #666; margin-bottom: 24px; line-height: 1.5; }
+    .confirm-actions { display: flex; gap: 10px; }
+    .confirm-actions button { flex: 1; padding: 12px 16px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; min-height: 44px; border: none; transition: all 0.15s; }
+    .confirm-cancel { background: #f0f0f0; color: var(--midnight); }
+    .confirm-ok { color: white; }
+
+    @media (max-width: 768px) {
+      .page-layout { flex-direction: column; padding: 16px; }
+      .sidebar { width: 100%; display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; }
+      .sidebar-section { margin-bottom: 0; display: flex; gap: 4px; flex-shrink: 0; }
+      .sidebar-title { display: none; }
+      .sidebar-item { white-space: nowrap; padding: 6px 12px; font-size: 13px; }
+      .sidebar-count { display: none; }
+      .contact-detail { display: none; }
+      .contact-tags { display: none; }
+      .detail-panel { width: 100%; right: -100%; }
+      .header-nav { display: none; }
+    }
+    @media (max-width: 640px) {
+      .header { padding: 10px 16px; }
+      .toolbar { flex-direction: column; }
+      .toolbar-left { width: 100%; }
+      .toolbar-right { width: 100%; }
+      .search-input { max-width: 100%; }
+      .btn { padding: 10px 14px; font-size: 13px; }
+      .bulk-bar { flex-direction: column; gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <a href="/"><svg viewBox="0 0 210 80" xmlns="http://www.w3.org/2000/svg" style="height:56px;width:auto;"><circle cx="32" cy="40" r="22" fill="none" stroke="var(--party-coral)" stroke-width="2.2"/><path d="M18 30 L32 42 L46 30" fill="none" stroke="var(--party-coral)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50 L46 50" fill="none" stroke="var(--party-coral)" stroke-width="1.8" stroke-linecap="round"/><text x="64" y="52" font-family="Playfair Display, serif" font-size="34" font-weight="700" fill="var(--midnight)">Ryvite</text></svg></a>
+      <nav class="header-nav">
+        <a href="/v2/dashboard/">Events</a>
+        <a href="/v2/contacts/" class="active">Contacts</a>
+      </nav>
+    </div>
+    <div class="header-right">
+      <a href="/v2/create/?new=1" class="btn btn-primary">+ New Event</a>
+      <div class="profile-menu">
+        <button class="profile-btn" onclick="toggleProfileMenu()" id="profileBtn">
+          <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        </button>
+        <div class="profile-dropdown" id="profileDropdown">
+          <div class="profile-dropdown-header">
+            <div class="profile-dropdown-name" id="profileName"></div>
+            <div class="profile-dropdown-email" id="profileEmail"></div>
+          </div>
+          <a class="profile-dropdown-item" href="/v2/profile/" style="text-decoration:none;">
+            <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            Profile
+          </a>
+          <div class="profile-dropdown-divider"></div>
+          <button class="profile-dropdown-item danger" onclick="logout()">
+            <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+            Log Out
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-title">Contacts</div>
+        <button class="sidebar-item active" onclick="filterBy('all')" data-filter="all">
+          <span class="sidebar-item-left">All Contacts</span>
+          <span class="sidebar-count" id="allCount">0</span>
+        </button>
+      </div>
+      <div class="sidebar-section" id="tagsList">
+        <div class="sidebar-title">Tags</div>
+        <!-- Tags rendered dynamically -->
+      </div>
+      <div class="sidebar-section">
+        <button class="add-tag-btn" onclick="openCreateTagModal()">+ New Tag</button>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-title">Smart Groups</div>
+        <button class="sidebar-item" onclick="filterBy('smart:recent')" data-filter="smart:recent">
+          <span class="sidebar-item-left">Added Recently</span>
+        </button>
+        <button class="sidebar-item" onclick="filterBy('smart:noemail')" data-filter="smart:noemail">
+          <span class="sidebar-item-left">Missing Email</span>
+        </button>
+        <button class="sidebar-item" onclick="filterBy('smart:rsvp')" data-filter="smart:rsvp">
+          <span class="sidebar-item-left">From RSVPs</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main-content">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <input type="text" class="search-input" placeholder="Search contacts..." id="searchInput" oninput="onSearch()">
+        </div>
+        <div class="toolbar-right">
+          <button class="btn btn-outline" id="toolbarPhoneBtn" style="display:none;" onclick="importFromPhone()">From Phone</button>
+          <button class="btn btn-outline" onclick="openImportModal()">Import CSV</button>
+          <button class="btn btn-primary" onclick="openAddModal()">+ Add Contact</button>
+        </div>
+      </div>
+
+      <!-- Safari Setup Instructions (shown inline when From Phone clicked without API) -->
+      <div class="safari-setup" id="safariSetup">
+        <div class="safari-setup-title">
+          <svg viewBox="0 0 24 24" fill="#856404"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+          Enable Contact Picker on Safari
+          <button class="safari-dismiss" onclick="document.getElementById('safariSetup').classList.remove('visible')">&times;</button>
+        </div>
+        <p style="font-size:13px;color:#666;margin-bottom:12px;">Safari requires a one-time setting change to access your phone contacts:</p>
+        <ol class="safari-steps">
+          <li>Open the <strong>Settings</strong> app on your iPhone</li>
+          <li>Scroll down and tap <strong>Safari</strong></li>
+          <li>Scroll to the bottom and tap <strong>Advanced</strong></li>
+          <li>Tap <strong>Feature Flags</strong></li>
+          <li>Find <strong>Contact Picker API</strong> and toggle it <strong>ON</strong></li>
+          <li>Come back here and tap <strong>From Phone</strong> again</li>
+        </ol>
+      </div>
+
+      <div class="bulk-bar" id="bulkBar">
+        <div class="bulk-bar-left"><span id="selectedCount">0</span> selected</div>
+        <div class="bulk-bar-actions">
+          <button class="bulk-btn" onclick="openBulkTagModal()">Add Tag</button>
+          <button class="bulk-btn" onclick="openBulkAddToEventModal()">Add to Event</button>
+          <button class="bulk-btn danger" onclick="deleteSelected()">Delete</button>
+        </div>
+      </div>
+
+      <div id="loading" class="loading">Loading contacts...</div>
+      <div id="emptyState" class="empty-state" style="display:none;">
+        <h3>No contacts yet</h3>
+        <p>Add contacts manually, import a CSV, or they'll appear automatically when people RSVP to your events.</p>
+        <button class="btn btn-primary" onclick="openAddModal()">Add Your First Contact</button>
+      </div>
+      <div id="contactList" class="contact-list" style="display:none;"></div>
+    </main>
+  </div>
+
+  <!-- Add/Edit Contact Modal -->
+  <div class="modal-overlay" id="contactModal" onclick="if(event.target===this)closeContactModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="contactModalTitle">Add Contact</h3>
+        <button class="modal-close" onclick="closeContactModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editContactId">
+        <div class="form-group">
+          <label class="form-label">Name *</label>
+          <input type="text" class="form-input" id="contactName" placeholder="Full name" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-input" id="contactEmail" placeholder="email@example.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone</label>
+            <input type="tel" class="form-input" id="contactPhone" placeholder="(555) 123-4567">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tags</label>
+          <div style="position:relative;">
+            <div class="tag-input-wrap" id="tagInputWrap" onclick="document.getElementById('tagInput').focus()">
+              <span id="selectedTagPills"></span>
+              <input type="text" class="tag-input-field" id="tagInput" placeholder="Type to add tags..." oninput="onTagInput()" onfocus="onTagInput()">
+            </div>
+            <div class="tag-suggestions" id="tagSuggestions" style="display:none;"></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <textarea class="form-input form-textarea" id="contactNotes" placeholder="Any notes about this person..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dietary Preferences</label>
+          <input type="text" class="form-input" id="contactDietary" placeholder="e.g., Vegetarian, Nut allergy">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Relationship</label>
+          <input type="text" class="form-input" id="contactRelationship" placeholder="e.g., Sister, College friend, Neighbor">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeContactModal()">Cancel</button>
+        <button class="btn btn-primary" id="contactSaveBtn" onclick="saveContact()">Save Contact</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Tag Modal -->
+  <div class="modal-overlay" id="tagModal" onclick="if(event.target===this)closeTagModal()">
+    <div class="modal" style="max-width:380px;">
+      <div class="modal-header">
+        <h3>New Tag</h3>
+        <button class="modal-close" onclick="closeTagModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Tag Name</label>
+          <input type="text" class="form-input" id="newTagName" placeholder="e.g., Family, Work Friends">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Color</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="colorPicker">
+            <button class="color-opt" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#E94560;" data-color="#E94560" onclick="selectColor(this)"></button>
+            <button class="color-opt" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#A78BFA;" data-color="#A78BFA" onclick="selectColor(this)"></button>
+            <button class="color-opt" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#4ECDC4;" data-color="#4ECDC4" onclick="selectColor(this)"></button>
+            <button class="color-opt" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#FFB74D;" data-color="#FFB74D" onclick="selectColor(this)"></button>
+            <button class="color-opt" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#5B8DEF;" data-color="#5B8DEF" onclick="selectColor(this)"></button>
+            <button class="color-opt" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#FF8A80;" data-color="#FF8A80" onclick="selectColor(this)"></button>
+            <button class="color-opt" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#81C784;" data-color="#81C784" onclick="selectColor(this)"></button>
+            <button class="color-opt" style="width:32px;height:32px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#CE93D8;" data-color="#CE93D8" onclick="selectColor(this)"></button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeTagModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="createTag()">Create Tag</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import CSV Modal -->
+  <div class="modal-overlay" id="importModal" onclick="if(event.target===this)closeImportModal()">
+    <div class="modal" style="max-width:540px;">
+      <div class="modal-header">
+        <h3>Import Contacts</h3>
+        <button class="modal-close" onclick="closeImportModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="import-area" id="importArea" onclick="document.getElementById('csvFile').click()">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <p>Click to upload CSV or drag & drop</p>
+          <p style="font-size:12px;color:#999;">Expected columns: Name, Email, Phone</p>
+          <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="handleCSV(this)">
+        </div>
+        <div class="import-preview" id="importPreview" style="display:none;">
+          <div class="import-preview-count" id="importCount"></div>
+          <div class="import-preview-list" id="importList"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeImportModal()">Cancel</button>
+        <button class="btn btn-primary" id="importBtn" onclick="doImport()" style="display:none;">Import Contacts</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk Add to Event Modal -->
+  <div class="modal-overlay" id="addToEventModal" onclick="if(event.target===this)closeAddToEventModal()">
+    <div class="modal" style="max-width:420px;">
+      <div class="modal-header">
+        <h3>Add to Event</h3>
+        <button class="modal-close" onclick="closeAddToEventModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:14px;color:#666;margin-bottom:16px;">Select an event to add the selected contacts to:</p>
+        <div id="eventListForAdd" class="loading">Loading events...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail Panel -->
+  <div class="detail-panel-overlay" id="detailOverlay" onclick="closeDetail()"></div>
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-header">
+      <h3 id="detailName">Contact</h3>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline" style="padding:8px 14px;min-height:36px;font-size:13px;" onclick="editFromDetail()">Edit</button>
+        <button class="modal-close" onclick="closeDetail()">&times;</button>
+      </div>
+    </div>
+    <div class="detail-body" id="detailBody"></div>
+  </div>
+
+  <!-- Confirm Modal -->
+  <div class="confirm-overlay" id="confirmModal" onclick="if(event.target===this)closeConfirm()">
+    <div class="confirm-box">
+      <div class="confirm-title" id="confirmTitle"></div>
+      <div class="confirm-msg" id="confirmMsg"></div>
+      <div class="confirm-actions">
+        <button class="confirm-cancel" onclick="closeConfirm()">Cancel</button>
+        <button class="confirm-ok" id="confirmOk">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var token = localStorage.getItem('sb_access_token');
+    var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
+    if (!token || !user) { window.location.href = '/v2/login/'; }
+    else {
+      document.getElementById('profileName').textContent = user.displayName || user.email?.split('@')[0] || '';
+      document.getElementById('profileEmail').textContent = user.email || '';
+    }
+
+    var allContacts = [];
+    var allTags = [];
+    var selectedIds = new Set();
+    var currentFilter = 'all';
+    var currentSearch = '';
+    var selectedTagColor = '#A78BFA';
+    var editingTags = [];
+    var csvData = null;
+    var currentDetailContact = null;
+
+    // Profile dropdown
+    function toggleProfileMenu() { document.getElementById('profileDropdown').classList.toggle('open'); }
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.profile-menu')) document.getElementById('profileDropdown').classList.remove('open');
+      if (!e.target.closest('.tag-input-wrap') && !e.target.closest('.tag-suggestions')) {
+        document.getElementById('tagSuggestions').style.display = 'none';
+      }
+    });
+
+    // Token refresh
+    async function refreshToken() {
+      var rt = localStorage.getItem('sb_refresh_token');
+      if (!rt) { logout(); return false; }
+      try {
+        var res = await fetch('/api/v2/auth?action=refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken: rt }) });
+        var result = await res.json();
+        if (result.success) { token = result.accessToken; localStorage.setItem('sb_access_token', result.accessToken); localStorage.setItem('sb_refresh_token', result.refreshToken); return true; }
+      } catch (e) {}
+      logout(); return false;
+    }
+
+    async function authFetch(url, opts) {
+      opts = opts || {}; opts.headers = opts.headers || {};
+      opts.headers['Authorization'] = 'Bearer ' + token;
+      var res = await fetch(url, opts);
+      if (res.status === 401) { var ok = await refreshToken(); if (ok) { opts.headers['Authorization'] = 'Bearer ' + token; res = await fetch(url, opts); } }
+      return res;
+    }
+
+    function logout() {
+      localStorage.removeItem('sb_access_token'); localStorage.removeItem('sb_refresh_token'); localStorage.removeItem('v2_user');
+      window.location.href = '/v2/login/';
+    }
+
+    // ========== DATA LOADING ==========
+
+    async function loadContacts() {
+      try {
+        var res = await authFetch('/api/v2/contacts?action=list');
+        var result = await res.json();
+        if (result.success) { allContacts = result.contacts || []; }
+      } catch (err) { console.error(err); }
+    }
+
+    async function loadTags() {
+      try {
+        var res = await authFetch('/api/v2/contacts?action=listTags');
+        var result = await res.json();
+        if (result.success) { allTags = result.tags || []; }
+      } catch (err) { console.error(err); }
+    }
+
+    async function loadAll() {
+      await Promise.all([loadContacts(), loadTags()]);
+      document.getElementById('loading').style.display = 'none';
+      renderSidebar();
+      renderContacts();
+    }
+
+    // ========== RENDERING ==========
+
+    function renderSidebar() {
+      document.getElementById('allCount').textContent = allContacts.length;
+      var tagsList = document.getElementById('tagsList');
+      var html = '<div class="sidebar-title">Tags</div>';
+      allTags.forEach(function(t) {
+        var isActive = currentFilter === 'tag:' + t.id;
+        html += '<button class="sidebar-item' + (isActive ? ' active' : '') + '" onclick="filterBy(\'tag:' + t.id + '\')" data-filter="tag:' + t.id + '">'
+          + '<span class="sidebar-item-left"><span class="tag-dot" style="background:' + (t.color || '#ccc') + '"></span>' + escapeHtml(t.name) + '</span>'
+          + '<span class="sidebar-count">' + t.count + '</span>'
+          + '</button>';
+      });
+      tagsList.innerHTML = html;
+    }
+
+    function getFilteredContacts() {
+      var list = allContacts;
+
+      if (currentFilter.startsWith('tag:')) {
+        var tagId = currentFilter.split(':')[1];
+        list = list.filter(function(c) { return c.tags && c.tags.some(function(t) { return t.id === tagId; }); });
+      } else if (currentFilter === 'smart:recent') {
+        var thirtyDays = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        list = list.filter(function(c) { return new Date(c.createdAt).getTime() > thirtyDays; });
+      } else if (currentFilter === 'smart:noemail') {
+        list = list.filter(function(c) { return !c.email; });
+      } else if (currentFilter === 'smart:rsvp') {
+        list = list.filter(function(c) { return c.source === 'rsvp'; });
+      }
+
+      if (currentSearch) {
+        var s = currentSearch.toLowerCase();
+        list = list.filter(function(c) {
+          return (c.name && c.name.toLowerCase().includes(s)) ||
+                 (c.email && c.email.toLowerCase().includes(s)) ||
+                 (c.phone && c.phone.includes(s));
+        });
+      }
+
+      return list;
+    }
+
+    function renderContacts() {
+      var filtered = getFilteredContacts();
+      var listEl = document.getElementById('contactList');
+      var emptyEl = document.getElementById('emptyState');
+
+      if (filtered.length === 0) {
+        listEl.style.display = 'none';
+        emptyEl.style.display = allContacts.length === 0 ? 'block' : 'none';
+        if (allContacts.length > 0 && filtered.length === 0) {
+          listEl.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">No contacts match this filter</div>';
+          listEl.style.display = 'block';
+        }
+        return;
+      }
+
+      emptyEl.style.display = 'none';
+      listEl.innerHTML = filtered.map(function(c) {
+        var initials = (c.name || '?').split(' ').map(function(w) { return w[0]; }).join('').substring(0, 2).toUpperCase();
+        var checked = selectedIds.has(c.id) ? 'checked' : '';
+        var selectedClass = selectedIds.has(c.id) ? ' selected' : '';
+        var details = [];
+        if (c.email) details.push(escapeHtml(c.email));
+        if (c.phone) details.push(escapeHtml(c.phone));
+        var tags = (c.tags || []).map(function(t) {
+          var bg = t.color ? t.color + '18' : '#eee';
+          var fg = t.color || '#666';
+          return '<span class="tag-pill" style="background:' + bg + ';color:' + fg + ';">' + escapeHtml(t.name) + '</span>';
+        }).join('');
+        var sourceLabel = c.source === 'rsvp' ? 'RSVP' : c.source === 'import' ? 'Import' : '';
+
+        return '<div class="contact-row' + selectedClass + '" onclick="openDetail(\'' + c.id + '\')">'
+          + '<input type="checkbox" class="contact-check" ' + checked + ' onclick="event.stopPropagation();toggleSelect(\'' + c.id + '\')">'
+          + '<div class="contact-avatar">' + initials + '</div>'
+          + '<div class="contact-info">'
+          + '<div class="contact-name">' + escapeHtml(c.name) + '</div>'
+          + (details.length ? '<div class="contact-detail">' + details.join(' <span style="color:#ccc;">|</span> ') + '</div>' : '')
+          + '</div>'
+          + (tags ? '<div class="contact-tags">' + tags + '</div>' : '')
+          + (sourceLabel ? '<div class="contact-source">' + sourceLabel + '</div>' : '')
+          + '</div>';
+      }).join('');
+      listEl.style.display = 'block';
+    }
+
+    // ========== FILTERING ==========
+
+    function filterBy(filter) {
+      currentFilter = filter;
+      selectedIds.clear();
+      updateBulkBar();
+      // Update active state
+      document.querySelectorAll('.sidebar-item').forEach(function(el) {
+        el.classList.toggle('active', el.getAttribute('data-filter') === filter);
+      });
+      renderContacts();
+    }
+
+    function onSearch() {
+      currentSearch = document.getElementById('searchInput').value;
+      renderContacts();
+    }
+
+    // ========== SELECTION ==========
+
+    function toggleSelect(id) {
+      if (selectedIds.has(id)) selectedIds.delete(id);
+      else selectedIds.add(id);
+      updateBulkBar();
+      renderContacts();
+    }
+
+    function updateBulkBar() {
+      var bar = document.getElementById('bulkBar');
+      if (selectedIds.size > 0) {
+        bar.classList.add('visible');
+        document.getElementById('selectedCount').textContent = selectedIds.size;
+      } else {
+        bar.classList.remove('visible');
+      }
+    }
+
+    // ========== CONTACT CRUD ==========
+
+    function openAddModal() {
+      document.getElementById('contactModalTitle').textContent = 'Add Contact';
+      document.getElementById('editContactId').value = '';
+      document.getElementById('contactName').value = '';
+      document.getElementById('contactEmail').value = '';
+      document.getElementById('contactPhone').value = '';
+      document.getElementById('contactNotes').value = '';
+      document.getElementById('contactDietary').value = '';
+      document.getElementById('contactRelationship').value = '';
+      editingTags = [];
+      renderEditingTags();
+      document.getElementById('contactModal').classList.add('active');
+    }
+
+    function openEditModal(contact) {
+      document.getElementById('contactModalTitle').textContent = 'Edit Contact';
+      document.getElementById('editContactId').value = contact.id;
+      document.getElementById('contactName').value = contact.name || '';
+      document.getElementById('contactEmail').value = contact.email || '';
+      document.getElementById('contactPhone').value = contact.phone || '';
+      document.getElementById('contactNotes').value = contact.notes || '';
+      document.getElementById('contactDietary').value = contact.metadata?.dietary || '';
+      document.getElementById('contactRelationship').value = contact.metadata?.relationship || '';
+      editingTags = (contact.tags || []).map(function(t) { return { id: t.id, name: t.name, color: t.color }; });
+      renderEditingTags();
+      document.getElementById('contactModal').classList.add('active');
+    }
+
+    function closeContactModal() { document.getElementById('contactModal').classList.remove('active'); }
+
+    async function saveContact() {
+      var name = document.getElementById('contactName').value.trim();
+      if (!name) { showToast('Name is required'); return; }
+
+      var btn = document.getElementById('contactSaveBtn');
+      btn.disabled = true; btn.textContent = 'Saving...';
+
+      var contactId = document.getElementById('editContactId').value;
+      var payload = {
+        name: name,
+        email: document.getElementById('contactEmail').value.trim() || null,
+        phone: document.getElementById('contactPhone').value.trim() || null,
+        notes: document.getElementById('contactNotes').value.trim() || null,
+        metadata: {}
+      };
+
+      var dietary = document.getElementById('contactDietary').value.trim();
+      var relationship = document.getElementById('contactRelationship').value.trim();
+      if (dietary) payload.metadata.dietary = dietary;
+      if (relationship) payload.metadata.relationship = relationship;
+
+      try {
+        var action = contactId ? 'update' : 'create';
+        if (contactId) payload.contactId = contactId;
+        if (!contactId) payload.tagIds = editingTags.map(function(t) { return t.id; });
+
+        var res = await authFetch('/api/v2/contacts?action=' + action, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        var result = await res.json();
+
+        if (result.success) {
+          // Handle tag updates for existing contacts
+          if (contactId) {
+            var existingContact = allContacts.find(function(c) { return c.id === contactId; });
+            var existingTagIds = (existingContact?.tags || []).map(function(t) { return t.id; });
+            var newTagIds = editingTags.map(function(t) { return t.id; });
+
+            var toAdd = newTagIds.filter(function(id) { return existingTagIds.indexOf(id) === -1; });
+            var toRemove = existingTagIds.filter(function(id) { return newTagIds.indexOf(id) === -1; });
+
+            for (var a = 0; a < toAdd.length; a++) {
+              await authFetch('/api/v2/contacts?action=tagContacts', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tagId: toAdd[a], contactIds: [contactId] })
+              });
+            }
+            for (var r = 0; r < toRemove.length; r++) {
+              await authFetch('/api/v2/contacts?action=untagContacts', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tagId: toRemove[r], contactIds: [contactId] })
+              });
+            }
+          }
+
+          closeContactModal();
+          showToast(contactId ? 'Contact updated' : 'Contact added');
+          await loadAll();
+        } else {
+          showToast(result.error || 'Failed to save');
+        }
+      } catch (err) {
+        showToast('Error saving contact');
+      }
+
+      btn.disabled = false; btn.textContent = 'Save Contact';
+    }
+
+    async function deleteSelected() {
+      if (selectedIds.size === 0) return;
+      showConfirm('Delete', 'Delete ' + selectedIds.size + ' contact' + (selectedIds.size > 1 ? 's' : '') + '? This cannot be undone.', '#dc3545', async function() {
+        try {
+          var res = await authFetch('/api/v2/contacts?action=delete', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contactIds: Array.from(selectedIds) })
+          });
+          var result = await res.json();
+          if (result.success) {
+            showToast(result.deleted + ' contact' + (result.deleted > 1 ? 's' : '') + ' deleted');
+            selectedIds.clear();
+            updateBulkBar();
+            await loadAll();
+          }
+        } catch (err) { showToast('Error deleting contacts'); }
+      });
+    }
+
+    // ========== TAG OPERATIONS ==========
+
+    function openCreateTagModal() {
+      document.getElementById('newTagName').value = '';
+      selectedTagColor = '#A78BFA';
+      document.querySelectorAll('.color-opt').forEach(function(el) { el.style.borderColor = 'transparent'; });
+      document.querySelector('.color-opt[data-color="#A78BFA"]').style.borderColor = '#333';
+      document.getElementById('tagModal').classList.add('active');
+    }
+
+    function closeTagModal() { document.getElementById('tagModal').classList.remove('active'); }
+
+    function selectColor(el) {
+      selectedTagColor = el.getAttribute('data-color');
+      document.querySelectorAll('.color-opt').forEach(function(e) { e.style.borderColor = 'transparent'; });
+      el.style.borderColor = '#333';
+    }
+
+    async function createTag() {
+      var name = document.getElementById('newTagName').value.trim();
+      if (!name) { showToast('Tag name required'); return; }
+
+      try {
+        var res = await authFetch('/api/v2/contacts?action=createTag', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name, color: selectedTagColor })
+        });
+        var result = await res.json();
+        if (result.success) {
+          closeTagModal();
+          showToast('Tag "' + name + '" created');
+          await loadTags();
+          renderSidebar();
+        } else {
+          showToast(result.error || 'Failed to create tag');
+        }
+      } catch (err) { showToast('Error creating tag'); }
+    }
+
+    // Tag input in contact modal
+    function renderEditingTags() {
+      var wrap = document.getElementById('selectedTagPills');
+      wrap.innerHTML = editingTags.map(function(t) {
+        var bg = t.color ? t.color + '18' : '#eee';
+        var fg = t.color || '#666';
+        return '<span class="tag-pill" style="background:' + bg + ';color:' + fg + ';">'
+          + escapeHtml(t.name)
+          + '<span class="tag-pill-remove" onclick="event.stopPropagation();removeEditingTag(\'' + t.id + '\')">&times;</span>'
+          + '</span>';
+      }).join('');
+    }
+
+    function removeEditingTag(tagId) {
+      editingTags = editingTags.filter(function(t) { return t.id !== tagId; });
+      renderEditingTags();
+    }
+
+    function onTagInput() {
+      var val = document.getElementById('tagInput').value.toLowerCase();
+      var suggestions = document.getElementById('tagSuggestions');
+      var editingIds = editingTags.map(function(t) { return t.id; });
+      var matches = allTags.filter(function(t) {
+        return editingIds.indexOf(t.id) === -1 && (!val || t.name.toLowerCase().includes(val));
+      });
+
+      if (matches.length === 0 && !val) { suggestions.style.display = 'none'; return; }
+
+      var html = matches.map(function(t) {
+        return '<div class="tag-suggestion" onclick="addEditingTag(\'' + t.id + '\')">'
+          + '<span class="tag-dot" style="background:' + (t.color || '#ccc') + '"></span>'
+          + escapeHtml(t.name) + '</div>';
+      }).join('');
+
+      if (val && !matches.some(function(t) { return t.name.toLowerCase() === val; })) {
+        html += '<div class="tag-suggestion tag-suggestion-new" onclick="createAndAddTag(\'' + escapeHtml(val) + '\')">+ Create "' + escapeHtml(val) + '"</div>';
+      }
+
+      suggestions.innerHTML = html;
+      suggestions.style.display = html ? 'block' : 'none';
+    }
+
+    function addEditingTag(tagId) {
+      var tag = allTags.find(function(t) { return t.id === tagId; });
+      if (tag && !editingTags.some(function(t) { return t.id === tagId; })) {
+        editingTags.push({ id: tag.id, name: tag.name, color: tag.color });
+        renderEditingTags();
+      }
+      document.getElementById('tagInput').value = '';
+      document.getElementById('tagSuggestions').style.display = 'none';
+    }
+
+    async function createAndAddTag(name) {
+      try {
+        var res = await authFetch('/api/v2/contacts?action=createTag', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name, color: '#A78BFA' })
+        });
+        var result = await res.json();
+        if (result.success) {
+          await loadTags();
+          renderSidebar();
+          var newTag = allTags.find(function(t) { return t.name.toLowerCase() === name.toLowerCase(); });
+          if (newTag) addEditingTag(newTag.id);
+        }
+      } catch (err) {}
+      document.getElementById('tagInput').value = '';
+      document.getElementById('tagSuggestions').style.display = 'none';
+    }
+
+    // Bulk tag
+    function openBulkTagModal() {
+      if (selectedIds.size === 0) return;
+      // Use the tag modal but create a quick selector
+      openCreateTagModal();
+      document.querySelector('#tagModal .modal-header h3').textContent = 'Tag Selected Contacts';
+      // Replace footer action
+      var footer = document.querySelector('#tagModal .modal-footer');
+      footer.innerHTML = '<button class="btn btn-outline" onclick="closeTagModal()">Cancel</button>'
+        + '<button class="btn btn-primary" onclick="applyBulkTag()">Apply Tag</button>';
+    }
+
+    async function applyBulkTag() {
+      var name = document.getElementById('newTagName').value.trim();
+      if (!name) { showToast('Tag name required'); return; }
+
+      // Find or create tag
+      var tag = allTags.find(function(t) { return t.name.toLowerCase() === name.toLowerCase(); });
+      if (!tag) {
+        var res = await authFetch('/api/v2/contacts?action=createTag', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name, color: selectedTagColor })
+        });
+        var result = await res.json();
+        if (!result.success) { showToast(result.error); return; }
+        tag = result.tag;
+      }
+
+      // Apply tag to selected
+      var res2 = await authFetch('/api/v2/contacts?action=tagContacts', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tagId: tag.id, contactIds: Array.from(selectedIds) })
+      });
+      var result2 = await res2.json();
+      if (result2.success) {
+        closeTagModal();
+        showToast('Tagged ' + selectedIds.size + ' contacts');
+        selectedIds.clear();
+        updateBulkBar();
+        await loadAll();
+      }
+    }
+
+    // ========== ADD TO EVENT ==========
+
+    function openBulkAddToEventModal() {
+      if (selectedIds.size === 0) return;
+      document.getElementById('addToEventModal').classList.add('active');
+      loadEventsForAdd();
+    }
+
+    function closeAddToEventModal() { document.getElementById('addToEventModal').classList.remove('active'); }
+
+    async function loadEventsForAdd() {
+      var el = document.getElementById('eventListForAdd');
+      try {
+        var res = await authFetch('/api/v2/events?action=list');
+        var result = await res.json();
+        if (result.success) {
+          var events = (result.events || []).filter(function(e) { return e.status !== 'Archived'; });
+          if (events.length === 0) {
+            el.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">No active events. Create one first!</div>';
+            return;
+          }
+          el.innerHTML = events.map(function(e) {
+            var date = e.eventDate ? new Date(e.eventDate).toLocaleDateString() : '';
+            return '<div style="padding:12px;border:1px solid #eee;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:all 0.15s;" onclick="addSelectedToEvent(\'' + e.id + '\')" onmouseover="this.style.borderColor=\'var(--party-coral)\'" onmouseout="this.style.borderColor=\'#eee\'">'
+              + '<div style="font-weight:600;font-size:14px;">' + escapeHtml(e.title) + '</div>'
+              + '<div style="font-size:12px;color:#999;margin-top:2px;">' + date + (e.locationName ? ' · ' + escapeHtml(e.locationName) : '') + '</div>'
+              + '</div>';
+          }).join('');
+        }
+      } catch (err) {
+        el.innerHTML = '<div style="color:#dc3545;">Error loading events</div>';
+      }
+    }
+
+    async function addSelectedToEvent(eventId) {
+      try {
+        var res = await authFetch('/api/v2/events?action=addGuests', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: eventId, contactIds: Array.from(selectedIds) })
+        });
+        var result = await res.json();
+        if (result.success) {
+          closeAddToEventModal();
+          showToast('Added ' + result.added + ' guest' + (result.added !== 1 ? 's' : '') + (result.skipped ? ', ' + result.skipped + ' already invited' : ''));
+          selectedIds.clear();
+          updateBulkBar();
+          renderContacts();
+        } else {
+          showToast(result.error || 'Failed to add guests');
+        }
+      } catch (err) { showToast('Error adding guests to event'); }
+    }
+
+    // ========== CSV IMPORT ==========
+
+    function openImportModal() {
+      csvData = null;
+      document.getElementById('csvFile').value = '';
+      document.getElementById('importPreview').style.display = 'none';
+      document.getElementById('importBtn').style.display = 'none';
+      document.getElementById('importArea').style.display = 'block';
+      document.getElementById('importModal').classList.add('active');
+    }
+
+    function closeImportModal() { document.getElementById('importModal').classList.remove('active'); }
+
+    function handleCSV(input) {
+      var file = input.files[0];
+      if (!file) return;
+
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var text = e.target.result;
+        var lines = text.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+        if (lines.length < 2) { showToast('CSV appears empty'); return; }
+
+        var headers = lines[0].split(',').map(function(h) { return h.trim().toLowerCase().replace(/"/g, ''); });
+        var nameIdx = headers.findIndex(function(h) { return h === 'name' || h === 'full name' || h === 'fullname'; });
+        var emailIdx = headers.findIndex(function(h) { return h === 'email' || h === 'e-mail' || h === 'email address'; });
+        var phoneIdx = headers.findIndex(function(h) { return h === 'phone' || h === 'phone number' || h === 'mobile'; });
+
+        if (nameIdx === -1) { nameIdx = 0; } // Fallback: first column is name
+
+        csvData = [];
+        for (var i = 1; i < lines.length; i++) {
+          var cols = lines[i].match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g);
+          if (!cols) continue;
+          cols = cols.map(function(c) { return c.trim().replace(/^"|"$/g, ''); });
+          var name = cols[nameIdx] || '';
+          if (!name) continue;
+          csvData.push({
+            name: name,
+            email: emailIdx >= 0 ? (cols[emailIdx] || '') : '',
+            phone: phoneIdx >= 0 ? (cols[phoneIdx] || '') : ''
+          });
+        }
+
+        document.getElementById('importArea').style.display = 'none';
+        document.getElementById('importPreview').style.display = 'block';
+        document.getElementById('importCount').textContent = csvData.length + ' contacts found';
+        document.getElementById('importList').innerHTML = csvData.slice(0, 20).map(function(c) {
+          return '<div style="padding:4px 0;border-bottom:1px solid #f5f5f5;">' + escapeHtml(c.name) + (c.email ? ' — ' + escapeHtml(c.email) : '') + '</div>';
+        }).join('') + (csvData.length > 20 ? '<div style="padding:8px 0;color:#999;">...and ' + (csvData.length - 20) + ' more</div>' : '');
+        document.getElementById('importBtn').style.display = 'block';
+      };
+      reader.readAsText(file);
+    }
+
+    // Drag and drop
+    var importArea = document.getElementById('importArea');
+    importArea.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('dragover'); });
+    importArea.addEventListener('dragleave', function() { this.classList.remove('dragover'); });
+    importArea.addEventListener('drop', function(e) {
+      e.preventDefault(); this.classList.remove('dragover');
+      var file = e.dataTransfer.files[0];
+      if (file && file.name.endsWith('.csv')) {
+        var dt = new DataTransfer(); dt.items.add(file);
+        document.getElementById('csvFile').files = dt.files;
+        handleCSV(document.getElementById('csvFile'));
+      }
+    });
+
+    async function doImport() {
+      if (!csvData || csvData.length === 0) return;
+      var btn = document.getElementById('importBtn');
+      btn.disabled = true; btn.textContent = 'Importing...';
+
+      try {
+        var res = await authFetch('/api/v2/contacts?action=bulkCreate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contacts: csvData, source: 'import' })
+        });
+        var result = await res.json();
+        if (result.success) {
+          closeImportModal();
+          showToast('Imported ' + result.created + ' contacts' + (result.updated ? ', updated ' + result.updated : '') + (result.skipped ? ', ' + result.skipped + ' skipped' : ''));
+          await loadAll();
+        } else {
+          showToast(result.error || 'Import failed');
+        }
+      } catch (err) { showToast('Error importing contacts'); }
+
+      btn.disabled = false; btn.textContent = 'Import Contacts';
+    }
+
+    // ========== DETAIL PANEL ==========
+
+    async function openDetail(contactId) {
+      var contact = allContacts.find(function(c) { return c.id === contactId; });
+      if (!contact) return;
+      currentDetailContact = contact;
+
+      document.getElementById('detailName').textContent = contact.name;
+      document.getElementById('detailOverlay').classList.add('open');
+      document.getElementById('detailPanel').classList.add('open');
+
+      // Render basic info first
+      renderDetailBasic(contact);
+
+      // Fetch full details (event history, household)
+      try {
+        var res = await authFetch('/api/v2/contacts?action=get&contactId=' + contactId);
+        var result = await res.json();
+        if (result.success) {
+          currentDetailContact = result.contact;
+          renderDetailFull(result.contact);
+        }
+      } catch (err) {}
+    }
+
+    function renderDetailBasic(c) {
+      var body = document.getElementById('detailBody');
+      var tags = (c.tags || []).map(function(t) {
+        var bg = t.color ? t.color + '18' : '#eee';
+        var fg = t.color || '#666';
+        return '<span class="tag-pill" style="background:' + bg + ';color:' + fg + ';">' + escapeHtml(t.name) + '</span>';
+      }).join(' ');
+
+      body.innerHTML = '<div class="detail-section">'
+        + '<div class="detail-section-title">Contact Info</div>'
+        + (c.email ? '<div class="detail-field"><div class="detail-field-label">Email</div><div class="detail-field-value">' + escapeHtml(c.email) + '</div></div>' : '')
+        + (c.phone ? '<div class="detail-field"><div class="detail-field-label">Phone</div><div class="detail-field-value">' + escapeHtml(c.phone) + '</div></div>' : '')
+        + (c.notes ? '<div class="detail-field"><div class="detail-field-label">Notes</div><div class="detail-field-value">' + escapeHtml(c.notes) + '</div></div>' : '')
+        + '</div>'
+        + (tags ? '<div class="detail-section"><div class="detail-section-title">Tags</div>' + tags + '</div>' : '')
+        + renderMetadataSection(c.metadata)
+        + '<div class="detail-section"><div class="detail-section-title">Event History</div><div style="color:#999;font-size:13px;">Loading...</div></div>';
+    }
+
+    function renderDetailFull(c) {
+      var body = document.getElementById('detailBody');
+      var tags = (c.tags || []).map(function(t) {
+        var bg = t.color ? t.color + '18' : '#eee';
+        var fg = t.color || '#666';
+        return '<span class="tag-pill" style="background:' + bg + ';color:' + fg + ';">' + escapeHtml(t.name) + '</span>';
+      }).join(' ');
+
+      var eventsHtml = '';
+      if (c.eventHistory && c.eventHistory.length > 0) {
+        eventsHtml = c.eventHistory.map(function(e) {
+          var statusColors = { attending: '#d4edda;color:#155724', declined: '#f8d7da;color:#721c24', maybe: '#fff3cd;color:#856404', invited: '#e2e3e5;color:#383d41' };
+          var sLabel = e.status ? e.status.charAt(0).toUpperCase() + e.status.slice(1) : '';
+          var sStyle = statusColors[e.status] || '#eee';
+          var date = e.eventDate ? new Date(e.eventDate).toLocaleDateString() : '';
+          return '<div class="detail-event-item">'
+            + '<div><div class="detail-event-title">' + escapeHtml(e.title || 'Event') + '</div><div class="detail-event-date">' + date + '</div></div>'
+            + '<span class="detail-event-status" style="background:' + sStyle + '">' + sLabel + '</span>'
+            + '</div>';
+        }).join('');
+      } else {
+        eventsHtml = '<div style="color:#999;font-size:13px;">No events yet</div>';
+      }
+
+      var householdHtml = '';
+      if (c.household) {
+        householdHtml = '<div class="detail-section"><div class="detail-section-title">Household</div>'
+          + '<div class="detail-field-value">' + escapeHtml(c.household.name) + ' (' + c.household.role + ')</div>'
+          + '</div>';
+      }
+
+      body.innerHTML = '<div class="detail-section">'
+        + '<div class="detail-section-title">Contact Info</div>'
+        + (c.email ? '<div class="detail-field"><div class="detail-field-label">Email</div><div class="detail-field-value">' + escapeHtml(c.email) + '</div></div>' : '')
+        + (c.phone ? '<div class="detail-field"><div class="detail-field-label">Phone</div><div class="detail-field-value">' + escapeHtml(c.phone) + '</div></div>' : '')
+        + (c.notes ? '<div class="detail-field"><div class="detail-field-label">Notes</div><div class="detail-field-value">' + escapeHtml(c.notes) + '</div></div>' : '')
+        + '<div class="detail-field"><div class="detail-field-label">Source</div><div class="detail-field-value">' + (c.source || 'Manual') + '</div></div>'
+        + '<div class="detail-field"><div class="detail-field-label">Added</div><div class="detail-field-value">' + new Date(c.createdAt).toLocaleDateString() + '</div></div>'
+        + '</div>'
+        + (tags ? '<div class="detail-section"><div class="detail-section-title">Tags</div>' + tags + '</div>' : '')
+        + renderMetadataSection(c.metadata)
+        + householdHtml
+        + '<div class="detail-section"><div class="detail-section-title">Event History</div>' + eventsHtml + '</div>';
+    }
+
+    function renderMetadataSection(meta) {
+      if (!meta || Object.keys(meta).length === 0) return '';
+      var fields = [];
+      if (meta.dietary) fields.push({ label: 'Dietary', value: meta.dietary });
+      if (meta.relationship) fields.push({ label: 'Relationship', value: meta.relationship });
+      if (meta.birthday) fields.push({ label: 'Birthday', value: meta.birthday });
+      // Render any other metadata keys
+      Object.keys(meta).forEach(function(k) {
+        if (['dietary', 'relationship', 'birthday'].indexOf(k) === -1 && typeof meta[k] === 'string') {
+          fields.push({ label: k.charAt(0).toUpperCase() + k.slice(1), value: meta[k] });
+        }
+      });
+      if (fields.length === 0) return '';
+      return '<div class="detail-section"><div class="detail-section-title">Details</div>'
+        + fields.map(function(f) {
+          return '<div class="detail-field"><div class="detail-field-label">' + escapeHtml(f.label) + '</div><div class="detail-field-value">' + escapeHtml(f.value) + '</div></div>';
+        }).join('')
+        + '</div>';
+    }
+
+    function closeDetail() {
+      document.getElementById('detailOverlay').classList.remove('open');
+      document.getElementById('detailPanel').classList.remove('open');
+      currentDetailContact = null;
+    }
+
+    function editFromDetail() {
+      if (currentDetailContact) {
+        closeDetail();
+        openEditModal(currentDetailContact);
+      }
+    }
+
+    // ========== UTILITIES ==========
+
+    function showToast(message) {
+      var toast = document.createElement('div');
+      toast.className = 'toast'; toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(function() { toast.remove(); }, 3000);
+    }
+
+    function showConfirm(title, msg, color, onConfirm) {
+      document.getElementById('confirmTitle').textContent = title;
+      document.getElementById('confirmMsg').textContent = msg;
+      var okBtn = document.getElementById('confirmOk');
+      okBtn.style.background = color; okBtn.textContent = title;
+      okBtn.onclick = function() { closeConfirm(); onConfirm(); };
+      document.getElementById('confirmModal').classList.add('active');
+    }
+
+    function closeConfirm() { document.getElementById('confirmModal').classList.remove('active'); }
+
+    function escapeHtml(str) {
+      var div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML;
+    }
+
+    // ========== PHONE CONTACT PICKER ==========
+
+    function isSafariMobile() {
+      var ua = navigator.userAgent;
+      return /iPhone|iPad|iPod/.test(ua) && /WebKit/.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(ua);
+    }
+
+    function checkContactPickerSupport() {
+      var hasAPI = ('contacts' in navigator && 'ContactsManager' in window);
+      var toolbarBtn = document.getElementById('toolbarPhoneBtn');
+
+      if (hasAPI || isSafariMobile()) {
+        toolbarBtn.style.display = '';
+      }
+      // Desktop / unsupported browsers: button stays hidden
+    }
+
+    async function importFromPhone() {
+      var hasAPI = ('contacts' in navigator && 'ContactsManager' in window);
+
+      if (!hasAPI) {
+        // Show Safari setup instructions
+        var setup = document.getElementById('safariSetup');
+        setup.classList.toggle('visible');
+        return;
+      }
+
+      var btn = document.getElementById('toolbarPhoneBtn');
+      try {
+        var props = ['name', 'tel', 'email'];
+        var opts = { multiple: true };
+        var contacts = await navigator.contacts.select(props, opts);
+
+        if (!contacts || contacts.length === 0) return;
+
+        btn.disabled = true; btn.textContent = 'Importing...';
+
+        var mapped = contacts.map(function(c) {
+          var name = (c.name && c.name.length > 0) ? c.name[0] : '';
+          var phone = (c.tel && c.tel.length > 0) ? c.tel[0] : '';
+          var email = (c.email && c.email.length > 0) ? c.email[0] : '';
+          return { name: name, phone: phone, email: email };
+        }).filter(function(c) { return c.name; });
+
+        if (mapped.length === 0) {
+          showToast('No valid contacts selected');
+          btn.disabled = false; btn.textContent = 'From Phone';
+          return;
+        }
+
+        var res = await authFetch('/api/v2/contacts?action=bulkCreate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contacts: mapped, source: 'import' })
+        });
+        var result = await res.json();
+
+        if (result.success) {
+          var msg = 'Imported ' + result.created + ' contact' + (result.created !== 1 ? 's' : '');
+          if (result.updated) msg += ', updated ' + result.updated;
+          if (result.skipped) msg += ', ' + result.skipped + ' skipped';
+          showToast(msg);
+          await loadAll();
+        } else {
+          showToast(result.error || 'Import failed');
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          showToast("Couldn't access contacts: " + err.message);
+        }
+      }
+
+      btn.disabled = false; btn.textContent = 'From Phone';
+    }
+
+    // Init
+    checkContactPickerSupport();
+    loadAll();
+  </script>
+</body>
+</html>

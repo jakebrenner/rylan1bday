@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Co-Host Invitation — Ryvite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --party-coral: #E94560; --blush-pop: #FF6B6B; --midnight: #1A1A2E;
+      --confetti-gold: #FFB74D; --mint-fizz: #4ECDC4; --party-purple: #A78BFA; --cream: #FFFAF5;
+    }
+    html, body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--midnight); min-height: 100vh; }
+
+    .page { max-width: 480px; margin: 0 auto; padding: 40px 20px; text-align: center; }
+    .logo { margin-bottom: 32px; }
+    .logo svg { height: 56px; width: auto; }
+
+    .card { background: white; border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: left; }
+    .card-title { font-family: 'Playfair Display', serif; font-size: 24px; margin-bottom: 8px; text-align: center; }
+    .card-subtitle { font-size: 15px; color: #666; margin-bottom: 24px; text-align: center; line-height: 1.5; }
+
+    .event-details { background: #f8f4f0; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+    .event-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .event-meta { font-size: 14px; color: #666; display: flex; flex-direction: column; gap: 6px; }
+    .event-meta-item { display: flex; align-items: center; gap: 8px; }
+    .event-meta-item svg { width: 16px; height: 16px; fill: #999; flex-shrink: 0; }
+
+    .role-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 24px; }
+    .role-editor { background: rgba(167,139,250,0.15); color: #7c3aed; }
+    .role-viewer { background: rgba(78,205,196,0.15); color: #0d9488; }
+
+    .actions { display: flex; gap: 12px; margin-top: 24px; }
+    .btn { flex: 1; padding: 14px 20px; border: none; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; min-height: 48px; }
+    .btn-primary { background: var(--party-coral); color: white; }
+    .btn-primary:hover { background: var(--blush-pop); transform: translateY(-2px); }
+    .btn-outline { background: white; border: 1px solid #ddd; color: var(--midnight); }
+    .btn-outline:hover { border-color: #999; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .status-msg { text-align: center; padding: 24px; font-size: 16px; line-height: 1.6; }
+    .status-msg.success { color: var(--mint-fizz); }
+
+    .login-prompt { text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee; }
+    .login-prompt p { font-size: 14px; color: #666; margin-bottom: 12px; }
+    .login-prompt a { color: var(--party-coral); font-weight: 600; text-decoration: none; }
+    .login-prompt a:hover { text-decoration: underline; }
+
+    .loading { text-align: center; padding: 40px; color: #666; }
+    .error { text-align: center; padding: 40px; color: #dc3545; }
+
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--midnight); color: white; padding: 14px 24px; border-radius: 8px; font-size: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); animation: slideUp 0.3s ease-out; z-index: 100; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="logo">
+      <a href="/" style="text-decoration:none;">
+        <svg viewBox="0 0 210 80" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="40" r="22" fill="none" stroke="var(--party-coral)" stroke-width="2.2"/><path d="M18 30 L32 42 L46 30" fill="none" stroke="var(--party-coral)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50 L46 50" fill="none" stroke="var(--party-coral)" stroke-width="1.8" stroke-linecap="round"/><text x="64" y="52" font-family="Playfair Display, serif" font-size="34" font-weight="700" fill="var(--midnight)">Ryvite</text></svg>
+      </a>
+    </div>
+
+    <div class="card" id="mainCard">
+      <div class="loading" id="loadingState">Loading invitation...</div>
+    </div>
+  </div>
+
+  <script>
+    var token = localStorage.getItem('sb_access_token');
+    var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
+    var inviteToken = new URLSearchParams(window.location.search).get('token');
+
+    if (!inviteToken) {
+      document.getElementById('mainCard').innerHTML = '<div class="error">No invitation token provided.</div>';
+    } else {
+      loadInvitation();
+    }
+
+    async function loadInvitation() {
+      try {
+        var res = await fetch('/api/v2/cohost?action=getInvitation&token=' + encodeURIComponent(inviteToken));
+        var result = await res.json();
+
+        if (!result.success) {
+          document.getElementById('mainCard').innerHTML = '<div class="error">' + escapeHtml(result.error || 'Invitation not found') + '</div>';
+          return;
+        }
+
+        var invite = result.invitation;
+
+        if (invite.status === 'accepted') {
+          document.getElementById('mainCard').innerHTML = '<div class="card-title">Already Accepted</div>'
+            + '<div class="status-msg">This invitation has already been accepted.</div>'
+            + '<div style="text-align:center;"><a href="/v2/dashboard/" class="btn btn-primary" style="display:inline-block;max-width:200px;text-decoration:none;">Go to Dashboard</a></div>';
+          return;
+        }
+
+        if (invite.status === 'declined') {
+          document.getElementById('mainCard').innerHTML = '<div class="card-title">Invitation Declined</div>'
+            + '<div class="status-msg">This invitation was declined.</div>';
+          return;
+        }
+
+        if (invite.status === 'expired') {
+          document.getElementById('mainCard').innerHTML = '<div class="card-title">Invitation Expired</div>'
+            + '<div class="status-msg">This invitation has expired. Please ask the host to send a new one.</div>';
+          return;
+        }
+
+        // Active invitation — show details
+        var roleName = invite.role === 'editor' ? 'Co-Host' : 'Viewer';
+        var roleClass = invite.role === 'editor' ? 'role-editor' : 'role-viewer';
+        var eventDate = invite.eventDate ? new Date(invite.eventDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '';
+
+        var html = '<div class="card-title">You\'re Invited!</div>'
+          + '<div class="card-subtitle"><strong>' + escapeHtml(invite.inviterName) + '</strong> has invited you to help manage an event</div>'
+          + '<div style="text-align:center;"><span class="role-badge ' + roleClass + '">' + roleName + '</span></div>'
+          + '<div class="event-details">'
+          + '<div class="event-title">' + escapeHtml(invite.eventTitle || 'Event') + '</div>'
+          + '<div class="event-meta">';
+
+        if (eventDate) {
+          html += '<div class="event-meta-item"><svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM9 10H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z"/></svg>' + eventDate + '</div>';
+        }
+        if (invite.eventLocation) {
+          html += '<div class="event-meta-item"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>' + escapeHtml(invite.eventLocation) + '</div>';
+        }
+
+        html += '</div></div>';
+
+        if (!token || !user) {
+          html += '<div class="login-prompt">'
+            + '<p>You need to log in or create an account to accept this invitation.</p>'
+            + '<a href="/v2/login/?redirect=' + encodeURIComponent(window.location.pathname + window.location.search) + '">Log in or Sign up</a>'
+            + '</div>';
+        } else {
+          html += '<div class="actions">'
+            + '<button class="btn btn-outline" onclick="declineInvitation()" id="declineBtn">Decline</button>'
+            + '<button class="btn btn-primary" onclick="acceptInvitation()" id="acceptBtn">Accept</button>'
+            + '</div>';
+        }
+
+        document.getElementById('mainCard').innerHTML = html;
+      } catch (err) {
+        document.getElementById('mainCard').innerHTML = '<div class="error">Error loading invitation. Please try again.</div>';
+      }
+    }
+
+    async function acceptInvitation() {
+      var btn = document.getElementById('acceptBtn');
+      btn.disabled = true; btn.textContent = 'Accepting...';
+
+      try {
+        var res = await fetch('/api/v2/cohost?action=accept', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ token: inviteToken })
+        });
+        var result = await res.json();
+
+        if (result.success) {
+          document.getElementById('mainCard').innerHTML = '<div class="card-title">Welcome!</div>'
+            + '<div class="status-msg success" style="color:var(--mint-fizz);">You\'re now a co-host for this event.</div>'
+            + '<div style="text-align:center;"><a href="/v2/dashboard/" class="btn btn-primary" style="display:inline-block;max-width:200px;text-decoration:none;">Go to Dashboard</a></div>';
+        } else {
+          showToast(result.error || 'Failed to accept invitation');
+          btn.disabled = false; btn.textContent = 'Accept';
+        }
+      } catch (err) {
+        showToast('Error accepting invitation');
+        btn.disabled = false; btn.textContent = 'Accept';
+      }
+    }
+
+    async function declineInvitation() {
+      var btn = document.getElementById('declineBtn');
+      btn.disabled = true; btn.textContent = 'Declining...';
+
+      try {
+        var res = await fetch('/api/v2/cohost?action=decline', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ token: inviteToken })
+        });
+        var result = await res.json();
+
+        if (result.success) {
+          document.getElementById('mainCard').innerHTML = '<div class="card-title">Invitation Declined</div>'
+            + '<div class="status-msg">You have declined this invitation.</div>';
+        } else {
+          showToast(result.error || 'Failed to decline');
+          btn.disabled = false; btn.textContent = 'Decline';
+        }
+      } catch (err) {
+        showToast('Error');
+        btn.disabled = false; btn.textContent = 'Decline';
+      }
+    }
+
+    function showToast(message) {
+      var toast = document.createElement('div');
+      toast.className = 'toast'; toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(function() { toast.remove(); }, 3000);
+    }
+
+    function escapeHtml(str) {
+      var div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
