@@ -770,11 +770,12 @@ Return ONLY a valid JSON object with these keys:
 - TEXT CONTRAST: EVERY text element must be clearly readable against its background. Never light-on-light or dark-on-dark. Buttons must have contrasting text. This is non-negotiable. CONCRETE RULE: on any dark/colored background section, text MUST be #FFFFFF or #FAFAFA. On light backgrounds, text MUST be #1A1A1A or darker. Do NOT use theme accent colors (coral, salmon, rose, etc.) as text on dark backgrounds.
 - For photo additions: use the EXACT URL(s) provided in <img> tags. Style with creative framing per the event type.`;
 
-      const stream = client.messages.stream({
+      const stream = await client.messages.create({
         model: themeModel,
         max_tokens: 16384,
         system: tweakSystemPrompt,
-        messages: [{ role: 'user', content: messageContent }]
+        messages: [{ role: 'user', content: messageContent }],
+        stream: true
       });
 
       // Accumulate the full response while streaming progress
@@ -783,8 +784,7 @@ Return ONLY a valid JSON object with these keys:
       let inputTokens = 0;
       let outputTokens = 0;
 
-      // Use for-await to iterate raw stream events instead of stream.finalMessage()
-      // which blocks waiting for SDK message assembly and causes Vercel 60s timeout
+      // Iterate raw SSE events — avoids finalMessage() which blocks and causes Vercel timeout
       for await (const event of stream) {
         if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
           fullText += event.delta.text;
@@ -1040,11 +1040,14 @@ ${rsvpFieldsDesc}`;
     sendSSE('status', { phase: 'generating' });
 
     // Stream response to keep connection alive and avoid Vercel timeout
-    const stream = client.messages.stream({
+    // Use client.messages.create({stream:true}) for raw async iterable — NOT
+    // client.messages.stream() which requires finalMessage() that blocks past 60s
+    const stream = await client.messages.create({
       model: themeModel,
       max_tokens: 16384,
       system: activePrompt.systemPrompt,
-      messages: [{ role: 'user', content: messageContent }]
+      messages: [{ role: 'user', content: messageContent }],
+      stream: true
     });
 
     let fullText = '';
@@ -1052,8 +1055,7 @@ ${rsvpFieldsDesc}`;
     let inputTokens = 0;
     let outputTokens = 0;
 
-    // Use for-await to iterate raw stream events instead of stream.finalMessage()
-    // which blocks waiting for SDK message assembly and causes Vercel 60s timeout
+    // Iterate raw SSE events — completes immediately when last event arrives
     for await (const event of stream) {
       if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
         fullText += event.delta.text;
