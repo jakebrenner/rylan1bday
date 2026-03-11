@@ -29,13 +29,38 @@ The backend lives in Google Apps Script and is **not auto-deployed** from this r
 
 - **Frontend**: Static HTML/JS in `admin/`, `invite/`, `login/`
   - V1: `admin/`, `invite/`, `login/` — Google Sheets backend
-  - V2: `v2/admin/`, `v2/invite/`, `v2/login/` — Supabase backend
+  - V2: `v2/admin/`, `v2/invite/`, `v2/login/`, `v2/create/` — Supabase backend
 - **API proxy (V1)**: `api/sheets.js` — Vercel serverless function that proxies to Google Apps Script
 - **API (V2)**: `api/v2/*.js` — Vercel serverless functions connecting directly to Supabase + Claude API
 - **Backend (V1)**: Google Apps Script web app (Code.gs) reading/writing Google Sheets
 - **Backend (V2)**: Supabase (PostgreSQL + Auth + RLS)
-- **AI**: Anthropic Claude API for invite theme generation
+- **AI**: Anthropic Claude API for invite theme generation and chat-based event creation
 - **Environment variables**: `GAS_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`
+
+## Event Creation & Design Chat
+
+> **Full architecture details**: See [`DESIGN-CHAT.md`](DESIGN-CHAT.md)
+
+### Creation Flow (v2/create/index.html)
+1. **Chat** → AI extracts event details (title, date, location, type) from natural language
+2. **RSVP Fields** → User confirms/edits form fields, reviews event details card
+3. **Generate** → Initial theme via SSE streaming → design chat for iterative refinement
+4. **Summary** → Final review → publish
+
+### Design Chat Tiered Tweak System
+User refinement requests are routed to the cheapest/fastest handler that can fulfill them:
+
+| Tier | Latency | What It Handles | How |
+|------|---------|----------------|-----|
+| 1 | 0ms | Remove/modify RSVP fields | Client-side regex matching against known fields |
+| 1.5 | ~1s | Add RSVP fields | Haiku interprets field name/type (256 tokens) |
+| 1.75 | 0ms | Text swap ("change X to Y") | Client-side find-and-replace in HTML |
+| 2 | ~5-15s | Text/copy changes | Haiku returns diff-based replacements (4K tokens) |
+| 3 | ~15-60s | Design/layout/style changes | Sonnet full theme regen (16K tokens) |
+
+**Combined commands** are supported — "remove X and add Y" splits on conjunctions and processes each part through the appropriate tier.
+
+**Redesign clarification** — vague requests ("I don't like it") prompt for specifics before burning an expensive generation.
 
 ## Supabase Schema (V2)
 
@@ -210,4 +235,12 @@ No auth required — supports host, guest, and anonymous raters.
 - RSVP response data is stored as JSON string in the `ResponseData` column (V1) or JSONB `response_data` (V2)
 - The V1 API proxy sends POST bodies as `Content-Type: text/plain` to avoid GAS redirect issues
 - V2 admin panel is a single-file HTML app with vanilla JS (no framework) at `v2/admin/index.html`
+- V2 create page is a single-file HTML app with vanilla JS at `v2/create/index.html`
 - Vercel serverless functions are isolated — shared constants (like `STRUCTURAL_RULES`) must be duplicated across files
+
+### SSE Streaming & Mobile Safari
+- All AI generation uses Server-Sent Events (SSE) to avoid Vercel's 60s timeout
+- Client reads full response via `res.text()` — NOT ReadableStream (Safari mobile kills it on page blur)
+- Server sends `: keepalive\n\n` every 3 seconds to prevent mobile connection drops
+- Google Fonts `@import` must be first line in `<style>` block or they silently fail
+- AI JSON responses may need repair: strip markdown fences, fix unclosed strings/braces, accept both `snake_case` and `camelCase` keys
