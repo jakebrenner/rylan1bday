@@ -162,6 +162,28 @@
     .import-preview-count { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
     .import-preview-list { max-height: 200px; overflow-y: auto; font-size: 13px; color: #666; }
 
+    /* Phone Import / Contact Picker */
+    .phone-import-card { display: none; background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .phone-import-card.visible { display: block; }
+    .phone-import-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .phone-import-header svg { width: 28px; height: 28px; flex-shrink: 0; }
+    .phone-import-header h3 { font-size: 16px; font-weight: 600; }
+    .phone-import-desc { font-size: 14px; color: #666; margin-bottom: 16px; line-height: 1.5; }
+    .phone-import-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; background: var(--party-coral); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s; }
+    .phone-import-btn:hover { background: var(--blush-pop); transform: translateY(-1px); }
+    .phone-import-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .phone-import-btn svg { width: 18px; height: 18px; }
+
+    .safari-setup { display: none; margin-top: 16px; background: #FFF9E6; border: 1px solid #FFE082; border-radius: 12px; padding: 20px; }
+    .safari-setup.visible { display: block; }
+    .safari-setup-title { font-size: 14px; font-weight: 600; color: #856404; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .safari-setup-title svg { width: 18px; height: 18px; }
+    .safari-steps { list-style: none; counter-reset: step; }
+    .safari-steps li { position: relative; padding: 10px 0 10px 44px; font-size: 14px; color: #555; line-height: 1.5; border-bottom: 1px solid #f0e6c8; }
+    .safari-steps li:last-child { border-bottom: none; }
+    .safari-steps li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 10px; width: 28px; height: 28px; background: var(--party-coral); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+    .safari-steps li strong { color: var(--midnight); }
+
     .toast { position: fixed; bottom: 24px; right: 24px; background: var(--midnight); color: white; padding: 14px 24px; border-radius: 8px; font-size: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); animation: slideUp 0.3s ease-out; z-index: 300; }
     @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -271,8 +293,37 @@
           <input type="text" class="search-input" placeholder="Search contacts..." id="searchInput" oninput="onSearch()">
         </div>
         <div class="toolbar-right">
+          <button class="btn btn-outline" id="toolbarPhoneBtn" style="display:none;" onclick="importFromPhone()">From Phone</button>
           <button class="btn btn-outline" onclick="openImportModal()">Import CSV</button>
           <button class="btn btn-primary" onclick="openAddModal()">+ Add Contact</button>
+        </div>
+      </div>
+
+      <!-- Phone Contact Picker -->
+      <div class="phone-import-card" id="phonePickerCard">
+        <div class="phone-import-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--party-coral)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+          <h3>Import from Phone</h3>
+        </div>
+        <div class="phone-import-desc">Quickly add contacts from your phone's address book. Select multiple people at once and they'll be imported with their name, phone number, and email.</div>
+        <button class="phone-import-btn" id="phonePickerBtn" onclick="importFromPhone()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          Open Contacts
+        </button>
+        <div class="safari-setup" id="safariSetup">
+          <div class="safari-setup-title">
+            <svg viewBox="0 0 24 24" fill="#856404"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+            Enable Contact Picker on Safari
+          </div>
+          <p style="font-size:13px;color:#666;margin-bottom:12px;">Safari requires a one-time setting change to access your phone contacts. Follow these steps:</p>
+          <ol class="safari-steps">
+            <li>Open the <strong>Settings</strong> app on your iPhone</li>
+            <li>Scroll down and tap <strong>Safari</strong></li>
+            <li>Scroll to the bottom and tap <strong>Advanced</strong></li>
+            <li>Tap <strong>Feature Flags</strong></li>
+            <li>Find <strong>Contact Picker API</strong> and toggle it <strong>ON</strong></li>
+            <li>Come back here and tap <strong>Open Contacts</strong> above</li>
+          </ol>
         </div>
       </div>
 
@@ -1211,7 +1262,82 @@
       var div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML;
     }
 
+    // ========== PHONE CONTACT PICKER ==========
+
+    function isSafariMobile() {
+      var ua = navigator.userAgent;
+      return /iPhone|iPad|iPod/.test(ua) && /WebKit/.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(ua);
+    }
+
+    function checkContactPickerSupport() {
+      var hasAPI = ('contacts' in navigator && 'ContactsManager' in window);
+      var card = document.getElementById('phonePickerCard');
+      var toolbarBtn = document.getElementById('toolbarPhoneBtn');
+
+      if (hasAPI) {
+        card.classList.add('visible');
+        toolbarBtn.style.display = '';
+      } else if (isSafariMobile()) {
+        card.classList.add('visible');
+        document.getElementById('safariSetup').classList.add('visible');
+        toolbarBtn.style.display = '';
+      }
+      // Desktop / unsupported browsers: card and button stay hidden
+    }
+
+    async function importFromPhone() {
+      var btn = document.getElementById('phonePickerBtn');
+      try {
+        var props = ['name', 'tel', 'email'];
+        var opts = { multiple: true };
+        var contacts = await navigator.contacts.select(props, opts);
+
+        if (!contacts || contacts.length === 0) return;
+
+        btn.disabled = true; btn.textContent = 'Importing...';
+
+        // Map to our contact format
+        var mapped = contacts.map(function(c) {
+          var name = (c.name && c.name.length > 0) ? c.name[0] : '';
+          var phone = (c.tel && c.tel.length > 0) ? c.tel[0] : '';
+          var email = (c.email && c.email.length > 0) ? c.email[0] : '';
+          return { name: name, phone: phone, email: email };
+        }).filter(function(c) { return c.name; });
+
+        if (mapped.length === 0) {
+          showToast('No valid contacts selected');
+          btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> Open Contacts';
+          return;
+        }
+
+        var res = await authFetch('/api/v2/contacts?action=bulkCreate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contacts: mapped, source: 'import' })
+        });
+        var result = await res.json();
+
+        if (result.success) {
+          var msg = 'Imported ' + result.created + ' contact' + (result.created !== 1 ? 's' : '');
+          if (result.updated) msg += ', updated ' + result.updated;
+          if (result.skipped) msg += ', ' + result.skipped + ' skipped';
+          showToast(msg);
+          await loadAll();
+        } else {
+          showToast(result.error || 'Import failed');
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          showToast("Couldn't access contacts: " + err.message);
+        }
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> Open Contacts';
+    }
+
     // Init
+    checkContactPickerSupport();
     loadAll();
   </script>
 </body>
