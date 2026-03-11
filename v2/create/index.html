@@ -678,9 +678,9 @@
       if (isRefreshing) return refreshPromise;
       isRefreshing = true;
       refreshPromise = (async function() {
-        var rt = localStorage.getItem('sb_refresh_token');
-        if (!rt) { window.location.href = '/v2/login/'; return false; }
         try {
+          var rt = localStorage.getItem('sb_refresh_token');
+          if (!rt) { window.location.href = '/v2/login/'; return false; }
           var res = await fetch('/api/v2/auth?action=refresh', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -693,11 +693,15 @@
             localStorage.setItem('sb_refresh_token', result.refreshToken);
             return true;
           }
-        } catch (e) {}
-        window.location.href = '/v2/login/';
-        return false;
+          window.location.href = '/v2/login/';
+          return false;
+        } catch (e) {
+          window.location.href = '/v2/login/';
+          return false;
+        } finally {
+          isRefreshing = false;
+        }
       })();
-      isRefreshing = false;
       return refreshPromise;
     }
 
@@ -1137,45 +1141,45 @@
       document.getElementById('rsvpFieldList').innerHTML = renderRsvpFields();
     }
 
-    function showAddFieldForm() {
+    function showAddFieldFormStep1() {
       var container = document.getElementById('addFieldContainer');
       if (container.querySelector('.rsvp-add-form')) return; // already open
       container.innerHTML = '<div class="rsvp-add-form">'
         + '<div class="form-row">'
-        + '<input type="text" id="newFieldLabel" placeholder="Field label (e.g. Song Request)">'
-        + '<select id="newFieldType"><option value="text">Text</option><option value="number">Number</option><option value="select">Dropdown</option><option value="checkbox">Checkbox</option><option value="textarea">Long text</option><option value="email">Email</option><option value="phone">Phone</option></select>'
+        + '<input type="text" id="newFieldLabelStep1" placeholder="Field label (e.g. Song Request)">'
+        + '<select id="newFieldTypeStep1"><option value="text">Text</option><option value="number">Number</option><option value="select">Dropdown</option><option value="checkbox">Checkbox</option><option value="textarea">Long text</option><option value="email">Email</option><option value="phone">Phone</option></select>'
         + '</div>'
-        + '<div class="form-row" id="newFieldOptionsRow" style="display:none;">'
-        + '<input type="text" id="newFieldOptions" placeholder="Options (comma-separated)" style="grid-column: 1/-1;">'
+        + '<div class="form-row" id="newFieldOptionsRowStep1" style="display:none;">'
+        + '<input type="text" id="newFieldOptionsStep1" placeholder="Options (comma-separated)" style="grid-column: 1/-1;">'
         + '</div>'
         + '<div class="form-row">'
-        + '<input type="text" id="newFieldPlaceholder" placeholder="Placeholder text (optional)">'
-        + '<label style="display:flex;align-items:center;gap:6px;font-size:12px;margin:0;"><input type="checkbox" id="newFieldRequired"> Required</label>'
+        + '<input type="text" id="newFieldPlaceholderStep1" placeholder="Placeholder text (optional)">'
+        + '<label style="display:flex;align-items:center;gap:6px;font-size:12px;margin:0;"><input type="checkbox" id="newFieldRequiredStep1"> Required</label>'
         + '</div>'
         + '<div class="form-actions">'
-        + '<button class="btn btn-secondary btn-sm" onclick="cancelAddField()">Cancel</button>'
-        + '<button class="btn btn-primary btn-sm" onclick="addCustomField()">Add Field</button>'
+        + '<button class="btn btn-secondary btn-sm" onclick="cancelAddFieldStep1()">Cancel</button>'
+        + '<button class="btn btn-primary btn-sm" onclick="addCustomFieldStep1()">Add Field</button>'
         + '</div>'
         + '</div>';
-      document.getElementById('newFieldType').addEventListener('change', function() {
-        document.getElementById('newFieldOptionsRow').style.display = this.value === 'select' ? 'grid' : 'none';
+      document.getElementById('newFieldTypeStep1').addEventListener('change', function() {
+        document.getElementById('newFieldOptionsRowStep1').style.display = this.value === 'select' ? 'grid' : 'none';
       });
     }
 
-    function cancelAddField() {
+    function cancelAddFieldStep1() {
       document.getElementById('addFieldContainer').innerHTML = '';
     }
 
-    function addCustomField() {
-      var label = document.getElementById('newFieldLabel').value.trim();
-      if (!label) { showMessage('Please enter a field label', 'error'); return; }
-      var fieldType = document.getElementById('newFieldType').value;
-      var placeholder = document.getElementById('newFieldPlaceholder').value.trim();
-      var isRequired = document.getElementById('newFieldRequired').checked;
+    function addCustomFieldStep1() {
+      var label = document.getElementById('newFieldLabelStep1').value.trim();
+      if (!label) { alert('Please enter a field label'); return; }
+      var fieldType = document.getElementById('newFieldTypeStep1').value;
+      var placeholder = document.getElementById('newFieldPlaceholderStep1').value.trim();
+      var isRequired = document.getElementById('newFieldRequiredStep1').checked;
       var options = null;
       if (fieldType === 'select') {
-        var optStr = document.getElementById('newFieldOptions').value.trim();
-        if (!optStr) { showMessage('Please enter options for the dropdown', 'error'); return; }
+        var optStr = document.getElementById('newFieldOptionsStep1').value.trim();
+        if (!optStr) { alert('Please enter options for the dropdown'); return; }
         options = optStr.split(',').map(function(o) { return o.trim(); }).filter(Boolean);
       }
       var fieldKey = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
@@ -1191,7 +1195,7 @@
       });
 
       document.getElementById('rsvpFieldList').innerHTML = renderRsvpFields();
-      cancelAddField();
+      cancelAddFieldStep1();
     }
 
     // ---- Style Selection Flow (in chat) ----
@@ -2408,11 +2412,6 @@
       });
     }
 
-    // Keep old function name as alias for backward compat with resume flow
-    async function proceedToCreativeDirection() {
-      confirmDetailsAndAskStyle();
-    }
-
     // ---- Step Navigation ----
 
     function goToStep(step) {
@@ -2491,12 +2490,6 @@
 
     function nextStep() { if (currentStep < totalSteps) goToStep(currentStep + 1); }
     function previousStep() { if (currentStep > 1) goToStep(currentStep - 1); }
-
-    function validateStep(step) {
-      if (false) { // No longer needed — style prompt collected in chat
-      }
-      return true;
-    }
 
     // ---- Theme Generation ----
 
