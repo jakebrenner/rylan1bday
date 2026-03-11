@@ -439,6 +439,93 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 // The old combined prompt — kept as fallback for backward compatibility
 const SYSTEM_PROMPT = STRUCTURAL_RULES + '\n\n' + DEFAULT_CREATIVE_DIRECTION;
 
+// ═══════════════════════════════════════════════════════════════════
+// ROBUST THEME RESPONSE PARSER (duplicated from prompt-test.js — Vercel
+// serverless functions can't share imports)
+// ═══════════════════════════════════════════════════════════════════
+function parseThemeResponse(rawText) {
+  let text = (typeof rawText === 'string' ? rawText : '').trim();
+  if (text.match(/^<!DOCTYPE/i) || text.match(/^<html/i)) return extractThemeFromHtmlDoc(text);
+  const jsonBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+  if (jsonBlockMatch) text = jsonBlockMatch[1].trim();
+  if (!text.startsWith('{') || text.match(/^\{\s*--/)) {
+    const jsonStart = text.match(/\{\s*"(?:theme_|html|css|config)/);
+    if (jsonStart) {
+      const startIdx = text.indexOf(jsonStart[0]);
+      let depth = 0, inStr = false, lastBrace = -1;
+      for (let i = startIdx; i < text.length; i++) {
+        const ch = text[i];
+        if (ch === '"' && (i === 0 || text[i-1] !== '\\')) inStr = !inStr;
+        if (!inStr) { if (ch === '{') depth++; else if (ch === '}') { depth--; if (depth === 0) { lastBrace = i; break; } } }
+      }
+      text = lastBrace !== -1 ? text.substring(startIdx, lastBrace + 1) : text.substring(startIdx);
+    } else if (text.includes('<html') || text.includes('<!DOCTYPE') || text.includes('<body')) {
+      const htmlMatch = text.match(/<(!DOCTYPE[\s\S]*|html[\s\S]*)<\/html>/i);
+      if (htmlMatch) return extractThemeFromHtmlDoc(htmlMatch[0]);
+    }
+  }
+  let theme;
+  try { theme = JSON.parse(text); } catch (parseErr) {
+    let repaired = text;
+    repaired = repaired.replace(/,\s*([\]}])/g, '$1');
+    const quoteCount = (repaired.match(/(?<!\\)"/g) || []).length;
+    if (quoteCount % 2 !== 0) repaired += '"';
+    let braceDepth = 0, bracketDepth = 0, inString = false;
+    for (let i = 0; i < repaired.length; i++) { const ch = repaired[i]; if (ch === '"' && (i === 0 || repaired[i-1] !== '\\')) inString = !inString; if (!inString) { if (ch === '{') braceDepth++; else if (ch === '}') braceDepth--; else if (ch === '[') bracketDepth++; else if (ch === ']') bracketDepth--; } }
+    for (let i = 0; i < bracketDepth; i++) repaired += ']';
+    for (let i = 0; i < braceDepth; i++) repaired += '}';
+    try { theme = JSON.parse(repaired); } catch (e2) {
+      if (rawText.includes('<div') || rawText.includes('<section') || rawText.includes('<style')) return extractThemeFromHtmlDoc(rawText);
+      throw new Error('Failed to parse theme JSON: ' + parseErr.message + ' | First 300 chars: ' + text.substring(0, 300));
+    }
+  }
+  return normalizeThemeKeys(theme);
+}
+
+function extractThemeFromHtmlDoc(html) {
+  let css = '', body = html, config = {};
+  const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+  if (styleMatches) { css = styleMatches.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n'); body = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ''); }
+  const linkMatch = html.match(/<link[^>]*href=["'](https:\/\/fonts\.googleapis\.com\/[^"']+)["'][^>]*>/i);
+  if (linkMatch) config.googleFontsImport = "@import url('" + linkMatch[1] + "');";
+  if (!config.googleFontsImport) { const importMatch = css.match(/@import\s+url\(['"]?(https:\/\/fonts\.googleapis\.com[^'"\)]+)['"]?\)/); if (importMatch) { config.googleFontsImport = "@import url('" + importMatch[1] + "');"; css = css.replace(/@import\s+url\([^)]+\);?\s*/g, ''); } }
+  const bodyMatch = body.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  if (bodyMatch) body = bodyMatch[1].trim();
+  body = body.replace(/<head[\s\S]*?<\/head>/gi, '').replace(/<\/?(html|head|!doctype)[^>]*>/gi, '').replace(/<(link|meta)[^>]*>/gi, '').trim();
+  if (!body && !css) throw new Error('Invalid theme response — could not extract HTML or CSS');
+  return { theme_html: body, theme_css: css, theme_config: config, theme_thankyou_html: '' };
+}
+
+function normalizeThemeKeys(theme) {
+  if (!theme.theme_html && theme.html) theme.theme_html = theme.html;
+  if (!theme.theme_html && theme.themeHtml) theme.theme_html = theme.themeHtml;
+  if (!theme.theme_css && theme.css) theme.theme_css = theme.css;
+  if (!theme.theme_css && theme.themeCss) theme.theme_css = theme.themeCss;
+  if (!theme.theme_config && theme.config) theme.theme_config = theme.config;
+  if (!theme.theme_config && theme.themeConfig) theme.theme_config = theme.themeConfig;
+  if (!theme.theme_thankyou_html && theme.thankyou_html) theme.theme_thankyou_html = theme.thankyou_html;
+  if (!theme.theme_thankyou_html && theme.thankyouHtml) theme.theme_thankyou_html = theme.thankyouHtml;
+  if (theme.theme_html && !theme.theme_css) {
+    const styleMatch = theme.theme_html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+    if (styleMatch) { theme.theme_css = styleMatch.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n'); theme.theme_html = theme.theme_html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ''); }
+  }
+  if (theme.theme_html && (theme.theme_html.includes('<!DOCTYPE') || theme.theme_html.includes('<html'))) {
+    if (!theme.theme_css) { const m = theme.theme_html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi); if (m) theme.theme_css = m.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n'); }
+    const linkMatches = theme.theme_html.match(/<link[^>]*href=["'](https:\/\/fonts\.googleapis\.com\/[^"']+)["'][^>]*>/gi);
+    if (linkMatches) { const fontUrl = linkMatches.map(l => { const m = l.match(/href=["']([^"']+)["']/); return m ? m[1] : null; }).filter(Boolean)[0]; if (fontUrl && !theme.theme_config?.googleFontsImport) { if (!theme.theme_config) theme.theme_config = {}; theme.theme_config.googleFontsImport = fontUrl; } }
+    const bodyMatch = theme.theme_html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    if (bodyMatch) theme.theme_html = bodyMatch[1].trim();
+  }
+  if (!theme.theme_css) theme.theme_css = '';
+  if (!theme.theme_config) theme.theme_config = {};
+  if (!theme.theme_config.googleFontsImport) {
+    const fontImportMatch = (theme.theme_css || '').match(/@import\s+url\(['"]?(https:\/\/fonts\.googleapis\.com[^'"\)]+)['"]?\)/);
+    if (fontImportMatch) { theme.theme_config.googleFontsImport = "@import url('" + fontImportMatch[1] + "');"; theme.theme_css = theme.theme_css.replace(/@import\s+url\([^)]+\);?\s*/g, ''); }
+  }
+  if (!theme.theme_html) { throw new Error('Invalid theme response — missing theme_html. Got keys: [' + Object.keys(theme).join(', ') + ']'); }
+  return theme;
+}
+
 // Extract CSS and structural summary from style library HTML to reduce token usage
 function extractStyleEssence(html) {
   const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
@@ -960,50 +1047,8 @@ Return ONLY a valid JSON object with these keys:
 
       sendSSE('status', { phase: 'saving' });
 
-      // Parse the accumulated text — strip markdown fences
-      let themeText = fullText.trim();
-      if (themeText.startsWith('```')) {
-        themeText = themeText.replace(/^```(?:json)?\s*\n?/, '');
-        themeText = themeText.replace(/\n?\s*```\s*$/, '');
-        themeText = themeText.trim();
-      }
-      if (!themeText.startsWith('{')) {
-        const firstBrace = themeText.indexOf('{');
-        const lastBrace = themeText.lastIndexOf('}');
-        if (firstBrace !== -1 && lastBrace !== -1) themeText = themeText.substring(firstBrace, lastBrace + 1);
-      }
-
-      // Attempt to repair truncated JSON if parsing fails
-      let theme;
-      try {
-        theme = JSON.parse(themeText);
-      } catch (parseErr) {
-        // Try to repair: close any unclosed strings and braces
-        let repaired = themeText;
-        // Count unmatched quotes — if odd, close the string
-        const quoteCount = (repaired.match(/(?<!\\)"/g) || []).length;
-        if (quoteCount % 2 !== 0) repaired += '"';
-        // Close any unclosed braces/brackets
-        let braceDepth = 0, bracketDepth = 0;
-        let inString = false;
-        for (let i = 0; i < repaired.length; i++) {
-          const ch = repaired[i];
-          if (ch === '"' && (i === 0 || repaired[i-1] !== '\\')) inString = !inString;
-          if (!inString) {
-            if (ch === '{') braceDepth++;
-            else if (ch === '}') braceDepth--;
-            else if (ch === '[') bracketDepth++;
-            else if (ch === ']') bracketDepth--;
-          }
-        }
-        for (let i = 0; i < bracketDepth; i++) repaired += ']';
-        for (let i = 0; i < braceDepth; i++) repaired += '}';
-        try {
-          theme = JSON.parse(repaired);
-        } catch (e2) {
-          throw new Error('Failed to parse theme JSON: ' + parseErr.message + ' | First 300 chars: ' + themeText.substring(0, 300));
-        }
-      }
+      // Parse the accumulated text using robust parser
+      let theme = parseThemeResponse(fullText);
 
       // ── Light tweak: apply diff-based html_replacements ──
       if (isLightTweak && theme.html_replacements && Array.isArray(theme.html_replacements)) {
@@ -1317,110 +1362,11 @@ This is the most common failure mode. Double-check it.`;
     sendSSE('status', { phase: 'saving' });
 
     // Parse JSON response — handle various wrapping patterns
-    let themeText = fullText.trim();
-    // Strip markdown code fences (opening and closing separately for robustness)
-    if (themeText.startsWith('```')) {
-      themeText = themeText.replace(/^```(?:json)?\s*\n?/, '');
-      themeText = themeText.replace(/\n?\s*```\s*$/, '');
-      themeText = themeText.trim();
-    }
-    if (!themeText.startsWith('{')) {
-      const firstBrace = themeText.indexOf('{');
-      const lastBrace = themeText.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace !== -1) {
-        themeText = themeText.substring(firstBrace, lastBrace + 1);
-      }
-    }
+    let theme = parseThemeResponse(fullText);
 
-    // Attempt to repair truncated JSON if parsing fails
-    let theme;
-    try {
-      theme = JSON.parse(themeText);
-    } catch (parseErr) {
-      let repaired = themeText;
-      const quoteCount = (repaired.match(/(?<!\\)"/g) || []).length;
-      if (quoteCount % 2 !== 0) repaired += '"';
-      let braceDepth = 0, bracketDepth = 0, inString = false;
-      for (let i = 0; i < repaired.length; i++) {
-        const ch = repaired[i];
-        if (ch === '"' && (i === 0 || repaired[i-1] !== '\\')) inString = !inString;
-        if (!inString) {
-          if (ch === '{') braceDepth++;
-          else if (ch === '}') braceDepth--;
-          else if (ch === '[') bracketDepth++;
-          else if (ch === ']') bracketDepth--;
-        }
-      }
-      for (let i = 0; i < bracketDepth; i++) repaired += ']';
-      for (let i = 0; i < braceDepth; i++) repaired += '}';
-      try {
-        theme = JSON.parse(repaired);
-      } catch (e2) {
-        throw new Error('Failed to parse theme JSON: ' + parseErr.message + ' | First 300 chars: ' + themeText.substring(0, 300));
-      }
-    }
-
-    // Accept both snake_case and camelCase keys from Claude
-    if (!theme.theme_html && theme.html) { theme.theme_html = theme.html; }
-    if (!theme.theme_css && theme.css) { theme.theme_css = theme.css; }
-    if (!theme.theme_config && theme.config) { theme.theme_config = theme.config; }
-    if (!theme.theme_thankyou_html && theme.thankyou_html) { theme.theme_thankyou_html = theme.thankyou_html; }
-
-    // If CSS is missing but embedded in HTML <style> tags, extract it
-    if (theme.theme_html && !theme.theme_css) {
-      const styleMatch = theme.theme_html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
-      if (styleMatch) {
-        theme.theme_css = styleMatch.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
-        theme.theme_html = theme.theme_html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-      }
-    }
-
-    // If HTML is a full document, extract body content and head styles
-    if (theme.theme_html && theme.theme_html.includes('<!DOCTYPE')) {
-      // Extract <style> from <head> if not already done
-      if (!theme.theme_css) {
-        const headStyleMatch = theme.theme_html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
-        if (headStyleMatch) {
-          theme.theme_css = headStyleMatch.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
-        }
-      }
-      // Extract Google Fonts <link> tags
-      const linkMatches = theme.theme_html.match(/<link[^>]*href=["'](https:\/\/fonts\.googleapis\.com\/[^"']+)["'][^>]*>/gi);
-      if (linkMatches) {
-        const fontUrl = linkMatches.map(l => { const m = l.match(/href=["']([^"']+)["']/); return m ? m[1] : null; }).filter(Boolean)[0];
-        if (fontUrl && !theme.theme_config?.googleFontsImport) {
-          if (!theme.theme_config) theme.theme_config = {};
-          theme.theme_config.googleFontsImport = fontUrl;
-        }
-      }
-      // Extract body content
-      const bodyMatch = theme.theme_html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-      if (bodyMatch) {
-        theme.theme_html = bodyMatch[1].trim();
-      }
-    }
-
-    // Default empty CSS/config if still missing
-    if (!theme.theme_css) theme.theme_css = '';
-    if (!theme.theme_config) theme.theme_config = {};
-
-    // If config is missing Google Fonts, try to extract from CSS @import
-    if (!theme.theme_config.googleFontsImport) {
-      const fontImportMatch = (theme.theme_css || '').match(/@import\s+url\(['"]?(https:\/\/fonts\.googleapis\.com[^'"\)]+)['"]?\)/);
-      if (fontImportMatch) {
-        // Store full @import statement so client can inject it directly into <style>
-        theme.theme_config.googleFontsImport = "@import url('" + fontImportMatch[1] + "');";
-        theme.theme_css = theme.theme_css.replace(/@import\s+url\([^)]+\);?\s*/g, '');
-      }
-    }
     // Normalize: ensure googleFontsImport is always a full @import statement
     if (theme.theme_config.googleFontsImport && !theme.theme_config.googleFontsImport.startsWith('@import')) {
       theme.theme_config.googleFontsImport = "@import url('" + theme.theme_config.googleFontsImport + "');";
-    }
-
-    if (!theme.theme_html) {
-      const keys = Object.keys(theme).join(', ');
-      throw new Error('Invalid theme response — missing theme_html. Got keys: [' + keys + ']. First 300 chars: ' + JSON.stringify(theme).substring(0, 300));
     }
 
     // Validate invite completeness — check for required sections
