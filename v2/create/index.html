@@ -722,7 +722,8 @@
 
       <div class="button-group" style="max-width:640px;margin:24px auto 0;">
         <button class="btn btn-secondary" onclick="previousStep()">Back to Design</button>
-        <button class="btn btn-primary" id="publishBtn" onclick="publishEvent()">Publish & Send Invites</button>
+        <button class="btn" onclick="publishEvent(false)" style="background:#f0f0f0;color:var(--midnight);">Only Publish</button>
+        <button class="btn btn-primary" id="publishBtn" onclick="publishEvent(true)">Publish & Send Invites</button>
       </div>
     </div>
   </div>
@@ -4908,15 +4909,18 @@
       }
     }
 
-    async function publishEvent() {
+    async function publishEvent(sendInvites) {
       if (!currentEvent) { showMessage('Event not created yet', 'error'); return; }
-      var btn = document.getElementById('publishBtn');
-      btn.disabled = true; btn.textContent = 'Publishing...';
+      // Disable all publish buttons
+      var btns = document.querySelectorAll('.button-group .btn');
+      btns.forEach(function(b) { b.disabled = true; });
+      var publishBtn = document.getElementById('publishBtn');
+      publishBtn.textContent = 'Publishing...';
       try {
         var res = await authFetch('/api/v2/events?action=update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventId: currentEvent.id, status: 'Published' })
+          body: JSON.stringify({ eventId: currentEvent.id, status: 'Published', settings: { invites_sent: !!sendInvites } })
         });
         var result = await res.json();
         if (result.success) {
@@ -4924,7 +4928,10 @@
           window.location.href = '/v2/dashboard/?published=' + currentEvent.id;
         } else { showMessage(result.error || 'Failed to publish', 'error'); }
       } catch (err) { showMessage('Error publishing event', 'error'); }
-      finally { btn.disabled = false; btn.textContent = 'Publish & Send Invites'; }
+      finally {
+        btns.forEach(function(b) { b.disabled = false; });
+        publishBtn.textContent = 'Publish & Send Invites';
+      }
     }
 
     // ---- Utilities ----
