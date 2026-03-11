@@ -231,7 +231,7 @@
     .star-rating.locked { cursor: default; pointer-events: none; opacity: 0.85; }
 
     /* Style detail view (overlay) */
-    .style-detail-overlay { position: fixed; inset: 0; z-index: 10000; background: var(--snow-white); overflow-y: auto; display: none; }
+    .style-detail-overlay { position: fixed; inset: 0; z-index: 10000; background: #f8f8fa; overflow-y: auto; display: none; }
     .style-detail-overlay.open { display: block; }
     .style-detail-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid #eee; background: white; position: sticky; top: 0; z-index: 1; }
     .style-detail-header h2 { font-size: 18px; font-weight: 700; }
@@ -934,7 +934,7 @@
                 <div class="phone-frame">
                   <div class="phone-notch"></div>
                   <div class="phone-screen">
-                    <iframe id="testPreviewFrame" sandbox="allow-same-origin allow-scripts"></iframe>
+                    <iframe id="testPreviewFrame" sandbox="allow-same-origin"></iframe>
                   </div>
                   <div class="phone-home-bar"></div>
                 </div>
@@ -1092,7 +1092,7 @@
         <textarea id="styleHtml" rows="15" placeholder="Paste complete HTML of an invite sample here..." style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:monospace;font-size:12px;line-height:1.5;resize:vertical;"></textarea>
         <div id="stylePreviewContainer" style="display:none;margin-top:8px;">
           <div class="preview-frame">
-            <iframe id="stylePreviewFrame" sandbox="allow-same-origin allow-scripts" style="width:393px;height:700px;border:none;display:block;margin:0 auto;"></iframe>
+            <iframe id="stylePreviewFrame" sandbox="allow-same-origin" style="width:393px;height:700px;border:none;display:block;margin:0 auto;"></iframe>
           </div>
         </div>
       </div>
@@ -1619,19 +1619,19 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     // ── Event Presets ──
     var EVENT_PRESETS = {
-      kidsBirthday: { title: "Emma's 5th Birthday Bash", tagline: "Five is a Vibe!", host: "The Johnson Family", dressCode: "Casual / Outdoor", location: "Sunshine Park Pavilion", address: "123 Oak Street, Austin, TX 78701", prompt: "Bright, playful, and full of energy. Think rainbow balloons, confetti, and a sense of pure childhood joy. Make it feel like opening a present." },
-      adultBirthday: { title: "Marco's 40th Birthday", tagline: "Forty & Fabulous", host: "Lisa Chen", dressCode: "Cocktail Attire", location: "The Rooftop at Soho House", address: "9200 Sunset Blvd, West Hollywood, CA 90069", prompt: "Sleek, modern, sophisticated. Gold and black with editorial typography. Think GQ meets champagne toast." },
-      babyShower: { title: "Baby Brenner on the Way!", tagline: "A Little Bundle of Joy", host: "Sarah & Friends", dressCode: "Garden Party", location: "The Botanical Gardens", address: "1000 Washington Ave, St. Louis, MO 63110", prompt: "Soft, dreamy, botanical. Watercolor washes with gentle florals. Warm and nurturing energy." },
-      wedding: { title: "Emily & James", tagline: "Together Forever", host: "The Smith & Wilson Families", dressCode: "Black Tie Optional", location: "The Grand Ballroom", address: "500 Fifth Avenue, New York, NY 10110", prompt: "Elegant, timeless, refined. Think muted earth tones, fine typography, and quiet luxury." },
-      graduation: { title: "Mia's Graduation Celebration", tagline: "Class of 2026!", host: "The Rodriguez Family", dressCode: "Smart Casual", location: "Backyard BBQ", address: "456 Elm Street, Denver, CO 80220", prompt: "Celebratory and bold. School colors (blue and gold), mortarboard motifs, achievment energy." },
-      holiday: { title: "Holiday Cocktail Party", tagline: "Eat, Drink & Be Merry", host: "The Andersons", dressCode: "Festive / Holiday Sweaters OK", location: "Our Home", address: "789 Pine Lane, Chicago, IL 60614", prompt: "Warm, cozy, festive. Think twinkling lights, evergreen branches, hot cocoa vibes with a modern twist." },
-      dinnerParty: { title: "An Evening of Wine & Jazz", tagline: "Good Company, Great Wine", host: "Chef Michael", dressCode: "Smart Casual", location: "Osteria Francescana", address: "42 Via Stella, Modena", prompt: "Atmospheric, moody, textured. Deep wines and warm golds. Candlelit sophistication." },
-      corporate: { title: "Annual Product Launch", tagline: "Innovate. Inspire. Impact.", host: "Acme Corp", dressCode: "Business Casual", location: "Convention Center Hall A", address: "1001 Market Street, San Francisco, CA 94103", prompt: "Clean, modern, professional but not boring. Think tech keynote energy with sharp design." },
-      engagement: { title: "Jake & Amanda Are Engaged!", tagline: "She Said Yes!", host: "Both Families", dressCode: "Dressy Casual", location: "Lakeside Pavilion", address: "100 Lake Shore Dr, Austin, TX 78704", prompt: "Romantic, joyful, elegant. Soft blushes and golds with lush botanical touches." },
-      bridalShower: { title: "Bridal Shower for Amanda", tagline: "Bride to Be!", host: "The Bridesmaids", dressCode: "Garden Chic", location: "The Tea Room", address: "250 Rose Blvd, Nashville, TN 37201", prompt: "Feminine, lush, garden-party energy. Blush, sage, champagne. Floral illustrations." },
-      retirement: { title: "Cheers to 35 Years!", tagline: "Happy Retirement, Bob!", host: "The Whole Team", dressCode: "Business Casual", location: "The Country Club", address: "800 Fairway Drive, Scottsdale, AZ 85251", prompt: "Distinguished, warm, celebratory. Navy and gold. Honoring a career well-lived." },
-      anniversary: { title: "25 Years of Love", tagline: "Silver Anniversary", host: "The Kids", dressCode: "Cocktail Attire", location: "The Family Estate", address: "200 Heritage Lane, Savannah, GA 31401", prompt: "Romantic, timeless, warm gold tones. Then-and-now nostalgia with elegant design." },
-      sports: { title: "Super Bowl Watch Party", tagline: "Game Day!", host: "Jake B.", dressCode: "Jerseys Welcome", location: "The Sports Bar", address: "555 Stadium Way, Dallas, TX 75201", prompt: "High energy, bold, stadium vibes. Team colors, scoreboard aesthetic, dynamic design." }
+      kidsBirthday: { title: "Lila's 7th Birthday Adventure", tagline: "Seven is So Sweet!", host: "The Nguyen Family", dressCode: "Casual / Come Ready to Play", location: "Adventure Cove Indoor Playground", address: "4520 Magnolia Blvd, Burbank, CA 91505", prompt: "Whimsical explorer theme — treasure maps, compass roses, jungle vines. Earthy greens and sunset oranges with hand-drawn illustration style. Adventurous and imaginative, not princess or superhero." },
+      adultBirthday: { title: "Marco's 40th Birthday", tagline: "Forty & Fabulous", host: "Lisa Chen", dressCode: "Cocktail Attire", location: "The Rooftop at Hotel Lumen", address: "9200 Sunset Blvd, West Hollywood, CA 90069", prompt: "Sleek, modern, sophisticated. Gold and black with editorial typography. Think GQ meets champagne toast." },
+      babyShower: { title: "Baby Okafor on the Way!", tagline: "Little Star Arriving Soon", host: "Priya & Friends", dressCode: "Sunday Best", location: "The Atrium at Longwood", address: "200 Longwood Ave, Boston, MA 02115", prompt: "Celestial night sky theme — deep navy with gold constellations and crescent moons. Elegant and warm, not overly cutesy. Think stargazing nursery." },
+      wedding: { title: "Aisha & Daniel", tagline: "Two Become One", host: "The Okonkwo & Park Families", dressCode: "Black Tie Optional", location: "The Foundry", address: "42-38 9th St, Long Island City, NY 11101", prompt: "Industrial elegance — exposed brick warmth, copper accents, lush greenery. Modern calligraphy meets raw textures. Romantic but architectural." },
+      graduation: { title: "Mia's Graduation Celebration", tagline: "Class of 2026!", host: "The Rodriguez Family", dressCode: "Smart Casual", location: "Riverside Terrace", address: "456 Elm Street, Denver, CO 80220", prompt: "Celebratory and bold. School colors (blue and gold), mortarboard motifs, achievement energy." },
+      holiday: { title: "Lunar New Year Celebration", tagline: "Ring in the Year of the Horse", host: "The Chang Family", dressCode: "Festive Red Encouraged", location: "Golden Dragon Restaurant", address: "789 Grant Ave, San Francisco, CA 94108", prompt: "Vibrant red and gold. Paper lanterns, lucky knots, plum blossoms. Festive and cultural with modern design sensibility." },
+      dinnerParty: { title: "Harvest Table Dinner", tagline: "Farm to Fork, Friends to Family", host: "Chef Amara Williams", dressCode: "Smart Casual", location: "Willow Creek Farm", address: "1280 County Road 12, Hudson, NY 12534", prompt: "Rustic harvest — amber wheat tones, hand-lettered menu aesthetic, linen textures. Warm candlelight mood with artisanal illustration." },
+      corporate: { title: "Annual Product Launch", tagline: "Innovate. Inspire. Impact.", host: "Horizon Technologies", dressCode: "Business Casual", location: "Convention Center Hall A", address: "1001 Market Street, San Francisco, CA 94103", prompt: "Clean, modern, professional but not boring. Think tech keynote energy with sharp geometric design and bold gradients." },
+      engagement: { title: "Tomas & Yuki Are Engaged!", tagline: "It's Official!", host: "Both Families", dressCode: "Dressy Casual", location: "Lakeside Pavilion", address: "100 Lake Shore Dr, Austin, TX 78704", prompt: "Joyful maximalism — bright florals, hand-painted botanicals, layered patterns. Colorful and eclectic, like a celebration in a flower market." },
+      bridalShower: { title: "Bridal Shower for Yuki", tagline: "Bride to Be!", host: "The Bridesmaids", dressCode: "Garden Chic", location: "The Conservatory", address: "250 Rose Blvd, Nashville, TN 37201", prompt: "Modern art deco — geometric arches, mint and gold palette, clean lines with a touch of vintage glamour. Elegant but fresh." },
+      retirement: { title: "Cheers to 35 Years!", tagline: "Happy Retirement, Gloria!", host: "The Whole Team", dressCode: "Business Casual", location: "The Waterfront Club", address: "800 Harbor Drive, San Diego, CA 92101", prompt: "Distinguished, warm, celebratory. Deep teal and warm copper. Honoring a career well-lived with sophisticated warmth." },
+      anniversary: { title: "25 Years of Love", tagline: "Silver Anniversary", host: "The Kids", dressCode: "Cocktail Attire", location: "The Riverwalk Estate", address: "200 Heritage Lane, Savannah, GA 31401", prompt: "Romantic, timeless, warm gold tones. Then-and-now nostalgia with elegant hand-drawn flourishes and vintage photography treatment." },
+      sports: { title: "March Madness Watch Party", tagline: "Bracket Busters Unite!", host: "The Crew", dressCode: "Jerseys Welcome", location: "The Corner Pocket Sports Bar", address: "555 Stadium Way, Dallas, TX 75201", prompt: "High energy, bold, stadium vibes. Scoreboard typography, dynamic angles, court-side color palette with electric accents." }
     };
 
     function renderEventPresets() {
@@ -1872,29 +1872,36 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var dc = document.getElementById('testDressCode').value;
       if (dc) detailOverrides.dresscode = dc;
 
-      var rsvpScript = '<script>'
-        + 'document.addEventListener("DOMContentLoaded", function() {'
-        + '  var slot = document.querySelector(".rsvp-slot");'
-        + '  if (slot) {'
-        + '    var btn = slot.querySelector(".rsvp-button");'
-        + '    var btnHtml = btn ? btn.outerHTML : "";'
-        + '    slot.innerHTML = ' + JSON.stringify(rsvpFormHtml) + ' + btnHtml;'
-        + '  }'
-        + '  var overrides = ' + JSON.stringify(detailOverrides) + ';'
-        + '  Object.keys(overrides).forEach(function(key) {'
-        + '    var el = document.querySelector("[data-field=\\"" + key + "\\"]");'
-        + '    if (el) el.innerHTML = overrides[key];'
-        + '  });'
-        + '  var dc = document.querySelector("[data-field=\\"dresscode\\"]");'
-        + '  if (dc && !overrides.dresscode) { dc.style.display = "none"; }'
-        + '  else if (dc && overrides.dresscode) { dc.style.display = ""; }'
-        + '});'
-        + '<\/script>';
+      // Inject RSVP form and data-field overrides directly into HTML (no script needed)
+      // Use a temporary DOM element to manipulate the HTML string
+      var tempDiv = document.createElement('div');
+      tempDiv.innerHTML = themeHtml;
+
+      // Replace RSVP slot content (keep the button)
+      var slot = tempDiv.querySelector('.rsvp-slot');
+      if (slot) {
+        var btn = slot.querySelector('.rsvp-button');
+        var btnHtml = btn ? btn.outerHTML : '';
+        slot.innerHTML = rsvpFormHtml + btnHtml;
+      }
+
+      // Override data-field values
+      Object.keys(detailOverrides).forEach(function(key) {
+        var el = tempDiv.querySelector('[data-field="' + key + '"]');
+        if (el) el.innerHTML = detailOverrides[key];
+      });
+
+      // Hide dresscode field if no value
+      var dcEl = tempDiv.querySelector('[data-field="dresscode"]');
+      if (dcEl && !detailOverrides.dresscode) { dcEl.style.display = 'none'; }
+      else if (dcEl && detailOverrides.dresscode) { dcEl.style.display = ''; }
+
+      themeHtml = tempDiv.innerHTML;
 
       return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
         + (fontsImport ? '<style>' + fontsImport + '</style>' : '')
         + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; }</style>'
-        + '<style>' + themeCss + '</style></head><body>' + themeHtml + rsvpScript + '</body></html>';
+        + '<style>' + themeCss + '</style></head><body>' + themeHtml + '</body></html>';
     }
 
     function buildTestThankYouSrcdoc(theme) {
@@ -2281,7 +2288,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var card = document.getElementById('matrixCard' + idx);
       card.innerHTML = '<div class="matrix-card-header"><h4>' + escapeHtml(combo.modelLabel) + '</h4><span class="model-badge ' + combo.modelBadge + '">' + combo.modelBadge + '</span></div>'
         + '<div class="matrix-card-preview">'
-        + '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-same-origin allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>'
+        + '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>'
         + '</div>'
         + '<div class="matrix-card-rating">'
         + '<div class="star-rating" data-idx="' + idx + '">'
@@ -2428,18 +2435,22 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           };
         }
 
-        // Step 2: Save to style library
+        // Step 2: Save to style library (carry over rating if present)
         btn.innerHTML = '&#9203; Saving...';
+        var saveBody = {
+          name: autoTag.name,
+          description: autoTag.description,
+          html: fullHtml,
+          tags: autoTag.tags,
+          eventTypes: autoTag.eventTypes,
+          designNotes: autoTag.designNotes
+        };
+        if (result.score && result.score >= 1 && result.score <= 5) {
+          saveBody.adminRating = result.score;
+        }
         var saveRes = await adminFetch('saveStyleItem', {
           method: 'POST',
-          body: {
-            name: autoTag.name,
-            description: autoTag.description,
-            html: fullHtml,
-            tags: autoTag.tags,
-            eventTypes: autoTag.eventTypes,
-            designNotes: autoTag.designNotes
-          }
+          body: saveBody
         });
 
         // Update local style library cache
@@ -2613,7 +2624,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var previewDiv = document.createElement('div');
         previewDiv.className = 'style-card-preview';
         previewDiv.appendChild(detailsBtn);
-        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-same-origin allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
+        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
         var phoneWrapper = document.createElement('div');
         phoneWrapper.innerHTML = phoneHtml;
         previewDiv.appendChild(phoneWrapper.firstChild);
@@ -3630,7 +3641,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           <div class="phone-frame">
             <div class="phone-notch"></div>
             <div class="phone-screen">
-              <iframe id="styleDetailPreviewFrame" sandbox="allow-same-origin allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
+              <iframe id="styleDetailPreviewFrame" sandbox="allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
             </div>
             <div class="phone-home-bar"></div>
           </div>

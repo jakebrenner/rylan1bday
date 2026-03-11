@@ -422,6 +422,18 @@ function normalizeThemeKeys(theme) {
   if (!theme.theme_thankyou_html && theme.thankyou_html) theme.theme_thankyou_html = theme.thankyou_html;
   if (!theme.theme_thankyou_html && theme.thankyouHtml) theme.theme_thankyou_html = theme.thankyouHtml;
 
+  // Fix double-escaped quotes in HTML/CSS (models sometimes output \" inside JSON string values)
+  // These appear as literal backslash-quote in the parsed string, breaking SVG attributes etc.
+  if (theme.theme_html && theme.theme_html.includes('\\"')) {
+    theme.theme_html = theme.theme_html.replace(/\\"/g, '"');
+  }
+  if (theme.theme_css && theme.theme_css.includes('\\"')) {
+    theme.theme_css = theme.theme_css.replace(/\\"/g, '"');
+  }
+  if (theme.theme_thankyou_html && theme.theme_thankyou_html.includes('\\"')) {
+    theme.theme_thankyou_html = theme.theme_thankyou_html.replace(/\\"/g, '"');
+  }
+
   // If CSS is missing but embedded in HTML <style> tags, extract it
   if (theme.theme_html && !theme.theme_css) {
     const styleMatch = theme.theme_html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
@@ -547,25 +559,34 @@ Guidelines:
     if (!eventType) return res.status(400).json({ error: 'eventType is required' });
 
     try {
+      // Build a seed for diversity so repeated calls get different results
+      const diversitySeed = Math.floor(Math.random() * 10000);
       const response = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 512,
-        system: `You generate realistic dummy event data for testing an event invitation platform. Return ONLY valid JSON.`,
+        system: `You generate fictional dummy event data for testing an event invitation platform. Return ONLY valid JSON.
+
+CRITICAL RULES:
+- Use ENTIRELY FICTIONAL names, venues, and addresses. Never use real people's names or information.
+- Vary the cultural backgrounds of names (mix of Asian, African, Latin, European, Middle Eastern, etc.)
+- Vary geographic locations across different US cities and regions
+- For the design "prompt" field: be HIGHLY SPECIFIC and DIVERSE. Avoid overused themes like "garden party", "botanical", "rainbow", "floral watercolor". Instead think: art deco, retro 70s, maximalist patterns, minimalist Scandinavian, Afrofuturist, vaporwave, brutalist, paper-cut art, ceramic tile, woodblock print, neon noir, stained glass, mosaic, etc.
+- Each generation should feel completely different from typical event invites`,
         messages: [{
           role: 'user',
-          content: `Generate realistic test data for a "${typeLabel || eventType}" event. Return JSON with exactly these keys:
+          content: `Generate creative, fictional test data for a "${typeLabel || eventType}" event. Seed for variety: ${diversitySeed}. Return JSON with exactly these keys:
 {
   "title": "Creative event title",
   "startDate": "2026-04-15T14:00",
   "endDate": "2026-04-15T17:00",
-  "locationName": "Venue name",
-  "locationAddress": "Full address with city, state, zip",
-  "hostName": "Host name(s)",
+  "locationName": "Fictional venue name",
+  "locationAddress": "Fictional full address with city, state, zip",
+  "hostName": "Fictional host name(s)",
   "dressCode": "Dress code",
   "tagline": "Short catchy tagline",
-  "prompt": "2-3 sentence creative design direction describing the visual aesthetic, colors, and mood for the invite"
+  "prompt": "2-3 sentence SPECIFIC and UNIQUE creative design direction. Avoid generic themes like garden/botanical/rainbow/watercolor. Be bold and distinctive."
 }
-Use realistic names, venues, and addresses. Make the design prompt vivid and specific.`
+All names and details must be entirely fictional. Make the design prompt vivid, specific, and unlike typical event invites.`
         }]
       });
 

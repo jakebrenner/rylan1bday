@@ -453,7 +453,7 @@ export default async function handler(req, res) {
     if (action === 'saveStyleItem') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
-      const { id, name, description, html, tags, eventTypes, designNotes } = req.body;
+      const { id, name, description, html, tags, eventTypes, designNotes, adminRating } = req.body;
       if (!name || !html) return res.status(400).json({ error: 'name and html are required' });
 
       const row = {
@@ -464,6 +464,13 @@ export default async function handler(req, res) {
         event_types: eventTypes || [],
         design_notes: designNotes || '',
       };
+
+      // Carry over admin rating if provided (e.g. from prompt lab test run)
+      if (adminRating && adminRating >= 1 && adminRating <= 5) {
+        row.admin_rating = adminRating;
+        row.rated_by = admin.email;
+        row.rated_at = new Date().toISOString();
+      }
 
       if (id) {
         // Update existing item
