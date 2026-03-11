@@ -1116,6 +1116,41 @@
 
     var allUsers = [];
 
+    // ---- Token Refresh ----
+    var isRefreshing = false;
+    var refreshPromise = null;
+
+    async function refreshToken() {
+      if (isRefreshing) return refreshPromise;
+      isRefreshing = true;
+      refreshPromise = (async function() {
+        try {
+          var rt = localStorage.getItem('sb_refresh_token');
+          if (!rt) { window.location.href = '/v2/login/?redirect=/v2/admin/'; return false; }
+          var res = await fetch('/api/v2/auth?action=refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken: rt })
+          });
+          var result = await res.json();
+          if (result.success) {
+            token = result.accessToken;
+            localStorage.setItem('sb_access_token', result.accessToken);
+            localStorage.setItem('sb_refresh_token', result.refreshToken);
+            return true;
+          }
+          window.location.href = '/v2/login/?redirect=/v2/admin/';
+          return false;
+        } catch (e) {
+          window.location.href = '/v2/login/?redirect=/v2/admin/';
+          return false;
+        } finally {
+          isRefreshing = false;
+        }
+      })();
+      return refreshPromise;
+    }
+
     // ---- Init ----
     init();
 
@@ -1150,6 +1185,14 @@
         fetchOpts.body = JSON.stringify(opts.body);
       }
       var r = await fetch(url, fetchOpts);
+      // Auto-refresh on 401 (expired token)
+      if (r.status === 401) {
+        var refreshed = await refreshToken();
+        if (refreshed) {
+          fetchOpts.headers['Authorization'] = 'Bearer ' + token;
+          r = await fetch(url, fetchOpts);
+        }
+      }
       if (r.status === 403) throw new Error('Forbidden');
       return await r.json();
     }

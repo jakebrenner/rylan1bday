@@ -10,7 +10,7 @@ const FOUNDER_EMAIL = 'jake@getmrkt.com';
 
 async function verifyAdmin(req) {
   const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) return null;
+  if (!authHeader?.startsWith('Bearer ')) return { error: 'no_token' };
 
   const token = authHeader.slice(7);
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
@@ -18,12 +18,12 @@ async function verifyAdmin(req) {
   });
 
   const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return null;
+  if (error || !user) return { error: 'invalid_token' };
 
   const email = user.email.toLowerCase();
 
   // Founder always passes
-  if (email === FOUNDER_EMAIL) return user;
+  if (email === FOUNDER_EMAIL) return { user };
 
   // Check DB admin list
   const { data } = await supabaseAdmin
@@ -34,10 +34,10 @@ async function verifyAdmin(req) {
 
   if (data?.value) {
     const adminList = data.value.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
-    if (adminList.includes(email)) return user;
+    if (adminList.includes(email)) return { user };
   }
 
-  return null;
+  return { error: 'not_admin' };
 }
 
 export default async function handler(req, res) {
@@ -47,8 +47,14 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const admin = await verifyAdmin(req);
-  if (!admin) return res.status(403).json({ error: 'Forbidden — admin access required' });
+  const authResult = await verifyAdmin(req);
+  if (authResult.error === 'no_token' || authResult.error === 'invalid_token') {
+    return res.status(401).json({ error: 'Unauthorized — invalid or expired token' });
+  }
+  if (authResult.error === 'not_admin') {
+    return res.status(403).json({ error: 'Forbidden — admin access required' });
+  }
+  const admin = authResult.user;
 
   const action = req.query.action || req.body?.action;
 
