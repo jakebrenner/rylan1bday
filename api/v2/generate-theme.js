@@ -823,10 +823,13 @@ Return ONLY a valid JSON object with these keys:
 
       sendSSE('status', { phase: 'saving' });
 
-      // Parse the accumulated text
+      // Parse the accumulated text — strip markdown fences
       let themeText = fullText.trim();
-      const jsonBlockMatch = themeText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
-      if (jsonBlockMatch) themeText = jsonBlockMatch[1].trim();
+      if (themeText.startsWith('```')) {
+        themeText = themeText.replace(/^```(?:json)?\s*\n?/, '');
+        themeText = themeText.replace(/\n?\s*```\s*$/, '');
+        themeText = themeText.trim();
+      }
       if (!themeText.startsWith('{')) {
         const firstBrace = themeText.indexOf('{');
         const lastBrace = themeText.lastIndexOf('}');
@@ -1117,9 +1120,11 @@ ${rsvpFieldsDesc}`;
 
     // Parse JSON response — handle various wrapping patterns
     let themeText = fullText.trim();
-    const jsonBlockMatch = themeText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
-    if (jsonBlockMatch) {
-      themeText = jsonBlockMatch[1].trim();
+    // Strip markdown code fences (opening and closing separately for robustness)
+    if (themeText.startsWith('```')) {
+      themeText = themeText.replace(/^```(?:json)?\s*\n?/, '');
+      themeText = themeText.replace(/\n?\s*```\s*$/, '');
+      themeText = themeText.trim();
     }
     if (!themeText.startsWith('{')) {
       const firstBrace = themeText.indexOf('{');
