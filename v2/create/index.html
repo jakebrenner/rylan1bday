@@ -2687,11 +2687,6 @@
           window._lastGenDebug = 'HTTP ' + res2.status + ' | ' + errText.substring(0, 500);
           if (res2.status === 403 && errText) {
             showAdditionalEventPurchase();
-          } else if (themeVersions.length > 0) {
-            showMessage(errText || 'Failed to generate theme', 'error');
-            document.getElementById('generatingView').style.display = 'none';
-            document.getElementById('generatedView').style.display = 'block';
-            renderPreview(themeVersions[activeVersionIndex]);
           } else {
             showGeneratingError(errText || 'Failed to generate theme (HTTP ' + res2.status + ')');
           }
@@ -2777,14 +2772,7 @@
             console.error('[generate-theme] Generation failed. genError:', genError, 'genResult:', genResult ? JSON.stringify(genResult).substring(0, 500) : null, 'buffer remainder:', genBuffer.substring(0, 300));
             var errMsg = (genError && (genError.message || genError.error)) || (genResult && !genResult.success ? 'Server returned failure' : 'No response received from server (stream ended without result)');
             window._lastGenDebug = 'Chunks: ' + genRawChunks + ' | Error: ' + JSON.stringify(genError) + ' | Result keys: ' + (genResult ? Object.keys(genResult).join(',') : 'null') + ' | Buffer: ' + genBuffer.substring(0, 200);
-            if (themeVersions.length > 0) {
-              showMessage(errMsg, 'error');
-              document.getElementById('generatingView').style.display = 'none';
-              document.getElementById('generatedView').style.display = 'block';
-              renderPreview(themeVersions[activeVersionIndex]);
-            } else {
-              showGeneratingError(errMsg);
-            }
+            showGeneratingError(errMsg);
           }
         }
       } catch (err) {
@@ -2792,33 +2780,37 @@
         stopGeneratingPuns();
         var catchMsg = err.message || 'Error generating theme';
         window._lastGenDebug = (window._lastGenDebug || '') + ' | CATCH: ' + catchMsg + ' | Stack: ' + (err.stack || '').substring(0, 300);
-        if (themeVersions.length > 0) {
-          showMessage(catchMsg, 'error');
-          document.getElementById('generatingView').style.display = 'none';
-          document.getElementById('generatedView').style.display = 'block';
-          renderPreview(themeVersions[activeVersionIndex]);
-        } else {
-          showGeneratingError(catchMsg);
-        }
+        showGeneratingError(catchMsg);
       }
     }
 
     function showGeneratingError(msg) {
       var loadingState = document.getElementById('generatingLoadingState');
+      var hasExisting = themeVersions.length > 0;
+      var buttons = '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">';
+      if (hasExisting) {
+        buttons += '<button class="btn btn-secondary" onclick="document.getElementById(\'generatingView\').style.display=\'none\';document.getElementById(\'generatedView\').style.display=\'block\';renderPreview(themeVersions[activeVersionIndex]);updateMobileLayout();" style="font-size:13px;padding:10px 20px;">View Previous</button>';
+      } else {
+        buttons += '<button class="btn btn-secondary" onclick="var s=document.getElementById(\'resumeHideChat\');if(s)s.remove();goToStep(1)" style="font-size:13px;padding:10px 20px;">Back</button>';
+      }
+      buttons += '<button class="btn btn-primary" onclick="retryGenerate()" style="font-size:13px;padding:10px 20px;">Try Again</button></div>';
       loadingState.innerHTML = '<div class="gen-container">'
         + '<div style="font-size:48px;margin-bottom:12px;">😅</div>'
         + '<h3 class="gen-title" style="color:var(--party-coral);">Oops!</h3>'
         + '<p style="margin-bottom:12px;font-size:14px;color:#888;">' + escapeHtml(msg) + '</p>'
         + '<details style="margin-bottom:20px;text-align:left;max-width:100%;"><summary style="font-size:11px;color:#aaa;cursor:pointer;">Debug info</summary>'
         + '<pre style="font-size:10px;color:#999;background:#f5f5f5;padding:8px;border-radius:6px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto;margin-top:4px;">' + escapeHtml(window._lastGenDebug || 'No debug info') + '</pre></details>'
-        + '<div style="display:flex;gap:8px;justify-content:center;">'
-        + '<button class="btn btn-secondary" onclick="var s=document.getElementById(\'resumeHideChat\');if(s)s.remove();goToStep(1)" style="font-size:13px;padding:10px 20px;">Back</button>'
-        + '<button class="btn btn-primary" onclick="retryGenerate()" style="font-size:13px;padding:10px 20px;">Try Again</button>'
-        + '</div></div>';
+        + buttons + '</div>';
     }
 
     function retryGenerate() {
+      // Clear cached themes so stale data doesn't persist
+      if (currentEvent && currentEvent.id) {
+        try { sessionStorage.removeItem('ryvite_theme_' + currentEvent.id); } catch(e) {}
+      }
       // Reset loading state HTML to the full generating experience
+      document.getElementById('generatedView').style.display = 'none';
+      document.getElementById('generatingView').style.display = 'block';
       var loadingState = document.getElementById('generatingLoadingState');
       loadingState.innerHTML = '<div class="gen-container">'
         + '<div class="gen-emoji-float" id="genEmoji">🎨</div>'
