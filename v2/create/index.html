@@ -217,32 +217,21 @@
     .theme-rating { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 8px; animation: fadeIn 0.3s; }
     .theme-rating-label { font-size: 12px; color: #666; font-weight: 500; }
     .theme-rating-stars { display: flex; gap: 4px; }
-    .theme-rating-stars .star { width: 28px; height: 28px; cursor: pointer; transition: all 0.15s; background: none; border: none; padding: 0; }
-    .theme-rating-stars .star svg { width: 28px; height: 28px; }
-    .theme-rating-stars .star:hover { transform: scale(1.2); }
-    .theme-rating-stars .star .star-fill { fill: #ddd; transition: fill 0.15s; }
-    .theme-rating-stars .star.active .star-fill { fill: var(--confetti-gold); }
-    .theme-rating-stars .star.hover-preview .star-fill { fill: var(--confetti-gold); opacity: 0.7; }
-    .theme-rating-thanks { font-size: 12px; color: var(--mint-fizz); font-weight: 600; animation: fadeIn 0.3s; }
-
-    /* Rating feedback overlay */
-    .rating-feedback-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s; }
-    .rating-feedback-modal { background: white; border-radius: 16px; padding: 28px; max-width: 420px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); text-align: center; }
-    .rating-feedback-modal h3 { font-family: 'Playfair Display', serif; font-size: 20px; margin-bottom: 6px; }
-    .rating-feedback-modal .rating-subtitle { font-size: 13px; color: #666; margin-bottom: 16px; }
-    .rating-feedback-modal .feedback-stars { display: flex; justify-content: center; gap: 4px; margin-bottom: 16px; }
-    .rating-feedback-modal .feedback-stars .star { width: 32px; height: 32px; }
-    .rating-feedback-modal .feedback-stars .star svg { width: 32px; height: 32px; }
-    .rating-feedback-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 12px; }
-    .rating-feedback-chips .chip { font-size: 12px; padding: 6px 12px; border: 1px solid #ddd; border-radius: 20px; cursor: pointer; background: white; transition: all 0.15s; font-family: 'Inter', sans-serif; }
-    .rating-feedback-chips .chip:hover { border-color: var(--party-coral); color: var(--party-coral); }
-    .rating-feedback-chips .chip.selected { background: var(--party-coral); color: white; border-color: var(--party-coral); }
-    .rating-feedback-modal textarea { width: 100%; min-height: 70px; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 13px; resize: vertical; margin-bottom: 12px; }
-    .rating-feedback-modal textarea:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
-    .rating-feedback-modal .tweak-hint { background: linear-gradient(135deg, #FFF3E0, #FFF8E1); border: 1px solid #FFE0B2; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; text-align: left; }
-    .rating-feedback-modal .tweak-hint p { font-size: 13px; color: #5D4037; line-height: 1.4; }
-    .rating-feedback-modal .tweak-hint strong { color: var(--party-coral); }
-    .rating-feedback-actions { display: flex; gap: 10px; justify-content: center; }
+    /* Inline chat rating */
+    .chat-rating { align-self: flex-start; background: #f8f8f8; border-radius: 12px; border-bottom-left-radius: 4px; padding: 12px 16px; max-width: 90%; }
+    .chat-rating-label { font-size: 13px; color: var(--midnight); margin-bottom: 8px; font-weight: 500; }
+    .chat-rating-stars { display: flex; gap: 4px; margin-bottom: 8px; }
+    .chat-rating-stars .star { width: 28px; height: 28px; cursor: pointer; transition: all 0.15s; background: none; border: none; padding: 0; }
+    .chat-rating-stars .star svg { width: 28px; height: 28px; }
+    .chat-rating-stars .star:hover { transform: scale(1.2); }
+    .chat-rating-stars .star .star-fill { fill: #ddd; transition: fill 0.15s; }
+    .chat-rating-stars .star.active .star-fill { fill: var(--confetti-gold); }
+    .chat-rating-stars .star.hover-preview .star-fill { fill: var(--confetti-gold); opacity: 0.7; }
+    .chat-rating-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .chat-rating-chips .chip { font-size: 11px; padding: 5px 10px; border: 1px solid #ddd; border-radius: 16px; cursor: pointer; background: white; transition: all 0.15s; font-family: 'Inter', sans-serif; }
+    .chat-rating-chips .chip:hover { border-color: var(--party-coral); color: var(--party-coral); }
+    .chat-rating-chips .chip.selected { background: var(--party-coral); color: white; border-color: var(--party-coral); }
+    .chat-rating-thanks { font-size: 12px; color: var(--mint-fizz); font-weight: 600; margin-top: 6px; }
 
     /* Right panel tabs */
     .panel-tabs { display: flex; border-bottom: 2px solid #eee; margin-bottom: 16px; }
@@ -250,11 +239,11 @@
     .panel-tab:hover { color: var(--midnight); }
     .panel-tab.active { color: var(--party-coral); border-bottom-color: var(--party-coral); }
     .tab-content { display: none; }
-    .tab-content.active { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; }
+    .tab-content.active { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
 
     /* Design chat */
-    .design-chat { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-    .design-chat-messages { flex: 1; overflow-y: auto; padding: 4px 0; display: flex; flex-direction: column; gap: 12px; }
+    .design-chat { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+    .design-chat-messages { flex: 1; overflow-y: auto; padding: 4px 0; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
     .design-chat-msg { max-width: 90%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5; word-wrap: break-word; }
     .design-chat-msg.assistant { align-self: flex-start; background: #f0f0f0; border-bottom-left-radius: 4px; }
     .design-chat-msg.user { align-self: flex-end; background: var(--party-coral); color: white; border-bottom-right-radius: 4px; }
@@ -284,6 +273,15 @@
     .design-chat-loader .loader-dots span:nth-child(3) { animation-delay: 0.4s; }
     @keyframes loaderBounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
     .design-chat-loader .loader-pun { font-size: 14px; color: #666; font-style: italic; min-height: 20px; transition: opacity 0.3s ease; }
+
+    /* Generation cost tracker */
+    .cost-tracker { padding: 0 0 12px 0; margin-bottom: 4px; border-bottom: 1px solid #eee; font-size: 12px; transition: all 0.3s; }
+    .cost-tracker.hidden { display: none; }
+    .cost-tracker-row { display: flex; justify-content: space-between; align-items: center; }
+    .cost-tracker-label { color: #888; font-weight: 500; }
+    .cost-tracker-value { font-weight: 700; color: var(--midnight); font-size: 14px; }
+    .cost-flash { animation: costFlash 0.6s ease; }
+    @keyframes costFlash { 0% { background: #fff3cd; } 100% { background: white; } }
 
     /* Generating page styles */
     .gen-container { max-width: 480px; margin: 0 auto; padding: 32px 20px; text-align: center; }
@@ -318,6 +316,43 @@
     .summary-item { background: #f9f9f9; padding: 16px; border-radius: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     .summary-label { font-weight: 600; }
     .summary-value { color: #666; font-size: 14px; text-align: right; max-width: 60%; }
+
+    /* Step 3: Invite People */
+    .invite-page { max-width: 640px; margin: 0 auto; }
+    .invite-section { background: white; border: 1px solid #eee; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .invite-section h3 { font-size: 16px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .contact-search { width: 100%; padding: 10px 14px 10px 36px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.2s; background: white; }
+    .contact-search:focus { border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+    .contact-search-wrap { position: relative; margin-bottom: 12px; }
+    .contact-search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #aaa; }
+    .contact-list { max-height: 280px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; }
+    .contact-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #f5f5f5; cursor: pointer; transition: background 0.15s; font-size: 13px; }
+    .contact-item:last-child { border-bottom: none; }
+    .contact-item:hover { background: #fafafa; }
+    .contact-item.selected { background: rgba(233,69,96,0.06); }
+    .contact-check { width: 20px; height: 20px; border-radius: 4px; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+    .contact-item.selected .contact-check { border-color: var(--party-coral); background: var(--party-coral); color: white; }
+    .contact-name { font-weight: 500; flex: 1; }
+    .contact-detail { color: #999; font-size: 12px; }
+    .contact-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+    .contact-tag-pill { font-size: 10px; padding: 2px 8px; border-radius: 10px; background: #f0f0f0; color: #666; }
+    .guest-list { margin-top: 12px; }
+    .guest-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #f9f9f9; border-radius: 8px; margin-bottom: 6px; font-size: 13px; }
+    .guest-item .guest-name { font-weight: 500; flex: 1; }
+    .guest-item .guest-contact { color: #888; font-size: 12px; }
+    .guest-remove { background: none; border: none; color: #ccc; cursor: pointer; padding: 4px; font-size: 16px; transition: color 0.15s; }
+    .guest-remove:hover { color: var(--party-coral); }
+    .add-new-contact { border: 1px dashed #ddd; border-radius: 8px; padding: 14px; margin-top: 12px; }
+    .add-contact-row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .add-contact-row input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: 'Inter', sans-serif; }
+    .add-contact-row input:focus { outline: none; border-color: var(--party-coral); }
+    .tag-filter-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .tag-filter-btn { padding: 4px 12px; border-radius: 14px; border: 1px solid #ddd; background: white; font-size: 12px; cursor: pointer; transition: all 0.15s; font-family: 'Inter', sans-serif; }
+    .tag-filter-btn:hover { border-color: var(--party-coral); }
+    .tag-filter-btn.active { border-color: var(--party-coral); background: rgba(233,69,96,0.08); color: var(--party-coral); font-weight: 500; }
+    .invited-count { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: rgba(78,205,196,0.12); color: var(--mint-fizz); border-radius: 12px; font-size: 12px; font-weight: 600; }
+    .empty-contacts { text-align: center; padding: 32px 16px; color: #999; font-size: 14px; }
+    .empty-contacts svg { margin-bottom: 8px; }
   </style>
 </head>
 <body>
@@ -361,8 +396,18 @@
     <div class="step-dot" data-step="3">3</div>
   </div>
 
-  <!-- Hide step 1 immediately when resuming an existing event (prevents flash) -->
-  <script>if(new URLSearchParams(window.location.search).get('eventId')){document.write('<style id="resumeHideChat">.chat-container[data-step="1"]{display:none !important;}</style>');}</script>
+  <!-- Hide step 1 and show loading screen when resuming an existing event -->
+  <script>if(new URLSearchParams(window.location.search).get('eventId')){document.write('<style id="resumeHideChat">.chat-container[data-step="1"]{display:none !important;}</style>');document.write('<style id="resumeShowLoader">#resumeLoader{display:flex !important;}</style>');}</script>
+
+  <!-- Resume loading screen -->
+  <div id="resumeLoader" style="display:none;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;text-align:center;">
+    <div style="font-size:48px;animation:genFloat 3s ease-in-out infinite;">&#x2728;</div>
+    <h3 style="font-family:'Playfair Display',serif;font-size:22px;margin:16px 0 8px;">Loading your invite...</h3>
+    <p style="color:#888;font-size:14px;">Picking up right where you left off</p>
+    <div style="margin-top:24px;width:200px;height:4px;background:#f0f0f0;border-radius:2px;overflow:hidden;">
+      <div style="height:100%;width:60%;background:linear-gradient(90deg,var(--party-coral),#ff8a80,var(--party-coral));background-size:200% 100%;border-radius:2px;animation:chatProgressShimmer 2s ease-in-out infinite;"></div>
+    </div>
+  </div>
 
   <!-- Step 1: Chat Prompt -->
   <div class="step active chat-container" data-step="1">
@@ -424,7 +469,7 @@
                 <!-- Gradient header -->
                 <div style="background:linear-gradient(135deg,var(--party-coral),var(--blush-pop));padding:20px 24px;color:white;display:flex;justify-content:space-between;align-items:center;">
                   <div>
-                    <div style="font-size:12px;font-weight:500;opacity:0.9;text-transform:uppercase;letter-spacing:0.5px;">One-time purchase</div>
+                    <div style="font-size:12px;font-weight:500;opacity:0.9;text-transform:uppercase;letter-spacing:0.5px;" id="paywallPlanType">One-time purchase</div>
                     <div style="font-size:18px;font-weight:700;margin-top:2px;" id="paywallPlanName">Single Event</div>
                   </div>
                   <div style="text-align:right;">
@@ -522,14 +567,20 @@
       <div id="generatedView" style="display: none;">
         <h2 style="text-align:center;">Create Your Invite</h2>
         <p class="step-desc" style="text-align:center;">Love it? Continue to publish. Switch between versions below.</p>
-        <div class="generated-layout" style="display:flex;gap:32px;align-items:stretch;flex-wrap:wrap;justify-content:center;max-width:900px;margin:0 auto;">
+        <div class="generated-layout" style="display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap;justify-content:center;max-width:900px;margin:0 auto;">
           <!-- Left: Tabbed panel (chat, details, versions) -->
-          <div id="editPanel" style="flex:1;min-width:280px;max-width:440px;display:flex;flex-direction:column;">
+          <div id="editPanel" style="flex:1;min-width:280px;max-width:440px;display:flex;flex-direction:column;overflow:hidden;">
 
             <div style="background:white;border:1px solid #eee;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);display:flex;flex-direction:column;overflow:hidden;height:100%;">
-              <div style="display:flex;gap:8px;margin-bottom:16px;">
-                <button class="btn btn-secondary" onclick="openLivePreview()" style="flex:1;font-size:13px;padding:10px 12px;">View Live Preview</button>
-                <button class="btn btn-primary" onclick="nextStep()" style="flex:1;font-size:13px;padding:10px 12px;">Publish</button>
+              <!-- Generation cost tracker (visible for usage-plan users) -->
+              <div id="costTracker" class="cost-tracker hidden">
+                <div class="cost-tracker-row">
+                  <span class="cost-tracker-label">Current Invite Cost</span>
+                  <span class="cost-tracker-value" id="costTrackerTotal">$0.50</span>
+                </div>
+              </div>
+              <div style="margin-bottom:16px;">
+                <button class="btn" onclick="nextStep()" style="width:100%;font-size:14px;padding:12px;background:var(--mint-fizz);color:white;font-weight:600;border-radius:10px;">Invite People</button>
               </div>
               <div class="panel-tabs">
                 <button class="panel-tab active" onclick="switchTab('design')">Design</button>
@@ -556,7 +607,7 @@
               </div>
 
               <!-- Event Details tab -->
-              <div id="tabDetails" class="tab-content">
+              <div id="tabDetails" class="tab-content" style="overflow-y:auto;">
                 <div class="form-group" style="margin-bottom:12px;">
                   <label style="font-size:12px;">Event Name</label>
                   <input type="text" id="editTitle" style="font-size:13px;padding:8px 10px;">
@@ -591,7 +642,7 @@
               </div>
 
               <!-- Versions tab -->
-              <div id="tabVersions" class="tab-content">
+              <div id="tabVersions" class="tab-content" style="overflow-y:auto;">
                 <div id="versionList" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-start;"></div>
               </div>
             </div>
@@ -601,11 +652,6 @@
             <div id="previewToggle" style="display:flex;justify-content:center;gap:4px;margin-bottom:8px;">
               <button class="preview-toggle-btn active" onclick="setPreviewMode('invite')">Invite</button>
               <button class="preview-toggle-btn" onclick="setPreviewMode('thankyou')">Thank You</button>
-            </div>
-            <div id="themeRatingWidget" class="theme-rating" style="display:none;">
-              <span class="theme-rating-label">How does this look?</span>
-              <div class="theme-rating-stars" id="themeRatingStars"></div>
-              <span class="theme-rating-thanks" id="themeRatingThanks" style="display:none;"></span>
             </div>
             <div class="phone-mockup">
               <div class="phone-frame">
@@ -619,7 +665,7 @@
             <!-- Mobile action buttons below preview -->
             <div id="mobilePreviewActions" style="display:none;margin-top:16px;width:100%;max-width:360px;">
               <div style="display:flex;gap:8px;">
-                <button class="btn btn-primary" onclick="nextStep()" style="flex:1;font-size:14px;padding:12px;">Publish</button>
+                <button class="btn btn-primary" onclick="nextStep()" style="flex:1;font-size:14px;padding:12px;">Invite People</button>
                 <button class="btn btn-secondary" onclick="retryGenerate()" style="flex:1;font-size:14px;padding:12px;">Regenerate</button>
               </div>
             </div>
@@ -630,12 +676,54 @@
 
     <!-- Step 4: Review & Publish -->
     <div class="step" data-step="3">
-      <h2>Review & Publish</h2>
-      <p class="step-desc">Confirm your event details before publishing</p>
-      <div id="summaryContent"></div>
-      <div class="button-group">
-        <button class="btn btn-secondary" onclick="previousStep()">Back</button>
-        <button class="btn btn-primary" id="publishBtn" onclick="publishEvent()">Publish Invite</button>
+      <h2>Invite People</h2>
+      <p class="step-desc">Add guests to your event — you can always add more later</p>
+      <div class="invite-page">
+        <!-- Added guests section -->
+        <div class="invite-section">
+          <h3><span>👥</span> Guest List <span class="invited-count" id="guestCount">0 invited</span></h3>
+          <div id="guestList" class="guest-list">
+            <div class="empty-contacts" id="noGuestsMsg">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+              <div>No guests added yet</div>
+              <div style="font-size:12px;margin-top:4px;">Search your contacts below or add someone new</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add from contacts -->
+        <div class="invite-section">
+          <h3><span>📇</span> Add from Contacts</h3>
+          <div id="tagFilterBar" class="tag-filter-bar"></div>
+          <div class="contact-search-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" class="contact-search" id="contactSearch" placeholder="Search by name, email, or phone..." oninput="filterContacts()">
+          </div>
+          <div id="contactListContainer" class="contact-list"></div>
+          <button class="btn btn-primary btn-sm" id="addSelectedBtn" onclick="addSelectedContacts()" style="margin-top:10px;display:none;">Add Selected</button>
+        </div>
+
+        <!-- Add new contact -->
+        <div class="invite-section">
+          <h3><span>➕</span> Add Someone New</h3>
+          <div class="add-new-contact">
+            <div class="add-contact-row">
+              <input type="text" id="newGuestName" placeholder="Name *">
+              <input type="email" id="newGuestEmail" placeholder="Email">
+            </div>
+            <div class="add-contact-row">
+              <input type="tel" id="newGuestPhone" placeholder="Phone">
+              <button class="btn btn-primary btn-sm" onclick="addNewGuest()" style="white-space:nowrap;">Add Guest</button>
+            </div>
+            <div id="newGuestMsg" style="font-size:12px;margin-top:4px;display:none;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="button-group" style="max-width:640px;margin:24px auto 0;">
+        <button class="btn btn-secondary" onclick="previousStep()">Back to Design</button>
+        <button class="btn" onclick="publishEvent(false)" style="background:#f0f0f0;color:var(--midnight);">Only Publish</button>
+        <button class="btn btn-primary" id="publishBtn" onclick="publishEvent(true)">Publish & Send Invites</button>
       </div>
     </div>
   </div>
@@ -654,9 +742,16 @@
     let themeVersions = []; // [{id, version, html, css, config}]
     let activeVersionIndex = 0;
     let chatHistory = [];
+    let chatSessionId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
     let chatBubbles = []; // [{text, role}] for UI rebuild on restore
     var chatPhase = 'chatting'; // 'chatting' | 'confirmed' | 'styling'
     var currentPreviewMode = 'invite';
+
+    // Cost tracking state — tracks cumulative cost for this event (persisted across sessions)
+    var TRANSACTION_FEE_CENTS = 50; // $0.50 minimum to cover transaction charges
+    var eventCostCents = 0;
+    var eventGenCount = 0;
+    var usagePlanUser = false;
 
     var ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp'];
     var ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.heic', '.heif', '.webp'];
@@ -792,12 +887,16 @@
           themeVersions = cachedThemes;
           activeVersionIndex = cachedThemes.findIndex(function(t) { return t.isActive; });
           if (activeVersionIndex < 0) activeVersionIndex = cachedThemes.length - 1;
+          // Hide resume loader
+          document.getElementById('resumeLoader').style.display = 'none';
+          var rls = document.getElementById('resumeShowLoader'); if (rls) rls.remove();
           var genView = document.getElementById('generatingView');
           genView.style.display = 'none';
           document.getElementById('generatedView').style.display = 'block';
           renderPreview(themeVersions[activeVersionIndex]);
           renderVersionGallery();
           goToStep(2);
+          initCostTracker();
           // Still fetch fresh data in background to update event details
           authFetch('/api/v2/events?action=get&eventId=' + encodeURIComponent(resumeId)).then(function(res) {
             return res.json();
@@ -831,6 +930,8 @@
           return;
         }
         // Slow path: no cache, show loading state
+        document.getElementById('resumeLoader').style.display = 'none';
+        var rls2 = document.getElementById('resumeShowLoader'); if (rls2) rls2.remove();
         document.querySelector('.chat-container').style.display = 'none';
         var resumeStep3 = document.querySelector('.container .step[data-step="2"]');
         resumeStep3.classList.add('active');
@@ -908,6 +1009,7 @@
               renderVersionGallery();
               initDesignChatIfNeeded(false);
               goToStep(2);
+              initCostTracker();
               // Cache themes for fast reload
               try { sessionStorage.setItem('ryvite_theme_' + ev.id, JSON.stringify(themeVersions)); } catch(e2) {}
             } else {
@@ -970,6 +1072,13 @@
       var text = input.value.trim();
       if (!text) return;
 
+      // Easter egg: test mode — skip chat, populate fake data, jump to generate
+      if (text === 'engage_test_mode' && chatHistory.length === 0) {
+        input.value = '';
+        runTestMode();
+        return;
+      }
+
       input.value = '';
       addChatBubble(text, 'user');
       chatHistory.push({ role: 'user', content: text });
@@ -995,7 +1104,7 @@
         var res = await authFetch('/api/v2/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: chatHistory })
+          body: JSON.stringify({ messages: chatHistory, sessionId: chatSessionId, eventId: currentEvent ? currentEvent.id : null })
         });
         var result = await res.json();
 
@@ -1004,6 +1113,8 @@
         if (typingEl) typingEl.remove();
 
         if (result.success) {
+          // Use server-assigned sessionId if available
+          if (result.sessionId) chatSessionId = result.sessionId;
           chatHistory.push({ role: 'assistant', content: JSON.stringify(result) });
 
           // Merge extracted data
@@ -1050,6 +1161,69 @@
       sendBtn.disabled = false;
       input.disabled = false;
       input.focus();
+    }
+
+    async function runTestMode() {
+      var delay = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
+
+      addChatBubble('engage_test_mode', 'user');
+      await delay(300);
+      addChatBubble('🧪 Test mode activated! Simulating event creation...', 'assistant');
+      await delay(400);
+
+      // Simulate user describing an event
+      addChatBubble('I\'m throwing a birthday party for my daughter Emma. She\'s turning 7 on April 15th at Sunshine Park from 2-5pm. It\'s a rainbow unicorn theme!', 'user');
+      await delay(500);
+
+      // Populate extracted data
+      extractedData = {
+        title: 'Emma\'s 7th Birthday Party',
+        eventType: 'kidsBirthday',
+        startDate: '2026-04-15T14:00:00',
+        endDate: '2026-04-15T17:00:00',
+        locationName: 'Sunshine Park',
+        locationAddress: '123 Rainbow Lane',
+        dressCode: 'Casual & colorful',
+        description: 'Rainbow unicorn themed birthday party for Emma\'s 7th birthday! Join us for cake, games, and magical fun.',
+        prompt: 'Whimsical rainbow unicorn theme with sparkles, pastel colors, and playful typography'
+      };
+
+      rsvpFields = [
+        { field_key: 'email', label: 'Email', field_type: 'email', is_required: false, options: null, placeholder: 'your@email.com', enabled: true },
+        { field_key: 'dietary_restrictions', label: 'Dietary Restrictions', field_type: 'text', is_required: false, options: null, placeholder: 'Any allergies or dietary needs?', enabled: true },
+        { field_key: 'number_of_kids', label: 'Number of Kids Attending', field_type: 'number', is_required: true, options: null, placeholder: '1', enabled: true }
+      ];
+
+      // Fake chat history so it looks like a real conversation happened
+      chatHistory = [
+        { role: 'user', content: 'engage_test_mode' },
+        { role: 'user', content: 'Birthday party for Emma, turning 7, April 15th at Sunshine Park 2-5pm, rainbow unicorn theme' },
+        { role: 'assistant', content: JSON.stringify({ success: true, message: 'Got it!', extracted: extractedData, suggestedRsvpFields: rsvpFields, ready: true, confirmed: true }) }
+      ];
+
+      addChatBubble('Got it! Here\'s what I have for Emma\'s birthday party. Let me set everything up...', 'assistant');
+      await delay(400);
+
+      // Create draft event
+      await createDraftEvent();
+
+      // Show confirmation card — pause so user can see it
+      chatPhase = 'confirmed';
+      showConfirmationCard();
+      await delay(800);
+
+      // Click "Let's design it!" — same as confirmDetailsAndAskStyle()
+      confirmDetailsAndAskStyle();
+      await delay(500);
+
+      // Click "I have a style in mind" — triggers showCustomStyleInput()
+      showCustomStyleInput();
+      await delay(400);
+
+      // Fill the style textarea and submit
+      var styleEl = document.getElementById('customStyleText');
+      if (styleEl) styleEl.value = extractedData.prompt;
+      submitCustomStyle();
     }
 
     function addChatBubble(text, role, skipSave) {
@@ -1707,37 +1881,57 @@
         document.getElementById('paywallQuickChargePhase').style.display = 'none';
 
         if (savedCard) {
+          var isUsageReturning = plan.billingType === 'usage' && plan.priceCents === 0;
           // Returning customer — show quick charge
           var brandName = (savedCard.brand || 'card').charAt(0).toUpperCase() + (savedCard.brand || 'card').slice(1);
           document.getElementById('quickChargePlanName').textContent = plan.displayName;
-          document.getElementById('quickChargePriceTag').innerHTML = priceDisplay;
+          document.getElementById('quickChargePriceTag').innerHTML = isUsageReturning ? '$0' : priceDisplay;
           document.getElementById('quickChargeCardDisplay').textContent = brandName + ' ending in ' + savedCard.last4;
           document.getElementById('quickChargeCardExpiry').textContent = 'Expires ' + savedCard.expMonth + '/' + savedCard.expYear;
-          document.getElementById('quickChargeBtn').textContent = 'Pay ' + priceDisplay + ' & Start Designing';
+          document.getElementById('quickChargeBtn').textContent = isUsageReturning ? 'Start Designing' : 'Pay ' + priceDisplay + ' & Start Designing';
           document.getElementById('quickChargeBtn').disabled = false;
           document.getElementById('paywallQuickChargePhase').style.display = 'block';
         } else {
           // New customer — show full pricing card
           var funMsg = paywallFunMessages[Math.floor(Math.random() * paywallFunMessages.length)];
+          var isUsagePlan = plan.billingType === 'usage' && plan.priceCents === 0;
 
-          // Build features list with SMS cost line
-          var features = (plan.features || []).slice();
-          features.push('+$0.10 per SMS sent');
-          var featuresHtml = features.map(function(f) {
-            var isSms = f.indexOf('$0.10') !== -1;
-            var iconBg = isSms ? '#f0f0f0' : 'rgba(78,205,196,0.12)';
-            var iconColor = isSms ? '#888' : 'var(--mint-fizz)';
-            var icon = isSms ? '💬' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
-            return '<div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--midnight);">'
-              + '<div style="width:26px;height:26px;border-radius:50%;background:' + iconBg + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;">' + icon + '</div>'
-              + '<span>' + escapeHtml(f) + '</span></div>';
-          }).join('');
+          // Build features list
+          var features;
+          if (isUsagePlan) {
+            // Curated feature list for usage plans
+            features = [];
+            // Fetch estimated cost per invite and add as first feature
+            try {
+              var estRes = await fetch('/api/v2/billing?action=estimateCost&planSlug=' + encodeURIComponent(plan.name));
+              var estData = await estRes.json();
+              if (estData.success && estData.estimate) {
+                var estCents = estData.estimate.aiCostCents;
+                var estDisplay = '$' + (estCents / 100).toFixed(2);
+                features.push('Estimated ~' + estDisplay + ' per invite (AI design + 4 tweaks)');
+              }
+            } catch (e) {}
+            features.push('100% personal AI designed');
+            features.push('Unlimited events');
+            features.push('Unlimited RSVPs');
+            features.push('Guest tracking');
+            features.push('Share via link, SMS, or email');
+            features.push('No upfront cost — pay only for usage');
+            features.push('+$0.10 per SMS sent');
+          } else {
+            features = (plan.features || []).slice();
+            features.push('+$0.10 per SMS sent');
+          }
+
+          var featuresHtml = buildFeaturesHtml(features);
 
           document.getElementById('paywallFunMsg').textContent = funMsg;
+          document.getElementById('paywallPlanType').textContent = isUsagePlan ? 'Pay as you go' : 'One-time purchase';
           document.getElementById('paywallPlanName').textContent = plan.displayName;
-          document.getElementById('paywallPriceTag').innerHTML = priceDisplay;
+          document.getElementById('paywallPriceTag').style.display = isUsagePlan ? 'none' : '';
+          document.getElementById('paywallPriceTag').innerHTML = isUsagePlan ? '' : priceDisplay;
           document.getElementById('paywallFeatures').innerHTML = featuresHtml;
-          document.getElementById('paywallCheckoutBtn').textContent = 'Continue for ' + priceDisplay;
+          document.getElementById('paywallCheckoutBtn').textContent = isUsagePlan ? 'Add Card & Start Designing' : 'Continue for ' + priceDisplay;
 
           // Reset coupon state
           document.getElementById('couponToggleLink').style.display = 'inline';
@@ -1758,6 +1952,22 @@
         // Navigate to step 2 (generating view)
         goToStep(2);
       });
+    }
+
+    function buildFeaturesHtml(features) {
+      return features.map(function(f) {
+        var isSms = f.indexOf('$0.10') !== -1;
+        var isEstimate = f.indexOf('Estimated ~$') !== -1;
+        var iconBg = isSms ? '#f0f0f0' : isEstimate ? 'rgba(255,183,77,0.15)' : 'rgba(78,205,196,0.12)';
+        var iconColor = isSms ? '#888' : isEstimate ? 'var(--confetti-gold)' : 'var(--mint-fizz)';
+        var icon = isSms ? '💬' : isEstimate
+          ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>'
+          : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+        var fontWeight = isEstimate ? 'font-weight:600;' : '';
+        return '<div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--midnight);' + fontWeight + '">'
+          + '<div style="width:26px;height:26px;border-radius:50%;background:' + iconBg + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;">' + icon + '</div>'
+          + '<span>' + escapeHtml(f) + '</span></div>';
+      }).join('');
     }
 
     function toggleCouponInput(e) {
@@ -1938,6 +2148,30 @@
 
       try {
         var plan = window._paywallPlan;
+        var isUsageNoCost = plan.billingType === 'usage' && plan.priceCents === 0;
+
+        if (isUsageNoCost) {
+          // Usage plan with card on file — no charge needed, just activate subscription
+          var activateRes = await authFetch('/api/v2/billing?action=activate-usage-plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ planId: plan.id })
+          });
+          var activateData = await activateRes.json();
+          if (!activateData.success) {
+            throw new Error(activateData.error || 'Failed to activate plan');
+          }
+          var saved = await saveEventToDB();
+          if (saved !== true) {
+            showMessage('Plan activated but event creation failed. Please try again.', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Start Designing';
+            return;
+          }
+          generateTheme();
+          return;
+        }
+
         var body = { planId: plan.id };
         if (paywallCoupon) body.couponCode = paywallCoupon.code;
 
@@ -1965,8 +2199,9 @@
         }
       } catch (e) {
         btn.disabled = false;
-        btn.textContent = 'Pay $' + (window._paywallPlan.priceCents / 100).toFixed(2) + ' & Start Designing';
-        showMessage('Payment error. Please try again.', 'error');
+        var p = window._paywallPlan;
+        btn.textContent = (p.billingType === 'usage' && p.priceCents === 0) ? 'Start Designing' : 'Pay $' + (p.priceCents / 100).toFixed(2) + ' & Start Designing';
+        showMessage(e.message || 'Payment error. Please try again.', 'error');
       }
     }
 
@@ -1977,24 +2212,27 @@
 
       var plan = window._paywallPlan;
       if (plan) {
+        var isUsagePlan = plan.billingType === 'usage' && plan.priceCents === 0;
         var priceDisplay = '$' + (plan.priceCents / 100).toFixed(2);
         var funMsg = paywallFunMessages[Math.floor(Math.random() * paywallFunMessages.length)];
-        var features = (plan.features || []).slice();
-        features.push('+$0.10 per SMS sent');
-        var featuresHtml = features.map(function(f) {
-          var isSms = f.indexOf('$0.10') !== -1;
-          var iconBg = isSms ? '#f0f0f0' : 'rgba(78,205,196,0.12)';
-          var iconColor = isSms ? '#888' : 'var(--mint-fizz)';
-          var icon = isSms ? '💬' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
-          return '<div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--midnight);">'
-            + '<div style="width:26px;height:26px;border-radius:50%;background:' + iconBg + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;">' + icon + '</div>'
-            + '<span>' + escapeHtml(f) + '</span></div>';
-        }).join('');
+        // Use cached features HTML if available (includes estimate), otherwise rebuild
+        var featuresEl = document.getElementById('paywallFeatures');
+        if (!featuresEl.innerHTML) {
+          var features;
+          if (isUsagePlan) {
+            features = ['100% personal AI designed', 'Unlimited events', 'Unlimited RSVPs', 'Guest tracking', 'Share via link, SMS, or email', 'No upfront cost — pay only for usage', '+$0.10 per SMS sent'];
+          } else {
+            features = (plan.features || []).slice();
+            features.push('+$0.10 per SMS sent');
+          }
+          featuresEl.innerHTML = buildFeaturesHtml(features);
+        }
         document.getElementById('paywallFunMsg').textContent = funMsg;
+        document.getElementById('paywallPlanType').textContent = isUsagePlan ? 'Pay as you go' : 'One-time purchase';
         document.getElementById('paywallPlanName').textContent = plan.displayName;
-        document.getElementById('paywallPriceTag').innerHTML = priceDisplay;
-        document.getElementById('paywallFeatures').innerHTML = featuresHtml;
-        document.getElementById('paywallCheckoutBtn').textContent = 'Continue for ' + priceDisplay;
+        document.getElementById('paywallPriceTag').style.display = isUsagePlan ? 'none' : '';
+        document.getElementById('paywallPriceTag').innerHTML = isUsagePlan ? '' : priceDisplay;
+        document.getElementById('paywallCheckoutBtn').textContent = isUsagePlan ? 'Add Card & Start Designing' : 'Continue for ' + priceDisplay;
         document.getElementById('paywallCheckoutBtn').disabled = false;
       }
     }
@@ -2493,8 +2731,31 @@
         var toggle = document.getElementById('mobileEditToggle');
         if (toggle) toggle.style.display = 'none';
       }
+      // On desktop, constrain edit panel height to match preview column
+      syncEditPanelHeight();
     }
     window.addEventListener('resize', updateMobileLayout);
+
+    function syncEditPanelHeight() {
+      var editPanel = document.getElementById('editPanel');
+      var previewCol = document.getElementById('previewColumn');
+      if (!editPanel || !previewCol) return;
+      if (window.innerWidth <= 900) {
+        editPanel.style.height = '';
+        editPanel.style.maxHeight = '';
+        return;
+      }
+      function apply() {
+        var previewHeight = previewCol.offsetHeight;
+        if (previewHeight > 100) {
+          editPanel.style.height = previewHeight + 'px';
+          editPanel.style.maxHeight = previewHeight + 'px';
+        }
+      }
+      requestAnimationFrame(apply);
+      // Fallback: re-sync after fonts/images load
+      setTimeout(apply, 300);
+    }
 
     function nextStep() { if (currentStep < totalSteps) goToStep(currentStep + 1); }
     function previousStep() { if (currentStep > 1) goToStep(currentStep - 1); }
@@ -2743,6 +3004,9 @@
             renderPreview(ver);
             renderVersionGallery();
             initDesignChatIfNeeded();
+            // Track generation cost
+            if (genResult.metadata) updateCostFromGeneration(genResult.metadata);
+            if (eventGenCount <= 1) initCostTracker();
             // Persist creation_step so resume returns to preview
             if (currentEvent) {
               authFetch('/api/v2/events?action=update', {
@@ -2751,7 +3015,7 @@
               }).catch(function() {});
             }
 
-            showThemeRating(ver.id);
+            pendingRatingThemeId = ver.id;
             updateMobileLayout();
             // Cache theme in sessionStorage for fast reload
             try { sessionStorage.setItem('ryvite_theme_' + currentEvent.id, JSON.stringify(themeVersions)); } catch(e) {}
@@ -2964,6 +3228,51 @@
       }
     }
 
+    // ── Cost tracking functions ──
+    async function initCostTracker() {
+      if (!token || !currentEvent || !currentEvent.id) return;
+      try {
+        // Load per-event cumulative cost from DB
+        var costRes = await authFetch('/api/v2/billing?action=event_cost&eventId=' + encodeURIComponent(currentEvent.id));
+        if (!costRes.ok) return;
+        var costData = await costRes.json();
+        if (!costData.success) return;
+
+        eventCostCents = costData.totalCostCents || 0;
+        eventGenCount = costData.generationCount || 0;
+        usagePlanUser = true;
+
+        updateCostTrackerUI();
+        // Always show for usage-plan users — $0.50 transaction fee minimum
+        document.getElementById('costTracker').classList.remove('hidden');
+      } catch (e) {
+        // Non-critical — cost tracker just won't show
+      }
+    }
+
+    function updateCostFromGeneration(metadata) {
+      if (!metadata || !metadata.cost) return;
+      var genCost = metadata.cost.totalCostCents || 0;
+      eventCostCents += genCost;
+      eventGenCount++;
+      if (usagePlanUser) {
+        document.getElementById('costTracker').classList.remove('hidden');
+        updateCostTrackerUI();
+        var el = document.getElementById('costTracker');
+        el.classList.remove('cost-flash');
+        void el.offsetWidth;
+        el.classList.add('cost-flash');
+      }
+    }
+
+    function updateCostTrackerUI() {
+      document.getElementById('costTrackerTotal').textContent = formatCents(TRANSACTION_FEE_CENTS + eventCostCents);
+    }
+
+    function formatCents(cents) {
+      return '$' + (cents / 100).toFixed(2);
+    }
+
     function renderVersionGallery() {
       // Version gallery moved to Versions tab — update list if tab is visible
       var tabVersions = document.getElementById('tabVersions');
@@ -3002,7 +3311,6 @@
       currentEvent.themeConfig = ver.config;
       renderPreview(ver);
       renderVersionGallery();
-      showThemeRating(ver.id);
       // Activate this version in the DB
       authFetch('/api/v2/events?action=activateTheme', {
         method: 'POST',
@@ -3053,7 +3361,7 @@
         + '.cal-apple { background:' + pc + '; color:#fff; }'
         + '.cal-google { background:' + sc + '; color:#fff; }'
         + '.cal-outlook { background:' + ac + '; color:#fff; }'
-        + '.thankyou-footer { font-size:12px; opacity:0.5; margin-top:40px; text-align:center; }'
+        + '.thankyou-footer { font-size:15px; opacity:0.6; margin-top:40px; text-align:center; }'
         + '.thankyou-footer a { color:inherit; text-decoration:none; }';
 
       // Guaranteed calendar + footer HTML — never left to the AI
@@ -3156,11 +3464,6 @@
       }
     });
 
-    function openLivePreview() {
-      if (!currentEvent) { showMessage('Event not saved yet', 'error'); return; }
-      window.open('/v2/preview/?eventId=' + encodeURIComponent(currentEvent.id), '_blank');
-    }
-
     // Profile dropdown
     function toggleProfileMenu() {
       document.getElementById('profileDropdown').classList.toggle('open');
@@ -3173,6 +3476,7 @@
 
     // ---- Tab switching & edit panel ----
     var designChatHistory = [];
+    var pendingRatingThemeId = null;
     var designChatPhotoBase64 = null;
     var designChatPhotoUrl = null;
     var designChatPhotoUrls = []; // Support multiple photo uploads
@@ -3282,6 +3586,11 @@
         + "\"Switch to a gold and black color scheme\"";
 
       designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
+      // If a generation just completed, show its rating prompt
+      if (pendingRatingThemeId) {
+        showThemeRating(pendingRatingThemeId);
+        pendingRatingThemeId = null;
+      }
       renderDesignChat();
     }
 
@@ -3475,6 +3784,9 @@
             + '<div class="design-chat-progress"><div class="design-chat-progress-bar" style="width:' + progressPct + '%"></div></div>'
             + '</div></div>';
         }
+        if (msg.role === 'rating') {
+          return renderRatingWidget(msg.themeId);
+        }
         var cls = msg.role === 'user' ? 'user' : 'assistant';
         var html = '<div class="design-chat-msg ' + cls + '">' + escapeHtml(msg.content).replace(/\n/g, '<br>');
         if (msg.options && msg.options.length > 0) {
@@ -3491,6 +3803,11 @@
         return html;
       }).join('');
       container.scrollTop = container.scrollHeight;
+    }
+
+    function scrollDesignChat() {
+      var container = document.getElementById('designChatMessages');
+      if (container) container.scrollTop = container.scrollHeight;
     }
 
     function autoResizeTextarea(el) {
@@ -3616,7 +3933,7 @@
         // Match explicit redesign requests
         var redesignKeywords = /\b(new design|redesign|start over|start fresh|completely different|totally different|whole new|from scratch|different design|different look|different style|redo it|redo the|redo this|another design|new look|new theme|different theme|change everything|scrap this)\b/i;
         // Match vague dissatisfaction / unclear change requests
-        var vagueKeywords = /\b(don'?t (like|love|know|feel)|not (sure|happy|feeling|loving|into|vibing|what)|make.{0,15}changes|change (it|this|the design)|switch it|something (different|else|new)|doesn'?t (feel|look|seem)|i'?m not |not.{0,8}right|want.{0,10}different|don'?t.{0,10}(like|love)|try.{0,5}again|meh|hmm|idk)\b/i;
+        var vagueKeywords = /\b(don'?t (like|love|know|feel)|not (sure|happy|feeling|loving|into|vibing|what)|make.{0,15}change[s]?|change (it|this|the design)|switch it|something (different|else|new)|doesn'?t (feel|look|seem)|i'?m not |not.{0,8}right|want.{0,10}(different|change|to change)|don'?t.{0,10}(like|love)|try.{0,5}again|meh|hmm|idk|i want to (change|modify|update|tweak|edit))\b/i;
         // Only trigger clarification for vague messages — NOT for specific instructions like "make the background darker"
         var hasSpecificInstruction = /\b(make the|change the|move the|add a|remove the|bigger|smaller|darker|lighter|bolder|font|color|background|button|text|photo|image|spacing|padding|margin|border|shadow|size|position)\b/i.test(text);
 
@@ -3702,11 +4019,13 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               userMessage: addMsg,
+              eventId: currentEvent ? currentEvent.id : null,
               existingFields: enabledFields.map(function(f) { return { label: f.label, field_key: f.field_key }; })
             })
           });
           if (interpretRes.ok) {
             var interpretData = await interpretRes.json();
+            if (interpretData.metadata) updateCostFromGeneration(interpretData);
             if (interpretData.success && interpretData.field) {
               var f = interpretData.field;
               var exists = enabledFields.some(function(ef) {
@@ -3884,6 +4203,16 @@
 
           console.log('[tweak] Parse result:', !!tweakResult, 'Error:', tweakError, 'Lines:', tweakLines.length, 'Text preview:', tweakFullText.substring(0, 500), 'Build: 2026-03-11k');
 
+          if (tweakResult && tweakResult.success && tweakResult.chatOnly) {
+            // AI returned conversational text instead of a theme change — display it
+            var chatOnlyMsg = (tweakResult.chatResponse || 'Could you tell me what specific changes you\'d like?') + '\n\nTry something like:\n- "Make the background darker"\n- "Change the fonts to something more elegant"\n- "Add more gold accents"';
+            if (tweakResult.metadata) updateCostFromGeneration(tweakResult.metadata);
+            designChatHistory.push({ role: 'assistant', content: chatOnlyMsg });
+            renderDesignChat();
+            enableSendBtn();
+            return;
+          }
+
           if (tweakResult && tweakResult.success) {
             var newVer = { id: tweakResult.theme.id, version: tweakResult.theme.version, html: tweakResult.theme.html, css: tweakResult.theme.css, config: tweakResult.theme.config };
             themeVersions.push(newVer);
@@ -3903,7 +4232,11 @@
             // Update sessionStorage cache
             try { if (currentEvent) sessionStorage.setItem('ryvite_theme_' + currentEvent.id, JSON.stringify(themeVersions)); } catch(e) {}
             var chatMsg = (tweakResult.chatResponse || tweakResult.chat_response || 'Done! I\'ve updated the design. Take a look at the preview.') + '\n\nWant to make any more changes?';
+            // Track tweak cost
+            if (tweakResult.metadata) updateCostFromGeneration(tweakResult.metadata);
             designChatHistory.push({ role: 'assistant', content: chatMsg });
+            // Show rating widget for every generation (tweaks included)
+            showThemeRating(newVer.id);
           } else if (tweakError) {
             designChatHistory.push({ role: 'assistant', content: 'Sorry, I had trouble with that change: ' + (tweakError.message || tweakError.error || 'Unknown error') + '. Could you try rephrasing?' });
           } else {
@@ -4326,33 +4659,268 @@
 
     // Drag & Drop setup removed — now handled dynamically via setupDropZone()
 
-    // ---- Summary & Publish ----
+    // ---- Invite People (Step 3) ----
+
+    var allContacts = [];
+    var allTags = [];
+    var selectedContactIds = new Set();
+    var addedGuests = []; // { id, name, email, phone, contactId, isNew }
+    var activeTagFilter = null;
 
     function showSummary() {
-      var d = extractedData;
-      var enabledRsvp = rsvpFields.filter(function(f) { return f.enabled; });
-      var items = [
-        ['Title', d.title || 'Untitled'],
-        ['Date & Time', d.startDate ? formatDate(d.startDate) : 'Not set'],
-        ['Location', d.locationName || 'Not set'],
-        ['Event Type', formatEventType(d.eventType || 'other')],
-        ['Design Mood', (designPrompt || d.prompt || '').substring(0, 80) + '...'],
-        ['RSVP Fields', enabledRsvp.length > 0 ? enabledRsvp.map(function(f) { return f.label; }).join(', ') : 'Default only']
-      ];
-      document.getElementById('summaryContent').innerHTML = items.map(function(item) {
-        return '<div class="summary-item"><span class="summary-label">' + escapeHtml(item[0]) + '</span><span class="summary-value">' + escapeHtml(item[1]) + '</span></div>';
-      }).join('');
+      // Now loads the contacts/invite page
+      loadContactsForInvite();
     }
 
-    async function publishEvent() {
+    async function loadContactsForInvite() {
+      try {
+        var [contactsRes, tagsRes] = await Promise.all([
+          authFetch('/api/v2/contacts?action=list'),
+          authFetch('/api/v2/contacts?action=listTags')
+        ]);
+        var contactsData = await contactsRes.json();
+        var tagsData = await tagsRes.json();
+        if (contactsData.success) allContacts = contactsData.contacts || [];
+        if (tagsData.success) allTags = tagsData.tags || [];
+      } catch (e) {
+        allContacts = [];
+        allTags = [];
+      }
+      renderTagFilters();
+      filterContacts();
+      renderGuestList();
+    }
+
+    function renderTagFilters() {
+      var bar = document.getElementById('tagFilterBar');
+      if (!allTags.length) { bar.innerHTML = ''; return; }
+      bar.innerHTML = '<button class="tag-filter-btn' + (!activeTagFilter ? ' active' : '') + '" onclick="setTagFilter(null)">All</button>'
+        + allTags.map(function(t) {
+          return '<button class="tag-filter-btn' + (activeTagFilter === t.id ? ' active' : '') + '" onclick="setTagFilter(\'' + t.id + '\')">'
+            + escapeHtml(t.name) + ' <span style="color:#999;">(' + t.count + ')</span></button>';
+        }).join('');
+    }
+
+    function setTagFilter(tagId) {
+      activeTagFilter = tagId;
+      renderTagFilters();
+      filterContacts();
+    }
+
+    function filterContacts() {
+      var search = (document.getElementById('contactSearch').value || '').toLowerCase().trim();
+      var addedContactIds = new Set(addedGuests.filter(function(g) { return g.contactId; }).map(function(g) { return g.contactId; }));
+
+      var filtered = allContacts.filter(function(c) {
+        // Exclude already-added contacts
+        if (addedContactIds.has(c.id)) return false;
+        // Tag filter
+        if (activeTagFilter) {
+          var hasTags = c.tags && c.tags.some(function(t) { return t.id === activeTagFilter; });
+          if (!hasTags) return false;
+        }
+        // Search filter
+        if (search) {
+          return (c.name && c.name.toLowerCase().includes(search))
+            || (c.email && c.email.toLowerCase().includes(search))
+            || (c.phone && c.phone.includes(search));
+        }
+        return true;
+      });
+
+      var container = document.getElementById('contactListContainer');
+      if (!filtered.length) {
+        container.innerHTML = '<div style="padding:16px;text-align:center;color:#999;font-size:13px;">'
+          + (allContacts.length ? 'No contacts match your search' : 'No contacts yet — add someone new below!')
+          + '</div>';
+        document.getElementById('addSelectedBtn').style.display = 'none';
+        return;
+      }
+
+      container.innerHTML = filtered.map(function(c) {
+        var isSelected = selectedContactIds.has(c.id);
+        var detail = c.email || c.phone || '';
+        var tagHtml = (c.tags || []).map(function(t) {
+          return '<span class="contact-tag-pill" style="' + (t.color ? 'background:' + t.color + '20;color:' + t.color : '') + '">' + escapeHtml(t.name) + '</span>';
+        }).join('');
+        return '<div class="contact-item' + (isSelected ? ' selected' : '') + '" onclick="toggleContactSelect(\'' + c.id + '\')">'
+          + '<div class="contact-check">' + (isSelected ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '') + '</div>'
+          + '<span class="contact-name">' + escapeHtml(c.name) + '</span>'
+          + (tagHtml ? '<span class="contact-tags">' + tagHtml + '</span>' : '')
+          + '<span class="contact-detail">' + escapeHtml(detail) + '</span>'
+          + '</div>';
+      }).join('');
+
+      document.getElementById('addSelectedBtn').style.display = selectedContactIds.size > 0 ? 'inline-flex' : 'none';
+      document.getElementById('addSelectedBtn').textContent = 'Add Selected (' + selectedContactIds.size + ')';
+    }
+
+    function toggleContactSelect(contactId) {
+      if (selectedContactIds.has(contactId)) {
+        selectedContactIds.delete(contactId);
+      } else {
+        selectedContactIds.add(contactId);
+      }
+      filterContacts();
+    }
+
+    async function addSelectedContacts() {
+      if (!selectedContactIds.size || !currentEvent) return;
+      var btn = document.getElementById('addSelectedBtn');
+      btn.disabled = true;
+      btn.textContent = 'Adding...';
+
+      var ids = Array.from(selectedContactIds);
+      try {
+        var res = await authFetch('/api/v2/events?action=addGuests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: currentEvent.id, contactIds: ids })
+        });
+        var result = await res.json();
+        if (result.success) {
+          // Add to local guest list
+          ids.forEach(function(cid) {
+            var contact = allContacts.find(function(c) { return c.id === cid; });
+            if (contact) {
+              addedGuests.push({ id: 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2,4), name: contact.name, email: contact.email, phone: contact.phone, contactId: cid });
+            }
+          });
+          selectedContactIds.clear();
+          renderGuestList();
+          filterContacts();
+        } else {
+          showMessage(result.error || 'Failed to add contacts', 'error');
+        }
+      } catch (e) {
+        showMessage('Error adding contacts', 'error');
+      }
+      btn.disabled = false;
+    }
+
+    function renderGuestList() {
+      var container = document.getElementById('guestList');
+      var noMsg = document.getElementById('noGuestsMsg');
+      var countEl = document.getElementById('guestCount');
+      countEl.textContent = addedGuests.length + ' invited';
+
+      if (!addedGuests.length) {
+        if (noMsg) noMsg.style.display = 'block';
+        // Clear any guest items but keep the empty message
+        container.querySelectorAll('.guest-item').forEach(function(el) { el.remove(); });
+        return;
+      }
+
+      if (noMsg) noMsg.style.display = 'none';
+      // Rebuild guest items
+      var html = addedGuests.map(function(g, i) {
+        var detail = g.email || g.phone || '';
+        return '<div class="guest-item">'
+          + '<span class="guest-name">' + escapeHtml(g.name) + '</span>'
+          + '<span class="guest-contact">' + escapeHtml(detail) + '</span>'
+          + '<button class="guest-remove" onclick="removeGuest(' + i + ')" title="Remove">&times;</button>'
+          + '</div>';
+      }).join('');
+      container.innerHTML = html;
+    }
+
+    async function removeGuest(idx) {
+      var guest = addedGuests[idx];
+      if (!guest) return;
+      // Remove from server if we have event context
+      if (currentEvent && guest.serverId) {
+        try {
+          await authFetch('/api/v2/events?action=removeGuests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: currentEvent.id, guestIds: [guest.serverId] })
+          });
+        } catch (e) {}
+      }
+      addedGuests.splice(idx, 1);
+      renderGuestList();
+      filterContacts();
+    }
+
+    async function addNewGuest() {
+      var name = document.getElementById('newGuestName').value.trim();
+      var email = document.getElementById('newGuestEmail').value.trim();
+      var phone = document.getElementById('newGuestPhone').value.trim();
+      var msgEl = document.getElementById('newGuestMsg');
+
+      if (!name) {
+        msgEl.textContent = 'Name is required';
+        msgEl.style.color = '#E94560';
+        msgEl.style.display = 'block';
+        return;
+      }
+
+      msgEl.textContent = 'Adding...';
+      msgEl.style.color = '#666';
+      msgEl.style.display = 'block';
+
+      try {
+        // Create contact first
+        var contactRes = await authFetch('/api/v2/contacts?action=create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name, email: email || null, phone: phone || null, source: 'event_create', sourceEventId: currentEvent ? currentEvent.id : null })
+        });
+        var contactResult = await contactRes.json();
+        var contactId = null;
+
+        if (contactResult.success) {
+          contactId = contactResult.contact.id;
+        } else if (contactResult.existingContactId) {
+          // Contact already exists — use existing
+          contactId = contactResult.existingContactId;
+        } else {
+          msgEl.textContent = contactResult.error || 'Failed to create contact';
+          msgEl.style.color = '#E94560';
+          return;
+        }
+
+        // Add as guest to event
+        if (currentEvent && contactId) {
+          await authFetch('/api/v2/events?action=addGuests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: currentEvent.id, contactIds: [contactId] })
+          });
+        }
+
+        addedGuests.push({ id: 'guest_' + Date.now(), name: name, email: email, phone: phone, contactId: contactId, isNew: true });
+        // Refresh contact list
+        allContacts.push({ id: contactId, name: name, email: email, phone: phone, tags: [] });
+
+        // Clear form
+        document.getElementById('newGuestName').value = '';
+        document.getElementById('newGuestEmail').value = '';
+        document.getElementById('newGuestPhone').value = '';
+        msgEl.textContent = name + ' added!';
+        msgEl.style.color = 'var(--mint-fizz)';
+        setTimeout(function() { msgEl.style.display = 'none'; }, 2000);
+
+        renderGuestList();
+        filterContacts();
+      } catch (e) {
+        msgEl.textContent = 'Error adding guest';
+        msgEl.style.color = '#E94560';
+      }
+    }
+
+    async function publishEvent(sendInvites) {
       if (!currentEvent) { showMessage('Event not created yet', 'error'); return; }
-      var btn = document.getElementById('publishBtn');
-      btn.disabled = true; btn.textContent = 'Publishing...';
+      // Disable all publish buttons
+      var btns = document.querySelectorAll('.button-group .btn');
+      btns.forEach(function(b) { b.disabled = true; });
+      var publishBtn = document.getElementById('publishBtn');
+      publishBtn.textContent = 'Publishing...';
       try {
         var res = await authFetch('/api/v2/events?action=update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventId: currentEvent.id, status: 'Published' })
+          body: JSON.stringify({ eventId: currentEvent.id, status: 'Published', settings: { invites_sent: !!sendInvites } })
         });
         var result = await res.json();
         if (result.success) {
@@ -4360,7 +4928,10 @@
           window.location.href = '/v2/dashboard/?published=' + currentEvent.id;
         } else { showMessage(result.error || 'Failed to publish', 'error'); }
       } catch (err) { showMessage('Error publishing event', 'error'); }
-      finally { btn.disabled = false; btn.textContent = 'Publish Invite'; }
+      finally {
+        btns.forEach(function(b) { b.disabled = false; });
+        publishBtn.textContent = 'Publish & Send Invites';
+      }
     }
 
     // ---- Utilities ----
@@ -4378,6 +4949,7 @@
     // HOST THEME RATING
     // ════════════════════════════════════════════════════════════
     var hostRatingsByTheme = {}; // themeId → {rating, feedback}
+    var hostOneStarCount = 0; // tracks 1-star ratings for this event (for abuse prevention)
     var hostFingerprint = 'fp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
 
     function starSvg() {
@@ -4385,165 +4957,151 @@
     }
 
     function showThemeRating(themeId) {
-      var widget = document.getElementById('themeRatingWidget');
-      var starsContainer = document.getElementById('themeRatingStars');
-      var thanks = document.getElementById('themeRatingThanks');
-
-      widget.style.display = 'flex';
-      thanks.style.display = 'none';
-
+      // Add rating entry to chat history — renderDesignChat() will render it
       var existing = hostRatingsByTheme[themeId];
-      var currentRating = existing ? existing.rating : 0;
+      if (existing) return; // Already rated this version
 
-      starsContainer.innerHTML = '';
-      for (var i = 1; i <= 5; i++) {
-        var btn = document.createElement('button');
-        btn.className = 'star' + (i <= currentRating ? ' active' : '');
-        btn.innerHTML = starSvg();
-        btn.dataset.value = i;
-        btn.dataset.themeId = themeId;
-        btn.onclick = function() { handleStarClick(this.dataset.themeId, parseInt(this.dataset.value)); };
-        btn.onmouseenter = function() { previewStars(starsContainer, parseInt(this.dataset.value)); }.bind(btn);
-        btn.onmouseleave = function() { clearStarPreview(starsContainer, currentRating); };
-        starsContainer.appendChild(btn);
-      }
+      // Check if there's already a rating entry for this theme in history
+      var alreadyInHistory = designChatHistory.some(function(m) { return m.role === 'rating' && m.themeId === themeId; });
+      if (alreadyInHistory) return;
 
-      if (existing) {
-        thanks.textContent = existing.rating === 5 ? 'Thanks!' : 'Rated ' + existing.rating + '/5';
-        thanks.style.display = 'inline';
-      }
+      designChatHistory.push({ role: 'rating', themeId: themeId });
     }
 
-    function previewStars(container, upTo) {
-      container.querySelectorAll('.star').forEach(function(s) {
+    function renderRatingWidget(themeId) {
+      var existing = hostRatingsByTheme[themeId];
+
+      if (existing && !existing.pendingFeedback) {
+        // Fully rated — show completed state
+        var starsHtml = '';
+        for (var s = 1; s <= 5; s++) {
+          starsHtml += '<button class="star' + (s <= existing.rating ? ' active' : '') + '" style="pointer-events:none;">' + starSvg() + '</button>';
+        }
+        var thanksText = existing.rating === 5 ? 'Thanks! Glad you love it!' : 'Feedback saved!';
+        var extraHtml = '';
+        if (existing.creditMessage) {
+          extraHtml += '<div style="font-size:12px;color:var(--party-coral);font-weight:600;margin-top:6px;">' + escapeHtml(existing.creditMessage) + '</div>';
+        }
+        if (existing.supportMessage) {
+          extraHtml += '<div style="font-size:12px;color:var(--party-coral);font-weight:500;margin-top:8px;line-height:1.5;">' + escapeHtml(existing.supportMessage) + '</div>';
+        }
+        return '<div class="chat-rating" id="chatRating-' + themeId + '">'
+          + '<div class="chat-rating-label">How does this design look?</div>'
+          + '<div class="chat-rating-stars">' + starsHtml + '</div>'
+          + '<div class="chat-rating-thanks">' + thanksText + '</div>'
+          + extraHtml
+          + '</div>';
+      }
+
+      if (existing && existing.pendingFeedback) {
+        // Stars selected but feedback chips still pending — render locked stars + credit/support messages
+        var starsHtml = '';
+        for (var s = 1; s <= 5; s++) {
+          starsHtml += '<button class="star' + (s <= existing.rating ? ' active' : '') + '" style="pointer-events:none;">' + starSvg() + '</button>';
+        }
+        var extraHtml = '';
+        if (existing.creditMessage) {
+          extraHtml += '<div style="font-size:12px;color:var(--party-coral);font-weight:600;margin-top:6px;">' + escapeHtml(existing.creditMessage) + '</div>';
+        }
+        if (existing.supportMessage) {
+          extraHtml += '<div style="font-size:12px;color:var(--party-coral);font-weight:500;margin-top:8px;line-height:1.5;">' + escapeHtml(existing.supportMessage) + '</div>';
+        }
+        return '<div class="chat-rating" id="chatRating-' + themeId + '">'
+          + '<div class="chat-rating-label">How does this design look?</div>'
+          + '<div class="chat-rating-stars">' + starsHtml + '</div>'
+          + extraHtml
+          + '</div>';
+      }
+
+      // Not yet rated — show interactive stars
+      var starsHtml = '';
+      for (var i = 1; i <= 5; i++) {
+        starsHtml += '<button class="star" data-value="' + i + '" data-theme-id="' + themeId + '"'
+          + ' onclick="handleStarClick(this.dataset.themeId, parseInt(this.dataset.value))"'
+          + ' onmouseenter="previewStarsById(\'chatRating-' + themeId + '\', ' + i + ')"'
+          + ' onmouseleave="clearStarPreviewById(\'chatRating-' + themeId + '\')">'
+          + starSvg() + '</button>';
+      }
+      return '<div class="chat-rating" id="chatRating-' + themeId + '">'
+        + '<div class="chat-rating-label">How does this design look?</div>'
+        + '<div class="chat-rating-stars">' + starsHtml + '</div>'
+        + '</div>';
+    }
+
+    function previewStarsById(ratingElId, upTo) {
+      var el = document.getElementById(ratingElId);
+      if (!el) return;
+      el.querySelectorAll('.star').forEach(function(s) {
         var val = parseInt(s.dataset.value);
         s.classList.toggle('hover-preview', val <= upTo && !s.classList.contains('active'));
       });
     }
 
-    function clearStarPreview(container) {
-      container.querySelectorAll('.star').forEach(function(s) { s.classList.remove('hover-preview'); });
+    function clearStarPreviewById(ratingElId) {
+      var el = document.getElementById(ratingElId);
+      if (!el) return;
+      el.querySelectorAll('.star').forEach(function(s) { s.classList.remove('hover-preview'); });
     }
 
-    function handleStarClick(themeId, rating) {
+    async function handleStarClick(themeId, rating) {
+      // Always submit immediately — no chips/send-feedback step
       hostRatingsByTheme[themeId] = { rating: rating, feedback: '' };
 
-      // Update stars UI immediately
-      var starsContainer = document.getElementById('themeRatingStars');
-      starsContainer.querySelectorAll('.star').forEach(function(s) {
-        s.classList.toggle('active', parseInt(s.dataset.value) <= rating);
-        s.classList.remove('hover-preview');
-      });
-
-      if (rating < 5) {
-        showRatingFeedbackModal(themeId, rating);
+      if (rating === 1) {
+        hostOneStarCount++;
+        var result = await submitHostRating(themeId, rating, '');
+        if (result && result.oneStarCredit) {
+          var creditCents = result.creditCents || 0;
+          eventCostCents = Math.max(0, eventCostCents - creditCents);
+          updateCostTrackerUI();
+          hostRatingsByTheme[themeId].creditMessage = 'Sorry about that! We won\'t charge you for this generation' + (creditCents > 0 ? ' (' + formatCents(creditCents) + ' credited)' : '') + '.';
+        } else if (result && result.supportRequired) {
+          hostRatingsByTheme[themeId].supportMessage = 'Dang it, maybe something is wrong if we keep getting this wrong. Please contact support at support@ryvite.com and provide them ' + (currentEvent ? currentEvent.id : 'your event ID') + ' so they can investigate.';
+        }
       } else {
-        // 5 stars — just save it with a thanks
         submitHostRating(themeId, rating, '');
-        var thanks = document.getElementById('themeRatingThanks');
-        thanks.textContent = 'Thanks! Glad you love it!';
-        thanks.style.display = 'inline';
       }
-    }
 
-    function showRatingFeedbackModal(themeId, rating) {
-      var ratingLabels = { 1: 'Not great', 2: 'Needs work', 3: 'Decent', 4: 'Almost there' };
-      var label = ratingLabels[rating] || '';
-
-      // Quick-tap feedback chips based on rating
-      var chips = [];
-      if (rating <= 2) {
-        chips = ['Text too large', 'Wrong colors', 'Looks broken', 'Not my style', 'Hard to read', 'Too plain'];
+      // Inject assistant response based on rating
+      var assistantMsg;
+      if (rating >= 4) {
+        assistantMsg = rating === 5
+          ? 'Awesome, glad you love it! Are there any final tweaks you\'d like, or shall we publish and start inviting people?'
+          : 'Great, almost there! Any small tweaks you\'d like me to make, or are you ready to publish and invite some people?';
+      } else if (rating === 3) {
+        assistantMsg = 'Thanks for the feedback! What would you like me to change? I can adjust colors, fonts, layout, or try a completely different style.';
       } else {
-        chips = ['Colors off', 'Layout tweaks', 'Font change', 'More detail', 'Different vibe', 'Almost perfect'];
+        assistantMsg = rating === 1
+          ? 'I can do better! Tell me what you\'d like — a completely different style, different colors, different layout? Or describe the vibe you\'re going for.'
+          : 'Got it, let\'s improve this. What\'s not working for you? I can change the colors, fonts, layout, or go in a totally different direction.';
       }
+      designChatHistory.push({ role: 'assistant', content: assistantMsg });
 
-      var starsHtml = '';
-      for (var i = 1; i <= 5; i++) {
-        starsHtml += '<button class="star' + (i <= rating ? ' active' : '') + '" style="pointer-events:none;">' + starSvg() + '</button>';
-      }
-
-      var chipsHtml = chips.map(function(c) {
-        return '<button class="chip" onclick="toggleFeedbackChip(this)">' + c + '</button>';
-      }).join('');
-
-      var overlay = document.createElement('div');
-      overlay.className = 'rating-feedback-overlay';
-      overlay.id = 'ratingFeedbackOverlay';
-      overlay.innerHTML = '<div class="rating-feedback-modal">'
-        + '<h3>' + label + '</h3>'
-        + '<div class="feedback-stars">' + starsHtml + '</div>'
-        + '<p class="rating-subtitle">What could be better?</p>'
-        + '<div class="rating-feedback-chips" id="feedbackChips">' + chipsHtml + '</div>'
-        + '<textarea id="ratingFeedbackText" placeholder="Tell us more (optional)..."></textarea>'
-        + '<div class="tweak-hint">'
-        + '<p>You can <strong>tweak this design</strong> using the Design chat! Just describe what you want changed and we\'ll update it instantly.</p>'
-        + '</div>'
-        + '<div class="rating-feedback-actions">'
-        + '<button class="btn btn-secondary btn-sm" onclick="closeRatingFeedback(\'' + themeId + '\', ' + rating + ', false)">Skip</button>'
-        + '<button class="btn btn-primary btn-sm" onclick="closeRatingFeedback(\'' + themeId + '\', ' + rating + ', true)">Submit & Tweak</button>'
-        + '</div>'
-        + '</div>';
-      document.body.appendChild(overlay);
-
-      // Click outside to close
-      overlay.addEventListener('click', function(e) {
-        if (e.target === overlay) closeRatingFeedback(themeId, rating, false);
-      });
+      renderDesignChat();
+      scrollDesignChat();
     }
 
     function toggleFeedbackChip(el) {
       el.classList.toggle('selected');
     }
 
-    function closeRatingFeedback(themeId, rating, focusChat) {
-      var overlay = document.getElementById('ratingFeedbackOverlay');
-      if (!overlay) return;
-
-      // Collect feedback from chips + textarea
-      var selectedChips = [];
-      overlay.querySelectorAll('.chip.selected').forEach(function(c) { selectedChips.push(c.textContent); });
-      var textFeedback = (document.getElementById('ratingFeedbackText')?.value || '').trim();
-      var fullFeedback = selectedChips.concat(textFeedback ? [textFeedback] : []).join('; ');
-
-      hostRatingsByTheme[themeId] = { rating: rating, feedback: fullFeedback };
-      submitHostRating(themeId, rating, fullFeedback);
-
-      overlay.remove();
-
-      var thanks = document.getElementById('themeRatingThanks');
-      thanks.textContent = 'Feedback saved! Try the Design chat to tweak it.';
-      thanks.style.display = 'inline';
-
-      // Focus the design chat input if user clicked "Submit & Tweak"
-      if (focusChat) {
-        switchTab('design');
-        var chatInput = document.getElementById('designChatInput');
-        if (chatInput) {
-          chatInput.focus();
-          // Pre-fill with their feedback as a starting point
-          if (fullFeedback && !chatInput.value) {
-            chatInput.value = 'Can you fix: ' + fullFeedback.toLowerCase();
-            autoResizeTextarea(chatInput);
-          }
-        }
-      }
-    }
-
-    function submitHostRating(themeId, rating, feedback) {
-      if (!currentEvent) return;
-      fetch('/api/v2/ratings?action=submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          eventId: currentEvent.id,
-          eventThemeId: themeId,
-          rating: rating,
-          feedback: feedback,
-          raterType: 'host',
-          fingerprint: hostFingerprint
-        })
-      }).catch(function() {});
+    async function submitHostRating(themeId, rating, feedback) {
+      if (!currentEvent) return null;
+      try {
+        var resp = await fetch('/api/v2/ratings?action=submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId: currentEvent.id,
+            eventThemeId: themeId,
+            rating: rating,
+            feedback: feedback,
+            raterType: 'host',
+            fingerprint: hostFingerprint
+          })
+        });
+        return await resp.json();
+      } catch(e) { return null; }
     }
 
     function showMessage(text, type) {

@@ -148,14 +148,17 @@ export default async function handler(req, res) {
 
       if (!title) return res.status(400).json({ success: false, error: 'Title is required' });
 
-      // Check plan limits
-      const { checkUserLimits } = await import('./billing.js');
-      const limits = await checkUserLimits(user.id);
-      if (!limits.hasActivePlan) {
-        return res.status(403).json({ success: false, error: 'You need an active plan to create events. Visit the pricing page to get started.', needsPlan: true });
-      }
-      if (!limits.canCreateEvent) {
-        return res.status(403).json({ success: false, error: limits.reason || 'Event limit reached for your plan.', limitReached: true });
+      // Draft events skip plan checks — paywall gates generation, not drafts
+      const isDraft = settings?.creation_step === 0 || req.body.draft === true;
+      if (!isDraft) {
+        const { checkUserLimits } = await import('./billing.js');
+        const limits = await checkUserLimits(user.id);
+        if (!limits.hasActivePlan) {
+          return res.status(403).json({ success: false, error: 'You need an active plan to create events. Visit the pricing page to get started.', needsPlan: true });
+        }
+        if (!limits.canCreateEvent) {
+          return res.status(403).json({ success: false, error: limits.reason || 'Event limit reached for your plan.', limitReached: true });
+        }
       }
 
       // Ensure profile exists (may not have been created by trigger)

@@ -1,9 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
+import Stripe from 'stripe';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
+
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY);
+}
 
 // Founder — always has admin access, cannot be removed
 const FOUNDER_EMAIL = 'jake@getmrkt.com';
@@ -148,6 +153,309 @@ export default async function handler(req, res) {
           slug: e.slug,
           createdAt: e.created_at,
           rsvps: rsvpCounts[e.id] || { total: 0, attending: 0, declined: 0, maybe: 0 }
+        }))
+      });
+    }
+
+    // ---- GET COMPREHENSIVE USER DETAIL ----
+    if (action === 'userDetail') {
+      const userId = req.query.userId;
+      if (!userId) return res.status(400).json({ error: 'userId required' });
+
+      // Fetch all data in parallel — only use tables/columns that actually exist
+      const [profileRes, eventsRes, subsRes, billingRes, generationsRes, smsRes, chatRes] = await Promise.all([
+        supabaseAdmin.from('profiles').select('*').eq('id', userId).single(),
+        supabaseAdmin.from('events').select('id, title, event_type, event_date, status, slug, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabaseAdmin.from('subscriptions').select('*, plans:plan_id (name, display_name, price_cents, max_events, max_generations)').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabaseAdmin.from('billing_history').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabaseAdmin.from('generation_log').select('id, event_id, model, input_tokens, output_tokens, prompt, status, latency_ms, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabaseAdmin.from('sms_messages').select('id, event_id, recipient_phone, recipient_name, message_type, status, cost_cents, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabaseAdmin.from('chat_messages').select('id, session_id, role, content, model, input_tokens, output_tokens, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(200)
+      ]);
+
+      const profile = profileRes.data;
+      if (!profile) return res.status(404).json({ error: 'User not found' });
+
+      const events = eventsRes.data || [];
+      const eventIds = events.map(e => e.id);
+
+      // Get RSVP counts + event themes in parallel
+      const [guestsResult, themesResult] = await Promise.all([
+        eventIds.length > 0
+          ? supabaseAdmin.from('guests').select('event_id, status').in('event_id', eventIds)
+          : Promise.resolve({ data: [] }),
+        eventIds.length > 0
+          ? supabaseAdmin.from('event_themes').select('id, event_id, version, is_active, model, input_tokens, output_tokens, latency_ms, created_at').in('event_id', eventIds).order('created_at', { ascending: false })
+          : Promise.resolve({ data: [] })
+      ]);
+
+      const rsvpCounts = {};
+      (guestsResult.data || []).forEach(g => {
+        if (!rsvpCounts[g.event_id]) rsvpCounts[g.event_id] = { total: 0, attending: 0, declined: 0, maybe: 0 };
+        rsvpCounts[g.event_id].total++;
+        if (g.status === 'attending') rsvpCounts[g.event_id].attending++;
+        else if (g.status === 'declined') rsvpCounts[g.event_id].declined++;
+        else if (g.status === 'maybe') rsvpCounts[g.event_id].maybe++;
+      });
+
+      // Track which events have active themes
+      const eventThemeMap = {};
+      (themesResult.data || []).forEach(t => {
+        if (!eventThemeMap[t.event_id]) eventThemeMap[t.event_id] = { hasTheme: false, versions: 0 };
+        eventThemeMap[t.event_id].versions++;
+        if (t.is_active) eventThemeMap[t.event_id].hasTheme = true;
+      });
+
+      // Cost calculations
+      const MODEL_PRICING = {
+        'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00 },
+        'claude-sonnet-4-6': { input: 3.00, output: 15.00 },
+        'claude-opus-4-6': { input: 15.00, output: 75.00 },
+      };
+
+      const markupRes = await supabaseAdmin.from('app_config').select('value').eq('key', 'cost_markup_pct').single();
+      const markupPct = parseFloat(markupRes.data?.value) || 100;
+      const markupMultiplier = 1 + markupPct / 100;
+
+      let totalAiCost = 0;
+      let chatAiCost = 0;
+      let themeAiCost = 0;
+      const costByEvent = {};
+
+      // generation_log: event_id=null means chat, event_id=X means theme generation
+      const allGenerations = generationsRes.data || [];
+      const chatGenerations = []; // chat AI calls (event_id is null)
+      const themeGenerations = []; // theme AI calls (event_id is set)
+
+      const generations = allGenerations.map(g => {
+        const pricing = MODEL_PRICING[g.model] || { input: 3.00, output: 15.00 };
+        const cost = ((g.input_tokens || 0) * pricing.input + (g.output_tokens || 0) * pricing.output) / 1_000_000;
+        totalAiCost += cost;
+        const isChat = !g.event_id;
+        if (isChat) {
+          chatAiCost += cost;
+          chatGenerations.push(g);
+        } else {
+          themeAiCost += cost;
+          themeGenerations.push(g);
+          if (!costByEvent[g.event_id]) costByEvent[g.event_id] = { aiCost: 0, smsCost: 0 };
+          costByEvent[g.event_id].aiCost += cost;
+        }
+        return {
+          id: g.id,
+          eventId: g.event_id,
+          model: g.model,
+          inputTokens: g.input_tokens,
+          outputTokens: g.output_tokens,
+          promptType: g.event_id ? 'theme' : 'chat',
+          cost,
+          latencyMs: g.latency_ms,
+          createdAt: g.created_at
+        };
+      });
+
+      // Also add event_themes generation costs (themes table tracks its own tokens)
+      (themesResult.data || []).forEach(t => {
+        if (t.input_tokens || t.output_tokens) {
+          const pricing = MODEL_PRICING[t.model] || { input: 3.00, output: 15.00 };
+          const themeCost = ((t.input_tokens || 0) * pricing.input + (t.output_tokens || 0) * pricing.output) / 1_000_000;
+          // Only add if not already counted via generation_log (avoid double-counting)
+          // Theme gen writes to BOTH event_themes AND generation_log, so skip this
+        }
+      });
+
+      // SMS costs by event
+      let totalSmsCost = 0;
+      const smsMessages = (smsRes.data || []).map(s => {
+        const costDollars = (s.cost_cents || 0) / 100;
+        totalSmsCost += costDollars;
+        if (s.event_id) {
+          if (!costByEvent[s.event_id]) costByEvent[s.event_id] = { aiCost: 0, smsCost: 0 };
+          costByEvent[s.event_id].smsCost += costDollars;
+        }
+        return {
+          id: s.id,
+          eventId: s.event_id,
+          recipientPhone: s.recipient_phone,
+          recipientName: s.recipient_name,
+          messageType: s.message_type,
+          status: s.status,
+          costCents: s.cost_cents,
+          createdAt: s.created_at
+        };
+      });
+
+      // Revenue from subscriptions
+      const subscriptions = (subsRes.data || []);
+      const totalRevenue = subscriptions.reduce((sum, s) => sum + (s.amount_paid_cents || 0), 0) / 100;
+      const totalDiscount = subscriptions.reduce((sum, s) => sum + (s.discount_cents || 0), 0) / 100;
+
+      // Stripe payment info (PCI compliant - only last4, brand, expiry)
+      let stripePayment = null;
+      if (profile.stripe_customer_id) {
+        try {
+          const stripeClient = getStripe();
+
+          // Fetch all payment method types: card, link, us_bank_account
+          const [cardMethods, linkMethods] = await Promise.all([
+            stripeClient.paymentMethods.list({ customer: profile.stripe_customer_id, type: 'card', limit: 5 }),
+            stripeClient.paymentMethods.list({ customer: profile.stripe_customer_id, type: 'link', limit: 5 })
+          ]);
+
+          const allMethods = [];
+
+          // Card payment methods
+          cardMethods.data.forEach(pm => {
+            allMethods.push({
+              id: pm.id,
+              type: 'card',
+              brand: pm.card.brand,
+              last4: pm.card.last4,
+              expMonth: pm.card.exp_month,
+              expYear: pm.card.exp_year
+            });
+          });
+
+          // Link payment methods
+          linkMethods.data.forEach(pm => {
+            allMethods.push({
+              id: pm.id,
+              type: 'link',
+              email: pm.link?.email || null
+            });
+          });
+
+          // Fetch recent charges to show last payment info regardless of saved methods
+          let lastCharge = null;
+          try {
+            const charges = await stripeClient.charges.list({
+              customer: profile.stripe_customer_id,
+              limit: 3
+            });
+            if (charges.data.length > 0) {
+              const c = charges.data[0];
+              lastCharge = {
+                id: c.id,
+                amount: c.amount,
+                currency: c.currency,
+                status: c.status,
+                created: c.created,
+                paymentMethodType: c.payment_method_details?.type || null,
+                cardBrand: c.payment_method_details?.card?.brand || null,
+                cardLast4: c.payment_method_details?.card?.last4 || null,
+                linkEmail: c.payment_method_details?.link?.email || null,
+                receiptUrl: c.receipt_url
+              };
+            }
+          } catch (e) { /* non-fatal */ }
+
+          stripePayment = {
+            customerId: profile.stripe_customer_id,
+            cards: allMethods.filter(m => m.type === 'card'),
+            paymentMethods: allMethods,
+            lastCharge
+          };
+        } catch (e) {
+          stripePayment = { customerId: profile.stripe_customer_id, cards: [], paymentMethods: [], lastCharge: null, error: 'Could not fetch from Stripe' };
+        }
+      }
+
+      // Billing history
+      const billing = (billingRes.data || []).map(b => ({
+        id: b.id,
+        amountCents: b.amount_cents,
+        status: b.status,
+        description: b.description,
+        receiptUrl: b.receipt_url,
+        stripePaymentIntentId: b.stripe_payment_intent_id,
+        createdAt: b.created_at
+      }));
+
+      const totalPlatformCost = totalAiCost + totalSmsCost;
+
+      return res.status(200).json({
+        success: true,
+        user: {
+          id: profile.id,
+          email: profile.email,
+          displayName: profile.display_name,
+          phone: profile.phone,
+          tier: profile.tier,
+          referralSource: profile.referral_source,
+          stripeCustomerId: profile.stripe_customer_id,
+          createdAt: profile.created_at,
+          updatedAt: profile.updated_at
+        },
+        financials: {
+          totalRevenue,
+          totalDiscount,
+          totalPlatformCost,
+          totalAiCost,
+          chatAiCost,
+          themeAiCost,
+          totalSmsCost,
+          smsSentCount: smsMessages.length,
+          generationCount: generations.length,
+          chatCount: chatGenerations.length,
+          themeCount: themeGenerations.length,
+          markupPct,
+          revenueAfterMarkup: totalAiCost * markupMultiplier,
+          netMargin: totalRevenue - totalPlatformCost,
+          costByEvent
+        },
+        events: events.map(e => ({
+          id: e.id,
+          title: e.title,
+          eventType: e.event_type,
+          eventDate: e.event_date,
+          status: e.status,
+          slug: e.slug,
+          createdAt: e.created_at,
+          hasTheme: !!(eventThemeMap[e.id] && eventThemeMap[e.id].hasTheme),
+          themeVersions: eventThemeMap[e.id] ? eventThemeMap[e.id].versions : 0,
+          rsvps: rsvpCounts[e.id] || { total: 0, attending: 0, declined: 0, maybe: 0 },
+          costs: costByEvent[e.id] || { aiCost: 0, smsCost: 0 }
+        })),
+        subscriptions: subscriptions.map(s => ({
+          id: s.id,
+          planName: s.plans?.display_name || s.plans?.name,
+          planPriceCents: s.plans?.price_cents,
+          maxEvents: s.plans?.max_events,
+          maxGenerations: s.plans?.max_generations,
+          status: s.status,
+          amountPaidCents: s.amount_paid_cents,
+          discountCents: s.discount_cents,
+          eventsUsed: s.events_used,
+          generationsUsed: s.generations_used,
+          couponId: s.coupon_id,
+          createdAt: s.created_at
+        })),
+        billing,
+        stripePayment,
+        generations,
+        smsMessages,
+        // Full chat conversation history from chat_messages table
+        chatHistory: (chatRes.data || []).map(c => ({
+          id: c.id,
+          sessionId: c.session_id,
+          role: c.role,
+          content: c.content,
+          model: c.model,
+          inputTokens: c.input_tokens,
+          outputTokens: c.output_tokens,
+          createdAt: c.created_at
+        })),
+        // Theme generation history from event_themes table
+        themeHistory: (themesResult.data || []).map(t => ({
+          id: t.id,
+          eventId: t.event_id,
+          version: t.version,
+          isActive: t.is_active,
+          model: t.model,
+          inputTokens: t.input_tokens,
+          outputTokens: t.output_tokens,
+          latencyMs: t.latency_ms,
+          createdAt: t.created_at
         }))
       });
     }
@@ -1451,6 +1759,330 @@ export default async function handler(req, res) {
           byModel: modelStats,
           byPrompt: pvStats
         }
+      });
+    }
+
+    // ---- LIST PLANS (admin) ----
+    if (action === 'listPlans') {
+      const { data: plans, error } = await supabaseAdmin
+        .from('plans')
+        .select('*')
+        .order('sort_order', { ascending: true });
+
+      if (error) return res.status(400).json({ error: error.message });
+
+      return res.status(200).json({
+        success: true,
+        plans: (plans || []).map(p => ({
+          id: p.id,
+          name: p.name,
+          displayName: p.display_name,
+          description: p.description,
+          priceCents: p.price_cents,
+          currency: p.currency,
+          stripePriceId: p.stripe_price_id,
+          stripeProductId: p.stripe_product_id,
+          maxEvents: p.max_events,
+          maxGenerations: p.max_generations,
+          maxSmsPerEvent: p.max_sms_per_event,
+          smsPriceCents: p.sms_price_cents,
+          billingType: p.billing_type || 'fixed',
+          aiMarkupPct: p.ai_markup_pct || 50,
+          smsBaseCostCents: p.sms_base_cost_cents || 3,
+          features: p.features,
+          isActive: p.is_active,
+          isHidden: p.is_hidden || false,
+          sortOrder: p.sort_order,
+          createdAt: p.created_at,
+          updatedAt: p.updated_at
+        }))
+      });
+    }
+
+    // ---- CREATE PLAN (admin) ----
+    if (action === 'createPlan') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { name, displayName, description, priceCents, maxEvents, maxGenerations, maxSmsPerEvent, smsPriceCents, features, sortOrder, createStripeProduct } = req.body;
+
+      if (!name || !displayName || priceCents === undefined) {
+        return res.status(400).json({ error: 'name, displayName, and priceCents are required' });
+      }
+
+      // Validate slug format
+      const slug = name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+
+      let stripeProductId = null;
+      let stripePriceId = null;
+
+      // Optionally create Stripe Product + Price
+      if (createStripeProduct && process.env.STRIPE_SECRET_KEY) {
+        try {
+          const stripeClient = getStripe();
+          const product = await stripeClient.products.create({
+            name: displayName,
+            description: description || undefined,
+            metadata: { ryvite_plan_slug: slug }
+          });
+          stripeProductId = product.id;
+
+          const price = await stripeClient.prices.create({
+            product: product.id,
+            unit_amount: priceCents,
+            currency: 'usd',
+            metadata: { ryvite_plan_slug: slug }
+          });
+          stripePriceId = price.id;
+        } catch (e) {
+          return res.status(400).json({ error: 'Stripe error: ' + e.message });
+        }
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from('plans')
+        .insert({
+          name: slug,
+          display_name: displayName,
+          description: description || null,
+          price_cents: priceCents,
+          max_events: maxEvents || 1,
+          max_generations: maxGenerations || 20,
+          max_sms_per_event: maxSmsPerEvent || null,
+          sms_price_cents: smsPriceCents || 10,
+          billing_type: req.body.billingType || 'fixed',
+          ai_markup_pct: req.body.aiMarkupPct || 50,
+          sms_base_cost_cents: req.body.smsBaseCostCents || 3,
+          features: features || [],
+          sort_order: sortOrder || 0,
+          stripe_product_id: stripeProductId,
+          stripe_price_id: stripePriceId,
+          is_active: true,
+          is_hidden: req.body.isHidden || false
+        })
+        .select()
+        .single();
+
+      if (error) return res.status(400).json({ error: error.message });
+
+      return res.status(200).json({ success: true, plan: data });
+    }
+
+    // ---- UPDATE PLAN (admin) ----
+    if (action === 'updatePlan') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { planId, ...updates } = req.body;
+      if (!planId) return res.status(400).json({ error: 'planId required' });
+
+      const dbUpdates = {};
+      if (updates.displayName !== undefined) dbUpdates.display_name = updates.displayName;
+      if (updates.description !== undefined) dbUpdates.description = updates.description;
+      if (updates.priceCents !== undefined) dbUpdates.price_cents = updates.priceCents;
+      if (updates.maxEvents !== undefined) dbUpdates.max_events = updates.maxEvents;
+      if (updates.maxGenerations !== undefined) dbUpdates.max_generations = updates.maxGenerations;
+      if (updates.maxSmsPerEvent !== undefined) dbUpdates.max_sms_per_event = updates.maxSmsPerEvent;
+      if (updates.smsPriceCents !== undefined) dbUpdates.sms_price_cents = updates.smsPriceCents;
+      if (updates.features !== undefined) dbUpdates.features = updates.features;
+      if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
+      if (updates.isHidden !== undefined) dbUpdates.is_hidden = updates.isHidden;
+      if (updates.billingType !== undefined) dbUpdates.billing_type = updates.billingType;
+      if (updates.aiMarkupPct !== undefined) dbUpdates.ai_markup_pct = updates.aiMarkupPct;
+      if (updates.smsBaseCostCents !== undefined) dbUpdates.sms_base_cost_cents = updates.smsBaseCostCents;
+      if (updates.sortOrder !== undefined) dbUpdates.sort_order = updates.sortOrder;
+      if (updates.stripePriceId !== undefined) dbUpdates.stripe_price_id = updates.stripePriceId;
+      if (updates.stripeProductId !== undefined) dbUpdates.stripe_product_id = updates.stripeProductId;
+
+      // If price changed and Stripe product exists, create a new Stripe Price
+      if (updates.priceCents !== undefined && updates.syncStripe && process.env.STRIPE_SECRET_KEY) {
+        try {
+          const stripeClient = getStripe();
+          const { data: plan } = await supabaseAdmin.from('plans').select('stripe_product_id, name').eq('id', planId).single();
+          if (plan?.stripe_product_id) {
+            const price = await stripeClient.prices.create({
+              product: plan.stripe_product_id,
+              unit_amount: updates.priceCents,
+              currency: 'usd',
+              metadata: { ryvite_plan_slug: plan.name }
+            });
+            dbUpdates.stripe_price_id = price.id;
+          }
+        } catch (e) {
+          return res.status(400).json({ error: 'Stripe price update error: ' + e.message });
+        }
+      }
+
+      const { error } = await supabaseAdmin
+        .from('plans')
+        .update(dbUpdates)
+        .eq('id', planId);
+
+      if (error) return res.status(400).json({ error: error.message });
+
+      return res.status(200).json({ success: true });
+    }
+
+    // ---- DELETE PLAN (soft delete) ----
+    if (action === 'deletePlan') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { planId } = req.body;
+      if (!planId) return res.status(400).json({ error: 'planId required' });
+
+      // Check no active subscriptions use this plan
+      const { count } = await supabaseAdmin
+        .from('subscriptions')
+        .select('id', { count: 'exact', head: true })
+        .eq('plan_id', planId)
+        .eq('status', 'active');
+
+      if (count > 0) {
+        return res.status(400).json({ error: `Cannot delete — ${count} active subscription(s) use this plan. Deactivate them first.` });
+      }
+
+      const { error } = await supabaseAdmin
+        .from('plans')
+        .update({ is_active: false })
+        .eq('id', planId);
+
+      if (error) return res.status(400).json({ error: error.message });
+
+      return res.status(200).json({ success: true });
+    }
+
+    // ---- UPDATE USER PROFILE (admin) ----
+    if (action === 'updateUser') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { userId, fields } = req.body;
+      if (!userId || !fields || typeof fields !== 'object') {
+        return res.status(400).json({ error: 'userId and fields object required' });
+      }
+
+      // Only allow safe, non-ID fields to be edited
+      const ALLOWED_FIELDS = ['display_name', 'phone', 'tier', 'referral_source'];
+      const updateData = {};
+      for (const [key, value] of Object.entries(fields)) {
+        if (ALLOWED_FIELDS.includes(key)) {
+          updateData[key] = value;
+        }
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update. Allowed: ' + ALLOWED_FIELDS.join(', ') });
+      }
+
+      // If tier is changing, validate it matches a real plan and sync Stripe
+      let tierSyncResult = null;
+      if (updateData.tier) {
+        const newTier = updateData.tier;
+
+        // 'free' is always valid (no plan needed)
+        if (newTier !== 'free') {
+          const { data: plan } = await supabaseAdmin
+            .from('plans')
+            .select('id, name, display_name, stripe_price_id, stripe_product_id, price_cents')
+            .eq('name', newTier)
+            .eq('is_active', true)
+            .single();
+
+          if (!plan) {
+            return res.status(400).json({ error: 'Invalid tier: no active plan named "' + newTier + '"' });
+          }
+
+          // Get user profile for Stripe customer ID
+          const { data: profile } = await supabaseAdmin
+            .from('profiles')
+            .select('stripe_customer_id, tier')
+            .eq('id', userId)
+            .single();
+
+          // Create/update subscription record in DB
+          // Cancel any existing active subscriptions first
+          await supabaseAdmin
+            .from('subscriptions')
+            .update({ status: 'cancelled' })
+            .eq('user_id', userId)
+            .eq('status', 'active');
+
+          // Create new admin-granted subscription (amount_paid = 0 since admin is assigning)
+          const { error: subError } = await supabaseAdmin
+            .from('subscriptions')
+            .insert({
+              user_id: userId,
+              plan_id: plan.id,
+              status: 'active',
+              amount_paid_cents: 0,
+              discount_cents: 0,
+              events_used: 0,
+              generations_used: 0,
+              stripe_customer_id: profile?.stripe_customer_id || null
+            });
+
+          if (subError) {
+            return res.status(400).json({ error: 'Failed to create subscription: ' + subError.message });
+          }
+
+          // Sync to Stripe metadata if customer exists
+          if (profile?.stripe_customer_id && process.env.STRIPE_SECRET_KEY) {
+            try {
+              const stripeClient = getStripe();
+              await stripeClient.customers.update(profile.stripe_customer_id, {
+                metadata: {
+                  ryvite_tier: newTier,
+                  ryvite_plan_name: plan.display_name,
+                  tier_updated_by: 'admin',
+                  tier_updated_at: new Date().toISOString()
+                }
+              });
+              tierSyncResult = { stripeSync: true, planName: plan.display_name };
+            } catch (e) {
+              tierSyncResult = { stripeSync: false, error: e.message };
+            }
+          }
+        } else {
+          // Switching to free — cancel active subscriptions
+          await supabaseAdmin
+            .from('subscriptions')
+            .update({ status: 'cancelled' })
+            .eq('user_id', userId)
+            .eq('status', 'active');
+
+          // Update Stripe metadata
+          const { data: profile } = await supabaseAdmin
+            .from('profiles')
+            .select('stripe_customer_id')
+            .eq('id', userId)
+            .single();
+
+          if (profile?.stripe_customer_id && process.env.STRIPE_SECRET_KEY) {
+            try {
+              const stripeClient = getStripe();
+              await stripeClient.customers.update(profile.stripe_customer_id, {
+                metadata: {
+                  ryvite_tier: 'free',
+                  ryvite_plan_name: 'Free',
+                  tier_updated_by: 'admin',
+                  tier_updated_at: new Date().toISOString()
+                }
+              });
+            } catch (e) { /* non-fatal */ }
+          }
+        }
+      }
+
+      updateData.updated_at = new Date().toISOString();
+
+      const { error } = await supabaseAdmin
+        .from('profiles')
+        .update(updateData)
+        .eq('id', userId);
+
+      if (error) return res.status(400).json({ error: error.message });
+
+      return res.status(200).json({
+        success: true,
+        updated: Object.keys(updateData).filter(k => k !== 'updated_at'),
+        tierSync: tierSyncResult
       });
     }
 

@@ -205,12 +205,14 @@ Return a JSON object with exactly these keys:
 1. **THEMATIC HEADER** — An animated or illustrated element specific to this event type.
 2. **HERO SECTION** — Large display headline with event title/names/tagline.
 3. **EVENT DETAILS** — Icon + text layout for date, time, location.
-4. **RSVP SECTION** — \`<div class="rsvp-slot"><button class="rsvp-button">...</button></div>\`. The rsvp-slot MUST contain ONLY the button.
+4. **RSVP SECTION** — \`<div class="rsvp-slot"><button class="rsvp-button">...</button></div>\`. The rsvp-slot MUST contain ONLY the button. Make the button text fun and on-theme but NEVER use commitment words like "I'm Coming", "Count Me In", "I'll Be There", "RSVP Yes", "Sign Me Up". The RSVP status is handled by the form — the button just opens it. Use neutral action phrases like "Let's Party!", "RSVP Now!", "Open the Invite!", "Get the Details!" instead.
 
 ## RSVP BUTTON — CRITICAL PLATFORM RULES
-- Full-width (width: 100% or min 280px), min-height: 56px, generous padding (16px 32px)
+- Full-width (width: 100% or min 280px), min-height: 56px, MAX-HEIGHT: 72px — NEVER taller than 72px. Normal button, NOT a giant vertical element.
 - Centered text via flexbox, 16-18px bold, appearance:none, explicit styling
 - NEVER put form inputs/selects/labels inside \`.rsvp-slot\` — ONLY the button
+- The RSVP button must NOT overlap or cover other content. Must sit naturally in page flow, NOT position:absolute or position:fixed.
+- RSVP fields and buttons MUST ALWAYS be single-column (stacked vertically, full-width). NEVER use two-column grid, flex-row, or side-by-side layouts for form fields or the RSVP button — the platform injects form fields that break when laid out in columns on mobile. This is a 393px viewport.
 
 ## RSVP FORM LAYOUT — CRITICAL (platform injects form at runtime)
 - The platform replaces the \`.rsvp-slot\` contents with form fields (name, status, custom fields) + the button
@@ -231,6 +233,7 @@ Return a JSON object with exactly these keys:
 
 ## THANK YOU PAGE (theme_thankyou_html)
 Provide ONLY .thankyou-page > .thankyou-hero. NO calendar buttons, NO footer. Include \`<span class="thankyou-guest">Guest</span>\` in subtitle.
+**BRANDED BACKGROUND — CRITICAL**: Use the SAME background (color, gradient, pattern, texture) and fonts as the invite. The thank-you page must feel like a cohesive continuation of the invite design, NOT a plain white page. Carry over decorative elements (subtle SVG ornaments, floating particles, gradients) for a polished experience.
 
 ## TEXT CONTRAST — CRITICAL, NEVER VIOLATE
 - EVERY piece of text must have sufficient contrast against its background (WCAG AA minimum)

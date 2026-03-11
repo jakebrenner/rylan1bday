@@ -279,6 +279,78 @@
     .score-bar { display: inline-block; height: 8px; border-radius: 4px; background: var(--mint-fizz); vertical-align: middle; margin-left: 8px; }
     .score-stars { color: #f59e0b; font-size: 13px; letter-spacing: -1px; }
 
+    /* User Detail View */
+    .ud-header { display: flex; gap: 24px; align-items: flex-start; margin-bottom: 24px; }
+    .ud-avatar { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, var(--party-coral), var(--party-purple)); display: flex; align-items: center; justify-content: center; color: white; font-size: 28px; font-weight: 700; font-family: 'Playfair Display', serif; flex-shrink: 0; }
+    .ud-info { flex: 1; }
+    .ud-info h2 { font-family: 'Playfair Display', serif; font-size: 24px; margin-bottom: 4px; }
+    .ud-info .ud-meta { font-size: 13px; color: #888; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 6px; }
+    .ud-info .ud-meta .sep { color: #ddd; }
+    .ud-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: flex-start; }
+
+    .ud-nav { display: flex; gap: 4px; margin-bottom: 24px; background: white; border-radius: 8px; padding: 4px; border: 1px solid #eee; flex-wrap: wrap; }
+    .ud-nav-btn { padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; color: #888; background: transparent; border: none; font-family: 'Inter', sans-serif; white-space: nowrap; }
+    .ud-nav-btn.active { background: var(--midnight); color: white; }
+    .ud-nav-btn:hover:not(.active) { background: #f0f0f0; color: var(--midnight); }
+    .ud-section { display: none; }
+    .ud-section.active { display: block; }
+
+    .ud-kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .ud-kpi { background: white; border-radius: 8px; padding: 16px; border: 1px solid #eee; }
+    .ud-kpi .kpi-val { font-size: 24px; font-weight: 700; color: var(--midnight); }
+    .ud-kpi .kpi-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    .ud-kpi.positive .kpi-val { color: var(--mint-fizz); }
+    .ud-kpi.negative .kpi-val { color: var(--party-coral); }
+    .ud-kpi.gold .kpi-val { color: var(--confetti-gold); }
+
+    .ud-card { background: white; border-radius: 8px; border: 1px solid #eee; margin-bottom: 16px; overflow: hidden; }
+    .ud-card-header { padding: 14px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .ud-card-header h4 { font-size: 14px; font-weight: 600; }
+    .ud-card-body { padding: 16px 20px; }
+    .ud-card-body.no-pad { padding: 0; }
+
+    .ud-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .ud-detail-item { }
+    .ud-detail-item .lbl { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .ud-detail-item .val { font-size: 14px; font-weight: 500; color: var(--midnight); word-break: break-all; }
+    .ud-edit-field input,
+    .ud-edit-field select { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 14px; color: var(--midnight); background: white; box-sizing: border-box; }
+    .ud-edit-field input:focus,
+    .ud-edit-field select:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+    .ud-edit-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee; }
+
+    .ud-cost-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: #f0f0f0; margin: 8px 0; }
+    .ud-cost-bar .bar-segment { height: 100%; transition: width 0.3s; }
+
+    .ud-chat-msg { padding: 10px 14px; margin-bottom: 8px; border-radius: 8px; font-size: 13px; line-height: 1.5; }
+    .ud-chat-msg.user { background: #f0f0f0; margin-left: 24px; }
+    .ud-chat-msg.assistant { background: #eef6ff; margin-right: 24px; }
+    .ud-chat-msg .msg-meta { font-size: 10px; color: #888; margin-top: 4px; }
+
+    .ud-timeline { position: relative; padding-left: 20px; }
+    .ud-timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: #eee; }
+    .ud-timeline-item { position: relative; padding-bottom: 16px; }
+    .ud-timeline-item::before { content: ''; position: absolute; left: -17px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--party-coral); border: 2px solid white; box-shadow: 0 0 0 2px #eee; }
+    .ud-timeline-item.success::before { background: var(--mint-fizz); }
+    .ud-timeline-item .tl-date { font-size: 11px; color: #888; }
+    .ud-timeline-item .tl-desc { font-size: 13px; font-weight: 500; color: var(--midnight); }
+    .ud-timeline-item .tl-detail { font-size: 12px; color: #888; margin-top: 2px; }
+
+    .ud-stripe-card { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f9f9f9; border-radius: 8px; margin-bottom: 8px; }
+    .ud-stripe-card .card-icon { font-size: 24px; }
+    .ud-stripe-card .card-info { flex: 1; }
+    .ud-stripe-card .card-num { font-size: 14px; font-weight: 600; font-family: monospace; }
+    .ud-stripe-card .card-exp { font-size: 12px; color: #888; }
+    .ud-stripe-card .card-default { font-size: 10px; font-weight: 600; color: var(--mint-fizz); text-transform: uppercase; }
+
+    .ud-empty { text-align: center; padding: 40px 20px; color: #888; font-size: 13px; }
+
+    @media (max-width: 768px) {
+      .ud-header { flex-direction: column; gap: 12px; }
+      .ud-detail-grid { grid-template-columns: 1fr; }
+      .ud-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
     .loading { text-align: center; padding: 60px 20px; color: #888; }
     .access-denied { text-align: center; padding: 80px 20px; }
     .access-denied h2 { font-family: 'Playfair Display', serif; margin-bottom: 12px; }
@@ -309,7 +381,7 @@
     <div class="tabs">
       <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
       <button class="tab" data-tab="users" onclick="switchTab('users')">Users</button>
-      <button class="tab" data-tab="subscriptions" onclick="switchTab('subscriptions');loadSubscriptions();">Billing</button>
+      <button class="tab" data-tab="subscriptions" onclick="switchTab('subscriptions');loadBillingTab();">Billing</button>
       <button class="tab" data-tab="coupons" onclick="switchTab('coupons');loadCoupons();">Coupons</button>
       <button class="tab" data-tab="settings" onclick="switchTab('settings')">AI Models</button>
       <button class="tab" data-tab="promptversions" onclick="switchTab('promptversions')">Prompt Versions</button>
@@ -405,40 +477,311 @@
         </div>
       </div>
 
-      <!-- User Detail View -->
+      <!-- Comprehensive User Detail View -->
       <div id="userDetailView" style="display:none;">
         <div class="back-link" onclick="backToUsers()">&#8592; Back to all users</div>
-        <div class="config-section" style="margin-bottom:16px;">
-          <h3 id="detailUserName">User</h3>
-          <div style="font-size:13px;color:#888;" id="detailUserMeta"></div>
-        </div>
-        <div class="table-container">
-          <div class="table-header">
-            <h3>Events</h3>
-            <span class="count" id="userEventCount">0 events</span>
+
+        <!-- User Header -->
+        <div class="ud-header">
+          <div class="ud-avatar" id="udAvatar">?</div>
+          <div class="ud-info">
+            <h2 id="udName">Loading...</h2>
+            <div class="ud-meta" id="udMeta"></div>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Type</th>
-                <th>Date</th>
-                <th>Status</th>
-                <th>RSVPs</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="userEventsBody">
-              <tr><td colspan="6" class="loading">Loading events...</td></tr>
-            </tbody>
-          </table>
+          <div class="ud-actions">
+            <button class="btn btn-secondary btn-sm" id="udStripeLink" style="display:none;" onclick="openStripeCustomer()">View in Stripe</button>
+          </div>
+        </div>
+
+        <!-- Sub-navigation -->
+        <div class="ud-nav">
+          <button class="ud-nav-btn active" data-section="overview" onclick="switchUserSection('overview')">Overview</button>
+          <button class="ud-nav-btn" data-section="financials" onclick="switchUserSection('financials')">Financials</button>
+          <button class="ud-nav-btn" data-section="events" onclick="switchUserSection('events')">Events</button>
+          <button class="ud-nav-btn" data-section="billing" onclick="switchUserSection('billing')">Billing &amp; Payments</button>
+          <button class="ud-nav-btn" data-section="activity" onclick="switchUserSection('activity')">AI &amp; Activity</button>
+          <button class="ud-nav-btn" data-section="profile" onclick="switchUserSection('profile')">Profile</button>
+        </div>
+
+        <!-- Overview Section -->
+        <div class="ud-section active" id="ud-overview">
+          <div class="ud-kpi-grid" id="udKpiGrid"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Recent Events</h4></div>
+              <div class="ud-card-body no-pad">
+                <table style="font-size:13px;">
+                  <thead><tr><th>Event</th><th>Status</th><th>RSVPs</th></tr></thead>
+                  <tbody id="udRecentEvents"><tr><td colspan="3" class="ud-empty">Loading...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Recent Payments</h4></div>
+              <div class="ud-card-body no-pad">
+                <table style="font-size:13px;">
+                  <thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+                  <tbody id="udRecentBilling"><tr><td colspan="3" class="ud-empty">Loading...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Financials Section -->
+        <div class="ud-section" id="ud-financials">
+          <div class="ud-kpi-grid" id="udFinKpis"></div>
+          <div class="ud-card">
+            <div class="ud-card-header"><h4>Cost Breakdown</h4><span class="count" id="udCostBreakdownLabel"></span></div>
+            <div class="ud-card-body">
+              <div id="udCostBreakdown"></div>
+            </div>
+          </div>
+          <div class="ud-card">
+            <div class="ud-card-header"><h4>Revenue vs. Cost by Event</h4></div>
+            <div class="ud-card-body no-pad">
+              <table style="font-size:13px;">
+                <thead><tr><th>Event</th><th>AI Cost</th><th>SMS Cost</th><th>Total Cost</th><th>Revenue Share</th></tr></thead>
+                <tbody id="udEventCosts"><tr><td colspan="5" class="ud-empty">No events</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Events Section -->
+        <div class="ud-section" id="ud-events">
+          <div class="ud-card">
+            <div class="ud-card-header"><h4>All Events</h4><span class="count" id="udEventCount">0 events</span></div>
+            <div class="ud-card-body no-pad">
+              <table style="font-size:13px;">
+                <thead><tr><th>Title</th><th>Type</th><th>Date</th><th>Status</th><th>RSVPs</th><th>Costs</th><th></th></tr></thead>
+                <tbody id="udEventsBody"><tr><td colspan="7" class="ud-empty">Loading...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Billing & Payments Section -->
+        <div class="ud-section" id="ud-billing">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Payment Method</h4></div>
+              <div class="ud-card-body" id="udPaymentMethod">
+                <div class="ud-empty">No payment method on file</div>
+              </div>
+            </div>
+            <div class="ud-card">
+              <div class="ud-card-header" style="display:flex;justify-content:space-between;align-items:center;"><h4>Subscription</h4><button class="btn btn-secondary btn-sm" id="udChangePlanBtn" onclick="showChangePlanUI()">Change Plan</button></div>
+              <div class="ud-card-body" id="udSubscription">
+                <div class="ud-empty">No active subscription</div>
+              </div>
+            </div>
+          </div>
+          <div class="ud-card">
+            <div class="ud-card-header"><h4>Subscription History</h4></div>
+            <div class="ud-card-body no-pad">
+              <table style="font-size:13px;">
+                <thead><tr><th>Plan</th><th>Amount Paid</th><th>Discount</th><th>Events Used</th><th>Generations</th><th>Status</th><th>Date</th></tr></thead>
+                <tbody id="udSubHistory"><tr><td colspan="7" class="ud-empty">No history</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="ud-card">
+            <div class="ud-card-header"><h4>Billing History</h4></div>
+            <div class="ud-card-body no-pad">
+              <table style="font-size:13px;">
+                <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+                <tbody id="udBillingHistory"><tr><td colspan="5" class="ud-empty">No billing records</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI & Activity Section -->
+        <div class="ud-section" id="ud-activity">
+          <div class="ud-kpi-grid" id="udActivityKpis"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>All AI Generations</h4><span class="count" id="udGenCount">0</span></div>
+              <div class="ud-card-body no-pad" style="max-height:500px;overflow-y:auto;">
+                <table style="font-size:12px;">
+                  <thead><tr><th>Date</th><th>Model</th><th>Type</th><th>Tokens (In/Out)</th><th>Latency</th><th>Cost</th></tr></thead>
+                  <tbody id="udGenerations"><tr><td colspan="6" class="ud-empty">No generations</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Chat History</h4><span class="count" id="udChatCount">0</span></div>
+              <div class="ud-card-body" id="udChatHistory" style="max-height:500px;overflow-y:auto;">
+                <div class="ud-empty">No chat messages</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Theme Generations</h4><span class="count" id="udThemeCount">0</span></div>
+              <div class="ud-card-body no-pad" style="max-height:400px;overflow-y:auto;">
+                <table style="font-size:12px;">
+                  <thead><tr><th>Date</th><th>Event</th><th>Version</th><th>Model</th><th>Tokens</th><th>Active</th></tr></thead>
+                  <tbody id="udThemeHistory"><tr><td colspan="6" class="ud-empty">No theme generations</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>SMS Messages</h4><span class="count" id="udSmsCount">0</span></div>
+              <div class="ud-card-body no-pad" style="max-height:400px;overflow-y:auto;">
+                <table style="font-size:12px;">
+                  <thead><tr><th>Date</th><th>Recipient</th><th>Type</th><th>Status</th><th>Cost</th></tr></thead>
+                  <tbody id="udSmsMessages"><tr><td colspan="5" class="ud-empty">No SMS sent</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Profile Section -->
+        <div class="ud-section" id="ud-profile">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="ud-card">
+              <div class="ud-card-header" style="display:flex;justify-content:space-between;align-items:center;"><h4>Customer Info</h4><button class="btn btn-secondary btn-sm" id="udProfileEditBtn" onclick="toggleProfileEdit()">Edit</button></div>
+              <div class="ud-card-body">
+                <div class="ud-detail-grid" id="udProfileInfo"></div>
+              </div>
+            </div>
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Account Details</h4></div>
+              <div class="ud-card-body">
+                <div class="ud-detail-grid" id="udAccountInfo"></div>
+              </div>
+            </div>
+          </div>
+          <div class="ud-card">
+            <div class="ud-card-header"><h4>Activity Timeline</h4></div>
+            <div class="ud-card-body">
+              <div class="ud-timeline" id="udTimeline">
+                <div class="ud-empty">Loading timeline...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Plan Modal (create/edit) -->
+    <div id="planModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
+      <div style="background:white;border-radius:12px;padding:32px;max-width:560px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+        <h3 id="planModalTitle" style="margin-bottom:20px;">Create New Tier</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="config-field">
+            <label>Plan Slug (unique ID)</label>
+            <input type="text" id="planSlug" placeholder="e.g. per_event" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" />
+            <div class="hint">Lowercase, underscores only. Cannot change later.</div>
+          </div>
+          <div class="config-field">
+            <label>Display Name</label>
+            <input type="text" id="planDisplayName" placeholder="e.g. Per Event" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" />
+          </div>
+          <div class="config-field" style="grid-column:1/-1;">
+            <label>Description</label>
+            <input type="text" id="planDescription" placeholder="Short description" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" />
+          </div>
+          <div class="config-field">
+            <label>Price (cents)</label>
+            <input type="number" id="planPriceCents" placeholder="699" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" />
+            <div class="hint">699 = $6.99</div>
+          </div>
+          <div class="config-field">
+            <label>Sort Order</label>
+            <input type="number" id="planSortOrder" value="0" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" />
+          </div>
+          <div class="config-field">
+            <label>Max Events</label>
+            <input type="number" id="planMaxEvents" placeholder="1" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" />
+            <div class="hint">Events included in this tier</div>
+          </div>
+          <div class="config-field">
+            <label>Max Generations / Event</label>
+            <input type="number" id="planMaxGenerations" placeholder="20" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" />
+          </div>
+          <div class="config-field">
+            <label>Max SMS / Event</label>
+            <input type="number" id="planMaxSms" placeholder="Unlimited" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" />
+            <div class="hint">Leave empty for unlimited</div>
+          </div>
+          <div class="config-field">
+            <label>SMS Price (cents/msg)</label>
+            <input type="number" id="planSmsPriceCents" placeholder="10" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" />
+            <div class="hint">10 = $0.10 per SMS</div>
+          </div>
+          <div class="config-field" style="grid-column:1/-1;">
+            <label>Features (one per line)</label>
+            <textarea id="planFeatures" rows="4" placeholder="AI-designed invite&#10;Unlimited RSVPs&#10;Guest tracking" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;resize:vertical;"></textarea>
+          </div>
+          <div class="config-field">
+            <label>Billing Type</label>
+            <select id="planBillingType" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" onchange="toggleUsageFields()">
+              <option value="fixed">Fixed Price</option>
+              <option value="usage">Usage-Based (Cost + Markup)</option>
+            </select>
+            <div class="hint">Usage plans bill for actual AI + SMS costs with markup</div>
+          </div>
+          <div class="config-field" id="aiMarkupField" style="display:none;">
+            <label>AI Markup %</label>
+            <input type="number" id="planAiMarkupPct" placeholder="50" value="50" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" />
+            <div class="hint">50 = charge 1.5x the raw API cost</div>
+          </div>
+          <div class="config-field" id="smsBaseCostField" style="display:none;">
+            <label>SMS Base Cost (cents)</label>
+            <input type="number" id="planSmsBaseCost" placeholder="3" value="3" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" />
+            <div class="hint">Actual provider cost per SMS (e.g., 3 = $0.03)</div>
+          </div>
+          <div class="config-field" style="grid-column:1/-1;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="planHidden" style="width:16px;height:16px;" />
+              Hidden plan (only accessible via custom link)
+            </label>
+            <div class="hint">Won't appear on the public pricing page. Users sign up via a generated link.</div>
+          </div>
+          <div class="config-field" style="grid-column:1/-1;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="planCreateStripe" checked style="width:16px;height:16px;" />
+              Create Stripe Product &amp; Price automatically
+            </label>
+            <div class="hint">Creates a linked product in your Stripe account</div>
+          </div>
+          <div class="config-field">
+            <label>Stripe Product ID (optional)</label>
+            <input type="text" id="planStripeProductId" placeholder="prod_..." style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" />
+            <div class="hint">Leave empty to auto-create</div>
+          </div>
+          <div class="config-field">
+            <label>Stripe Price ID (optional)</label>
+            <input type="text" id="planStripePriceId" placeholder="price_..." style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;" />
+            <div class="hint">Leave empty to auto-create</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:24px;padding-top:16px;border-top:1px solid #eee;">
+          <button class="btn btn-secondary" onclick="closePlanModal()">Cancel</button>
+          <button class="btn btn-primary" id="planSaveBtn" onclick="savePlan()">Create Tier</button>
         </div>
       </div>
     </div>
 
-    <!-- Subscriptions / Billing Tab -->
+    <!-- Billing Tab (Subscriptions + Pricing Tiers combined) -->
     <div class="tab-content" id="tab-subscriptions">
-      <div class="table-container">
+      <!-- Pricing Tiers Section -->
+      <div class="config-section" style="margin-bottom:24px;">
+        <h3 style="display:flex;justify-content:space-between;align-items:center;">
+          Pricing Tiers
+          <button class="btn btn-primary btn-sm" onclick="showCreatePlanModal()">+ New Tier</button>
+        </h3>
+        <p style="font-size:13px;color:#888;margin-bottom:16px;">Manage pricing plans and their limits. Changes sync to Stripe automatically.</p>
+        <div id="pricingTiersList"></div>
+      </div>
+
+      <!-- Subscriptions Table -->
+      <div class="table-container" style="margin-bottom:24px;">
         <div class="table-header">
           <h3>All Subscriptions</h3>
           <span class="count" id="subCount">0</span>
@@ -459,12 +802,12 @@
             </tr>
           </thead>
           <tbody id="subsTableBody">
-            <tr><td colspan="10" class="loading">Click the Billing tab to load...</td></tr>
+            <tr><td colspan="10" class="loading">Loading...</td></tr>
           </tbody>
         </table>
       </div>
 
-      <div class="config-section" style="margin-top:24px;">
+      <div class="config-section">
         <h3>Grant Complimentary Plan</h3>
         <p style="font-size:13px;color:#888;margin-bottom:16px;">Give a user a free plan. Select the user email and plan.</p>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -1182,6 +1525,8 @@
         loadConfig();
         loadAdmins();
         loadStyleLibrary();
+        // Preload plans for tier dropdowns
+        adminFetch('listPlans').then(function(r) { allPlans = (r && r.plans) || []; }).catch(function() {});
       } catch (err) {
         var denied = document.getElementById('accessDenied');
         if (err.message && err.message.indexOf('Server error') !== -1) {
@@ -1306,8 +1651,8 @@
       tbody.innerHTML = allUsers.map(function(u) {
         var tierClass = u.tier === 'pro' ? 'badge-blue' : u.tier === 'business' ? 'badge-green' : 'badge-gray';
         return '<tr>'
-          + '<td><div class="user-email">' + escapeHtml(u.email) + '</div>'
-          + (u.displayName ? '<div class="user-name">' + escapeHtml(u.displayName) + '</div>' : '') + '</td>'
+          + '<td><div class="user-email clickable" onclick="viewUser(\'' + u.id + '\')">' + escapeHtml(u.email) + '</div>'
+          + (u.displayName ? '<div class="user-name clickable" onclick="viewUser(\'' + u.id + '\')" style="cursor:pointer;">' + escapeHtml(u.displayName) + '</div>' : '') + '</td>'
           + '<td><span class="badge ' + tierClass + '">' + escapeHtml(u.tier) + '</span></td>'
           + '<td>' + u.events.total + '</td>'
           + '<td>' + u.events.published + '</td>'
@@ -1317,50 +1662,631 @@
       }).join('');
     }
 
+    // Current user detail data
+    var currentUserDetail = null;
+
+    function switchUserSection(section) {
+      document.querySelectorAll('.ud-nav-btn').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-section') === section); });
+      document.querySelectorAll('.ud-section').forEach(function(s) { s.classList.toggle('active', s.id === 'ud-' + section); });
+    }
+
+    function getInitials(name, email) {
+      if (name) {
+        var parts = name.split(' ');
+        return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+      }
+      return email ? email[0].toUpperCase() : '?';
+    }
+
+    function shortModel(model) {
+      if (!model) return '?';
+      if (model.indexOf('haiku') !== -1) return 'Haiku';
+      if (model.indexOf('sonnet') !== -1) return 'Sonnet';
+      if (model.indexOf('opus') !== -1) return 'Opus';
+      return escapeHtml(model.substring(0, 20));
+    }
+
+    function cardBrandIcon(brand) {
+      var icons = { visa: '\u{1F4B3}', mastercard: '\u{1F4B3}', amex: '\u{1F4B3}', discover: '\u{1F4B3}' };
+      return icons[brand] || '\u{1F4B3}';
+    }
+
+    function openStripeCustomer() {
+      if (currentUserDetail && currentUserDetail.user.stripeCustomerId) {
+        window.open('https://dashboard.stripe.com/customers/' + currentUserDetail.user.stripeCustomerId, '_blank');
+      }
+    }
+
     async function viewUser(userId) {
       var u = allUsers.find(function(x) { return x.id === userId; });
       if (!u) return;
 
       document.getElementById('usersListView').style.display = 'none';
       document.getElementById('userDetailView').style.display = 'block';
-      document.getElementById('detailUserName').textContent = u.displayName || u.email;
-      document.getElementById('detailUserMeta').textContent = u.email + ' \u00B7 ' + u.tier + ' \u00B7 Joined ' + formatDate(u.createdAt);
 
+      // Set initial header from cached user list data
+      document.getElementById('udAvatar').textContent = getInitials(u.displayName, u.email);
+      document.getElementById('udName').textContent = u.displayName || u.email;
+      document.getElementById('udMeta').innerHTML =
+        '<span>' + escapeHtml(u.email) + '</span><span class="sep">|</span>'
+        + '<span class="badge ' + (u.tier === 'free' ? 'badge-gray' : 'badge-blue') + '">' + escapeHtml(u.tier) + '</span>'
+        + '<span class="sep">|</span><span>Joined ' + formatDate(u.createdAt) + '</span>';
+
+      // Reset to overview section
+      switchUserSection('overview');
+
+      // Load full detail
       try {
-        var res = await adminFetch('userEvents', { params: { userId: userId } });
-        var events = res.events || [];
-        document.getElementById('userEventCount').textContent = events.length + ' events';
-        var tbody = document.getElementById('userEventsBody');
+        var res = await adminFetch('userDetail', { params: { userId: userId } });
+        if (!res.success) throw new Error(res.error || 'Failed to load');
+        currentUserDetail = res;
+        renderUserDetail(res);
+      } catch (err) {
+        document.getElementById('udKpiGrid').innerHTML = '<div class="ud-empty" style="color:var(--party-coral);">Failed to load user details: ' + escapeHtml(err.message) + '</div>';
+      }
+    }
 
-        if (events.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="color:#888;">No events</td></tr>';
-          return;
-        }
+    function renderUserDetail(data) {
+      var u = data.user;
+      var f = data.financials;
 
-        tbody.innerHTML = events.map(function(e) {
-          var statusClass = e.status === 'published' ? 'badge-green' : e.status === 'draft' ? 'badge-yellow' : 'badge-gray';
+      // Update header
+      document.getElementById('udAvatar').textContent = getInitials(u.displayName, u.email);
+      document.getElementById('udName').textContent = u.displayName || u.email;
+      var tierClass = u.tier === 'pro' ? 'badge-blue' : u.tier === 'business' ? 'badge-green' : 'badge-gray';
+      document.getElementById('udMeta').innerHTML =
+        '<span>' + escapeHtml(u.email) + '</span><span class="sep">|</span>'
+        + '<span class="badge ' + tierClass + '">' + escapeHtml(u.tier) + '</span>'
+        + '<span class="sep">|</span><span>Joined ' + formatDate(u.createdAt) + '</span>'
+        + (u.phone ? '<span class="sep">|</span><span>' + escapeHtml(u.phone) + '</span>' : '');
+
+      // Stripe link
+      if (u.stripeCustomerId) {
+        document.getElementById('udStripeLink').style.display = 'inline-block';
+      } else {
+        document.getElementById('udStripeLink').style.display = 'none';
+      }
+
+      // ---- Overview KPIs ----
+      var netMargin = f.netMargin;
+      document.getElementById('udKpiGrid').innerHTML =
+        kpiCard(fmtCost(f.totalRevenue), 'Total Revenue', 'positive')
+        + kpiCard(fmtCost(f.totalPlatformCost), 'Total Platform Cost', '')
+        + kpiCard(fmtCost(netMargin), 'Net Margin', netMargin >= 0 ? 'positive' : 'negative')
+        + kpiCard(data.events.length, 'Events', '')
+        + kpiCard(f.generationCount, 'AI Generations', '')
+        + kpiCard(f.smsSentCount, 'SMS Sent', '');
+
+      // Recent events (top 5)
+      var recentEvents = data.events.slice(0, 5);
+      var reBody = document.getElementById('udRecentEvents');
+      if (recentEvents.length === 0) {
+        reBody.innerHTML = '<tr><td colspan="3" class="ud-empty">No events yet</td></tr>';
+      } else {
+        reBody.innerHTML = recentEvents.map(function(e) {
+          var sc = e.status === 'published' ? 'badge-green' : e.status === 'draft' ? 'badge-yellow' : 'badge-gray';
+          return '<tr><td><strong>' + escapeHtml(e.title) + '</strong></td>'
+            + '<td><span class="badge ' + sc + '">' + escapeHtml(e.status) + '</span></td>'
+            + '<td>' + e.rsvps.total + '</td></tr>';
+        }).join('');
+      }
+
+      // Recent billing (top 5)
+      var recentBilling = data.billing.slice(0, 5);
+      var rbBody = document.getElementById('udRecentBilling');
+      if (recentBilling.length === 0) {
+        rbBody.innerHTML = '<tr><td colspan="3" class="ud-empty">No payments</td></tr>';
+      } else {
+        rbBody.innerHTML = recentBilling.map(function(b) {
+          var sc = b.status === 'succeeded' ? 'badge-green' : b.status === 'failed' ? 'badge-yellow' : 'badge-gray';
+          return '<tr><td>' + formatDate(b.createdAt) + '</td>'
+            + '<td><strong>$' + ((b.amountCents || 0) / 100).toFixed(2) + '</strong></td>'
+            + '<td><span class="badge ' + sc + '">' + escapeHtml(b.status || 'unknown') + '</span></td></tr>';
+        }).join('');
+      }
+
+      // ---- Financials ----
+      document.getElementById('udFinKpis').innerHTML =
+        kpiCard(fmtCost(f.totalRevenue), 'Subscription Revenue', 'positive')
+        + kpiCard(fmtCost(f.totalDiscount), 'Discounts Applied', 'gold')
+        + kpiCard(fmtCost(f.totalAiCost), 'AI API Cost', '')
+        + kpiCard(fmtCost(f.chatAiCost), 'Chat Cost', '')
+        + kpiCard(fmtCost(f.themeAiCost), 'Theme Gen Cost', '')
+        + kpiCard(fmtCost(f.totalSmsCost), 'SMS Cost', '')
+        + kpiCard(fmtCost(f.revenueAfterMarkup), 'AI Revenue (w/ markup)', 'positive')
+        + kpiCard(f.markupPct + '%', 'Cost Markup', '');
+
+      // Cost breakdown visual
+      var totalCost = f.totalAiCost + f.totalSmsCost;
+      var aiPct = totalCost > 0 ? (f.totalAiCost / totalCost * 100) : 50;
+      var smsPct = totalCost > 0 ? (f.totalSmsCost / totalCost * 100) : 50;
+      document.getElementById('udCostBreakdownLabel').textContent = 'Total: ' + fmtCost(totalCost);
+      document.getElementById('udCostBreakdown').innerHTML =
+        '<div style="display:flex;gap:24px;margin-bottom:12px;">'
+        + '<div><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--party-purple);margin-right:6px;"></span>AI Cost (' + fmtCost(f.totalAiCost) + ')</div>'
+        + '<div><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--confetti-gold);margin-right:6px;"></span>SMS Cost (' + fmtCost(f.totalSmsCost) + ')</div>'
+        + '</div>'
+        + '<div class="ud-cost-bar">'
+        + '<div class="bar-segment" style="width:' + aiPct + '%;background:var(--party-purple);"></div>'
+        + '<div class="bar-segment" style="width:' + smsPct + '%;background:var(--confetti-gold);"></div>'
+        + '</div>'
+        + '<div style="display:flex;gap:24px;margin-top:12px;">'
+        + '<div><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--mint-fizz);margin-right:6px;"></span>Chat AI (' + fmtCost(f.chatAiCost) + ')</div>'
+        + '<div><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--party-coral);margin-right:6px;"></span>Theme AI (' + fmtCost(f.themeAiCost) + ')</div>'
+        + '</div>'
+        + '<div class="ud-cost-bar" style="margin-top:4px;">'
+        + '<div class="bar-segment" style="width:' + (f.totalAiCost > 0 ? f.chatAiCost / f.totalAiCost * 100 : 50) + '%;background:var(--mint-fizz);"></div>'
+        + '<div class="bar-segment" style="width:' + (f.totalAiCost > 0 ? f.themeAiCost / f.totalAiCost * 100 : 50) + '%;background:var(--party-coral);"></div>'
+        + '</div>';
+
+      // Cost by event table
+      var ecBody = document.getElementById('udEventCosts');
+      if (data.events.length === 0) {
+        ecBody.innerHTML = '<tr><td colspan="5" class="ud-empty">No events</td></tr>';
+      } else {
+        ecBody.innerHTML = data.events.map(function(e) {
+          var tc = e.costs.aiCost + e.costs.smsCost;
           return '<tr>'
             + '<td><strong>' + escapeHtml(e.title) + '</strong></td>'
+            + '<td>' + fmtCost(e.costs.aiCost) + '</td>'
+            + '<td>' + fmtCost(e.costs.smsCost) + '</td>'
+            + '<td><strong>' + fmtCost(tc) + '</strong></td>'
+            + '<td>' + (totalCost > 0 ? (tc / totalCost * 100).toFixed(1) + '%' : '—') + '</td>'
+            + '</tr>';
+        }).join('');
+      }
+
+      // ---- Events ----
+      document.getElementById('udEventCount').textContent = data.events.length + ' events';
+      var evBody = document.getElementById('udEventsBody');
+      if (data.events.length === 0) {
+        evBody.innerHTML = '<tr><td colspan="7" class="ud-empty">No events</td></tr>';
+      } else {
+        evBody.innerHTML = data.events.map(function(e) {
+          var sc = e.status === 'published' ? 'badge-green' : e.status === 'draft' ? 'badge-yellow' : 'badge-gray';
+          var ec = e.costs.aiCost + e.costs.smsCost;
+          return '<tr>'
+            + '<td><strong>' + escapeHtml(e.title) + '</strong>' + (e.hasTheme ? ' <span class="badge badge-blue" style="font-size:9px;">Themed</span>' : '') + '</td>'
             + '<td>' + escapeHtml(e.eventType || '—') + '</td>'
             + '<td>' + (e.eventDate ? formatDate(e.eventDate) : '—') + '</td>'
-            + '<td><span class="badge ' + statusClass + '">' + escapeHtml(e.status) + '</span></td>'
+            + '<td><span class="badge ' + sc + '">' + escapeHtml(e.status) + '</span></td>'
             + '<td>' + (e.rsvps.total > 0
               ? '<span class="clickable" onclick="viewRsvps(\'' + e.id + '\', \'' + escapeHtml(e.title).replace(/'/g, "\\'") + '\')">'
-                + e.rsvps.attending + ' yes, ' + e.rsvps.declined + ' no, ' + e.rsvps.maybe + ' maybe</span>'
+                + e.rsvps.attending + ' yes, ' + e.rsvps.declined + ' no</span>'
               : '0') + '</td>'
+            + '<td>' + fmtCost(ec) + '</td>'
             + '<td>' + (e.slug && e.status === 'published'
               ? '<a href="/v2/event/' + e.slug + '" target="_blank" class="btn btn-secondary btn-sm">View</a>'
               : '') + '</td>'
             + '</tr>';
         }).join('');
-      } catch (err) {
-        document.getElementById('userEventsBody').innerHTML = '<tr><td colspan="6" style="color:red;">Failed to load events</td></tr>';
+      }
+
+      // ---- Billing & Payments ----
+      // Payment method
+      var pmEl = document.getElementById('udPaymentMethod');
+      if (data.stripePayment) {
+        var pmHtml = '';
+        var sp = data.stripePayment;
+        var methods = sp.paymentMethods || sp.cards || [];
+
+        // Render saved payment methods (cards + link)
+        if (methods.length > 0) {
+          pmHtml += methods.map(function(m, i) {
+            if (m.type === 'card') {
+              return '<div class="ud-stripe-card">'
+                + '<div class="card-icon">' + cardBrandIcon(m.brand) + '</div>'
+                + '<div class="card-info">'
+                + '<div class="card-num">' + escapeHtml(m.brand.toUpperCase()) + ' ending in ' + m.last4 + '</div>'
+                + '<div class="card-exp">Expires ' + String(m.expMonth).padStart(2, '0') + '/' + m.expYear + '</div>'
+                + '</div>'
+                + (i === 0 ? '<div class="card-default">Default</div>' : '')
+                + '</div>';
+            } else if (m.type === 'link') {
+              return '<div class="ud-stripe-card">'
+                + '<div class="card-icon" style="font-size:14px;font-weight:700;color:#00D66F;background:#e6faf0;padding:4px 8px;border-radius:6px;">Link</div>'
+                + '<div class="card-info">'
+                + '<div class="card-num">Stripe Link</div>'
+                + '<div class="card-exp">' + escapeHtml(m.email || 'Connected') + '</div>'
+                + '</div></div>';
+            }
+            return '';
+          }).join('');
+        }
+
+        // If no saved methods but there's a last charge, show what they paid with
+        if (methods.length === 0 && sp.lastCharge) {
+          var lc = sp.lastCharge;
+          var pmType = lc.paymentMethodType || 'unknown';
+          if (pmType === 'link') {
+            pmHtml += '<div class="ud-stripe-card">'
+              + '<div class="card-icon" style="font-size:14px;font-weight:700;color:#00D66F;background:#e6faf0;padding:4px 8px;border-radius:6px;">Link</div>'
+              + '<div class="card-info">'
+              + '<div class="card-num">Paid via Stripe Link</div>'
+              + '<div class="card-exp">' + escapeHtml(lc.linkEmail || '') + '</div>'
+              + '</div></div>';
+          } else if (pmType === 'card' && lc.cardLast4) {
+            pmHtml += '<div class="ud-stripe-card">'
+              + '<div class="card-icon">' + cardBrandIcon(lc.cardBrand || '') + '</div>'
+              + '<div class="card-info">'
+              + '<div class="card-num">' + escapeHtml((lc.cardBrand || 'Card').toUpperCase()) + ' ending in ' + lc.cardLast4 + '</div>'
+              + '<div class="card-exp">Used for last payment</div>'
+              + '</div></div>';
+          } else {
+            pmHtml += '<div class="ud-stripe-card">'
+              + '<div class="card-icon">\u2705</div>'
+              + '<div class="card-info">'
+              + '<div class="card-num">Paid via ' + escapeHtml(pmType) + '</div>'
+              + '<div class="card-exp">Last payment on file</div>'
+              + '</div></div>';
+          }
+        }
+
+        // Show last charge summary if available
+        if (sp.lastCharge) {
+          var lc = sp.lastCharge;
+          var chargeDate = new Date(lc.created * 1000);
+          var statusBadge = lc.status === 'succeeded' ? 'badge-green' : lc.status === 'pending' ? 'badge-yellow' : 'badge-gray';
+          pmHtml += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid #eee;">'
+            + '<div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Last Payment</div>'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;">'
+            + '<div><span style="font-size:16px;font-weight:700;">$' + (lc.amount / 100).toFixed(2) + '</span>'
+            + ' <span class="badge ' + statusBadge + '">' + lc.status + '</span></div>'
+            + '<div style="font-size:12px;color:#888;">' + chargeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + '</div>'
+            + '</div>'
+            + (lc.receiptUrl ? '<a href="' + lc.receiptUrl + '" target="_blank" style="font-size:12px;color:var(--party-coral);margin-top:4px;display:inline-block;">View receipt &rarr;</a>' : '')
+            + '</div>';
+        }
+
+        // No methods and no charges
+        if (!pmHtml) {
+          pmHtml = '<div class="ud-empty">No payment methods on file<br><span style="font-size:11px;color:#aaa;">Stripe ID: ' + escapeHtml(sp.customerId) + '</span></div>';
+        } else {
+          // Add Stripe ID footer
+          pmHtml += '<div style="margin-top:12px;font-size:11px;color:#aaa;font-family:monospace;">' + escapeHtml(sp.customerId) + '</div>';
+        }
+
+        pmEl.innerHTML = pmHtml;
+      } else {
+        pmEl.innerHTML = '<div class="ud-empty">No Stripe account linked</div>';
+      }
+
+      // Active subscription
+      var subEl = document.getElementById('udSubscription');
+      var activeSub = data.subscriptions.find(function(s) { return s.status === 'active'; });
+      if (activeSub) {
+        subEl.innerHTML = '<div class="ud-detail-grid">'
+          + detailItem('Plan', '<span class="badge badge-blue">' + escapeHtml(activeSub.planName || 'Unknown') + '</span>')
+          + detailItem('Price', '$' + ((activeSub.planPriceCents || 0) / 100).toFixed(2))
+          + detailItem('Events Used', activeSub.eventsUsed + (activeSub.maxEvents ? ' / ' + activeSub.maxEvents : ''))
+          + detailItem('Generations Used', activeSub.generationsUsed + (activeSub.maxGenerations ? ' / ' + activeSub.maxGenerations : ''))
+          + detailItem('Amount Paid', '$' + ((activeSub.amountPaidCents || 0) / 100).toFixed(2))
+          + detailItem('Since', formatDate(activeSub.createdAt))
+          + '</div>';
+        document.getElementById('udChangePlanBtn').textContent = 'Change Plan';
+      } else {
+        subEl.innerHTML = '<div class="ud-empty">No active subscription</div>';
+        document.getElementById('udChangePlanBtn').textContent = 'Assign Plan';
+      }
+
+      // Subscription history
+      var shBody = document.getElementById('udSubHistory');
+      if (data.subscriptions.length === 0) {
+        shBody.innerHTML = '<tr><td colspan="7" class="ud-empty">No subscription history</td></tr>';
+      } else {
+        shBody.innerHTML = data.subscriptions.map(function(s) {
+          var sc = s.status === 'active' ? 'badge-green' : s.status === 'cancelled' ? 'badge-yellow' : 'badge-gray';
+          return '<tr>'
+            + '<td><strong>' + escapeHtml(s.planName || 'Unknown') + '</strong></td>'
+            + '<td>$' + ((s.amountPaidCents || 0) / 100).toFixed(2) + '</td>'
+            + '<td>' + (s.discountCents > 0 ? '-$' + (s.discountCents / 100).toFixed(2) : '—') + '</td>'
+            + '<td>' + (s.eventsUsed || 0) + (s.maxEvents ? '/' + s.maxEvents : '') + '</td>'
+            + '<td>' + (s.generationsUsed || 0) + (s.maxGenerations ? '/' + s.maxGenerations : '') + '</td>'
+            + '<td><span class="badge ' + sc + '">' + escapeHtml(s.status) + '</span></td>'
+            + '<td>' + formatDate(s.createdAt) + '</td>'
+            + '</tr>';
+        }).join('');
+      }
+
+      // Billing history
+      var bhBody = document.getElementById('udBillingHistory');
+      if (data.billing.length === 0) {
+        bhBody.innerHTML = '<tr><td colspan="5" class="ud-empty">No billing records</td></tr>';
+      } else {
+        bhBody.innerHTML = data.billing.map(function(b) {
+          var sc = b.status === 'succeeded' ? 'badge-green' : b.status === 'failed' ? 'badge-yellow' : 'badge-gray';
+          return '<tr>'
+            + '<td>' + formatDate(b.createdAt) + '</td>'
+            + '<td>' + escapeHtml(b.description || '—') + '</td>'
+            + '<td><strong>$' + ((b.amountCents || 0) / 100).toFixed(2) + '</strong></td>'
+            + '<td><span class="badge ' + sc + '">' + escapeHtml(b.status || 'unknown') + '</span></td>'
+            + '<td>' + (b.receiptUrl ? '<a href="' + escapeHtml(b.receiptUrl) + '" target="_blank" class="btn btn-secondary btn-sm">Receipt</a>' : '') + '</td>'
+            + '</tr>';
+        }).join('');
+      }
+
+      // ---- AI & Activity ----
+      // Activity KPIs
+      var totalTokensIn = 0, totalTokensOut = 0;
+      data.generations.forEach(function(g) { totalTokensIn += g.inputTokens || 0; totalTokensOut += g.outputTokens || 0; });
+      var chatHistoryData = data.chatHistory || [];
+      var themeHistoryData = data.themeHistory || [];
+      document.getElementById('udActivityKpis').innerHTML =
+        kpiCard(data.generations.length, 'Total AI Calls', '')
+        + kpiCard(f.chatCount || 0, 'Chat Calls', '')
+        + kpiCard(f.themeCount || 0, 'Theme Calls', '')
+        + kpiCard(formatNumber(totalTokensIn), 'Input Tokens', '')
+        + kpiCard(formatNumber(totalTokensOut), 'Output Tokens', '')
+        + kpiCard(themeHistoryData.length, 'Theme Versions', '')
+        + kpiCard(data.smsMessages.length, 'SMS Sent', '');
+
+      // All generations log (generation_log table)
+      document.getElementById('udGenCount').textContent = data.generations.length;
+      var gBody = document.getElementById('udGenerations');
+      if (data.generations.length === 0) {
+        gBody.innerHTML = '<tr><td colspan="6" class="ud-empty">No generations</td></tr>';
+      } else {
+        gBody.innerHTML = data.generations.slice(0, 100).map(function(g) {
+          var typeLabel = g.promptType || (g.eventId ? 'theme' : 'chat');
+          var typeBadge = typeLabel === 'chat' ? 'badge-blue' : 'badge-green';
+          return '<tr>'
+            + '<td>' + formatDate(g.createdAt) + '</td>'
+            + '<td style="font-family:monospace;font-size:11px;">' + shortModel(g.model) + '</td>'
+            + '<td><span class="badge ' + typeBadge + '">' + typeLabel + '</span></td>'
+            + '<td>' + formatNumber(g.inputTokens || 0) + ' / ' + formatNumber(g.outputTokens || 0) + '</td>'
+            + '<td>' + (g.latencyMs ? (g.latencyMs / 1000).toFixed(1) + 's' : '—') + '</td>'
+            + '<td>' + fmtCost(g.cost) + '</td>'
+            + '</tr>';
+        }).join('');
+      }
+
+      // Chat messages (from chat_messages table - full conversation threads)
+      document.getElementById('udChatCount').textContent = chatHistoryData.length;
+      var chatEl = document.getElementById('udChatHistory');
+      if (chatHistoryData.length === 0) {
+        chatEl.innerHTML = '<div class="ud-empty">No chat messages yet. Messages will appear here after the user chats during event creation.</div>';
+      } else {
+        // Reverse so oldest messages are at top (data comes in desc order)
+        var chatMsgs = chatHistoryData.slice().reverse();
+        chatEl.innerHTML = chatMsgs.map(function(c) {
+          var role = c.role || 'user';
+          var cls = role === 'assistant' ? 'assistant' : 'user';
+          var content = escapeHtml(c.content || '').substring(0, 500);
+          if ((c.content || '').length > 500) content += '...';
+          return '<div class="ud-chat-msg ' + cls + '">'
+            + '<div>' + content + '</div>'
+            + '<div class="msg-meta">'
+            + '<strong>' + escapeHtml(role) + '</strong>'
+            + ' &middot; ' + formatDate(c.createdAt)
+            + (c.model ? ' &middot; ' + shortModel(c.model) : '')
+            + (c.inputTokens ? ' &middot; ' + formatNumber(c.inputTokens) + '/' + formatNumber(c.outputTokens) + ' tokens' : '')
+            + (c.sessionId ? ' &middot; <span style="font-family:monospace;font-size:10px;color:#bbb;">' + escapeHtml(c.sessionId.substring(0, 16)) + '</span>' : '')
+            + '</div></div>';
+        }).join('');
+      }
+
+      // Theme generations (from event_themes table)
+      document.getElementById('udThemeCount').textContent = themeHistoryData.length;
+      var thBody = document.getElementById('udThemeHistory');
+      if (themeHistoryData.length === 0) {
+        thBody.innerHTML = '<tr><td colspan="6" class="ud-empty">No theme generations</td></tr>';
+      } else {
+        // Build event title lookup
+        var eventTitleMap = {};
+        data.events.forEach(function(e) { eventTitleMap[e.id] = e.title; });
+        thBody.innerHTML = themeHistoryData.map(function(t) {
+          return '<tr>'
+            + '<td>' + formatDate(t.createdAt) + '</td>'
+            + '<td>' + escapeHtml(eventTitleMap[t.eventId] || t.eventId?.substring(0, 8) || '—') + '</td>'
+            + '<td>v' + t.version + '</td>'
+            + '<td style="font-family:monospace;font-size:11px;">' + shortModel(t.model) + '</td>'
+            + '<td>' + formatNumber(t.inputTokens || 0) + '/' + formatNumber(t.outputTokens || 0) + '</td>'
+            + '<td>' + (t.isActive ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-gray">Inactive</span>') + '</td>'
+            + '</tr>';
+        }).join('');
+      }
+
+      // SMS messages
+      document.getElementById('udSmsCount').textContent = data.smsMessages.length;
+      var smsBody = document.getElementById('udSmsMessages');
+      if (data.smsMessages.length === 0) {
+        smsBody.innerHTML = '<tr><td colspan="5" class="ud-empty">No SMS messages</td></tr>';
+      } else {
+        smsBody.innerHTML = data.smsMessages.slice(0, 100).map(function(s) {
+          var sc = s.status === 'sent' || s.status === 'delivered' ? 'badge-green' : s.status === 'failed' ? 'badge-yellow' : 'badge-gray';
+          return '<tr>'
+            + '<td>' + formatDate(s.createdAt) + '</td>'
+            + '<td>' + (s.recipientName ? escapeHtml(s.recipientName) + '<br>' : '')
+              + '<span style="font-family:monospace;font-size:11px;">' + escapeHtml(s.recipientPhone || '—') + '</span></td>'
+            + '<td>' + escapeHtml(s.messageType || 'invite') + '</td>'
+            + '<td><span class="badge ' + sc + '">' + escapeHtml(s.status || 'unknown') + '</span></td>'
+            + '<td>$' + ((s.costCents || 0) / 100).toFixed(2) + '</td>'
+            + '</tr>';
+        }).join('');
+      }
+
+      // ---- Profile ----
+      renderProfileView(u);
+
+      document.getElementById('udAccountInfo').innerHTML =
+        detailItem('User ID', '<span style="font-family:monospace;font-size:11px;">' + escapeHtml(u.id) + '</span>')
+        + detailItem('Stripe Customer', u.stripeCustomerId ? '<span style="font-family:monospace;font-size:11px;">' + escapeHtml(u.stripeCustomerId) + '</span>' : '—')
+        + detailItem('Created', formatDate(u.createdAt))
+        + detailItem('Last Updated', u.updatedAt ? formatDate(u.updatedAt) : '—');
+
+      // Activity timeline
+      var timelineItems = [];
+      timelineItems.push({ date: u.createdAt, desc: 'Account created', detail: u.email, success: true });
+      data.subscriptions.forEach(function(s) {
+        timelineItems.push({ date: s.createdAt, desc: 'Subscribed to ' + (s.planName || 'plan'), detail: '$' + ((s.amountPaidCents || 0) / 100).toFixed(2), success: true });
+      });
+      data.events.forEach(function(e) {
+        timelineItems.push({ date: e.createdAt, desc: 'Created event: ' + e.title, detail: e.eventType || '', success: e.status === 'published' });
+      });
+      data.billing.forEach(function(b) {
+        timelineItems.push({ date: b.createdAt, desc: 'Payment: $' + ((b.amountCents || 0) / 100).toFixed(2), detail: b.description || '', success: b.status === 'succeeded' });
+      });
+
+      timelineItems.sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
+      var tlEl = document.getElementById('udTimeline');
+      if (timelineItems.length === 0) {
+        tlEl.innerHTML = '<div class="ud-empty">No activity</div>';
+      } else {
+        tlEl.innerHTML = timelineItems.slice(0, 30).map(function(t) {
+          return '<div class="ud-timeline-item' + (t.success ? ' success' : '') + '">'
+            + '<div class="tl-date">' + formatDate(t.date) + '</div>'
+            + '<div class="tl-desc">' + escapeHtml(t.desc) + '</div>'
+            + (t.detail ? '<div class="tl-detail">' + escapeHtml(t.detail) + '</div>' : '')
+            + '</div>';
+        }).join('');
+      }
+    }
+
+    function kpiCard(value, label, cls) {
+      return '<div class="ud-kpi ' + cls + '"><div class="kpi-val">' + value + '</div><div class="kpi-label">' + label + '</div></div>';
+    }
+
+    function detailItem(label, value) {
+      return '<div class="ud-detail-item"><div class="lbl">' + label + '</div><div class="val">' + value + '</div></div>';
+    }
+
+    var profileEditMode = false;
+
+    function renderProfileView(u) {
+      profileEditMode = false;
+      document.getElementById('udProfileEditBtn').textContent = 'Edit';
+      document.getElementById('udProfileEditBtn').className = 'btn btn-secondary btn-sm';
+      document.getElementById('udProfileInfo').innerHTML =
+        detailItem('Display Name', escapeHtml(u.displayName || '—'))
+        + detailItem('Email', escapeHtml(u.email))
+        + detailItem('Phone', escapeHtml(u.phone || '—'))
+        + detailItem('Referral Source', escapeHtml(u.referralSource || '—'));
+    }
+
+    function renderProfileEditForm(u) {
+      profileEditMode = true;
+      document.getElementById('udProfileEditBtn').textContent = 'Cancel';
+      document.getElementById('udProfileEditBtn').className = 'btn btn-secondary btn-sm';
+      document.getElementById('udProfileInfo').innerHTML =
+        '<div class="ud-detail-item ud-edit-field"><div class="lbl">Display Name</div><input type="text" id="editDisplayName" value="' + escapeHtml(u.displayName || '') + '" placeholder="Enter display name" /></div>'
+        + '<div class="ud-detail-item"><div class="lbl">Email</div><div class="val" style="padding:8px 0;">' + escapeHtml(u.email) + '</div></div>'
+        + '<div class="ud-detail-item ud-edit-field"><div class="lbl">Phone</div><input type="text" id="editPhone" value="' + escapeHtml(u.phone || '') + '" placeholder="Enter phone number" /></div>'
+        + '<div class="ud-detail-item ud-edit-field"><div class="lbl">Referral Source</div><input type="text" id="editReferralSource" value="' + escapeHtml(u.referralSource || '') + '" placeholder="Enter referral source" /></div>'
+        + '<div class="ud-edit-actions" style="grid-column:1/-1;">'
+        + '<button class="btn btn-secondary btn-sm" onclick="toggleProfileEdit()">Cancel</button>'
+        + '<button class="btn btn-primary btn-sm" id="profileSaveBtn" onclick="saveProfile()">Save Changes</button>'
+        + '</div>';
+      document.getElementById('editDisplayName').focus();
+    }
+
+    function toggleProfileEdit() {
+      if (!currentUserDetail) return;
+      if (profileEditMode) {
+        renderProfileView(currentUserDetail.user);
+      } else {
+        renderProfileEditForm(currentUserDetail.user);
+      }
+    }
+
+    async function saveProfile() {
+      if (!currentUserDetail) return;
+      var btn = document.getElementById('profileSaveBtn');
+      btn.textContent = 'Saving...';
+      btn.disabled = true;
+
+      var fields = {
+        display_name: document.getElementById('editDisplayName').value.trim(),
+        phone: document.getElementById('editPhone').value.trim(),
+        referral_source: document.getElementById('editReferralSource').value.trim()
+      };
+
+      try {
+        var res = await adminFetch('updateUser', {
+          method: 'POST',
+          body: { userId: currentUserDetail.user.id, fields: fields }
+        });
+        if (res.success) {
+          currentUserDetail.user.displayName = fields.display_name;
+          currentUserDetail.user.phone = fields.phone;
+          currentUserDetail.user.referralSource = fields.referral_source;
+          renderUserDetail(currentUserDetail);
+        } else {
+          alert('Failed to save: ' + (res.error || 'Unknown error'));
+          btn.textContent = 'Save Changes';
+          btn.disabled = false;
+        }
+      } catch (e) {
+        alert('Error: ' + e.message);
+        btn.textContent = 'Save Changes';
+        btn.disabled = false;
+      }
+    }
+
+    async function showChangePlanUI() {
+      if (!currentUserDetail) return;
+      // Load plans if needed
+      if (!allPlans.length) {
+        try { var r = await adminFetch('listPlans'); allPlans = (r && r.plans) || []; } catch (e) {}
+      }
+      var u = currentUserDetail.user;
+      var subEl = document.getElementById('udSubscription');
+      var activeSub = currentUserDetail.subscriptions.find(function(s) { return s.status === 'active'; });
+      var currentPlanName = u.tier || 'free';
+
+      var opts = '<option value="free"' + (currentPlanName === 'free' ? ' selected' : '') + '>Free (no plan)</option>';
+      allPlans.forEach(function(p) {
+        if (!p.isActive) return;
+        var label = escapeHtml(p.displayName) + ' \u2014 $' + (p.priceCents / 100).toFixed(2) + ' (' + p.maxEvents + ' event' + (p.maxEvents > 1 ? 's' : '') + ', ' + p.maxGenerations + ' gens)';
+        opts += '<option value="' + escapeHtml(p.name) + '"' + (p.name === currentPlanName ? ' selected' : '') + '>' + label + '</option>';
+      });
+
+      subEl.innerHTML = '<div style="padding:4px 0;">'
+        + '<div class="ud-edit-field" style="margin-bottom:12px;">'
+        + '<div class="lbl" style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Select Plan</div>'
+        + '<select id="changePlanSelect" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:\'Inter\',sans-serif;font-size:14px;">' + opts + '</select>'
+        + '</div>'
+        + '<p style="font-size:12px;color:#888;margin-bottom:12px;">Changing the plan will update the user\'s subscription, sync to Stripe, and immediately grant access to the new plan\'s limits.</p>'
+        + '<div style="display:flex;gap:8px;justify-content:flex-end;">'
+        + '<button class="btn btn-secondary btn-sm" onclick="renderUserDetail(currentUserDetail)">Cancel</button>'
+        + '<button class="btn btn-primary btn-sm" id="changePlanSaveBtn" onclick="changeUserPlan()">Apply Plan Change</button>'
+        + '</div></div>';
+    }
+
+    async function changeUserPlan() {
+      if (!currentUserDetail) return;
+      var newPlan = document.getElementById('changePlanSelect').value;
+      var btn = document.getElementById('changePlanSaveBtn');
+      btn.textContent = 'Applying...';
+      btn.disabled = true;
+
+      try {
+        var res = await adminFetch('updateUser', {
+          method: 'POST',
+          body: { userId: currentUserDetail.user.id, fields: { tier: newPlan } }
+        });
+        if (res.success) {
+          // Reload the full user detail to get updated subscription data
+          var detail = await adminFetch('userDetail', { params: { userId: currentUserDetail.user.id } });
+          if (detail.success) {
+            currentUserDetail = detail;
+            renderUserDetail(detail);
+          }
+        } else {
+          alert('Failed: ' + (res.error || 'Unknown error'));
+          btn.textContent = 'Apply Plan Change';
+          btn.disabled = false;
+        }
+      } catch (e) {
+        alert('Error: ' + e.message);
+        btn.textContent = 'Apply Plan Change';
+        btn.disabled = false;
       }
     }
 
     function backToUsers() {
       document.getElementById('userDetailView').style.display = 'none';
       document.getElementById('usersListView').style.display = 'block';
+      currentUserDetail = null;
     }
 
     // ---- RSVPs Modal ----
@@ -1917,7 +2843,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         + '.cal-apple { background:' + pc + '; }'
         + '.cal-google { background:' + sc + '; }'
         + '.cal-outlook { background:' + ac + '; }'
-        + '.thankyou-footer { font-size:12px; opacity:0.5; margin-top:40px; text-align:center; }'
+        + '.thankyou-footer { font-size:15px; opacity:0.6; margin-top:40px; text-align:center; }'
         + '.thankyou-footer a { color:inherit; text-decoration:none; }';
 
       var calendarHTML = '<div class="thankyou-calendar-section">'
@@ -3234,8 +4160,249 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       }
     }
 
-    // ---- Subscriptions ----
+    // ---- Pricing Tiers ----
     var allPlans = [];
+    var editingPlanId = null;
+
+    async function loadPricingTiers() {
+      var container = document.getElementById('pricingTiersList');
+      container.innerHTML = '<p style="color:#888;font-size:13px;">Loading tiers...</p>';
+      try {
+        var res = await adminFetch('listPlans');
+        allPlans = res.plans || [];
+        renderPricingTiers(allPlans);
+      } catch (e) {
+        container.innerHTML = '<p style="color:red;">Failed to load: ' + escapeHtml(e.message) + '</p>';
+      }
+    }
+
+    function getSignupLink(planSlug) {
+      return window.location.origin + '/v2/pricing/plan.html?plan=' + encodeURIComponent(planSlug);
+    }
+
+    function copySignupLink(planSlug) {
+      var link = getSignupLink(planSlug);
+      navigator.clipboard.writeText(link).then(function() {
+        alert('Signup link copied to clipboard!');
+      });
+    }
+
+    function renderPricingTiers(plans) {
+      var container = document.getElementById('pricingTiersList');
+      if (!plans.length) {
+        container.innerHTML = '<p style="color:#888;font-size:13px;">No pricing tiers configured yet. Click "+ New Tier" to create one.</p>';
+        return;
+      }
+      var html = '<div style="display:grid;gap:16px;">';
+      plans.forEach(function(p) {
+        var priceStr = '$' + (p.priceCents / 100).toFixed(2);
+        var statusBadge = p.isActive
+          ? '<span class="badge badge-green">Active</span>'
+          : '<span class="badge badge-gray">Inactive</span>';
+        var stripeStatus = p.stripePriceId
+          ? '<span class="badge badge-blue" title="' + escapeHtml(p.stripePriceId) + '">Stripe</span>'
+          : '<span class="badge badge-yellow">No Stripe</span>';
+        var hiddenBadge = p.isHidden ? '<span class="badge" style="background:#f3e8ff;color:#7c3aed;">Hidden</span>' : '';
+        var billingBadge = p.billingType === 'usage' ? '<span class="badge" style="background:#fef3c7;color:#92400e;">Usage-Based</span>' : '';
+        var featList = (p.features || []).map(function(f) { return '<li style="font-size:12px;color:#666;">' + escapeHtml(f) + '</li>'; }).join('');
+
+        html += '<div style="background:#fafafa;border:1px solid #eee;border-radius:8px;padding:20px;">'
+          + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">'
+          + '<div>'
+          + '<div style="font-size:16px;font-weight:700;color:var(--midnight);">' + escapeHtml(p.displayName) + ' <span style="font-size:12px;font-weight:400;color:#888;font-family:monospace;">' + escapeHtml(p.name) + '</span></div>'
+          + '<div style="font-size:13px;color:#888;margin-top:2px;">' + escapeHtml(p.description || '') + '</div>'
+          + '</div>'
+          + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'
+          + statusBadge + ' ' + stripeStatus + ' ' + hiddenBadge + ' ' + billingBadge
+          + '<button class="btn btn-secondary btn-sm" onclick="showEditPlanModal(\'' + p.id + '\')">Edit</button>'
+          + (p.isActive ? '<button class="btn btn-sm" style="background:#fee;color:#c00;border:1px solid #fcc;" onclick="deactivatePlan(\'' + p.id + '\',\'' + escapeHtml(p.displayName) + '\')">Deactivate</button>' : '<button class="btn btn-sm" style="background:#efe;color:#060;border:1px solid #cec;" onclick="reactivatePlan(\'' + p.id + '\')">Activate</button>')
+          + '</div></div>'
+          + '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:12px;">'
+          + '<div><div style="font-size:11px;color:#888;text-transform:uppercase;">Price</div><div style="font-size:18px;font-weight:700;">' + priceStr + '</div></div>'
+          + '<div><div style="font-size:11px;color:#888;text-transform:uppercase;">Max Events</div><div style="font-size:18px;font-weight:700;">' + p.maxEvents + '</div></div>'
+          + '<div><div style="font-size:11px;color:#888;text-transform:uppercase;">Generations</div><div style="font-size:18px;font-weight:700;">' + p.maxGenerations + '</div></div>'
+          + '<div><div style="font-size:11px;color:#888;text-transform:uppercase;">SMS / Event</div><div style="font-size:18px;font-weight:700;">' + (p.maxSmsPerEvent || '&infin;') + '</div></div>'
+          + '<div><div style="font-size:11px;color:#888;text-transform:uppercase;">SMS Cost</div><div style="font-size:18px;font-weight:700;">$' + ((p.smsPriceCents || 0) / 100).toFixed(2) + '</div></div>'
+          + (p.billingType === 'usage' ? '<div><div style="font-size:11px;color:#888;text-transform:uppercase;">AI Markup</div><div style="font-size:18px;font-weight:700;">' + (p.aiMarkupPct || 50) + '%</div></div>' : '')
+          + '</div>'
+          + (featList ? '<div style="margin-top:8px;"><div style="font-size:11px;color:#888;text-transform:uppercase;margin-bottom:4px;">Features</div><ul style="margin:0;padding-left:18px;">' + featList + '</ul></div>' : '');
+
+        // Signup link section for all plans
+        var signupUrl = getSignupLink(p.name);
+        html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid #eee;display:flex;align-items:center;gap:8px;">'
+          + '<div style="font-size:11px;color:#888;text-transform:uppercase;white-space:nowrap;">' + (p.isHidden ? 'Signup Link' : 'Direct Link') + '</div>'
+          + '<input type="text" readonly value="' + escapeHtml(signupUrl) + '" style="flex:1;font-size:12px;padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-family:monospace;color:#666;background:#f9f9f9;" onclick="this.select()" />'
+          + '<button class="btn btn-secondary btn-sm" onclick="copySignupLink(\'' + escapeHtml(p.name) + '\')">Copy</button>'
+          + '</div>';
+
+        html += '</div>';
+      });
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    function toggleUsageFields() {
+      var isUsage = document.getElementById('planBillingType').value === 'usage';
+      document.getElementById('aiMarkupField').style.display = isUsage ? '' : 'none';
+      document.getElementById('smsBaseCostField').style.display = isUsage ? '' : 'none';
+    }
+
+    function showCreatePlanModal() {
+      editingPlanId = null;
+      document.getElementById('planModalTitle').textContent = 'Create New Tier';
+      document.getElementById('planSaveBtn').textContent = 'Create Tier';
+      document.getElementById('planSlug').value = '';
+      document.getElementById('planSlug').disabled = false;
+      document.getElementById('planDisplayName').value = '';
+      document.getElementById('planDescription').value = '';
+      document.getElementById('planPriceCents').value = '';
+      document.getElementById('planSortOrder').value = '0';
+      document.getElementById('planMaxEvents').value = '';
+      document.getElementById('planMaxGenerations').value = '';
+      document.getElementById('planMaxSms').value = '';
+      document.getElementById('planSmsPriceCents').value = '';
+      document.getElementById('planFeatures').value = '';
+      document.getElementById('planBillingType').value = 'fixed';
+      document.getElementById('planAiMarkupPct').value = '50';
+      document.getElementById('planSmsBaseCost').value = '3';
+      document.getElementById('planHidden').checked = false;
+      document.getElementById('planCreateStripe').checked = true;
+      document.getElementById('planStripeProductId').value = '';
+      document.getElementById('planStripePriceId').value = '';
+      toggleUsageFields();
+      var modal = document.getElementById('planModal');
+      modal.style.display = 'flex';
+    }
+
+    function showEditPlanModal(planId) {
+      var plan = allPlans.find(function(p) { return p.id === planId; });
+      if (!plan) return;
+      editingPlanId = planId;
+      document.getElementById('planModalTitle').textContent = 'Edit Tier: ' + plan.displayName;
+      document.getElementById('planSaveBtn').textContent = 'Save Changes';
+      document.getElementById('planSlug').value = plan.name;
+      document.getElementById('planSlug').disabled = true;
+      document.getElementById('planDisplayName').value = plan.displayName;
+      document.getElementById('planDescription').value = plan.description || '';
+      document.getElementById('planPriceCents').value = plan.priceCents;
+      document.getElementById('planSortOrder').value = plan.sortOrder || 0;
+      document.getElementById('planMaxEvents').value = plan.maxEvents;
+      document.getElementById('planMaxGenerations').value = plan.maxGenerations;
+      document.getElementById('planMaxSms').value = plan.maxSmsPerEvent || '';
+      document.getElementById('planSmsPriceCents').value = plan.smsPriceCents || '';
+      document.getElementById('planFeatures').value = (plan.features || []).join('\n');
+      document.getElementById('planBillingType').value = plan.billingType || 'fixed';
+      document.getElementById('planAiMarkupPct').value = plan.aiMarkupPct || 50;
+      document.getElementById('planSmsBaseCost').value = plan.smsBaseCostCents || 3;
+      document.getElementById('planHidden').checked = plan.isHidden || false;
+      document.getElementById('planCreateStripe').checked = false;
+      document.getElementById('planStripeProductId').value = plan.stripeProductId || '';
+      document.getElementById('planStripePriceId').value = plan.stripePriceId || '';
+      toggleUsageFields();
+      var modal = document.getElementById('planModal');
+      modal.style.display = 'flex';
+    }
+
+    function closePlanModal() {
+      document.getElementById('planModal').style.display = 'none';
+    }
+
+    async function savePlan() {
+      var btn = document.getElementById('planSaveBtn');
+      btn.textContent = 'Saving...';
+      btn.disabled = true;
+
+      try {
+        var features = document.getElementById('planFeatures').value.trim().split('\n').filter(function(f) { return f.trim(); });
+        var maxSms = document.getElementById('planMaxSms').value.trim();
+
+        if (editingPlanId) {
+          // Update existing plan
+          var body = {
+            planId: editingPlanId,
+            displayName: document.getElementById('planDisplayName').value.trim(),
+            description: document.getElementById('planDescription').value.trim(),
+            priceCents: parseInt(document.getElementById('planPriceCents').value) || 0,
+            maxEvents: parseInt(document.getElementById('planMaxEvents').value) || 1,
+            maxGenerations: parseInt(document.getElementById('planMaxGenerations').value) || 20,
+            maxSmsPerEvent: maxSms ? parseInt(maxSms) : null,
+            smsPriceCents: parseInt(document.getElementById('planSmsPriceCents').value) || 10,
+            billingType: document.getElementById('planBillingType').value,
+            aiMarkupPct: parseInt(document.getElementById('planAiMarkupPct').value) || 50,
+            smsBaseCostCents: parseInt(document.getElementById('planSmsBaseCost').value) || 3,
+            features: features,
+            sortOrder: parseInt(document.getElementById('planSortOrder').value) || 0,
+            stripeProductId: document.getElementById('planStripeProductId').value.trim() || null,
+            stripePriceId: document.getElementById('planStripePriceId').value.trim() || null,
+            isHidden: document.getElementById('planHidden').checked,
+            syncStripe: document.getElementById('planCreateStripe').checked
+          };
+          var res = await adminFetch('updatePlan', { method: 'POST', body: body });
+          if (!res.success) throw new Error(res.error || 'Failed to update');
+        } else {
+          // Create new plan
+          var body = {
+            name: document.getElementById('planSlug').value.trim(),
+            displayName: document.getElementById('planDisplayName').value.trim(),
+            description: document.getElementById('planDescription').value.trim(),
+            priceCents: parseInt(document.getElementById('planPriceCents').value) || 0,
+            maxEvents: parseInt(document.getElementById('planMaxEvents').value) || 1,
+            maxGenerations: parseInt(document.getElementById('planMaxGenerations').value) || 20,
+            maxSmsPerEvent: maxSms ? parseInt(maxSms) : null,
+            smsPriceCents: parseInt(document.getElementById('planSmsPriceCents').value) || 10,
+            billingType: document.getElementById('planBillingType').value,
+            aiMarkupPct: parseInt(document.getElementById('planAiMarkupPct').value) || 50,
+            smsBaseCostCents: parseInt(document.getElementById('planSmsBaseCost').value) || 3,
+            features: features,
+            sortOrder: parseInt(document.getElementById('planSortOrder').value) || 0,
+            isHidden: document.getElementById('planHidden').checked,
+            createStripeProduct: document.getElementById('planCreateStripe').checked
+          };
+          if (!body.name) { alert('Plan slug is required'); btn.textContent = 'Create Tier'; btn.disabled = false; return; }
+          if (!body.displayName) { alert('Display name is required'); btn.textContent = 'Create Tier'; btn.disabled = false; return; }
+
+          // If manual Stripe IDs provided, pass them
+          var spid = document.getElementById('planStripeProductId').value.trim();
+          var srid = document.getElementById('planStripePriceId').value.trim();
+          if (spid) body.stripeProductId = spid;
+          if (srid) body.stripePriceId = srid;
+
+          var res = await adminFetch('createPlan', { method: 'POST', body: body });
+          if (!res.success) throw new Error(res.error || 'Failed to create');
+        }
+
+        closePlanModal();
+        await loadPricingTiers();
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+      btn.textContent = editingPlanId ? 'Save Changes' : 'Create Tier';
+      btn.disabled = false;
+    }
+
+    async function deactivatePlan(planId, name) {
+      if (!confirm('Deactivate "' + name + '"? Users on this tier will keep their current subscription but new users won\'t be able to select it.')) return;
+      try {
+        var res = await adminFetch('deletePlan', { method: 'POST', body: { planId: planId } });
+        if (!res.success) throw new Error(res.error || 'Failed');
+        await loadPricingTiers();
+      } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    async function reactivatePlan(planId) {
+      try {
+        var res = await adminFetch('updatePlan', { method: 'POST', body: { planId: planId, isActive: true } });
+        if (!res.success) throw new Error(res.error || 'Failed');
+        await loadPricingTiers();
+      } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    // ---- Subscriptions ----
+
+    async function loadBillingTab() {
+      loadPricingTiers();
+      loadSubscriptions();
+    }
 
     async function loadSubscriptions() {
       try {

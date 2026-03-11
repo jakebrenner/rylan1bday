@@ -5,6 +5,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// Pricing per 1M tokens (must match generate-theme.js and billing.js)
+const AI_MODEL_PRICING = {
+  'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00 },
+  'claude-sonnet-4-6': { input: 3.00, output: 15.00 },
+  'claude-opus-4-6': { input: 15.00, output: 75.00 },
+};
+
+// Max 1-star ratings per event that qualify for a credit-back
+const MAX_ONE_STAR_CREDITS = 2;
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -52,7 +62,19 @@ export default async function handler(req, res) {
         .select('id, rating, feedback')
         .single();
       if (insertErr) return res.status(400).json({ success: false, error: insertErr.message });
+
+      // Handle 1-star credit-back for the fallback insert path too
+      if (Math.round(rating) === 1 && (raterType === 'host' || !raterType)) {
+        const creditResult = await handleOneStarCredit(eventId, eventThemeId);
+        return res.status(200).json({ success: true, rating: inserted, ...creditResult });
+      }
       return res.status(200).json({ success: true, rating: inserted });
+    }
+
+    // Handle 1-star credit-back: waive generation cost for up to MAX_ONE_STAR_CREDITS per event
+    if (Math.round(rating) === 1 && (raterType === 'host' || !raterType)) {
+      const creditResult = await handleOneStarCredit(eventId, eventThemeId);
+      return res.status(200).json({ success: true, rating: data, ...creditResult });
     }
 
     return res.status(200).json({ success: true, rating: data });
@@ -107,4 +129,94 @@ export default async function handler(req, res) {
   }
 
   return res.status(400).json({ success: false, error: 'Unknown action: ' + action });
+}
+
+// ── 1-STAR CREDIT-BACK LOGIC ──
+// When a host gives 1 star, we waive that generation's cost (up to MAX_ONE_STAR_CREDITS per event).
+// After that, we suggest contacting support to prevent abuse.
+async function handleOneStarCredit(eventId, eventThemeId) {
+  try {
+    // Count total 1-star host ratings for this event (including the one just submitted)
+    const { count: oneStarCount } = await supabase
+      .from('invite_ratings')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', eventId)
+      .eq('rating', 1)
+      .eq('rater_type', 'host');
+
+    if (oneStarCount > MAX_ONE_STAR_CREDITS) {
+      return {
+        oneStarCredit: false,
+        oneStarCount,
+        supportRequired: true
+      };
+    }
+
+    // Check if we already issued a credit for this theme (prevent duplicates on re-rating)
+    const creditReason = '1-star waiver: theme ' + eventThemeId;
+    const { data: existingCredit } = await supabase
+      .from('usage_credits')
+      .select('id')
+      .eq('source', 'one_star_waiver')
+      .eq('reason', creditReason)
+      .limit(1);
+    if (existingCredit?.length > 0) {
+      return { oneStarCredit: false, oneStarCount, reason: 'already_credited' };
+    }
+
+    // Look up the theme to get model + token usage for cost calculation
+    const { data: theme } = await supabase
+      .from('event_themes')
+      .select('model, input_tokens, output_tokens, event_id')
+      .eq('id', eventThemeId)
+      .single();
+
+    if (!theme) return { oneStarCredit: false, oneStarCount, reason: 'theme_not_found' };
+
+    // Look up event owner
+    const { data: event } = await supabase
+      .from('events')
+      .select('user_id')
+      .eq('id', eventId)
+      .single();
+
+    if (!event?.user_id) return { oneStarCredit: false, oneStarCount, reason: 'no_event_owner' };
+
+    // Calculate the generation cost with markup
+    const pricing = AI_MODEL_PRICING[theme.model] || { input: 3.00, output: 15.00 };
+    const rawCost = ((theme.input_tokens || 0) * pricing.input + (theme.output_tokens || 0) * pricing.output) / 1_000_000;
+
+    // Get markup from user's active usage plan
+    let markupPct = 50;
+    const { data: usageSubs } = await supabase
+      .from('subscriptions')
+      .select('plans:plan_id (ai_markup_pct)')
+      .eq('user_id', event.user_id)
+      .eq('status', 'active')
+      .limit(1);
+    if (usageSubs?.length > 0 && usageSubs[0].plans?.ai_markup_pct) {
+      markupPct = usageSubs[0].plans.ai_markup_pct;
+    }
+
+    const creditCents = Math.round(rawCost * (1 + markupPct / 100) * 100);
+    if (creditCents <= 0) return { oneStarCredit: false, oneStarCount, reason: 'zero_cost' };
+
+    // Issue a usage credit for the waived generation
+    await supabase.from('usage_credits').insert({
+      user_id: event.user_id,
+      amount_cents: creditCents,
+      remaining_cents: creditCents,
+      reason: creditReason,
+      source: 'one_star_waiver'
+    });
+
+    return {
+      oneStarCredit: true,
+      creditCents,
+      oneStarCount
+    };
+  } catch (err) {
+    console.error('1-star credit error:', err);
+    return { oneStarCredit: false, reason: 'error' };
+  }
 }

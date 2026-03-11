@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
+import { checkAndChargeAiUsage } from './billing.js';
 
 const client = new Anthropic();
 const supabase = createClient(
@@ -11,6 +12,20 @@ const DEFAULT_THEME_MODEL = process.env.THEME_MODEL || 'claude-sonnet-4-6';
 
 // Allow up to 300s on Vercel Pro (caps at 60s on Hobby)
 export const config = { maxDuration: 300 };
+
+// AI model pricing per 1M tokens (must match billing.js)
+const AI_MODEL_PRICING = {
+  'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00 },
+  'claude-sonnet-4-6': { input: 3.00, output: 15.00 },
+  'claude-opus-4-6': { input: 15.00, output: 75.00 },
+};
+
+function calcGenerationCost(model, inputTokens, outputTokens, markupPct = 50) {
+  const pricing = AI_MODEL_PRICING[model] || { input: 3.00, output: 15.00 };
+  const rawCost = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
+  const withMarkup = rawCost * (1 + markupPct / 100);
+  return { rawCostCents: Math.round(rawCost * 100), totalCostCents: Math.round(withMarkup * 100) };
+}
 
 // Fetch images from URLs and convert to base64 for Claude vision
 async function fetchImagesAsBase64(urls) {
@@ -296,11 +311,12 @@ Build the page with these sections (creative freedom on visual execution):
 1. **THEMATIC HEADER** — An animated or illustrated element specific to this event type.
 2. **HERO SECTION** — Large display headline with event title/names/tagline. Photo treatment if photos provided.
 3. **EVENT DETAILS** — Icon + text layout for date, time, location.
-4. **RSVP SECTION** — \`<div class="rsvp-slot"><button class="rsvp-button">...</button></div>\`. The rsvp-slot MUST contain ONLY the button — the platform injects the real form at runtime. Make the button text fun and on-theme.
+4. **RSVP SECTION** — \`<div class="rsvp-slot"><button class="rsvp-button">...</button></div>\`. The rsvp-slot MUST contain ONLY the button — the platform injects the real form at runtime. Make the button text fun and on-theme but NEVER use commitment words like "I'm Coming", "Count Me In", "I'll Be There", "RSVP Yes", "Sign Me Up", etc. The RSVP status (attending/declined/maybe) is handled by the form — the button just opens it. Use action phrases like "Let's Party!", "Open the Invite!", "Get the Details!", "Join the Fun!", "See What's Inside!", "Reserve Your Spot!" instead.
 
 ## RSVP BUTTON — CRITICAL PLATFORM RULES
 - Full-width within its container (width: 100% or at least 280px) — NEVER shrink to fit text
-- Min-height: 56px with generous padding (16px 32px minimum)
+- Min-height: 56px, max-height: 72px — NEVER make the button taller than 72px. It should be a normal button, NOT a giant vertical element.
+- Generous padding (16px 32px minimum)
 - Border-radius matching the design language (8-16px modern, 28px+ pill)
 - Clear, high-contrast centered text — use flexbox (display:flex; align-items:center; justify-content:center)
 - Font-size: 16-18px, bold/semibold
@@ -308,6 +324,8 @@ Build the page with these sections (creative freedom on visual execution):
 - Smooth hover transition (transform scale 1.02-1.05, subtle shadow lift, or color shift)
 - NEVER overflow, clip, or break layout at 393px viewport width
 - NEVER put form inputs/selects/labels inside \`.rsvp-slot\` — ONLY the button
+- The RSVP button must NOT overlap or cover other content. It should sit naturally in the page flow, NOT be position:absolute or position:fixed.
+- RSVP fields and buttons MUST ALWAYS be single-column (stacked vertically, full-width). NEVER use two-column grid, flex-row, or side-by-side layouts for form fields or the RSVP button — the platform injects form fields that break when laid out in columns on mobile. This is a 393px viewport.
 
 ## RSVP FORM LAYOUT — CRITICAL (platform injects form at runtime)
 - The platform replaces the \`.rsvp-slot\` contents with form fields (name, status, custom fields) + the button
@@ -354,13 +372,15 @@ Rules:
 - NO calendar buttons, NO footer — the platform handles these
 - NO extra sections (dress code, bullet lists, event details)
 - The subtitle must include \`<span class="thankyou-guest">Guest</span>\` placeholder
-- Style .thankyou-page with same background treatment as the invite
+- **BRANDED BACKGROUND — CRITICAL**: The thank-you page must feel like a continuation of the invite, NOT a plain white page. Use the same background color, gradient, pattern, or texture from the invite. Carry over the theme's color palette, decorative elements (subtle SVG ornaments, floating particles, gradients, etc.) so the experience feels cohesive and polished.
+- Use the same fonts and color palette as the invite for the title and subtitle
 - Include these CSS rules in theme_css:
 \`\`\`css
 .thankyou-page {
   max-width: 393px; margin: 0 auto; padding: 60px 32px 40px;
   min-height: 100vh; display: flex; flex-direction: column;
   align-items: center; justify-content: center; text-align: center;
+  /* MUST have the same background treatment as the invite — color, gradient, pattern, or texture */
 }
 .thankyou-hero { margin-bottom: 32px; }
 .thankyou-title { font-size: 36px; font-weight: 700; margin-bottom: 12px; }
@@ -764,10 +784,11 @@ export default async function handler(req, res) {
 
   // --- INTERPRET FIELD: quick Haiku call to parse natural language into field definition ---
   if (action === 'interpretField') {
-    const { userMessage, existingFields } = req.body;
+    const { userMessage, existingFields, eventId: fieldEventId } = req.body;
     if (!userMessage) return res.status(400).json({ error: 'Missing userMessage' });
 
     try {
+      const fieldStartTime = Date.now();
       const fieldList = (existingFields || []).map(f => f.label).join(', ');
       const resp = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
@@ -788,6 +809,32 @@ Rules:
       });
 
       const text = resp.content[0]?.text?.trim();
+      const fieldInputTokens = resp.usage?.input_tokens || 0;
+      const fieldOutputTokens = resp.usage?.output_tokens || 0;
+
+      // Log cost to generation_log + increment event cost
+      const fieldLatency = Date.now() - fieldStartTime;
+      const fieldCost = calcGenerationCost('claude-haiku-4-5-20251001', fieldInputTokens, fieldOutputTokens);
+      supabase.from('generation_log').insert({
+        user_id: user.id, event_id: fieldEventId || null,
+        prompt: 'interpretField: ' + userMessage.substring(0, 200),
+        model: 'claude-haiku-4-5-20251001', input_tokens: fieldInputTokens,
+        output_tokens: fieldOutputTokens, latency_ms: fieldLatency, status: 'success',
+        is_tweak: true
+      }).catch(() => {});
+      if (fieldEventId) {
+        supabase.rpc('increment_event_cost', { p_event_id: fieldEventId, p_cost_cents: fieldCost.totalCostCents })
+          .catch(() => {
+            supabase.from('events').select('total_cost_cents').eq('id', fieldEventId).single()
+              .then(({ data }) => {
+                if (data) supabase.from('events')
+                  .update({ total_cost_cents: (data.total_cost_cents || 0) + fieldCost.totalCostCents })
+                  .eq('id', fieldEventId).catch(() => {});
+              }).catch(() => {});
+          });
+      }
+      checkAndChargeAiUsage(user.id).catch(() => {});
+
       let field;
       try {
         const cleaned = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
@@ -795,7 +842,7 @@ Rules:
       } catch {
         return res.status(500).json({ error: 'Failed to parse field', raw: text });
       }
-      return res.json({ success: true, field });
+      return res.json({ success: true, field, metadata: { cost: fieldCost } });
     } catch (err) {
       console.error('interpretField error:', err);
       return res.status(500).json({ error: err.message });
@@ -1029,7 +1076,8 @@ Return ONLY a valid JSON object with these keys:
       }, 3000);
 
       // Use .on('text') (proven to work) + resolve on 'finalMessage' event
-      // Fallback: idle timeout resolves if no text for 5s after text started
+      // Capture finalMessage to get token usage for cost tracking
+      let tweakFinalMessage = null;
       await new Promise((resolve, reject) => {
         let resolved = false;
         let lastChunkTime = Date.now();
@@ -1043,7 +1091,7 @@ Return ONLY a valid JSON object with these keys:
             sendSSE('progress', { chunks: chunkCount, bytes: fullText.length });
           }
         });
-        stream.on('finalMessage', done);
+        stream.on('finalMessage', (msg) => { tweakFinalMessage = msg; done(); });
         stream.on('end', done);
         stream.on('error', (err) => { if (!resolved) { resolved = true; clearInterval(idleCheck); clearInterval(keepalive); reject(err); } });
 
@@ -1065,12 +1113,28 @@ Return ONLY a valid JSON object with these keys:
         }, 120000);
       });
 
+      const tweakInputTokens = tweakFinalMessage?.usage?.input_tokens || 0;
+      const tweakOutputTokens = tweakFinalMessage?.usage?.output_tokens || 0;
       const latency = Date.now() - startTime;
 
       sendSSE('status', { phase: 'saving' });
 
       // Parse the accumulated text using robust parser
-      let theme = parseThemeResponse(fullText);
+      let theme;
+      try {
+        theme = parseThemeResponse(fullText);
+      } catch (parseErr) {
+        // No valid JSON/HTML found — AI responded with conversational text instead of a theme.
+        // Return it as a chat response so the client can display it gracefully.
+        sendSSE('done', {
+          success: true,
+          chatOnly: true,
+          chatResponse: fullText.trim(),
+          theme: null,
+          metadata: { model: tweakModel, latencyMs: Date.now() - startTime, tokens: { input: tweakInputTokens, output: tweakOutputTokens }, cost: tweakCost }
+        });
+        return res.end();
+      }
 
       // ── Light tweak: apply diff-based html_replacements ──
       if (isLightTweak && theme.html_replacements && Array.isArray(theme.html_replacements)) {
@@ -1126,12 +1190,19 @@ Return ONLY a valid JSON object with these keys:
       }
 
       // Send result to client FIRST — Vercel may kill us before DB saves complete
+      const tweakCost = calcGenerationCost(tweakModel, tweakInputTokens, tweakOutputTokens);
       sendSSE('done', {
         success: true,
         theme: { id: 'pending', version: 0, html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
         chatResponse: theme.chat_response || null,
         rsvpFieldChanges: theme.rsvp_field_changes || null,
-        isLightTweak
+        isLightTweak,
+        metadata: {
+          model: tweakModel,
+          latencyMs: latency,
+          tokens: { input: tweakInputTokens, output: tweakOutputTokens },
+          cost: tweakCost
+        }
       });
 
       // Save as new version (best-effort — client already has the theme)
@@ -1155,8 +1226,8 @@ Return ONLY a valid JSON object with these keys:
           event_id: eventId, version: nextVersion, is_active: true,
           prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
           html: theme.theme_html, css: theme.theme_css, config: tweakConfig,
-          model: themeModel, input_tokens: 0,
-          output_tokens: 0, latency_ms: latency
+          model: tweakModel, input_tokens: tweakInputTokens,
+          output_tokens: tweakOutputTokens, latency_ms: latency
         };
         let { error: tweakThemeError } = await supabase
           .from('event_themes').insert(tweakInsert).select().single();
@@ -1165,11 +1236,25 @@ Return ONLY a valid JSON object with these keys:
         const tweakMeta = getClientMeta(req);
         supabase.from('generation_log').insert({
           event_id: eventId, user_id: user.id, prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
-          model: tweakModel, input_tokens: 0,
-          output_tokens: 0, latency_ms: latency, status: 'success',
+          model: tweakModel, input_tokens: tweakInputTokens,
+          output_tokens: tweakOutputTokens, latency_ms: latency, status: 'success',
           is_tweak: true, event_type: eventDetails?.eventType || '',
           client_ip: tweakMeta.ip, client_geo: tweakMeta.geo, user_agent: tweakMeta.userAgent
         }).catch(() => {});
+        // Atomically increment persistent event cost
+        supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: tweakCost.totalCostCents })
+          .catch(() => {
+            supabase.from('events')
+              .select('total_cost_cents').eq('id', eventId).single()
+              .then(({ data }) => {
+                if (data) supabase.from('events')
+                  .update({ total_cost_cents: (data.total_cost_cents || 0) + tweakCost.totalCostCents })
+                  .eq('id', eventId).catch(() => {});
+              }).catch(() => {});
+          });
+
+        // Check if usage-based AI billing threshold is reached
+        checkAndChargeAiUsage(user.id).catch(e => console.error('AI billing check error:', e.message));
       } catch (saveErr) {
         console.error('Tweak DB save error (theme already sent to client):', saveErr);
       }
@@ -1267,7 +1352,8 @@ RSVP FORM
 ══════════════════════
 The platform injects a fully functional RSVP form into the \`.rsvp-slot\` at runtime.
 You MUST only place a styled \`<button class="rsvp-button">\` inside \`.rsvp-slot\`. NO form inputs.
-Make the button text fun and on-theme (e.g., "Count Me In!", "I'll Be There!", "Let's Party!").
+Make the button text fun and on-theme but NEVER imply commitment or attendance (no "Count Me In", "I'll Be There", "I'm Coming", "Sign Me Up"). The button opens the RSVP form where guests choose attending/declined/maybe — so use neutral action phrases like "Let's Party!", "RSVP Now!", "Open the Invite!", "Get the Details!".
+RSVP fields and the button MUST be single-column, stacked vertically, full-width. NEVER use two-column or grid layouts for form elements.
 
 Fields that will be injected (for awareness only — do NOT render):
 ${rsvpFieldsDesc}`;
@@ -1342,7 +1428,8 @@ This is the most common failure mode. Double-check it.`;
     }, 3000);
 
     // Use .on('text') (proven to work) + resolve on 'finalMessage' event
-    // Fallback: idle timeout resolves if no text for 5s after text started
+    // Capture finalMessage to get token usage for cost tracking
+    let genFinalMessage = null;
     await new Promise((resolve, reject) => {
       let resolved = false;
       let lastChunkTime = Date.now();
@@ -1356,7 +1443,7 @@ This is the most common failure mode. Double-check it.`;
           sendSSE('progress', { chunks: chunkCount, bytes: fullText.length });
         }
       });
-      stream.on('finalMessage', done);
+      stream.on('finalMessage', (msg) => { genFinalMessage = msg; done(); });
       stream.on('end', done);
       stream.on('error', (err) => { if (!resolved) { resolved = true; clearInterval(idleCheck); clearInterval(keepalive); reject(err); } });
 
@@ -1379,6 +1466,8 @@ This is the most common failure mode. Double-check it.`;
       }, 120000);
     });
 
+    const genInputTokens = genFinalMessage?.usage?.input_tokens || 0;
+    const genOutputTokens = genFinalMessage?.usage?.output_tokens || 0;
     const latency = Date.now() - startTime;
 
     sendSSE('status', { phase: 'saving' });
@@ -1410,6 +1499,7 @@ This is the most common failure mode. Double-check it.`;
     // CRITICAL: Send theme to client IMMEDIATELY before DB saves.
     // Vercel may kill the function at 60s — the user must have their invite first.
     // DB saves happen after; if they fail, the user still sees the invite (it just won't be persisted).
+    const genCost = calcGenerationCost(themeModel, genInputTokens, genOutputTokens);
     sendSSE('done', {
       success: true,
       theme: {
@@ -1423,9 +1513,10 @@ This is the most common failure mode. Double-check it.`;
         model: themeModel,
         latencyMs: latency,
         tokens: {
-          input: 0,
-          output: 0
-        }
+          input: genInputTokens,
+          output: genOutputTokens
+        },
+        cost: genCost
       }
     });
 
@@ -1455,8 +1546,8 @@ This is the most common failure mode. Double-check it.`;
         css: theme.theme_css,
         config: theme.theme_config,
         model: themeModel,
-        input_tokens: 0,
-        output_tokens: 0,
+        input_tokens: genInputTokens,
+        output_tokens: genOutputTokens,
         latency_ms: latency,
         prompt_version_id: activePrompt.promptVersionId || null
       };
@@ -1469,12 +1560,12 @@ This is the most common failure mode. Double-check it.`;
       }
       if (themeError) console.error('Failed to save theme:', themeError.message);
 
-      // Fire-and-forget: generation log + first_generation_at
+      // Fire-and-forget: generation log + first_generation_at + cost tracking
       const genMeta = getClientMeta(req);
       supabase.from('generation_log').insert({
         event_id: eventId, user_id: user.id, prompt: effectivePrompt,
-        model: themeModel, input_tokens: 0,
-        output_tokens: 0, latency_ms: latency,
+        model: themeModel, input_tokens: genInputTokens,
+        output_tokens: genOutputTokens, latency_ms: latency,
         status: 'success', event_type: eventType, style_library_ids: usedStyleIds,
         prompt_version_id: activePrompt.promptVersionId || null,
         client_ip: genMeta.ip, client_geo: genMeta.geo, user_agent: genMeta.userAgent
@@ -1483,6 +1574,21 @@ This is the most common failure mode. Double-check it.`;
         .update({ first_generation_at: new Date().toISOString() })
         .eq('id', eventId).is('first_generation_at', null)
         .then(() => {}).catch(() => {});
+      // Atomically increment persistent event cost
+      supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: genCost.totalCostCents })
+        .catch(() => {
+          // Fallback: direct update if RPC doesn't exist yet
+          supabase.from('events')
+            .select('total_cost_cents').eq('id', eventId).single()
+            .then(({ data }) => {
+              if (data) supabase.from('events')
+                .update({ total_cost_cents: (data.total_cost_cents || 0) + genCost.totalCostCents })
+                .eq('id', eventId).catch(() => {});
+            }).catch(() => {});
+        });
+
+      // Check if usage-based AI billing threshold is reached
+      checkAndChargeAiUsage(user.id).catch(e => console.error('AI billing check error:', e.message));
     } catch (saveErr) {
       console.error('DB save error (theme already sent to client):', saveErr);
     }
@@ -1499,8 +1605,8 @@ This is the most common failure mode. Double-check it.`;
         user_id: user.id,
         prompt: effectivePrompt,
         model: themeModel,
-        input_tokens: 0,
-        output_tokens: 0,
+        input_tokens: typeof actualInputTokens !== 'undefined' ? actualInputTokens : 0,
+        output_tokens: typeof actualOutputTokens !== 'undefined' ? actualOutputTokens : 0,
         latency_ms: Date.now() - startTime,
         status: 'error',
         error: (err.message || '').substring(0, 500),

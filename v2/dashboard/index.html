@@ -90,6 +90,7 @@
     .status-draft { background: #fff3cd; color: #856404; }
     .status-published { background: #d4edda; color: #155724; }
     .status-archived { background: #e2e3e5; color: #383d41; }
+    .no-invites-flag { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: #fff3cd; border-radius: 6px; font-size: 11px; color: #856404; margin-bottom: 10px; }
     .progress-track { width: 100%; height: 6px; background: #eee; border-radius: 3px; margin: 10px 0 4px; overflow: hidden; }
     .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
     .progress-label { font-size: 12px; color: #999; margin-bottom: 10px; }
@@ -114,6 +115,30 @@
     .share-buttons { display: flex; gap: 8px; }
     .share-btn { flex: 1; padding: 10px 8px; border: 1px solid #ddd; background: white; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: 'Inter', sans-serif; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; color: var(--midnight); text-decoration: none; font-weight: 500; }
     .share-btn:hover { border-color: var(--party-coral); color: var(--party-coral); }
+
+    /* Usage Cost Widget */
+    .usage-widget { background: white; border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid var(--mint-fizz); }
+    .usage-widget.hidden { display: none; }
+    .usage-widget-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+    .usage-widget-title { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+    .usage-widget-total { font-size: 20px; font-weight: 700; color: var(--midnight); }
+    .usage-widget-toggle { background: none; border: none; font-size: 18px; cursor: pointer; color: #999; transition: transform 0.2s; padding: 4px 8px; }
+    .usage-widget-toggle.open { transform: rotate(180deg); }
+    .usage-widget-body { margin-top: 16px; display: none; }
+    .usage-widget-body.open { display: block; }
+    .usage-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 14px; }
+    .usage-row + .usage-row { border-top: 1px solid #f0f0f0; }
+    .usage-label { color: #666; }
+    .usage-value { font-weight: 600; }
+    .usage-value.credit { color: var(--mint-fizz); }
+    .threshold-bar { margin-top: 12px; }
+    .threshold-track { width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
+    .threshold-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+    .threshold-labels { display: flex; justify-content: space-between; margin-top: 4px; font-size: 12px; color: #999; }
+    .usage-tier-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .tier-new { background: #fff3cd; color: #856404; }
+    .tier-established { background: #d4edda; color: #155724; }
+    .tier-trusted { background: #cce5ff; color: #004085; }
 
     /* Confirm Modal */
     .confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 300; align-items: center; justify-content: center; }
@@ -240,6 +265,51 @@
       <div style="display:flex;align-items:center;gap:16px;">
         <div class="contacts-card-tags" id="contactsTopTags"></div>
         <a href="/v2/contacts/" class="contacts-card-link">View All →</a>
+      </div>
+    </div>
+
+    <!-- Real-time Usage Cost Widget (pay-as-you-go users only) -->
+    <div class="usage-widget hidden" id="usageWidget">
+      <div class="usage-widget-header" onclick="toggleUsageDetails()">
+        <div>
+          <div class="usage-widget-title">
+            Total Usage
+            <span class="usage-tier-badge" id="tierBadge"></span>
+          </div>
+          <div class="usage-widget-total" id="usageTotal">$0.00</div>
+        </div>
+        <button class="usage-widget-toggle" id="usageToggle">&#9662;</button>
+      </div>
+      <div class="usage-widget-body" id="usageBody">
+        <div class="usage-row">
+          <span class="usage-label">AI Generations (<span id="aiGenCount">0</span>)</span>
+          <span class="usage-value" id="aiCostDisplay">$0.00</span>
+        </div>
+        <div class="usage-row">
+          <span class="usage-label">SMS Messages (<span id="smsCount">0</span>)</span>
+          <span class="usage-value" id="smsCostDisplay">$0.00</span>
+        </div>
+        <div class="usage-row" id="creditsRow" style="display:none;">
+          <span class="usage-label">Credits Applied</span>
+          <span class="usage-value credit" id="creditsDisplay">-$0.00</span>
+        </div>
+        <div class="usage-row" style="font-weight:600; border-top: 2px solid #eee; padding-top: 10px;">
+          <span class="usage-label" style="color:var(--midnight);">Net Unbilled</span>
+          <span class="usage-value" id="netUnbilled">$0.00</span>
+        </div>
+        <div class="threshold-bar">
+          <div class="threshold-track">
+            <div class="threshold-fill" id="thresholdFill" style="width:0%;background:var(--mint-fizz);"></div>
+          </div>
+          <div class="threshold-labels">
+            <span>$0</span>
+            <span id="thresholdLabel">Auto-charge at $5.00</span>
+          </div>
+        </div>
+        <div id="recentCharges" style="margin-top:12px;display:none;">
+          <div style="font-size:13px;font-weight:600;color:#666;margin-bottom:6px;">Recent Charges</div>
+          <div id="recentChargesList"></div>
+        </div>
       </div>
     </div>
 
@@ -514,6 +584,11 @@
             + '<div class="progress-label">' + prog.pct + '% — ' + escapeHtml(prog.label) + '</div>';
         }
 
+        var noInvitesHtml = '';
+        if (isPublished && event.settings && !event.settings.invites_sent) {
+          noInvitesHtml = '<div class="no-invites-flag"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> No invites sent yet — share the link below to invite guests</div>';
+        }
+
         var shareHtml = '';
         if (isPublished) {
           shareHtml = '<div class="share-row">'
@@ -575,6 +650,7 @@
           + '<span class="status-badge ' + statusClass + '">' + (event.status || 'Draft') + '</span>'
           + '</div>'
           + progressHtml
+          + noInvitesHtml
           + shareHtml
           + actionsHtml
           + '</div></div>';
@@ -740,8 +816,94 @@
     }
     window.addEventListener('resize', rescalePreviewIframes);
 
+    // ---- Usage Cost Widget ----
+    function toggleUsageDetails() {
+      var body = document.getElementById('usageBody');
+      var toggle = document.getElementById('usageToggle');
+      body.classList.toggle('open');
+      toggle.classList.toggle('open');
+    }
+
+    function formatCents(cents) {
+      return '$' + (cents / 100).toFixed(2);
+    }
+
+    async function loadUsageSummary() {
+      try {
+        var res = await authFetch('/api/v2/billing?action=usage_summary');
+        var result = await res.json();
+        if (!result.success || !result.usage) return;
+
+        var u = result.usage;
+        var widget = document.getElementById('usageWidget');
+
+        // Only show for users with any usage or a usage-based plan
+        var totalAllTime = u.totalAllTimeCents || 0;
+        if (totalAllTime === 0 && u.totalUnbilledCents === 0 && u.totalPaidToDateCents === 0 && u.credits.availableCents === 0) return;
+
+        widget.classList.remove('hidden');
+
+        // Total display — show all-time usage, not just unbilled
+        document.getElementById('usageTotal').textContent = formatCents(totalAllTime);
+
+        // AI breakdown — show all-time counts and costs
+        document.getElementById('aiGenCount').textContent = u.ai.totalCount || u.ai.unbilledCount;
+        document.getElementById('aiCostDisplay').textContent = formatCents(u.ai.allTimeCents || u.ai.totalCents);
+
+        // SMS breakdown — show all-time
+        document.getElementById('smsCount').textContent = u.sms.unbilledCount;
+        document.getElementById('smsCostDisplay').textContent = formatCents(u.sms.allTimeCents || u.sms.totalCents);
+
+        // Credits
+        if (u.credits.availableCents > 0) {
+          document.getElementById('creditsRow').style.display = 'flex';
+          document.getElementById('creditsDisplay').textContent = '-' + formatCents(u.credits.availableCents);
+        }
+
+        // Net unbilled
+        document.getElementById('netUnbilled').textContent = formatCents(u.afterCreditsCents);
+
+        // Threshold bar
+        var pct = u.threshold.pctToThreshold;
+        var fill = document.getElementById('thresholdFill');
+        fill.style.width = pct + '%';
+        if (pct >= 80) {
+          fill.style.background = 'var(--party-coral)';
+        } else if (pct >= 50) {
+          fill.style.background = 'var(--confetti-gold)';
+        } else {
+          fill.style.background = 'var(--mint-fizz)';
+        }
+        document.getElementById('thresholdLabel').textContent = 'Auto-charge at ' + formatCents(u.threshold.cents);
+
+        // Tier badge
+        var badge = document.getElementById('tierBadge');
+        if (u.threshold.tier === 'trusted') {
+          badge.textContent = 'Trusted'; badge.className = 'usage-tier-badge tier-trusted';
+        } else if (u.threshold.tier === 'established') {
+          badge.textContent = 'Established'; badge.className = 'usage-tier-badge tier-established';
+        } else {
+          badge.textContent = 'New'; badge.className = 'usage-tier-badge tier-new';
+        }
+
+        // Recent charges
+        if (u.recentCharges && u.recentCharges.length > 0) {
+          document.getElementById('recentCharges').style.display = 'block';
+          document.getElementById('recentChargesList').innerHTML = u.recentCharges.map(function(c) {
+            return '<div class="usage-row" style="padding:4px 0;font-size:13px;">'
+              + '<span class="usage-label">' + new Date(c.date).toLocaleDateString() + ' — ' + escapeHtml(c.description) + '</span>'
+              + '<span class="usage-value">' + formatCents(c.amountCents) + '</span>'
+              + '</div>';
+          }).join('');
+        }
+      } catch (e) {
+        console.error('Usage summary load error:', e);
+      }
+    }
+
     loadDashboard();
     loadContactsSummary();
+    loadUsageSummary();
   </script>
 </body>
 </html>
