@@ -178,16 +178,26 @@
     .prompt-toggle.open .arrow { transform: rotate(90deg); }
 
     /* Style Library */
-    .style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-    .style-card { background: white; border: 1px solid #eee; border-radius: 8px; overflow: hidden; transition: all 0.2s; }
-    .style-card:hover { border-color: var(--party-coral); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-    .style-card-preview { overflow: hidden; background: #f9f9f9; position: relative; border-bottom: 1px solid #eee; }
-    .style-card-preview iframe { width: 393px; height: 700px; border: none; transform-origin: top left; pointer-events: none; display: block; }
-    .style-card-body { padding: 12px 14px; }
-    .style-card-body h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-    .style-card-body p { font-size: 12px; color: #888; margin-bottom: 8px; }
-    .style-card-actions { display: flex; gap: 6px; }
+    .style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+    .style-card { background: white; border: 1px solid #eee; border-radius: 12px; overflow: hidden; transition: all 0.2s; position: relative; }
+    .style-card:hover { border-color: var(--party-coral); box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+    .style-card-preview { padding: 12px; display: flex; justify-content: center; position: relative; }
+    .style-card-details-btn { position: absolute; top: 8px; right: 8px; z-index: 2; width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.9); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #666; transition: all 0.2s; backdrop-filter: blur(4px); }
+    .style-card-details-btn:hover { background: var(--party-coral); color: white; border-color: var(--party-coral); }
+    .style-card-rating { padding: 10px 14px; border-top: 1px solid #eee; display: flex; align-items: center; gap: 8px; }
+    .style-card-rating .star-label { font-size: 11px; color: #888; }
+    .style-card-rating .style-name { font-size: 12px; font-weight: 600; color: var(--midnight); margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+    .style-card-meta { padding: 8px 14px; background: #f9f9f9; border-top: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 4px; }
     .style-tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: #f0f0f0; color: #666; margin-right: 4px; }
+    /* Style details panel (slides down) */
+    .style-card-details { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; background: #fafafa; border-top: 1px solid #eee; }
+    .style-card-details.open { max-height: 500px; }
+    .style-card-details-inner { padding: 14px; }
+    .style-card-details-inner h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; color: var(--midnight); }
+    .style-card-details-inner p { font-size: 12px; color: #666; margin-bottom: 8px; line-height: 1.4; }
+    .style-card-details-inner .detail-row { display: flex; gap: 6px; font-size: 11px; color: #888; margin-bottom: 4px; }
+    .style-card-details-inner .detail-row .detail-label { font-weight: 600; color: #666; min-width: 70px; }
+    .style-card-details-actions { display: flex; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }
     .style-checkbox { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f9f9; border-radius: 6px; cursor: pointer; margin-bottom: 6px; border: 1px solid transparent; transition: all 0.2s; }
     .style-checkbox:hover { border-color: var(--party-coral); background: #fff5f5; }
     .style-checkbox.selected { border-color: var(--party-coral); background: #fff0f0; }
@@ -1019,6 +1029,16 @@
               <option value="bridalShower">Bridal Shower</option>
               <option value="corporate">Corporate</option>
               <option value="other">Other</option>
+            </select>
+            <select id="filterRating" onchange="applyStyleFilter()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+              <option value="">All Ratings</option>
+              <option value="unrated">Unrated</option>
+              <option value="rated">Rated</option>
+              <option value="5">5 Stars</option>
+              <option value="4">4 Stars</option>
+              <option value="3">3 Stars</option>
+              <option value="2">2 Stars</option>
+              <option value="1">1 Star</option>
             </select>
             <select id="filterTag" onchange="applyStyleFilter()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
               <option value="">All Tags</option>
@@ -2306,25 +2326,39 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     var STAR_LABELS = ['', 'Poor', 'Below Avg', 'Average', 'Good', 'Excellent'];
 
-    // Star click handler (delegated)
+    // Star click handler (delegated) — handles both matrix test runs and style library ratings
     document.addEventListener('click', function(e) {
       var star = e.target.closest('.star-rating .star');
       if (!star) return;
       var ratingEl = star.closest('.star-rating');
-      var idx = parseInt(ratingEl.dataset.idx);
       var score = parseInt(star.dataset.score);
-      if (isNaN(idx) || isNaN(score)) return;
+      if (isNaN(score)) return;
 
       // Update visual
       ratingEl.querySelectorAll('.star').forEach(function(s) {
         s.classList.toggle('filled', parseInt(s.dataset.score) <= score);
       });
 
-      // Update label
+      // Style library rating
+      var styleId = ratingEl.dataset.styleId;
+      if (styleId) {
+        var label = document.getElementById('styleStarLabel_' + styleId);
+        if (label) label.textContent = STAR_LABELS[score] || '';
+        // Update local data
+        var item = styleLibrary.find(function(s) { return s.id === styleId; });
+        if (item) item.adminRating = score;
+        // Save to API
+        adminFetch('rateStyle', { method: 'POST', body: { styleId: styleId, rating: score } }).catch(function(err) {
+          console.error('Failed to save style rating:', err);
+        });
+        return;
+      }
+
+      // Matrix test run rating
+      var idx = parseInt(ratingEl.dataset.idx);
+      if (isNaN(idx)) return;
       var label = document.getElementById('starLabel' + idx);
       if (label) label.textContent = STAR_LABELS[score] || '';
-
-      // Save score
       if (matrixResults[idx]) {
         matrixResults[idx].score = score;
         var testRunId = matrixResults[idx].testRunId;
@@ -2512,12 +2546,14 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var eventType = document.getElementById('filterEventType').value;
       var tag = document.getElementById('filterTag').value;
       var search = document.getElementById('filterSearch').value.trim();
+      var rating = document.getElementById('filterRating').value;
       var filter = null;
-      if (eventType || tag || search) {
+      if (eventType || tag || search || rating) {
         filter = {};
         if (eventType) filter.eventType = eventType;
         if (tag) filter.tag = tag;
         if (search) filter.search = search;
+        if (rating) filter.rating = rating;
       }
       renderStyleGrid(filter);
     }
@@ -2526,6 +2562,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('filterEventType').value = '';
       document.getElementById('filterTag').value = '';
       document.getElementById('filterSearch').value = '';
+      document.getElementById('filterRating').value = '';
       renderStyleGrid();
     }
 
@@ -2549,6 +2586,17 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             || (item.tags || []).some(function(t) { return t.toLowerCase().includes(q); });
         });
       }
+      // Rating filter
+      if (filter && filter.rating) {
+        if (filter.rating === 'unrated') {
+          items = items.filter(function(item) { return !item.adminRating; });
+        } else if (filter.rating === 'rated') {
+          items = items.filter(function(item) { return item.adminRating > 0; });
+        } else {
+          var rVal = parseInt(filter.rating);
+          if (rVal) items = items.filter(function(item) { return item.adminRating === rVal; });
+        }
+      }
 
       if (items.length === 0) {
         grid.innerHTML = '<div style="color:#888;font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">'
@@ -2562,49 +2610,89 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       items.forEach(function(item) {
         var card = document.createElement('div');
         card.className = 'style-card';
+        card.dataset.styleId = item.id;
 
+        // Details button (top-right corner)
+        var detailsBtn = document.createElement('button');
+        detailsBtn.className = 'style-card-details-btn';
+        detailsBtn.innerHTML = '&#8942;';
+        detailsBtn.title = 'View details';
+        detailsBtn.onclick = function() { toggleStyleDetails(item.id); };
+
+        // Phone mockup preview
         var previewDiv = document.createElement('div');
         previewDiv.className = 'style-card-preview';
-        var iframe = document.createElement('iframe');
-        iframe.sandbox = 'allow-same-origin allow-scripts';
-        iframe.srcdoc = wrapForPreview(item.html, false);
-        previewDiv.appendChild(iframe);
+        previewDiv.appendChild(detailsBtn);
+        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-same-origin allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
+        var phoneWrapper = document.createElement('div');
+        phoneWrapper.innerHTML = phoneHtml;
+        previewDiv.appendChild(phoneWrapper.firstChild);
         card.appendChild(previewDiv);
 
-        var tags = (item.tags || []).map(function(t) { return '<span class="style-tag">' + escapeHtml(t) + '</span>'; }).join('');
+        // Star rating row
+        var rating = item.adminRating || 0;
+        var ratingDiv = document.createElement('div');
+        ratingDiv.className = 'style-card-rating';
+        ratingDiv.innerHTML = '<div class="star-rating" data-style-id="' + item.id + '">'
+          + buildStarHtml(rating)
+          + '</div>'
+          + '<span class="star-label style-star-label" id="styleStarLabel_' + item.id + '">' + (rating ? STAR_LABELS[rating] : 'Rate this') + '</span>'
+          + '<span class="style-name" title="' + escapeHtml(item.name) + '">' + escapeHtml(item.name) + '</span>';
+        card.appendChild(ratingDiv);
+
+        // Event type badges row (compact)
         var eventTypeBadges = (item.eventTypes || []).map(function(et) {
           var etObj = ALL_EVENT_TYPES.find(function(x) { return x.value === et; });
           return '<span class="style-tag" style="background:rgba(233,69,96,0.1);color:var(--party-coral);">' + (etObj ? etObj.label : et) + '</span>';
         }).join('');
+        var tagBadges = (item.tags || []).slice(0, 3).map(function(t) { return '<span class="style-tag">' + escapeHtml(t) + '</span>'; }).join('');
+        if (eventTypeBadges || tagBadges) {
+          var metaDiv = document.createElement('div');
+          metaDiv.className = 'style-card-meta';
+          metaDiv.innerHTML = eventTypeBadges + tagBadges;
+          card.appendChild(metaDiv);
+        }
 
-        var body = document.createElement('div');
-        body.className = 'style-card-body';
-        body.innerHTML = '<h4>' + escapeHtml(item.name) + '</h4>'
+        // Expandable details panel
+        var detailsPanel = document.createElement('div');
+        detailsPanel.className = 'style-card-details';
+        detailsPanel.id = 'styleDetails_' + item.id;
+        var allTags = (item.tags || []).map(function(t) { return '<span class="style-tag">' + escapeHtml(t) + '</span>'; }).join('');
+        detailsPanel.innerHTML = '<div class="style-card-details-inner">'
+          + '<h4>' + escapeHtml(item.name) + '</h4>'
           + (item.description ? '<p>' + escapeHtml(item.description) + '</p>' : '')
-          + (eventTypeBadges ? '<div style="margin-bottom:4px;">' + eventTypeBadges + '</div>' : '')
-          + (tags ? '<div style="margin-bottom:8px;">' + tags + '</div>' : '')
-          + '<div class="style-card-actions">'
-          + '<button class="btn btn-secondary btn-sm" onclick="viewStyleItem(\'' + item.id + '\')">View</button>'
+          + (item.designNotes ? '<div class="detail-row"><span class="detail-label">Design:</span><span>' + escapeHtml(item.designNotes) + '</span></div>' : '')
+          + '<div class="detail-row"><span class="detail-label">Added:</span><span>' + formatDate(item.createdAt) + '</span></div>'
+          + (item.timesUsed ? '<div class="detail-row"><span class="detail-label">Used:</span><span>' + item.timesUsed + ' times as reference</span></div>' : '')
+          + (item.ratedBy ? '<div class="detail-row"><span class="detail-label">Rated by:</span><span>' + escapeHtml(item.ratedBy) + '</span></div>' : '')
+          + (allTags ? '<div style="margin-top:6px;">' + allTags + '</div>' : '')
+          + '<div class="style-card-details-actions">'
+          + '<button class="btn btn-secondary btn-sm" onclick="viewStyleItem(\'' + item.id + '\')">Full View</button>'
           + '<button class="btn btn-secondary btn-sm" onclick="editStyleItem(\'' + item.id + '\')">Edit</button>'
           + '<button class="btn btn-secondary btn-sm" style="color:var(--party-coral);" onclick="deleteStyleItem(\'' + item.id + '\')">Delete</button>'
-          + '</div>';
-        card.appendChild(body);
+          + '</div></div>';
+        card.appendChild(detailsPanel);
+
         grid.appendChild(card);
       });
 
-      // Dynamically scale iframes to fill card width
+      // Scale phone mockup iframes to fit card width
       requestAnimationFrame(function() {
-        var cards = grid.querySelectorAll('.style-card-preview');
-        cards.forEach(function(preview) {
-          var cardWidth = preview.offsetWidth;
-          var iframe = preview.querySelector('iframe');
-          if (iframe && cardWidth > 0) {
-            var scale = cardWidth / 393;
-            iframe.style.transform = 'scale(' + scale + ')';
-            preview.style.height = Math.round(700 * scale * 0.4) + 'px';
+        grid.querySelectorAll('.style-card .phone-screen iframe').forEach(function(iframe) {
+          var screen = iframe.closest('.phone-screen');
+          if (screen) {
+            var screenWidth = screen.offsetWidth || 220;
+            iframe.style.transform = 'scale(' + (screenWidth / 393) + ')';
           }
+          var item = styleLibrary.find(function(s) { return s.id === iframe.closest('.style-card').dataset.styleId; });
+          if (item) iframe.srcdoc = wrapForPreview(item.html, false);
         });
       });
+    }
+
+    function toggleStyleDetails(styleId) {
+      var panel = document.getElementById('styleDetails_' + styleId);
+      if (panel) panel.classList.toggle('open');
     }
 
     function renderStyleCheckboxes() {

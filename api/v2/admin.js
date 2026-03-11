@@ -413,7 +413,12 @@ export default async function handler(req, res) {
         designNotes: row.design_notes,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
-        addedBy: row.added_by
+        addedBy: row.added_by,
+        adminRating: row.admin_rating || 0,
+        adminNotes: row.admin_notes || '',
+        ratedBy: row.rated_by || '',
+        ratedAt: row.rated_at || null,
+        timesUsed: row.times_used || 0
       }));
 
       return res.status(200).json({ success: true, library });
