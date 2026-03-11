@@ -41,9 +41,9 @@ async function verifyAdmin(req) {
 // ── Import the same DESIGN_DNA and SYSTEM_PROMPT from generate-theme.js ──
 // Each entry has "must" (technique/structure) and "consider" (aesthetic suggestions the model can override)
 const DESIGN_DNA = {
-  kidsBirthday: { label: 'Kids Birthday (Ages 0-10)', must: { photoTreatment: 'If photos provided, use circular crops that feel playful. Faces should fill 80% of the frame.', technical: 'Keep all text large and readable. Bright, high-contrast colors.' }, consider: { decorative: 'Animated floating balloons, confetti bursts, bunting flags, or theme-specific elements.', typography: 'Bold, rounded display fonts work well (e.g. Fredoka One, Baloo 2, Lilita One).', colorPhilosophy: 'Joyful and vibrant palettes with fully saturated colors tend to work best.', motion: 'Consider floating/falling elements on infinite loop at 0.1-0.2 opacity.', standout: 'Kid faces with playful decorations make a strong visual anchor' } },
-  adultBirthday: { label: 'Adult / Milestone Birthday', must: { photoTreatment: 'If photos provided, treat editorially — NOT kiddie circles.', technical: 'The milestone number should feature prominently.' }, consider: { decorative: 'Atmospheric texture matching the era/tone.', typography: 'Era-appropriate or bold editorial fonts add strong personality.', colorPhilosophy: '2-3 dominant colors with deliberate restraint OR excess.', motion: 'Tone-appropriate motion: champagne bubble float, spotlight sweep.', standout: 'The milestone number as a massive typographic hero element' } },
-  babyShower: { label: 'Baby Shower / Sip & See', must: { photoTreatment: 'Gentle, warm treatment for any photos.', technical: 'Overall tone should feel nurturing and soft.' }, consider: { decorative: 'Watercolor wash backgrounds, botanical illustrations, pressed flowers.', typography: 'Elegant script paired with refined serif.', colorPhilosophy: 'Soft, limited palettes (2-3 colors + cream/white).', motion: 'Gentle petal/leaf fall, slow dreamy fade-ins.', standout: 'Floral wreath or botanical frame around the baby name' } },
+  kidsBirthday: { label: 'Kids Birthday (Ages 0-10)', must: { photoTreatment: 'If photos provided, use circular crops that feel playful. Faces should fill 80% of the frame.', technical: 'Keep all text large and readable. Bright, high-contrast colors.' }, consider: { decorative: 'VARY widely — pick ONE and commit: jungle safari with animals, outer space with planets/rockets, underwater ocean, dinosaur adventure, superhero comic-book, circus/carnival, construction zone, race cars, pirate treasure map, fairy tale castle, bug safari, robot/tech, wild west, ice cream parlor, monster mash, camping/outdoors. Avoid defaulting to rainbow/balloon/confetti.', typography: 'Bold, rounded display fonts (Fredoka One, Baloo 2, Lilita One, Bungee, Luckiest Guy). Match the specific theme — handwritten for crafty, blocky for construction, futuristic for space.', colorPhilosophy: 'Match the SPECIFIC theme — NOT just rainbow. Jungle: greens/browns. Space: deep navy/neon. Ocean: teals/corals. Dinosaur: earthy oranges/greens. Commit to 3-4 colors that tell the theme story.', motion: 'Theme-specific animations: floating stars for space, swimming fish for ocean, stomping dinos, flying rockets. Avoid generic confetti/balloons unless specifically requested.', standout: 'A bold illustrated hero element matching the theme — a rocket, a dinosaur, a treasure chest, a race car — NOT generic party decorations' } },
+  adultBirthday: { label: 'Adult / Milestone Birthday', must: { photoTreatment: 'If photos provided, treat editorially — NOT kiddie circles.', technical: 'The milestone number should feature prominently.' }, consider: { decorative: 'Match the vibe — pick ONE: glamorous gold, retro 70s earth tones, neon 80s glow, minimalist modern, dark moody lounge, maximalist pattern clash, art deco geometric, tropical island, vintage speakeasy, disco funk, editorial magazine, rustic farmhouse, industrial loft.', typography: 'Era/mood-appropriate fonts (Playfair for elegance, Bebas Neue for bold, groovy retro for decade themes, editorial serif for magazine feel).', colorPhilosophy: '2-3 dominant colors with deliberate restraint OR excess. Avoid safe/generic palettes.', motion: 'Tone-appropriate motion: champagne bubble float, spotlight sweep, neon pulse, record-scratch for retro.', standout: 'The milestone number as a massive typographic hero element' } },
+  babyShower: { label: 'Baby Shower / Sip & See', must: { photoTreatment: 'Gentle, warm treatment for any photos.', technical: 'Overall tone should feel nurturing and warm.' }, consider: { decorative: 'VARY widely — pick ONE: celestial night sky with moons/stars, woodland creatures (foxes, owls), hot air balloons in clouds, storybook illustration, modern geometric with soft shapes, tropical monstera, safari animals, vintage stork, nautical with anchors, honeybee garden, constellation map, paper airplane whimsy, origami animals. Avoid defaulting to generic floral/botanical/watercolor.', typography: 'Match the theme — modern sans for geometric, whimsical rounded for storybook, elegant script for celestial, handwritten for crafty.', colorPhilosophy: 'Go beyond pink/blue — sage and terracotta, navy and gold stars, warm mustard and cream, deep forest green and peach, lavender and mint. Soft does not mean pastel pink.', motion: 'Theme-matched gentle animations: twinkling stars, floating clouds, gentle leaf drift, origami unfolding.', standout: 'A charming illustrated centerpiece — crescent moon, woodland fox, hot air balloon, storybook cover' } },
   engagement: { label: 'Engagement Party', must: { photoTreatment: 'If couple photo provided, make it the hero.', technical: 'The couple\'s names should be prominently featured.' }, consider: { decorative: 'Floating rings, botanical elements, abstract ink strokes.', typography: 'Romantic script + modern sans. Names as typographic hero.', colorPhilosophy: 'Drawing from couple photo tones creates a personal feel.', motion: 'Hearts or sparkle particles floating.', standout: 'Couple photo with names in large display typography' } },
   wedding: { label: 'Wedding / Reception', must: { photoTreatment: 'If photos provided, most refined treatment — restraint and elegance.', technical: 'Every element should feel intentional and earned.' }, consider: { decorative: 'Minimal and intentional — botanical borders, geometric patterns.', typography: 'Distinguished pairings set the right tone.', colorPhilosophy: 'Restraint in color tends to elevate weddings.', motion: 'Subtle motion — slow fade-ins, gentle parallax.', standout: 'Couple names in breathtaking display typography' } },
   graduation: { label: 'Graduation Party', must: { photoTreatment: 'If photos provided, editorial but celebratory.', technical: 'Celebratory but not childish.' }, consider: { decorative: 'Falling diplomas, confetti mortarboards.', typography: 'Bold, confident display fonts.', colorPhilosophy: 'School colors as accent, bold celebratory palette.', motion: 'Paper toss animation feel. Mortarboards floating.', standout: 'Graduate name with massive milestone text' } },
@@ -52,7 +52,7 @@ const DESIGN_DNA = {
   retirement: { label: 'Retirement Party', must: { photoTreatment: 'Prominent, respectful hero treatment.', technical: 'Avoid anything that reads as "old" or condescending.' }, consider: { decorative: 'Achievement badges, timeline elements.', typography: 'Authoritative and warm serif or display font.', colorPhilosophy: 'Distinguished: navy/gold, deep green/cream.', motion: 'Meaningful and measured entrance animations.', standout: 'Years-of-service counter or career timeline' } },
   anniversary: { label: 'Anniversary Party', must: { photoTreatment: 'If two photos provided, "then and now" treatment is powerful.', technical: 'Milestone year number should feature prominently.' }, consider: { decorative: 'Romantic but not saccharine. Gold accents.', typography: 'Romantic but confident and warm.', colorPhilosophy: 'Gold/warm neutrals for milestone years.', motion: 'Gentle sparkle, elegant fade-in choreography.', standout: 'Then and now photo treatment or milestone number' } },
   sports: { label: 'Sports / Watch Party', must: { photoTreatment: 'If photos provided, team gear / action shots.', technical: 'High energy. Bold. Dynamic, not gentle.' }, consider: { decorative: 'Dynamic: stadium lights, score-ticker aesthetic.', typography: 'Bold, condensed, athletic display fonts.', colorPhilosophy: 'Team colors with maximum energy.', motion: 'Stadium light sweep, scoreboard-style reveals.', standout: 'Stadium scoreboard header with team colors' } },
-  bridalShower: { label: 'Bridal Shower', must: { photoTreatment: 'If photos provided, elegant treatment of bride.', technical: 'Floral elements should be beautiful, NEVER clipart-style.' }, consider: { decorative: 'Abundant floral illustration elements.', typography: 'Script + elegant sans or serif.', colorPhilosophy: 'Blush, champagne, sage, and cream.', motion: 'Floating petals, gentle botanical sway.', standout: 'Lush, hand-illustrated-style floral elements' } },
+  bridalShower: { label: 'Bridal Shower', must: { photoTreatment: 'If photos provided, elegant treatment of bride.', technical: 'Elegant and celebratory. NEVER clipart-style elements.' }, consider: { decorative: 'VARY the aesthetic — pick ONE: lush hand-illustrated botanicals, art deco geometric arches, modern minimalist with bold type, Mediterranean tile patterns, French patisserie, garden party toile, bohemian desert with cacti, coastal with shells, Parisian café, champagne brunch editorial, citrus grove, vintage lace and pearls.', typography: 'Match the aesthetic — elegant script for classic, bold sans for modern, serif for editorial, handwritten for bohemian.', colorPhilosophy: 'Go beyond blush — terracotta/olive for boho, navy/gold for art deco, citrus yellows/greens for garden, mauve/burgundy for moody, coral/teal for coastal.', motion: 'Subtle and elegant — floating petals, gentle shimmer, soft parallax.', standout: 'Distinctive visual matching theme — ornate arch, champagne tower, lemon wreath, delicate lace border' } },
   corporate: { label: 'Corporate Event', must: { photoTreatment: 'Brand-aligned, clean, professional.', technical: 'Professional but not boring. No playful floating elements.' }, consider: { decorative: 'Geometric patterns, subtle gradients.', typography: 'Clean, modern sans-serif pairing.', colorPhilosophy: 'Brand colors or sophisticated neutral + accent.', motion: 'Subtle, professional entrance animations.', standout: 'Clean, modern premium design' } },
   other: { label: 'Custom Event', must: { photoTreatment: 'Style based on the event description.', technical: 'Let the user\'s creative direction guide all decisions.' }, consider: { decorative: 'Match the event mood.', typography: 'Fonts matching event emotional register.', colorPhilosophy: 'Derived from the creative direction.', motion: 'Match the energy level of the event.', standout: 'Whatever makes this event feel special' } }
 };
@@ -212,11 +212,19 @@ Return a JSON object with exactly these keys:
 - Centered text via flexbox, 16-18px bold, appearance:none, explicit styling
 - NEVER put form inputs/selects/labels inside \`.rsvp-slot\` — ONLY the button
 
+## RSVP FORM LAYOUT — CRITICAL (platform injects form at runtime)
+- The platform replaces the \`.rsvp-slot\` contents with form fields (name, status, custom fields) + the button
+- The injected form MUST render as a **single column** — NEVER two-column, grid, or side-by-side inputs
+- Style \`.rsvp-slot\` with: \`display: flex; flex-direction: column; width: 100%;\`
+- NEVER set \`.rsvp-slot\` to \`display: grid\`, \`flex-direction: row\`, or \`flex-wrap: wrap\` with side-by-side children
+- All inputs inside \`.rsvp-slot\` must be full-width (width: 100%) — no 50% widths, no multi-column layouts
+
 ## REQUIRED DATA ATTRIBUTES
 - \`data-field="title"\` \`data-field="datetime"\` \`data-field="location"\` \`data-field="dresscode"\` \`data-field="host"\`
 
 ## TECHNICAL CONSTRAINTS — NON-NEGOTIABLE
 - Max-width 393px, centered, mobile-first. Min 14px body, WCAG AA contrast.
+- **TOP SAFE AREA**: The page MUST have at least 48px of padding-top on the outermost container to clear the iPhone notch/Dynamic Island. Content behind the notch is invisible — never place text, logos, or illustrations in the top 48px.
 - Generous padding (20-24px sides). CSS custom properties for theme colors.
 - No JavaScript. No fixed positioning. No iframes. Google Fonts only.
 - Keep height reasonable — 3-5 phone screen scrolls.
@@ -256,17 +264,229 @@ When the user gives minimal input, that is creative freedom. Make bold decisions
 - Background never plain white — use texture, gradient, or tint.
 
 ## ANIMATION — EVERY INVITE SHOULD FEEL ALIVE
-- Ambient background: floating/falling elements, 0.1-0.2 opacity
+- Ambient background: theme-specific moving elements, 0.1-0.2 opacity (match the theme — stars for space, fish for ocean, snow for winter, etc.)
 - Entrance: staggered fade-up (0.1s increments)
 - Hover states on all buttons
 - CSS only, transform + opacity for performance
 
 ## WHAT KILLS A GOOD INVITE — NEVER DO THESE
 - System fonts, purple gradients on white, evenly-weighted elements
-- No animations, generic clipart, light text on light backgrounds
-- Playing it safe on a vague brief`;
+- Generic rainbow/balloon/confetti as the default — pick a SPECIFIC theme instead
+- No animations, light text on light backgrounds
+- Playing it safe on a vague brief — be bold and specific
+- Defaulting to the same aesthetic every time — be unpredictable and varied`;
 
 const SYSTEM_PROMPT = STRUCTURAL_RULES + '\n\n' + DEFAULT_CREATIVE_DIRECTION;
+
+// ═══════════════════════════════════════════════════════════════════
+// ROBUST THEME RESPONSE PARSER
+// Handles: proper JSON, markdown-fenced JSON, full HTML documents,
+// CSS-first responses, truncated JSON, camelCase/snake_case keys
+// ═══════════════════════════════════════════════════════════════════
+function parseThemeResponse(rawText) {
+  let text = rawText.trim();
+
+  // Step 1: Check if the response is a full HTML document (not JSON at all)
+  // Some models return <!DOCTYPE html>... instead of JSON
+  if (text.match(/^<!DOCTYPE/i) || text.match(/^<html/i)) {
+    return extractThemeFromHtmlDoc(text);
+  }
+
+  // Step 2: Strip markdown code fences
+  const jsonBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+  if (jsonBlockMatch) text = jsonBlockMatch[1].trim();
+
+  // Step 3: If still not starting with {, or starts with CSS variables, look for actual JSON
+  if (!text.startsWith('{') || text.match(/^\{\s*--/)) {
+    // Look for JSON-like object start patterns
+    const jsonStart = text.match(/\{\s*"(?:theme_|html|css|config)/);
+    if (jsonStart) {
+      const startIdx = text.indexOf(jsonStart[0]);
+      let depth = 0, inStr = false, lastBrace = -1;
+      for (let i = startIdx; i < text.length; i++) {
+        const ch = text[i];
+        if (ch === '"' && (i === 0 || text[i-1] !== '\\')) inStr = !inStr;
+        if (!inStr) { if (ch === '{') depth++; else if (ch === '}') { depth--; if (depth === 0) { lastBrace = i; break; } } }
+      }
+      text = lastBrace !== -1 ? text.substring(startIdx, lastBrace + 1) : text.substring(startIdx);
+    } else if (text.includes('<html') || text.includes('<!DOCTYPE') || text.includes('<body')) {
+      const htmlMatch = text.match(/<(!DOCTYPE[\s\S]*|html[\s\S]*)<\/html>/i);
+      if (htmlMatch) return extractThemeFromHtmlDoc(htmlMatch[0]);
+    } else if (text.match(/^\{\s*--/) || text.match(/^\s*:root\s*\{/)) {
+      // Model returned raw CSS (possibly followed by HTML). Try to assemble a theme.
+      // Look for HTML content after the CSS
+      const htmlStart = text.match(/<(div|section|main|header|article)\b/i);
+      if (htmlStart) {
+        const htmlIdx = text.indexOf(htmlStart[0]);
+        const cssBlock = text.substring(0, htmlIdx).trim();
+        const htmlBlock = text.substring(htmlIdx).trim();
+        return { theme_html: htmlBlock, theme_css: cssBlock, theme_config: {}, theme_thankyou_html: '' };
+      }
+      // Pure CSS with no HTML — wrap in a style tag and try extractThemeFromHtmlDoc
+      if (text.includes('.') && text.includes('{')) {
+        return { theme_html: '', theme_css: text, theme_config: {}, theme_thankyou_html: '' };
+      }
+    }
+  }
+
+  // Step 4: Try to parse as JSON
+  let theme;
+  try {
+    theme = JSON.parse(text);
+  } catch (parseErr) {
+    // Step 5: Repair common JSON issues
+    let repaired = text;
+    // Remove trailing commas before } or ]
+    repaired = repaired.replace(/,\s*([\]}])/g, '$1');
+    // Close unclosed strings
+    const quoteCount = (repaired.match(/(?<!\\)"/g) || []).length;
+    if (quoteCount % 2 !== 0) repaired += '"';
+    // Close unclosed braces/brackets
+    let braceDepth = 0, bracketDepth = 0, inString = false;
+    for (let i = 0; i < repaired.length; i++) {
+      const ch = repaired[i];
+      if (ch === '"' && (i === 0 || repaired[i-1] !== '\\')) inString = !inString;
+      if (!inString) {
+        if (ch === '{') braceDepth++;
+        else if (ch === '}') braceDepth--;
+        else if (ch === '[') bracketDepth++;
+        else if (ch === ']') bracketDepth--;
+      }
+    }
+    for (let i = 0; i < bracketDepth; i++) repaired += ']';
+    for (let i = 0; i < braceDepth; i++) repaired += '}';
+    try {
+      theme = JSON.parse(repaired);
+    } catch (e2) {
+      // Step 6: Last resort — try to extract HTML/CSS from the raw text
+      if (rawText.includes('<div') || rawText.includes('<section') || rawText.includes('<style')) {
+        return extractThemeFromHtmlDoc(rawText);
+      }
+      // If the raw text contains CSS selectors and HTML elements, try to split them
+      const htmlTag = rawText.match(/<(div|section|main|header|article)\b/i);
+      if (htmlTag) {
+        const idx = rawText.indexOf(htmlTag[0]);
+        const css = rawText.substring(0, idx).trim();
+        const html = rawText.substring(idx).trim();
+        if (html.length > 100) {
+          return { theme_html: html, theme_css: css, theme_config: {}, theme_thankyou_html: '' };
+        }
+      }
+      throw new Error('Failed to parse theme JSON: ' + parseErr.message + ' | First 300 chars: ' + text.substring(0, 300));
+    }
+  }
+
+  // Step 7: Normalize keys (accept snake_case, camelCase, shorthand)
+  return normalizeThemeKeys(theme);
+}
+
+// Extract theme from a raw HTML document the model returned instead of JSON
+function extractThemeFromHtmlDoc(html) {
+  let css = '';
+  let body = html;
+  let config = {};
+
+  // Extract all <style> tag contents
+  const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+  if (styleMatches) {
+    css = styleMatches.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+    body = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+  }
+
+  // Extract <link> Google Fonts
+  const linkMatch = html.match(/<link[^>]*href=["'](https:\/\/fonts\.googleapis\.com\/[^"']+)["'][^>]*>/i);
+  if (linkMatch) {
+    config.googleFontsImport = "@import url('" + linkMatch[1] + "');";
+  }
+
+  // Extract @import from CSS
+  if (!config.googleFontsImport) {
+    const importMatch = css.match(/@import\s+url\(['"]?(https:\/\/fonts\.googleapis\.com[^'"\)]+)['"]?\)/);
+    if (importMatch) {
+      config.googleFontsImport = "@import url('" + importMatch[1] + "');";
+      css = css.replace(/@import\s+url\([^)]+\);?\s*/g, '');
+    }
+  }
+
+  // Strip HTML document wrapper, keep only body content
+  const bodyMatch = body.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  if (bodyMatch) body = bodyMatch[1].trim();
+  // Remove <head>, <html>, <!DOCTYPE> tags if still present
+  body = body.replace(/<head[\s\S]*?<\/head>/gi, '').replace(/<\/?(html|head|!doctype)[^>]*>/gi, '').trim();
+  // Remove <link> and <meta> tags from body
+  body = body.replace(/<(link|meta)[^>]*>/gi, '');
+
+  if (!body && !css) {
+    throw new Error('Invalid theme response — could not extract HTML or CSS from response');
+  }
+
+  return { theme_html: body, theme_css: css, theme_config: config, theme_thankyou_html: '' };
+}
+
+// Normalize theme keys and extract embedded CSS/fonts
+function normalizeThemeKeys(theme) {
+  // Accept snake_case, camelCase, and shorthand keys
+  if (!theme.theme_html && theme.html) theme.theme_html = theme.html;
+  if (!theme.theme_html && theme.themeHtml) theme.theme_html = theme.themeHtml;
+  if (!theme.theme_css && theme.css) theme.theme_css = theme.css;
+  if (!theme.theme_css && theme.themeCss) theme.theme_css = theme.themeCss;
+  if (!theme.theme_config && theme.config) theme.theme_config = theme.config;
+  if (!theme.theme_config && theme.themeConfig) theme.theme_config = theme.themeConfig;
+  if (!theme.theme_thankyou_html && theme.thankyou_html) theme.theme_thankyou_html = theme.thankyou_html;
+  if (!theme.theme_thankyou_html && theme.thankyouHtml) theme.theme_thankyou_html = theme.thankyouHtml;
+
+  // Fix double-escaped quotes in HTML/CSS (models sometimes output \" inside JSON string values)
+  // These appear as literal backslash-quote in the parsed string, breaking SVG attributes etc.
+  if (theme.theme_html && theme.theme_html.includes('\\"')) {
+    theme.theme_html = theme.theme_html.replace(/\\"/g, '"');
+  }
+  if (theme.theme_css && theme.theme_css.includes('\\"')) {
+    theme.theme_css = theme.theme_css.replace(/\\"/g, '"');
+  }
+  if (theme.theme_thankyou_html && theme.theme_thankyou_html.includes('\\"')) {
+    theme.theme_thankyou_html = theme.theme_thankyou_html.replace(/\\"/g, '"');
+  }
+
+  // If CSS is missing but embedded in HTML <style> tags, extract it
+  if (theme.theme_html && !theme.theme_css) {
+    const styleMatch = theme.theme_html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+    if (styleMatch) {
+      theme.theme_css = styleMatch.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+      theme.theme_html = theme.theme_html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+    }
+  }
+
+  // If HTML is a full document, extract body content and head styles
+  if (theme.theme_html && (theme.theme_html.includes('<!DOCTYPE') || theme.theme_html.includes('<html'))) {
+    if (!theme.theme_css) {
+      const headStyleMatch = theme.theme_html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+      if (headStyleMatch) {
+        theme.theme_css = headStyleMatch.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+      }
+    }
+    const bodyMatch = theme.theme_html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    if (bodyMatch) theme.theme_html = bodyMatch[1].trim();
+  }
+
+  if (!theme.theme_css) theme.theme_css = '';
+  if (!theme.theme_config) theme.theme_config = {};
+
+  // Extract Google Fonts @import from CSS into config if missing
+  if (!theme.theme_config.googleFontsImport) {
+    const fontImportMatch = (theme.theme_css || '').match(/@import\s+url\(['"]?(https:\/\/fonts\.googleapis\.com[^'"\)]+)['"]?\)/);
+    if (fontImportMatch) {
+      theme.theme_config.googleFontsImport = "@import url('" + fontImportMatch[1] + "');";
+      theme.theme_css = theme.theme_css.replace(/@import\s+url\([^)]+\);?\s*/g, '');
+    }
+  }
+
+  if (!theme.theme_html) {
+    const keys = Object.keys(theme).join(', ');
+    throw new Error('Invalid theme response — missing theme_html. Got keys: [' + keys + ']. First 200 chars: ' + JSON.stringify(theme).substring(0, 200));
+  }
+
+  return theme;
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -352,25 +572,34 @@ Guidelines:
     if (!eventType) return res.status(400).json({ error: 'eventType is required' });
 
     try {
+      // Build a seed for diversity so repeated calls get different results
+      const diversitySeed = Math.floor(Math.random() * 10000);
       const response = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 512,
-        system: `You generate realistic dummy event data for testing an event invitation platform. Return ONLY valid JSON.`,
+        system: `You generate fictional dummy event data for testing an event invitation platform. Return ONLY valid JSON.
+
+CRITICAL RULES:
+- Use ENTIRELY FICTIONAL names, venues, and addresses. Never use real people's names or information.
+- Vary the cultural backgrounds of names (mix of Asian, African, Latin, European, Middle Eastern, etc.)
+- Vary geographic locations across different US cities and regions
+- For the design "prompt" field: be HIGHLY SPECIFIC and DIVERSE. Avoid overused themes like "garden party", "botanical", "rainbow", "floral watercolor". Instead think: art deco, retro 70s, maximalist patterns, minimalist Scandinavian, Afrofuturist, vaporwave, brutalist, paper-cut art, ceramic tile, woodblock print, neon noir, stained glass, mosaic, etc.
+- Each generation should feel completely different from typical event invites`,
         messages: [{
           role: 'user',
-          content: `Generate realistic test data for a "${typeLabel || eventType}" event. Return JSON with exactly these keys:
+          content: `Generate creative, fictional test data for a "${typeLabel || eventType}" event. Seed for variety: ${diversitySeed}. Return JSON with exactly these keys:
 {
   "title": "Creative event title",
   "startDate": "2026-04-15T14:00",
   "endDate": "2026-04-15T17:00",
-  "locationName": "Venue name",
-  "locationAddress": "Full address with city, state, zip",
-  "hostName": "Host name(s)",
+  "locationName": "Fictional venue name",
+  "locationAddress": "Fictional full address with city, state, zip",
+  "hostName": "Fictional host name(s)",
   "dressCode": "Dress code",
   "tagline": "Short catchy tagline",
-  "prompt": "2-3 sentence creative design direction describing the visual aesthetic, colors, and mood for the invite"
+  "prompt": "2-3 sentence SPECIFIC and UNIQUE creative design direction. Avoid generic themes like garden/botanical/rainbow/watercolor. Be bold and distinctive."
 }
-Use realistic names, venues, and addresses. Make the design prompt vivid and specific.`
+All names and details must be entirely fictional. Make the design prompt vivid, specific, and unlike typical event invites.`
         }]
       });
 
@@ -418,9 +647,10 @@ Use realistic names, venues, and addresses. Make the design prompt vivid and spe
         .from('style_library')
         .select('*')
         .contains('event_types', [eventType])
+        .is('archived_at', null)
         .order('admin_rating', { ascending: false, nullsFirst: false })
         .limit(fetchLimit);
-      // Fallback if admin_rating column doesn't exist yet (migration not run)
+      // Fallback if admin_rating or archived_at column doesn't exist yet (migration not run)
       if (autoRes.error) {
         autoRes = await supabaseAdmin
           .from('style_library')
@@ -501,46 +731,8 @@ This is the most common failure mode. Double-check it.`;
     const contentBlock = response.content[0];
     let themeText = contentBlock.type === 'text' ? contentBlock.text : '';
 
-    // Parse JSON response
-    themeText = themeText.trim();
-    const jsonBlockMatch = themeText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
-    if (jsonBlockMatch) themeText = jsonBlockMatch[1].trim();
-    if (!themeText.startsWith('{')) {
-      const firstBrace = themeText.indexOf('{');
-      const lastBrace = themeText.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace !== -1) themeText = themeText.substring(firstBrace, lastBrace + 1);
-    }
-
-    let theme;
-    try {
-      theme = JSON.parse(themeText);
-    } catch (parseErr) {
-      let repaired = themeText;
-      const quoteCount = (repaired.match(/(?<!\\)"/g) || []).length;
-      if (quoteCount % 2 !== 0) repaired += '"';
-      let braceDepth = 0, bracketDepth = 0, inString = false;
-      for (let i = 0; i < repaired.length; i++) {
-        const ch = repaired[i];
-        if (ch === '"' && (i === 0 || repaired[i-1] !== '\\')) inString = !inString;
-        if (!inString) {
-          if (ch === '{') braceDepth++;
-          else if (ch === '}') braceDepth--;
-          else if (ch === '[') bracketDepth++;
-          else if (ch === ']') bracketDepth--;
-        }
-      }
-      for (let i = 0; i < bracketDepth; i++) repaired += ']';
-      for (let i = 0; i < braceDepth; i++) repaired += '}';
-      try {
-        theme = JSON.parse(repaired);
-      } catch (e2) {
-        throw new Error('Failed to parse theme JSON: ' + parseErr.message);
-      }
-    }
-
-    if (!theme.theme_html || !theme.theme_css) {
-      throw new Error('Invalid theme response — missing theme_html or theme_css');
-    }
+    // ── Parse AI response into theme object ──
+    let theme = parseThemeResponse(themeText);
 
     return {
       theme: {
@@ -616,50 +808,12 @@ Return a JSON object with exactly these keys:
     const contentBlock = response.content[0];
     let themeText = contentBlock.type === 'text' ? contentBlock.text : '';
 
-    themeText = themeText.trim();
-    const jsonBlockMatch = themeText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
-    if (jsonBlockMatch) themeText = jsonBlockMatch[1].trim();
-    if (!themeText.startsWith('{')) {
-      const firstBrace = themeText.indexOf('{');
-      const lastBrace = themeText.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace !== -1) themeText = themeText.substring(firstBrace, lastBrace + 1);
-    }
-
-    let theme;
-    try {
-      theme = JSON.parse(themeText);
-    } catch (parseErr) {
-      let repaired = themeText;
-      const quoteCount = (repaired.match(/(?<!\\)"/g) || []).length;
-      if (quoteCount % 2 !== 0) repaired += '"';
-      let braceDepth = 0, bracketDepth = 0, inString = false;
-      for (let i = 0; i < repaired.length; i++) {
-        const ch = repaired[i];
-        if (ch === '"' && (i === 0 || repaired[i-1] !== '\\')) inString = !inString;
-        if (!inString) {
-          if (ch === '{') braceDepth++;
-          else if (ch === '}') braceDepth--;
-          else if (ch === '[') bracketDepth++;
-          else if (ch === ']') bracketDepth--;
-        }
-      }
-      for (let i = 0; i < bracketDepth; i++) repaired += ']';
-      for (let i = 0; i < braceDepth; i++) repaired += '}';
-      try {
-        theme = JSON.parse(repaired);
-      } catch (e2) {
-        throw new Error('Failed to parse refined theme JSON: ' + parseErr.message);
-      }
-    }
-
-    if (!theme.theme_html || !theme.theme_css) {
-      throw new Error('Invalid refined theme — missing theme_html or theme_css');
-    }
+    let theme = parseThemeResponse(themeText);
 
     return {
       theme: {
         html: theme.theme_html,
-        css: theme.theme_css,
+        css: theme.theme_css || '',
         config: theme.theme_config || draftResult.theme.config,
         thankyouHtml: theme.theme_thankyou_html || draftResult.theme.thankyouHtml
       },
