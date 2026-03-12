@@ -1037,7 +1037,7 @@
       html += '<div class="test-sms-row">'
         + '<button class="test-sms-btn" id="testSmsBtn" onclick="sendTestSms()"' + (!userPhone ? ' disabled title="Add a phone number in your profile first"' : '') + '>'
         + '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17 1H7c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-2-2-2zm0 18H7V5h10v14z"/></svg>'
-        + ' Send test to myself' + (userPhone ? ' (' + escapeHtml(formatPhoneDisplay(userPhone)) + ')' : '') + '</button>'
+        + ' Send test to myself' + (userPhone ? ' · ' + escapeHtml(formatPhoneDisplay(userPhone)) : '') + '</button>'
         + (!userPhone ? '<a href="/v2/profile/" style="font-size:12px;color:var(--party-coral);">Add phone in profile</a>' : '')
         + '<span id="testSmsStatus" style="font-size:12px;color:var(--mint-fizz);font-weight:500;display:none;"></span>'
         + '</div>';
@@ -1168,11 +1168,13 @@
 
       var testBtn = document.getElementById('testSmsBtn');
       var statusEl = document.getElementById('testSmsStatus');
+      var phoneSvg = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17 1H7c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-2-2-2zm0 18H7V5h10v14z"/></svg>';
+      var defaultLabel = phoneSvg + ' Send test to myself · ' + escapeHtml(formatPhoneDisplay(userPhone));
+
       testBtn.disabled = true;
-      testBtn.textContent = 'Sending...';
+      testBtn.innerHTML = phoneSvg + ' Sending...';
 
       try {
-        // Replace {link} placeholder in the message before sending
         var msgWithLink = resolveMessagePlaceholders(textarea.value.trim());
 
         var res = await authFetch('/api/v2/sms?action=sendTest', {
@@ -1187,18 +1189,27 @@
         var result = await res.json();
 
         if (result.success) {
-          testBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17 1H7c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-2-2-2zm0 18H7V5h10v14z"/></svg> Send test to myself (' + escapeHtml(formatPhoneDisplay(userPhone)) + ')';
-          testBtn.disabled = false;
-          if (statusEl) { statusEl.style.display = ''; statusEl.textContent = 'Test sent!'; }
-          setTimeout(function() { if (statusEl) statusEl.style.display = 'none'; }, 4000);
+          // Show green success state
+          testBtn.innerHTML = '&#10003; Test sent!';
+          testBtn.style.borderColor = 'var(--mint-fizz)';
+          testBtn.style.color = 'var(--mint-fizz)';
+          testBtn.style.background = 'rgba(78,205,196,0.06)';
+          // Revert after 3s
+          setTimeout(function() {
+            testBtn.innerHTML = defaultLabel;
+            testBtn.style.borderColor = '';
+            testBtn.style.color = '';
+            testBtn.style.background = '';
+            testBtn.disabled = false;
+          }, 3000);
         } else {
           showToast('Test failed: ' + (result.error || 'Unknown error'));
-          testBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17 1H7c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-2-2-2zm0 18H7V5h10v14z"/></svg> Send test to myself (' + escapeHtml(formatPhoneDisplay(userPhone)) + ')';
+          testBtn.innerHTML = defaultLabel;
           testBtn.disabled = false;
         }
       } catch (err) {
         showToast('Error sending test');
-        testBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17 1H7c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-2-2-2zm0 18H7V5h10v14z"/></svg> Send test to myself (' + escapeHtml(formatPhoneDisplay(userPhone)) + ')';
+        testBtn.innerHTML = defaultLabel;
         testBtn.disabled = false;
       }
     }
