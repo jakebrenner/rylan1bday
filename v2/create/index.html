@@ -3207,8 +3207,8 @@
       if (extractedData.dressCode) detailOverrides.dresscode = extractedData.dressCode;
 
       // Script that injects RSVP form and updates data-field elements
-      // safeJson: prevent </script> inside JSON from breaking the enclosing script tag
-      function safeJson(val) { return JSON.stringify(val).replace(/<\//g, '<\\/'); }
+      // safeJson: escape closing tags in JSON to prevent breaking script context
+      function safeJson(val) { return JSON.stringify(val).replace(/<\x2f/g, '<\\/'); }
       var rsvpScript = '<script>'
         + 'document.addEventListener("DOMContentLoaded", function() {'
         + '  var slot = document.querySelector(".rsvp-slot");'
