@@ -3760,7 +3760,14 @@
     }
 
     function initDesignChatIfNeeded(showLoader) {
-      if (designChatHistory.length === 0) initDesignChat(showLoader);
+      if (designChatHistory.length === 0) {
+        initDesignChat(showLoader);
+      } else if (pendingRatingThemeId) {
+        // Chat already initialized (regeneration/resume) — show rating directly
+        showThemeRating(pendingRatingThemeId);
+        pendingRatingThemeId = null;
+        renderDesignChat();
+      }
     }
 
     function initDesignChat(showLoader) {
@@ -4423,7 +4430,8 @@
           }
 
           if (tweakResult && tweakResult.success) {
-            var newVer = { id: tweakResult.theme.id, version: tweakResult.theme.version, html: tweakResult.theme.html, css: tweakResult.theme.css, config: tweakResult.theme.config };
+            var tweakId = tweakResult.theme.id === 'pending' ? ('pending-' + Date.now()) : tweakResult.theme.id;
+            var newVer = { id: tweakId, version: tweakResult.theme.version, html: tweakResult.theme.html, css: tweakResult.theme.css, config: tweakResult.theme.config };
             themeVersions.push(newVer);
             activeVersionIndex = themeVersions.length - 1;
             currentEvent.themeHtml = newVer.html;
