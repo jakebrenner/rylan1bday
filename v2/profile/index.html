@@ -281,7 +281,7 @@
             <div style="text-align:right;">
               <div style="font-size:12px;color:#888;margin-bottom:4px;">SMS Cost</div>
               <div style="font-size:20px;font-weight:700;color:var(--party-coral);" id="usageSmsCost">$0.00</div>
-              <div style="font-size:11px;color:#999;">$0.05 per text</div>
+              <div style="font-size:11px;color:#999;" id="usageSmsPrice">$0.05 per text</div>
             </div>
           </div>
         </div>
@@ -461,6 +461,8 @@
             // SMS usage
             document.getElementById('usageSms').textContent = usage.smsSent || 0;
             document.getElementById('usageSmsCost').textContent = '$' + ((usage.smsCostCents || 0) / 100).toFixed(2);
+            var smsPriceCents = usage.smsPriceCents || 10;
+            document.getElementById('usageSmsPrice').textContent = '$' + (smsPriceCents / 100).toFixed(2) + ' per text';
           }
         }
 

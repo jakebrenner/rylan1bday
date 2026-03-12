@@ -13,6 +13,16 @@
       ]
     }
   ],
+  "crons": [
+    {
+      "path": "/api/v2/sms-cron",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/v2/billing?action=monthly-sweep",
+      "schedule": "0 6 1 * *"
+    }
+  ],
   "functions": {
     "api/v2/generate-theme.js": {
       "maxDuration": 300,
@@ -27,18 +37,22 @@
     },
     "api/v2/billing.js": {
       "maxDuration": 60
+    },
+    "api/v2/sms.js": {
+      "maxDuration": 30
+    },
+    "api/v2/sms-cron.js": {
+      "maxDuration": 60
     }
   },
-  "crons": [
-    {
-      "path": "/api/v2/billing?action=monthly-sweep",
-      "schedule": "0 6 1 * *"
-    }
-  ],
   "rewrites": [
     {
       "source": "/api/v2/stripe-webhook",
       "destination": "/api/v2/billing?action=webhook"
+    },
+    {
+      "source": "/api/v2/clicksend-webhook",
+      "destination": "/api/v2/sms-webhook"
     },
     {
       "source": "/v2/event/:slug",

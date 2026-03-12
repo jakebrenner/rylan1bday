@@ -105,7 +105,7 @@ export default async function handler(req, res) {
       // Fire Zapier webhook if configured
       const { data: event } = await supabaseAdmin
         .from('events')
-        .select('zapier_webhook, user_id')
+        .select('zapier_webhook, user_id, title')
         .eq('id', eventId)
         .single();
 
@@ -120,6 +120,11 @@ export default async function handler(req, res) {
       // Auto-capture RSVP to host's contact book
       if (event?.user_id) {
         autoCapture(event.user_id, eventId, data.id, { name, email, phone, responseData }).catch(() => {});
+      }
+
+      // Send instant RSVP notification to host if configured
+      if (event?.user_id) {
+        sendRsvpNotification(event.user_id, eventId, event.title, name, guestStatus).catch(() => {});
       }
 
       return res.status(200).json({ success: true, guestId: data.id });
@@ -749,6 +754,69 @@ async function checkEventAccess(userId, eventId, requiredRole = 'viewer') {
     allowed: (hierarchy[collab.role] || 0) >= (hierarchy[requiredRole] || 0),
     role: collab.role
   };
+}
+
+// Send instant RSVP notification SMS to host (fire-and-forget)
+async function sendRsvpNotification(hostUserId, eventId, eventTitle, guestName, guestStatus) {
+  try {
+    // Check if host has instant notifications enabled for this event
+    const { data: prefs } = await supabaseAdmin
+      .from('event_notification_prefs')
+      .select('notify_on_rsvp, notify_mode, notify_phone')
+      .eq('event_id', eventId)
+      .single();
+
+    if (!prefs?.notify_on_rsvp || prefs.notify_mode !== 'instant') return;
+
+    const phone = prefs.notify_phone;
+    if (!phone) return;
+
+    const digits = phone.replace(/\D/g, '');
+    const e164 = digits.length >= 10 ? `+1${digits.slice(-10)}` : null;
+    if (!e164) return;
+
+    const statusLabel = { attending: 'Yes', declined: 'No', maybe: 'Maybe' }[guestStatus] || guestStatus;
+    const body = `New RSVP for ${eventTitle || 'your event'}: ${guestName} - ${statusLabel}`;
+
+    const CLICKSEND_USERNAME = process.env.CLICKSEND_USERNAME;
+    const CLICKSEND_API_KEY = process.env.CLICKSEND_API_KEY;
+    if (!CLICKSEND_USERNAME || !CLICKSEND_API_KEY) return;
+
+    const credentials = Buffer.from(`${CLICKSEND_USERNAME}:${CLICKSEND_API_KEY}`).toString('base64');
+
+    const response = await fetch('https://rest.clicksend.com/v3/sms/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${credentials}`
+      },
+      body: JSON.stringify({
+        messages: [{ to: e164, body, source: 'ryvite-rsvp' }]
+      })
+    });
+
+    const result = await response.json();
+    const csMsg = result.data?.messages?.[0];
+
+    // Record in sms_messages for billing
+    await supabaseAdmin.from('sms_messages').insert({
+      user_id: hostUserId,
+      event_id: eventId,
+      recipient_phone: digits.slice(-10),
+      recipient_name: 'Host',
+      message_type: 'update',
+      status: csMsg?.status === 'SUCCESS' ? 'sent' : 'queued',
+      provider_id: csMsg?.message_id || null,
+      cost_cents: 10,
+      billed: false
+    });
+
+    // Trigger billing check (imported dynamically to avoid circular deps)
+    const { checkAndChargeSmsUsage } = await import('./billing.js');
+    await checkAndChargeSmsUsage(hostUserId);
+  } catch (err) {
+    console.error('RSVP notification error:', err);
+  }
 }
 
 // Auto-capture an RSVP guest to the host's contact book
