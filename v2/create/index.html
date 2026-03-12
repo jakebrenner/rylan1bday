@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="no-scroll">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -16,7 +16,10 @@
       --party-coral: #E94560; --blush-pop: #FF6B6B; --midnight: #1A1A2E;
       --confetti-gold: #FFB74D; --mint-fizz: #4ECDC4; --party-purple: #A78BFA; --cream: #FFFAF5;
     }
-    html, body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--midnight); height: 100%; overflow: hidden; }
+    html, body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--midnight); height: 100%; }
+    /* overflow:hidden during chat steps prevents body scroll when iOS keyboard opens;
+       removed on design step so user can scroll past preview to edit/regenerate buttons */
+    html.no-scroll, body.no-scroll { overflow: hidden; }
     .header { background: white; border-bottom: 1px solid #eee; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
     .header-left { display: flex; align-items: center; }
     .header-left > a { text-decoration: none; display: flex; align-items: center; }
@@ -358,7 +361,7 @@
     .empty-contacts svg { margin-bottom: 8px; }
   </style>
 </head>
-<body>
+<body class="no-scroll">
   <div class="header">
     <div class="header-left">
       <a href="/v2/dashboard/" style="display:flex;align-items:center;"><svg viewBox="0 0 210 80" xmlns="http://www.w3.org/2000/svg" style="height:56px;width:auto;"><circle cx="32" cy="40" r="22" fill="none" stroke="var(--party-coral)" stroke-width="2.2"/><path d="M18 30 L32 42 L46 30" fill="none" stroke="var(--party-coral)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50 L46 50" fill="none" stroke="var(--party-coral)" stroke-width="1.8" stroke-linecap="round"/><text x="64" y="52" font-family="Playfair Display, serif" font-size="34" font-weight="700" fill="var(--midnight)">Ryvite</text></svg></a>
@@ -2676,6 +2679,16 @@
     function goToStep(step) {
       document.querySelector('.chat-container').style.display = step === 1 ? 'flex' : 'none';
 
+      // Lock body scroll on chat/summary steps (prevents iOS keyboard body-scroll);
+      // unlock on design step so user can scroll past preview to edit/regenerate buttons
+      if (step === 2) {
+        document.documentElement.classList.remove('no-scroll');
+        document.body.classList.remove('no-scroll');
+      } else {
+        document.documentElement.classList.add('no-scroll');
+        document.body.classList.add('no-scroll');
+      }
+
       document.querySelectorAll('.container .step').forEach(function(s) { s.classList.remove('active'); });
       if (step > 1) {
         document.querySelector('.container .step[data-step="' + step + '"]').classList.add('active');
@@ -3203,16 +3216,38 @@
       // browsers silently ignore @import after any other CSS rules
       var fontsStyle = fontsImport ? '<style>' + fontsImport + '</style>' : '';
 
-      // Pass HTML and CSS directly — no stripping, no regex extraction, no script injection.
-      // Browsers handle duplicate <html>/<body>/<head> tags gracefully in srcdoc (they merge/flatten).
-      // RSVP form and data-field overrides are injected via iframe.onload in the parent page
-      // (see injectRsvpForm), eliminating ALL script-in-srcdoc failure modes.
+      // Extract body attributes (AI often puts background/color on <body>)
+      var bodyTagMatch = ver.html.match(/<body\b([^>]*)>/i);
+      var bodyAttrs = bodyTagMatch ? bodyTagMatch[1].trim() : '';
+
+      // Extract <style> blocks from <head> before stripping — AI may put styles there
+      var headStyles = '';
+      var headMatch = ver.html.match(/<head(?:\s[^>]*)?>[\s\S]*?<\/head\s*>/i);
+      if (headMatch) {
+        var headStyleMatches = headMatch[0].match(/<style[^>]*>[\s\S]*?<\/style\s*>/gi);
+        if (headStyleMatches) headStyles = headStyleMatches.join('\n');
+      }
+
+      // Strip document-level tags — our template provides these
+      // IMPORTANT: use <head> or <head\s not <head[^>]* which would also match <header>
+      var themeHtml = ver.html
+        .replace(/<!DOCTYPE[^>]*>/gi, '')
+        .replace(/<html\b[^>]*>/gi, '')
+        .replace(/<\/html\s*>/gi, '')
+        .replace(/<head(?:\s[^>]*)?>[\s\S]*?<\/head\s*>/gi, '')
+        .replace(/<body\b[^>]*>/gi, '')
+        .replace(/<\/body\s*>/gi, '')
+        .replace(/<script\b[\s\S]*?<\/script\s*>/gi, '');
+
+      // RSVP form and data-field overrides are injected via iframe.onload in the parent
+      // (see injectRsvpForm) — NO script injection in srcdoc.
       return '<!DOCTYPE html><html><head><meta charset="UTF-8">'
         + '<meta name="viewport" content="width=393, initial-scale=1.0">'
         + fontsStyle
         + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; }</style>'
-        + '<style>' + (ver.css || '') + '</style>'
-        + '</head><body>' + (ver.html || '') + '</body></html>';
+        + (headStyles || '')
+        + '<style>' + (ver.css || '').replace(/<\/style/gi, '<\\/style') + '</style>'
+        + '</head><body' + (bodyAttrs ? ' ' + bodyAttrs : '') + '>' + themeHtml + '</body></html>';
     }
 
     // Inject RSVP form and data-field overrides into iframe after it loads.
