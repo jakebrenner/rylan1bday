@@ -424,6 +424,63 @@
     </div>
   </div>
 
+  <!-- Template Details Form (shown when starting from a gallery template) -->
+  <div id="templateDetailsForm" class="step" style="display:none; flex-direction:column; max-width:560px; margin:0 auto; padding:100px 20px 40px;">
+    <div style="text-align:center; margin-bottom:2rem;">
+      <div style="display:inline-block; background:linear-gradient(135deg, #E94560, #FF6B6B); color:white; padding:0.4rem 1rem; border-radius:50px; font-size:0.8rem; font-weight:600; margin-bottom:1rem;">STARTING FROM TEMPLATE</div>
+      <h2 style="font-family:'Playfair Display',serif; font-size:1.8rem; color:#1A1A2E; margin-bottom:0.5rem;">Add Your Event Details</h2>
+      <p style="color:#6B7280; font-size:0.95rem;">Fill in the details below to personalize your invite. You can always make tweaks to the design after.</p>
+    </div>
+    <form id="tplForm" style="display:flex; flex-direction:column; gap:1rem;">
+      <div>
+        <label style="display:block; font-size:0.82rem; font-weight:600; color:#1A1A2E; margin-bottom:4px;">Event Title <span style="color:#E94560;">*</span></label>
+        <input type="text" id="tplTitle" required placeholder="e.g. Sarah & James's Wedding" style="width:100%; padding:0.7rem 0.9rem; border:1.5px solid #D1D5DB; border-radius:10px; font-size:0.9rem; font-family:'Inter',sans-serif; outline:none; transition:border-color 0.2s;" onfocus="this.style.borderColor='#E94560'" onblur="this.style.borderColor='#D1D5DB'">
+      </div>
+      <div>
+        <label style="display:block; font-size:0.82rem; font-weight:600; color:#1A1A2E; margin-bottom:4px;">Event Type</label>
+        <select id="tplEventType" style="width:100%; padding:0.7rem 0.9rem; border:1.5px solid #D1D5DB; border-radius:10px; font-size:0.9rem; font-family:'Inter',sans-serif; outline:none; background:white; transition:border-color 0.2s;" onfocus="this.style.borderColor='#E94560'" onblur="this.style.borderColor='#D1D5DB'">
+          <option value="wedding">Wedding</option>
+          <option value="kidsBirthday">Kids Birthday</option>
+          <option value="adultBirthday">Adult Birthday</option>
+          <option value="babyShower">Baby Shower</option>
+          <option value="bridalShower">Bridal Shower</option>
+          <option value="engagement">Engagement Party</option>
+          <option value="anniversary">Anniversary</option>
+          <option value="graduation">Graduation</option>
+          <option value="corporate">Corporate Event</option>
+          <option value="holiday">Holiday Party</option>
+          <option value="dinnerParty">Dinner Party</option>
+          <option value="retirement">Retirement</option>
+          <option value="sports">Sports / Watch Party</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+        <div>
+          <label style="display:block; font-size:0.82rem; font-weight:600; color:#1A1A2E; margin-bottom:4px;">Date & Time</label>
+          <input type="datetime-local" id="tplDate" style="width:100%; padding:0.7rem 0.9rem; border:1.5px solid #D1D5DB; border-radius:10px; font-size:0.9rem; font-family:'Inter',sans-serif; outline:none; transition:border-color 0.2s;" onfocus="this.style.borderColor='#E94560'" onblur="this.style.borderColor='#D1D5DB'">
+        </div>
+        <div>
+          <label style="display:block; font-size:0.82rem; font-weight:600; color:#1A1A2E; margin-bottom:4px;">Host Name</label>
+          <input type="text" id="tplHostName" placeholder="e.g. The Smith Family" style="width:100%; padding:0.7rem 0.9rem; border:1.5px solid #D1D5DB; border-radius:10px; font-size:0.9rem; font-family:'Inter',sans-serif; outline:none; transition:border-color 0.2s;" onfocus="this.style.borderColor='#E94560'" onblur="this.style.borderColor='#D1D5DB'">
+        </div>
+      </div>
+      <div>
+        <label style="display:block; font-size:0.82rem; font-weight:600; color:#1A1A2E; margin-bottom:4px;">Venue / Location Name</label>
+        <input type="text" id="tplLocationName" placeholder="e.g. The Grand Ballroom" style="width:100%; padding:0.7rem 0.9rem; border:1.5px solid #D1D5DB; border-radius:10px; font-size:0.9rem; font-family:'Inter',sans-serif; outline:none; transition:border-color 0.2s;" onfocus="this.style.borderColor='#E94560'" onblur="this.style.borderColor='#D1D5DB'">
+      </div>
+      <div>
+        <label style="display:block; font-size:0.82rem; font-weight:600; color:#1A1A2E; margin-bottom:4px;">Address</label>
+        <input type="text" id="tplLocationAddress" placeholder="e.g. 123 Main St, New York, NY" style="width:100%; padding:0.7rem 0.9rem; border:1.5px solid #D1D5DB; border-radius:10px; font-size:0.9rem; font-family:'Inter',sans-serif; outline:none; transition:border-color 0.2s;" onfocus="this.style.borderColor='#E94560'" onblur="this.style.borderColor='#D1D5DB'">
+      </div>
+      <div>
+        <label style="display:block; font-size:0.82rem; font-weight:600; color:#1A1A2E; margin-bottom:4px;">Dress Code <span style="color:#6B7280; font-weight:400;">(optional)</span></label>
+        <input type="text" id="tplDressCode" placeholder="e.g. Black Tie Optional" style="width:100%; padding:0.7rem 0.9rem; border:1.5px solid #D1D5DB; border-radius:10px; font-size:0.9rem; font-family:'Inter',sans-serif; outline:none; transition:border-color 0.2s;" onfocus="this.style.borderColor='#E94560'" onblur="this.style.borderColor='#D1D5DB'">
+      </div>
+      <button type="submit" id="tplSubmitBtn" style="margin-top:0.5rem; padding:0.85rem; background:linear-gradient(135deg, #E94560, #FF6B6B); color:white; border:none; border-radius:12px; font-family:'Inter',sans-serif; font-size:0.95rem; font-weight:600; cursor:pointer; transition:all 0.3s ease; box-shadow:0 4px 15px rgba(233,69,96,0.3);" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 20px rgba(233,69,96,0.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 15px rgba(233,69,96,0.3)'">Create My Invite</button>
+    </form>
+  </div>
+
   <div class="container">
     <div id="message" class="message"></div>
 
@@ -759,7 +816,8 @@
 
     var token = localStorage.getItem('sb_access_token');
     var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
-    if (!token || !user) { window.location.href = '/v2/login/?redirect=/v2/create/'; }
+    var _loginRedirect = '/v2/create/' + window.location.search;
+    if (!token || !user) { window.location.href = '/v2/login/?redirect=' + encodeURIComponent(_loginRedirect); }
     else {
       var pn = document.getElementById('profileName');
       var pe = document.getElementById('profileEmail');
@@ -783,7 +841,7 @@
       refreshPromise = (async function() {
         try {
           var rt = localStorage.getItem('sb_refresh_token');
-          if (!rt) { window.location.href = '/v2/login/?redirect=/v2/create/'; return false; }
+          if (!rt) { window.location.href = '/v2/login/?redirect=' + encodeURIComponent(_loginRedirect); return false; }
           var res = await fetch('/api/v2/auth?action=refresh', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -796,10 +854,10 @@
             localStorage.setItem('sb_refresh_token', result.refreshToken);
             return true;
           }
-          window.location.href = '/v2/login/?redirect=/v2/create/';
+          window.location.href = '/v2/login/?redirect=' + encodeURIComponent(_loginRedirect);
           return false;
         } catch (e) {
-          window.location.href = '/v2/login/?redirect=/v2/create/';
+          window.location.href = '/v2/login/?redirect=' + encodeURIComponent(_loginRedirect);
           return false;
         } finally {
           isRefreshing = false;
@@ -1035,6 +1093,137 @@
               + '<div class="chat-bubble assistant"><button class="btn btn-primary" onclick="location.reload()">Try Again</button> <button class="btn btn-secondary" onclick="location.href=\'/v2/create/?new=1\'">Start New Event</button></div>';
           }
         }
+      }
+
+      // ── START FROM TEMPLATE ──
+      var templateId = urlParams.get('templateId');
+      if (templateId) {
+        // Hide chat, show template details form
+        document.querySelector('.chat-container').style.display = 'none';
+        var hideChat = document.getElementById('resumeHideChat');
+        if (hideChat) hideChat.remove();
+        var templateForm = document.getElementById('templateDetailsForm');
+        if (templateForm) templateForm.style.display = 'flex';
+
+        // Fetch template data
+        (async function() {
+          try {
+            var tplRes = await fetch('/api/v2/templates?action=get&templateId=' + encodeURIComponent(templateId));
+            var tplData = await tplRes.json();
+            if (!tplData.success || !tplData.template) {
+              alert('Template not found. Starting fresh.');
+              window.location.href = '/v2/create/';
+              return;
+            }
+            var tpl = tplData.template;
+
+            // Pre-fill event type from template
+            var etSelect = document.getElementById('tplEventType');
+            if (etSelect) etSelect.value = tpl.eventType || 'other';
+
+            // Store template source for later use
+            window._templateSource = tpl;
+
+            // Handle form submission
+            document.getElementById('tplForm').onsubmit = async function(e) {
+              e.preventDefault();
+              var submitBtn = document.getElementById('tplSubmitBtn');
+              submitBtn.disabled = true;
+              submitBtn.textContent = 'Creating your invite...';
+
+              // Collect form data
+              extractedData = {
+                title: document.getElementById('tplTitle').value.trim() || 'Untitled Event',
+                eventType: document.getElementById('tplEventType').value,
+                startDate: document.getElementById('tplDate').value || '',
+                endDate: '',
+                locationName: document.getElementById('tplLocationName').value.trim() || '',
+                locationAddress: document.getElementById('tplLocationAddress').value.trim() || '',
+                dressCode: document.getElementById('tplDressCode').value.trim() || '',
+                hostName: document.getElementById('tplHostName').value.trim() || '',
+                description: '',
+                prompt: ''
+              };
+
+              // Save event to DB
+              var saveResult = await saveEventToDB();
+              if (saveResult && saveResult.limitReached) {
+                showAdditionalEventPurchase();
+                return;
+              }
+              if (saveResult !== true) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Create My Invite';
+                return;
+              }
+
+              // Save template HTML/CSS/config as the event's first theme version
+              try {
+                var saveThemeRes = await authFetch('/api/v2/events?action=saveTheme', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    eventId: currentEvent.id,
+                    html: tpl.html,
+                    css: tpl.css,
+                    config: tpl.config
+                  })
+                });
+                var saveThemeResult = await saveThemeRes.json();
+                var themeId = (saveThemeResult.success && saveThemeResult.themeId) ? saveThemeResult.themeId : null;
+
+                // Push template as first theme version
+                var ver = {
+                  id: themeId,
+                  version: 1,
+                  html: tpl.html,
+                  css: tpl.css,
+                  config: tpl.config,
+                  isActive: true
+                };
+                themeVersions = [ver];
+                activeVersionIndex = 0;
+              } catch (e) {
+                // Even if theme save fails, still show preview with local data
+                themeVersions = [{ id: null, version: 1, html: tpl.html, css: tpl.css, config: tpl.config, isActive: true }];
+                activeVersionIndex = 0;
+              }
+
+              // Hide template form, show Step 2 preview
+              templateForm.style.display = 'none';
+              document.getElementById('generatingView').style.display = 'none';
+              document.getElementById('generatedView').style.display = 'block';
+              renderPreview(themeVersions[0]);
+              renderVersionGallery();
+              goToStep(2);
+              initDesignChatIfNeeded(false);
+              initCostTracker();
+
+              // Show template banner in design chat
+              var designChatMsgs = document.getElementById('designChatMessages');
+              if (designChatMsgs) {
+                var bannerDiv = document.createElement('div');
+                bannerDiv.className = 'chat-bubble assistant';
+                bannerDiv.innerHTML = '<strong>Your invite is ready!</strong> It\'s using the template you selected with your details filled in. Want to adjust anything? Just describe what you\'d like to change below — colors, fonts, layout, text, or anything else.';
+                designChatMsgs.insertBefore(bannerDiv, designChatMsgs.firstChild);
+              }
+
+              // Clean URL
+              window.history.replaceState({}, '', '/v2/create/?eventId=' + currentEvent.id);
+
+              // Persist creation_step
+              authFetch('/api/v2/events?action=update', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ eventId: currentEvent.id, settings: { creation_step: 2 } })
+              }).catch(function() {});
+            };
+          } catch (e) {
+            console.error('Template load failed:', e);
+            alert('Failed to load template. Starting fresh.');
+            window.location.href = '/v2/create/';
+          }
+        })();
+        return; // Skip normal init
       }
 
       // Clear draft and start fresh when user clicks "+ New Event"

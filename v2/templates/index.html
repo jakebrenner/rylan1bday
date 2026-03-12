@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invitation Templates | Ryvite</title>
+<meta name="description" content="Browse beautiful AI-generated invitation templates. Find the perfect design for your wedding, birthday, baby shower, or any event. Make it yours in minutes.">
+<link rel="canonical" id="canonicalLink" href="https://ryvite.com/templates">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" id="ogTitle" content="Invitation Templates | Ryvite">
+<meta property="og:description" id="ogDesc" content="Browse beautiful AI-generated invitation templates. Find the perfect design for your wedding, birthday, baby shower, or any event.">
+<meta property="og:image" content="https://ryvite.com/api/og.png">
+<meta property="og:url" id="ogUrl" content="https://ryvite.com/templates">
+<meta property="og:site_name" content="Ryvite">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" id="twTitle" content="Invitation Templates | Ryvite">
+<meta name="twitter:description" id="twDesc" content="Browse beautiful AI-generated invitation templates. Find the perfect design for your wedding, birthday, baby shower, or any event.">
+<meta name="twitter:image" content="https://ryvite.com/api/og.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- JSON-LD Structured Data -->
+<script type="application/ld+json" id="structuredData">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Invitation Templates",
+  "description": "Browse beautiful AI-generated invitation templates for weddings, birthdays, baby showers, and more.",
+  "url": "https://ryvite.com/templates",
+  "isPartOf": { "@type": "WebSite", "name": "Ryvite", "url": "https://ryvite.com" }
+}
+</script>
+
+<style>
+:root {
+  --party-coral: #E94560;
+  --blush-pop: #FF6B6B;
+  --midnight: #1A1A2E;
+  --confetti-gold: #FFB74D;
+  --mint-fizz: #4ECDC4;
+  --party-purple: #A78BFA;
+  --cream: #FFFAF5;
+  --warm-canvas: #FFF5E6;
+  --slate: #6B7280;
+  --slate-light: #D1D5DB;
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Inter', sans-serif;
+  --transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-smooth: all 0.6s ease-out;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--font-body); color: var(--midnight); background: var(--cream); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.2; }
+
+/* ===== NAV ===== */
+.nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; background: rgba(26,26,46,0.95); backdrop-filter: blur(10px); box-shadow: 0 2px 20px rgba(0,0,0,0.2); }
+.nav-logo { display: flex; align-items: center; text-decoration: none; color: white; }
+.nav-logo-icon { height: 52px; width: auto; }
+.nav-links { display: flex; gap: 8px; align-items: center; }
+.nav-link { padding: 0.5rem 1rem; color: rgba(255,255,255,0.75); text-decoration: none; font-size: 0.85rem; font-weight: 500; border-radius: 50px; transition: var(--transition); }
+.nav-link:hover { color: white; }
+.nav-cta { padding: 0.6rem 1.4rem; background: linear-gradient(135deg, var(--party-coral), var(--blush-pop)); color: white; border: none; border-radius: 50px; font-family: var(--font-body); font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: var(--transition); white-space: nowrap; }
+.nav-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(233,69,96,0.4); }
+
+/* ===== HERO ===== */
+.gallery-hero { background: linear-gradient(135deg, var(--midnight) 0%, #0f3460 100%); color: white; padding: 8rem 2rem 4rem; text-align: center; position: relative; overflow: hidden; }
+.gallery-hero::before { content: ''; position: absolute; top: -50%; right: -10%; width: 600px; height: 600px; background: radial-gradient(circle, rgba(255,183,77,0.1) 0%, transparent 70%); border-radius: 50%; }
+.gallery-hero::after { content: ''; position: absolute; bottom: -30%; left: -5%; width: 500px; height: 500px; background: radial-gradient(circle, rgba(233,69,96,0.08) 0%, transparent 70%); border-radius: 50%; }
+.hero-content { position: relative; z-index: 2; max-width: 700px; margin: 0 auto; }
+.gallery-hero h1 { font-size: 3rem; margin-bottom: 1rem; letter-spacing: -0.5px; }
+.gallery-hero .subtext { font-size: 1.05rem; color: rgba(255,255,255,0.7); max-width: 550px; margin: 0 auto 1.5rem; }
+.gallery-hero .template-count { display: inline-block; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); border-radius: 50px; padding: 0.4rem 1.2rem; font-size: 0.85rem; color: rgba(255,255,255,0.8); }
+
+/* ===== FILTER BAR ===== */
+.filter-bar { background: white; border-bottom: 1px solid rgba(0,0,0,0.06); padding: 1rem 2rem; position: sticky; top: 66px; z-index: 50; }
+.filter-scroll { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; max-width: 1200px; margin: 0 auto; padding: 2px 0; }
+.filter-scroll::-webkit-scrollbar { display: none; }
+.filter-chip { display: inline-flex; align-items: center; gap: 6px; padding: 0.5rem 1.1rem; border: 1.5px solid var(--slate-light); border-radius: 50px; font-size: 0.82rem; font-weight: 500; color: var(--slate); background: white; cursor: pointer; transition: var(--transition); white-space: nowrap; flex-shrink: 0; }
+.filter-chip:hover { border-color: var(--party-coral); color: var(--party-coral); }
+.filter-chip.active { background: var(--party-coral); border-color: var(--party-coral); color: white; }
+.filter-chip .chip-count { font-size: 0.72rem; opacity: 0.7; }
+
+/* ===== TEMPLATE GRID ===== */
+.gallery-container { max-width: 1200px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+.template-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+.template-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.06); transition: var(--transition-smooth); cursor: pointer; }
+.template-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.1); }
+
+/* Phone mockup inside card */
+.card-phone-wrap { position: relative; background: linear-gradient(145deg, #f8f9fa, #e9ecef); padding: 1.5rem 2.5rem 1rem; display: flex; justify-content: center; overflow: hidden; }
+.card-phone-frame { width: 220px; height: 440px; border-radius: 28px; border: 3px solid #1a1a1a; background: white; overflow: hidden; position: relative; box-shadow: 0 8px 30px rgba(0,0,0,0.12); flex-shrink: 0; }
+.card-phone-frame::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 80px; height: 22px; background: #1a1a1a; border-radius: 0 0 14px 14px; z-index: 2; }
+.card-phone-frame iframe { width: 393px; height: 852px; border: none; transform: scale(0.56); transform-origin: top left; pointer-events: none; }
+
+/* Card info section */
+.card-info { padding: 1rem 1.25rem 1.25rem; }
+.card-badge { display: inline-block; padding: 0.25rem 0.7rem; border-radius: 50px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.6rem; }
+.card-badge.wedding { background: #fce4ec; color: #c62828; }
+.card-badge.kidsBirthday, .card-badge.adultBirthday { background: #e8f5e9; color: #2e7d32; }
+.card-badge.babyShower { background: #e3f2fd; color: #1565c0; }
+.card-badge.bridalShower { background: #f3e5f5; color: #7b1fa2; }
+.card-badge.engagement, .card-badge.anniversary { background: #fff3e0; color: #e65100; }
+.card-badge.graduation { background: #e8eaf6; color: #283593; }
+.card-badge.corporate { background: #eceff1; color: #37474f; }
+.card-badge.holiday { background: #fbe9e7; color: #bf360c; }
+.card-badge.dinnerParty { background: #efebe9; color: #4e342e; }
+.card-badge.retirement { background: #e0f2f1; color: #00695c; }
+.card-badge.sports { background: #e8f5e9; color: #1b5e20; }
+.card-badge.other { background: #f5f5f5; color: #616161; }
+.card-rating { display: flex; align-items: center; gap: 4px; margin-bottom: 0.6rem; }
+.card-rating .star { color: var(--confetti-gold); font-size: 0.8rem; }
+.card-cta { display: block; width: 100%; padding: 0.7rem; background: linear-gradient(135deg, var(--party-coral), var(--blush-pop)); color: white; border: none; border-radius: 10px; font-family: var(--font-body); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: var(--transition); text-align: center; text-decoration: none; }
+.card-cta:hover { box-shadow: 0 6px 20px rgba(233,69,96,0.3); transform: translateY(-1px); }
+
+/* ===== LOAD MORE ===== */
+.load-more-wrap { text-align: center; padding: 2rem 0 1rem; }
+.load-more-btn { padding: 0.8rem 2.5rem; background: white; border: 2px solid var(--party-coral); color: var(--party-coral); border-radius: 50px; font-family: var(--font-body); font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: var(--transition); }
+.load-more-btn:hover { background: var(--party-coral); color: white; }
+.load-more-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ===== EMPTY STATE ===== */
+.empty-state { text-align: center; padding: 4rem 2rem; }
+.empty-state h3 { font-size: 1.5rem; margin-bottom: 0.75rem; color: var(--midnight); }
+.empty-state p { color: var(--slate); font-size: 1rem; margin-bottom: 1.5rem; }
+.empty-state .cta-link { display: inline-block; padding: 0.8rem 2rem; background: linear-gradient(135deg, var(--party-coral), var(--blush-pop)); color: white; border-radius: 50px; text-decoration: none; font-weight: 600; transition: var(--transition); }
+.empty-state .cta-link:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(233,69,96,0.4); }
+
+/* ===== LOADING ===== */
+.loading-state { text-align: center; padding: 4rem 2rem; }
+.loading-spinner { width: 40px; height: 40px; border: 3px solid var(--slate-light); border-top-color: var(--party-coral); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== SEO SECTION ===== */
+.seo-section { background: white; padding: 3rem 2rem; border-top: 1px solid rgba(0,0,0,0.06); }
+.seo-section .container { max-width: 1200px; margin: 0 auto; }
+.seo-section h2 { font-size: 1.5rem; margin-bottom: 1rem; }
+.seo-section p { color: var(--slate); font-size: 0.95rem; margin-bottom: 1rem; max-width: 700px; }
+.type-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1.5rem; }
+.type-link { padding: 0.5rem 1.1rem; border: 1.5px solid var(--slate-light); border-radius: 50px; font-size: 0.82rem; font-weight: 500; color: var(--slate); text-decoration: none; transition: var(--transition); }
+.type-link:hover { border-color: var(--party-coral); color: var(--party-coral); }
+.type-link.active { background: var(--party-coral); border-color: var(--party-coral); color: white; }
+
+/* ===== FOOTER ===== */
+.site-footer { background: var(--midnight); color: white; padding: 3rem 2rem; text-align: center; }
+.footer-logo svg { height: 36px; width: auto; }
+.footer-tagline { font-family: var(--font-display); font-style: italic; color: rgba(255,255,255,0.6); margin: 0.5rem 0 1.5rem; font-size: 0.9rem; }
+.footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; margin-bottom: 1.5rem; }
+.footer-links a { color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.8rem; transition: color 0.2s; }
+.footer-links a:hover { color: white; }
+.footer-bottom p { font-size: 0.75rem; color: rgba(255,255,255,0.35); margin-top: 0.3rem; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 900px) {
+  .template-grid { grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+  .gallery-hero h1 { font-size: 2.2rem; }
+  .card-phone-wrap { padding: 1.25rem 1.5rem 0.75rem; }
+  .card-phone-frame { width: 190px; height: 380px; }
+  .card-phone-frame iframe { transform: scale(0.484); }
+}
+@media (max-width: 600px) {
+  .template-grid { grid-template-columns: 1fr; gap: 1.5rem; max-width: 380px; margin: 0 auto; }
+  .gallery-hero { padding: 7rem 1.5rem 3rem; }
+  .gallery-hero h1 { font-size: 1.8rem; }
+  .nav { padding: 0.75rem 1rem; }
+  .filter-bar { padding: 0.75rem 1rem; top: 54px; }
+  .gallery-container { padding: 1.5rem 1rem 3rem; }
+  .card-phone-frame { width: 240px; height: 480px; }
+  .card-phone-frame iframe { transform: scale(0.61); }
+}
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav" id="nav">
+  <a href="/" class="nav-logo"><svg class="nav-logo-icon" viewBox="0 0 210 80" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="40" r="22" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M18 30 L32 42 L46 30" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50 L46 50" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><text x="64" y="50" font-family="Playfair Display, serif" font-size="34" font-weight="600" fill="currentColor">Ryvite</text></svg></a>
+  <div class="nav-links">
+    <a href="/templates" class="nav-link">Templates</a>
+    <a href="/v2/create/" class="nav-cta">Create Your Invite</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="gallery-hero">
+  <div class="hero-content">
+    <h1 id="heroTitle">Invitation Templates</h1>
+    <p class="subtext" id="heroSubtext">Browse AI-generated invitation designs. Find one you love and make it yours in minutes.</p>
+    <span class="template-count" id="templateCount" style="display:none;"></span>
+  </div>
+</section>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+  <div class="filter-scroll" id="filterScroll">
+    <button class="filter-chip active" data-type="" onclick="filterByType('')">All</button>
+    <!-- Populated dynamically -->
+  </div>
+</div>
+
+<!-- Gallery -->
+<div class="gallery-container">
+  <div id="loadingState" class="loading-state">
+    <div class="loading-spinner"></div>
+    <p style="color:var(--slate);">Loading templates...</p>
+  </div>
+
+  <div id="templateGrid" class="template-grid" style="display:none;"></div>
+
+  <div id="emptyState" class="empty-state" style="display:none;">
+    <h3>No templates yet</h3>
+    <p>We're curating the best designs. Check back soon, or create your own!</p>
+    <a href="/v2/create/" class="cta-link">Create Your Invite</a>
+  </div>
+
+  <div class="load-more-wrap" id="loadMoreWrap" style="display:none;">
+    <button class="load-more-btn" id="loadMoreBtn" onclick="loadMore()">Load More</button>
+  </div>
+</div>
+
+<!-- SEO cross-linking section -->
+<section class="seo-section" id="seoSection">
+  <div class="container">
+    <h2 id="seoHeading">Browse by Event Type</h2>
+    <p id="seoText">Discover the perfect invitation design for any occasion. Each template is crafted by AI and curated by our design team. Pick your favorite, customize the details, and send beautiful invites in minutes.</p>
+    <div class="type-links" id="typeLinks">
+      <!-- Populated dynamically -->
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-logo"><svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" style="height:36px;width:auto;"><circle cx="30" cy="40" r="20" fill="none" stroke="#FFB74D" stroke-width="2"/><path d="M18 32 L30 42 L42 32" fill="none" stroke="#FFB74D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 48 L42 48" fill="none" stroke="#FFB74D" stroke-width="1.5" stroke-linecap="round"/><circle cx="30" cy="24" r="3" fill="#E94560" opacity="0.7"/><circle cx="23" cy="27" r="2" fill="#FF6B6B" opacity="0.5"/><circle cx="37" cy="26" r="2" fill="#FFB74D" opacity="0.5"/><text x="60" y="48" font-family="Playfair Display, serif" font-size="30" font-weight="600" fill="white">Ryvite</text></svg></div>
+    <p class="footer-tagline">Prompt to Party</p>
+    <div class="footer-links">
+      <a href="/">Home</a>
+      <a href="/templates">Templates</a>
+      <a href="/v2/create/">Create Your Invite</a>
+      <a href="/v2/login/">Sign Up</a>
+      <a href="/terms/">Terms</a>
+      <a href="/privacy/">Privacy</a>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2026 CNPY LLC. All rights reserved.</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+// ===== EVENT TYPE CONFIG =====
+var SLUG_MAP = {
+  'wedding-invitations': { key: 'wedding', label: 'Wedding', title: 'Wedding Invitation Templates', desc: 'Browse beautiful AI-generated wedding invitation designs. Elegant, modern, and romantic templates for your special day.' },
+  'birthday-invitations': { key: 'kidsBirthday', label: 'Kids Birthday', title: 'Birthday Invitation Templates', desc: 'Fun, colorful birthday invitation designs for kids. From dinosaurs to princesses, find the perfect party theme.' },
+  'adult-birthday-invitations': { key: 'adultBirthday', label: 'Adult Birthday', title: 'Adult Birthday Invitation Templates', desc: 'Stylish birthday invitation designs for milestone celebrations. From 30th to 50th and beyond.' },
+  'baby-shower-invitations': { key: 'babyShower', label: 'Baby Shower', title: 'Baby Shower Invitation Templates', desc: 'Sweet and charming baby shower invitation designs. Whimsical themes to celebrate the new arrival.' },
+  'bridal-shower-invitations': { key: 'bridalShower', label: 'Bridal Shower', title: 'Bridal Shower Invitation Templates', desc: 'Elegant bridal shower invitation designs. From garden parties to champagne brunches.' },
+  'engagement-party-invitations': { key: 'engagement', label: 'Engagement Party', title: 'Engagement Party Invitation Templates', desc: 'Romantic engagement party invitation designs to celebrate your love story.' },
+  'anniversary-invitations': { key: 'anniversary', label: 'Anniversary', title: 'Anniversary Invitation Templates', desc: 'Beautiful anniversary celebration invitations for milestone years together.' },
+  'graduation-invitations': { key: 'graduation', label: 'Graduation', title: 'Graduation Invitation Templates', desc: 'Celebratory graduation invitation designs. Honor the achievement in style.' },
+  'corporate-event-invitations': { key: 'corporate', label: 'Corporate Event', title: 'Corporate Event Invitation Templates', desc: 'Professional corporate event invitation designs for summits, galas, and conferences.' },
+  'holiday-party-invitations': { key: 'holiday', label: 'Holiday Party', title: 'Holiday Party Invitation Templates', desc: 'Festive holiday party invitation designs for Christmas, New Year, Halloween, and more.' },
+  'dinner-party-invitations': { key: 'dinnerParty', label: 'Dinner Party', title: 'Dinner Party Invitation Templates', desc: 'Sophisticated dinner party invitation designs. Set the mood for an unforgettable evening.' },
+  'retirement-party-invitations': { key: 'retirement', label: 'Retirement', title: 'Retirement Party Invitation Templates', desc: 'Distinguished retirement celebration invitations to honor years of service.' },
+  'sports-party-invitations': { key: 'sports', label: 'Sports Party', title: 'Sports Party Invitation Templates', desc: 'High-energy sports and watch party invitation designs. Game day has never looked this good.' },
+  'other-invitations': { key: 'other', label: 'Other', title: 'Custom Event Invitation Templates', desc: 'Unique invitation designs for any occasion. Whatever your event, we have a template for you.' }
+};
+
+// Reverse lookup: eventType key -> slug
+var TYPE_TO_SLUG = {};
+Object.keys(SLUG_MAP).forEach(function(slug) { TYPE_TO_SLUG[SLUG_MAP[slug].key] = slug; });
+
+// ===== STATE =====
+var allTemplates = [];
+var currentPage = 1;
+var currentType = '';
+var totalTemplates = 0;
+var pageLimit = 24;
+var eventTypesData = [];
+var observer = null;
+
+// ===== INIT =====
+(function init() {
+  // Determine event type from URL path
+  var pathParts = window.location.pathname.replace(/\/$/, '').split('/');
+  var typeSlug = pathParts.length > 2 ? pathParts[pathParts.length - 1] : '';
+
+  if (typeSlug && SLUG_MAP[typeSlug]) {
+    currentType = SLUG_MAP[typeSlug].key;
+    updateSEO(SLUG_MAP[typeSlug]);
+  }
+
+  loadTemplates();
+})();
+
+function updateSEO(typeInfo) {
+  document.title = typeInfo.title + ' | Ryvite';
+  document.querySelector('meta[name="description"]').setAttribute('content', typeInfo.desc);
+  document.getElementById('heroTitle').textContent = typeInfo.title;
+  document.getElementById('heroSubtext').textContent = typeInfo.desc;
+
+  var url = 'https://ryvite.com/templates/' + TYPE_TO_SLUG[typeInfo.key];
+  document.getElementById('canonicalLink').href = url;
+  document.getElementById('ogTitle').content = typeInfo.title + ' | Ryvite';
+  document.getElementById('ogDesc').content = typeInfo.desc;
+  document.getElementById('ogUrl').content = url;
+  document.getElementById('twTitle').content = typeInfo.title + ' | Ryvite';
+  document.getElementById('twDesc').content = typeInfo.desc;
+
+  // Update structured data
+  var sd = JSON.parse(document.getElementById('structuredData').textContent);
+  sd.name = typeInfo.title;
+  sd.description = typeInfo.desc;
+  sd.url = url;
+  document.getElementById('structuredData').textContent = JSON.stringify(sd);
+
+  // Update SEO text section
+  document.getElementById('seoHeading').textContent = 'More ' + typeInfo.label + ' Templates & Other Events';
+  document.getElementById('seoText').textContent = typeInfo.desc + ' Each design is fully customizable — just add your details and send.';
+}
+
+async function loadTemplates() {
+  var url = '/api/v2/templates?action=list&page=' + currentPage + '&limit=' + pageLimit;
+  if (currentType) url += '&eventType=' + encodeURIComponent(currentType);
+
+  try {
+    var res = await fetch(url);
+    var data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Failed to load');
+
+    if (currentPage === 1) {
+      allTemplates = data.templates;
+    } else {
+      allTemplates = allTemplates.concat(data.templates);
+    }
+    totalTemplates = data.total;
+    eventTypesData = data.eventTypes || eventTypesData;
+
+    renderFilterBar();
+    renderTemplates();
+    renderTypeLinks();
+
+    // Update template count
+    var countEl = document.getElementById('templateCount');
+    if (totalTemplates > 0) {
+      countEl.textContent = totalTemplates + ' curated template' + (totalTemplates !== 1 ? 's' : '');
+      countEl.style.display = '';
+    }
+  } catch (e) {
+    console.error('Failed to load templates:', e);
+    document.getElementById('loadingState').innerHTML = '<p style="color:var(--slate);">Failed to load templates. Please try again.</p>';
+  }
+}
+
+function renderFilterBar() {
+  var scroll = document.getElementById('filterScroll');
+  var html = '<button class="filter-chip' + (!currentType ? ' active' : '') + '" data-type="" onclick="filterByType(\'\')">All</button>';
+
+  eventTypesData.forEach(function(et) {
+    html += '<button class="filter-chip' + (currentType === et.key ? ' active' : '') + '" data-type="' + et.key + '" onclick="filterByType(\'' + et.key + '\')">'
+      + et.label + ' <span class="chip-count">(' + et.count + ')</span></button>';
+  });
+
+  scroll.innerHTML = html;
+}
+
+function renderTemplates() {
+  document.getElementById('loadingState').style.display = 'none';
+  var grid = document.getElementById('templateGrid');
+  var empty = document.getElementById('emptyState');
+  var loadMoreWrap = document.getElementById('loadMoreWrap');
+
+  if (allTemplates.length === 0) {
+    grid.style.display = 'none';
+    empty.style.display = '';
+    loadMoreWrap.style.display = 'none';
+    return;
+  }
+
+  empty.style.display = 'none';
+  grid.style.display = '';
+
+  var html = '';
+  allTemplates.forEach(function(t, i) {
+    var stars = '';
+    for (var s = 0; s < (t.adminRating || 0); s++) stars += '<span class="star">&#9733;</span>';
+
+    html += '<div class="template-card" data-idx="' + i + '">'
+      + '<div class="card-phone-wrap">'
+      + '<div class="card-phone-frame">'
+      + '<iframe data-template-idx="' + i + '" loading="lazy" sandbox="allow-same-origin" title="' + t.eventTypeLabel + ' invitation template"></iframe>'
+      + '</div></div>'
+      + '<div class="card-info">'
+      + '<span class="card-badge ' + t.eventType + '">' + t.eventTypeLabel + '</span>'
+      + (stars ? '<div class="card-rating">' + stars + '</div>' : '')
+      + '<a href="/v2/create/?templateId=' + t.id + '" class="card-cta" onclick="event.stopPropagation();">Use This Template</a>'
+      + '</div></div>';
+  });
+
+  grid.innerHTML = html;
+
+  // Set up IntersectionObserver for lazy iframe rendering
+  if (observer) observer.disconnect();
+  observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        var iframe = entry.target;
+        if (!iframe.srcdoc) {
+          var idx = parseInt(iframe.getAttribute('data-template-idx'));
+          var t = allTemplates[idx];
+          if (t) iframe.srcdoc = buildGallerySrcdoc(t);
+        }
+        observer.unobserve(iframe);
+      }
+    });
+  }, { rootMargin: '200px' });
+
+  var iframes = grid.querySelectorAll('iframe[data-template-idx]');
+  iframes.forEach(function(iframe) { observer.observe(iframe); });
+
+  // Show/hide load more
+  if (allTemplates.length < totalTemplates) {
+    loadMoreWrap.style.display = '';
+  } else {
+    loadMoreWrap.style.display = 'none';
+  }
+}
+
+function buildGallerySrcdoc(template) {
+  var fontsImport = (template.config && template.config.googleFontsImport) || '';
+  if (fontsImport && !fontsImport.startsWith('@import')) {
+    fontsImport = "@import url('" + fontsImport + "');";
+  }
+  var fontsStyle = fontsImport ? '<style>' + fontsImport + '</style>' : '';
+
+  var dummy = template.dummyData || {};
+
+  // Build RSVP form placeholder
+  var rsvpFormHtml = '<div style="padding:8px 16px;"><div style="margin-bottom:10px;"><label style="display:block;font-size:11px;margin-bottom:3px;opacity:0.7;">Name</label><div style="padding:8px 10px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;font-size:12px;color:rgba(0,0,0,0.35);">Your name</div></div>'
+    + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;margin-bottom:3px;opacity:0.7;">RSVP</label><div style="padding:8px 10px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;font-size:12px;color:rgba(0,0,0,0.35);">Yes / No / Maybe</div></div></div>';
+
+  var overrideScript = '<script>'
+    + 'document.addEventListener("DOMContentLoaded", function() {'
+    + '  var slot = document.querySelector(".rsvp-slot");'
+    + '  if (slot) {'
+    + '    var btn = slot.querySelector(".rsvp-button");'
+    + '    var btnHtml = btn ? btn.outerHTML : "";'
+    + '    slot.innerHTML = ' + JSON.stringify(rsvpFormHtml) + ' + btnHtml;'
+    + '  }'
+    + '  var overrides = ' + JSON.stringify(dummy) + ';'
+    + '  Object.keys(overrides).forEach(function(key) {'
+    + '    var el = document.querySelector("[data-field=\\"" + key + "\\"]");'
+    + '    if (!el) return;'
+    + '    var cs = window.getComputedStyle(el);'
+    + '    var origColor = cs.color;'
+    + '    if (el.firstElementChild) {'
+    + '      var childColor = window.getComputedStyle(el.firstElementChild).color;'
+    + '      if (childColor !== origColor) origColor = childColor;'
+    + '    }'
+    + '    el.innerHTML = overrides[key];'
+    + '    if (origColor && !el.style.color) el.style.color = origColor;'
+    + '  });'
+    + '  var dc = document.querySelector("[data-field=\\"dresscode\\"]");'
+    + '  if (dc && !overrides.dresscode) { dc.style.display = "none"; }'
+    + '  else if (dc && overrides.dresscode) { dc.style.display = ""; }'
+    + '});'
+    + '<\/script>';
+
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+    + fontsStyle
+    + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; }</style>'
+    + '<style>' + (template.css || '') + '</style></head><body>' + (template.html || '') + overrideScript + '</body></html>';
+}
+
+function filterByType(typeKey) {
+  if (typeKey === currentType) return;
+  currentType = typeKey;
+  currentPage = 1;
+  allTemplates = [];
+
+  // Update URL without reload
+  var newPath = typeKey ? '/templates/' + (TYPE_TO_SLUG[typeKey] || typeKey) : '/templates';
+  history.pushState({ type: typeKey }, '', newPath);
+
+  // Update SEO for type pages
+  if (typeKey && TYPE_TO_SLUG[typeKey] && SLUG_MAP[TYPE_TO_SLUG[typeKey]]) {
+    updateSEO(SLUG_MAP[TYPE_TO_SLUG[typeKey]]);
+  } else {
+    // Reset to default
+    document.title = 'Invitation Templates | Ryvite';
+    document.querySelector('meta[name="description"]').setAttribute('content', 'Browse beautiful AI-generated invitation templates. Find the perfect design for your wedding, birthday, baby shower, or any event.');
+    document.getElementById('heroTitle').textContent = 'Invitation Templates';
+    document.getElementById('heroSubtext').textContent = 'Browse AI-generated invitation designs. Find one you love and make it yours in minutes.';
+    document.getElementById('canonicalLink').href = 'https://ryvite.com/templates';
+    document.getElementById('seoHeading').textContent = 'Browse by Event Type';
+    document.getElementById('seoText').textContent = 'Discover the perfect invitation design for any occasion. Each template is crafted by AI and curated by our design team. Pick your favorite, customize the details, and send beautiful invites in minutes.';
+  }
+
+  // Update active chips
+  document.querySelectorAll('.filter-chip').forEach(function(chip) {
+    chip.classList.toggle('active', chip.getAttribute('data-type') === (typeKey || ''));
+  });
+
+  // Show loading
+  document.getElementById('loadingState').style.display = '';
+  document.getElementById('templateGrid').style.display = 'none';
+
+  loadTemplates();
+}
+
+function loadMore() {
+  currentPage++;
+  var btn = document.getElementById('loadMoreBtn');
+  btn.disabled = true;
+  btn.textContent = 'Loading...';
+  loadTemplates().then(function() {
+    btn.disabled = false;
+    btn.textContent = 'Load More';
+  });
+}
+
+function renderTypeLinks() {
+  var container = document.getElementById('typeLinks');
+  var html = '';
+  eventTypesData.forEach(function(et) {
+    var slug = et.slug || TYPE_TO_SLUG[et.key] || et.key;
+    var isActive = currentType === et.key;
+    html += '<a href="/templates/' + slug + '" class="type-link' + (isActive ? ' active' : '') + '" onclick="event.preventDefault(); filterByType(\'' + et.key + '\');">'
+      + et.label + ' (' + et.count + ')</a>';
+  });
+  container.innerHTML = html;
+}
+
+// Handle browser back/forward
+window.addEventListener('popstate', function(e) {
+  var state = e.state;
+  if (state && typeof state.type !== 'undefined') {
+    currentType = state.type;
+  } else {
+    // Parse from URL
+    var pathParts = window.location.pathname.replace(/\/$/, '').split('/');
+    var typeSlug = pathParts.length > 2 ? pathParts[pathParts.length - 1] : '';
+    currentType = (typeSlug && SLUG_MAP[typeSlug]) ? SLUG_MAP[typeSlug].key : '';
+  }
+  currentPage = 1;
+  allTemplates = [];
+  document.getElementById('loadingState').style.display = '';
+  document.getElementById('templateGrid').style.display = 'none';
+  loadTemplates();
+});
+</script>
+</body>
+</html>

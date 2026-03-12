@@ -61,6 +61,14 @@
     {
       "source": "/v2/cohost",
       "destination": "/v2/cohost/index.html"
+    },
+    {
+      "source": "/templates",
+      "destination": "/v2/templates/index.html"
+    },
+    {
+      "source": "/templates/:type",
+      "destination": "/v2/templates/index.html"
     }
   ]
 }
