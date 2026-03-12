@@ -179,6 +179,105 @@
     .rsvp-item-status { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap; }
     .rsvp-empty { text-align: center; padding: 40px 20px; color: #999; font-size: 15px; }
 
+    /* Manage Modal */
+    .manage-modal { background: white; width: 100%; max-width: 700px; max-height: 90vh; border-radius: 16px 16px 0 0; overflow: hidden; display: flex; flex-direction: column; animation: slideUpModal 0.3s ease-out; }
+    .manage-modal-header { padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+    .manage-modal-header h3 { font-size: 18px; font-weight: 600; }
+    .manage-tabs { display: flex; gap: 4px; padding: 12px 20px; border-bottom: 1px solid #eee; flex-shrink: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .manage-tab { padding: 8px 16px; border-radius: 6px; border: none; background: none; font-size: 13px; font-weight: 600; color: #888; cursor: pointer; font-family: 'Inter', sans-serif; white-space: nowrap; transition: all 0.15s; }
+    .manage-tab:hover { background: #f5f5f5; color: var(--midnight); }
+    .manage-tab.active { background: var(--midnight); color: white; }
+    .manage-tab-content { padding: 20px; overflow-y: auto; flex: 1; }
+
+    /* Messages tab */
+    .msg-type-pills { display: flex; gap: 8px; margin-bottom: 16px; }
+    .msg-type-pill { flex: 1; padding: 10px 16px; border: 1px solid #ddd; border-radius: 8px; background: white; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; text-align: center; transition: all 0.15s; color: var(--midnight); }
+    .msg-type-pill:hover { border-color: var(--party-coral); color: var(--party-coral); }
+    .msg-type-pill.active { background: var(--party-coral); color: white; border-color: var(--party-coral); }
+    .compose-select { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--midnight); margin-bottom: 12px; appearance: auto; background: white; min-height: 44px; }
+    .compose-select:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+    .compose-textarea { width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; color: var(--midnight); min-height: 100px; resize: vertical; line-height: 1.5; }
+    .compose-textarea:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+    .compose-helper { font-size: 12px; color: #999; margin-top: 6px; }
+    .compose-stats { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; margin-bottom: 16px; }
+    .char-count { font-size: 12px; color: #888; }
+    .cost-estimate { font-size: 13px; color: var(--party-coral); font-weight: 600; }
+    .send-btn { width: 100%; padding: 14px 20px; border: none; border-radius: 8px; background: var(--party-coral); color: white; font-size: 15px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.2s; min-height: 48px; }
+    .send-btn:hover:not(:disabled) { background: var(--blush-pop); transform: translateY(-1px); }
+    .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* SMS History */
+    .history-toggle { display: flex; align-items: center; gap: 8px; margin-top: 24px; padding: 12px 0; border-top: 1px solid #eee; cursor: pointer; font-size: 13px; font-weight: 600; color: #666; user-select: none; }
+    .history-toggle:hover { color: var(--party-coral); }
+    .history-toggle svg { width: 16px; height: 16px; fill: currentColor; transition: transform 0.2s; }
+    .history-toggle.open svg { transform: rotate(180deg); }
+    .history-list { list-style: none; margin-top: 12px; }
+    .history-item { padding: 10px 0; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+    .history-item:last-child { border-bottom: none; }
+    .history-item-left { display: flex; flex-direction: column; gap: 2px; }
+    .history-item-name { font-weight: 500; }
+    .history-item-date { font-size: 12px; color: #999; }
+    .sms-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .sms-badge-invite { background: rgba(167,139,250,0.15); color: #7c3aed; }
+    .sms-badge-update { background: rgba(78,205,196,0.15); color: #0d9488; }
+    .sms-badge-reminder { background: rgba(255,183,77,0.15); color: #b45309; }
+    .sms-badge-sent { background: rgba(78,205,196,0.12); color: #0d9488; }
+    .sms-badge-delivered { background: #d4edda; color: #155724; }
+    .sms-badge-failed { background: #f8d7da; color: #721c24; }
+    .sms-badge-queued { background: #fff3cd; color: #856404; }
+    .sms-badge-sms { background: rgba(233,69,96,0.1); color: var(--party-coral); }
+
+    /* Reminders tab */
+    .reminder-date-banner { background: #f8f8f8; border: 1px solid #eee; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #666; }
+    .reminder-date-banner strong { color: var(--midnight); }
+    .reminder-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .reminder-chip { padding: 8px 16px; border: 1px solid #ddd; border-radius: 20px; background: white; font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; color: var(--midnight); }
+    .reminder-chip:hover { border-color: var(--party-coral); color: var(--party-coral); }
+    .reminder-chip.active { border-color: var(--party-coral); background: rgba(233,69,96,0.06); color: var(--party-coral); }
+    .reminder-form { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+    .reminder-form-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .reminder-form-row input, .reminder-form-row select { padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; font-family: 'Inter', sans-serif; min-height: 40px; }
+    .reminder-form-row input[type="number"] { width: 80px; }
+    .reminder-form-row select { flex: 1; appearance: auto; background: white; }
+    .reminder-list { list-style: none; }
+    .reminder-item { padding: 12px 0; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: flex-start; }
+    .reminder-item:last-child { border-bottom: none; }
+    .reminder-item-info { flex: 1; }
+    .reminder-item-label { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+    .reminder-item-time { font-size: 12px; color: #999; }
+    .reminder-item-msg { font-size: 13px; color: #666; margin-top: 4px; max-width: 400px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .reminder-item-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .reminder-cancel-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #ddd; background: white; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #999; transition: all 0.15s; }
+    .reminder-cancel-btn:hover { border-color: #dc3545; color: #dc3545; background: #fff5f5; }
+
+    /* Notifications tab */
+    .notify-section-desc { font-size: 14px; color: #666; margin-bottom: 20px; line-height: 1.5; }
+    .notify-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid #eee; }
+    .notify-row-label { font-size: 15px; font-weight: 600; }
+    .toggle-switch { position: relative; width: 44px; height: 24px; cursor: pointer; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: #ccc; border-radius: 24px; transition: all 0.2s; }
+    .toggle-slider::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: all 0.2s; }
+    .toggle-switch input:checked + .toggle-slider { background: var(--party-coral); }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+    .notify-settings { margin-top: 16px; animation: fadeIn 0.2s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    .notify-mode-label { font-size: 13px; font-weight: 600; color: #666; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .mode-cards { display: flex; gap: 12px; margin-bottom: 20px; }
+    .mode-card { flex: 1; padding: 16px; border: 2px solid #eee; border-radius: 10px; cursor: pointer; transition: all 0.15s; text-align: center; }
+    .mode-card:hover { border-color: #ccc; }
+    .mode-card.selected { border-color: var(--party-coral); background: rgba(233,69,96,0.04); }
+    .mode-card-icon { font-size: 24px; margin-bottom: 8px; }
+    .mode-card-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .mode-card-desc { font-size: 12px; color: #666; line-height: 1.4; }
+    .notify-phone-label { font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px; }
+    .notify-phone-input { width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; min-height: 44px; }
+    .notify-phone-input:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+    .notify-save-btn { margin-top: 16px; width: 100%; padding: 12px 20px; border: none; border-radius: 8px; background: var(--party-coral); color: white; font-size: 14px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.2s; min-height: 44px; }
+    .notify-save-btn:hover:not(:disabled) { background: var(--blush-pop); transform: translateY(-1px); }
+    .notify-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .notify-success { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: #d4edda; border-radius: 8px; font-size: 13px; font-weight: 500; color: #155724; margin-top: 12px; }
+
     /* Contacts summary card */
     .contacts-card { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; }
     .contacts-card-left { display: flex; align-items: center; gap: 16px; }
@@ -212,6 +311,14 @@
       .share-buttons { flex-wrap: wrap; }
       .share-btn { min-width: calc(50% - 4px); }
       .rsvp-modal { max-height: 90vh; }
+      .manage-modal { max-height: 95vh; }
+      .manage-tabs { gap: 2px; padding: 10px 16px; }
+      .manage-tab { padding: 7px 12px; font-size: 12px; }
+      .manage-tab-content { padding: 16px; }
+      .mode-cards { flex-direction: column; }
+      .reminder-form-row { flex-wrap: wrap; }
+      .reminder-item-msg { max-width: 200px; }
+      .history-item { flex-direction: column; align-items: flex-start; gap: 4px; }
       .profile-dropdown { right: -8px; }
     }
   </style>
@@ -349,15 +456,21 @@
     </div>
   </div>
 
-  <!-- RSVP Modal -->
-  <div class="modal-overlay" id="rsvpModal" onclick="if(event.target===this)closeRSVPModal()">
-    <div class="rsvp-modal">
-      <div class="rsvp-modal-header">
-        <h3 id="rsvpModalTitle">RSVPs</h3>
-        <button class="rsvp-modal-close" onclick="closeRSVPModal()">&times;</button>
+  <!-- Manage Modal -->
+  <div class="modal-overlay" id="manageModal" onclick="if(event.target===this)closeManageModal()">
+    <div class="manage-modal">
+      <div class="manage-modal-header">
+        <h3 id="manageModalTitle">Manage Event</h3>
+        <button class="rsvp-modal-close" onclick="closeManageModal()">&times;</button>
       </div>
-      <div class="rsvp-modal-body" id="rsvpModalBody">
-        <div class="loading">Loading RSVPs...</div>
+      <div class="manage-tabs" id="manageTabs">
+        <button class="manage-tab active" onclick="switchTab('guests')">Guests</button>
+        <button class="manage-tab" onclick="switchTab('messages')">Messages</button>
+        <button class="manage-tab" onclick="switchTab('reminders')">Reminders</button>
+        <button class="manage-tab" onclick="switchTab('notifications')">Alerts</button>
+      </div>
+      <div class="manage-tab-content" id="manageContent">
+        <div class="loading">Loading...</div>
       </div>
     </div>
   </div>
@@ -504,7 +617,7 @@
           + '</div>'
           + '<div class="event-actions">'
           + '<a href="/v2/event/' + encodeURIComponent(event.slug) + '" target="_blank">View</a>'
-          + '<button onclick="openRSVPModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\')">RSVPs</button>'
+          + '<button onclick="openManageModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\')">Manage</button>'
           + '</div></div></div>';
       }).join('');
 
@@ -597,7 +710,7 @@
             + '<button class="copy-btn" onclick="copyLink(this, \'' + escapeHtml(inviteUrl) + '\')">Copy</button>'
             + '</div>'
             + '<div class="share-buttons">'
-            + '<a class="share-btn" href="sms:?body=' + encodeURIComponent("You're invited! RSVP here: " + inviteUrl) + '">SMS</a>'
+            + '<button class="share-btn" onclick="openManageModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\', \'messages\')">Send SMS</button>'
             + '<a class="share-btn" href="mailto:?subject=' + encodeURIComponent(event.title + ' - You\'re Invited!') + '&body=' + encodeURIComponent("You're invited to " + event.title + "!\n\nRSVP here: " + inviteUrl) + '">Email</a>'
             + '</div></div>';
         }
@@ -607,7 +720,7 @@
           actionsHtml += '<a href="/v2/create/?eventId=' + encodeURIComponent(event.id) + '">Continue</a>';
         } else if (!isArchived) {
           actionsHtml += '<a href="/v2/event/' + encodeURIComponent(event.slug) + '" target="_blank">View</a>';
-          actionsHtml += '<button onclick="openRSVPModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\')">RSVPs</button>';
+          actionsHtml += '<button onclick="openManageModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\')">Manage</button>';
         } else {
           actionsHtml += '<a href="/v2/event/' + encodeURIComponent(event.slug) + '" target="_blank">View</a>';
         }
@@ -677,37 +790,154 @@
       });
     }
 
-    // RSVP Modal
-    async function openRSVPModal(eventId, title) {
-      document.getElementById('rsvpModalTitle').textContent = 'RSVPs — ' + title;
-      document.getElementById('rsvpModalBody').innerHTML = '<div class="loading">Loading RSVPs...</div>';
-      document.getElementById('rsvpModal').classList.add('active');
+    // ============================================================
+    // Manage Modal — State
+    // ============================================================
+    var manageEventId = null;
+    var manageTitle = null;
+    var manageDate = null;
+    var manageSlug = null;
+    var manageRsvps = null;
+    var manageCurrentTab = 'guests';
+    var manageMsgType = 'invite';
+    var manageHistoryOpen = false;
+    var manageReminderFormOpen = false;
+
+    // ============================================================
+    // Manage Modal — Lifecycle
+    // ============================================================
+    async function openManageModal(eventId, title, eventDate, slug, initialTab) {
+      manageEventId = eventId;
+      manageTitle = decodeURIComponent(title || '');
+      manageDate = eventDate || '';
+      manageSlug = decodeURIComponent(slug || '');
+      manageRsvps = null;
+      manageHistoryOpen = false;
+      manageReminderFormOpen = false;
+
+      document.getElementById('manageModalTitle').textContent = manageTitle;
+      document.getElementById('manageContent').innerHTML = '<div class="loading">Loading...</div>';
+      document.getElementById('manageModal').classList.add('active');
       document.body.style.overflow = 'hidden';
+
+      switchTab(initialTab || 'guests');
+    }
+
+    function closeManageModal() {
+      document.getElementById('manageModal').classList.remove('active');
+      document.body.style.overflow = '';
+      manageEventId = null;
+    }
+
+    function switchTab(tabName) {
+      manageCurrentTab = tabName;
+      var tabs = document.querySelectorAll('.manage-tab');
+      tabs.forEach(function(t) {
+        t.classList.toggle('active', t.textContent.toLowerCase().replace(/\s/g,'') === tabName ||
+          (tabName === 'guests' && t.textContent === 'Guests') ||
+          (tabName === 'messages' && t.textContent === 'Messages') ||
+          (tabName === 'reminders' && t.textContent === 'Reminders') ||
+          (tabName === 'notifications' && t.textContent === 'Alerts'));
+      });
+
+      if (tabName === 'guests') loadGuestsTab();
+      else if (tabName === 'messages') loadMessagesTab();
+      else if (tabName === 'reminders') loadRemindersTab();
+      else if (tabName === 'notifications') loadNotificationsTab();
+    }
+
+    // ============================================================
+    // Helpers
+    // ============================================================
+    function countSmsSegments(text) {
+      if (!text) return 0;
+      var len = text.length;
+      if (len <= 160) return 1;
+      return Math.ceil(len / 153);
+    }
+
+    function formatSmsCost(guestCount) {
+      var cost = (guestCount * 10 / 100).toFixed(2);
+      return '$' + cost;
+    }
+
+    function formatOffsetLabel(minutes) {
+      if (minutes >= 10080) return Math.floor(minutes / 10080) + ' week' + (minutes >= 20160 ? 's' : '') + ' before';
+      if (minutes >= 1440) return Math.floor(minutes / 1440) + ' day' + (minutes >= 2880 ? 's' : '') + ' before';
+      if (minutes >= 60) return Math.floor(minutes / 60) + ' hour' + (minutes >= 120 ? 's' : '') + ' before';
+      return minutes + ' minute' + (minutes !== 1 ? 's' : '') + ' before';
+    }
+
+    function getInviteUrl() {
+      return window.location.origin + '/v2/event/' + manageSlug;
+    }
+
+    function getGuestCountsWithPhone(rsvps) {
+      if (!rsvps) return { all: 0, attending: 0, declined: 0, maybe: 0 };
+      var withPhone = rsvps.filter(function(r) { return r.phone; });
+      return {
+        all: withPhone.length,
+        attending: withPhone.filter(function(r) { return r.status === 'attending'; }).length,
+        declined: withPhone.filter(function(r) { return r.status === 'declined'; }).length,
+        maybe: withPhone.filter(function(r) { return r.status === 'maybe'; }).length
+      };
+    }
+
+    function statusBadgeHtml(status) {
+      var cls = 'sms-badge sms-badge-' + (status || 'queued');
+      var label = (status || 'queued').charAt(0).toUpperCase() + (status || 'queued').slice(1);
+      return '<span class="' + cls + '">' + label + '</span>';
+    }
+
+    function typeBadgeHtml(type) {
+      var cls = 'sms-badge sms-badge-' + (type || 'custom');
+      var label = (type || 'custom').charAt(0).toUpperCase() + (type || 'custom').slice(1);
+      return '<span class="' + cls + '">' + label + '</span>';
+    }
+
+    // ============================================================
+    // Guests Tab
+    // ============================================================
+    async function loadGuestsTab() {
+      var content = document.getElementById('manageContent');
+      content.innerHTML = '<div class="loading" style="padding:30px;">Loading guests...</div>';
       try {
-        var res = await authFetch('/api/v2/events?action=rsvps&eventId=' + encodeURIComponent(eventId));
+        var res = await authFetch('/api/v2/events?action=rsvps&eventId=' + encodeURIComponent(manageEventId));
         var result = await res.json();
-        if (result.success) renderRSVPs(result.rsvps || []);
-        else document.getElementById('rsvpModalBody').innerHTML = '<div class="rsvp-empty">Error loading RSVPs</div>';
+        if (result.success) {
+          manageRsvps = result.rsvps || [];
+          renderGuestsTab(manageRsvps);
+        } else {
+          content.innerHTML = '<div class="rsvp-empty">Error loading guests</div>';
+        }
       } catch (err) {
-        document.getElementById('rsvpModalBody').innerHTML = '<div class="rsvp-empty">Error loading RSVPs</div>';
+        content.innerHTML = '<div class="rsvp-empty">Error loading guests</div>';
       }
     }
 
-    function renderRSVPs(rsvps) {
-      var body = document.getElementById('rsvpModalBody');
-      if (rsvps.length === 0) {
-        body.innerHTML = '<div class="rsvp-empty">No RSVPs yet. Share your invite link to start collecting responses!</div>';
+    function renderGuestsTab(rsvps) {
+      var content = document.getElementById('manageContent');
+      if (!rsvps || rsvps.length === 0) {
+        content.innerHTML = '<div class="rsvp-empty">No RSVPs yet. Share your invite link to start collecting responses!</div>'
+          + '<div style="text-align:center;margin-top:12px;"><a href="/v2/contacts/" style="color:var(--party-coral);font-weight:600;font-size:14px;">Add guests from contacts</a></div>';
         return;
       }
+
       var attending = rsvps.filter(function(r) { return r.status === 'attending'; }).length;
       var declined = rsvps.filter(function(r) { return r.status === 'declined'; }).length;
       var maybe = rsvps.filter(function(r) { return r.status === 'maybe'; }).length;
 
-      var html = '<div class="rsvp-stats">'
+      var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
+        + '<span style="font-size:13px;color:#666;">' + rsvps.length + ' response' + (rsvps.length !== 1 ? 's' : '') + '</span>'
+        + '<a href="/v2/contacts/" style="color:var(--party-coral);font-weight:600;font-size:13px;text-decoration:none;">+ Add from contacts</a>'
+        + '</div>';
+
+      html += '<div class="rsvp-stats">'
         + '<div class="rsvp-stat attending"><div class="rsvp-stat-num">' + attending + '</div><div class="rsvp-stat-label">Attending</div></div>'
         + '<div class="rsvp-stat declined"><div class="rsvp-stat-num">' + declined + '</div><div class="rsvp-stat-label">Declined</div></div>'
         + '<div class="rsvp-stat maybe"><div class="rsvp-stat-num">' + maybe + '</div><div class="rsvp-stat-label">Maybe</div></div>'
         + '</div><ul class="rsvp-list">';
+
       rsvps.forEach(function(r) {
         var statusLabel = r.status === 'attending' ? 'Attending' : r.status === 'declined' ? 'Declined' : 'Maybe';
         var style = r.status === 'attending' ? 'background:#d4edda;color:#155724' : r.status === 'declined' ? 'background:#f8d7da;color:#721c24' : 'background:#fff3cd;color:#856404';
@@ -715,12 +945,15 @@
         if (r.email) detail += escapeHtml(r.email);
         if (r.phone) detail += (detail ? ' · ' : '') + escapeHtml(r.phone);
         if (r.respondedAt) detail += (detail ? ' · ' : '') + new Date(r.respondedAt).toLocaleDateString();
-        html += '<li class="rsvp-item"><div class="rsvp-item-info"><div class="rsvp-item-name">' + escapeHtml(r.name) + '</div>'
+
+        var smsBadge = r.invitedAt ? ' <span class="sms-badge sms-badge-sms">SMS sent</span>' : '';
+
+        html += '<li class="rsvp-item"><div class="rsvp-item-info"><div class="rsvp-item-name">' + escapeHtml(r.name) + smsBadge + '</div>'
           + (detail ? '<div class="rsvp-item-detail">' + detail + '</div>' : '')
           + '</div><button onclick="saveGuestToContacts(\'' + r.id + '\', this)" style="padding:4px 10px;border:1px solid #ddd;border-radius:6px;background:white;font-size:11px;cursor:pointer;font-family:Inter,sans-serif;color:#666;margin-right:8px;white-space:nowrap;transition:all 0.15s;" onmouseover="this.style.borderColor=\'var(--party-coral)\';this.style.color=\'var(--party-coral)\'" onmouseout="this.style.borderColor=\'#ddd\';this.style.color=\'#666\'">Save</button><span class="rsvp-item-status" style="' + style + '">' + statusLabel + '</span></li>';
       });
       html += '</ul>';
-      body.innerHTML = html;
+      content.innerHTML = html;
     }
 
     async function saveGuestToContacts(guestId, btn) {
@@ -740,9 +973,506 @@
       } catch (err) { btn.textContent = 'Error'; btn.disabled = false; }
     }
 
-    function closeRSVPModal() {
-      document.getElementById('rsvpModal').classList.remove('active');
-      document.body.style.overflow = '';
+    // ============================================================
+    // Messages Tab
+    // ============================================================
+    async function loadMessagesTab() {
+      var content = document.getElementById('manageContent');
+
+      // Ensure we have RSVP data for guest counts
+      if (!manageRsvps) {
+        content.innerHTML = '<div class="loading" style="padding:30px;">Loading...</div>';
+        try {
+          var res = await authFetch('/api/v2/events?action=rsvps&eventId=' + encodeURIComponent(manageEventId));
+          var result = await res.json();
+          manageRsvps = result.success ? (result.rsvps || []) : [];
+        } catch (err) { manageRsvps = []; }
+      }
+
+      renderMessagesTab();
+    }
+
+    function renderMessagesTab() {
+      var content = document.getElementById('manageContent');
+      var counts = getGuestCountsWithPhone(manageRsvps);
+      var inviteUrl = getInviteUrl();
+      var defaultInviteMsg = 'Hi {name}, you\'re invited to ' + manageTitle + '! RSVP here: ' + inviteUrl;
+
+      var html = '';
+
+      // Message type pills
+      html += '<div class="msg-type-pills">'
+        + '<button class="msg-type-pill' + (manageMsgType === 'invite' ? ' active' : '') + '" onclick="setMsgType(\'invite\')">Send Invite</button>'
+        + '<button class="msg-type-pill' + (manageMsgType === 'update' ? ' active' : '') + '" onclick="setMsgType(\'update\')">Send Update</button>'
+        + '</div>';
+
+      // Recipient selector
+      html += '<select class="compose-select" id="smsRecipientFilter" onchange="updateSmsPreview()">'
+        + '<option value="all">All guests with phone (' + counts.all + ')</option>'
+        + '<option value="attending">Attending only (' + counts.attending + ')</option>'
+        + '<option value="declined">Declined only (' + counts.declined + ')</option>'
+        + '<option value="maybe">Maybe only (' + counts.maybe + ')</option>'
+        + '</select>';
+
+      // Compose textarea
+      var defaultMsg = manageMsgType === 'invite' ? defaultInviteMsg : '';
+      var placeholder = manageMsgType === 'invite' ? 'Write your invite message...' : 'Type your update message...';
+      html += '<textarea class="compose-textarea" id="smsComposeText" placeholder="' + placeholder + '" oninput="updateSmsPreview()">' + escapeHtml(defaultMsg) + '</textarea>';
+      html += '<div class="compose-helper">{name} will be replaced with each guest\'s name</div>';
+
+      // Stats row
+      html += '<div class="compose-stats">'
+        + '<span class="char-count" id="smsCharCount">0 chars · 0 segments</span>'
+        + '<span class="cost-estimate" id="smsCostEstimate"></span>'
+        + '</div>';
+
+      // Send button
+      html += '<button class="send-btn" id="smsSendBtn" onclick="sendSms()" disabled>Send to ' + counts.all + ' guest' + (counts.all !== 1 ? 's' : '') + '</button>';
+
+      // No guests warning
+      if (counts.all === 0) {
+        html += '<div style="text-align:center;padding:16px;color:#999;font-size:13px;margin-top:8px;">No guests have phone numbers yet. Share your invite link to collect RSVPs with phone numbers.</div>';
+      }
+
+      // SMS History toggle
+      html += '<div class="history-toggle' + (manageHistoryOpen ? ' open' : '') + '" onclick="toggleSmsHistory()">'
+        + '<svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>'
+        + '<span>Sent messages</span>'
+        + '</div>';
+      html += '<div id="smsHistoryContainer" style="' + (manageHistoryOpen ? '' : 'display:none;') + '"></div>';
+
+      content.innerHTML = html;
+
+      // Trigger initial preview update
+      updateSmsPreview();
+
+      // Load history if open
+      if (manageHistoryOpen) loadSmsHistory();
+    }
+
+    function setMsgType(type) {
+      manageMsgType = type;
+      renderMessagesTab();
+    }
+
+    function updateSmsPreview() {
+      var textarea = document.getElementById('smsComposeText');
+      var charCount = document.getElementById('smsCharCount');
+      var costEstimate = document.getElementById('smsCostEstimate');
+      var sendBtn = document.getElementById('smsSendBtn');
+      var filterEl = document.getElementById('smsRecipientFilter');
+
+      if (!textarea || !charCount || !costEstimate || !sendBtn) return;
+
+      var text = textarea.value;
+      var len = text.length;
+      var segments = countSmsSegments(text);
+
+      charCount.textContent = len + ' char' + (len !== 1 ? 's' : '') + ' · ' + segments + ' segment' + (segments !== 1 ? 's' : '');
+
+      var filter = filterEl ? filterEl.value : 'all';
+      var counts = getGuestCountsWithPhone(manageRsvps);
+      var guestCount = counts[filter] || counts.all;
+
+      costEstimate.textContent = guestCount > 0 ? '$0.10 × ' + guestCount + ' = ' + formatSmsCost(guestCount) : '';
+
+      sendBtn.disabled = !text.trim() || guestCount === 0;
+      sendBtn.textContent = 'Send to ' + guestCount + ' guest' + (guestCount !== 1 ? 's' : '');
+    }
+
+    function sendSms() {
+      var text = document.getElementById('smsComposeText').value.trim();
+      var filter = document.getElementById('smsRecipientFilter').value;
+      var counts = getGuestCountsWithPhone(manageRsvps);
+      var guestCount = counts[filter] || counts.all;
+
+      if (!text || guestCount === 0) return;
+
+      var cost = formatSmsCost(guestCount);
+      showConfirm('Send SMS', 'This will send ' + guestCount + ' text message' + (guestCount !== 1 ? 's' : '') + ' at $0.10 each (total: ' + cost + '). This cannot be undone.', 'var(--party-coral)', async function() {
+        var sendBtn = document.getElementById('smsSendBtn');
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Sending...';
+
+        try {
+          var action = manageMsgType === 'invite' ? 'sendInvites' : 'sendUpdate';
+          var body = { eventId: manageEventId, message: text };
+          if (manageMsgType === 'invite') {
+            body.allGuests = filter === 'all';
+          } else {
+            body.recipientFilter = filter;
+          }
+
+          var res = await authFetch('/api/v2/sms?action=' + action, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          var result = await res.json();
+
+          if (result.success) {
+            showToast('SMS sent to ' + (result.sent || guestCount) + ' guest' + ((result.sent || guestCount) !== 1 ? 's' : '') + '!');
+            manageHistoryOpen = true;
+            // Reload guests to show updated invited_at
+            manageRsvps = null;
+            loadMessagesTab();
+          } else {
+            showToast('Error: ' + (result.error || 'Failed to send'));
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send to ' + guestCount + ' guest' + (guestCount !== 1 ? 's' : '');
+          }
+        } catch (err) {
+          showToast('Error sending SMS');
+          sendBtn.disabled = false;
+          sendBtn.textContent = 'Send to ' + guestCount + ' guest' + (guestCount !== 1 ? 's' : '');
+        }
+      });
+    }
+
+    function toggleSmsHistory() {
+      manageHistoryOpen = !manageHistoryOpen;
+      var container = document.getElementById('smsHistoryContainer');
+      var toggle = document.querySelector('.history-toggle');
+      if (manageHistoryOpen) {
+        container.style.display = '';
+        toggle.classList.add('open');
+        loadSmsHistory();
+      } else {
+        container.style.display = 'none';
+        toggle.classList.remove('open');
+      }
+    }
+
+    async function loadSmsHistory() {
+      var container = document.getElementById('smsHistoryContainer');
+      if (!container) return;
+      container.innerHTML = '<div class="loading" style="padding:20px;font-size:13px;">Loading history...</div>';
+
+      try {
+        var res = await authFetch('/api/v2/sms?action=history&eventId=' + encodeURIComponent(manageEventId));
+        var result = await res.json();
+        if (result.success && result.messages && result.messages.length > 0) {
+          var html = '<ul class="history-list">';
+          result.messages.forEach(function(m) {
+            var date = m.created_at ? new Date(m.created_at).toLocaleDateString() : '';
+            html += '<li class="history-item">'
+              + '<div class="history-item-left">'
+              + '<span class="history-item-name">' + escapeHtml(m.recipient_name || m.recipient_phone || 'Unknown') + '</span>'
+              + '<span class="history-item-date">' + date + '</span>'
+              + '</div>'
+              + '<div style="display:flex;gap:6px;align-items:center;">'
+              + typeBadgeHtml(m.message_type)
+              + statusBadgeHtml(m.status)
+              + '</div></li>';
+          });
+          html += '</ul>';
+          if (result.pagination && result.pagination.totalPages > 1) {
+            html += '<div style="text-align:center;padding:12px;"><span style="font-size:12px;color:#999;">Showing ' + result.messages.length + ' of ' + result.pagination.total + '</span></div>';
+          }
+          container.innerHTML = html;
+        } else {
+          container.innerHTML = '<div style="text-align:center;padding:20px;color:#999;font-size:13px;">No messages sent yet</div>';
+        }
+      } catch (err) {
+        container.innerHTML = '<div style="text-align:center;padding:20px;color:#999;font-size:13px;">Error loading history</div>';
+      }
+    }
+
+    // ============================================================
+    // Reminders Tab
+    // ============================================================
+    var manageReminders = null;
+
+    async function loadRemindersTab() {
+      var content = document.getElementById('manageContent');
+      content.innerHTML = '<div class="loading" style="padding:30px;">Loading reminders...</div>';
+
+      try {
+        var res = await authFetch('/api/v2/sms?action=listReminders&eventId=' + encodeURIComponent(manageEventId));
+        var result = await res.json();
+        manageReminders = result.success ? (result.reminders || []) : [];
+        renderRemindersTab();
+      } catch (err) {
+        manageReminders = [];
+        renderRemindersTab();
+      }
+    }
+
+    function renderRemindersTab() {
+      var content = document.getElementById('manageContent');
+      var html = '';
+
+      // Event date banner
+      if (manageDate) {
+        var d = new Date(manageDate);
+        var dateStr = d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        var timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        html += '<div class="reminder-date-banner">Event date: <strong>' + dateStr + ' at ' + timeStr + '</strong></div>';
+      } else {
+        html += '<div class="reminder-date-banner" style="color:var(--confetti-gold);">Set an event date to schedule reminders</div>';
+      }
+
+      // Quick-add presets
+      html += '<div style="font-size:13px;font-weight:600;color:#666;margin-bottom:8px;">Quick add</div>';
+      html += '<div class="reminder-chips">'
+        + '<button class="reminder-chip" onclick="showReminderForm(10080)">1 week before</button>'
+        + '<button class="reminder-chip" onclick="showReminderForm(1440)">1 day before</button>'
+        + '<button class="reminder-chip" onclick="showReminderForm(120)">2 hours before</button>'
+        + '<button class="reminder-chip" onclick="showReminderForm(60)">1 hour before</button>'
+        + '<button class="reminder-chip" onclick="showReminderForm(0)">Custom</button>'
+        + '</div>';
+
+      // Compose form
+      html += '<div id="reminderFormContainer" style="' + (manageReminderFormOpen ? '' : 'display:none;') + '"></div>';
+
+      // Scheduled reminders list
+      html += '<div style="font-size:13px;font-weight:600;color:#666;margin-top:20px;margin-bottom:10px;">Scheduled reminders</div>';
+
+      if (!manageReminders || manageReminders.length === 0) {
+        html += '<div style="text-align:center;padding:24px;color:#999;font-size:13px;">No reminders scheduled yet. Add one above!</div>';
+      } else {
+        html += '<ul class="reminder-list">';
+        manageReminders.forEach(function(r) {
+          var label = formatOffsetLabel(r.offset_minutes);
+          var scheduledDate = r.scheduled_for ? new Date(r.scheduled_for).toLocaleString() : '';
+          var statusCls = r.status === 'pending' ? 'sms-badge-queued' : r.status === 'sent' ? 'sms-badge-delivered' : r.status === 'cancelled' ? 'sms-badge-queued' : 'sms-badge-failed';
+          var statusLabel = r.status.charAt(0).toUpperCase() + r.status.slice(1);
+          var msgPreview = r.message ? (r.message.length > 60 ? r.message.substring(0, 60) + '...' : r.message) : '';
+
+          html += '<li class="reminder-item">'
+            + '<div class="reminder-item-info">'
+            + '<div class="reminder-item-label">' + escapeHtml(label) + '</div>'
+            + '<div class="reminder-item-time">' + scheduledDate + '</div>'
+            + (msgPreview ? '<div class="reminder-item-msg">' + escapeHtml(msgPreview) + '</div>' : '')
+            + '</div>'
+            + '<div class="reminder-item-actions">'
+            + '<span class="sms-badge ' + statusCls + '">' + statusLabel + '</span>';
+          if (r.status === 'pending') {
+            html += '<button class="reminder-cancel-btn" onclick="cancelReminder(\'' + r.id + '\')" title="Cancel">&times;</button>';
+          }
+          html += '</div></li>';
+        });
+        html += '</ul>';
+      }
+
+      content.innerHTML = html;
+    }
+
+    function showReminderForm(presetMinutes) {
+      manageReminderFormOpen = true;
+      var container = document.getElementById('reminderFormContainer');
+      if (!container) { renderRemindersTab(); container = document.getElementById('reminderFormContainer'); }
+      container.style.display = '';
+
+      var inviteUrl = getInviteUrl();
+      var defaultMsg = 'Reminder: ' + manageTitle + ' is coming up! Don\'t forget to RSVP: ' + inviteUrl;
+      var offsetVal = presetMinutes || '';
+      var unitVal = 'minutes';
+
+      if (presetMinutes > 0) {
+        if (presetMinutes >= 10080 && presetMinutes % 10080 === 0) { offsetVal = presetMinutes / 10080; unitVal = 'weeks'; }
+        else if (presetMinutes >= 1440 && presetMinutes % 1440 === 0) { offsetVal = presetMinutes / 1440; unitVal = 'days'; }
+        else if (presetMinutes >= 60 && presetMinutes % 60 === 0) { offsetVal = presetMinutes / 60; unitVal = 'hours'; }
+        else { offsetVal = presetMinutes; unitVal = 'minutes'; }
+      }
+
+      container.innerHTML = '<div class="reminder-form">'
+        + '<div style="font-size:14px;font-weight:600;margin-bottom:12px;">Schedule a reminder</div>'
+        + '<div class="reminder-form-row">'
+        + '<input type="number" id="reminderOffsetVal" value="' + offsetVal + '" min="1" placeholder="1">'
+        + '<select id="reminderOffsetUnit">'
+        + '<option value="minutes"' + (unitVal === 'minutes' ? ' selected' : '') + '>minutes</option>'
+        + '<option value="hours"' + (unitVal === 'hours' ? ' selected' : '') + '>hours</option>'
+        + '<option value="days"' + (unitVal === 'days' ? ' selected' : '') + '>days</option>'
+        + '<option value="weeks"' + (unitVal === 'weeks' ? ' selected' : '') + '>weeks</option>'
+        + '</select>'
+        + '<span style="font-size:13px;color:#666;align-self:center;white-space:nowrap;">before event</span>'
+        + '</div>'
+        + '<textarea class="compose-textarea" id="reminderMsg" style="min-height:70px;">' + escapeHtml(defaultMsg) + '</textarea>'
+        + '<div class="compose-helper" style="margin-bottom:12px;">{name} will be replaced with each guest\'s name</div>'
+        + '<div style="display:flex;gap:8px;">'
+        + '<button onclick="submitReminder()" style="flex:1;padding:10px 16px;border:1px solid var(--party-coral);background:white;color:var(--party-coral);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;min-height:40px;transition:all 0.15s;" onmouseover="this.style.background=\'var(--party-coral)\';this.style.color=\'white\'" onmouseout="this.style.background=\'white\';this.style.color=\'var(--party-coral)\'">Schedule Reminder</button>'
+        + '<button onclick="hideReminderForm()" style="padding:10px 16px;border:1px solid #ddd;background:white;color:#666;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:Inter,sans-serif;min-height:40px;">Cancel</button>'
+        + '</div></div>';
+    }
+
+    function hideReminderForm() {
+      manageReminderFormOpen = false;
+      var container = document.getElementById('reminderFormContainer');
+      if (container) container.style.display = 'none';
+    }
+
+    async function submitReminder() {
+      var val = parseInt(document.getElementById('reminderOffsetVal').value);
+      var unit = document.getElementById('reminderOffsetUnit').value;
+      var msg = document.getElementById('reminderMsg').value.trim();
+
+      if (!val || val < 1) { showToast('Enter a valid time'); return; }
+      if (!msg) { showToast('Enter a reminder message'); return; }
+
+      var multiplier = { minutes: 1, hours: 60, days: 1440, weeks: 10080 };
+      var offsetMinutes = val * (multiplier[unit] || 1);
+
+      try {
+        var res = await authFetch('/api/v2/sms?action=saveReminder', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: manageEventId, reminders: [{ offsetMinutes: offsetMinutes, message: msg }] })
+        });
+        var result = await res.json();
+        if (result.success) {
+          showToast('Reminder scheduled!');
+          manageReminderFormOpen = false;
+          loadRemindersTab();
+        } else {
+          showToast('Error: ' + (result.error || 'Failed to schedule'));
+        }
+      } catch (err) {
+        showToast('Error scheduling reminder');
+      }
+    }
+
+    function cancelReminder(reminderId) {
+      showConfirm('Cancel Reminder', 'This reminder will be cancelled and won\'t be sent.', '#dc3545', async function() {
+        try {
+          var res = await authFetch('/api/v2/sms?action=deleteReminder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reminderId: reminderId })
+          });
+          var result = await res.json();
+          if (result.success) {
+            showToast('Reminder cancelled');
+            loadRemindersTab();
+          } else {
+            showToast('Error: ' + (result.error || 'Failed to cancel'));
+          }
+        } catch (err) {
+          showToast('Error cancelling reminder');
+        }
+      });
+    }
+
+    // ============================================================
+    // Notifications Tab
+    // ============================================================
+    var manageNotifyPrefs = null;
+
+    async function loadNotificationsTab() {
+      var content = document.getElementById('manageContent');
+      content.innerHTML = '<div class="loading" style="padding:30px;">Loading preferences...</div>';
+
+      try {
+        var res = await authFetch('/api/v2/sms?action=getNotifyPrefs&eventId=' + encodeURIComponent(manageEventId));
+        var result = await res.json();
+        manageNotifyPrefs = result.success ? result.prefs : { notify_on_rsvp: false, notify_mode: 'instant', notify_phone: '' };
+        renderNotificationsTab();
+      } catch (err) {
+        manageNotifyPrefs = { notify_on_rsvp: false, notify_mode: 'instant', notify_phone: '' };
+        renderNotificationsTab();
+      }
+    }
+
+    function renderNotificationsTab() {
+      var content = document.getElementById('manageContent');
+      var prefs = manageNotifyPrefs || { notify_on_rsvp: false, notify_mode: 'instant', notify_phone: '' };
+      var enabled = prefs.notify_on_rsvp;
+      var mode = prefs.notify_mode || 'instant';
+      var phone = prefs.notify_phone || '';
+
+      var html = '<div class="notify-section-desc">Get notified by text when guests respond to your event.</div>';
+
+      // Enable toggle
+      html += '<div class="notify-row">'
+        + '<span class="notify-row-label">RSVP Notifications</span>'
+        + '<label class="toggle-switch">'
+        + '<input type="checkbox" id="notifyToggle" ' + (enabled ? 'checked' : '') + ' onchange="onNotifyToggle(this.checked)">'
+        + '<span class="toggle-slider"></span>'
+        + '</label></div>';
+
+      // Settings panel (visible when enabled)
+      if (enabled) {
+        html += '<div class="notify-settings">';
+
+        // Mode selector
+        html += '<div class="notify-mode-label">Notification mode</div>';
+        html += '<div class="mode-cards">'
+          + '<div class="mode-card' + (mode === 'instant' ? ' selected' : '') + '" onclick="selectNotifyMode(\'instant\')">'
+          + '<div class="mode-card-icon">&#9889;</div>'
+          + '<div class="mode-card-title">Instant</div>'
+          + '<div class="mode-card-desc">Text me immediately when someone RSVPs</div>'
+          + '</div>'
+          + '<div class="mode-card' + (mode === 'digest' ? ' selected' : '') + '" onclick="selectNotifyMode(\'digest\')">'
+          + '<div class="mode-card-icon">&#128203;</div>'
+          + '<div class="mode-card-title">Digest</div>'
+          + '<div class="mode-card-desc">Send me a daily summary of new RSVPs</div>'
+          + '</div></div>';
+
+        // Phone input
+        html += '<div class="notify-phone-label">Your phone number</div>';
+        html += '<input type="tel" class="notify-phone-input" id="notifyPhone" value="' + escapeHtml(phone) + '" placeholder="(555) 123-4567">';
+
+        // Save button
+        html += '<button class="notify-save-btn" id="notifySaveBtn" onclick="saveNotifyPrefs()">Save Preferences</button>';
+
+        // Success message placeholder
+        html += '<div id="notifySuccessMsg"></div>';
+
+        html += '</div>';
+      }
+
+      content.innerHTML = html;
+    }
+
+    function onNotifyToggle(checked) {
+      manageNotifyPrefs.notify_on_rsvp = checked;
+      renderNotificationsTab();
+    }
+
+    function selectNotifyMode(mode) {
+      manageNotifyPrefs.notify_mode = mode;
+      renderNotificationsTab();
+    }
+
+    async function saveNotifyPrefs() {
+      var phone = document.getElementById('notifyPhone').value.trim();
+      if (!phone) { showToast('Enter your phone number'); return; }
+
+      var saveBtn = document.getElementById('notifySaveBtn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+
+      try {
+        var res = await authFetch('/api/v2/sms?action=updateNotifyPrefs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId: manageEventId,
+            notifyOnRsvp: manageNotifyPrefs.notify_on_rsvp,
+            notifyMode: manageNotifyPrefs.notify_mode,
+            notifyPhone: phone
+          })
+        });
+        var result = await res.json();
+        if (result.success) {
+          manageNotifyPrefs = result.prefs || manageNotifyPrefs;
+          var successEl = document.getElementById('notifySuccessMsg');
+          if (successEl) {
+            successEl.innerHTML = '<div class="notify-success">&#10003; Preferences saved</div>';
+            setTimeout(function() { if (successEl) successEl.innerHTML = ''; }, 3000);
+          }
+          saveBtn.textContent = 'Save Preferences';
+          saveBtn.disabled = false;
+        } else {
+          showToast('Error: ' + (result.error || 'Failed to save'));
+          saveBtn.textContent = 'Save Preferences';
+          saveBtn.disabled = false;
+        }
+      } catch (err) {
+        showToast('Error saving preferences');
+        saveBtn.textContent = 'Save Preferences';
+        saveBtn.disabled = false;
+      }
     }
 
     function showConfirm(title, msg, color, onConfirm) {
