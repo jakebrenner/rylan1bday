@@ -222,6 +222,7 @@
     .rsvp-empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }
 
     /* RSVP edit panel (inline in guest card) */
+    .rsvp-edit-row { display: flex; gap: 12px; }
     .rsvp-edit-panel { background: linear-gradient(135deg, #fafafa, #f5f5f5); border-top: 1px solid #eee; padding: 20px; }
     .rsvp-edit-panel .form-group { margin-bottom: 14px; }
     .rsvp-edit-panel .form-label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px; color: #999; }
@@ -269,10 +270,15 @@
       .rsvp-modal { width: 100%; max-width: 100%; max-height: 95vh; border-radius: 20px 20px 0 0; }
       .modal-overlay.active { align-items: flex-end; }
       .rsvp-guest-actions { flex-wrap: wrap; gap: 6px; }
+      .rsvp-guest-top { flex-wrap: wrap; gap: 10px; }
       .rsvp-detail-grid { grid-template-columns: 1fr 1fr; }
       .rsvp-stats { gap: 6px; }
       .rsvp-stat { min-width: 60px; padding: 10px 6px; }
       .rsvp-stat-num { font-size: 20px; }
+      .rsvp-edit-row { flex-direction: column; gap: 0; }
+      .rsvp-edit-panel { padding: 16px; }
+      .rsvp-edit-actions { flex-direction: column; }
+      .rsvp-edit-actions button { width: 100%; text-align: center; justify-content: center; }
       .profile-dropdown { right: -8px; }
       .rsvp-mini-stats { gap: 4px; }
       .rsvp-mini-stat .num { font-size: 15px; }
@@ -800,31 +806,27 @@
 
         var initials = (r.name || '?').split(' ').map(function(w) { return w[0]; }).join('').substring(0, 2).toUpperCase();
 
-        // Detail chips for custom field responses
+        // Detail chips for custom field responses (view mode only)
         var detailChips = '';
-        var hasDetails = false;
         if (r.responseData && customFields.length > 0) {
           var chips = '';
           customFields.forEach(function(f) {
             var val = r.responseData[f.key];
             if (val !== undefined && val !== null && val !== '') {
-              hasDetails = true;
               chips += '<div class="rsvp-detail-chip"><div class="rsvp-detail-chip-label">' + escapeHtml(f.label) + '</div><div class="rsvp-detail-chip-value">' + escapeHtml(String(val)) + '</div></div>';
             }
           });
           if (r.plusOnes) {
-            hasDetails = true;
             chips += '<div class="rsvp-detail-chip"><div class="rsvp-detail-chip-label">+Ones</div><div class="rsvp-detail-chip-value">' + r.plusOnes + '</div></div>';
           }
           if (chips) {
-            detailChips = '<div class="rsvp-guest-details"><div class="rsvp-detail-grid">' + chips + '</div></div>';
+            detailChips = '<div class="rsvp-guest-details" data-view-content="' + r.id + '"><div class="rsvp-detail-grid">' + chips + '</div></div>';
           }
         } else if (r.plusOnes) {
-          hasDetails = true;
-          detailChips = '<div class="rsvp-guest-details"><div class="rsvp-detail-grid"><div class="rsvp-detail-chip"><div class="rsvp-detail-chip-label">+Ones</div><div class="rsvp-detail-chip-value">' + r.plusOnes + '</div></div></div></div>';
+          detailChips = '<div class="rsvp-guest-details" data-view-content="' + r.id + '"><div class="rsvp-detail-grid"><div class="rsvp-detail-chip"><div class="rsvp-detail-chip-label">+Ones</div><div class="rsvp-detail-chip-value">' + r.plusOnes + '</div></div></div></div>';
         }
 
-        var dateHtml = r.respondedAt ? '<div class="rsvp-responded-date">Responded ' + new Date(r.respondedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) + '</div>' : '';
+        var dateHtml = r.respondedAt ? '<div class="rsvp-responded-date" data-view-content="' + r.id + '">Responded ' + new Date(r.respondedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) + '</div>' : '';
 
         html += '<li class="rsvp-guest-card" id="guest-card-' + r.id + '">'
           + '<div class="rsvp-guest-top">'
@@ -833,7 +835,7 @@
           + '<div class="rsvp-guest-name">' + escapeHtml(r.name) + '</div>'
           + (contactParts.length ? '<div class="rsvp-guest-contact">' + contactParts.join(' · ') + '</div>' : '')
           + '</div>'
-          + '<div class="rsvp-guest-actions">'
+          + '<div class="rsvp-guest-actions" id="guest-actions-' + r.id + '">'
           + '<button class="rsvp-save-contact-btn" onclick="saveGuestToContacts(\'' + r.id + '\', this)">Save</button>'
           + '<span class="rsvp-guest-status" style="' + statusStyle + '">' + statusLabel + '</span>'
           + '<button class="rsvp-edit-btn" onclick="toggleRsvpEdit(\'' + r.id + '\')">Edit</button>'
@@ -881,21 +883,40 @@
       var editEl = document.getElementById('rsvp-edit-' + guestId);
       if (!editEl) return;
 
-      // Close any other open edit panels first
+      // Close any other open edit panels first and restore their view elements
       document.querySelectorAll('[id^="rsvp-edit-"]').forEach(function(el) {
-        if (el.id !== 'rsvp-edit-' + guestId) { el.style.display = 'none'; el.innerHTML = ''; }
+        if (el.id !== 'rsvp-edit-' + guestId && el.style.display === 'block') {
+          el.style.display = 'none';
+          el.innerHTML = '';
+          var otherId = el.id.replace('rsvp-edit-', '');
+          restoreViewMode(otherId);
+        }
       });
 
       if (editEl.style.display === 'block') {
         editEl.style.display = 'none';
         editEl.innerHTML = '';
+        restoreViewMode(guestId);
         return;
       }
+
       var guest = currentRsvps.find(function(r) { return r.id === guestId; });
       if (!guest) return;
 
+      // Hide the status pill, Edit button, detail chips, and responded date
+      var actionsEl = document.getElementById('guest-actions-' + guestId);
+      if (actionsEl) {
+        var statusEl = actionsEl.querySelector('.rsvp-guest-status');
+        var editBtnEl = actionsEl.querySelector('.rsvp-edit-btn');
+        if (statusEl) statusEl.style.display = 'none';
+        if (editBtnEl) editBtnEl.style.display = 'none';
+      }
+      document.querySelectorAll('[data-view-content="' + guestId + '"]').forEach(function(el) {
+        el.style.display = 'none';
+      });
+
       var html = '<div class="rsvp-edit-panel">';
-      html += '<div style="display:flex;gap:12px;">';
+      html += '<div class="rsvp-edit-row">';
       html += '<div class="form-group" style="flex:1;"><label class="form-label">Name</label><input class="form-input" id="edit-name-' + guestId + '" value="' + escapeHtml(guest.name || '') + '"></div>';
       html += '<div class="form-group" style="width:140px;"><label class="form-label">Status</label><select class="form-input" id="edit-status-' + guestId + '">'
         + '<option value="attending"' + (guest.status === 'attending' ? ' selected' : '') + '>Attending</option>'
@@ -904,19 +925,19 @@
         + '<option value="invited"' + (guest.status === 'invited' ? ' selected' : '') + '>Pending</option>'
         + '</select></div>';
       html += '</div>';
-      html += '<div style="display:flex;gap:12px;">';
+      html += '<div class="rsvp-edit-row">';
       html += '<div class="form-group" style="flex:1;"><label class="form-label">Email</label><input class="form-input" id="edit-email-' + guestId + '" value="' + escapeHtml(guest.email || '') + '"></div>';
       html += '<div class="form-group" style="flex:1;"><label class="form-label">Phone</label><input class="form-input" id="edit-phone-' + guestId + '" value="' + escapeHtml(guest.phone || '') + '"></div>';
       html += '</div>';
 
       // Custom field editing
       if (currentRsvpCustomFields.length > 0) {
-        html += '<div style="margin-top:4px;padding-top:14px;border-top:1px solid #e8e8e8;">';
+        html += '<div style="margin-top:4px;padding-top:14px;border-top:1px solid rgba(0,0,0,0.06);">';
         var fieldPairs = [];
         currentRsvpCustomFields.forEach(function(f) { fieldPairs.push(f); });
 
         for (var i = 0; i < fieldPairs.length; i += 2) {
-          html += '<div style="display:flex;gap:12px;">';
+          html += '<div class="rsvp-edit-row">';
           for (var j = i; j < Math.min(i + 2, fieldPairs.length); j++) {
             var f = fieldPairs[j];
             var val = (guest.responseData && guest.responseData[f.key]) || '';
@@ -928,7 +949,7 @@
               });
               html += '</select></div>';
             } else if (f.fieldType === 'checkbox') {
-              html += '<div class="form-group" style="flex:1;display:flex;align-items:center;gap:8px;padding-top:20px;"><input type="checkbox" id="edit-cf-' + guestId + '-' + f.key + '"' + (val ? ' checked' : '') + ' style="width:18px;height:18px;accent-color:var(--party-coral);"><label class="form-label" style="margin:0;">' + escapeHtml(f.label) + '</label></div>';
+              html += '<div class="form-group" style="flex:1;display:flex;align-items:center;gap:8px;padding-top:20px;"><input type="checkbox" id="edit-cf-' + guestId + '-' + f.key + '"' + (val ? ' checked' : '') + ' style="width:18px;height:18px;accent-color:var(--party-coral);cursor:pointer;"><label class="form-label" style="margin:0;cursor:pointer;" onclick="this.previousElementSibling.click()">' + escapeHtml(f.label) + '</label></div>';
             } else {
               html += '<div class="form-group" style="flex:1;"><label class="form-label">' + escapeHtml(f.label) + '</label><input class="form-input" id="edit-cf-' + guestId + '-' + f.key + '" value="' + escapeHtml(String(val)) + '"></div>';
             }
@@ -938,7 +959,7 @@
         html += '</div>';
       }
 
-      html += '<div style="display:flex;gap:12px;margin-top:4px;">';
+      html += '<div class="rsvp-edit-row" style="margin-top:4px;">';
       html += '<div class="form-group" style="width:100px;"><label class="form-label">+Ones</label><input type="number" class="form-input" id="edit-plus-' + guestId + '" value="' + (guest.plusOnes || 0) + '" min="0"></div>';
       html += '</div>';
       html += '<div class="rsvp-edit-actions">'
@@ -949,8 +970,21 @@
       editEl.innerHTML = html;
       editEl.style.display = 'block';
 
-      // Scroll the edit panel into view
+      // Scroll into view smoothly
       setTimeout(function() { editEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 50);
+    }
+
+    function restoreViewMode(guestId) {
+      var actionsEl = document.getElementById('guest-actions-' + guestId);
+      if (actionsEl) {
+        var statusEl = actionsEl.querySelector('.rsvp-guest-status');
+        var editBtnEl = actionsEl.querySelector('.rsvp-edit-btn');
+        if (statusEl) statusEl.style.display = '';
+        if (editBtnEl) editBtnEl.style.display = '';
+      }
+      document.querySelectorAll('[data-view-content="' + guestId + '"]').forEach(function(el) {
+        el.style.display = '';
+      });
     }
 
     async function saveRsvpEdit(guestId) {
