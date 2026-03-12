@@ -1081,6 +1081,7 @@ Return ONLY a valid JSON object with these keys:
       // Use .on('text') (proven to work) + resolve on 'finalMessage' event
       // Capture finalMessage to get token usage for cost tracking
       let tweakFinalMessage = null;
+      const tweakFinalPromise = new Promise(r => { stream.on('finalMessage', (msg) => { tweakFinalMessage = msg; r(msg); }); });
       await new Promise((resolve, reject) => {
         let resolved = false;
         let lastChunkTime = Date.now();
@@ -1094,11 +1095,10 @@ Return ONLY a valid JSON object with these keys:
             sendSSE('progress', { chunks: chunkCount, bytes: fullText.length });
           }
         });
-        stream.on('finalMessage', (msg) => { tweakFinalMessage = msg; done(); });
-        stream.on('end', () => { setTimeout(() => { if (!tweakFinalMessage) { console.warn('[tweak stream] end fired without finalMessage, resolving'); } done(); }, 500); });
+        stream.on('finalMessage', () => done());
+        stream.on('end', () => done());
         stream.on('error', (err) => { if (!resolved) { resolved = true; clearInterval(idleCheck); clearInterval(keepalive); reject(err); } });
 
-        // Safety: if text was flowing but stopped for 15s AND we have substantial content, assume done
         const idleCheck = setInterval(() => {
           if (chunkCount > 0 && Date.now() - lastChunkTime > 15000 && fullText.length > 3000) {
             console.log('[stream] Idle timeout after', chunkCount, 'chunks,', fullText.length, 'bytes');
@@ -1106,7 +1106,6 @@ Return ONLY a valid JSON object with these keys:
           }
         }, 1000);
 
-        // Hard timeout: 120s (Vercel Pro allows up to 300s via maxDuration config)
         setTimeout(() => {
           if (!resolved) {
             console.log('[stream] Hard timeout at 120s, chunks:', chunkCount, 'bytes:', fullText.length);
@@ -1116,13 +1115,12 @@ Return ONLY a valid JSON object with these keys:
         }, 120000);
       });
 
-      // Get token usage — finalMessage may be null if stream resolved via 'end' or idle timeout
+      // Estimate tokens immediately — accurate cost logged in background
       let tweakInputTokens = tweakFinalMessage?.usage?.input_tokens || 0;
       let tweakOutputTokens = tweakFinalMessage?.usage?.output_tokens || 0;
       if (tweakInputTokens === 0 && tweakOutputTokens === 0) {
         tweakOutputTokens = Math.round(fullText.length / 4);
         tweakInputTokens = Math.round(fullText.length / 3);
-        console.warn('[tweak] finalMessage missing, estimating tokens:', tweakInputTokens, 'in /', tweakOutputTokens, 'out');
       }
       const latency = Date.now() - startTime;
 
@@ -1217,6 +1215,14 @@ Return ONLY a valid JSON object with these keys:
 
       // Save as new version (best-effort — client already has the theme)
       try {
+        // Wait up to 5s for accurate token usage from finalMessage event
+        try {
+          await Promise.race([tweakFinalPromise, new Promise(r => setTimeout(r, 5000))]);
+        } catch (e) { /* timeout is fine — use estimates */ }
+        const finalTweakInputTokens = tweakFinalMessage?.usage?.input_tokens || tweakInputTokens;
+        const finalTweakOutputTokens = tweakFinalMessage?.usage?.output_tokens || tweakOutputTokens;
+        const finalTweakCost = calcGenerationCost(tweakModel, finalTweakInputTokens, finalTweakOutputTokens);
+
         const { data: existingThemes } = await supabase
           .from('event_themes')
           .select('id, version')
@@ -1236,8 +1242,8 @@ Return ONLY a valid JSON object with these keys:
           event_id: eventId, version: nextVersion, is_active: true,
           prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
           html: theme.theme_html, css: theme.theme_css, config: tweakConfig,
-          model: tweakModel, input_tokens: tweakInputTokens,
-          output_tokens: tweakOutputTokens, latency_ms: latency
+          model: tweakModel, input_tokens: finalTweakInputTokens,
+          output_tokens: finalTweakOutputTokens, latency_ms: latency
         };
         let { error: tweakThemeError } = await supabase
           .from('event_themes').insert(tweakInsert).select().single();
@@ -1246,19 +1252,19 @@ Return ONLY a valid JSON object with these keys:
         const tweakMeta = getClientMeta(req);
         supabase.from('generation_log').insert({
           event_id: eventId, user_id: user.id, prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
-          model: tweakModel, input_tokens: tweakInputTokens,
-          output_tokens: tweakOutputTokens, latency_ms: latency, status: 'success',
+          model: tweakModel, input_tokens: finalTweakInputTokens,
+          output_tokens: finalTweakOutputTokens, latency_ms: latency, status: 'success',
           is_tweak: true, event_type: eventDetails?.eventType || '',
           client_ip: tweakMeta.ip, client_geo: tweakMeta.geo, user_agent: tweakMeta.userAgent
         }).catch(() => {});
-        // Atomically increment persistent event cost
-        supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: tweakCost.totalCostCents })
+        // Atomically increment persistent event cost with accurate amount
+        supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: finalTweakCost.totalCostCents })
           .catch(() => {
             supabase.from('events')
               .select('total_cost_cents').eq('id', eventId).single()
               .then(({ data }) => {
                 if (data) supabase.from('events')
-                  .update({ total_cost_cents: (data.total_cost_cents || 0) + tweakCost.totalCostCents })
+                  .update({ total_cost_cents: (data.total_cost_cents || 0) + finalTweakCost.totalCostCents })
                   .eq('id', eventId).catch(() => {});
               }).catch(() => {});
           });
@@ -1437,8 +1443,10 @@ This is the most common failure mode. Double-check it.`;
       try { res.write(': keepalive\n\n'); } catch (e) { /* connection already closed */ }
     }, 3000);
 
-    // Accumulate text chunks; resolve on 'finalMessage' (has usage data) not 'end'
+    // Accumulate text chunks; resolve on 'end' immediately to render ASAP
+    // finalMessage (with token usage) is captured async for cost logging
     let genFinalMessage = null;
+    const finalMessagePromise = new Promise(r => { stream.on('finalMessage', (msg) => { genFinalMessage = msg; r(msg); }); });
     await new Promise((resolve, reject) => {
       let resolved = false;
       let lastChunkTime = Date.now();
@@ -1452,9 +1460,8 @@ This is the most common failure mode. Double-check it.`;
           sendSSE('progress', { chunks: chunkCount, bytes: fullText.length });
         }
       });
-      stream.on('finalMessage', (msg) => { genFinalMessage = msg; done(); });
-      // 'end' fires before 'finalMessage' — give finalMessage 500ms to arrive before resolving
-      stream.on('end', () => { setTimeout(() => { if (!genFinalMessage) { console.warn('[stream] end fired without finalMessage, resolving'); } done(); }, 500); });
+      stream.on('finalMessage', () => done());
+      stream.on('end', () => done());
       stream.on('error', (err) => { if (!resolved) { resolved = true; clearInterval(idleCheck); clearInterval(keepalive); reject(err); } });
 
       // Safety: if text was flowing but stopped for 15s AND we have substantial content, assume done
@@ -1476,14 +1483,12 @@ This is the most common failure mode. Double-check it.`;
       }, 120000);
     });
 
-    // Get token usage — finalMessage may be null if stream resolved via 'end' or idle timeout
+    // Estimate tokens immediately for the client — accurate cost logged in background
     let genInputTokens = genFinalMessage?.usage?.input_tokens || 0;
     let genOutputTokens = genFinalMessage?.usage?.output_tokens || 0;
     if (genInputTokens === 0 && genOutputTokens === 0) {
-      // Estimate from content length — stream.finalMessage() hangs if stream already ended
       genOutputTokens = Math.round(fullText.length / 4);
       genInputTokens = Math.round((activePrompt.systemPrompt?.length || 8000) / 4);
-      console.warn('[generate-theme] finalMessage missing, estimating tokens:', genInputTokens, 'in /', genOutputTokens, 'out');
     }
     const latency = Date.now() - startTime;
 
@@ -1537,7 +1542,7 @@ This is the most common failure mode. Double-check it.`;
     });
     res.end(); // Unblock the client NOW — DB saves continue in background
 
-    // Background DB saves — client already has the theme
+    // Background DB saves — client already has the theme and connection is closed
     try {
       const { data: existingThemes } = await supabase
         .from('event_themes')
@@ -1554,6 +1559,15 @@ This is the most common failure mode. Double-check it.`;
         .eq('event_id', eventId)
         .eq('is_active', true);
 
+      // Wait for accurate token usage (up to 5s) before DB inserts
+      // Client already has the invite — this only affects cost accuracy in DB
+      try {
+        await Promise.race([finalMessagePromise, new Promise(r => setTimeout(r, 5000))]);
+      } catch (e) { /* timeout is fine — use estimates */ }
+      const finalInputTokens = genFinalMessage?.usage?.input_tokens || genInputTokens;
+      const finalOutputTokens = genFinalMessage?.usage?.output_tokens || genOutputTokens;
+      const finalCost = calcGenerationCost(themeModel, finalInputTokens, finalOutputTokens);
+
       const genInsert = {
         event_id: eventId,
         version: nextVersion,
@@ -1563,8 +1577,8 @@ This is the most common failure mode. Double-check it.`;
         css: theme.theme_css,
         config: theme.theme_config,
         model: themeModel,
-        input_tokens: genInputTokens,
-        output_tokens: genOutputTokens,
+        input_tokens: finalInputTokens,
+        output_tokens: finalOutputTokens,
         latency_ms: latency,
         prompt_version_id: activePrompt.promptVersionId || null
       };
@@ -1577,12 +1591,12 @@ This is the most common failure mode. Double-check it.`;
       }
       if (themeError) console.error('Failed to save theme:', themeError.message);
 
-      // Fire-and-forget: generation log + first_generation_at + cost tracking
+      // Log generation with accurate tokens + increment cost
       const genMeta = getClientMeta(req);
       supabase.from('generation_log').insert({
         event_id: eventId, user_id: user.id, prompt: effectivePrompt,
-        model: themeModel, input_tokens: genInputTokens,
-        output_tokens: genOutputTokens, latency_ms: latency,
+        model: themeModel, input_tokens: finalInputTokens,
+        output_tokens: finalOutputTokens, latency_ms: latency,
         status: 'success', event_type: eventType, style_library_ids: usedStyleIds,
         prompt_version_id: activePrompt.promptVersionId || null,
         client_ip: genMeta.ip, client_geo: genMeta.geo, user_agent: genMeta.userAgent
@@ -1591,15 +1605,14 @@ This is the most common failure mode. Double-check it.`;
         .update({ first_generation_at: new Date().toISOString() })
         .eq('id', eventId).is('first_generation_at', null)
         .then(() => {}).catch(() => {});
-      // Atomically increment persistent event cost
-      supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: genCost.totalCostCents })
+      // Atomically increment persistent event cost with accurate amount
+      supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: finalCost.totalCostCents })
         .catch(() => {
-          // Fallback: direct update if RPC doesn't exist yet
           supabase.from('events')
             .select('total_cost_cents').eq('id', eventId).single()
             .then(({ data }) => {
               if (data) supabase.from('events')
-                .update({ total_cost_cents: (data.total_cost_cents || 0) + genCost.totalCostCents })
+                .update({ total_cost_cents: (data.total_cost_cents || 0) + finalCost.totalCostCents })
                 .eq('id', eventId).catch(() => {});
             }).catch(() => {});
         });
