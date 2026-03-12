@@ -576,7 +576,7 @@
               <div id="costTracker" class="cost-tracker hidden">
                 <div class="cost-tracker-row">
                   <span class="cost-tracker-label">Current Invite Cost</span>
-                  <span class="cost-tracker-value" id="costTrackerTotal">$0.50</span>
+                  <span class="cost-tracker-value" id="costTrackerTotal">$0.00</span>
                 </div>
               </div>
               <div style="margin-bottom:16px;">
@@ -748,7 +748,6 @@
     var currentPreviewMode = 'invite';
 
     // Cost tracking state — tracks cumulative cost for this event (persisted across sessions)
-    var TRANSACTION_FEE_CENTS = 50; // $0.50 minimum to cover transaction charges
     var eventCostCents = 0;
     var eventGenCount = 0;
     var usagePlanUser = false;
@@ -3279,7 +3278,7 @@
     }
 
     function updateCostTrackerUI() {
-      document.getElementById('costTrackerTotal').textContent = formatCents(TRANSACTION_FEE_CENTS + eventCostCents);
+      document.getElementById('costTrackerTotal').textContent = formatCents(eventCostCents);
     }
 
     function formatCents(cents) {
