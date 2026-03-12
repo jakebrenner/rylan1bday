@@ -1124,8 +1124,6 @@ Return ONLY a valid JSON object with these keys:
       }
       const latency = Date.now() - startTime;
 
-      sendSSE('status', { phase: 'saving' });
-
       // Parse the accumulated text using robust parser
       let theme;
       try {
@@ -1491,8 +1489,6 @@ This is the most common failure mode. Double-check it.`;
       genInputTokens = Math.round((activePrompt.systemPrompt?.length || 8000) / 4);
     }
     const latency = Date.now() - startTime;
-
-    sendSSE('status', { phase: 'saving' });
 
     // Parse JSON response — handle various wrapping patterns
     let theme = parseThemeResponse(fullText);

@@ -2797,35 +2797,39 @@
       }, 4000);
       genStageTimers.push(emojiTimer);
 
-      // Progress bar animation
+      // Progress bar animation — calibrated for typical 20-45s generation
       var bar = document.getElementById('genProgressBar');
       if (bar) {
         bar.style.width = '5%';
-        setTimeout(function() { bar.style.width = '25%'; }, 500);
-        setTimeout(function() { bar.style.width = '50%'; }, 4000);
-        setTimeout(function() { bar.style.width = '70%'; }, 10000);
-        setTimeout(function() { bar.style.width = '85%'; }, 20000);
-        setTimeout(function() { bar.style.width = '92%'; }, 30000);
+        setTimeout(function() { bar.style.width = '15%'; }, 500);
+        setTimeout(function() { bar.style.width = '30%'; }, 3000);
+        setTimeout(function() { bar.style.width = '45%'; }, 8000);
+        setTimeout(function() { bar.style.width = '60%'; }, 15000);
+        setTimeout(function() { bar.style.width = '72%'; }, 22000);
+        setTimeout(function() { bar.style.width = '82%'; }, 30000);
+        setTimeout(function() { bar.style.width = '88%'; }, 40000);
+        setTimeout(function() { bar.style.width = '93%'; }, 50000);
       }
 
-      // Animate stage progression
+      // Animate stage progression — spread across typical generation time
       var stages = document.querySelectorAll('#genStages .gen-stage');
       if (stages.length >= 3) {
-        // Stage 1 already active
+        // Stage 1 already active — transition at ~8s (AI has started generating)
         genStageTimers.push(setTimeout(function() {
           stages[0].classList.remove('active');
           stages[0].classList.add('done');
           stages[0].querySelector('.gen-stage-icon').innerHTML = '✓';
           stages[1].classList.add('active');
           stages[1].querySelector('.gen-stage-icon').innerHTML = '<div class="gen-spinner"></div>';
-        }, 5000));
+        }, 8000));
+        // Stage 2→3 at ~25s (design mostly done, polishing)
         genStageTimers.push(setTimeout(function() {
           stages[1].classList.remove('active');
           stages[1].classList.add('done');
           stages[1].querySelector('.gen-stage-icon').innerHTML = '✓';
           stages[2].classList.add('active');
           stages[2].querySelector('.gen-stage-icon').innerHTML = '<div class="gen-spinner"></div>';
-        }, 15000));
+        }, 25000));
       }
 
       // Show "How did you hear about us?" after a few seconds (first time only)
@@ -3184,6 +3188,16 @@
       }
       // Strip document-level tags AI may include — our template provides these
       // IMPORTANT: use <head> or <head\s not <head[^>]* which would also match <header>
+      // Extract body attributes before stripping (AI often puts background/color on <body>)
+      var bodyTagMatch = ver.html.match(/<body\b([^>]*)>/i);
+      var bodyAttrs = bodyTagMatch ? bodyTagMatch[1].trim() : '';
+      // Extract <style> blocks from <head> before stripping it — AI may put styles there
+      var headStyles = '';
+      var headMatch = ver.html.match(/<head(?:\s[^>]*)?>[\s\S]*?<\/head\s*>/i);
+      if (headMatch) {
+        var headStyleMatches = headMatch[0].match(/<style[^>]*>[\s\S]*?<\/style\s*>/gi);
+        if (headStyleMatches) headStyles = headStyleMatches.join('\n');
+      }
       var themeHtml = ver.html
         .replace(/<!DOCTYPE[^>]*>/gi, '')
         .replace(/<html\b[^>]*>/gi, '')
@@ -3245,7 +3259,8 @@
       return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
         + fontsStyle
         + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; }</style>'
-        + '<style>' + (ver.css || '').replace(/<\/style/gi, '<\\/style') + '</style></head><body>' + themeHtml + rsvpScript + '</body></html>';
+        + (headStyles ? headStyles.replace(/<\/style/gi, '<\\/style') : '')
+        + '<style>' + (ver.css || '').replace(/<\/style/gi, '<\\/style') + '</style></head><body' + (bodyAttrs ? ' ' + bodyAttrs : '') + '>' + themeHtml + rsvpScript + '</body></html>';
     }
 
     function renderPreview(ver) {
