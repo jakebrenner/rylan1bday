@@ -5110,6 +5110,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     var userGenTotal = 0;
     var archiveGenPageSize = 20;
 
+    var labLoaded = false;
+    var userLoaded = false;
+
     function switchArchiveView(view) {
       currentArchiveView = view;
       document.querySelectorAll('.archive-nav-btn').forEach(function(btn) {
@@ -5119,11 +5122,13 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         v.classList.toggle('active', v.id === 'archiveView-' + view);
       });
       // Lazy-load data when switching to a new view for the first time
-      if (view === 'lab' && labGenerations.length === 0 && labGenTotal === 0) {
+      if (view === 'lab' && !labLoaded) {
+        labLoaded = true;
         populateArchivePromptDropdowns();
         loadLabGenerations();
       }
-      if (view === 'user' && userGenerations.length === 0 && userGenTotal === 0) {
+      if (view === 'user' && !userLoaded) {
+        userLoaded = true;
         populateArchivePromptDropdowns();
         loadUserGenerations();
       }
@@ -5140,9 +5145,12 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     function updateArchiveCounts() {
-      document.getElementById('archiveCountTemplates').textContent = styleLibrary.length;
-      document.getElementById('archiveCountLab').textContent = labGenTotal || '0';
-      document.getElementById('archiveCountUser').textContent = userGenTotal || '0';
+      var el1 = document.getElementById('archiveCountTemplates');
+      var el2 = document.getElementById('archiveCountLab');
+      var el3 = document.getElementById('archiveCountUser');
+      if (el1) el1.textContent = styleLibrary.length;
+      if (el2) el2.textContent = labGenTotal || '0';
+      if (el3) el3.textContent = userGenTotal || '0';
     }
 
     // ── Lab Generations ──
@@ -5164,13 +5172,14 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
       try {
         var res = await adminFetch('listTestRuns', { params: params });
+        if (res && res.error) throw new Error(res.error);
         labGenerations = res.testRuns || [];
-        labGenTotal = res.total || 0;
+        labGenTotal = res.total || labGenerations.length;
         updateArchiveCounts();
         renderLabGrid();
         renderLabPagination();
       } catch (err) {
-        grid.innerHTML = '<div style="color:var(--party-coral);font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">Failed to load: ' + escapeHtml(err.message) + '</div>';
+        grid.innerHTML = '<div style="color:var(--party-coral);font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">Failed to load lab generations: ' + escapeHtml(err.message) + '</div>';
       }
     }
 
@@ -5301,13 +5310,14 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
       try {
         var res = await adminFetch('listThemes', { params: params });
+        if (res && res.error) throw new Error(res.error);
         userGenerations = res.themes || [];
-        userGenTotal = res.total || 0;
+        userGenTotal = res.total || userGenerations.length;
         updateArchiveCounts();
         renderUserGenGrid();
         renderUserGenPagination();
       } catch (err) {
-        grid.innerHTML = '<div style="color:var(--party-coral);font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">Failed to load: ' + escapeHtml(err.message) + '</div>';
+        grid.innerHTML = '<div style="color:var(--party-coral);font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">Failed to load user generations: ' + escapeHtml(err.message) + '</div>';
       }
     }
 
@@ -5637,7 +5647,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     var _origLoadStyleLibrary = loadStyleLibrary;
     loadStyleLibrary = async function() {
       await _origLoadStyleLibrary();
-      updateArchiveCounts();
+      try { updateArchiveCounts(); } catch (e) { /* ignore */ }
     };
   </script>
   <div class="bulk-progress" id="bulkProgress" style="display:none;"></div>
