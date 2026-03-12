@@ -1297,21 +1297,57 @@ export default async function handler(req, res) {
     // ---- LIST TEST RUNS FOR A PROMPT VERSION ----
     if (action === 'listTestRuns') {
       const promptVersionId = req.query.promptVersionId;
-      const limit = parseInt(req.query.limit) || 100;
+      const page = parseInt(req.query.page) || 1;
+      const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+      const offset = (page - 1) * limit;
+      const modelFilter = req.query.model;
+      const eventTypeFilter = req.query.eventType;
+      const scoreFilter = req.query.scoreFilter; // 'unrated', 'rated', '1'-'5'
+      const sortBy = req.query.sortBy || 'created_at';
+      const sortDir = req.query.sortDir === 'asc' ? true : false;
+
       let query = supabaseAdmin
         .from('prompt_test_runs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(limit);
+        .select('*', { count: 'exact' })
+        .order(sortBy, { ascending: sortDir });
 
-      if (promptVersionId) {
-        query = query.eq('prompt_version_id', promptVersionId);
-      }
+      if (promptVersionId) query = query.eq('prompt_version_id', promptVersionId);
+      if (modelFilter) query = query.eq('model', modelFilter);
+      if (eventTypeFilter) query = query.eq('event_type', eventTypeFilter);
+      if (scoreFilter === 'unrated') query = query.is('score', null);
+      else if (scoreFilter === 'rated') query = query.not('score', 'is', null);
+      else if (['1','2','3','4','5'].includes(scoreFilter)) query = query.eq('score', parseInt(scoreFilter));
 
-      const { data, error } = await query;
+      query = query.range(offset, offset + limit - 1);
+
+      const { data, error, count } = await query;
       if (error) return res.status(400).json({ error: error.message });
 
-      return res.status(200).json({ success: true, testRuns: data || [] });
+      // Get prompt version names
+      const pvIds = [...new Set((data || []).map(r => r.prompt_version_id).filter(Boolean))];
+      let pvMap = {};
+      if (pvIds.length > 0) {
+        const { data: pvs } = await supabaseAdmin.from('prompt_versions').select('id, version, name').in('id', pvIds);
+        (pvs || []).forEach(v => { pvMap[v.id] = `v${v.version} – ${v.name}`; });
+      }
+
+      const LAB_MODEL_PRICING = {
+        'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00 },
+        'claude-sonnet-4-6': { input: 3.00, output: 15.00 },
+        'claude-opus-4-6': { input: 15.00, output: 75.00 },
+      };
+
+      const testRuns = (data || []).map(r => {
+        const pricing = LAB_MODEL_PRICING[r.model] || { input: 3.00, output: 15.00 };
+        const cost = ((r.input_tokens || 0) * pricing.input + (r.output_tokens || 0) * pricing.output) / 1_000_000;
+        return {
+          ...r,
+          cost: Math.round(cost * 1_000_000) / 1_000_000,
+          promptVersionLabel: r.prompt_version_id ? (pvMap[r.prompt_version_id] || 'Unknown') : 'Default',
+        };
+      });
+
+      return res.status(200).json({ success: true, testRuns, total: count || 0, page, limit });
     }
 
     // ---- GET TEST SESSION (all runs in one session) ----
@@ -1653,7 +1689,7 @@ export default async function handler(req, res) {
 
       let query = supabaseAdmin
         .from('event_themes')
-        .select('id, event_id, version, is_active, html, css, config, model, input_tokens, output_tokens, latency_ms, admin_rating, admin_notes, rated_by, rated_at, prompt_version_id, created_at, events!inner(title, event_type, slug)', { count: 'exact' });
+        .select('id, event_id, version, is_active, html, css, config, model, input_tokens, output_tokens, latency_ms, admin_rating, admin_notes, rated_by, rated_at, prompt_version_id, created_at, events!inner(title, event_type, slug, user_id)', { count: 'exact' });
 
       if (ratingFilter === 'unrated') query = query.is('admin_rating', null);
       else if (ratingFilter === 'rated') query = query.not('admin_rating', 'is', null);
@@ -1676,14 +1712,38 @@ export default async function handler(req, res) {
         (pvs || []).forEach(v => { pvMap[v.id] = `v${v.version} – ${v.name}`; });
       }
 
-      const themes = (data || []).map(t => ({
-        ...t,
-        eventTitle: t.events?.title || '',
-        eventType: t.events?.event_type || '',
-        eventSlug: t.events?.slug || '',
-        promptVersionLabel: t.prompt_version_id ? (pvMap[t.prompt_version_id] || 'Unknown') : 'Default',
-        events: undefined
-      }));
+      // Look up user profiles for all event owners
+      const userIds = [...new Set((data || []).map(t => t.events?.user_id).filter(Boolean))];
+      let userMap = {};
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabaseAdmin.from('profiles').select('id, display_name, email').in('id', userIds);
+        (profiles || []).forEach(p => { userMap[p.id] = { displayName: p.display_name, email: p.email }; });
+      }
+
+      const THEME_MODEL_PRICING = {
+        'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00 },
+        'claude-sonnet-4-6': { input: 3.00, output: 15.00 },
+        'claude-opus-4-6': { input: 15.00, output: 75.00 },
+      };
+
+      const themes = (data || []).map(t => {
+        const pricing = THEME_MODEL_PRICING[t.model] || { input: 3.00, output: 15.00 };
+        const cost = ((t.input_tokens || 0) * pricing.input + (t.output_tokens || 0) * pricing.output) / 1_000_000;
+        const userId = t.events?.user_id;
+        const userProfile = userId ? userMap[userId] : null;
+        return {
+          ...t,
+          eventTitle: t.events?.title || '',
+          eventType: t.events?.event_type || '',
+          eventSlug: t.events?.slug || '',
+          userId: userId || null,
+          userDisplayName: userProfile?.displayName || '',
+          userEmail: userProfile?.email || '',
+          cost: Math.round(cost * 1_000_000) / 1_000_000,
+          promptVersionLabel: t.prompt_version_id ? (pvMap[t.prompt_version_id] || 'Unknown') : 'Default',
+          events: undefined
+        };
+      });
 
       return res.status(200).json({ success: true, themes, total: count || 0, page, limit });
     }
