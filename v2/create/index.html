@@ -3259,7 +3259,7 @@
       return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
         + fontsStyle
         + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; }</style>'
-        + (headStyles ? headStyles.replace(/<\/style/gi, '<\\/style') : '')
+        + (headStyles || '')
         + '<style>' + (ver.css || '').replace(/<\/style/gi, '<\\/style') + '</style></head><body' + (bodyAttrs ? ' ' + bodyAttrs : '') + '>' + themeHtml + rsvpScript + '</body></html>';
     }
 
