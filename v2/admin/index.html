@@ -3666,6 +3666,42 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       showTestView('preview');
     }
 
+    // ---- Lazy iframe loader (prevents mobile Safari crash from 100+ iframes) ----
+    var iframeLazyObserver = null;
+    function setupLazyIframes(grid) {
+      if (!('IntersectionObserver' in window)) {
+        // Fallback: load all immediately (desktop is fine)
+        grid.querySelectorAll('.style-card').forEach(function(card) { loadCardIframe(card); });
+        return;
+      }
+      if (iframeLazyObserver) iframeLazyObserver.disconnect();
+      iframeLazyObserver = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            loadCardIframe(entry.target);
+            iframeLazyObserver.unobserve(entry.target);
+          }
+        });
+      }, { rootMargin: '200px' });
+      grid.querySelectorAll('.style-card').forEach(function(card) {
+        if (!card.dataset.iframeLoaded) iframeLazyObserver.observe(card);
+      });
+    }
+
+    function loadCardIframe(card) {
+      if (card.dataset.iframeLoaded) return;
+      card.dataset.iframeLoaded = '1';
+      var iframe = card.querySelector('.phone-screen iframe');
+      if (!iframe) return;
+      var screen = iframe.closest('.phone-screen');
+      if (screen) {
+        var screenWidth = screen.offsetWidth || 220;
+        iframe.style.transform = 'scale(' + (screenWidth / 393) + ')';
+      }
+      var htmlContent = card.dataset.previewHtml;
+      if (htmlContent) iframe.srcdoc = htmlContent;
+    }
+
     // ---- Style Library ----
     var styleLibrary = [];
 
@@ -3837,18 +3873,12 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         grid.appendChild(card);
       });
 
-      // Scale phone mockup iframes to fit card width
-      requestAnimationFrame(function() {
-        grid.querySelectorAll('.style-card .phone-screen iframe').forEach(function(iframe) {
-          var screen = iframe.closest('.phone-screen');
-          if (screen) {
-            var screenWidth = screen.offsetWidth || 220;
-            iframe.style.transform = 'scale(' + (screenWidth / 393) + ')';
-          }
-          var item = styleLibrary.find(function(s) { return s.id === iframe.closest('.style-card').dataset.styleId; });
-          if (item) iframe.srcdoc = wrapForPreview(item.html, false);
-        });
+      // Store preview HTML on card and lazy-load iframes
+      items.forEach(function(item) {
+        var card = grid.querySelector('.style-card[data-style-id="' + item.id + '"]');
+        if (card) card.dataset.previewHtml = wrapForPreview(item.html, false);
       });
+      requestAnimationFrame(function() { setupLazyIframes(grid); });
     }
 
     // ── Style Detail View ──
@@ -5251,24 +5281,17 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         grid.appendChild(card);
       });
 
-      // Scale iframes — match the Templates pattern exactly (find item via dataset)
-      requestAnimationFrame(function() {
-        grid.querySelectorAll('.style-card .phone-screen iframe').forEach(function(iframe) {
-          var screen = iframe.closest('.phone-screen');
-          if (screen) {
-            var screenWidth = screen.offsetWidth || 220;
-            iframe.style.transform = 'scale(' + (screenWidth / 393) + ')';
-          }
-          var run = labGenMap[iframe.closest('.style-card').dataset.labRunId];
-          if (run) {
-            var fontsImport = (run.result_config && run.result_config.googleFontsImport) || '';
-            var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
-              + '<style>' + fontsImport + '</style>'
-              + '<style>' + (run.result_css || '') + '</style></head><body>' + (run.result_html || '') + '</body></html>';
-            iframe.srcdoc = fullHtml;
-          }
-        });
+      // Store preview HTML on card and lazy-load iframes
+      labGenerations.forEach(function(run) {
+        var card = grid.querySelector('.style-card[data-lab-run-id="' + run.id + '"]');
+        if (card) {
+          var fontsImport = (run.result_config && run.result_config.googleFontsImport) || '';
+          card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+            + '<style>' + fontsImport + '</style>'
+            + '<style>' + (run.result_css || '') + '</style></head><body>' + (run.result_html || '') + '</body></html>';
+        }
       });
+      requestAnimationFrame(function() { setupLazyIframes(grid); });
     }
 
     function renderLabPagination() {
@@ -5399,24 +5422,17 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         grid.appendChild(card);
       });
 
-      // Scale iframes — match the Templates pattern exactly (find item via dataset)
-      requestAnimationFrame(function() {
-        grid.querySelectorAll('.style-card .phone-screen iframe').forEach(function(iframe) {
-          var screen = iframe.closest('.phone-screen');
-          if (screen) {
-            var screenWidth = screen.offsetWidth || 220;
-            iframe.style.transform = 'scale(' + (screenWidth / 393) + ')';
-          }
-          var theme = userGenMap[iframe.closest('.style-card').dataset.themeId];
-          if (theme) {
-            var fontsImport = (theme.config && theme.config.googleFontsImport) || '';
-            var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
-              + '<style>' + fontsImport + '</style>'
-              + '<style>' + (theme.css || '') + '</style></head><body>' + (theme.html || '') + '</body></html>';
-            iframe.srcdoc = fullHtml;
-          }
-        });
+      // Store preview HTML on card and lazy-load iframes
+      userGenerations.forEach(function(theme) {
+        var card = grid.querySelector('.style-card[data-theme-id="' + theme.id + '"]');
+        if (card) {
+          var fontsImport = (theme.config && theme.config.googleFontsImport) || '';
+          card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+            + '<style>' + fontsImport + '</style>'
+            + '<style>' + (theme.css || '') + '</style></head><body>' + (theme.html || '') + '</body></html>';
+        }
       });
+      requestAnimationFrame(function() { setupLazyIframes(grid); });
     }
 
     function renderUserGenPagination() {
