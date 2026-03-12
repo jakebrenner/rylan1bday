@@ -177,6 +177,45 @@
     .prompt-toggle .arrow { transition: transform 0.2s; }
     .prompt-toggle.open .arrow { transform: rotate(90deg); }
 
+    /* Archive Sub-Navigation */
+    .archive-nav { display: flex; gap: 4px; margin-bottom: 20px; background: #f0f0f0; border-radius: 8px; padding: 3px; }
+    .archive-nav-btn { flex: 1; padding: 9px 12px; text-align: center; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; color: #888; background: transparent; border: none; font-family: 'Inter', sans-serif; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .archive-nav-btn.active { background: white; color: var(--midnight); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .archive-nav-btn:hover:not(.active) { color: var(--midnight); }
+    .archive-nav-btn .nav-count { font-size: 10px; background: rgba(0,0,0,0.08); padding: 1px 6px; border-radius: 8px; }
+    .archive-nav-btn.active .nav-count { background: var(--party-coral); color: white; }
+    .archive-view { display: none; }
+    .archive-view.active { display: block; }
+
+    /* Generation card extras */
+    .gen-card-info { padding: 8px 14px; border-top: 1px solid #eee; font-size: 11px; color: #888; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .gen-card-info .gen-model { font-family: monospace; font-size: 10px; background: #f0f0f0; padding: 1px 6px; border-radius: 4px; color: var(--midnight); font-weight: 600; }
+    .gen-card-info .gen-cost { color: var(--mint-fizz); font-weight: 700; }
+    .gen-card-info .gen-user { color: var(--party-coral); cursor: pointer; font-weight: 600; }
+    .gen-card-info .gen-user:hover { text-decoration: underline; }
+    .gen-card-info .gen-event { font-weight: 600; color: var(--midnight); }
+    .gen-card-info .gen-active-badge { background: var(--mint-fizz); color: white; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; }
+    .gen-card-info .gen-latency { color: #aaa; }
+    .gen-pagination { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 20px; }
+    .gen-pagination .page-btn { padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; background: white; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; }
+    .gen-pagination .page-btn:hover { border-color: var(--party-coral); color: var(--party-coral); }
+    .gen-pagination .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .gen-pagination .page-info { font-size: 12px; color: #888; }
+
+    /* Generation detail overlay */
+    .gen-detail-overlay { position: fixed; inset: 0; z-index: 10000; background: #f8f8fa; overflow-y: auto; display: none; }
+    .gen-detail-overlay.open { display: block; }
+    .gen-detail-header { position: sticky; top: 0; background: white; border-bottom: 1px solid #eee; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; z-index: 1; }
+    .gen-detail-header h2 { font-size: 18px; }
+    .gen-detail-body { max-width: 1100px; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+    @media (max-width: 768px) { .gen-detail-body { grid-template-columns: 1fr; } }
+    .gen-detail-info { display: flex; flex-direction: column; gap: 16px; }
+    .gen-detail-info .detail-section { border-top: 1px solid #eee; padding-top: 12px; }
+    .gen-detail-info .detail-section h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 8px; }
+    .gen-detail-info .detail-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f5f5f5; }
+    .gen-detail-info .detail-label { color: #888; }
+    .gen-detail-info .detail-value { font-weight: 600; color: var(--midnight); }
+
     /* Style Library */
     .style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
     .style-card { background: white; border: 1px solid #eee; border-radius: 12px; overflow: hidden; transition: all 0.2s; position: relative; }
@@ -355,6 +394,65 @@
     .access-denied { text-align: center; padding: 80px 20px; }
     .access-denied h2 { font-family: 'Playfair Display', serif; margin-bottom: 12px; }
     .access-denied p { color: #666; margin-bottom: 24px; }
+
+    /* ── Mobile Responsive ── */
+    @media (max-width: 768px) {
+      /* Header */
+      .header { padding: 12px 14px; }
+      .header h1 { font-size: 18px; }
+      .header-left { gap: 10px; }
+      .header-left a svg { height: 26px !important; }
+      .header-actions { gap: 8px; }
+      .header-actions a { font-size: 12px; }
+
+      /* Container */
+      .container { padding: 16px 12px; }
+
+      /* Tabs — wrap to multiple rows */
+      .tabs { flex-wrap: wrap; gap: 4px; padding: 4px; margin-bottom: 16px; }
+      .tab { flex: 0 0 auto; padding: 8px 12px; font-size: 11px; white-space: nowrap; }
+
+      /* Stat grid — 2 columns */
+      .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+      .stat-card { padding: 14px; }
+      .stat-card .stat-value { font-size: 24px; }
+      .stat-card .stat-label { font-size: 10px; }
+
+      /* Tables — horizontal scroll */
+      .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .table-container table { min-width: 600px; }
+
+      /* Config sections */
+      .config-section { padding: 16px; }
+      .config-row { grid-template-columns: 1fr; gap: 16px; }
+
+      /* Style / Generation grid */
+      .style-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+
+      /* Archive sub-nav — wrap to multiple rows */
+      .archive-nav { flex-wrap: wrap; }
+      .archive-nav-btn { flex: 1 0 auto; padding: 8px 10px; font-size: 11px; white-space: nowrap; min-width: 0; }
+
+      /* Modals */
+      .modal { width: 95%; max-height: 90vh; padding: 16px; }
+
+      /* Filter rows — stack vertically */
+      #styleFilters > div, #labFilters > div, #userGenFilters > div { flex-direction: column; }
+      #styleFilters select, #labFilters select, #userGenFilters select,
+      #styleFilters input, #labFilters input, #userGenFilters input { width: 100%; }
+
+      /* Generation detail overlay */
+      .gen-detail-body { padding: 16px; gap: 20px; }
+      .gen-detail-header { padding: 12px 16px; }
+      .gen-detail-header h2 { font-size: 16px; }
+
+      /* Style detail overlay */
+      .style-detail-header { padding: 12px 16px; }
+      .style-detail-header h2 { font-size: 16px; }
+
+      /* Usage grid */
+      .usage-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -386,7 +484,7 @@
       <button class="tab" data-tab="settings" onclick="switchTab('settings')">AI Models</button>
       <button class="tab" data-tab="promptversions" onclick="switchTab('promptversions')">Prompt Versions</button>
       <button class="tab" data-tab="promptlab" onclick="switchTab('promptlab')">Prompt Lab</button>
-      <button class="tab" data-tab="stylelibrary" onclick="switchTab('stylelibrary')">Style Library</button>
+      <button class="tab" data-tab="stylelibrary" onclick="switchTab('stylelibrary')">Generations</button>
     </div>
 
     <!-- Overview Tab -->
@@ -1305,67 +1403,196 @@
       </div>
     </div>
 
-    <!-- Style Library Tab -->
+    <!-- Style Library / Generation Archive Tab -->
     <div class="tab-content" id="tab-stylelibrary">
-      <div class="config-section">
-        <h3>Style Reference Library</h3>
-        <p style="font-size:13px;color:#888;margin-bottom:16px;">
-          Upload HTML invite samples that the AI can reference during generation. These serve as visual inspiration —
-          the AI analyzes the layout patterns, color palettes, typography, and design approaches to produce better results.
-        </p>
-        <div style="display:flex;gap:8px;margin-bottom:20px;align-items:center;">
-          <button class="btn btn-primary" onclick="openAddStyleModal()">Add Single Sample</button>
-          <button class="btn btn-secondary" onclick="document.getElementById('bulkUploadSection').style.display=document.getElementById('bulkUploadSection').style.display==='none'?'block':'none'">Bulk Upload</button>
-          <span style="font-size:12px;color:#888;display:flex;align-items:center;" id="styleCount">0 samples in library</span>
-        </div>
-        <div id="styleFilters" style="display:none;margin-bottom:16px;">
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-            <select id="filterEventType" onchange="applyStyleFilter()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
-              <option value="">All Event Types</option>
-              <option value="kidsBirthday">Kids Birthday</option>
-              <option value="adultBirthday">Adult Birthday</option>
-              <option value="babyShower">Baby Shower</option>
-              <option value="engagement">Engagement</option>
-              <option value="wedding">Wedding</option>
-              <option value="graduation">Graduation</option>
-              <option value="holiday">Holiday</option>
-              <option value="dinnerParty">Dinner Party</option>
-              <option value="retirement">Retirement</option>
-              <option value="anniversary">Anniversary</option>
-              <option value="sports">Sports</option>
-              <option value="bridalShower">Bridal Shower</option>
-              <option value="corporate">Corporate</option>
-              <option value="other">Other</option>
-            </select>
-            <select id="filterRating" onchange="applyStyleFilter()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
-              <option value="">All Ratings</option>
-              <option value="unrated">Unrated</option>
-              <option value="rated">Rated</option>
-              <option value="5">5 Stars</option>
-              <option value="4">4 Stars</option>
-              <option value="3">3 Stars</option>
-              <option value="2">2 Stars</option>
-              <option value="1">1 Star</option>
-            </select>
-            <select id="filterTag" onchange="applyStyleFilter()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
-              <option value="">All Tags</option>
-            </select>
-            <input type="text" id="filterSearch" placeholder="Search name or description..." oninput="applyStyleFilter()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;flex:1;min-width:150px;">
-            <button class="btn btn-secondary btn-sm" onclick="clearStyleFilter()">Clear</button>
+      <div class="archive-nav">
+        <button class="archive-nav-btn active" data-view="templates" onclick="switchArchiveView('templates')">Templates <span class="nav-count" id="archiveCountTemplates">0</span></button>
+        <button class="archive-nav-btn" data-view="lab" onclick="switchArchiveView('lab')">Lab Generations <span class="nav-count" id="archiveCountLab">0</span></button>
+        <button class="archive-nav-btn" data-view="user" onclick="switchArchiveView('user')">User Generations <span class="nav-count" id="archiveCountUser">0</span></button>
+      </div>
+
+      <!-- Templates View (existing Style Library) -->
+      <div class="archive-view active" id="archiveView-templates">
+        <div class="config-section">
+          <h3>Style Reference Library</h3>
+          <p style="font-size:13px;color:#888;margin-bottom:16px;">
+            Upload HTML invite samples that the AI can reference during generation. These serve as visual inspiration —
+            the AI analyzes the layout patterns, color palettes, typography, and design approaches to produce better results.
+          </p>
+          <div style="display:flex;gap:8px;margin-bottom:20px;align-items:center;">
+            <button class="btn btn-primary" onclick="openAddStyleModal()">Add Single Sample</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('bulkUploadSection').style.display=document.getElementById('bulkUploadSection').style.display==='none'?'block':'none'">Bulk Upload</button>
+            <span style="font-size:12px;color:#888;display:flex;align-items:center;" id="styleCount">0 samples in library</span>
+          </div>
+          <div id="styleFilters" style="display:none;margin-bottom:16px;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <select id="filterEventType" onchange="applyStyleFilter()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+                <option value="">All Event Types</option>
+                <option value="kidsBirthday">Kids Birthday</option>
+                <option value="adultBirthday">Adult Birthday</option>
+                <option value="babyShower">Baby Shower</option>
+                <option value="engagement">Engagement</option>
+                <option value="wedding">Wedding</option>
+                <option value="graduation">Graduation</option>
+                <option value="holiday">Holiday</option>
+                <option value="dinnerParty">Dinner Party</option>
+                <option value="retirement">Retirement</option>
+                <option value="anniversary">Anniversary</option>
+                <option value="sports">Sports</option>
+                <option value="bridalShower">Bridal Shower</option>
+                <option value="corporate">Corporate</option>
+                <option value="other">Other</option>
+              </select>
+              <select id="filterRating" onchange="applyStyleFilter()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+                <option value="">All Ratings</option>
+                <option value="unrated">Unrated</option>
+                <option value="rated">Rated</option>
+                <option value="5">5 Stars</option>
+                <option value="4">4 Stars</option>
+                <option value="3">3 Stars</option>
+                <option value="2">2 Stars</option>
+                <option value="1">1 Star</option>
+              </select>
+              <select id="filterTag" onchange="applyStyleFilter()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+                <option value="">All Tags</option>
+              </select>
+              <input type="text" id="filterSearch" placeholder="Search name or description..." oninput="applyStyleFilter()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;flex:1;min-width:150px;">
+              <button class="btn btn-secondary btn-sm" onclick="clearStyleFilter()">Clear</button>
+            </div>
+          </div>
+          <div id="bulkUploadSection" style="display:none;margin-bottom:20px;">
+            <div class="bulk-dropzone" id="bulkDropzone" onclick="document.getElementById('bulkFileInput').click()">
+              <div class="drop-icon">&#128194;</div>
+              <div class="drop-text">Drop HTML files here or click to browse</div>
+              <div class="drop-sub">Select multiple .html files — each will be auto-tagged with AI and added to your library</div>
+            </div>
+            <input type="file" id="bulkFileInput" multiple accept=".html,.htm" style="display:none;" onchange="handleBulkFiles(this.files)">
+          </div>
+          <div class="style-grid" id="styleGrid">
+            <div style="color:#888;font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">
+              No style samples yet. Add HTML invite samples to build your reference library.
+            </div>
           </div>
         </div>
-        <div id="bulkUploadSection" style="display:none;margin-bottom:20px;">
-          <div class="bulk-dropzone" id="bulkDropzone" onclick="document.getElementById('bulkFileInput').click()">
-            <div class="drop-icon">&#128194;</div>
-            <div class="drop-text">Drop HTML files here or click to browse</div>
-            <div class="drop-sub">Select multiple .html files — each will be auto-tagged with AI and added to your library</div>
+      </div>
+
+      <!-- Lab Generations View -->
+      <div class="archive-view" id="archiveView-lab">
+        <div class="config-section">
+          <h3>Lab Generations</h3>
+          <p style="font-size:13px;color:#888;margin-bottom:16px;">
+            All test generations from the Prompt Lab. Filter by model, event type, score, or prompt version.
+          </p>
+          <div id="labFilters" style="margin-bottom:16px;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <select id="labFilterModel" onchange="loadLabGenerations()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+                <option value="">All Models</option>
+                <option value="claude-haiku-4-5-20251001">Haiku</option>
+                <option value="claude-sonnet-4-6">Sonnet</option>
+                <option value="claude-opus-4-6">Opus</option>
+              </select>
+              <select id="labFilterEventType" onchange="loadLabGenerations()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+                <option value="">All Event Types</option>
+                <option value="kidsBirthday">Kids Birthday</option>
+                <option value="adultBirthday">Adult Birthday</option>
+                <option value="babyShower">Baby Shower</option>
+                <option value="engagement">Engagement</option>
+                <option value="wedding">Wedding</option>
+                <option value="graduation">Graduation</option>
+                <option value="holiday">Holiday</option>
+                <option value="dinnerParty">Dinner Party</option>
+                <option value="retirement">Retirement</option>
+                <option value="anniversary">Anniversary</option>
+                <option value="sports">Sports</option>
+                <option value="bridalShower">Bridal Shower</option>
+                <option value="corporate">Corporate</option>
+                <option value="other">Other</option>
+              </select>
+              <select id="labFilterScore" onchange="loadLabGenerations()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+                <option value="">All Scores</option>
+                <option value="unrated">Unrated</option>
+                <option value="rated">Rated</option>
+                <option value="5">5 Stars</option>
+                <option value="4">4 Stars</option>
+                <option value="3">3 Stars</option>
+                <option value="2">2 Stars</option>
+                <option value="1">1 Star</option>
+              </select>
+              <select id="labFilterPromptVersion" onchange="loadLabGenerations()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+                <option value="">All Prompt Versions</option>
+              </select>
+              <select id="labFilterSort" onchange="loadLabGenerations()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+                <option value="created_at">Newest First</option>
+                <option value="score">By Score</option>
+                <option value="latency_ms">By Latency</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" onclick="clearLabFilters()">Clear</button>
+            </div>
           </div>
-          <input type="file" id="bulkFileInput" multiple accept=".html,.htm" style="display:none;" onchange="handleBulkFiles(this.files)">
+          <div class="style-grid" id="labGrid">
+            <div style="color:#888;font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">Loading lab generations...</div>
+          </div>
+          <div class="gen-pagination" id="labPagination" style="display:none;"></div>
         </div>
-        <div class="style-grid" id="styleGrid">
-          <div style="color:#888;font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">
-            No style samples yet. Add HTML invite samples to build your reference library.
+      </div>
+
+      <!-- User Generations View -->
+      <div class="archive-view" id="archiveView-user">
+        <div class="config-section">
+          <h3>User Generations</h3>
+          <p style="font-size:13px;color:#888;margin-bottom:16px;">
+            All invite themes generated by real users. Browse, rate, and drill into event and user details.
+          </p>
+          <div id="userGenFilters" style="margin-bottom:16px;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <select id="userGenFilterModel" onchange="loadUserGenerations()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+                <option value="">All Models</option>
+                <option value="claude-haiku-4-5-20251001">Haiku</option>
+                <option value="claude-sonnet-4-6">Sonnet</option>
+                <option value="claude-opus-4-6">Opus</option>
+              </select>
+              <select id="userGenFilterEventType" onchange="loadUserGenerations()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+                <option value="">All Event Types</option>
+                <option value="kidsBirthday">Kids Birthday</option>
+                <option value="adultBirthday">Adult Birthday</option>
+                <option value="babyShower">Baby Shower</option>
+                <option value="engagement">Engagement</option>
+                <option value="wedding">Wedding</option>
+                <option value="graduation">Graduation</option>
+                <option value="holiday">Holiday</option>
+                <option value="dinnerParty">Dinner Party</option>
+                <option value="retirement">Retirement</option>
+                <option value="anniversary">Anniversary</option>
+                <option value="sports">Sports</option>
+                <option value="bridalShower">Bridal Shower</option>
+                <option value="corporate">Corporate</option>
+                <option value="other">Other</option>
+              </select>
+              <select id="userGenFilterRating" onchange="loadUserGenerations()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+                <option value="">All Ratings</option>
+                <option value="unrated">Unrated</option>
+                <option value="rated">Rated</option>
+                <option value="5">5 Stars</option>
+                <option value="4">4 Stars</option>
+                <option value="3">3 Stars</option>
+                <option value="2">2 Stars</option>
+                <option value="1">1 Star</option>
+              </select>
+              <select id="userGenFilterPromptVersion" onchange="loadUserGenerations()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+                <option value="">All Prompt Versions</option>
+              </select>
+              <select id="userGenFilterSort" onchange="loadUserGenerations()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
+                <option value="created_at">Newest First</option>
+                <option value="admin_rating">By Rating</option>
+                <option value="latency_ms">By Latency</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" onclick="clearUserGenFilters()">Clear</button>
+            </div>
           </div>
+          <div class="style-grid" id="userGenGrid">
+            <div style="color:#888;font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">Loading user generations...</div>
+          </div>
+          <div class="gen-pagination" id="userGenPagination" style="display:none;"></div>
         </div>
       </div>
     </div>
@@ -3434,6 +3661,42 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       showTestView('preview');
     }
 
+    // ---- Lazy iframe loader (prevents mobile Safari crash from 100+ iframes) ----
+    var iframeLazyObserver = null;
+    function setupLazyIframes(grid) {
+      if (!('IntersectionObserver' in window)) {
+        // Fallback: load all immediately (desktop is fine)
+        grid.querySelectorAll('.style-card').forEach(function(card) { loadCardIframe(card); });
+        return;
+      }
+      if (iframeLazyObserver) iframeLazyObserver.disconnect();
+      iframeLazyObserver = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            loadCardIframe(entry.target);
+            iframeLazyObserver.unobserve(entry.target);
+          }
+        });
+      }, { rootMargin: '200px' });
+      grid.querySelectorAll('.style-card').forEach(function(card) {
+        if (!card.dataset.iframeLoaded) iframeLazyObserver.observe(card);
+      });
+    }
+
+    function loadCardIframe(card) {
+      if (card.dataset.iframeLoaded) return;
+      card.dataset.iframeLoaded = '1';
+      var iframe = card.querySelector('.phone-screen iframe');
+      if (!iframe) return;
+      var screen = iframe.closest('.phone-screen');
+      if (screen) {
+        var screenWidth = screen.offsetWidth || 220;
+        iframe.style.transform = 'scale(' + (screenWidth / 393) + ')';
+      }
+      var htmlContent = card.dataset.previewHtml;
+      if (htmlContent) iframe.srcdoc = htmlContent;
+    }
+
     // ---- Style Library ----
     var styleLibrary = [];
 
@@ -3605,18 +3868,12 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         grid.appendChild(card);
       });
 
-      // Scale phone mockup iframes to fit card width
-      requestAnimationFrame(function() {
-        grid.querySelectorAll('.style-card .phone-screen iframe').forEach(function(iframe) {
-          var screen = iframe.closest('.phone-screen');
-          if (screen) {
-            var screenWidth = screen.offsetWidth || 220;
-            iframe.style.transform = 'scale(' + (screenWidth / 393) + ')';
-          }
-          var item = styleLibrary.find(function(s) { return s.id === iframe.closest('.style-card').dataset.styleId; });
-          if (item) iframe.srcdoc = wrapForPreview(item.html, false);
-        });
+      // Store preview HTML on card and lazy-load iframes
+      items.forEach(function(item) {
+        var card = grid.querySelector('.style-card[data-style-id="' + item.id + '"]');
+        if (card) card.dataset.previewHtml = wrapForPreview(item.html, false);
       });
+      requestAnimationFrame(function() { setupLazyIframes(grid); });
     }
 
     // ── Style Detail View ──
@@ -4865,6 +5122,544 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     // Load prompt versions on init
     loadPromptVersions();
     loadReportingDashboard();
+
+    // ═══════════════════════════════════════════════
+    // GENERATION ARCHIVE (Sub-navigation within Style Library)
+    // ═══════════════════════════════════════════════
+    var currentArchiveView = 'templates';
+    var labGenerations = [];
+    var labGenPage = 1;
+    var labGenTotal = 0;
+    var userGenerations = [];
+    var userGenPage = 1;
+    var userGenTotal = 0;
+    var archiveGenPageSize = 20;
+
+    var labLoaded = false;
+    var userLoaded = false;
+
+    function switchArchiveView(view) {
+      currentArchiveView = view;
+      document.querySelectorAll('.archive-nav-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.dataset.view === view);
+      });
+      document.querySelectorAll('.archive-view').forEach(function(v) {
+        v.classList.toggle('active', v.id === 'archiveView-' + view);
+      });
+      // Lazy-load data when switching to a new view for the first time
+      if (view === 'lab' && !labLoaded) {
+        labLoaded = true;
+        populateArchivePromptDropdowns();
+        loadLabGenerations();
+      }
+      if (view === 'user' && !userLoaded) {
+        userLoaded = true;
+        populateArchivePromptDropdowns();
+        loadUserGenerations();
+      }
+    }
+
+    function populateArchivePromptDropdowns() {
+      var pvs = promptVersionsData || [];
+      var opts = '<option value="">All Prompt Versions</option>' +
+        pvs.map(function(v) { return '<option value="' + v.id + '">v' + v.version + ' – ' + escapeHtml(v.name) + '</option>'; }).join('');
+      var labDd = document.getElementById('labFilterPromptVersion');
+      var userDd = document.getElementById('userGenFilterPromptVersion');
+      if (labDd && !labDd.dataset.populated) { labDd.innerHTML = opts; labDd.dataset.populated = '1'; }
+      if (userDd && !userDd.dataset.populated) { userDd.innerHTML = opts; userDd.dataset.populated = '1'; }
+    }
+
+    function updateArchiveCounts() {
+      var el1 = document.getElementById('archiveCountTemplates');
+      var el2 = document.getElementById('archiveCountLab');
+      var el3 = document.getElementById('archiveCountUser');
+      if (el1) el1.textContent = styleLibrary.length;
+      if (el2) el2.textContent = labGenTotal || '0';
+      if (el3) el3.textContent = userGenTotal || '0';
+    }
+
+    // ── Lab Generations ──
+    async function loadLabGenerations() {
+      var grid = document.getElementById('labGrid');
+      grid.innerHTML = '<div style="color:#888;font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">Loading...</div>';
+
+      var params = { page: labGenPage, limit: archiveGenPageSize };
+      var model = document.getElementById('labFilterModel').value;
+      var eventType = document.getElementById('labFilterEventType').value;
+      var score = document.getElementById('labFilterScore').value;
+      var pv = document.getElementById('labFilterPromptVersion').value;
+      var sort = document.getElementById('labFilterSort').value;
+      if (model) params.model = model;
+      if (eventType) params.eventType = eventType;
+      if (score) params.scoreFilter = score;
+      if (pv) params.promptVersionId = pv;
+      if (sort) params.sortBy = sort;
+
+      try {
+        var res = await adminFetch('listTestRuns', { params: params });
+        if (res && res.error) throw new Error(res.error);
+        labGenerations = res.testRuns || [];
+        labGenTotal = res.total || labGenerations.length;
+        updateArchiveCounts();
+        renderLabGrid();
+        renderLabPagination();
+      } catch (err) {
+        grid.innerHTML = '<div style="color:var(--party-coral);font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">Failed to load lab generations: ' + escapeHtml(err.message) + '</div>';
+      }
+    }
+
+    // Build a lab generation run lookup by ID for iframe scaling
+    var labGenMap = {};
+
+    function renderLabGrid() {
+      var grid = document.getElementById('labGrid');
+      if (labGenerations.length === 0) {
+        grid.innerHTML = '<div style="color:#888;font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">No lab generations match the current filters.</div>';
+        return;
+      }
+      grid.innerHTML = '';
+      labGenMap = {};
+      labGenerations.forEach(function(run) {
+        labGenMap[run.id] = run;
+        var card = document.createElement('div');
+        card.className = 'style-card';
+        card.dataset.labRunId = run.id;
+
+        // Details button
+        var detailsBtn = document.createElement('button');
+        detailsBtn.className = 'style-card-details-btn';
+        detailsBtn.innerHTML = '&#8942;';
+        detailsBtn.title = 'View details';
+        detailsBtn.onclick = function() { openGenDetailView('lab', run); };
+
+        // Phone preview — use phone-sm class to match Templates view
+        var previewDiv = document.createElement('div');
+        previewDiv.className = 'style-card-preview';
+        previewDiv.appendChild(detailsBtn);
+        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
+        var phoneWrapper = document.createElement('div');
+        phoneWrapper.innerHTML = phoneHtml;
+        previewDiv.appendChild(phoneWrapper.firstChild);
+        card.appendChild(previewDiv);
+
+        // Star rating
+        var score = run.score || 0;
+        var ratingDiv = document.createElement('div');
+        ratingDiv.className = 'style-card-rating';
+        ratingDiv.innerHTML = '<div class="star-rating" data-lab-run-id="' + run.id + '">'
+          + buildStarHtml(score)
+          + '</div>'
+          + '<span class="star-label" id="labStarLabel_' + run.id + '">' + (score ? STAR_LABELS[score] : 'Rate this') + '</span>';
+        card.appendChild(ratingDiv);
+
+        // Info row: model, event type, cost, latency
+        var infoDiv = document.createElement('div');
+        infoDiv.className = 'gen-card-info';
+        var modelShort = (run.model || '').replace('claude-', '').replace('-20251001', '');
+        var etObj = ALL_EVENT_TYPES.find(function(x) { return x.value === run.event_type; });
+        var costStr = run.cost ? '$' + run.cost.toFixed(4) : '';
+        var latency = run.latency_ms ? (run.latency_ms / 1000).toFixed(1) + 's' : '';
+        infoDiv.innerHTML = '<span class="gen-model">' + escapeHtml(modelShort) + '</span>'
+          + (etObj ? '<span class="style-tag" style="background:rgba(233,69,96,0.1);color:var(--party-coral);">' + etObj.label + '</span>' : '')
+          + (costStr ? '<span class="gen-cost">' + costStr + '</span>' : '')
+          + (latency ? '<span class="gen-latency">' + latency + '</span>' : '');
+        card.appendChild(infoDiv);
+
+        // Prompt version row
+        if (run.promptVersionLabel) {
+          var pvDiv = document.createElement('div');
+          pvDiv.className = 'gen-card-info';
+          pvDiv.innerHTML = '<span style="font-size:10px;">' + escapeHtml(run.promptVersionLabel) + '</span>';
+          card.appendChild(pvDiv);
+        }
+
+        grid.appendChild(card);
+      });
+
+      // Store preview HTML on card and lazy-load iframes
+      labGenerations.forEach(function(run) {
+        var card = grid.querySelector('.style-card[data-lab-run-id="' + run.id + '"]');
+        if (card) {
+          var fontsImport = (run.result_config && run.result_config.googleFontsImport) || '';
+          card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+            + '<style>' + fontsImport + '</style>'
+            + '<style>' + (run.result_css || '') + '</style></head><body>' + (run.result_html || '') + '</body></html>';
+        }
+      });
+      requestAnimationFrame(function() { setupLazyIframes(grid); });
+    }
+
+    function renderLabPagination() {
+      var el = document.getElementById('labPagination');
+      var totalPages = Math.ceil(labGenTotal / archiveGenPageSize);
+      if (totalPages <= 1) { el.style.display = 'none'; return; }
+      el.style.display = 'flex';
+      el.innerHTML = '<button class="page-btn" ' + (labGenPage <= 1 ? 'disabled' : '') + ' onclick="labGenPage--;loadLabGenerations();">&laquo; Prev</button>'
+        + '<span class="page-info">Page ' + labGenPage + ' of ' + totalPages + ' (' + labGenTotal + ' total)</span>'
+        + '<button class="page-btn" ' + (labGenPage >= totalPages ? 'disabled' : '') + ' onclick="labGenPage++;loadLabGenerations();">Next &raquo;</button>';
+    }
+
+    function clearLabFilters() {
+      document.getElementById('labFilterModel').value = '';
+      document.getElementById('labFilterEventType').value = '';
+      document.getElementById('labFilterScore').value = '';
+      document.getElementById('labFilterPromptVersion').value = '';
+      document.getElementById('labFilterSort').value = 'created_at';
+      labGenPage = 1;
+      loadLabGenerations();
+    }
+
+    // ── User Generations ──
+    async function loadUserGenerations() {
+      var grid = document.getElementById('userGenGrid');
+      grid.innerHTML = '<div style="color:#888;font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">Loading...</div>';
+
+      var params = { page: userGenPage, limit: archiveGenPageSize };
+      var model = document.getElementById('userGenFilterModel').value;
+      var eventType = document.getElementById('userGenFilterEventType').value;
+      var rating = document.getElementById('userGenFilterRating').value;
+      var pv = document.getElementById('userGenFilterPromptVersion').value;
+      var sort = document.getElementById('userGenFilterSort').value;
+      if (model) params.model = model;
+      if (eventType) params.eventType = eventType;
+      if (rating) params.ratingFilter = rating;
+      if (pv) params.promptVersionId = pv;
+      if (sort) params.sortBy = sort;
+
+      try {
+        var res = await adminFetch('listThemes', { params: params });
+        if (res && res.error) throw new Error(res.error);
+        userGenerations = res.themes || [];
+        userGenTotal = res.total || userGenerations.length;
+        updateArchiveCounts();
+        renderUserGenGrid();
+        renderUserGenPagination();
+      } catch (err) {
+        grid.innerHTML = '<div style="color:var(--party-coral);font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">Failed to load user generations: ' + escapeHtml(err.message) + '</div>';
+      }
+    }
+
+    // Build a user generation lookup by ID for iframe scaling
+    var userGenMap = {};
+
+    function renderUserGenGrid() {
+      var grid = document.getElementById('userGenGrid');
+      if (userGenerations.length === 0) {
+        grid.innerHTML = '<div style="color:#888;font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">No user generations match the current filters.</div>';
+        return;
+      }
+      grid.innerHTML = '';
+      userGenMap = {};
+      var currentUserEmail = (user && user.email) ? user.email.toLowerCase() : '';
+
+      userGenerations.forEach(function(theme) {
+        userGenMap[theme.id] = theme;
+        var card = document.createElement('div');
+        card.className = 'style-card';
+        card.dataset.themeId = theme.id;
+
+        // Details button
+        var detailsBtn = document.createElement('button');
+        detailsBtn.className = 'style-card-details-btn';
+        detailsBtn.innerHTML = '&#8942;';
+        detailsBtn.title = 'View details';
+        detailsBtn.onclick = function() { openGenDetailView('user', theme); };
+
+        // Phone preview — use phone-sm class to match Templates view
+        var previewDiv = document.createElement('div');
+        previewDiv.className = 'style-card-preview';
+        previewDiv.appendChild(detailsBtn);
+        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
+        var phoneWrapper = document.createElement('div');
+        phoneWrapper.innerHTML = phoneHtml;
+        previewDiv.appendChild(phoneWrapper.firstChild);
+        card.appendChild(previewDiv);
+
+        // Star rating row
+        var rating = theme.admin_rating || 0;
+        var userAlreadyRated = rating > 0 && theme.rated_by && theme.rated_by.toLowerCase() === currentUserEmail;
+        var ratingDiv = document.createElement('div');
+        ratingDiv.className = 'style-card-rating';
+        if (userAlreadyRated) {
+          ratingDiv.innerHTML = '<div class="star-rating locked" data-theme-id="' + theme.id + '">'
+            + buildStarHtml(rating)
+            + '</div>'
+            + '<span class="star-label">' + STAR_LABELS[rating] + ' (yours)</span>';
+        } else {
+          ratingDiv.innerHTML = '<div class="star-rating" data-theme-id="' + theme.id + '">'
+            + buildStarHtml(rating)
+            + '</div>'
+            + '<span class="star-label" id="themeStarLabel_' + theme.id + '">' + (rating ? STAR_LABELS[rating] : 'Rate this') + '</span>';
+        }
+        card.appendChild(ratingDiv);
+
+        // Info row: model, event type, cost, active badge
+        var infoDiv = document.createElement('div');
+        infoDiv.className = 'gen-card-info';
+        var modelShort = (theme.model || '').replace('claude-', '').replace('-20251001', '');
+        var etObj = ALL_EVENT_TYPES.find(function(x) { return x.value === theme.eventType; });
+        var costStr = theme.cost ? '$' + theme.cost.toFixed(4) : '';
+        infoDiv.innerHTML = '<span class="gen-model">' + escapeHtml(modelShort) + '</span>'
+          + (etObj ? '<span class="style-tag" style="background:rgba(233,69,96,0.1);color:var(--party-coral);">' + etObj.label + '</span>' : '')
+          + (costStr ? '<span class="gen-cost">' + costStr + '</span>' : '')
+          + (theme.is_active ? '<span class="gen-active-badge">ACTIVE</span>' : '');
+        card.appendChild(infoDiv);
+
+        // User + Event row
+        var userEventDiv = document.createElement('div');
+        userEventDiv.className = 'gen-card-info';
+        var userName = theme.userDisplayName || theme.userEmail || '';
+        var eventTitle = theme.eventTitle || '';
+        userEventDiv.innerHTML = (eventTitle ? '<span class="gen-event" title="' + escapeHtml(eventTitle) + '">' + escapeHtml(eventTitle.length > 20 ? eventTitle.substring(0, 20) + '...' : eventTitle) + '</span>' : '')
+          + (userName ? '<span class="gen-user" onclick="switchTab(\'users\');setTimeout(function(){viewUser(\'' + theme.userId + '\');},200);" title="' + escapeHtml(theme.userEmail || '') + '">' + escapeHtml(userName.length > 18 ? userName.substring(0, 18) + '...' : userName) + '</span>' : '');
+        card.appendChild(userEventDiv);
+
+        grid.appendChild(card);
+      });
+
+      // Store preview HTML on card and lazy-load iframes
+      userGenerations.forEach(function(theme) {
+        var card = grid.querySelector('.style-card[data-theme-id="' + theme.id + '"]');
+        if (card) {
+          var fontsImport = (theme.config && theme.config.googleFontsImport) || '';
+          card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+            + '<style>' + fontsImport + '</style>'
+            + '<style>' + (theme.css || '') + '</style></head><body>' + (theme.html || '') + '</body></html>';
+        }
+      });
+      requestAnimationFrame(function() { setupLazyIframes(grid); });
+    }
+
+    function renderUserGenPagination() {
+      var el = document.getElementById('userGenPagination');
+      var totalPages = Math.ceil(userGenTotal / archiveGenPageSize);
+      if (totalPages <= 1) { el.style.display = 'none'; return; }
+      el.style.display = 'flex';
+      el.innerHTML = '<button class="page-btn" ' + (userGenPage <= 1 ? 'disabled' : '') + ' onclick="userGenPage--;loadUserGenerations();">&laquo; Prev</button>'
+        + '<span class="page-info">Page ' + userGenPage + ' of ' + totalPages + ' (' + userGenTotal + ' total)</span>'
+        + '<button class="page-btn" ' + (userGenPage >= totalPages ? 'disabled' : '') + ' onclick="userGenPage++;loadUserGenerations();">Next &raquo;</button>';
+    }
+
+    function clearUserGenFilters() {
+      document.getElementById('userGenFilterModel').value = '';
+      document.getElementById('userGenFilterEventType').value = '';
+      document.getElementById('userGenFilterRating').value = '';
+      document.getElementById('userGenFilterPromptVersion').value = '';
+      document.getElementById('userGenFilterSort').value = 'created_at';
+      userGenPage = 1;
+      loadUserGenerations();
+    }
+
+    // ── Generation Detail Overlay ──
+    function openGenDetailView(source, item) {
+      var overlay = document.getElementById('genDetailOverlay');
+      var title = document.getElementById('genDetailTitle');
+      var info = document.getElementById('genDetailInfo');
+      var html = '';
+
+      if (source === 'user') {
+        title.textContent = item.eventTitle || 'User Generation';
+        var etObj = ALL_EVENT_TYPES.find(function(x) { return x.value === item.eventType; });
+
+        // Rating section
+        var rating = item.admin_rating || 0;
+        var currentUserEmail = (user && user.email) ? user.email.toLowerCase() : '';
+        var userAlreadyRated = rating > 0 && item.rated_by && item.rated_by.toLowerCase() === currentUserEmail;
+        html += '<div class="detail-section"><h4>Admin Rating</h4>'
+          + '<div style="display:flex;align-items:center;gap:10px;">'
+          + '<div class="star-rating' + (userAlreadyRated ? ' locked' : '') + '" data-theme-id="' + item.id + '" data-detail-modal="true">'
+          + buildStarHtml(rating) + '</div>'
+          + '<span class="star-label" id="genDetailStarLabel">' + (userAlreadyRated ? STAR_LABELS[rating] + ' (yours)' : (rating ? STAR_LABELS[rating] : 'Not rated')) + '</span>'
+          + '</div></div>';
+
+        // Event info
+        html += '<div class="detail-section"><h4>Event</h4>';
+        html += '<div class="detail-row"><span class="detail-label">Title</span><span class="detail-value">' + escapeHtml(item.eventTitle) + '</span></div>';
+        if (etObj) html += '<div class="detail-row"><span class="detail-label">Type</span><span class="detail-value">' + etObj.label + '</span></div>';
+        html += '<div class="detail-row"><span class="detail-label">Event ID</span><span class="detail-value" style="font-family:monospace;font-size:11px;">' + escapeHtml(item.event_id) + '</span></div>';
+        if (item.eventSlug) html += '<div class="detail-row"><span class="detail-label">Slug</span><span class="detail-value"><a href="/v2/invite/' + escapeHtml(item.eventSlug) + '" target="_blank" style="color:var(--party-coral);">' + escapeHtml(item.eventSlug) + '</a></span></div>';
+        html += '</div>';
+
+        // User info
+        if (item.userId) {
+          html += '<div class="detail-section"><h4>User</h4>';
+          html += '<div class="detail-row"><span class="detail-label">Name</span><span class="detail-value">' + escapeHtml(item.userDisplayName || '—') + '</span></div>';
+          html += '<div class="detail-row"><span class="detail-label">Email</span><span class="detail-value"><span class="gen-user" onclick="closeGenDetailView();switchTab(\'users\');setTimeout(function(){viewUser(\'' + item.userId + '\');},200);">' + escapeHtml(item.userEmail) + '</span></span></div>';
+          html += '<div class="detail-row"><span class="detail-label">User ID</span><span class="detail-value" style="font-family:monospace;font-size:11px;">' + escapeHtml(item.userId) + '</span></div>';
+          html += '</div>';
+        }
+
+        // Generation metadata
+        html += '<div class="detail-section"><h4>Generation</h4>';
+        html += '<div class="detail-row"><span class="detail-label">Model</span><span class="detail-value" style="font-family:monospace;">' + escapeHtml(item.model) + '</span></div>';
+        html += '<div class="detail-row"><span class="detail-label">Prompt Version</span><span class="detail-value">' + escapeHtml(item.promptVersionLabel) + '</span></div>';
+        html += '<div class="detail-row"><span class="detail-label">Theme Version</span><span class="detail-value">' + (item.version || '—') + '</span></div>';
+        html += '<div class="detail-row"><span class="detail-label">Status</span><span class="detail-value">' + (item.is_active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-gray">Inactive</span>') + '</span></div>';
+        html += '<div class="detail-row"><span class="detail-label">Created</span><span class="detail-value">' + formatDate(item.created_at) + '</span></div>';
+        html += '</div>';
+
+        // Cost breakdown
+        html += '<div class="detail-section"><h4>Cost & Performance</h4>';
+        html += '<div class="detail-row"><span class="detail-label">Input Tokens</span><span class="detail-value">' + formatNumber(item.input_tokens || 0) + '</span></div>';
+        html += '<div class="detail-row"><span class="detail-label">Output Tokens</span><span class="detail-value">' + formatNumber(item.output_tokens || 0) + '</span></div>';
+        html += '<div class="detail-row"><span class="detail-label">API Cost</span><span class="detail-value" style="color:var(--mint-fizz);font-weight:700;">$' + (item.cost || 0).toFixed(4) + '</span></div>';
+        if (item.latency_ms) html += '<div class="detail-row"><span class="detail-label">Latency</span><span class="detail-value">' + (item.latency_ms / 1000).toFixed(1) + 's</span></div>';
+        html += '</div>';
+
+        // Admin notes
+        if (item.admin_notes) {
+          html += '<div class="detail-section"><h4>Admin Notes</h4><p style="font-size:13px;color:#555;">' + escapeHtml(item.admin_notes) + '</p></div>';
+        }
+      } else if (source === 'lab') {
+        title.textContent = 'Lab Generation';
+        var etObj = ALL_EVENT_TYPES.find(function(x) { return x.value === item.event_type; });
+
+        // Rating section
+        var score = item.score || 0;
+        html += '<div class="detail-section"><h4>Score</h4>'
+          + '<div style="display:flex;align-items:center;gap:10px;">'
+          + '<div class="star-rating" data-lab-run-id="' + item.id + '" data-detail-modal="true">'
+          + buildStarHtml(score) + '</div>'
+          + '<span class="star-label" id="genDetailStarLabel">' + (score ? STAR_LABELS[score] : 'Not scored') + '</span>'
+          + '</div></div>';
+
+        // Test details
+        html += '<div class="detail-section"><h4>Test Configuration</h4>';
+        html += '<div class="detail-row"><span class="detail-label">Model</span><span class="detail-value" style="font-family:monospace;">' + escapeHtml(item.model) + '</span></div>';
+        if (etObj) html += '<div class="detail-row"><span class="detail-label">Event Type</span><span class="detail-value">' + etObj.label + '</span></div>';
+        html += '<div class="detail-row"><span class="detail-label">Prompt Version</span><span class="detail-value">' + escapeHtml(item.promptVersionLabel || 'Default') + '</span></div>';
+        if (item.test_session_id) html += '<div class="detail-row"><span class="detail-label">Session</span><span class="detail-value" style="font-family:monospace;font-size:11px;">' + escapeHtml(item.test_session_id) + '</span></div>';
+        html += '<div class="detail-row"><span class="detail-label">Created</span><span class="detail-value">' + formatDate(item.created_at) + '</span></div>';
+        if (item.created_by) html += '<div class="detail-row"><span class="detail-label">Created By</span><span class="detail-value">' + escapeHtml(item.created_by) + '</span></div>';
+        html += '</div>';
+
+        // Cost breakdown
+        html += '<div class="detail-section"><h4>Cost & Performance</h4>';
+        html += '<div class="detail-row"><span class="detail-label">Input Tokens</span><span class="detail-value">' + formatNumber(item.input_tokens || 0) + '</span></div>';
+        html += '<div class="detail-row"><span class="detail-label">Output Tokens</span><span class="detail-value">' + formatNumber(item.output_tokens || 0) + '</span></div>';
+        html += '<div class="detail-row"><span class="detail-label">API Cost</span><span class="detail-value" style="color:var(--mint-fizz);font-weight:700;">$' + (item.cost || 0).toFixed(4) + '</span></div>';
+        if (item.latency_ms) html += '<div class="detail-row"><span class="detail-label">Latency</span><span class="detail-value">' + (item.latency_ms / 1000).toFixed(1) + 's</span></div>';
+        html += '</div>';
+
+        // Event details (test input)
+        if (item.event_details && Object.keys(item.event_details).length > 0) {
+          html += '<div class="detail-section"><h4>Event Details (Test Input)</h4>';
+          Object.entries(item.event_details).forEach(function(pair) {
+            html += '<div class="detail-row"><span class="detail-label">' + escapeHtml(pair[0]) + '</span><span class="detail-value">' + escapeHtml(String(pair[1])) + '</span></div>';
+          });
+          html += '</div>';
+        }
+
+        // Style references
+        if (item.style_library_ids && item.style_library_ids.length > 0) {
+          var refNames = item.style_library_ids.map(function(sid) {
+            var s = styleLibrary.find(function(x) { return x.id === sid; });
+            return s ? s.name : sid.substring(0, 8) + '...';
+          });
+          html += '<div class="detail-section"><h4>Style References</h4><div style="display:flex;flex-wrap:wrap;gap:4px;">'
+            + refNames.map(function(n) { return '<span class="style-tag">' + escapeHtml(n) + '</span>'; }).join('')
+            + '</div></div>';
+        }
+
+        // Notes
+        if (item.notes) {
+          html += '<div class="detail-section"><h4>Notes</h4><p style="font-size:13px;color:#555;">' + escapeHtml(item.notes) + '</p></div>';
+        }
+      }
+
+      info.innerHTML = html;
+      overlay.classList.add('open');
+
+      // Render preview — combine CSS + HTML like the Prompt Lab does
+      requestAnimationFrame(function() {
+        var iframe = document.getElementById('genDetailPreviewFrame');
+        var screen = iframe.closest('.phone-screen');
+        if (screen) iframe.style.transform = 'scale(' + (screen.offsetWidth / 393) + ')';
+        var css, html, config;
+        if (source === 'user') {
+          css = item.css || '';
+          html = item.html || '';
+          config = item.config;
+        } else {
+          css = item.result_css || '';
+          html = item.result_html || '';
+          config = item.result_config;
+        }
+        var fontsImport = (config && config.googleFontsImport) || '';
+        var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+          + '<style>' + fontsImport + '</style>'
+          + '<style>' + css + '</style></head><body>' + html + '</body></html>';
+        iframe.srcdoc = fullHtml;
+      });
+    }
+
+    function closeGenDetailView() {
+      document.getElementById('genDetailOverlay').classList.remove('open');
+    }
+
+    // ── Star click handler for theme ratings (delegated) ──
+    // Extend the existing star click handler to support data-theme-id and data-lab-run-id
+    document.addEventListener('click', function(e) {
+      var star = e.target.closest('.star-rating .star');
+      if (!star) return;
+      var ratingEl = star.closest('.star-rating');
+      var score = parseInt(star.dataset.score);
+      if (isNaN(score)) return;
+
+      // Theme rating
+      var themeId = ratingEl.dataset.themeId;
+      if (themeId) {
+        // Update visual
+        ratingEl.querySelectorAll('.star').forEach(function(s) {
+          s.classList.toggle('filled', parseInt(s.dataset.score) <= score);
+        });
+        // Update label
+        var gridLabel = document.getElementById('themeStarLabel_' + themeId);
+        if (gridLabel) gridLabel.textContent = STAR_LABELS[score] || '';
+        if (ratingEl.dataset.detailModal) {
+          var detailLabel = document.getElementById('genDetailStarLabel');
+          if (detailLabel) detailLabel.textContent = STAR_LABELS[score] || '';
+        }
+        // Update local data
+        var theme = userGenerations.find(function(t) { return t.id === themeId; });
+        if (theme) {
+          theme.admin_rating = score;
+          theme.rated_by = (user && user.email) || '';
+        }
+        // Save to API
+        adminFetch('rateTheme', { method: 'POST', body: { themeId: themeId, rating: score } }).then(function() {
+          ratingEl.classList.add('locked');
+          if (ratingEl.dataset.detailModal) {
+            var dl = document.getElementById('genDetailStarLabel');
+            if (dl) dl.textContent = STAR_LABELS[score] + ' (yours)';
+          }
+        }).catch(function(err) { console.error('Failed to rate theme:', err); });
+        return;
+      }
+
+      // Lab run rating
+      var labRunId = ratingEl.dataset.labRunId;
+      if (labRunId) {
+        ratingEl.querySelectorAll('.star').forEach(function(s) {
+          s.classList.toggle('filled', parseInt(s.dataset.score) <= score);
+        });
+        var gridLabel = document.getElementById('labStarLabel_' + labRunId);
+        if (gridLabel) gridLabel.textContent = STAR_LABELS[score] || '';
+        if (ratingEl.dataset.detailModal) {
+          var detailLabel = document.getElementById('genDetailStarLabel');
+          if (detailLabel) detailLabel.textContent = STAR_LABELS[score] || '';
+        }
+        adminFetch('updateTestRunScore', { method: 'POST', body: { testRunId: labRunId, score: score } }).catch(function(err) { console.error('Failed to rate lab run:', err); });
+        return;
+      }
+    });
+
+    // Hook into existing loadStyleLibrary to update archive counts
+    var _origLoadStyleLibrary = loadStyleLibrary;
+    loadStyleLibrary = async function() {
+      await _origLoadStyleLibrary();
+      try { updateArchiveCounts(); } catch (e) { /* ignore */ }
+    };
   </script>
   <div class="bulk-progress" id="bulkProgress" style="display:none;"></div>
   <!-- Style Detail View Overlay -->
@@ -4952,6 +5747,27 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           </div>
         </div>
       </div>
+    </div>
+  </div>
+  <!-- Generation Detail Overlay (Lab + User) -->
+  <div class="gen-detail-overlay" id="genDetailOverlay">
+    <div class="gen-detail-header">
+      <h2 id="genDetailTitle">Generation Details</h2>
+      <button class="style-detail-back" onclick="closeGenDetailView()">Back</button>
+    </div>
+    <div class="gen-detail-body">
+      <div>
+        <div class="phone-mockup">
+          <div class="phone-frame">
+            <div class="phone-notch"></div>
+            <div class="phone-screen">
+              <iframe id="genDetailPreviewFrame" sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
+            </div>
+            <div class="phone-home-bar"></div>
+          </div>
+        </div>
+      </div>
+      <div class="gen-detail-info" id="genDetailInfo"></div>
     </div>
   </div>
 </body>
