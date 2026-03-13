@@ -6,8 +6,9 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const BUCKET = 'event-photos';
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+const DEFAULT_BUCKET = 'event-photos';
+const ALLOWED_BUCKETS = ['event-photos', 'blog-images'];
+const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -29,20 +30,23 @@ export default async function handler(req, res) {
   if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
 
   try {
-    const { base64, eventId, filename } = req.body || {};
+    const { base64, eventId, filename, bucket: requestedBucket } = req.body || {};
     if (!base64) return res.status(400).json({ error: 'Missing base64 image data' });
+
+    // Select bucket
+    const bucket = ALLOWED_BUCKETS.includes(requestedBucket) ? requestedBucket : DEFAULT_BUCKET;
 
     // Decode and validate size
     const buffer = Buffer.from(base64, 'base64');
     if (buffer.length > MAX_SIZE) {
-      return res.status(413).json({ error: 'Image too large (max 5MB)' });
+      return res.status(413).json({ error: 'Image too large (max 10MB)' });
     }
 
     // Ensure bucket exists (will silently fail if already exists)
-    await supabase.storage.createBucket(BUCKET, {
+    await supabase.storage.createBucket(bucket, {
       public: true,
       fileSizeLimit: MAX_SIZE,
-      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp']
+      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
     }).catch(() => {});
 
     // Upload with unique path
@@ -50,7 +54,7 @@ export default async function handler(req, res) {
     const path = `${user.id}/${eventId || 'general'}/${randomUUID()}.${ext}`;
 
     const { data, error } = await supabase.storage
-      .from(BUCKET)
+      .from(bucket)
       .upload(path, buffer, {
         contentType: 'image/jpeg',
         upsert: false
@@ -62,7 +66,7 @@ export default async function handler(req, res) {
     }
 
     // Get public URL
-    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
     const publicUrl = urlData?.publicUrl;
 
     if (!publicUrl) {

@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ryvite Blog</title>
+<meta name="description" content="Event planning tips, inspiration, and product updates from Ryvite.">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Ryvite Blog — Event Planning Tips & Inspiration">
+<meta property="og:description" content="Event planning tips, inspiration, and product updates from Ryvite.">
+<meta property="og:image" content="https://www.ryvite.com/og-default.png">
+<meta property="og:url" content="https://www.ryvite.com/blog">
+<meta property="og:site_name" content="Ryvite">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Ryvite Blog — Event Planning Tips & Inspiration">
+<meta name="twitter:description" content="Event planning tips, inspiration, and product updates from Ryvite.">
+
+<link rel="alternate" type="application/rss+xml" title="Ryvite Blog RSS" href="/blog/feed.xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Breadcrumb JSON-LD -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Ryvite Blog",
+  "description": "Event planning tips, inspiration, and product updates from Ryvite.",
+  "url": "https://www.ryvite.com/blog",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ryvite",
+    "logo": { "@type": "ImageObject", "url": "https://www.ryvite.com/og-default.png" }
+  }
+}
+</script>
+
+<style>
+:root {
+  --party-coral: #E94560;
+  --blush-pop: #FF6B6B;
+  --midnight: #1A1A2E;
+  --confetti-gold: #FFB74D;
+  --mint-fizz: #4ECDC4;
+  --party-purple: #A78BFA;
+  --cream: #FFFAF5;
+  --slate: #6B7280;
+  --slate-light: #D1D5DB;
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Inter', sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--font-body); color: var(--midnight); background: #fff; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+h1,h2,h3,h4 { font-family: var(--font-display); font-weight: 600; line-height: 1.2; }
+a { color: inherit; text-decoration: none; }
+
+/* Nav */
+.nav { background: var(--midnight); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.nav-logo { display: flex; align-items: center; color: #fff; font-family: var(--font-display); font-size: 1.4rem; font-weight: 700; }
+.nav-logo img { height: 36px; margin-right: 8px; }
+.nav-links { display: flex; gap: 24px; align-items: center; }
+.nav-links a { color: rgba(255,255,255,0.8); font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover, .nav-links a.active { color: #fff; }
+.nav-cta { padding: 8px 20px; background: linear-gradient(135deg, var(--party-coral), var(--blush-pop)); color: #fff; border: none; border-radius: 50px; font-family: var(--font-body); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+.nav-cta:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(233,69,96,0.3); }
+
+/* Hero */
+.blog-hero { background: linear-gradient(135deg, var(--midnight) 0%, #0f3460 100%); color: #fff; padding: 80px 24px 60px; text-align: center; }
+.blog-hero h1 { font-size: 2.8rem; margin-bottom: 12px; }
+.blog-hero p { font-size: 1.1rem; opacity: 0.8; max-width: 500px; margin: 0 auto 32px; }
+.search-box { max-width: 480px; margin: 0 auto; position: relative; }
+.search-box input { width: 100%; padding: 14px 20px 14px 48px; border: none; border-radius: 50px; font-size: 1rem; font-family: var(--font-body); background: rgba(255,255,255,0.12); color: #fff; outline: none; transition: background 0.2s; }
+.search-box input::placeholder { color: rgba(255,255,255,0.5); }
+.search-box input:focus { background: rgba(255,255,255,0.2); }
+.search-box svg { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; fill: none; stroke: rgba(255,255,255,0.5); stroke-width: 2; }
+
+/* Categories */
+.category-bar { padding: 16px 24px; border-bottom: 1px solid #f0f0f0; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+.category-bar::-webkit-scrollbar { display: none; }
+.cat-pill { display: inline-block; padding: 8px 18px; margin-right: 8px; border-radius: 50px; font-size: 0.85rem; font-weight: 500; border: 1px solid #e2e8f0; color: var(--slate); cursor: pointer; transition: all 0.2s; background: #fff; }
+.cat-pill:hover { border-color: var(--party-coral); color: var(--party-coral); }
+.cat-pill.active { background: var(--party-coral); color: #fff; border-color: var(--party-coral); }
+
+/* Page info */
+.page-info-bar { padding: 12px 24px; max-width: 1200px; margin: 0 auto; }
+.page-info-bar h2 { font-size: 1.3rem; color: var(--midnight); }
+.page-info-bar p { font-size: 0.9rem; color: var(--slate); }
+
+/* Featured */
+.featured-section { max-width: 1200px; margin: 0 auto; padding: 32px 24px 0; }
+.featured-card { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; background: var(--cream); border-radius: 16px; overflow: hidden; cursor: pointer; transition: box-shadow 0.3s; }
+.featured-card:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
+.featured-card-img { width: 100%; height: 100%; min-height: 300px; object-fit: cover; }
+.featured-card-img-placeholder { width: 100%; min-height: 300px; background: linear-gradient(135deg, var(--party-coral), var(--party-purple)); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 3rem; font-family: var(--font-display); }
+.featured-card-body { padding: 40px 32px; display: flex; flex-direction: column; justify-content: center; }
+.featured-badge { display: inline-block; padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; background: var(--party-coral); color: #fff; margin-bottom: 12px; width: fit-content; }
+.featured-card-body h2 { font-size: 1.8rem; margin-bottom: 12px; }
+.featured-card-body .excerpt { color: var(--slate); font-size: 0.95rem; line-height: 1.7; margin-bottom: 16px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.featured-card-body .meta { font-size: 0.8rem; color: var(--slate-light); }
+
+/* Blog grid */
+.blog-grid-section { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+.blog-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+
+/* Blog card */
+.blog-card { background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #f0f0f0; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+.blog-card:hover { transform: translateY(-4px); box-shadow: 0 8px 25px rgba(0,0,0,0.06); }
+.blog-card-img { width: 100%; height: 200px; object-fit: cover; }
+.blog-card-img-placeholder { width: 100%; height: 200px; background: linear-gradient(135deg, #e0e7ff, #c7d2fe); display: flex; align-items: center; justify-content: center; }
+.blog-card-img-placeholder span { font-size: 2rem; opacity: 0.3; }
+.blog-card-body { padding: 20px; }
+.blog-card-category { display: inline-block; padding: 3px 10px; border-radius: 50px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; background: #f0f4ff; color: #6366f1; margin-bottom: 10px; }
+.blog-card-body h3 { font-size: 1.1rem; margin-bottom: 8px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.blog-card-body .excerpt { font-size: 0.85rem; color: var(--slate); line-height: 1.6; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.blog-card-body .meta { font-size: 0.75rem; color: var(--slate-light); display: flex; align-items: center; gap: 4px; }
+.blog-card-body .meta .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--slate-light); }
+
+/* Pagination */
+.pagination { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 24px; }
+.pagination button { padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; font-family: var(--font-body); font-size: 0.85rem; cursor: pointer; color: var(--midnight); transition: all 0.2s; }
+.pagination button:hover { border-color: var(--party-coral); color: var(--party-coral); }
+.pagination button.active { background: var(--party-coral); color: #fff; border-color: var(--party-coral); }
+.pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+.pagination .page-info { font-size: 0.85rem; color: var(--slate); }
+
+/* Newsletter */
+.newsletter { max-width: 1200px; margin: 0 auto; padding: 48px 24px; }
+.newsletter-card { background: linear-gradient(135deg, var(--midnight) 0%, #0f3460 100%); border-radius: 16px; padding: 48px 40px; text-align: center; color: #fff; }
+.newsletter-card h3 { font-size: 1.6rem; margin-bottom: 8px; }
+.newsletter-card p { opacity: 0.8; margin-bottom: 24px; }
+.newsletter-form { display: flex; gap: 8px; max-width: 420px; margin: 0 auto; }
+.newsletter-form input { flex: 1; padding: 12px 20px; border: none; border-radius: 50px; font-size: 0.9rem; font-family: var(--font-body); }
+.newsletter-form button { padding: 12px 28px; background: var(--party-coral); color: #fff; border: none; border-radius: 50px; font-weight: 600; cursor: pointer; font-family: var(--font-body); transition: transform 0.2s; }
+.newsletter-form button:hover { transform: translateY(-1px); }
+
+/* Footer */
+.blog-footer { background: var(--cream); padding: 32px 24px; text-align: center; border-top: 1px solid #f0f0f0; }
+.blog-footer a { color: var(--party-coral); font-weight: 500; margin: 0 12px; font-size: 0.85rem; }
+.blog-footer p { color: var(--slate); font-size: 0.8rem; margin-top: 12px; }
+
+/* Loading */
+.loading-state { text-align: center; padding: 60px 24px; color: var(--slate); }
+
+/* No results */
+.no-results { text-align: center; padding: 60px 24px; }
+.no-results h3 { font-size: 1.3rem; margin-bottom: 8px; }
+.no-results p { color: var(--slate); }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .blog-grid { grid-template-columns: repeat(2, 1fr); }
+  .featured-card { grid-template-columns: 1fr; }
+  .featured-card-body { padding: 24px; }
+  .blog-hero h1 { font-size: 2.2rem; }
+}
+@media (max-width: 600px) {
+  .blog-grid { grid-template-columns: 1fr; }
+  .blog-hero { padding: 60px 16px 40px; }
+  .blog-hero h1 { font-size: 1.8rem; }
+  .nav { padding: 12px 16px; }
+  .nav-links { gap: 12px; }
+  .nav-links a { font-size: 0.8rem; }
+  .featured-card-body h2 { font-size: 1.4rem; }
+  .newsletter-form { flex-direction: column; }
+}
+
+/* Focus styles for accessibility */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--party-coral);
+  outline-offset: 2px;
+}
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav" role="navigation" aria-label="Main navigation">
+  <a href="/" class="nav-logo" aria-label="Ryvite home">
+    <span>Ryvite</span>
+  </a>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/blog" class="active" aria-current="page">Blog</a>
+    <a href="/v2/create/" class="nav-cta">Create Event</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<header class="blog-hero">
+  <h1 id="pageTitle">Ryvite Blog</h1>
+  <p id="pageSubtitle">Event planning tips, inspiration, and product updates.</p>
+  <div class="search-box">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="search" id="searchInput" placeholder="Search articles..." aria-label="Search blog posts" autocomplete="off">
+  </div>
+</header>
+
+<!-- Category filter -->
+<div class="category-bar" role="navigation" aria-label="Category filter" id="categoryBar">
+  <button class="cat-pill active" data-category="" onclick="filterByCategory('')">All</button>
+</div>
+
+<!-- Page info (for category/tag/author pages) -->
+<div class="page-info-bar" id="pageInfoBar" style="display:none;"></div>
+
+<!-- Featured -->
+<section class="featured-section" id="featuredSection" style="display:none;" aria-label="Featured post"></section>
+
+<!-- Blog grid -->
+<section class="blog-grid-section" aria-label="Blog posts">
+  <div class="blog-grid" id="blogGrid">
+    <div class="loading-state" style="grid-column:1/-1;">Loading posts...</div>
+  </div>
+</section>
+
+<!-- Pagination -->
+<div class="pagination" id="pagination"></div>
+
+<!-- Newsletter -->
+<section class="newsletter" aria-label="Newsletter signup">
+  <div class="newsletter-card">
+    <h3>Stay in the loop</h3>
+    <p>Get event planning tips and Ryvite updates delivered to your inbox.</p>
+    <form class="newsletter-form" onsubmit="event.preventDefault();subscribeNewsletter()">
+      <input type="email" id="newsletterEmail" placeholder="your@email.com" required aria-label="Email address">
+      <button type="submit">Subscribe</button>
+    </form>
+    <div id="newsletterMsg" style="margin-top:12px;font-size:0.85rem;"></div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="blog-footer">
+  <div>
+    <a href="/">Home</a>
+    <a href="/blog">Blog</a>
+    <a href="/blog/feed.xml">RSS</a>
+    <a href="/v2/create/">Create Event</a>
+  </div>
+  <p>&copy; 2026 Ryvite. All rights reserved.</p>
+</footer>
+
+<script>
+(function() {
+  var API = '/api/v2/blog';
+  var currentPage = 1;
+  var currentCategory = '';
+  var currentTag = '';
+  var currentAuthor = '';
+  var searchTimeout = null;
+
+  // Detect page type from URL
+  var path = window.location.pathname;
+  var pageType = 'listing'; // default
+  var pageSlug = '';
+
+  if (path.match(/^\/blog\/category\/([^/]+)/)) {
+    pageType = 'category';
+    pageSlug = path.match(/^\/blog\/category\/([^/]+)/)[1];
+    currentCategory = pageSlug;
+  } else if (path.match(/^\/blog\/tag\/([^/]+)/)) {
+    pageType = 'tag';
+    pageSlug = decodeURIComponent(path.match(/^\/blog\/tag\/([^/]+)/)[1]);
+    currentTag = pageSlug;
+  } else if (path.match(/^\/blog\/author\/([^/]+)/)) {
+    pageType = 'author';
+    pageSlug = path.match(/^\/blog\/author\/([^/]+)/)[1];
+    currentAuthor = pageSlug;
+  }
+
+  // Set page title/subtitle for filtered views
+  if (pageType === 'tag') {
+    var tagName = pageSlug.replace(/-/g, ' ');
+    document.getElementById('pageTitle').textContent = 'Posts tagged "' + tagName + '"';
+    document.getElementById('pageSubtitle').textContent = '';
+    document.getElementById('pageInfoBar').style.display = 'block';
+    document.getElementById('pageInfoBar').innerHTML = '<p><a href="/blog" style="color:var(--party-coral);">&larr; All posts</a></p>';
+  } else if (pageType === 'author') {
+    var authorName = pageSlug.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+    document.getElementById('pageTitle').textContent = 'Posts by ' + authorName;
+    document.getElementById('pageSubtitle').textContent = '';
+    document.getElementById('pageInfoBar').style.display = 'block';
+    document.getElementById('pageInfoBar').innerHTML = '<p><a href="/blog" style="color:var(--party-coral);">&larr; All posts</a></p>';
+  }
+
+  // Load categories
+  fetch(API + '?action=getAllCategories').then(function(r) { return r.json(); }).then(function(res) {
+    if (!res.success) return;
+    var bar = document.getElementById('categoryBar');
+    (res.categories || []).forEach(function(c) {
+      var btn = document.createElement('button');
+      btn.className = 'cat-pill' + (currentCategory === c.slug ? ' active' : '');
+      btn.setAttribute('data-category', c.slug);
+      btn.textContent = c.name;
+      btn.onclick = function() { filterByCategory(c.slug); };
+      bar.appendChild(btn);
+    });
+
+    // Highlight active category
+    if (currentCategory) {
+      bar.querySelector('.cat-pill[data-category=""]').classList.remove('active');
+    }
+
+    // Update page title for category pages
+    if (pageType === 'category') {
+      var activeCat = (res.categories || []).find(function(c) { return c.slug === pageSlug; });
+      if (activeCat) {
+        document.getElementById('pageTitle').textContent = activeCat.name + ' Articles';
+      }
+      document.getElementById('pageSubtitle').textContent = '';
+      document.getElementById('pageInfoBar').style.display = 'block';
+      document.getElementById('pageInfoBar').innerHTML = '<p><a href="/blog" style="color:var(--party-coral);">&larr; All posts</a></p>';
+    }
+  });
+
+  // Load featured posts (only on main listing page 1)
+  if (pageType === 'listing') {
+    fetch(API + '?action=getFeatured').then(function(r) { return r.json(); }).then(function(res) {
+      if (!res.success || !res.posts || res.posts.length === 0) return;
+      var p = res.posts[0];
+      var section = document.getElementById('featuredSection');
+      section.style.display = 'block';
+
+      var imgHtml = p.featured_image && p.featured_image.src
+        ? '<img class="featured-card-img" src="' + escapeHtml(p.featured_image.src) + '" alt="' + escapeHtml(p.featured_image.alt || p.title) + '" loading="lazy">'
+        : '<div class="featured-card-img-placeholder">R</div>';
+
+      var readTime = calcReadingTime(p.excerpt || '');
+
+      section.innerHTML = '<a href="/blog/' + escapeHtml(p.slug) + '" class="featured-card" aria-label="Featured: ' + escapeHtml(p.title) + '">'
+        + imgHtml
+        + '<div class="featured-card-body">'
+        + '<span class="featured-badge">Featured</span>'
+        + '<h2>' + escapeHtml(p.title) + '</h2>'
+        + '<p class="excerpt">' + escapeHtml(p.excerpt || '') + '</p>'
+        + '<div class="meta">' + formatAuthor(p.author_slug) + ' &middot; ' + formatDate(p.published_date) + ' &middot; ' + readTime + ' min read</div>'
+        + '</div>'
+        + '</a>';
+    });
+  }
+
+  // Search
+  document.getElementById('searchInput').addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    var val = this.value;
+    searchTimeout = setTimeout(function() {
+      currentPage = 1;
+      loadPosts();
+    }, 400);
+  });
+
+  function filterByCategory(slug) {
+    currentCategory = slug;
+    currentPage = 1;
+    document.querySelectorAll('.cat-pill').forEach(function(el) {
+      el.classList.toggle('active', el.getAttribute('data-category') === slug);
+    });
+    loadPosts();
+
+    // Update URL without reload (for better UX)
+    if (slug) {
+      history.replaceState(null, '', '/blog/category/' + slug);
+    } else if (pageType === 'category') {
+      history.replaceState(null, '', '/blog');
+    }
+  }
+  window.filterByCategory = filterByCategory;
+
+  function loadPosts() {
+    var search = document.getElementById('searchInput').value;
+    var params = 'action=listPublished&page=' + currentPage + '&limit=12';
+    if (search) params += '&search=' + encodeURIComponent(search);
+    if (currentCategory) params += '&category=' + encodeURIComponent(currentCategory);
+    if (currentTag) params += '&tag=' + encodeURIComponent(currentTag);
+    if (currentAuthor) params += '&author=' + encodeURIComponent(currentAuthor);
+
+    var grid = document.getElementById('blogGrid');
+    grid.innerHTML = '<div class="loading-state" style="grid-column:1/-1;">Loading posts...</div>';
+
+    fetch(API + '?' + params).then(function(r) { return r.json(); }).then(function(res) {
+      if (!res.success) {
+        grid.innerHTML = '<div class="no-results" style="grid-column:1/-1;"><h3>Error loading posts</h3><p>' + escapeHtml(res.error || 'Unknown error') + '</p></div>';
+        return;
+      }
+
+      if (!res.posts || res.posts.length === 0) {
+        grid.innerHTML = '<div class="no-results" style="grid-column:1/-1;"><h3>No posts found</h3><p>Try a different search or category.</p></div>';
+        document.getElementById('pagination').innerHTML = '';
+        return;
+      }
+
+      grid.innerHTML = '';
+      res.posts.forEach(function(p) {
+        var card = document.createElement('a');
+        card.href = '/blog/' + p.slug;
+        card.className = 'blog-card';
+        card.setAttribute('aria-label', p.title);
+
+        var imgHtml = p.featured_image && p.featured_image.src
+          ? '<img class="blog-card-img" src="' + escapeHtml(p.featured_image.src) + '" alt="' + escapeHtml(p.featured_image.alt || p.title) + '" loading="lazy">'
+          : '<div class="blog-card-img-placeholder"><span>R</span></div>';
+
+        var readTime = p.readingTime || calcReadingTime(p.excerpt || '');
+
+        card.innerHTML = imgHtml
+          + '<div class="blog-card-body">'
+          + '<span class="blog-card-category">' + escapeHtml(p.category || 'General') + '</span>'
+          + '<h3>' + escapeHtml(p.title) + '</h3>'
+          + '<p class="excerpt">' + escapeHtml(p.excerpt || '') + '</p>'
+          + '<div class="meta">' + formatAuthor(p.author_slug) + '<span class="dot"></span>' + formatDate(p.published_date) + '<span class="dot"></span>' + readTime + ' min read</div>'
+          + '</div>';
+
+        grid.appendChild(card);
+      });
+
+      // Pagination
+      renderPagination(res.pagination);
+    }).catch(function(err) {
+      grid.innerHTML = '<div class="no-results" style="grid-column:1/-1;"><h3>Error loading posts</h3><p>' + err.message + '</p></div>';
+    });
+  }
+
+  function renderPagination(pag) {
+    var container = document.getElementById('pagination');
+    container.innerHTML = '';
+    if (!pag || pag.totalPages <= 1) return;
+
+    // Previous
+    var prev = document.createElement('button');
+    prev.textContent = 'Previous';
+    prev.disabled = pag.page <= 1;
+    prev.onclick = function() { currentPage = pag.page - 1; loadPosts(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+    container.appendChild(prev);
+
+    // Page numbers
+    var startPage = Math.max(1, pag.page - 2);
+    var endPage = Math.min(pag.totalPages, pag.page + 2);
+    for (var i = startPage; i <= endPage; i++) {
+      var btn = document.createElement('button');
+      btn.textContent = i;
+      btn.className = i === pag.page ? 'active' : '';
+      btn.onclick = (function(pageNum) {
+        return function() { currentPage = pageNum; loadPosts(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+      })(i);
+      container.appendChild(btn);
+    }
+
+    // Next
+    var next = document.createElement('button');
+    next.textContent = 'Next';
+    next.disabled = pag.page >= pag.totalPages;
+    next.onclick = function() { currentPage = pag.page + 1; loadPosts(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+    container.appendChild(next);
+  }
+
+  // Helpers
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '';
+    try {
+      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch (e) { return ''; }
+  }
+
+  function formatAuthor(slug) {
+    if (!slug) return 'Ryvite Team';
+    return slug.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+  }
+
+  function calcReadingTime(text) {
+    var cleaned = (text || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    return Math.max(1, Math.ceil(cleaned.split(' ').length / 225));
+  }
+
+  function subscribeNewsletter() {
+    var email = document.getElementById('newsletterEmail').value;
+    var msg = document.getElementById('newsletterMsg');
+    if (!email) return;
+    msg.textContent = 'Thanks for subscribing!';
+    msg.style.color = '#4ECDC4';
+    document.getElementById('newsletterEmail').value = '';
+  }
+  window.subscribeNewsletter = subscribeNewsletter;
+
+  // Initial load
+  loadPosts();
+})();
+</script>
+</body>
+</html>

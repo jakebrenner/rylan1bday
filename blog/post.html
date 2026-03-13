@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blog Post — Ryvite</title>
+<meta name="description" content="Read this post on the Ryvite Blog.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --party-coral: #E94560;
+  --blush-pop: #FF6B6B;
+  --midnight: #1A1A2E;
+  --confetti-gold: #FFB74D;
+  --mint-fizz: #4ECDC4;
+  --party-purple: #A78BFA;
+  --cream: #FFFAF5;
+  --slate: #6B7280;
+  --slate-light: #D1D5DB;
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Inter', sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--font-body); color: var(--midnight); background: #fff; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-height: 1.2; }
+a { color: var(--party-coral); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Reading progress bar */
+.progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: var(--party-coral); z-index: 200; width: 0; transition: width 0.1s linear; }
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar { transition: none; }
+}
+
+/* Draft preview banner */
+.draft-banner { background: #fef3cd; color: #856404; padding: 10px 24px; font-size: 0.85rem; font-weight: 600; text-align: center; }
+
+/* Nav */
+.nav { background: var(--midnight); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.nav-logo { display: flex; align-items: center; color: #fff; font-family: var(--font-display); font-size: 1.4rem; font-weight: 700; text-decoration: none; }
+.nav-links { display: flex; gap: 24px; align-items: center; }
+.nav-links a { color: rgba(255,255,255,0.8); font-size: 0.9rem; font-weight: 500; transition: color 0.2s; text-decoration: none; }
+.nav-links a:hover { color: #fff; text-decoration: none; }
+.nav-cta { padding: 8px 20px; background: linear-gradient(135deg, var(--party-coral), var(--blush-pop)); color: #fff; border: none; border-radius: 50px; font-family: var(--font-body); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: transform 0.2s; text-decoration: none; }
+.nav-cta:hover { transform: translateY(-1px); text-decoration: none; }
+
+/* Breadcrumbs */
+.breadcrumbs { max-width: 900px; margin: 0 auto; padding: 16px 24px; font-size: 0.8rem; color: var(--slate); }
+.breadcrumbs a { color: var(--slate); }
+.breadcrumbs a:hover { color: var(--party-coral); }
+.breadcrumbs span { margin: 0 6px; }
+
+/* Post header */
+.post-header { max-width: 800px; margin: 0 auto; padding: 32px 24px 24px; }
+.post-header .category-badge { display: inline-block; padding: 4px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; background: #f0f4ff; color: #6366f1; margin-bottom: 16px; text-decoration: none; }
+.post-header .category-badge:hover { background: #e0e7ff; text-decoration: none; }
+.post-header .post-meta { font-size: 0.85rem; color: var(--slate); margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.post-header .post-meta .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--slate-light); display: inline-block; }
+.post-header h1 { font-size: 2.6rem; line-height: 1.15; margin-bottom: 16px; }
+.post-header .post-excerpt { font-size: 1.15rem; color: var(--slate); line-height: 1.7; margin-bottom: 16px; }
+.post-header .author-line { font-size: 0.9rem; color: var(--midnight); font-weight: 500; margin-bottom: 12px; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.post-tags a { display: inline-block; padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; border: 1px solid #e2e8f0; color: var(--slate); transition: all 0.2s; text-decoration: none; }
+.post-tags a:hover { border-color: var(--party-coral); color: var(--party-coral); text-decoration: none; }
+
+/* Featured image */
+.post-featured-image { max-width: 900px; margin: 0 auto 32px; padding: 0 24px; }
+.post-featured-image img { width: 100%; border-radius: 12px; }
+.post-featured-image figcaption { font-size: 0.8rem; color: var(--slate); text-align: center; margin-top: 8px; font-style: italic; }
+
+/* Content layout */
+.content-wrapper { max-width: 1100px; margin: 0 auto; padding: 0 24px; display: grid; grid-template-columns: 220px 1fr; gap: 48px; }
+
+/* Table of contents */
+.toc { position: sticky; top: 80px; max-height: calc(100vh - 100px); overflow-y: auto; padding-right: 16px; }
+.toc h4 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--slate-light); margin-bottom: 12px; font-family: var(--font-body); font-weight: 600; }
+.toc-list { list-style: none; }
+.toc-list li { margin-bottom: 6px; }
+.toc-list a { font-size: 0.82rem; color: var(--slate); line-height: 1.4; display: block; padding: 4px 0 4px 12px; border-left: 2px solid transparent; transition: all 0.2s; text-decoration: none; }
+.toc-list a:hover { color: var(--midnight); text-decoration: none; }
+.toc-list a.active { color: var(--party-coral); border-left-color: var(--party-coral); font-weight: 500; }
+.toc-list .toc-h3 { padding-left: 24px; font-size: 0.78rem; }
+
+/* Post content (prose) */
+.post-content { max-width: 700px; font-size: 1.05rem; line-height: 1.75; }
+.post-content h2 { font-size: 1.6rem; margin: 2em 0 0.8em; padding-top: 0.5em; }
+.post-content h3 { font-size: 1.25rem; margin: 1.5em 0 0.6em; }
+.post-content h4 { font-size: 1.05rem; margin: 1.2em 0 0.5em; }
+.post-content p { margin-bottom: 1.2em; }
+.post-content img { max-width: 100%; border-radius: 8px; margin: 1.5em 0; }
+.post-content ul, .post-content ol { margin-bottom: 1.2em; padding-left: 1.5em; }
+.post-content li { margin-bottom: 0.4em; }
+.post-content blockquote { border-left: 3px solid var(--party-coral); padding: 12px 20px; margin: 1.5em 0; background: var(--cream); border-radius: 0 8px 8px 0; font-style: italic; color: var(--slate); }
+.post-content pre { background: var(--midnight); color: #e2e8f0; padding: 20px; border-radius: 8px; overflow-x: auto; margin: 1.5em 0; font-size: 0.9rem; line-height: 1.5; }
+.post-content code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+.post-content pre code { background: none; padding: 0; }
+.post-content a { color: var(--party-coral); font-weight: 500; }
+.post-content table { width: 100%; border-collapse: collapse; margin: 1.5em 0; }
+.post-content table th, .post-content table td { padding: 10px 14px; border: 1px solid #e2e8f0; text-align: left; font-size: 0.9rem; }
+.post-content table th { background: #f8fafc; font-weight: 600; }
+
+/* Callout boxes */
+.post-content .callout { padding: 16px 20px; border-radius: 8px; margin: 1.5em 0; border-left: 4px solid; }
+.post-content .callout-tip { background: #ecfdf5; border-left-color: var(--mint-fizz); }
+.post-content .callout-warning { background: #fffbeb; border-left-color: var(--confetti-gold); }
+.post-content .callout-info { background: #eff6ff; border-left-color: #3b82f6; }
+
+/* FAQ accordion */
+.post-content details { border: 1px solid #e2e8f0; border-radius: 8px; margin: 1em 0; }
+.post-content details summary { padding: 12px 16px; cursor: pointer; font-weight: 500; }
+.post-content details[open] summary { border-bottom: 1px solid #e2e8f0; }
+.post-content details > *:not(summary) { padding: 0 16px 12px; }
+
+/* Video embeds */
+.post-content .video-embed { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px; margin: 1.5em 0; }
+.post-content .video-embed iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+
+/* Reviewed badge */
+.reviewed-badge { max-width: 700px; margin: 32px auto; padding: 12px 20px; background: #ecfdf5; border-radius: 8px; font-size: 0.85rem; color: #065f46; display: flex; align-items: center; gap: 8px; }
+.reviewed-badge svg { width: 18px; height: 18px; fill: none; stroke: #10b981; stroke-width: 2; }
+
+/* Social sharing */
+.share-section { max-width: 700px; margin: 32px auto; padding: 24px 0; border-top: 1px solid #f0f0f0; }
+.share-section h4 { font-size: 0.85rem; color: var(--slate); margin-bottom: 12px; font-family: var(--font-body); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.share-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.share-btn { padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 50px; font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: all 0.2s; background: #fff; color: var(--midnight); font-family: var(--font-body); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.share-btn:hover { border-color: var(--party-coral); color: var(--party-coral); text-decoration: none; }
+
+/* Author card */
+.author-card { max-width: 700px; margin: 32px auto; padding: 24px; background: var(--cream); border-radius: 12px; display: flex; gap: 20px; align-items: flex-start; }
+.author-avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--party-coral); color: #fff; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 1.4rem; font-weight: 700; flex-shrink: 0; }
+.author-info h4 { margin-bottom: 4px; }
+.author-info p { font-size: 0.85rem; color: var(--slate); line-height: 1.5; }
+.author-info a { font-size: 0.85rem; }
+
+/* Related posts */
+.related-section { max-width: 900px; margin: 48px auto; padding: 0 24px; }
+.related-section h3 { font-size: 1.3rem; margin-bottom: 20px; }
+.related-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.related-card { background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #f0f0f0; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; text-decoration: none; color: inherit; }
+.related-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.06); text-decoration: none; }
+.related-card-img { width: 100%; height: 160px; object-fit: cover; }
+.related-card-img-placeholder { width: 100%; height: 160px; background: linear-gradient(135deg, #e0e7ff, #c7d2fe); }
+.related-card-body { padding: 16px; }
+.related-card-body .category { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: #6366f1; margin-bottom: 6px; }
+.related-card-body h4 { font-size: 0.95rem; margin-bottom: 4px; line-height: 1.3; }
+.related-card-body .meta { font-size: 0.75rem; color: var(--slate-light); }
+
+/* Post navigation */
+.post-nav { max-width: 700px; margin: 32px auto; padding: 24px 0; border-top: 1px solid #f0f0f0; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.post-nav a { text-decoration: none; color: inherit; }
+.post-nav a:hover { color: var(--party-coral); }
+.post-nav .nav-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--slate-light); margin-bottom: 4px; }
+.post-nav .nav-title { font-size: 0.9rem; font-weight: 500; }
+.post-nav .next { text-align: right; }
+
+/* Newsletter CTA */
+.post-newsletter { max-width: 700px; margin: 48px auto; padding: 40px; background: linear-gradient(135deg, var(--midnight) 0%, #0f3460 100%); border-radius: 16px; text-align: center; color: #fff; }
+.post-newsletter h3 { font-size: 1.4rem; margin-bottom: 8px; }
+.post-newsletter p { opacity: 0.8; margin-bottom: 20px; font-size: 0.9rem; }
+.post-newsletter form { display: flex; gap: 8px; max-width: 380px; margin: 0 auto; }
+.post-newsletter input { flex: 1; padding: 12px 20px; border: none; border-radius: 50px; font-size: 0.9rem; font-family: var(--font-body); }
+.post-newsletter button { padding: 12px 24px; background: var(--party-coral); color: #fff; border: none; border-radius: 50px; font-weight: 600; cursor: pointer; font-family: var(--font-body); }
+
+/* Footer */
+.blog-footer { background: var(--cream); padding: 32px 24px; text-align: center; border-top: 1px solid #f0f0f0; }
+.blog-footer a { color: var(--party-coral); font-weight: 500; margin: 0 12px; font-size: 0.85rem; text-decoration: none; }
+.blog-footer a:hover { text-decoration: underline; }
+.blog-footer p { color: var(--slate); font-size: 0.8rem; margin-top: 12px; }
+
+/* Loading */
+.loading-state { text-align: center; padding: 80px 24px; color: var(--slate); }
+
+/* No TOC layout */
+.content-wrapper.no-toc { grid-template-columns: 1fr; }
+.content-wrapper.no-toc .post-content { margin: 0 auto; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .content-wrapper { grid-template-columns: 1fr; }
+  .toc { position: static; max-height: none; padding: 16px 20px; background: #f8fafc; border-radius: 8px; margin-bottom: 24px; }
+  .post-header h1 { font-size: 2rem; }
+  .related-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+  .post-header h1 { font-size: 1.6rem; }
+  .related-grid { grid-template-columns: 1fr; }
+  .post-nav { grid-template-columns: 1fr; }
+  .nav { padding: 12px 16px; }
+  .nav-links { gap: 12px; }
+  .nav-links a { font-size: 0.8rem; }
+  .author-card { flex-direction: column; text-align: center; align-items: center; }
+  .post-newsletter form { flex-direction: column; }
+  .share-buttons { justify-content: center; }
+}
+
+/* Focus */
+a:focus-visible, button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--party-coral);
+  outline-offset: 2px;
+}
+</style>
+</head>
+<body>
+
+<!-- Progress bar -->
+<div class="progress-bar" id="progressBar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+
+<!-- Draft preview banner -->
+<div class="draft-banner" id="draftBanner" style="display:none;">DRAFT PREVIEW — This post is not yet published.</div>
+
+<!-- Nav -->
+<nav class="nav" role="navigation" aria-label="Main navigation">
+  <a href="/" class="nav-logo">Ryvite</a>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/blog">Blog</a>
+    <a href="/v2/create/" class="nav-cta">Create Event</a>
+  </div>
+</nav>
+
+<!-- Main content -->
+<main id="mainContent">
+  <div class="loading-state" id="loadingState">Loading article...</div>
+</main>
+
+<!-- Footer -->
+<footer class="blog-footer">
+  <div>
+    <a href="/">Home</a>
+    <a href="/blog">Blog</a>
+    <a href="/blog/feed.xml">RSS</a>
+    <a href="/v2/create/">Create Event</a>
+  </div>
+  <p>&copy; 2026 Ryvite. All rights reserved.</p>
+</footer>
+
+<script>
+(function() {
+  var API = '/api/v2/blog';
+
+  // Extract slug from URL
+  var path = window.location.pathname;
+  var slug = path.replace(/^\/blog\//, '').replace(/\/$/, '');
+  var isPreview = new URLSearchParams(window.location.search).get('preview') === 'true';
+
+  if (!slug) {
+    window.location.href = '/blog';
+    return;
+  }
+
+  // Fetch post
+  var params = 'action=getBySlug&slug=' + encodeURIComponent(slug);
+  if (isPreview) params += '&preview=true';
+
+  fetch(API + '?' + params).then(function(r) { return r.json(); }).then(function(res) {
+    // Handle redirect
+    if (res.redirect) {
+      window.location.replace('/blog/' + res.redirect);
+      return;
+    }
+
+    if (!res.success || !res.post) {
+      document.getElementById('mainContent').innerHTML = '<div style="text-align:center;padding:80px 24px;"><h1 style="font-family:var(--font-display);font-size:2rem;margin-bottom:12px;">Post Not Found</h1><p style="color:var(--slate);margin-bottom:24px;">The blog post you\'re looking for doesn\'t exist or has been removed.</p><a href="/blog" style="color:var(--party-coral);font-weight:600;">Back to Blog</a></div>';
+      return;
+    }
+
+    var post = res.post;
+
+    // Draft banner
+    if (post.status !== 'published') {
+      document.getElementById('draftBanner').style.display = 'block';
+    }
+
+    // Update page title (if not already set by server-side injection)
+    if (document.title === 'Blog Post — Ryvite') {
+      document.title = (post.seo?.metaTitle || post.title) + ' — Ryvite';
+    }
+
+    // Build the page
+    var html = '';
+
+    // Breadcrumbs
+    var catName = (post.category || 'Article').replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+    html += '<nav class="breadcrumbs" aria-label="Breadcrumb">'
+      + '<a href="/">Home</a><span>&rsaquo;</span>'
+      + '<a href="/blog">Blog</a><span>&rsaquo;</span>'
+      + '<a href="/blog/category/' + escapeHtml(post.category || 'general') + '">' + escapeHtml(catName) + '</a>'
+      + '</nav>';
+
+    // Post header
+    html += '<header class="post-header">'
+      + '<a href="/blog/category/' + escapeHtml(post.category || 'general') + '" class="category-badge">' + escapeHtml(post.category || 'General') + '</a>'
+      + '<div class="post-meta">'
+      + '<span>' + formatDate(post.published_date) + '</span>'
+      + '<span class="dot"></span>'
+      + '<span>' + (post.readingTime || 1) + ' min read</span>'
+      + '</div>'
+      + '<h1>' + escapeHtml(post.title) + '</h1>';
+
+    if (post.excerpt) {
+      html += '<p class="post-excerpt">' + escapeHtml(post.excerpt) + '</p>';
+    }
+
+    html += '<div class="author-line">By ' + formatAuthor(post.author_slug) + '</div>';
+
+    // Tags
+    if (post.tags && post.tags.length > 0) {
+      html += '<div class="post-tags">';
+      post.tags.forEach(function(tag) {
+        html += '<a href="/blog/tag/' + encodeURIComponent(tag) + '">#' + escapeHtml(tag) + '</a>';
+      });
+      html += '</div>';
+    }
+
+    html += '</header>';
+
+    // Featured image
+    if (post.featured_image && post.featured_image.src) {
+      html += '<figure class="post-featured-image">'
+        + '<img src="' + escapeHtml(post.featured_image.src) + '" alt="' + escapeHtml(post.featured_image.alt || post.title) + '" width="' + (post.featured_image.width || 1200) + '" height="' + (post.featured_image.height || 630) + '" loading="eager">';
+      if (post.featured_image.caption) {
+        html += '<figcaption>' + escapeHtml(post.featured_image.caption) + '</figcaption>';
+      }
+      html += '</figure>';
+    }
+
+    // Determine if ToC should show
+    var tempDiv = document.createElement('div');
+    tempDiv.innerHTML = post.content || '';
+    var headings = tempDiv.querySelectorAll('h2, h3');
+    var showToc = headings.length >= 3 || post.post_type === 'guide';
+
+    // Content wrapper
+    html += '<div class="content-wrapper' + (showToc ? '' : ' no-toc') + '">';
+
+    // Table of Contents
+    if (showToc) {
+      html += '<aside class="toc" aria-label="Table of contents"><h4>Contents</h4><ul class="toc-list">';
+      headings.forEach(function(h, i) {
+        var id = 'section-' + i;
+        h.id = id;
+        var isH3 = h.tagName === 'H3';
+        html += '<li><a href="#' + id + '" class="toc-link' + (isH3 ? ' toc-h3' : '') + '" data-target="' + id + '">' + escapeHtml(h.textContent) + '</a></li>';
+      });
+      html += '</ul></aside>';
+    }
+
+    // Post content
+    // Re-serialize with IDs added to headings
+    html += '<article class="post-content" id="postContent">' + tempDiv.innerHTML + '</article>';
+
+    html += '</div>'; // end content-wrapper
+
+    // Reviewed badge
+    if (post.reviewed_by && post.last_reviewed_date) {
+      html += '<div class="reviewed-badge" style="max-width:700px;margin:32px auto;padding:12px 24px;">'
+        + '<svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>'
+        + 'Last reviewed by ' + escapeHtml(post.reviewed_by) + ' on ' + formatDate(post.last_reviewed_date)
+        + '</div>';
+    }
+
+    // Social sharing
+    var postUrl = 'https://www.ryvite.com/blog/' + post.slug;
+    var shareTitle = encodeURIComponent(post.title);
+    var shareUrl = encodeURIComponent(postUrl);
+
+    html += '<div class="share-section" style="max-width:700px;margin:32px auto;padding:24px;">'
+      + '<h4>Share this article</h4>'
+      + '<div class="share-buttons">'
+      + '<a class="share-btn" href="https://www.facebook.com/sharer/sharer.php?u=' + shareUrl + '" target="_blank" rel="noopener" data-platform="facebook" data-post-slug="' + escapeHtml(post.slug) + '">Facebook</a>'
+      + '<a class="share-btn" href="https://twitter.com/intent/tweet?text=' + shareTitle + '&url=' + shareUrl + '" target="_blank" rel="noopener" data-platform="twitter" data-post-slug="' + escapeHtml(post.slug) + '">X / Twitter</a>'
+      + '<a class="share-btn" href="https://www.linkedin.com/sharing/share-offsite/?url=' + shareUrl + '" target="_blank" rel="noopener" data-platform="linkedin" data-post-slug="' + escapeHtml(post.slug) + '">LinkedIn</a>'
+      + '<a class="share-btn" href="mailto:?subject=' + shareTitle + '&body=' + shareUrl + '" data-platform="email" data-post-slug="' + escapeHtml(post.slug) + '">Email</a>'
+      + '<button class="share-btn" onclick="copyLink()" data-platform="copy" data-post-slug="' + escapeHtml(post.slug) + '" id="copyBtn">Copy Link</button>'
+      + '</div></div>';
+
+    // Author card
+    var authorName = formatAuthor(post.author_slug);
+    var initials = authorName.split(' ').map(function(w) { return w[0]; }).join('').toUpperCase().slice(0, 2);
+    html += '<div class="author-card" style="max-width:700px;margin:32px auto;padding:24px;">'
+      + '<div class="author-avatar">' + initials + '</div>'
+      + '<div class="author-info">'
+      + '<h4>' + escapeHtml(authorName) + '</h4>'
+      + '<p>Contributing writer at Ryvite.</p>'
+      + '<a href="/blog/author/' + escapeHtml(post.author_slug || 'ryvite-team') + '">View all posts &rarr;</a>'
+      + '</div></div>';
+
+    // Related posts
+    if (res.relatedPosts && res.relatedPosts.length > 0) {
+      html += '<section class="related-section"><h3>Related Posts</h3><div class="related-grid">';
+      res.relatedPosts.forEach(function(rp) {
+        var rpImgHtml = rp.featured_image && rp.featured_image.src
+          ? '<img class="related-card-img" src="' + escapeHtml(rp.featured_image.src) + '" alt="' + escapeHtml(rp.featured_image.alt || rp.title) + '" loading="lazy">'
+          : '<div class="related-card-img-placeholder"></div>';
+        html += '<a href="/blog/' + escapeHtml(rp.slug) + '" class="related-card">'
+          + rpImgHtml
+          + '<div class="related-card-body">'
+          + '<div class="category">' + escapeHtml(rp.category || '') + '</div>'
+          + '<h4>' + escapeHtml(rp.title) + '</h4>'
+          + '<div class="meta">' + formatDate(rp.published_date) + '</div>'
+          + '</div></a>';
+      });
+      html += '</div></section>';
+    }
+
+    // Post navigation
+    if (res.prevPost || res.nextPost) {
+      html += '<div class="post-nav" style="max-width:700px;margin:32px auto;padding:24px 0;">';
+      if (res.prevPost) {
+        html += '<a href="/blog/' + escapeHtml(res.prevPost.slug) + '">'
+          + '<div class="nav-label">&larr; Previous</div>'
+          + '<div class="nav-title">' + escapeHtml(res.prevPost.title) + '</div></a>';
+      } else {
+        html += '<div></div>';
+      }
+      if (res.nextPost) {
+        html += '<a href="/blog/' + escapeHtml(res.nextPost.slug) + '" class="next">'
+          + '<div class="nav-label">Next &rarr;</div>'
+          + '<div class="nav-title">' + escapeHtml(res.nextPost.title) + '</div></a>';
+      }
+      html += '</div>';
+    }
+
+    // Newsletter CTA
+    html += '<div class="post-newsletter" style="max-width:700px;margin:48px auto;padding:40px;">'
+      + '<h3>Enjoyed this article?</h3>'
+      + '<p>Get event planning tips delivered to your inbox.</p>'
+      + '<form onsubmit="event.preventDefault();this.querySelector(\'button\').textContent=\'Subscribed!\';this.querySelector(\'input\').value=\'\';">'
+      + '<input type="email" placeholder="your@email.com" required aria-label="Email address">'
+      + '<button type="submit">Subscribe</button>'
+      + '</form></div>';
+
+    document.getElementById('mainContent').innerHTML = html;
+
+    // Setup reading progress bar
+    setupProgressBar();
+
+    // Setup ToC active highlighting
+    if (showToc) setupTocHighlighting();
+
+  }).catch(function(err) {
+    document.getElementById('mainContent').innerHTML = '<div style="text-align:center;padding:80px 24px;"><h1 style="font-family:var(--font-display);font-size:2rem;margin-bottom:12px;">Error Loading Post</h1><p style="color:var(--slate);">' + escapeHtml(err.message) + '</p><a href="/blog" style="color:var(--party-coral);font-weight:600;display:block;margin-top:24px;">Back to Blog</a></div>';
+  });
+
+  // Reading progress bar
+  function setupProgressBar() {
+    var bar = document.getElementById('progressBar');
+    var content = document.getElementById('postContent');
+    if (!content) return;
+
+    window.addEventListener('scroll', function() {
+      var rect = content.getBoundingClientRect();
+      var contentTop = rect.top + window.scrollY;
+      var contentHeight = rect.height;
+      var scrollY = window.scrollY;
+      var windowHeight = window.innerHeight;
+
+      var progress = (scrollY - contentTop + windowHeight) / contentHeight;
+      progress = Math.max(0, Math.min(1, progress));
+
+      bar.style.width = (progress * 100) + '%';
+      bar.setAttribute('aria-valuenow', Math.round(progress * 100));
+    }, { passive: true });
+  }
+
+  // ToC active section highlighting
+  function setupTocHighlighting() {
+    var tocLinks = document.querySelectorAll('.toc-link');
+    if (tocLinks.length === 0) return;
+
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          var id = entry.target.id;
+          tocLinks.forEach(function(link) {
+            link.classList.toggle('active', link.getAttribute('data-target') === id);
+          });
+        }
+      });
+    }, { rootMargin: '-80px 0px -60% 0px', threshold: 0 });
+
+    document.querySelectorAll('.post-content h2[id], .post-content h3[id]').forEach(function(h) {
+      observer.observe(h);
+    });
+  }
+
+  // Copy link
+  window.copyLink = function() {
+    navigator.clipboard.writeText(window.location.href).then(function() {
+      var btn = document.getElementById('copyBtn');
+      btn.textContent = 'Copied!';
+      setTimeout(function() { btn.textContent = 'Copy Link'; }, 2000);
+    });
+  };
+
+  // Helpers
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '';
+    try {
+      return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    } catch (e) { return ''; }
+  }
+
+  function formatAuthor(slug) {
+    if (!slug) return 'Ryvite Team';
+    return slug.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+  }
+})();
+</script>
+</body>
+</html>

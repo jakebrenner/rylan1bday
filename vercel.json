@@ -43,6 +43,9 @@
     },
     "api/v2/sms-cron.js": {
       "maxDuration": 60
+    },
+    "api/v2/blog.js": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
@@ -61,6 +64,26 @@
     {
       "source": "/v2/cohost",
       "destination": "/v2/cohost/index.html"
+    },
+    {
+      "source": "/blog/feed.xml",
+      "destination": "/api/v2/blog?action=rss"
+    },
+    {
+      "source": "/blog/category/:category",
+      "destination": "/api/v2/blog-page?type=category&slug=:category"
+    },
+    {
+      "source": "/blog/tag/:tag",
+      "destination": "/api/v2/blog-page?type=tag&slug=:tag"
+    },
+    {
+      "source": "/blog/author/:author",
+      "destination": "/api/v2/blog-page?type=author&slug=:author"
+    },
+    {
+      "source": "/blog/:slug",
+      "destination": "/api/v2/blog-page?slug=:slug"
     }
   ]
 }
