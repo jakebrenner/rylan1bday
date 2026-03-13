@@ -831,6 +831,8 @@
     var token = localStorage.getItem('sb_access_token');
     var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
     var _loginRedirect = '/v2/create/' + window.location.search;
+    var _pendingTemplateId = new URLSearchParams(window.location.search).get('templateId');
+    if (_pendingTemplateId) localStorage.setItem('pending_templateId', _pendingTemplateId);
     if (!token || !user) { window.location.href = '/v2/login/?redirect=' + encodeURIComponent(_loginRedirect); }
     else {
       var pn = document.getElementById('profileName');
@@ -906,6 +908,7 @@
       // Handle post-purchase redirect: restore state and auto-generate
       var urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('purchased') === 'true' && restoreCreateState()) {
+        localStorage.removeItem('pending_templateId');
         var stripeSessionId = urlParams.get('session_id');
         // Clean the URL
         window.history.replaceState({}, '', '/v2/create/');
@@ -948,6 +951,7 @@
       // Resume existing draft if ?eventId= is in the URL
       var resumeId = urlParams.get('eventId');
       if (resumeId) {
+        localStorage.removeItem('pending_templateId');
         // Fast path: if we have cached themes in sessionStorage, show them instantly
         var cachedThemes = null;
         try { cachedThemes = JSON.parse(sessionStorage.getItem('ryvite_theme_' + resumeId)); } catch(e) {}
@@ -1139,8 +1143,9 @@
       }
 
       // ── START FROM DESIGN (Chat-first flow) ──
-      var templateId = urlParams.get('templateId');
+      var templateId = urlParams.get('templateId') || localStorage.getItem('pending_templateId');
       if (templateId) {
+        localStorage.removeItem('pending_templateId');
         (async function() {
           try {
             var tplRes = await fetch('/api/v2/templates?action=get&templateId=' + encodeURIComponent(templateId));
