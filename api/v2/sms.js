@@ -124,7 +124,7 @@ async function recordSmsMessages(userId, eventId, sentMessages, messageType, cli
 async function verifyEventOwnership(userId, eventId) {
   const { data: event, error } = await supabaseAdmin
     .from('events')
-    .select('id, title, user_id, event_date')
+    .select('id, title, user_id, event_date, slug')
     .eq('id', eventId)
     .single();
 
@@ -210,11 +210,17 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'No guests with valid phone numbers found' });
       }
 
-      // Build messages
-      const clickSendMessages = guests.map(g => ({
-        to: toE164(g.phone),
-        body: message.replace(/\{name\}/gi, g.name || 'Guest')
-      }));
+      // Build messages — resolve {name} and {link} per-guest
+      const baseUrl = req.headers.origin || `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
+      const clickSendMessages = guests.map(g => {
+        const guestLink = `${baseUrl}/v2/event/${event.slug}?gid=${g.id}`;
+        return {
+          to: toE164(g.phone),
+          body: message
+            .replace(/\{name\}/gi, g.name || 'Guest')
+            .replace(/\{link\}/gi, guestLink)
+        };
+      });
 
       const result = await sendViaClickSend(clickSendMessages);
       if (!result.success) {
@@ -270,10 +276,16 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'No guests with valid phone numbers found' });
       }
 
-      const clickSendMessages = guests.map(g => ({
-        to: toE164(g.phone),
-        body: message.replace(/\{name\}/gi, g.name || 'Guest')
-      }));
+      const updateBaseUrl = req.headers.origin || `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
+      const clickSendMessages = guests.map(g => {
+        const guestLink = `${updateBaseUrl}/v2/event/${event.slug}?gid=${g.id}`;
+        return {
+          to: toE164(g.phone),
+          body: message
+            .replace(/\{name\}/gi, g.name || 'Guest')
+            .replace(/\{link\}/gi, guestLink)
+        };
+      });
 
       const result = await sendViaClickSend(clickSendMessages);
       if (!result.success) {

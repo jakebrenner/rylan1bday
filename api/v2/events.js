@@ -71,10 +71,31 @@ export default async function handler(req, res) {
       });
     }
 
+    // Public guest lookup by invite ID — returns minimal info (no raw email/phone)
+    if (action === 'getGuest') {
+      const { guestId, eventId } = req.query;
+      if (!guestId || !eventId) {
+        return res.status(400).json({ success: false, error: 'guestId and eventId required' });
+      }
+
+      const { data: guest, error } = await supabaseAdmin
+        .from('guests')
+        .select('id, name, status')
+        .eq('id', guestId)
+        .eq('event_id', eventId)
+        .single();
+
+      if (error || !guest) {
+        return res.status(200).json({ success: false });
+      }
+
+      return res.status(200).json({ success: true, guest: { name: guest.name, status: guest.status } });
+    }
+
     if (action === 'rsvp') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
-      const { eventId, name, status, email, phone, responseData, plusOnes, notes } = req.body || {};
+      const { eventId, guestId, name, status, email, phone, responseData, plusOnes, notes } = req.body || {};
 
       if (!eventId || !name || !status) {
         return res.status(400).json({ success: false, error: 'eventId, name, and status are required' });
@@ -84,21 +105,63 @@ export default async function handler(req, res) {
       const statusMap = { yes: 'attending', no: 'declined', maybe: 'maybe' };
       const guestStatus = statusMap[status] || status;
 
-      const { data, error } = await supabaseAdmin
-        .from('guests')
-        .insert({
-          event_id: eventId,
-          name,
-          email: email || null,
-          phone: phone || null,
-          status: guestStatus,
-          response_data: responseData || {},
-          plus_ones: plusOnes || 0,
-          notes: notes || null,
-          responded_at: new Date().toISOString()
-        })
-        .select()
-        .single();
+      let data, error;
+
+      // If guestId provided, try to UPDATE existing invited guest record
+      if (guestId) {
+        const { data: existing } = await supabaseAdmin
+          .from('guests')
+          .select('id')
+          .eq('id', guestId)
+          .eq('event_id', eventId)
+          .single();
+
+        if (existing) {
+          // Update existing guest — only overwrite email/phone if non-empty
+          const updates = {
+            name,
+            status: guestStatus,
+            response_data: responseData || {},
+            plus_ones: plusOnes || 0,
+            notes: notes || null,
+            responded_at: new Date().toISOString()
+          };
+          if (email) updates.email = email;
+          if (phone) updates.phone = phone;
+
+          const result = await supabaseAdmin
+            .from('guests')
+            .update(updates)
+            .eq('id', guestId)
+            .select()
+            .single();
+
+          data = result.data;
+          error = result.error;
+        }
+      }
+
+      // If no guestId or guest not found, INSERT new record (walk-in)
+      if (!data && !error) {
+        const result = await supabaseAdmin
+          .from('guests')
+          .insert({
+            event_id: eventId,
+            name,
+            email: email || null,
+            phone: phone || null,
+            status: guestStatus,
+            response_data: responseData || {},
+            plus_ones: plusOnes || 0,
+            notes: notes || null,
+            responded_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        data = result.data;
+        error = result.error;
+      }
 
       if (error) return res.status(400).json({ success: false, error: error.message });
 
