@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { overflow-x: hidden; max-width: 100vw; }
     :root {
       --party-coral: #E94560; --blush-pop: #FF6B6B; --midnight: #1A1A2E;
       --confetti-gold: #FFB74D; --mint-fizz: #4ECDC4; --party-purple: #A78BFA; --cream: #FFFAF5;
@@ -492,6 +493,13 @@
       /* User detail tables — horizontal scroll on mobile */
       .ud-card-body.no-pad { overflow-x: auto; -webkit-overflow-scrolling: touch; }
       .ud-card-body.no-pad table { min-width: 500px; }
+
+      /* Prevent any section from overflowing viewport */
+      .config-section { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+      .config-section table { min-width: 480px; }
+
+      /* Ensure body and tab content don't overflow */
+      .tab-content { max-width: 100vw; overflow-x: hidden; }
     }
   </style>
 </head>
