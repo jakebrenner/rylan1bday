@@ -33,8 +33,9 @@ FOR EACH ROW EXECUTE FUNCTION update_gallery_eligibility();
 -- 5. Backfill: unset gallery_eligible for any excluded items
 UPDATE event_themes SET gallery_eligible = false WHERE exclude_from_gallery = true AND gallery_eligible = true;
 
--- 6. Replace the gallery_templates view with a UNION of all three sources
-CREATE OR REPLACE VIEW gallery_templates AS
+-- 6. Drop and recreate the gallery_templates view (id type changes from uuid to text)
+DROP VIEW IF EXISTS gallery_templates;
+CREATE VIEW gallery_templates AS
 
 -- User-generated themes (existing source)
 SELECT
@@ -79,10 +80,10 @@ UNION ALL
 SELECT
   sl.id::text AS id,
   sl.html,
-  NULL AS css,
-  NULL AS config,
+  NULL::text AS css,
+  NULL::jsonb AS config,
   sl.admin_rating,
-  NULL AS model,
+  NULL::text AS model,
   sl.created_at,
   sl.event_types[1] AS event_type,
   'style' AS source
