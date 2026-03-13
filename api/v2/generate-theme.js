@@ -1737,6 +1737,22 @@ This is the most common failure mode. Double-check it.`;
       theme.theme_config.thankyouHtml = theme.theme_thankyou_html;
     }
 
+    // ── CSS FAILSAFE: If CSS is empty but HTML contains <style> blocks, extract them ──
+    if ((!theme.theme_css || !theme.theme_css.trim()) && theme.theme_html) {
+      const fallbackStyleMatch = theme.theme_html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+      if (fallbackStyleMatch) {
+        const fallbackCss = fallbackStyleMatch.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+        if (fallbackCss.trim()) {
+          console.warn('[generate] CSS was empty — extracted ' + fallbackCss.length + ' chars from <style> blocks in HTML');
+          theme.theme_css = fallbackCss;
+          theme.theme_html = theme.theme_html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+        }
+      }
+    }
+    if (!theme.theme_css || !theme.theme_css.trim()) {
+      console.error('[generate] WARNING: Theme has no CSS! HTML length:', theme.theme_html?.length, 'Keys:', Object.keys(theme).join(', '));
+    }
+
     // CRITICAL: Send theme to client and close connection IMMEDIATELY.
     // res.text() on client buffers until res.end(), so DB saves MUST happen after.
     const genCost = calcGenerationCost(themeModel, genInputTokens, genOutputTokens);

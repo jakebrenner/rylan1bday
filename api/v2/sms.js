@@ -675,15 +675,8 @@ export default async function handler(req, res) {
             .replace(/\{name\}/gi, guestName)
             .replace(/\{link\}/gi, guestLink);
         } else {
-          // Build default themed email template — always light background, theme accents
-          let personalMsg = '';
-          if (message) {
-            const resolvedMsg = message
-              .replace(/\{name\}/gi, guestName)
-              .replace(/\{link\}/gi, guestLink)
-              .replace(/\n/g, '<br>');
-            personalMsg = `<tr><td style="padding:0 40px 24px;font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:${emailSubtextColor};">${resolvedMsg}</td></tr>`;
-          }
+          // Simple, branded email invite — drives clicks to the full invite page.
+          // Background uses a soft tint of the theme's primary color for brand consistency.
 
           html = `<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
@@ -696,86 +689,54 @@ export default async function handler(req, res) {
 <title>You're invited to ${eventTitle}</title>
 <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 </head>
-<body style="margin:0;padding:0;background-color:#f0f0f0;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
-<!-- Preheader text (shows in inbox preview) -->
-<div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:#f0f0f0;">
-  ${hostName} has invited you to ${eventTitle}${eventDate ? ' on ' + eventDate : ''}. RSVP now!
+<body style="margin:0;padding:0;background-color:${cardBg};-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<!-- Preheader text -->
+<div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:${cardBg};">
+  ${hostName} has invited you to ${eventTitle}${eventDate ? ' on ' + eventDate : ''}. View your invitation and RSVP!
   ${'&nbsp;&zwnj;'.repeat(30)}
 </div>
 
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0f0f0;">
-<tr><td align="center" style="padding:24px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${cardBg};">
+<tr><td align="center" style="padding:40px 16px;">
 
-<!-- Email container — always white body for maximum readability -->
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:${emailBg};">
+<!-- Email container -->
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
 
-  <!-- Decorative top accent bar (carries theme color) -->
-  <tr><td style="background-color:${accentLine};height:6px;font-size:0;line-height:0;" height="6">&nbsp;</td></tr>
+  <!-- Main card -->
+  <tr><td align="center" style="background-color:${emailBg};padding:48px 40px 44px;">
 
-  <!-- Spacer -->
-  <tr><td style="height:36px;font-size:0;line-height:0;" height="36">&nbsp;</td></tr>
+    <!-- "You're Invited" headline -->
+    <h1 style="font-family:'${headlineFont}',Georgia,'Times New Roman',serif;font-size:36px;font-weight:700;color:${emailTextColor};margin:0 0 8px;line-height:1.2;">You're Invited</h1>
 
-  <!-- Headline -->
-  <tr><td align="center" style="padding:0 40px;">
-    <h1 style="font-family:'${headlineFont}',Georgia,'Times New Roman',serif;font-size:32px;font-weight:700;color:${emailTextColor};margin:0 0 6px;line-height:1.2;">You're Invited</h1>
-  </td></tr>
+    <!-- Event title -->
+    <p style="font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:18px;color:${emailSubtextColor};margin:0 0 8px;line-height:1.4;">${eventTitle}</p>
 
-  <!-- Decorative divider -->
-  <tr><td align="center" style="padding:12px 0 28px;">
+    <!-- Date and location -->
+    ${eventDate ? `<p style="font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:14px;color:${emailSubtextColor};margin:0 0 4px;line-height:1.4;">${eventDate}</p>` : ''}
+    ${event.location_name ? `<p style="font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:14px;color:${emailSubtextColor};margin:0;line-height:1.4;">${event.location_name}</p>` : ''}
+
+    <!-- Spacer -->
     <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td style="width:50px;height:3px;background-color:${dividerColor};font-size:0;line-height:0;" width="50" height="3">&nbsp;</td>
+      <td style="height:32px;font-size:0;line-height:0;" height="32">&nbsp;</td>
     </tr></table>
-  </td></tr>
 
-  <!-- Personal greeting -->
-  <tr><td style="padding:0 40px 20px;font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:${emailSubtextColor};">
-    Hi <strong style="color:${emailTextColor};">${guestName}</strong>, <strong style="color:${emailTextColor};">${hostName}</strong> has invited you to:
-  </td></tr>
-
-  <!-- Custom message if provided -->
-  ${personalMsg}
-
-  <!-- Event details card -->
-  <tr><td style="padding:0 40px 28px;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${cardBg};">
-      <!-- Card top accent line -->
-      <tr><td style="background-color:${accentLine};height:3px;font-size:0;line-height:0;" height="3">&nbsp;</td></tr>
-      <tr><td style="padding:24px 28px;">
-        <!-- Event title -->
-        <h2 style="font-family:'${headlineFont}',Georgia,'Times New Roman',serif;font-size:22px;font-weight:700;color:${emailTextColor};margin:0 0 16px;line-height:1.3;">${eventTitle}</h2>
-        ${eventDate ? `<p style="font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:14px;color:${emailSubtextColor};line-height:1.4;margin:0 0 6px;">${eventDate}</p>` : ''}
-        ${event.location_name ? `<p style="font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:14px;color:${emailSubtextColor};line-height:1.4;margin:0;">${event.location_name}${event.location_address ? ', ' + event.location_address : ''}</p>` : ''}
-      </td></tr>
-    </table>
-  </td></tr>
-
-  <!-- CTA button -->
-  <tr><td align="center" style="padding:0 40px 16px;">
+    <!-- CTA button -->
     <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-    <tr><td align="center" style="background-color:${primaryColor};padding:16px 48px;">
-      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${guestLink}" style="height:52px;v-text-anchor:middle;width:220px;" arcsize="20%" fillcolor="${primaryColor}" stroke="f"><v:textbox inset="0,0,0,0"><center style="font-family:Arial,sans-serif;font-size:16px;font-weight:bold;color:${btnTextColor};">RSVP Now</center></v:textbox></v:roundrect><![endif]-->
+    <tr><td align="center" style="background-color:${primaryColor};padding:18px 56px;">
+      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${guestLink}" style="height:56px;v-text-anchor:middle;width:240px;" arcsize="20%" fillcolor="${primaryColor}" stroke="f"><v:textbox inset="0,0,0,0"><center style="font-family:Arial,sans-serif;font-size:17px;font-weight:bold;color:${btnTextColor};">View Invitation</center></v:textbox></v:roundrect><![endif]-->
       <!--[if !mso]><!-->
-      <a href="${guestLink}" target="_blank" style="display:inline-block;font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:${btnTextColor};text-decoration:none;letter-spacing:0.5px;line-height:1;">RSVP Now</a>
+      <a href="${guestLink}" target="_blank" style="display:inline-block;font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:17px;font-weight:700;color:${btnTextColor};text-decoration:none;letter-spacing:0.5px;line-height:1;">View Invitation</a>
       <!--<![endif]-->
     </td></tr>
     </table>
+
   </td></tr>
 
-  <!-- Teaser link -->
-  <tr><td align="center" style="padding:0 40px 36px;">
-    <a href="${guestLink}" target="_blank" style="font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:13px;color:${emailSubtextColor};text-decoration:none;line-height:1.5;">View the full invitation &rarr;</a>
-  </td></tr>
-
-  <!-- Bottom divider -->
-  <tr><td style="padding:0 40px;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td style="border-top:1px solid #E8E8EC;font-size:0;line-height:0;" height="1">&nbsp;</td>
-    </tr></table>
-  </td></tr>
-
-  <!-- Footer -->
-  <tr><td align="center" style="padding:20px 40px 28px;font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:11px;color:${emailFooterColor};line-height:1.5;">
-    Sent via <a href="https://ryvite.com" target="_blank" style="color:${emailFooterColor};text-decoration:underline;">Ryvite</a>
+  <!-- Footer with Ryvite logo PNG -->
+  <tr><td align="center" style="padding:28px 40px;">
+    <a href="https://ryvite.com" target="_blank" style="text-decoration:none;">
+      <img src="${baseUrl}/api/logo.png" alt="Ryvite" width="80" height="24" style="display:inline-block;width:80px;height:24px;border:0;" />
+    </a>
   </td></tr>
 
 </table>
