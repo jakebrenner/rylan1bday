@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
+import Anthropic from '@anthropic-ai/sdk';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -2325,7 +2326,7 @@ export default async function handler(req, res) {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
       const { sourceType, eventThemeId, testRunId, promptText, eventTitle, eventType } = req.body;
 
-      if (!sourceType || !promptText) return res.status(400).json({ error: 'sourceType and promptText required' });
+      if (!sourceType) return res.status(400).json({ error: 'sourceType required' });
 
       // Fetch source HTML/CSS/config
       let html, css, config;
@@ -2347,6 +2348,42 @@ export default async function handler(req, res) {
 
       if (!html) return res.status(400).json({ error: 'Source has no HTML content' });
 
+      // Auto-generate prompt text from the invite design using Haiku
+      let finalPromptText = promptText || '';
+      if (!finalPromptText) {
+        try {
+          const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+          // Send a trimmed version of HTML + CSS (first 3000 chars each to stay small)
+          const htmlSnippet = (html || '').substring(0, 3000);
+          const cssSnippet = (css || '').substring(0, 2000);
+          const colorInfo = config ? `Colors: ${JSON.stringify({ primary: config.primaryColor, secondary: config.secondaryColor, accent: config.accentColor, mood: config.mood })}` : '';
+
+          const aiResponse = await anthropic.messages.create({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 150,
+            messages: [{
+              role: 'user',
+              content: `You're looking at an AI-generated party invitation. Write a short, natural prompt (1-2 sentences, max 120 chars) that a user might type to request this design. Write it as a casual, first-person request — like what someone would actually type into a chat. Don't use quotes. Don't explain what you're doing. Just output the prompt text.
+
+Event type: ${eventType || 'party'}
+Event title: ${eventTitle || 'Party'}
+${colorInfo}
+
+HTML (excerpt):
+${htmlSnippet}
+
+CSS (excerpt):
+${cssSnippet}`
+            }]
+          });
+
+          finalPromptText = (aiResponse.content[0]?.text || '').trim();
+        } catch (aiErr) {
+          console.error('Auto-prompt generation failed, using fallback:', aiErr.message);
+          finalPromptText = eventTitle || 'A beautiful custom invitation';
+        }
+      }
+
       // Get next display_order
       const { data: maxRow } = await supabaseAdmin
         .from('featured_showcases')
@@ -2359,7 +2396,7 @@ export default async function handler(req, res) {
         source_type: sourceType,
         event_theme_id: sourceType === 'user_theme' ? eventThemeId : null,
         test_run_id: sourceType === 'lab_theme' ? testRunId : null,
-        prompt_text: promptText,
+        prompt_text: finalPromptText,
         display_order: nextOrder,
         html: html,
         css: css || '',
@@ -2373,7 +2410,7 @@ export default async function handler(req, res) {
         .from('featured_showcases').insert(insertData).select('id').single();
       if (iErr) return res.status(500).json({ error: 'Failed to feature: ' + iErr.message });
 
-      return res.status(200).json({ success: true, showcaseId: inserted.id });
+      return res.status(200).json({ success: true, showcaseId: inserted.id, promptText: finalPromptText });
     }
 
     if (action === 'removeShowcase') {

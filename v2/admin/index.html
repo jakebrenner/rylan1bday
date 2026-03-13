@@ -5534,11 +5534,11 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         previewDiv.appendChild(phoneWrapper.firstChild);
         card.appendChild(previewDiv);
 
-        // Prompt text
+        // Prompt text (editable)
         var promptDiv = document.createElement('div');
         promptDiv.style.cssText = 'padding:8px 12px;font-size:12px;color:#555;border-top:1px solid #f0f0f0;';
-        promptDiv.innerHTML = '<strong style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;">Prompt:</strong><br>'
-          + escapeHtml(s.prompt_text.length > 80 ? s.prompt_text.substring(0, 80) + '...' : s.prompt_text);
+        promptDiv.innerHTML = '<strong style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;">Prompt:</strong>'
+          + '<input type="text" value="' + escapeHtml(s.prompt_text) + '" data-showcase-id="' + s.id + '" class="showcase-prompt-edit" style="width:100%;margin-top:4px;padding:6px 8px;border:1px solid #e0e0e0;border-radius:4px;font-family:Inter,sans-serif;font-size:12px;color:#333;" onchange="updateShowcasePrompt(this)" />';
         card.appendChild(promptDiv);
 
         // Info row
@@ -5570,9 +5570,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     async function featureOnHomepage(sourceType, eventThemeId, testRunId, eventTitle, eventType) {
-      var promptInput = document.getElementById('showcasePromptInput');
-      var promptText = promptInput ? promptInput.value.trim() : '';
-      if (!promptText) { alert('Please enter a prompt text for the typing animation.'); return; }
+      var btn = document.getElementById('featureBtn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Generating prompt...'; }
 
       try {
         var resp = await fetch('/api/v2/admin?action=featureShowcase', {
@@ -5582,23 +5581,22 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             sourceType: sourceType,
             eventThemeId: eventThemeId,
             testRunId: testRunId,
-            promptText: promptText,
             eventTitle: eventTitle,
             eventType: eventType
           })
         });
         var data = await resp.json();
         if (data.success) {
-          // Refresh showcase data
           await loadShowcases();
-          // Close and reopen detail to refresh the feature button
           closeGenDetailView();
-          showToast('Featured on homepage!');
+          showToast('Featured on homepage! Prompt: "' + (data.promptText || '').substring(0, 60) + '..."');
         } else {
           alert('Error: ' + (data.error || 'Unknown error'));
+          if (btn) { btn.disabled = false; btn.textContent = 'Feature on Homepage'; }
         }
       } catch (err) {
         alert('Failed to feature: ' + err.message);
+        if (btn) { btn.disabled = false; btn.textContent = 'Feature on Homepage'; }
       }
     }
 
@@ -5620,6 +5618,25 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         }
       } catch (err) {
         alert('Failed to remove: ' + err.message);
+      }
+    }
+
+    async function updateShowcasePrompt(inputEl) {
+      var showcaseId = inputEl.dataset.showcaseId;
+      var newText = inputEl.value.trim();
+      if (!newText) return;
+      try {
+        await fetch('/api/v2/admin?action=updateShowcase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ showcaseId: showcaseId, promptText: newText })
+        });
+        // Update local cache
+        var s = featuredShowcases.find(function(x) { return x.id === showcaseId; });
+        if (s) s.prompt_text = newText;
+        showToast('Prompt updated');
+      } catch (err) {
+        alert('Failed to update prompt: ' + err.message);
       }
     }
 
@@ -5952,14 +5969,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             + '</div>'
             + '<div class="detail-row"><span class="detail-label">Prompt Text</span><span class="detail-value" style="font-size:12px;">' + escapeHtml(isFeatured.prompt_text) + '</span></div>';
         } else {
-          var defaultPrompt = escapeHtml(item.prompt || item.eventTitle || '');
-          html += '<div id="showcaseFeatureForm">'
-            + '<div class="config-field" style="margin-bottom:8px;">'
-            + '<label>Prompt text (shown in typing animation)</label>'
-            + '<input type="text" id="showcasePromptInput" value="' + defaultPrompt + '" placeholder="e.g. Rainbow unicorn birthday party with sparkles and magic" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:\'Inter\',sans-serif;font-size:13px;">'
-            + '</div>'
-            + '<button class="btn btn-primary btn-sm" onclick="featureOnHomepage(\'user_theme\', \'' + item.id + '\', null, \'' + escapeHtml((item.eventTitle || '').replace(/'/g, '')) + '\', \'' + escapeHtml(item.eventType || 'other') + '\')">Feature on Homepage</button>'
-            + '</div>';
+          html += '<p style="font-size:12px;color:#888;margin-bottom:8px;">AI will auto-generate a short prompt describing this design for the homepage typing animation.</p>'
+            + '<button class="btn btn-primary btn-sm" id="featureBtn" onclick="featureOnHomepage(\'user_theme\', \'' + item.id + '\', null, \'' + escapeHtml((item.eventTitle || '').replace(/'/g, '')) + '\', \'' + escapeHtml(item.eventType || 'other') + '\')">Feature on Homepage</button>';
         }
         html += '</div>';
 
@@ -6025,14 +6036,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             + '<div class="detail-row"><span class="detail-label">Prompt Text</span><span class="detail-value" style="font-size:12px;">' + escapeHtml(isFeaturedLab.prompt_text) + '</span></div>';
         } else {
           var labEventTitle = (item.event_details && item.event_details.title) || '';
-          var defaultLabPrompt = escapeHtml(labEventTitle || item.event_type || '');
-          html += '<div id="showcaseFeatureForm">'
-            + '<div class="config-field" style="margin-bottom:8px;">'
-            + '<label>Prompt text (shown in typing animation)</label>'
-            + '<input type="text" id="showcasePromptInput" value="' + defaultLabPrompt + '" placeholder="e.g. Rainbow unicorn birthday party with sparkles and magic" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:\'Inter\',sans-serif;font-size:13px;">'
-            + '</div>'
-            + '<button class="btn btn-primary btn-sm" onclick="featureOnHomepage(\'lab_theme\', null, \'' + item.id + '\', \'' + escapeHtml((labEventTitle || '').replace(/'/g, '')) + '\', \'' + escapeHtml(item.event_type || 'other') + '\')">Feature on Homepage</button>'
-            + '</div>';
+          html += '<p style="font-size:12px;color:#888;margin-bottom:8px;">AI will auto-generate a short prompt describing this design for the homepage typing animation.</p>'
+            + '<button class="btn btn-primary btn-sm" id="featureBtn" onclick="featureOnHomepage(\'lab_theme\', null, \'' + item.id + '\', \'' + escapeHtml((labEventTitle || '').replace(/'/g, '')) + '\', \'' + escapeHtml(item.event_type || 'other') + '\')">Feature on Homepage</button>';
         }
         html += '</div>';
 
