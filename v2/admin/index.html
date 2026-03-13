@@ -520,6 +520,25 @@
             <div class="stat-label">Revenue Target</div>
           </div>
         </div>
+        <!-- Latency & Performance Trends -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:20px;">
+          <div class="stat-card" style="background:#faf5ff;border:1px solid #e9d5ff;">
+            <div class="stat-value" style="color:#7c3aed;font-size:22px;" id="latencyThemeAvg">—</div>
+            <div class="stat-label">Avg Theme Latency</div>
+          </div>
+          <div class="stat-card" style="background:#faf5ff;border:1px solid #e9d5ff;">
+            <div class="stat-value" style="color:#7c3aed;font-size:22px;" id="latencyTheme7d">—</div>
+            <div class="stat-label">Theme Latency (7d) <span id="latencyTheme7dTrend" style="font-size:13px;"></span></div>
+          </div>
+          <div class="stat-card" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+            <div class="stat-value" style="color:#16a34a;font-size:18px;" id="cost7dTrend">—</div>
+            <div class="stat-label">Cost 7d vs Prior 7d</div>
+          </div>
+          <div class="stat-card" style="background:#eff6ff;border:1px solid #bfdbfe;">
+            <div class="stat-value" style="color:#2563eb;font-size:18px;" id="gen7dTrend">—</div>
+            <div class="stat-label">Generations 7d vs Prior 7d</div>
+          </div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;">
           <div style="background:#f9f9f9;border-radius:8px;padding:16px;">
             <div style="font-size:12px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Chat (Event Planning)</div>
@@ -1812,6 +1831,46 @@
       var markup = (1 + (c.markupPct || 100) / 100);
       document.getElementById('markupDisplay').textContent = markup.toFixed(1);
 
+      // Latency display
+      var lat = stats.latency || {};
+      function fmtLatency(ms) {
+        if (!ms && ms !== 0) return '—';
+        if (ms >= 1000) return (ms / 1000).toFixed(1) + 's';
+        return ms + 'ms';
+      }
+      function trendBadge(pctChange, inverted) {
+        // inverted: true for latency (lower = better), false for cost/gen (context-dependent)
+        if (pctChange === null || pctChange === undefined) return '';
+        var color = pctChange === 0 ? '#888' : (inverted ? (pctChange < 0 ? '#16a34a' : '#dc2626') : (pctChange > 0 ? '#dc2626' : '#16a34a'));
+        var arrow = pctChange > 0 ? '\u2191' : (pctChange < 0 ? '\u2193' : '\u2192');
+        return '<span style="color:' + color + ';font-weight:600;">' + arrow + Math.abs(pctChange) + '%</span>';
+      }
+
+      document.getElementById('latencyThemeAvg').textContent = fmtLatency(lat.themeAvgMs);
+      document.getElementById('latencyTheme7d').textContent = fmtLatency(lat.themeAvg7dMs);
+
+      var tr = stats.trends || {};
+      document.getElementById('latencyTheme7dTrend').innerHTML = trendBadge(tr.themeLatency7dChange, true);
+
+      // Cost 7d trend
+      var cost7dEl = document.getElementById('cost7dTrend');
+      if (tr.cost7dChange !== null && tr.cost7dChange !== undefined) {
+        cost7dEl.innerHTML = fmtCost(c.apiCost7d || 0) + ' ' + trendBadge(tr.cost7dChange, false);
+      } else {
+        cost7dEl.textContent = fmtCost(c.apiCost7d || 0);
+      }
+
+      // Generation volume 7d trend
+      var gen7dEl = document.getElementById('gen7dTrend');
+      var genChange = (tr.genPrev7dCount && tr.genPrev7dCount > 0) ? Math.round((tr.gen7dCount - tr.genPrev7dCount) / tr.genPrev7dCount * 100) : null;
+      if (genChange !== null) {
+        var genColor = genChange >= 0 ? '#16a34a' : '#dc2626';
+        var genArrow = genChange > 0 ? '\u2191' : (genChange < 0 ? '\u2193' : '\u2192');
+        gen7dEl.innerHTML = (tr.gen7dCount || 0) + ' gens <span style="color:' + genColor + ';font-weight:600;">' + genArrow + Math.abs(genChange) + '%</span>';
+      } else {
+        gen7dEl.textContent = (tr.gen7dCount || 0) + ' gens';
+      }
+
       // Token usage by model
       var grid = document.getElementById('usageGrid');
       var models = Object.keys(stats.tokensByModel || {});
@@ -1821,14 +1880,16 @@
       }
       grid.innerHTML = models.map(function(model) {
         var m = stats.tokensByModel[model];
+        var avgLat = m.latencyCount > 0 ? fmtLatency(Math.round(m.latencyMs / m.latencyCount)) : '—';
         return '<div class="usage-card">'
           + '<div class="model-name">' + escapeHtml(model) + '</div>'
-          + '<div class="usage-stats" style="grid-template-columns:repeat(6,1fr);">'
+          + '<div class="usage-stats" style="grid-template-columns:repeat(7,1fr);">'
           + '<div class="usage-stat"><div class="val">' + m.chatCount + '</div><div class="lbl">Chat</div></div>'
           + '<div class="usage-stat"><div class="val">' + m.themeCount + '</div><div class="lbl">Theme</div></div>'
           + '<div class="usage-stat"><div class="val">' + (m.testCount || 0) + '</div><div class="lbl">Tests</div></div>'
           + '<div class="usage-stat"><div class="val">' + formatNumber(m.inputTokens) + '</div><div class="lbl">In Tokens</div></div>'
           + '<div class="usage-stat"><div class="val">' + formatNumber(m.outputTokens) + '</div><div class="lbl">Out Tokens</div></div>'
+          + '<div class="usage-stat"><div class="val" style="color:#7c3aed;">' + avgLat + '</div><div class="lbl">Avg Latency</div></div>'
           + '<div class="usage-stat"><div class="val" style="color:var(--mint-fizz);">' + fmtCost(m.cost) + '</div><div class="lbl">Cost</div></div>'
           + '</div></div>';
       }).join('');
@@ -1841,13 +1902,15 @@
         var themeAvgCost = c2.themeCount > 0 ? c2.apiCostTheme / c2.themeCount : 0;
         var testAvgCost = c2.testCount > 0 ? c2.apiCostTest / c2.testCount : 0;
         var totalOps = (c2.chatCount || 0) + (c2.themeCount || 0) + (c2.testCount || 0);
+        var themeLatStr = lat.themeAvgMs ? fmtLatency(lat.themeAvgMs) : '—';
+        var overallLatStr = lat.avgMs ? fmtLatency(lat.avgMs) : '—';
         estEl.innerHTML = '<table style="width:100%;font-size:13px;">'
-          + '<thead><tr><th style="text-align:left;">Operation</th><th>Count</th><th>Total Cost</th><th>Avg Cost</th></tr></thead>'
+          + '<thead><tr><th style="text-align:left;">Operation</th><th>Count</th><th>Total Cost</th><th>Avg Cost</th><th>Avg Latency</th></tr></thead>'
           + '<tbody>'
-          + '<tr><td>Chat (Event Planning)</td><td>' + (c2.chatCount || 0) + '</td><td>' + fmtCost(c2.apiCostChat || 0) + '</td><td>' + fmtCost(chatAvgCost) + '</td></tr>'
-          + '<tr><td>Theme Generation</td><td>' + (c2.themeCount || 0) + '</td><td>' + fmtCost(c2.apiCostTheme || 0) + '</td><td>' + fmtCost(themeAvgCost) + '</td></tr>'
-          + '<tr><td>Prompt Lab Tests</td><td>' + (c2.testCount || 0) + '</td><td>' + fmtCost(c2.apiCostTest || 0) + '</td><td>' + fmtCost(testAvgCost) + '</td></tr>'
-          + '<tr style="font-weight:700;border-top:2px solid #ddd;"><td>Total</td><td>' + totalOps + '</td><td>' + fmtCost(c2.apiCostTotal || 0) + '</td><td>' + fmtCost(totalOps > 0 ? c2.apiCostTotal / totalOps : 0) + '</td></tr>'
+          + '<tr><td>Chat (Event Planning)</td><td>' + (c2.chatCount || 0) + '</td><td>' + fmtCost(c2.apiCostChat || 0) + '</td><td>' + fmtCost(chatAvgCost) + '</td><td>—</td></tr>'
+          + '<tr><td>Theme Generation</td><td>' + (c2.themeCount || 0) + '</td><td>' + fmtCost(c2.apiCostTheme || 0) + '</td><td>' + fmtCost(themeAvgCost) + '</td><td>' + themeLatStr + '</td></tr>'
+          + '<tr><td>Prompt Lab Tests</td><td>' + (c2.testCount || 0) + '</td><td>' + fmtCost(c2.apiCostTest || 0) + '</td><td>' + fmtCost(testAvgCost) + '</td><td>—</td></tr>'
+          + '<tr style="font-weight:700;border-top:2px solid #ddd;"><td>Total</td><td>' + totalOps + '</td><td>' + fmtCost(c2.apiCostTotal || 0) + '</td><td>' + fmtCost(totalOps > 0 ? c2.apiCostTotal / totalOps : 0) + '</td><td>' + overallLatStr + '</td></tr>'
           + '</tbody></table>';
       }
     }

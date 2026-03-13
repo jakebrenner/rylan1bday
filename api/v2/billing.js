@@ -825,9 +825,10 @@ export default async function handler(req, res) {
 
       // Self-heal: if recalculated is higher, update the persisted column
       if (recalcCents > persistedCents) {
-        supabaseAdmin.from('events')
+        const { error: healError } = await supabaseAdmin.from('events')
           .update({ total_cost_cents: recalcCents })
-          .eq('id', eventId).catch(() => {});
+          .eq('id', eventId);
+        if (healError) console.error('Event cost self-heal failed:', healError.message);
       }
 
       return res.status(200).json({
