@@ -1226,26 +1226,11 @@ Return ONLY a valid JSON object with these keys:
         tweakConfig.thankyouHtml = currentConfig.thankyouHtml;
       }
 
-      // Send result to client and close connection IMMEDIATELY — unblock res.text()
+      // Save tweak theme to DB BEFORE closing SSE so it's reliable
       const tweakCost = calcGenerationCost(tweakModel, tweakInputTokens, tweakOutputTokens);
-      sendSSE('done', {
-        success: true,
-        theme: { id: 'pending', version: 0, html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
-        chatResponse: theme.chat_response || null,
-        rsvpFieldChanges: theme.rsvp_field_changes || null,
-        isLightTweak,
-        metadata: {
-          model: tweakModel,
-          latencyMs: latency,
-          tokens: { input: tweakInputTokens, output: tweakOutputTokens },
-          cost: tweakCost
-        }
-      });
-      res.end(); // Unblock client NOW — DB saves continue in background
-
-      // Save as new version (best-effort — client already has the theme)
+      let savedTweakThemeId = 'pending';
+      let savedTweakVersion = 0;
       try {
-        // Save tweak theme to DB IMMEDIATELY so resume works if user navigates away
         const { data: existingThemes } = await supabase
           .from('event_themes')
           .select('id, version')
@@ -1269,9 +1254,35 @@ Return ONLY a valid JSON object with these keys:
           output_tokens: tweakOutputTokens, latency_ms: latency
         };
         if (basedOnThemeId) tweakInsert.based_on_theme_id = basedOnThemeId;
-        let { data: newTweakTheme, error: tweakThemeError } = await supabase
+        var { data: newTweakTheme, error: tweakThemeError } = await supabase
           .from('event_themes').insert(tweakInsert).select().single();
         if (tweakThemeError) console.error('Failed to save tweak theme:', tweakThemeError.message);
+        if (newTweakTheme) {
+          savedTweakThemeId = newTweakTheme.id;
+          savedTweakVersion = nextVersion;
+        }
+      } catch (saveErr) {
+        console.error('Tweak theme DB save failed:', saveErr);
+      }
+
+      // Send result to client with real DB ID
+      sendSSE('done', {
+        success: true,
+        theme: { id: savedTweakThemeId, version: savedTweakVersion, html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
+        chatResponse: theme.chat_response || null,
+        rsvpFieldChanges: theme.rsvp_field_changes || null,
+        isLightTweak,
+        metadata: {
+          model: tweakModel,
+          latencyMs: latency,
+          tokens: { input: tweakInputTokens, output: tweakOutputTokens },
+          cost: tweakCost
+        }
+      });
+      res.end();
+
+      // Post-save: wait for accurate token counts and update
+      try {
 
         // Now wait for accurate token usage (up to 5s) for cost logging
         try {
@@ -1283,10 +1294,10 @@ Return ONLY a valid JSON object with these keys:
 
         // Update theme with accurate tokens if they differ
         if (finalTweakInputTokens !== tweakInputTokens || finalTweakOutputTokens !== tweakOutputTokens) {
-          if (newTweakTheme?.id) {
+          if (savedTweakThemeId && savedTweakThemeId !== 'pending') {
             await supabase.from('event_themes')
               .update({ input_tokens: finalTweakInputTokens, output_tokens: finalTweakOutputTokens })
-              .eq('id', newTweakTheme.id);
+              .eq('id', savedTweakThemeId);
           }
         }
 

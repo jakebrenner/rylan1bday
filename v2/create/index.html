@@ -4405,6 +4405,23 @@
           if (result.extracted) {
             Object.assign(extractedData, result.extracted);
             renderPreview(themeVersions[activeVersionIndex]);
+            // Incrementally save extracted details to DB so progress isn't lost
+            if (currentEvent) {
+              authFetch('/api/v2/events?action=update', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  eventId: currentEvent.id,
+                  title: extractedData.title || 'Untitled Event',
+                  eventDate: extractedData.startDate || '',
+                  endDate: extractedData.endDate || '',
+                  locationName: extractedData.locationName || '',
+                  locationAddress: extractedData.locationAddress || '',
+                  dressCode: extractedData.dressCode || '',
+                  eventType: extractedData.eventType || 'other',
+                  description: extractedData.description || ''
+                })
+              }).catch(function(e) { console.error('Incremental save failed:', e); });
+            }
           }
 
           // Capture design/style preferences to apply later in tweaking phase
@@ -5658,6 +5675,26 @@
       var publishBtn = document.getElementById('publishBtn');
       publishBtn.textContent = 'Publishing...';
       try {
+        // Ensure event details are saved before publishing
+        await saveEventToDB();
+        await saveCustomFields();
+
+        // Ensure the active theme is saved to DB
+        var activeTheme = themeVersions[activeVersionIndex >= 0 ? activeVersionIndex : 0];
+        if (activeTheme && activeTheme.html) {
+          await authFetch('/api/v2/events?action=saveTheme', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventId: currentEvent.id,
+              html: activeTheme.html,
+              css: activeTheme.css || '',
+              config: activeTheme.config || {},
+              basedOnThemeId: window._templateSource ? (window._templateSource.id || '') : undefined
+            })
+          });
+        }
+
         var res = await authFetch('/api/v2/events?action=update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
