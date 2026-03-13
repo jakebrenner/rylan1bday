@@ -1146,6 +1146,16 @@
       var templateId = urlParams.get('templateId') || localStorage.getItem('pending_templateId');
       if (templateId) {
         localStorage.removeItem('pending_templateId');
+        // Show loading state immediately so user doesn't see the step 1 chat flash
+        document.querySelector('.chat-container').style.display = 'none';
+        var loadingOverlay = document.createElement('div');
+        loadingOverlay.id = 'templateLoadingOverlay';
+        loadingOverlay.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:70vh;gap:20px;">'
+          + '<div style="width:48px;height:48px;border:3px solid #f0f0f0;border-top:3px solid #e8384f;border-radius:50%;animation:spin 1s linear infinite;"></div>'
+          + '<p style="font-size:1.1rem;color:#666;font-weight:500;">Loading your design...</p>'
+          + '<p style="font-size:0.85rem;color:#999;">Setting up your personalized invite</p>'
+          + '</div>';
+        document.querySelector('.container').appendChild(loadingOverlay);
         (async function() {
           try {
             var tplRes = await fetch('/api/v2/templates?action=get&templateId=' + encodeURIComponent(templateId));
@@ -1204,7 +1214,9 @@
               try { sessionStorage.setItem('ryvite_theme_' + currentEvent.id, JSON.stringify(themeVersions)); } catch(e) {}
             }
 
-            // Jump to Step 2 split layout (preview + design chat)
+            // Remove loading overlay and jump to Step 2 split layout
+            var overlay = document.getElementById('templateLoadingOverlay');
+            if (overlay) overlay.remove();
             document.getElementById('generatingView').style.display = 'none';
             document.getElementById('generatedView').style.display = 'block';
             renderPreview(themeVersions[0]);
@@ -1213,6 +1225,22 @@
 
             // Set chat-first phase and initialize design chat with collecting welcome
             designChatPhase = 'collecting_details';
+
+            // Seed chat history with template context so the AI knows the user
+            // started from an existing design and won't ask confused questions.
+            // This is NOT shown in the UI — it's only sent to the API.
+            var templateEventType = tpl.eventType || 'event';
+            var templateContextMsg = 'CONTEXT: The user selected an existing '
+              + templateEventType + ' invite design from our inspiration gallery and clicked "Start with This Design". '
+              + 'They already have a preview of the design on screen. '
+              + 'Your job is to collect their event details (title, date, location, etc.) to personalize this design. '
+              + 'They may also ask to modify RSVP fields, change text, or adjust the design — handle those requests directly without asking if they\'re working on an existing event. '
+              + 'They are DEFINITELY working on an existing design template.';
+            chatHistory = [
+              { role: 'user', content: templateContextMsg },
+              { role: 'assistant', content: '{"message":"Great choice! I\'ll personalize this design for you. Tell me about your event — what\'s the occasion, when and where is it, and who\'s hosting?","extracted":{},"ready":false,"confirmed":false,"missingRequired":["title","eventType","startDate","locationName"],"suggestedRsvpFields":null}' }
+            ];
+
             var welcomeMsg = "Great choice! I'll personalize this design for you.\n\n"
               + "Tell me about your event — what's the occasion, when and where is it, and who's hosting?";
             designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
@@ -3322,12 +3350,6 @@
       html += '<div style="margin-bottom:12px;">'
         + '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;opacity:0.9;">Name <span style="color:' + accent + ';">*</span></label>'
         + '<input type="text" placeholder="Your name" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">'
-        + '</div>';
-
-      // Email field
-      html += '<div style="margin-bottom:12px;">'
-        + '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;opacity:0.9;">Email</label>'
-        + '<input type="email" placeholder="your@email.com" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">'
         + '</div>';
 
       // RSVP Status — styled radio buttons
