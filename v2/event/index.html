@@ -175,19 +175,17 @@
         + '<input type="text" id="rsvpName" placeholder="Your name" required>'
         + '</div>';
 
-      // Email (always included, either email or phone required)
+      // Email (always included, optional)
       html += '<div class="rsvp-form-group">'
         + '<label for="rsvpEmail">Email</label>'
         + '<input type="email" id="rsvpEmail" placeholder="your@email.com">'
         + '</div>';
 
-      // Phone (always included, either email or phone required)
+      // Phone (always included, optional)
       html += '<div class="rsvp-form-group">'
         + '<label for="rsvpPhone">Phone</label>'
         + '<input type="tel" id="rsvpPhone" placeholder="(555) 123-4567">'
         + '</div>';
-
-      html += '<div style="font-size:11px;color:#888;margin:-4px 0 8px;font-style:italic;">* Either email or phone is required</div>';
 
       // RSVP Status (always required)
       html += '<div class="rsvp-form-group">'
@@ -257,10 +255,9 @@
       var status = document.getElementById('rsvpStatus').value;
       if (!name || !status) { alert('Please fill in your name and RSVP status'); return; }
 
-      // Collect email and phone (built-in fields)
+      // Collect email and phone (built-in fields, both optional)
       var email = document.getElementById('rsvpEmail').value.trim();
       var phone = document.getElementById('rsvpPhone').value.trim();
-      if (!email && !phone) { alert('Please provide either your email or phone number'); return; }
 
       // Collect custom field values
       var customFields = currentEventData.customFields || [];

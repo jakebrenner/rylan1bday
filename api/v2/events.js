@@ -80,10 +80,6 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'eventId, name, and status are required' });
       }
 
-      if (!email && !phone) {
-        return res.status(400).json({ success: false, error: 'Either email or phone is required' });
-      }
-
       // Map frontend status values to enum
       const statusMap = { yes: 'attending', no: 'declined', maybe: 'maybe' };
       const guestStatus = statusMap[status] || status;

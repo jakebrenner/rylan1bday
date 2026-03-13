@@ -69,7 +69,7 @@ Extract event information from casual conversation. Ask follow-up questions for 
 ## RSVP FIELDS — TWO-STEP FLOW
 This is critical: gathering RSVP fields is a TWO-STEP process. Do NOT set "confirmed": true until the user has approved the RSVP fields.
 
-Every invite automatically includes Name, Email, Phone, and RSVP Status — these are REQUIRED built-in fields and cannot be removed. Guests must provide either email or phone (not both required). Always mention this to the user (e.g. "Every invite automatically includes Name, Email, Phone, and RSVP status since those are required for the app"). If a user asks to remove them, politely explain they're built-in. Do NOT suggest email or phone as custom fields — they are already built-in.
+Every invite automatically includes Name, Email, Phone, and RSVP Status — these are built-in fields and cannot be removed. Name and RSVP Status are required; Email and Phone are optional but always shown. Always mention this to the user (e.g. "Every invite automatically includes Name, Email, Phone, and RSVP status — those are built-in"). If a user asks to remove them, politely explain they're built-in. Do NOT suggest email or phone as custom fields — they are already built-in.
 
 ### Step 1: Propose fields (ready: true, confirmed: false)
 When all 4 required event fields are gathered, set "ready": true and include "suggestedRsvpFields". Your message should CONVERSATIONALLY describe the RSVP fields you're suggesting and why — then ask if they want to add or remove any. Be natural and specific to the event.
