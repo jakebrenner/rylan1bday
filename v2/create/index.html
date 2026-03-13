@@ -4322,12 +4322,15 @@
       renderDesignChat();
 
       try {
+        console.log('[design-chat-collecting] Sending to /api/v2/chat, messages:', chatHistory.length, 'eventId:', currentEvent ? currentEvent.id : null);
         var res = await authFetch('/api/v2/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages: chatHistory, sessionId: chatSessionId, eventId: currentEvent ? currentEvent.id : null })
         });
+        console.log('[design-chat-collecting] Response status:', res.status);
         var result = await res.json();
+        console.log('[design-chat-collecting] Response:', JSON.stringify(result).substring(0, 200));
 
         // Remove typing indicator
         designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
@@ -4352,7 +4355,7 @@
           designChatHistory.push({ role: 'assistant', content: result.message });
           renderDesignChat();
 
-          // If chat API says details are ready, transition to RSVP phase
+          // If chat API says details are ready AND confirmed, transition to RSVP phase
           if (result.ready && result.confirmed) {
             // Save event details to DB
             await saveEventToDB();
@@ -4397,10 +4400,13 @@
             renderDesignChat();
           }
         } else {
-          designChatHistory.push({ role: 'assistant', content: 'Sorry, something went wrong. Please try again.' });
+          var errMsg = result.detail || result.message || result.error || 'Something went wrong';
+          console.error('Chat API error (collecting):', JSON.stringify(result));
+          designChatHistory.push({ role: 'assistant', content: 'Sorry, something went wrong: ' + errMsg + '. Please try again.' });
           renderDesignChat();
         }
       } catch (err) {
+        console.error('Chat connection error (collecting):', err);
         designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
         designChatHistory.push({ role: 'assistant', content: 'Connection error. Please try again.' });
         renderDesignChat();
