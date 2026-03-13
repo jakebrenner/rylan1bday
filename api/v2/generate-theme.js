@@ -833,7 +833,7 @@ export default async function handler(req, res) {
   }
 
   const action = req.query?.action || req.body?.action || 'generate';
-  const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages, inspirationImageUrls, tweakInstructions, currentHtml, currentCss, currentConfig, photoBase64, photoUrl, photoUrls, basedOnThemeId } = req.body;
+  const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages, inspirationImageUrls, tweakInstructions, currentHtml, currentCss, currentConfig, photoBase64, photoUrl, photoUrls, basedOnThemeId, previewMode, currentEmailHtml } = req.body;
 
   // --- INTERPRET FIELD: quick Haiku call to parse natural language into field definition ---
   if (action === 'interpretField') {
@@ -961,13 +961,17 @@ try {
 
       let tweakMessage;
 
+      const isEmailMode = previewMode === 'email';
+
       if (isLightTweak) {
         // ── LIGHT TWEAK: diff-based approach (much smaller output) ──
-        tweakMessage = `Here is an invite theme. The user wants a small text/content change.
+        const targetHtml = isEmailMode ? (currentEmailHtml || '') : currentHtml;
+        const targetLabel = isEmailMode ? 'email invite' : 'invite theme';
+        tweakMessage = `Here is an ${targetLabel}. The user wants a small text/content change.
 ${eventContext}
-**Current HTML:**
+**Current ${isEmailMode ? 'Email ' : ''}HTML:**
 \`\`\`html
-${currentHtml}
+${targetHtml}
 \`\`\`
 
 **User's request:** ${tweakInstructions}
@@ -975,17 +979,52 @@ ${currentHtml}
 Return a JSON object with ONLY the changes needed:
 {
   "html_replacements": [{"old": "exact text to find", "new": "replacement text"}],
-  "rsvp_field_changes": [...] or null,
+  ${isEmailMode ? '' : '"rsvp_field_changes": [...] or null,'}
   "chat_response": "Brief friendly message about what you changed"
 }
 
 Rules:
-- "old" must be an EXACT substring from the current HTML (copy-paste it precisely, including tags)
-- "new" is the replacement string
+- "old" must be an EXACT substring from the current ${isEmailMode ? 'email ' : ''}HTML (copy-paste it precisely, including tags)
+- "new" is the replacement string${isEmailMode ? `
+- This is an EMAIL template — it must use table-based layout for email client compatibility
+- Keep all inline styles — email clients don't support <style> blocks reliably` : `
 - For RSVP field changes: { "action": "remove"|"add"|"modify", "field_key": "...", "label": "...", "field_type": "text"|"number"|"select"|"checkbox"|"textarea", "is_required": false }
 - RSVP fields are rendered by the platform, NOT in the HTML. Do NOT add form inputs to html_replacements.
 - .rsvp-slot MUST contain ONLY a <button class="rsvp-button">
-- Preserve all data-field attributes`;
+- Preserve all data-field attributes`}`;
+      } else if (isEmailMode) {
+        // ── EMAIL DESIGN TWEAK: modify the email invite template ──
+        tweakMessage = `Here is an email invite template. The user is using the chat designer to modify their email invite.
+${eventContext}
+**Current Email HTML:**
+\`\`\`html
+${currentEmailHtml || ''}
+\`\`\`
+
+**Current Theme Config (for reference — colors, fonts):**
+\`\`\`json
+${JSON.stringify(currentConfig || {})}
+\`\`\`
+
+**User's message:**
+${tweakInstructions}
+
+Return the updated email as a JSON object:
+{
+  "theme_email_html": "...the full updated email HTML...",
+  "chat_response": "Brief friendly message about what you changed"
+}
+
+## EMAIL TEMPLATE RULES
+- This is an EMAIL — use TABLE-BASED LAYOUT only (no flexbox, no grid, no CSS animations)
+- ALL styles must be INLINE (style="...") — email clients strip <style> blocks
+- Keep the email within 600px max-width for email client compatibility
+- Preserve the RSVP button link (the <a> tag with the RSVP URL)
+- Use the event's theme colors and fonts from the config for visual consistency
+- Google Fonts may not render in all email clients — include fallback font stacks
+- Images must use absolute URLs
+- Keep the email professional and clean — it's a real invitation being sent to guests
+- The {name} and {link} placeholders in the content will be replaced per-guest at send time`;
       } else {
         // ── DESIGN TWEAK: full regeneration ──
         tweakMessage = `Here is an existing invite theme. The user is using the chat designer to modify their invite.
@@ -1047,8 +1086,27 @@ Remember: RSVP fields are rendered by the platform, NOT in theme HTML. Do NOT ad
       // Stream the response from Claude
       sendSSE('status', { phase: 'generating', isLightTweak });
 
-      const tweakSystemPrompt = isLightTweak
-        ? `You are modifying an event invite. Make ONLY the specific text, wording, or content changes requested. Do NOT change design, layout, colors, fonts, or CSS.
+      const tweakSystemPrompt = isEmailMode && !isLightTweak
+        ? `You are an elite email designer modifying event invitation emails via a conversational chat interface. Your modifications should produce beautiful, professional email invites.
+
+## OUTPUT FORMAT
+Return ONLY a valid JSON object:
+{
+  "theme_email_html": "...the complete updated email HTML...",
+  "chat_response": "Brief friendly message about what you changed."
+}
+
+## CRITICAL RULES
+- TABLE-BASED LAYOUT ONLY — no flexbox, grid, or CSS animations
+- ALL styles must be INLINE (style="...") — email clients strip <style> blocks
+- Max-width 600px for email client compatibility
+- Preserve the RSVP button link (<a> tag)
+- Keep {name} and {link} placeholders — they're replaced per-guest at send time
+- Use Google Fonts with web-safe fallbacks (font-family: 'Font Name', Georgia, serif)
+- Make ONLY the changes the user asked for — keep everything else the same
+- TEXT CONTRAST: All text must be readable. Dark backgrounds → white text. Light backgrounds → dark text.`
+        : isLightTweak
+        ? `You are modifying an event ${isEmailMode ? 'email invite' : 'invite'}. Make ONLY the specific text, wording, or content changes requested. Do NOT change design, layout, colors, fonts, or CSS.
 
 ## OUTPUT FORMAT
 Return ONLY a valid JSON object:
@@ -1210,8 +1268,42 @@ Return ONLY a valid JSON object with these keys:
         return;
       }
 
+      // ── Email mode: handle email-specific response ──
+      if (isEmailMode) {
+        const emailHtmlResult = theme.theme_email_html || theme.email_html || null;
+
+        if (isLightTweak && theme.html_replacements && Array.isArray(theme.html_replacements)) {
+          // Apply replacements to email HTML
+          console.log(`[tweak] Applying ${theme.html_replacements.length} email HTML replacement(s)`);
+          let patchedEmail = currentEmailHtml || '';
+          let appliedCount = 0;
+          for (const rep of theme.html_replacements) {
+            if (rep.old && rep.new !== undefined && patchedEmail.includes(rep.old)) {
+              patchedEmail = patchedEmail.replace(rep.old, rep.new);
+              appliedCount++;
+            } else if (rep.old) {
+              console.warn('[tweak] Email replacement not found:', rep.old.substring(0, 100));
+            }
+          }
+          console.log(`[tweak] Applied ${appliedCount}/${theme.html_replacements.length} email replacements`);
+          theme.theme_html = currentHtml;
+          theme.theme_css = currentCss;
+          theme.theme_config = { ...(currentConfig || {}), emailHtml: patchedEmail };
+        } else if (emailHtmlResult) {
+          // Full email design tweak — AI returned complete email HTML
+          console.log(`[tweak] Got full email HTML from AI (${emailHtmlResult.length} chars)`);
+          theme.theme_html = currentHtml;
+          theme.theme_css = currentCss;
+          theme.theme_config = { ...(currentConfig || {}), emailHtml: emailHtmlResult };
+        } else {
+          // No email changes — keep existing
+          theme.theme_html = currentHtml;
+          theme.theme_css = currentCss;
+          theme.theme_config = currentConfig || {};
+        }
+      }
       // ── Light tweak: apply diff-based html_replacements ──
-      if (isLightTweak && theme.html_replacements && Array.isArray(theme.html_replacements)) {
+      else if (isLightTweak && theme.html_replacements && Array.isArray(theme.html_replacements)) {
         console.log(`[tweak] Applying ${theme.html_replacements.length} HTML replacement(s)`);
         let patchedHtml = currentHtml;
         let appliedCount = 0;
@@ -1261,6 +1353,10 @@ Return ONLY a valid JSON object with these keys:
         tweakConfig.thankyouHtml = theme.theme_thankyou_html;
       } else if (currentConfig?.thankyouHtml) {
         tweakConfig.thankyouHtml = currentConfig.thankyouHtml;
+      }
+      // Preserve emailHtml across non-email tweaks
+      if (!tweakConfig.emailHtml && currentConfig?.emailHtml) {
+        tweakConfig.emailHtml = currentConfig.emailHtml;
       }
 
       // Save tweak theme to DB BEFORE closing SSE so it's reliable

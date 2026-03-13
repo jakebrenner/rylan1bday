@@ -720,8 +720,9 @@
           <!-- Right: Phone preview -->
           <div id="previewColumn" style="flex:0 0 auto;">
             <div id="previewToggle" style="display:flex;justify-content:center;gap:4px;margin-bottom:8px;">
-              <button class="preview-toggle-btn active" onclick="setPreviewMode('invite')">Invite</button>
-              <button class="preview-toggle-btn" onclick="setPreviewMode('thankyou')">Thank You</button>
+              <button class="preview-toggle-btn active" data-mode="invite" onclick="setPreviewMode('invite')">Invite</button>
+              <button class="preview-toggle-btn" data-mode="thankyou" onclick="setPreviewMode('thankyou')">Thank You</button>
+              <button class="preview-toggle-btn" data-mode="email" onclick="setPreviewMode('email')">Email</button>
             </div>
             <div class="phone-mockup">
               <div class="phone-frame">
@@ -3863,7 +3864,10 @@
 
     function renderPreview(ver) {
       var iframe = document.getElementById('previewFrame');
-      if (currentPreviewMode === 'thankyou') {
+      if (currentPreviewMode === 'email') {
+        iframe.onload = null;
+        iframe.srcdoc = buildEmailSrcdoc(ver);
+      } else if (currentPreviewMode === 'thankyou') {
         // Set onload BEFORE srcdoc to avoid race on fast loads
         iframe.onload = function() { injectCalendarHandlers(iframe); };
         iframe.srcdoc = buildThankYouSrcdoc(ver);
@@ -3995,15 +3999,91 @@
       }).catch(function() {});
     }
 
-    // ---- Preview mode toggle (Invite / Thank You) ----
+    // Build email invite preview — uses theme colors/fonts, matches what's actually sent
+    function buildEmailSrcdoc(ver) {
+      var config = ver.config || {};
+      var emailHtml = config.emailHtml || '';
+
+      // If AI has generated custom email HTML, use it directly
+      if (emailHtml) {
+        return emailHtml;
+      }
+
+      // Otherwise, build the default themed email template (mirrors sms.js sendEmailInvites)
+      var pc = config.primaryColor || '#E94560';
+      var sc = config.secondaryColor || '#FF6B6B';
+      var bg = config.backgroundColor || '#FFFAF5';
+      var tc = config.textColor || '#1A1A2E';
+      var hf = config.fontHeadline || 'Playfair Display';
+      var bf = config.fontBody || 'Inter';
+      var fontsImport = config.googleFontsImport || '';
+      var detailsBg = pc + '12';
+
+      var title = extractedData.title || currentEvent?.title || 'Your Event';
+      var hostName = 'Your Host';
+      var guestName = 'Sarah';
+      var eventDate = extractedData.startDate
+        ? new Date(extractedData.startDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+        : '';
+      var location = extractedData.locationName || '';
+
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">'
+        + (fontsImport ? '<style>' + fontsImport + '</style>' : '')
+        + '<style>body { margin:0; padding:0; background:#f4f4f4; } * { box-sizing:border-box; }</style>'
+        + '</head><body>'
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;">'
+        + '<tr><td align="center" style="padding:32px 16px;">'
+        + '<table role="presentation" width="393" cellpadding="0" cellspacing="0" style="max-width:393px;width:100%;background:' + bg + ';border-radius:20px;overflow:hidden;">'
+
+        // Colored header band
+        + '<tr><td style="background:' + pc + ';height:8px;font-size:0;line-height:0;">&nbsp;</td></tr>'
+
+        // Main content
+        + '<tr><td style="padding:36px 32px 32px;font-family:\'' + bf + '\',Arial,sans-serif;">'
+
+        // Headline
+        + '<h1 style="font-family:\'' + hf + '\',Georgia,serif;font-size:28px;font-weight:700;color:' + tc + ';margin:0 0 8px;text-align:center;">You\'re Invited!</h1>'
+        + '<div style="width:40px;height:3px;background:' + pc + ';margin:0 auto 28px;border-radius:2px;"></div>'
+
+        // Body
+        + '<p style="color:' + tc + ';opacity:0.8;font-size:16px;line-height:1.6;margin:0 0 24px;">'
+        + 'Hi <strong>' + escapeHtml(guestName) + '</strong>, <strong>' + escapeHtml(hostName) + '</strong> has invited you to:'
+        + '</p>'
+
+        // Event details card
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + detailsBg + ';border-radius:12px;margin-bottom:28px;">'
+        + '<tr><td style="padding:20px 24px;">'
+        + '<div style="font-family:\'' + hf + '\',Georgia,serif;font-size:20px;font-weight:700;color:' + tc + ';margin-bottom:8px;">' + escapeHtml(title) + '</div>'
+        + (eventDate ? '<div style="font-size:14px;color:' + tc + ';opacity:0.7;margin-bottom:4px;">' + escapeHtml(eventDate) + '</div>' : '')
+        + (location ? '<div style="font-size:14px;color:' + tc + ';opacity:0.7;">' + escapeHtml(location) + '</div>' : '')
+        + '</td></tr></table>'
+
+        // CTA button
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">'
+        + '<tr><td align="center">'
+        + '<a href="#" style="display:inline-block;background:' + pc + ';color:#ffffff;padding:16px 40px;border-radius:12px;font-family:\'' + bf + '\',Arial,sans-serif;font-weight:700;font-size:16px;text-decoration:none;letter-spacing:0.3px;">RSVP Now</a>'
+        + '</td></tr></table>'
+
+        + '</td></tr>'
+
+        // Footer
+        + '<tr><td style="padding:0 32px 28px;text-align:center;">'
+        + '<p style="font-family:\'' + bf + '\',Arial,sans-serif;color:' + tc + ';opacity:0.35;font-size:11px;margin:0;">'
+        + 'Sent via <span style="opacity:0.5;">Ryvite</span>'
+        + '</p>'
+        + '</td></tr>'
+
+        + '</table>'
+        + '</td></tr></table>'
+        + '</body></html>';
+    }
+
+    // ---- Preview mode toggle (Invite / Thank You / Email) ----
     function setPreviewMode(mode) {
       currentPreviewMode = mode;
-      document.querySelectorAll('.preview-toggle-btn').forEach(function(btn) { btn.classList.remove('active'); });
-      if (mode === 'invite') {
-        document.querySelectorAll('.preview-toggle-btn')[0].classList.add('active');
-      } else {
-        document.querySelectorAll('.preview-toggle-btn')[1].classList.add('active');
-      }
+      document.querySelectorAll('.preview-toggle-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
+      });
       var ver = themeVersions[activeVersionIndex];
       if (!ver) return;
       renderPreview(ver);
@@ -5124,13 +5204,29 @@
       var textSwap = tryInstantTextSwap(text, hasPhotos);
       if (textSwap) {
         var ver = themeVersions[activeVersionIndex];
+        // For email mode, swap text in emailHtml
+        if (currentPreviewMode === 'email' && ver && ver.config && ver.config.emailHtml) {
+          var emailLower = ver.config.emailHtml.toLowerCase();
+          var searchLower = textSwap.oldText.toLowerCase();
+          var idx = emailLower.indexOf(searchLower);
+          if (idx !== -1) {
+            var originalSubstr = ver.config.emailHtml.substring(idx, idx + textSwap.oldText.length);
+            ver.config.emailHtml = ver.config.emailHtml.substring(0, idx) + textSwap.newText + ver.config.emailHtml.substring(idx + originalSubstr.length);
+            themeVersions[activeVersionIndex] = ver;
+            renderPreview(ver);
+            designChatHistory.push({ role: 'assistant', content: 'Done! Changed "' + originalSubstr + '" to "' + textSwap.newText + '" in the email.\n\nWant to make any more changes?' });
+            clearDesignChatPhoto();
+            sendBtn.disabled = false;
+            renderDesignChat();
+            return;
+          }
+        }
+        // For invite/thankyou mode, swap in invite HTML
         if (ver && ver.html) {
-          // Case-insensitive search in the HTML
           var htmlLower = ver.html.toLowerCase();
           var searchLower = textSwap.oldText.toLowerCase();
           var idx = htmlLower.indexOf(searchLower);
           if (idx !== -1) {
-            // Preserve the case structure: replace the exact substring found
             var originalSubstr = ver.html.substring(idx, idx + textSwap.oldText.length);
             ver.html = ver.html.substring(0, idx) + textSwap.newText + ver.html.substring(idx + originalSubstr.length);
             themeVersions[activeVersionIndex] = ver;
@@ -5207,9 +5303,11 @@
           action: 'tweak',
           eventId: currentEvent.id,
           tweakInstructions: instructions,
+          previewMode: currentPreviewMode,
           currentHtml: ver.html,
           currentCss: ver.css,
           currentConfig: ver.config,
+          currentEmailHtml: currentPreviewMode === 'email' ? buildEmailSrcdoc(ver) : undefined,
           photoUrls: hasPhotos ? designChatPhotoUrls : undefined,
           photoUrl: hasPhotos ? designChatPhotoUrls[0] : undefined,
           eventDetails: {

@@ -634,27 +634,36 @@ export default async function handler(req, res) {
       let failedCount = 0;
       const notifRecords = [];
 
+      // Check if the user has a custom email template from the design chat
+      const customEmailHtml = cfg.emailHtml || null;
+
       for (const guest of validGuests) {
         const guestLink = `${baseUrl}/v2/event/${event.slug}?gid=${guest.id}`;
         const guestName = guest.name || 'Guest';
 
-        // Build message body
-        let bodyHtml = '';
-        if (message) {
-          const resolvedMsg = message
+        let html;
+        if (customEmailHtml) {
+          // Use the AI-customized email template — resolve per-guest placeholders
+          html = customEmailHtml
             .replace(/\{name\}/gi, guestName)
-            .replace(/\{link\}/gi, guestLink)
-            .replace(/\n/g, '<br>');
-          bodyHtml = `<p style="color:${textColor};opacity:0.8;font-size:15px;line-height:1.6;margin:0 0 24px;">${resolvedMsg}</p>`;
+            .replace(/\{link\}/gi, guestLink);
         } else {
-          bodyHtml = `
-            <p style="color:${textColor};opacity:0.8;font-size:16px;line-height:1.6;margin:0 0 24px;">
-              Hi <strong>${guestName}</strong>, <strong>${hostName}</strong> has invited you to:
-            </p>`;
-        }
+          // Build default themed email template
+          let bodyHtml = '';
+          if (message) {
+            const resolvedMsg = message
+              .replace(/\{name\}/gi, guestName)
+              .replace(/\{link\}/gi, guestLink)
+              .replace(/\n/g, '<br>');
+            bodyHtml = `<p style="color:${textColor};opacity:0.8;font-size:15px;line-height:1.6;margin:0 0 24px;">${resolvedMsg}</p>`;
+          } else {
+            bodyHtml = `
+              <p style="color:${textColor};opacity:0.8;font-size:16px;line-height:1.6;margin:0 0 24px;">
+                Hi <strong>${guestName}</strong>, <strong>${hostName}</strong> has invited you to:
+              </p>`;
+          }
 
-        // Theme-styled email — uses the event's AI-generated color palette and fonts
-        const html = `<!DOCTYPE html>
+          html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 ${fontsImport ? `<style>${fontsImport}</style>` : ''}
 </head><body style="margin:0;padding:0;background:#f4f4f4;">
@@ -701,6 +710,7 @@ ${fontsImport ? `<style>${fontsImport}</style>` : ''}
 </td></tr>
 </table>
 </body></html>`;
+        }
 
         try {
           await resend.emails.send({
