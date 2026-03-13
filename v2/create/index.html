@@ -53,11 +53,11 @@
     .btn-secondary { background: #f0f0f0; color: var(--midnight); }
     .btn-secondary:hover { background: #e0e0e0; }
     .btn-sm { padding: 6px 14px; font-size: 12px; }
-    .button-group { display: flex; gap: 10px; margin-top: 40px; flex-wrap: wrap; }
-    .button-group .btn { flex: 1; min-width: 0; white-space: nowrap; font-size: 13px; padding: 12px 16px; }
+    .button-group { display: flex; gap: 12px; margin-top: 40px; flex-wrap: wrap; }
+    .button-group .btn { flex: 1; min-width: 0; white-space: nowrap; font-size: 15px; padding: 16px 24px; border-radius: 12px; }
     @media (max-width: 640px) {
-      .button-group { gap: 8px; }
-      .button-group .btn { font-size: 12px; padding: 10px 12px; }
+      .button-group { gap: 10px; }
+      .button-group .btn { font-size: 14px; padding: 14px 20px; }
     }
     @media (max-width: 420px) {
       .button-group { flex-direction: column; }
@@ -811,20 +811,25 @@
             </div>
           </label>
 
-          <!-- Email option (coming soon) -->
-          <label class="send-option" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:2px solid #e0e0e0;border-radius:12px;cursor:not-allowed;margin-bottom:16px;opacity:0.5;">
-            <input type="checkbox" disabled style="margin-top:3px;width:18px;height:18px;">
+          <!-- Email option -->
+          <label id="sendOptEmail" class="send-option" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:2px solid #e0e0e0;border-radius:12px;cursor:pointer;margin-bottom:16px;">
+            <input type="checkbox" id="sendViaEmail" onchange="updateSendPreview()" style="margin-top:3px;width:18px;height:18px;accent-color:var(--party-coral);">
             <div style="flex:1;">
-              <div style="font-weight:600;font-size:15px;color:var(--midnight);">Email <span style="font-size:11px;background:#f0f0f0;padding:2px 8px;border-radius:8px;color:#999;margin-left:6px;">Coming soon</span></div>
+              <div style="font-weight:600;font-size:15px;color:var(--midnight);">Email</div>
               <div style="font-size:13px;color:#888;margin-top:2px;" id="emailGuestCount"></div>
             </div>
           </label>
 
           <!-- SMS Message Template -->
           <div id="smsTemplateSection">
-            <label style="font-weight:600;font-size:13px;color:var(--midnight);display:block;margin-bottom:6px;">Message</label>
+            <label style="font-weight:600;font-size:13px;color:var(--midnight);display:block;margin-bottom:6px;">SMS Message</label>
             <textarea id="sendSmsMessage" style="width:100%;min-height:72px;border:1.5px solid #ddd;border-radius:10px;padding:12px;font-family:inherit;font-size:14px;resize:vertical;box-sizing:border-box;" oninput="updateSendPreview()"></textarea>
             <div style="font-size:12px;color:#999;margin-top:4px;">{name} = guest's name &middot; {link} = personalized RSVP link</div>
+          </div>
+
+          <!-- Email note -->
+          <div id="emailTemplateSection" style="display:none;margin-top:12px;padding:12px 16px;background:rgba(233,69,96,0.04);border-radius:10px;font-size:13px;color:#666;">
+            A branded email invite will be sent with the event details and a personalized RSVP link.
           </div>
 
           <!-- Cost estimate -->
@@ -6064,7 +6069,7 @@
         msgEl.value = 'Hi {name}, you\'re invited to ' + title + '! RSVP here: {link}';
       }
 
-      // Show/hide SMS option based on guests with phones
+      // Configure SMS option
       var smsOpt = document.getElementById('sendOptSms');
       var smsCheck = document.getElementById('sendViaSms');
       if (smsCount === 0) {
@@ -6083,6 +6088,25 @@
         smsOpt.style.background = 'rgba(233,69,96,0.04)';
       }
 
+      // Configure Email option
+      var emailOpt = document.getElementById('sendOptEmail');
+      var emailCheck = document.getElementById('sendViaEmail');
+      if (emailCount === 0) {
+        emailCheck.checked = false;
+        emailCheck.disabled = true;
+        emailOpt.style.opacity = '0.5';
+        emailOpt.style.cursor = 'not-allowed';
+        emailOpt.style.borderColor = '#e0e0e0';
+        emailOpt.style.background = 'transparent';
+      } else {
+        emailCheck.checked = true;
+        emailCheck.disabled = false;
+        emailOpt.style.opacity = '1';
+        emailOpt.style.cursor = 'pointer';
+        emailOpt.style.borderColor = 'var(--party-coral)';
+        emailOpt.style.background = 'rgba(233,69,96,0.04)';
+      }
+
       updateSendPreview();
 
       var modal = document.getElementById('sendOptionsModal');
@@ -6095,24 +6119,46 @@
 
     function updateSendPreview() {
       var smsChecked = document.getElementById('sendViaSms').checked;
-      var templateSection = document.getElementById('smsTemplateSection');
+      var emailChecked = document.getElementById('sendViaEmail').checked;
+      var smsTemplate = document.getElementById('smsTemplateSection');
+      var emailTemplate = document.getElementById('emailTemplateSection');
       var costEl = document.getElementById('sendCostEstimate');
 
-      templateSection.style.display = smsChecked ? 'block' : 'none';
+      smsTemplate.style.display = smsChecked ? 'block' : 'none';
+      emailTemplate.style.display = emailChecked ? 'block' : 'none';
 
+      // Style option borders based on checked state
+      var smsOpt = document.getElementById('sendOptSms');
+      var emailOpt = document.getElementById('sendOptEmail');
+      if (!document.getElementById('sendViaSms').disabled) {
+        smsOpt.style.borderColor = smsChecked ? 'var(--party-coral)' : '#e0e0e0';
+        smsOpt.style.background = smsChecked ? 'rgba(233,69,96,0.04)' : 'transparent';
+      }
+      if (!document.getElementById('sendViaEmail').disabled) {
+        emailOpt.style.borderColor = emailChecked ? 'var(--party-coral)' : '#e0e0e0';
+        emailOpt.style.background = emailChecked ? 'rgba(233,69,96,0.04)' : 'transparent';
+      }
+
+      // Cost estimate (only SMS has a cost)
       if (smsChecked) {
         var smsCount = addedGuests.filter(function(g) { return g.phone; }).length;
         var cost = (smsCount * 0.10).toFixed(2);
         costEl.style.display = 'block';
-        costEl.textContent = 'SMS cost: $' + cost + ' (' + smsCount + ' message' + (smsCount !== 1 ? 's' : '') + ' x $0.10)';
+        costEl.textContent = 'SMS cost: $' + cost + ' (' + smsCount + ' message' + (smsCount !== 1 ? 's' : '') + ' x $0.10)' + (emailChecked ? ' · Email is free' : '');
+      } else if (emailChecked) {
+        costEl.style.display = 'block';
+        costEl.textContent = 'Email invites are free';
       } else {
         costEl.style.display = 'none';
       }
 
       // Update confirm button text
       var btn = document.getElementById('confirmSendBtn');
-      if (smsChecked) {
-        btn.textContent = 'Publish & Send SMS';
+      var channels = [];
+      if (smsChecked) channels.push('SMS');
+      if (emailChecked) channels.push('Email');
+      if (channels.length > 0) {
+        btn.textContent = 'Publish & Send ' + channels.join(' + ');
       } else {
         btn.textContent = 'Just Publish';
       }
@@ -6123,6 +6169,7 @@
       if (!currentEvent) return;
 
       var sendSms = document.getElementById('sendViaSms').checked;
+      var sendEmail = document.getElementById('sendViaEmail').checked;
       var btn = document.getElementById('confirmSendBtn');
       btn.disabled = true;
       btn.textContent = 'Publishing...';
@@ -6132,13 +6179,15 @@
         var pubRes = await authFetch('/api/v2/events?action=update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventId: currentEvent.id, status: 'Published', settings: { invites_sent: sendSms } })
+          body: JSON.stringify({ eventId: currentEvent.id, status: 'Published', settings: { invites_sent: sendSms || sendEmail } })
         });
         var pubResult = await pubRes.json();
         if (!pubResult.success) {
           showMessage(pubResult.error || 'Failed to publish', 'error');
           return;
         }
+
+        var errors = [];
 
         // Step 2: Send SMS if selected
         if (sendSms) {
@@ -6150,29 +6199,34 @@
             var smsRes = await authFetch('/api/v2/sms?action=sendInvites', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                eventId: currentEvent.id,
-                message: message,
-                allGuests: true
-              })
+              body: JSON.stringify({ eventId: currentEvent.id, message: message, allGuests: true })
             });
             var smsResult = await smsRes.json();
-            if (!smsResult.success) {
-              // Event published but SMS failed — redirect with warning
-              clearDraft();
-              window.location.href = '/v2/dashboard/?published=' + currentEvent.id + '&smsError=1';
-              return;
-            }
-          } catch (smsErr) {
-            clearDraft();
-            window.location.href = '/v2/dashboard/?published=' + currentEvent.id + '&smsError=1';
-            return;
-          }
+            if (!smsResult.success) errors.push('SMS: ' + (smsResult.error || 'failed'));
+          } catch (e) { errors.push('SMS: network error'); }
         }
 
-        // Success — redirect to dashboard
+        // Step 3: Send Email if selected
+        if (sendEmail) {
+          btn.textContent = sendSms ? 'Sending emails...' : 'Sending emails...';
+          try {
+            var emailRes = await authFetch('/api/v2/sms?action=sendEmailInvites', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ eventId: currentEvent.id, allGuests: true })
+            });
+            var emailResult = await emailRes.json();
+            if (!emailResult.success) errors.push('Email: ' + (emailResult.error || 'failed'));
+          } catch (e) { errors.push('Email: network error'); }
+        }
+
+        // Redirect to dashboard
         clearDraft();
-        window.location.href = '/v2/dashboard/?published=' + currentEvent.id + (sendSms ? '&smsSent=1' : '');
+        var params = 'published=' + currentEvent.id;
+        if (sendSms && !errors.some(function(e) { return e.startsWith('SMS'); })) params += '&smsSent=1';
+        if (sendEmail && !errors.some(function(e) { return e.startsWith('Email'); })) params += '&emailSent=1';
+        if (errors.length) params += '&sendErrors=' + encodeURIComponent(errors.join('; '));
+        window.location.href = '/v2/dashboard/?' + params;
       } catch (err) {
         showMessage('Error publishing event', 'error');
       } finally {

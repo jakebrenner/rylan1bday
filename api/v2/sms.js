@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { checkAndChargeSmsUsage } from './billing.js';
+import { Resend } from 'resend';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -10,6 +11,7 @@ const CLICKSEND_API_URL = 'https://rest.clicksend.com/v3/sms/send';
 const CLICKSEND_USERNAME = process.env.CLICKSEND_USERNAME;
 const CLICKSEND_API_KEY = process.env.CLICKSEND_API_KEY;
 const SMS_COST_CENTS = 10; // $0.10 per message charged to user
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ---- Helpers ----
 
@@ -555,6 +557,159 @@ export default async function handler(req, res) {
       await recordSmsMessages(user.id, eventId, [{ phone: normalizePhone(phone), name: 'Test', guestId: null }], 'custom', result.data);
 
       return res.status(200).json({ success: true });
+    }
+
+    // ============================================================
+    // USE CASE 6: Send invite emails to guests via Resend
+    // ============================================================
+    if (action === 'sendEmailInvites') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { eventId, subject, message, allGuests, guestIds } = req.body || {};
+
+      if (!eventId) {
+        return res.status(400).json({ success: false, error: 'eventId is required' });
+      }
+
+      const { event, error: ownerError } = await verifyEventOwnership(user.id, eventId);
+      if (ownerError) return res.status(403).json({ success: false, error: ownerError });
+
+      // Fetch guests with emails
+      let query = supabaseAdmin
+        .from('guests')
+        .select('id, name, email, status')
+        .eq('event_id', eventId)
+        .not('email', 'is', null);
+
+      if (!allGuests && guestIds?.length) {
+        query = query.in('id', guestIds);
+      }
+
+      const { data: guests, error: guestError } = await query;
+      if (guestError) return res.status(400).json({ success: false, error: guestError.message });
+
+      const validGuests = (guests || []).filter(g => g.email && g.email.includes('@'));
+      if (validGuests.length === 0) {
+        return res.status(400).json({ success: false, error: 'No guests with valid email addresses found' });
+      }
+
+      // Get host profile for the "from" display name
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('display_name')
+        .eq('id', user.id)
+        .single();
+
+      const hostName = profile?.display_name || 'Someone';
+      const baseUrl = req.headers.origin || `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
+      const eventTitle = event.title || 'an event';
+      const emailSubject = subject || `${hostName} invited you to ${eventTitle}`;
+      const eventDate = event.event_date
+        ? new Date(event.event_date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+        : '';
+
+      // Build and send individual emails
+      let sentCount = 0;
+      let failedCount = 0;
+      const notifRecords = [];
+
+      for (const guest of validGuests) {
+        const guestLink = `${baseUrl}/v2/event/${event.slug}?gid=${guest.id}`;
+        const guestName = guest.name || 'Guest';
+
+        // Build custom message body if provided, otherwise use default
+        let bodyHtml = '';
+        if (message) {
+          const resolvedMsg = message
+            .replace(/\{name\}/gi, guestName)
+            .replace(/\{link\}/gi, guestLink)
+            .replace(/\n/g, '<br>');
+          bodyHtml = `<p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 20px;">${resolvedMsg}</p>`;
+        } else {
+          bodyHtml = `
+            <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 16px;">
+              Hi <strong>${guestName}</strong>,
+            </p>
+            <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 20px;">
+              <strong>${hostName}</strong> has invited you to:
+            </p>`;
+        }
+
+        const html = `
+          <div style="font-family:'Inter',Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#FFFAF5;border-radius:16px;">
+            <div style="text-align:center;margin-bottom:24px;">
+              <span style="font-family:'Playfair Display',Georgia,serif;font-size:28px;font-weight:700;color:#1A1A2E;">Ryvite</span>
+            </div>
+            <div style="background:white;border-radius:12px;padding:28px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+              <h2 style="font-size:20px;color:#1A1A2E;margin:0 0 16px;">You're invited!</h2>
+              ${bodyHtml}
+              <div style="background:#f8f4f0;border-radius:8px;padding:16px;margin-bottom:20px;">
+                <div style="font-size:18px;font-weight:600;color:#1A1A2E;margin-bottom:6px;">${eventTitle}</div>
+                ${eventDate ? `<div style="font-size:14px;color:#666;">${eventDate}</div>` : ''}
+                ${event.location_name ? `<div style="font-size:14px;color:#666;">${event.location_name}</div>` : ''}
+              </div>
+              <div style="text-align:center;">
+                <a href="${guestLink}" style="display:inline-block;background:#E94560;color:white;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;text-decoration:none;">RSVP Now</a>
+              </div>
+            </div>
+            <p style="color:#999;font-size:11px;text-align:center;margin-top:16px;">
+              Sent via <a href="https://ryvite.com" style="color:#999;">Ryvite</a>
+            </p>
+          </div>`;
+
+        try {
+          await resend.emails.send({
+            from: 'Ryvite <noreply@ryvite.com>',
+            to: guest.email,
+            subject: emailSubject,
+            html: html
+          });
+          sentCount++;
+          notifRecords.push({
+            event_id: eventId,
+            guest_id: guest.id,
+            channel: 'email',
+            recipient: guest.email,
+            subject: emailSubject,
+            status: 'sent',
+            sent_at: new Date().toISOString()
+          });
+        } catch (emailErr) {
+          console.error('Failed to send invite email to', guest.email, emailErr);
+          failedCount++;
+          notifRecords.push({
+            event_id: eventId,
+            guest_id: guest.id,
+            channel: 'email',
+            recipient: guest.email,
+            subject: emailSubject,
+            status: 'failed',
+            error: emailErr.message || 'Send failed',
+            sent_at: new Date().toISOString()
+          });
+        }
+      }
+
+      // Record in notification_log
+      if (notifRecords.length > 0) {
+        await supabaseAdmin.from('notification_log').insert(notifRecords).catch(() => {});
+      }
+
+      // Update invited_at for successfully sent guests
+      const sentGuestIds = notifRecords.filter(r => r.status === 'sent').map(r => r.guest_id);
+      if (sentGuestIds.length > 0) {
+        await supabaseAdmin
+          .from('guests')
+          .update({ invited_at: new Date().toISOString() })
+          .in('id', sentGuestIds);
+      }
+
+      return res.status(200).json({
+        success: true,
+        sent: sentCount,
+        failed: failedCount,
+        total: validGuests.length
+      });
     }
 
     return res.status(400).json({ success: false, error: `Unknown action: ${action}` });
