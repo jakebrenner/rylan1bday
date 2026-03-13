@@ -1092,11 +1092,14 @@ These rules ensure the email renders correctly in Gmail, Apple Mail, Outlook, Ya
 - Include preheader text (hidden preview text for inbox) in a hidden div at top of body
 - Include \`<meta name="color-scheme" content="light">\` and \`<meta name="supported-color-schemes" content="light">\`
 
-## DESIGN QUALITY
-- The email should match the event invite's visual identity — same color palette, same font spirit, same mood
-- Keep it a teaser — don't overwhelm. Show event name, date, location, a compelling CTA button, and a hint to "view the full invitation"
-- Text contrast: all text must be clearly readable. Use solid color values, not opacity tricks
-- The email is a first impression — make it feel special, not generic`
+## DESIGN PHILOSOPHY
+- The email body MUST always be white (#FFFFFF) or very light — NEVER use a dark background for the email body, even if the invite theme is dark. Dark-themed invites convey their personality through accent colors (top bar, card accent, button), headline fonts, and the details card tint — not a dark email background.
+- Use the theme's primaryColor for: top accent bar, details card top border, CTA button background
+- Use a very soft tint of primaryColor (mixed ~92% toward white) for the details card background
+- Text is always dark (#1A1A2E for headlines, #5A5A6E for body/subtext, #9A9AAE for footer) — never use the invite's textColor directly since it may be white (designed for dark backgrounds)
+- Keep it a teaser — show event name, date, location, a compelling CTA button, and a hint to "view the full invitation"
+- No emoji unicode characters (render inconsistently across clients) — use plain text instead
+- The email is a first impression — make it feel premium and on-brand, not generic`
         : isLightTweak
         ? `You are modifying an event ${isEmailMode ? 'email invite' : 'invite'}. Make ONLY the specific text, wording, or content changes requested. Do NOT change design, layout, colors, fonts, or CSS.
 

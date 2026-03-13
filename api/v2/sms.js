@@ -587,30 +587,40 @@ export default async function handler(req, res) {
       const primaryColor = cfg.primaryColor || '#E94560';
       const secondaryColor = cfg.secondaryColor || '#FF6B6B';
       const accentColor = cfg.accentColor || '#2196F3';
-      const bgColor = cfg.backgroundColor || '#FFFAF5';
-      const textColor = cfg.textColor || '#1A1A2E';
       const headlineFont = cfg.fontHeadline || 'Playfair Display';
       const bodyFont = cfg.fontBody || 'Inter';
-      const fontsImport = cfg.googleFontsImport || '';
 
-      // Derive email-safe colors (no opacity — many email clients don't support it)
-      // Mix primaryColor with white at ~10% for a soft tint background
+      // Email-safe color utilities (no opacity, no rgba — only solid hex)
       const hexToRgb = (hex) => {
         const h = hex.replace('#', '');
         return [parseInt(h.substring(0,2),16), parseInt(h.substring(2,4),16), parseInt(h.substring(4,6),16)];
       };
       const rgbToHex = (r,g,b) => '#' + [r,g,b].map(c => Math.max(0,Math.min(255,Math.round(c))).toString(16).padStart(2,'0')).join('');
-      const mixWithWhite = (hex, amount) => {
-        const [r,g,b] = hexToRgb(hex);
-        return rgbToHex(r + (255-r)*amount, g + (255-g)*amount, b + (255-b)*amount);
+      const mix = (hex, target, amount) => {
+        const [r1,g1,b1] = hexToRgb(hex);
+        const [r2,g2,b2] = hexToRgb(target);
+        return rgbToHex(r1+(r2-r1)*amount, g1+(g2-g1)*amount, b1+(b2-b1)*amount);
       };
-      const darken = (hex, amount) => {
+      const luminance = (hex) => {
         const [r,g,b] = hexToRgb(hex);
-        return rgbToHex(r*(1-amount), g*(1-amount), b*(1-amount));
+        return (0.299*r + 0.587*g + 0.114*b) / 255;
       };
-      const detailsBg = mixWithWhite(primaryColor, 0.92);
-      const subtextColor = mixWithWhite(textColor, 0.4);
-      const dividerColor = mixWithWhite(primaryColor, 0.7);
+
+      // Email always uses a LIGHT body — dark-themed invites convey their personality
+      // through accent colors, fonts, and the details card, not a dark email background.
+      // This ensures maximum readability and deliverability across all email clients.
+      const emailBg = '#FFFFFF';
+      const emailTextColor = '#1A1A2E';
+      const emailSubtextColor = '#5A5A6E';
+      const emailFooterColor = '#9A9AAE';
+
+      // Theme-derived accents (these carry the invite's personality into the email)
+      const cardBg = mix(primaryColor, '#FFFFFF', 0.92);        // Very soft primary tint
+      const accentLine = primaryColor;                            // Bold primary for top bar + card accent
+      const dividerColor = mix(primaryColor, '#FFFFFF', 0.75);   // Softer primary for decorative divider
+
+      // Button: use primary bg, auto-detect text contrast
+      const btnTextColor = luminance(primaryColor) > 0.55 ? '#1A1A2E' : '#FFFFFF';
 
       // Fetch guests with emails
       let query = supabaseAdmin
@@ -665,20 +675,15 @@ export default async function handler(req, res) {
             .replace(/\{name\}/gi, guestName)
             .replace(/\{link\}/gi, guestLink);
         } else {
-          // Build default themed email template — email-safe (table layout, inline styles, no opacity)
+          // Build default themed email template — always light background, theme accents
           let personalMsg = '';
           if (message) {
             const resolvedMsg = message
               .replace(/\{name\}/gi, guestName)
               .replace(/\{link\}/gi, guestLink)
               .replace(/\n/g, '<br>');
-            personalMsg = `<tr><td style="padding:0 40px 24px;font-family:'${bodyFont}',Arial,sans-serif;font-size:15px;line-height:1.6;color:${subtextColor};">${resolvedMsg}</td></tr>`;
+            personalMsg = `<tr><td style="padding:0 40px 24px;font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:${emailSubtextColor};">${resolvedMsg}</td></tr>`;
           }
-
-          // Button text color — ensure contrast against primaryColor
-          const [pr,pg,pb] = hexToRgb(primaryColor);
-          const primaryLuminance = (0.299*pr + 0.587*pg + 0.114*pb) / 255;
-          const btnTextColor = primaryLuminance > 0.6 ? '#1A1A2E' : '#FFFFFF';
 
           html = `<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
@@ -701,18 +706,18 @@ export default async function handler(req, res) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0f0f0;">
 <tr><td align="center" style="padding:24px 16px;">
 
-<!-- Email container -->
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:${bgColor};">
+<!-- Email container — always white body for maximum readability -->
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:${emailBg};">
 
-  <!-- Decorative top accent -->
-  <tr><td style="background-color:${primaryColor};height:6px;font-size:0;line-height:0;" height="6">&nbsp;</td></tr>
+  <!-- Decorative top accent bar (carries theme color) -->
+  <tr><td style="background-color:${accentLine};height:6px;font-size:0;line-height:0;" height="6">&nbsp;</td></tr>
 
   <!-- Spacer -->
   <tr><td style="height:36px;font-size:0;line-height:0;" height="36">&nbsp;</td></tr>
 
-  <!-- "You're Invited" headline -->
+  <!-- Headline -->
   <tr><td align="center" style="padding:0 40px;">
-    <h1 style="font-family:'${headlineFont}',Georgia,'Times New Roman',serif;font-size:32px;font-weight:700;color:${textColor};margin:0 0 6px;line-height:1.2;">You're Invited</h1>
+    <h1 style="font-family:'${headlineFont}',Georgia,'Times New Roman',serif;font-size:32px;font-weight:700;color:${emailTextColor};margin:0 0 6px;line-height:1.2;">You're Invited</h1>
   </td></tr>
 
   <!-- Decorative divider -->
@@ -723,8 +728,8 @@ export default async function handler(req, res) {
   </td></tr>
 
   <!-- Personal greeting -->
-  <tr><td style="padding:0 40px 8px;font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:${subtextColor};">
-    Hi <strong style="color:${textColor};">${guestName}</strong>, <strong style="color:${textColor};">${hostName}</strong> has invited you to:
+  <tr><td style="padding:0 40px 20px;font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:${emailSubtextColor};">
+    Hi <strong style="color:${emailTextColor};">${guestName}</strong>, <strong style="color:${emailTextColor};">${hostName}</strong> has invited you to:
   </td></tr>
 
   <!-- Custom message if provided -->
@@ -732,30 +737,20 @@ export default async function handler(req, res) {
 
   <!-- Event details card -->
   <tr><td style="padding:0 40px 28px;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${detailsBg};">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${cardBg};">
       <!-- Card top accent line -->
-      <tr><td style="background-color:${primaryColor};height:3px;font-size:0;line-height:0;" height="3">&nbsp;</td></tr>
+      <tr><td style="background-color:${accentLine};height:3px;font-size:0;line-height:0;" height="3">&nbsp;</td></tr>
       <tr><td style="padding:24px 28px;">
         <!-- Event title -->
-        <h2 style="font-family:'${headlineFont}',Georgia,'Times New Roman',serif;font-size:22px;font-weight:700;color:${textColor};margin:0 0 12px;line-height:1.3;">${eventTitle}</h2>
-        ${eventDate ? `
-        <!-- Date -->
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:6px;"><tr>
-          <td style="padding-right:10px;vertical-align:middle;font-size:16px;">&#128197;</td>
-          <td style="font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:14px;color:${subtextColor};line-height:1.4;">${eventDate}</td>
-        </tr></table>` : ''}
-        ${event.location_name ? `
-        <!-- Location -->
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-          <td style="padding-right:10px;vertical-align:middle;font-size:16px;">&#128205;</td>
-          <td style="font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:14px;color:${subtextColor};line-height:1.4;">${event.location_name}${event.location_address ? '<br>' + event.location_address : ''}</td>
-        </tr></table>` : ''}
+        <h2 style="font-family:'${headlineFont}',Georgia,'Times New Roman',serif;font-size:22px;font-weight:700;color:${emailTextColor};margin:0 0 16px;line-height:1.3;">${eventTitle}</h2>
+        ${eventDate ? `<p style="font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:14px;color:${emailSubtextColor};line-height:1.4;margin:0 0 6px;">${eventDate}</p>` : ''}
+        ${event.location_name ? `<p style="font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:14px;color:${emailSubtextColor};line-height:1.4;margin:0;">${event.location_name}${event.location_address ? ', ' + event.location_address : ''}</p>` : ''}
       </td></tr>
     </table>
   </td></tr>
 
   <!-- CTA button -->
-  <tr><td align="center" style="padding:0 40px 36px;">
+  <tr><td align="center" style="padding:0 40px 16px;">
     <table role="presentation" cellpadding="0" cellspacing="0" border="0">
     <tr><td align="center" style="background-color:${primaryColor};padding:16px 48px;">
       <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${guestLink}" style="height:52px;v-text-anchor:middle;width:220px;" arcsize="20%" fillcolor="${primaryColor}" stroke="f"><v:textbox inset="0,0,0,0"><center style="font-family:Arial,sans-serif;font-size:16px;font-weight:bold;color:${btnTextColor};">RSVP Now</center></v:textbox></v:roundrect><![endif]-->
@@ -766,21 +761,21 @@ export default async function handler(req, res) {
     </table>
   </td></tr>
 
-  <!-- Subtle teaser -->
-  <tr><td align="center" style="padding:0 40px 36px;font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:13px;color:${subtextColor};line-height:1.5;">
-    View the full invitation with all the details &rarr;
+  <!-- Teaser link -->
+  <tr><td align="center" style="padding:0 40px 36px;">
+    <a href="${guestLink}" target="_blank" style="font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:13px;color:${emailSubtextColor};text-decoration:none;line-height:1.5;">View the full invitation &rarr;</a>
   </td></tr>
 
   <!-- Bottom divider -->
   <tr><td style="padding:0 40px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td style="border-top:1px solid ${mixWithWhite(textColor, 0.88)};font-size:0;line-height:0;" height="1">&nbsp;</td>
+      <td style="border-top:1px solid #E8E8EC;font-size:0;line-height:0;" height="1">&nbsp;</td>
     </tr></table>
   </td></tr>
 
   <!-- Footer -->
-  <tr><td align="center" style="padding:20px 40px 28px;font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:11px;color:${mixWithWhite(textColor, 0.65)};line-height:1.5;">
-    Sent via <a href="https://ryvite.com" target="_blank" style="color:${mixWithWhite(textColor, 0.65)};text-decoration:underline;">Ryvite</a>
+  <tr><td align="center" style="padding:20px 40px 28px;font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:11px;color:${emailFooterColor};line-height:1.5;">
+    Sent via <a href="https://ryvite.com" target="_blank" style="color:${emailFooterColor};text-decoration:underline;">Ryvite</a>
   </td></tr>
 
 </table>

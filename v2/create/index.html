@@ -3603,9 +3603,9 @@
     function rgbToHex(r,g,b) {
       return '#' + [r,g,b].map(function(c) { return Math.max(0,Math.min(255,Math.round(c))).toString(16).padStart(2,'0'); }).join('');
     }
-    function mixWithWhite(hex, amount) {
-      var rgb = hexToRgb(hex);
-      return rgbToHex(rgb[0]+(255-rgb[0])*amount, rgb[1]+(255-rgb[1])*amount, rgb[2]+(255-rgb[2])*amount);
+    function mixColor(hex, target, amount) {
+      var rgb1 = hexToRgb(hex), rgb2 = hexToRgb(target);
+      return rgbToHex(rgb1[0]+(rgb2[0]-rgb1[0])*amount, rgb1[1]+(rgb2[1]-rgb1[1])*amount, rgb1[2]+(rgb2[2]-rgb1[2])*amount);
     }
 
     function buildEmailSrcdoc(ver) {
@@ -3617,25 +3617,24 @@
         return emailHtml;
       }
 
-      // Otherwise, build the default themed email template (mirrors sms.js sendEmailInvites)
+      // Theme accent colors — carry the invite's personality into the email
       var pc = config.primaryColor || '#E94560';
-      var bg = config.backgroundColor || '#FFFAF5';
-      var tc = config.textColor || '#1A1A2E';
       var hf = config.fontHeadline || 'Playfair Display';
       var bf = config.fontBody || 'Inter';
-      var fontsImport = config.googleFontsImport || '';
 
-      // Derived email-safe colors (solid hex, no opacity)
-      var detailsBg = mixWithWhite(pc, 0.92);
-      var subtextColor = mixWithWhite(tc, 0.4);
-      var dividerColor = mixWithWhite(pc, 0.7);
-      var footerColor = mixWithWhite(tc, 0.65);
-      var borderColor = mixWithWhite(tc, 0.88);
+      // Email ALWAYS uses a light body — dark themes convey personality
+      // through accent colors and fonts, not a dark email background.
+      var emailBg = '#FFFFFF';
+      var emailText = '#1A1A2E';
+      var emailSubtext = '#5A5A6E';
+      var emailFooter = '#9A9AAE';
+      var cardBg = mixColor(pc, '#FFFFFF', 0.92);
+      var dividerColor = mixColor(pc, '#FFFFFF', 0.75);
 
-      // Button contrast
+      // Button text contrast
       var pcRgb = hexToRgb(pc);
-      var luminance = (0.299*pcRgb[0] + 0.587*pcRgb[1] + 0.114*pcRgb[2]) / 255;
-      var btnText = luminance > 0.6 ? '#1A1A2E' : '#FFFFFF';
+      var lum = (0.299*pcRgb[0] + 0.587*pcRgb[1] + 0.114*pcRgb[2]) / 255;
+      var btnText = lum > 0.55 ? '#1A1A2E' : '#FFFFFF';
 
       var title = extractedData.title || currentEvent?.title || 'Your Event';
       var hostName = 'Your Host';
@@ -3658,10 +3657,10 @@
         + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0f0f0;">'
         + '<tr><td align="center" style="padding:24px 16px;">'
 
-        // Email container
-        + '<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:' + bg + ';">'
+        // Email container — always white body
+        + '<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:' + emailBg + ';">'
 
-        // Top accent
+        // Top accent bar
         + '<tr><td style="background-color:' + pc + ';height:6px;font-size:0;line-height:0;" height="6">&nbsp;</td></tr>'
 
         // Spacer
@@ -3669,7 +3668,7 @@
 
         // Headline
         + '<tr><td align="center" style="padding:0 40px;">'
-        + '<h1 style="font-family:\'' + hf + '\',Georgia,\'Times New Roman\',serif;font-size:32px;font-weight:700;color:' + tc + ';margin:0 0 6px;line-height:1.2;">You\'re Invited</h1>'
+        + '<h1 style="font-family:\'' + hf + '\',Georgia,\'Times New Roman\',serif;font-size:32px;font-weight:700;color:' + emailText + ';margin:0 0 6px;line-height:1.2;">You\'re Invited</h1>'
         + '</td></tr>'
 
         // Decorative divider
@@ -3679,50 +3678,44 @@
         + '</tr></table></td></tr>'
 
         // Greeting
-        + '<tr><td style="padding:0 40px 8px;font-family:\'' + bf + '\',Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:' + subtextColor + ';">'
-        + 'Hi <strong style="color:' + tc + ';">' + escapeHtml(guestName) + '</strong>, <strong style="color:' + tc + ';">' + escapeHtml(hostName) + '</strong> has invited you to:'
+        + '<tr><td style="padding:0 40px 20px;font-family:\'' + bf + '\',Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:' + emailSubtext + ';">'
+        + 'Hi <strong style="color:' + emailText + ';">' + escapeHtml(guestName) + '</strong>, <strong style="color:' + emailText + ';">' + escapeHtml(hostName) + '</strong> has invited you to:'
         + '</td></tr>'
 
         // Event details card
-        + '<tr><td style="padding:16px 40px 28px;">'
-        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:' + detailsBg + ';">'
+        + '<tr><td style="padding:0 40px 28px;">'
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:' + cardBg + ';">'
         + '<tr><td style="background-color:' + pc + ';height:3px;font-size:0;line-height:0;" height="3">&nbsp;</td></tr>'
         + '<tr><td style="padding:24px 28px;">'
-        + '<h2 style="font-family:\'' + hf + '\',Georgia,\'Times New Roman\',serif;font-size:22px;font-weight:700;color:' + tc + ';margin:0 0 12px;line-height:1.3;">' + escapeHtml(title) + '</h2>'
+        + '<h2 style="font-family:\'' + hf + '\',Georgia,\'Times New Roman\',serif;font-size:22px;font-weight:700;color:' + emailText + ';margin:0 0 16px;line-height:1.3;">' + escapeHtml(title) + '</h2>'
         + (eventDate
-          ? '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:6px;"><tr>'
-            + '<td style="padding-right:10px;vertical-align:middle;font-size:16px;">&#128197;</td>'
-            + '<td style="font-family:\'' + bf + '\',Arial,Helvetica,sans-serif;font-size:14px;color:' + subtextColor + ';line-height:1.4;">' + escapeHtml(eventDate) + '</td>'
-            + '</tr></table>'
+          ? '<p style="font-family:\'' + bf + '\',Arial,Helvetica,sans-serif;font-size:14px;color:' + emailSubtext + ';line-height:1.4;margin:0 0 6px;">' + escapeHtml(eventDate) + '</p>'
           : '')
         + (location
-          ? '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>'
-            + '<td style="padding-right:10px;vertical-align:middle;font-size:16px;">&#128205;</td>'
-            + '<td style="font-family:\'' + bf + '\',Arial,Helvetica,sans-serif;font-size:14px;color:' + subtextColor + ';line-height:1.4;">' + escapeHtml(location) + (address ? '<br>' + escapeHtml(address) : '') + '</td>'
-            + '</tr></table>'
+          ? '<p style="font-family:\'' + bf + '\',Arial,Helvetica,sans-serif;font-size:14px;color:' + emailSubtext + ';line-height:1.4;margin:0;">' + escapeHtml(location) + (address ? ', ' + escapeHtml(address) : '') + '</p>'
           : '')
         + '</td></tr></table></td></tr>'
 
         // CTA button
-        + '<tr><td align="center" style="padding:0 40px 36px;">'
+        + '<tr><td align="center" style="padding:0 40px 16px;">'
         + '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>'
         + '<td align="center" style="background-color:' + pc + ';padding:16px 48px;">'
         + '<a href="#" target="_blank" style="display:inline-block;font-family:\'' + bf + '\',Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:' + btnText + ';text-decoration:none;letter-spacing:0.5px;line-height:1;">RSVP Now</a>'
         + '</td></tr></table></td></tr>'
 
-        // Teaser
-        + '<tr><td align="center" style="padding:0 40px 36px;font-family:\'' + bf + '\',Arial,Helvetica,sans-serif;font-size:13px;color:' + subtextColor + ';line-height:1.5;">'
-        + 'View the full invitation with all the details &rarr;'
+        // Teaser link
+        + '<tr><td align="center" style="padding:0 40px 36px;">'
+        + '<a href="#" target="_blank" style="font-family:\'' + bf + '\',Arial,Helvetica,sans-serif;font-size:13px;color:' + emailSubtext + ';text-decoration:none;line-height:1.5;">View the full invitation &rarr;</a>'
         + '</td></tr>'
 
         // Divider
         + '<tr><td style="padding:0 40px;">'
         + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
-        + '<td style="border-top:1px solid ' + borderColor + ';font-size:0;line-height:0;" height="1">&nbsp;</td>'
+        + '<td style="border-top:1px solid #E8E8EC;font-size:0;line-height:0;" height="1">&nbsp;</td>'
         + '</tr></table></td></tr>'
 
         // Footer
-        + '<tr><td align="center" style="padding:20px 40px 28px;font-family:\'' + bf + '\',Arial,Helvetica,sans-serif;font-size:11px;color:' + footerColor + ';line-height:1.5;">'
+        + '<tr><td align="center" style="padding:20px 40px 28px;font-family:\'' + bf + '\',Arial,Helvetica,sans-serif;font-size:11px;color:' + emailFooter + ';line-height:1.5;">'
         + 'Sent via <span style="text-decoration:underline;">Ryvite</span>'
         + '</td></tr>'
 
