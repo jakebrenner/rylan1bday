@@ -438,7 +438,7 @@
   <!-- Template Details Form (shown when starting from a gallery template) -->
   <div id="templateDetailsForm" class="step" style="display:none; flex-direction:column; max-width:560px; margin:0 auto; padding:100px 20px 40px;">
     <div style="text-align:center; margin-bottom:2rem;">
-      <div style="display:inline-block; background:linear-gradient(135deg, #E94560, #FF6B6B); color:white; padding:0.4rem 1rem; border-radius:50px; font-size:0.8rem; font-weight:600; margin-bottom:1rem;">STARTING FROM TEMPLATE</div>
+      <div style="display:inline-block; background:linear-gradient(135deg, #E94560, #FF6B6B); color:white; padding:0.4rem 1rem; border-radius:50px; font-size:0.8rem; font-weight:600; margin-bottom:1rem;">STARTING FROM DESIGN</div>
       <h2 style="font-family:'Playfair Display',serif; font-size:1.8rem; color:#1A1A2E; margin-bottom:0.5rem;">Add Your Event Details</h2>
       <p style="color:#6B7280; font-size:0.95rem;">Fill in the details below to personalize your invite. You can always make tweaks to the design after.</p>
     </div>
@@ -1130,7 +1130,7 @@
             var tplRes = await fetch('/api/v2/templates?action=get&templateId=' + encodeURIComponent(templateId));
             var tplData = await tplRes.json();
             if (!tplData.success || !tplData.template) {
-              alert('Template not found. Starting fresh.');
+              alert('Design not found. Starting fresh.');
               window.location.href = '/v2/create/';
               return;
             }
@@ -1223,7 +1223,7 @@
               if (designChatMsgs) {
                 var bannerDiv = document.createElement('div');
                 bannerDiv.className = 'chat-bubble assistant';
-                bannerDiv.innerHTML = '<strong>Your invite is ready!</strong> It\'s using the template you selected with your details filled in. Want to adjust anything? Just describe what you\'d like to change below — colors, fonts, layout, text, or anything else.';
+                bannerDiv.innerHTML = '<strong>Your invite is ready!</strong> It\'s using the design you selected with your details filled in. Want to adjust anything? Just describe what you\'d like to change below — colors, fonts, layout, text, or anything else.';
                 designChatMsgs.insertBefore(bannerDiv, designChatMsgs.firstChild);
               }
 
@@ -1238,7 +1238,7 @@
             };
           } catch (e) {
             console.error('Template load failed:', e);
-            alert('Failed to load template. Starting fresh.');
+            alert('Failed to load design. Starting fresh.');
             window.location.href = '/v2/create/';
           }
         })();

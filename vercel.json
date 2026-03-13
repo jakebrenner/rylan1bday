@@ -86,12 +86,12 @@
       "destination": "/api/v2/blog-page?slug=:slug"
     },
     {
-      "source": "/templates",
-      "destination": "/v2/templates/index.html"
+      "source": "/inspiration",
+      "destination": "/v2/inspiration/index.html"
     },
     {
-      "source": "/templates/:type",
-      "destination": "/v2/templates/index.html"
+      "source": "/inspiration/:type",
+      "destination": "/v2/inspiration/index.html"
     }
   ]
 }
