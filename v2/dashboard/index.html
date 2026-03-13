@@ -83,6 +83,40 @@
     .section-title { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--midnight); }
     .archive-toggle { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #666; cursor: pointer; user-select: none; }
     .archive-toggle input { width: 18px; height: 18px; accent-color: var(--party-coral); cursor: pointer; }
+    /* Dashboard banner */
+    .dashboard-banner {
+      background: linear-gradient(135deg, #1A1A2E 0%, #2d2d4e 100%);
+      border-radius: 16px; padding: 32px 36px; margin-bottom: 28px; color: white;
+      display: flex; align-items: center; justify-content: space-between; gap: 24px;
+      position: relative; overflow: hidden;
+    }
+    .dashboard-banner::before {
+      content: ''; position: absolute; top: -40px; right: -20px; width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(233,69,96,0.2) 0%, transparent 70%); border-radius: 50%;
+    }
+    .dashboard-banner::after {
+      content: ''; position: absolute; bottom: -60px; left: 30%; width: 160px; height: 160px;
+      background: radial-gradient(circle, rgba(78,205,196,0.15) 0%, transparent 70%); border-radius: 50%;
+    }
+    .banner-text { position: relative; z-index: 1; flex: 1; }
+    .banner-text h2 { font-family: 'Playfair Display', serif; font-size: 22px; margin-bottom: 6px; }
+    .banner-text p { font-size: 14px; color: rgba(255,255,255,0.7); line-height: 1.5; }
+    .banner-actions { display: flex; gap: 10px; position: relative; z-index: 1; flex-shrink: 0; }
+    .banner-btn {
+      padding: 12px 22px; border-radius: 10px; font-size: 14px; font-weight: 600;
+      text-decoration: none; transition: all 0.2s; font-family: 'Inter', sans-serif;
+      display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+    }
+    .banner-btn-primary { background: var(--party-coral); color: white; }
+    .banner-btn-primary:hover { background: var(--blush-pop); transform: translateY(-2px); }
+    .banner-btn-secondary { background: rgba(255,255,255,0.12); color: white; border: 1px solid rgba(255,255,255,0.2); }
+    .banner-btn-secondary:hover { background: rgba(255,255,255,0.2); transform: translateY(-2px); }
+    @media (max-width: 640px) {
+      .dashboard-banner { flex-direction: column; padding: 24px 20px; text-align: center; }
+      .banner-actions { width: 100%; }
+      .banner-btn { flex: 1; justify-content: center; padding: 12px 16px; font-size: 13px; }
+    }
+
     .empty-state { text-align: center; padding: 60px 20px; background: white; border-radius: 12px; border: 2px dashed #ddd; }
     .empty-state h3 { font-size: 20px; margin-bottom: 12px; }
     .empty-state p { color: #666; margin-bottom: 24px; font-size: 15px; }
@@ -421,6 +455,7 @@
       <nav class="header-nav">
         <a href="/v2/dashboard/" class="active">Events</a>
         <a href="/v2/contacts/">Contacts</a>
+        <a href="/v2/inspiration/">Inspiration</a>
       </nav>
       <a href="/v2/create/?new=1" class="btn btn-primary">+ New Event</a>
       <div class="profile-menu" style="position:relative;">
@@ -492,6 +527,7 @@
     <button class="mobile-nav-close" onclick="closeMobileNav()">&times;</button>
     <a href="/v2/dashboard/" class="active">Events</a>
     <a href="/v2/contacts/">Contacts</a>
+    <a href="/v2/inspiration/">Inspiration</a>
     <div class="mobile-nav-divider"></div>
     <a href="/v2/create/?new=1">+ New Event</a>
     <a href="/v2/profile/">Profile</a>
@@ -503,6 +539,23 @@
   </div>
 
   <div class="container">
+    <div class="dashboard-banner">
+      <div class="banner-text">
+        <h2>What are you celebrating?</h2>
+        <p>Create a stunning AI-designed invite in minutes, or browse hundreds of designs for inspiration.</p>
+      </div>
+      <div class="banner-actions">
+        <a href="/v2/create/?new=1" class="banner-btn banner-btn-primary">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          New Event
+        </a>
+        <a href="/v2/inspiration/" class="banner-btn banner-btn-secondary">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M9 3L5 6.99h3V14h2V6.99h3L9 3zm7 14.01V10h-2v7.01h-3L15 21l4-3.99h-3z"/></svg>
+          Find Inspiration
+        </a>
+      </div>
+    </div>
+
     <div class="section-header">
       <div class="section-title">Your Events</div>
       <label class="archive-toggle">
@@ -681,7 +734,7 @@
           ? '<span class="collab-badge collab-editor">Co-Host</span>'
           : '<span class="collab-badge collab-viewer">Viewer</span>';
 
-        var hasTheme = event.themeHtml && event.themeCss;
+        var hasTheme = !!event.themeHtml;
         var headerHtml = '';
         if (hasTheme) {
           var config = event.themeConfig || {};
@@ -810,7 +863,7 @@
 
         var archiveXHtml = !isArchived ? '<button class="archive-x-btn" onclick="event.stopPropagation();archiveEvent(\'' + event.id + '\', this)" title="Archive">&times;</button>' : '';
 
-        var hasTheme = event.themeHtml && event.themeCss;
+        var hasTheme = !!event.themeHtml;
         var headerHtml = '';
         if (hasTheme) {
           var config = event.themeConfig || {};

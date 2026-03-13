@@ -84,6 +84,14 @@
     {
       "source": "/blog/:slug",
       "destination": "/api/v2/blog-page?slug=:slug"
+    },
+    {
+      "source": "/inspiration",
+      "destination": "/v2/inspiration/index.html"
+    },
+    {
+      "source": "/inspiration/:type",
+      "destination": "/v2/inspiration/index.html"
     }
   ]
 }

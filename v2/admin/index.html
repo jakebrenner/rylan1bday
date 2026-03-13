@@ -4683,6 +4683,10 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         archBtn.style.color = '';
       }
 
+      // Exclude from gallery checkbox
+      var excludeCheckbox = document.getElementById('styleDetailExcludeCheckbox');
+      if (excludeCheckbox) excludeCheckbox.checked = !!item.exclude_from_gallery;
+
       // Reset edit mode
       document.getElementById('styleDetailEditForm').style.display = 'none';
       document.getElementById('styleDetailActions').style.display = 'flex';
@@ -6442,6 +6446,15 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         if (item.latency_ms) html += '<div class="detail-row"><span class="detail-label">Latency</span><span class="detail-value">' + (item.latency_ms / 1000).toFixed(1) + 's</span></div>';
         html += '</div>';
 
+        // Exclude from inspiration
+        var excludeChecked = item.exclude_from_gallery ? ' checked' : '';
+        html += '<div class="detail-section"><h4>Inspiration Page</h4>'
+          + '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">'
+          + '<input type="checkbox"' + excludeChecked + ' onchange="toggleExcludeFromGallery(\'' + item.id + '\', \'user\', this.checked)" style="width:16px;height:16px;accent-color:var(--party-coral);cursor:pointer;">'
+          + ' Exclude from Inspiration page</label>'
+          + '<p style="font-size:11px;color:#999;margin-top:4px;">Designs rated 4+ stars appear on the public Inspiration page unless excluded here.</p>'
+          + '</div>';
+
         // Admin notes
         if (item.admin_notes) {
           html += '<div class="detail-section"><h4>Admin Notes</h4><p style="font-size:13px;color:#555;">' + escapeHtml(item.admin_notes) + '</p></div>';
@@ -6513,6 +6526,15 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             + '</div></div>';
         }
 
+        // Exclude from inspiration
+        var labExcludeChecked = item.exclude_from_gallery ? ' checked' : '';
+        html += '<div class="detail-section"><h4>Inspiration Page</h4>'
+          + '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">'
+          + '<input type="checkbox"' + labExcludeChecked + ' onchange="toggleExcludeFromGallery(\'' + item.id + '\', \'lab\', this.checked)" style="width:16px;height:16px;accent-color:var(--party-coral);cursor:pointer;">'
+          + ' Exclude from Inspiration page</label>'
+          + '<p style="font-size:11px;color:#999;margin-top:4px;">Lab generations scored 4+ stars appear on the public Inspiration page unless excluded here.</p>'
+          + '</div>';
+
         // Notes
         if (item.notes) {
           html += '<div class="detail-section"><h4>Notes</h4><p style="font-size:13px;color:#555;">' + escapeHtml(item.notes) + '</p></div>';
@@ -6555,6 +6577,27 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     function closeGenDetailView() {
       document.getElementById('genDetailOverlay').classList.remove('open');
+    }
+
+    function toggleExcludeFromGallery(id, source, exclude) {
+      adminFetch('toggleExcludeFromGallery', { method: 'POST', body: { id: id, source: source, exclude: exclude } })
+        .then(function() {
+          // Update local data so re-opening detail view reflects the change
+          if (source === 'user') {
+            var theme = userGenerations.find(function(t) { return t.id === id; });
+            if (theme) theme.exclude_from_gallery = exclude;
+          } else if (source === 'lab') {
+            var run = labGenerations.find(function(r) { return r.id === id; });
+            if (run) run.exclude_from_gallery = exclude;
+          } else if (source === 'style') {
+            var style = styleLibrary.find(function(s) { return s.id === id; });
+            if (style) style.exclude_from_gallery = exclude;
+          }
+        })
+        .catch(function(err) {
+          console.error('Failed to toggle gallery exclusion:', err);
+          alert('Failed to update. Please try again.');
+        });
     }
 
     // ── Star click handler for theme ratings (delegated) ──
@@ -7531,6 +7574,14 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         <div class="detail-section">
           <h4>Tags</h4>
           <div id="styleDetailTags" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+        </div>
+
+        <div class="detail-section">
+          <h4>Inspiration Page</h4>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+            <input type="checkbox" id="styleDetailExcludeCheckbox" onchange="toggleExcludeFromGallery(styleDetailCurrentId, 'style', this.checked)" style="width:16px;height:16px;accent-color:var(--party-coral);cursor:pointer;">
+            Exclude from Inspiration page</label>
+          <p style="font-size:11px;color:#999;margin-top:4px;">Styles rated 4+ stars appear on the public Inspiration page unless excluded here.</p>
         </div>
 
         <div style="display:flex;gap:8px;flex-wrap:wrap;" id="styleDetailActions">

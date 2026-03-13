@@ -591,6 +591,42 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    // ---- SAVE THEME FROM TEMPLATE (used by "Start from Template" flow) ----
+    if (action === 'saveTheme') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+      const { eventId, html, css, config, basedOnThemeId } = req.body || {};
+      if (!eventId || !html) return res.status(400).json({ error: 'eventId and html required' });
+
+      // Verify ownership
+      const { data: ev } = await supabaseAdmin.from('events').select('id').eq('id', eventId).eq('user_id', user.id).single();
+      if (!ev) return res.status(403).json({ error: 'Not your event' });
+
+      // Deactivate any existing themes
+      await supabaseAdmin.from('event_themes').update({ is_active: false }).eq('event_id', eventId);
+
+      // Insert the template theme as a new active version
+      const { data: existing } = await supabaseAdmin.from('event_themes').select('version').eq('event_id', eventId).order('version', { ascending: false }).limit(1);
+      const nextVersion = (existing && existing.length > 0) ? existing[0].version + 1 : 1;
+
+      const insertData = {
+        event_id: eventId,
+        version: nextVersion,
+        is_active: true,
+        html,
+        css: css || '',
+        config: config || {},
+        model: 'template',
+        input_tokens: 0,
+        output_tokens: 0,
+        latency_ms: 0
+      };
+      if (basedOnThemeId) insertData.based_on_theme_id = basedOnThemeId;
+      const { data: theme, error } = await supabaseAdmin.from('event_themes').insert(insertData).select('id').single();
+
+      if (error) return res.status(500).json({ error: 'Failed to save theme: ' + error.message });
+      return res.status(200).json({ success: true, themeId: theme.id });
+    }
+
     // ---- ADD GUESTS FROM CONTACTS ----
     if (action === 'addGuests') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });

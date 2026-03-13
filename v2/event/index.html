@@ -175,16 +175,11 @@
         + '<input type="text" id="rsvpName" placeholder="Your name" required>'
         + '</div>';
 
-      // Email field — check if in custom fields, otherwise add default
+      // Email field — only show if host added it as a custom field
       var hasEmail = customFields.some(function(f) { return f.key === 'email'; });
       if (hasEmail) {
         var emailField = customFields.find(function(f) { return f.key === 'email'; });
         html += renderField(emailField);
-      } else {
-        html += '<div class="rsvp-form-group">'
-          + '<label for="rsvpEmail">Email</label>'
-          + '<input type="email" id="rsvpEmail" placeholder="your@email.com">'
-          + '</div>';
       }
 
       // RSVP Status (always required)

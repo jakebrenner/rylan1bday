@@ -194,16 +194,13 @@ export default async function handler(req, res) {
 
     // Increment persistent event cost if we have an eventId
     if (eventId) {
-      const { error: costError } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: chatCost.totalCostCents });
-      if (costError) {
-        // Fallback: read-then-write if RPC fails
-        const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
-        if (data) {
-          await supabase.from('events')
-            .update({ total_cost_cents: (data.total_cost_cents || 0) + chatCost.totalCostCents })
-            .eq('id', eventId);
+      try {
+        const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: chatCost.totalCostCents });
+        if (rpcErr) {
+          const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
+          if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + chatCost.totalCostCents }).eq('id', eventId);
         }
-      }
+      } catch (e) { /* non-critical */ }
     }
 
     // Check if usage-based AI billing threshold is reached

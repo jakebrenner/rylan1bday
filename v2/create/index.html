@@ -435,6 +435,63 @@
     </div>
   </div>
 
+  <!-- Template Details Form (shown when starting from a gallery template) -->
+  <div id="templateDetailsForm" class="step" style="display:none; flex-direction:column; max-width:560px; margin:0 auto; padding:100px 20px 40px;">
+    <div style="text-align:center; margin-bottom:2rem;">
+      <div style="display:inline-block; background:linear-gradient(135deg, #E94560, #FF6B6B); color:white; padding:0.4rem 1rem; border-radius:50px; font-size:0.8rem; font-weight:600; margin-bottom:1rem;">STARTING FROM DESIGN</div>
+      <h2 style="font-family:'Playfair Display',serif; font-size:1.8rem; color:#1A1A2E; margin-bottom:0.5rem;">Add Your Event Details</h2>
+      <p style="color:#6B7280; font-size:0.95rem;">Fill in the details below to personalize your invite. You can always make tweaks to the design after.</p>
+    </div>
+    <form id="tplForm" style="display:flex; flex-direction:column; gap:1rem;">
+      <div>
+        <label style="display:block; font-size:0.82rem; font-weight:600; color:#1A1A2E; margin-bottom:4px;">Event Title <span style="color:#E94560;">*</span></label>
+        <input type="text" id="tplTitle" required placeholder="e.g. Sarah & James's Wedding" style="width:100%; padding:0.7rem 0.9rem; border:1.5px solid #D1D5DB; border-radius:10px; font-size:0.9rem; font-family:'Inter',sans-serif; outline:none; transition:border-color 0.2s;" onfocus="this.style.borderColor='#E94560'" onblur="this.style.borderColor='#D1D5DB'">
+      </div>
+      <div>
+        <label style="display:block; font-size:0.82rem; font-weight:600; color:#1A1A2E; margin-bottom:4px;">Event Type</label>
+        <select id="tplEventType" style="width:100%; padding:0.7rem 0.9rem; border:1.5px solid #D1D5DB; border-radius:10px; font-size:0.9rem; font-family:'Inter',sans-serif; outline:none; background:white; transition:border-color 0.2s;" onfocus="this.style.borderColor='#E94560'" onblur="this.style.borderColor='#D1D5DB'">
+          <option value="wedding">Wedding</option>
+          <option value="kidsBirthday">Kids Birthday</option>
+          <option value="adultBirthday">Adult Birthday</option>
+          <option value="babyShower">Baby Shower</option>
+          <option value="bridalShower">Bridal Shower</option>
+          <option value="engagement">Engagement Party</option>
+          <option value="anniversary">Anniversary</option>
+          <option value="graduation">Graduation</option>
+          <option value="corporate">Corporate Event</option>
+          <option value="holiday">Holiday Party</option>
+          <option value="dinnerParty">Dinner Party</option>
+          <option value="retirement">Retirement</option>
+          <option value="sports">Sports / Watch Party</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+        <div>
+          <label style="display:block; font-size:0.82rem; font-weight:600; color:#1A1A2E; margin-bottom:4px;">Date & Time</label>
+          <input type="datetime-local" id="tplDate" style="width:100%; padding:0.7rem 0.9rem; border:1.5px solid #D1D5DB; border-radius:10px; font-size:0.9rem; font-family:'Inter',sans-serif; outline:none; transition:border-color 0.2s;" onfocus="this.style.borderColor='#E94560'" onblur="this.style.borderColor='#D1D5DB'">
+        </div>
+        <div>
+          <label style="display:block; font-size:0.82rem; font-weight:600; color:#1A1A2E; margin-bottom:4px;">Host Name</label>
+          <input type="text" id="tplHostName" placeholder="e.g. The Smith Family" style="width:100%; padding:0.7rem 0.9rem; border:1.5px solid #D1D5DB; border-radius:10px; font-size:0.9rem; font-family:'Inter',sans-serif; outline:none; transition:border-color 0.2s;" onfocus="this.style.borderColor='#E94560'" onblur="this.style.borderColor='#D1D5DB'">
+        </div>
+      </div>
+      <div>
+        <label style="display:block; font-size:0.82rem; font-weight:600; color:#1A1A2E; margin-bottom:4px;">Venue / Location Name</label>
+        <input type="text" id="tplLocationName" placeholder="e.g. The Grand Ballroom" style="width:100%; padding:0.7rem 0.9rem; border:1.5px solid #D1D5DB; border-radius:10px; font-size:0.9rem; font-family:'Inter',sans-serif; outline:none; transition:border-color 0.2s;" onfocus="this.style.borderColor='#E94560'" onblur="this.style.borderColor='#D1D5DB'">
+      </div>
+      <div>
+        <label style="display:block; font-size:0.82rem; font-weight:600; color:#1A1A2E; margin-bottom:4px;">Address</label>
+        <input type="text" id="tplLocationAddress" placeholder="e.g. 123 Main St, New York, NY" style="width:100%; padding:0.7rem 0.9rem; border:1.5px solid #D1D5DB; border-radius:10px; font-size:0.9rem; font-family:'Inter',sans-serif; outline:none; transition:border-color 0.2s;" onfocus="this.style.borderColor='#E94560'" onblur="this.style.borderColor='#D1D5DB'">
+      </div>
+      <div>
+        <label style="display:block; font-size:0.82rem; font-weight:600; color:#1A1A2E; margin-bottom:4px;">Dress Code <span style="color:#6B7280; font-weight:400;">(optional)</span></label>
+        <input type="text" id="tplDressCode" placeholder="e.g. Black Tie Optional" style="width:100%; padding:0.7rem 0.9rem; border:1.5px solid #D1D5DB; border-radius:10px; font-size:0.9rem; font-family:'Inter',sans-serif; outline:none; transition:border-color 0.2s;" onfocus="this.style.borderColor='#E94560'" onblur="this.style.borderColor='#D1D5DB'">
+      </div>
+      <button type="submit" id="tplSubmitBtn" style="margin-top:0.5rem; padding:0.85rem; background:linear-gradient(135deg, #E94560, #FF6B6B); color:white; border:none; border-radius:12px; font-family:'Inter',sans-serif; font-size:0.95rem; font-weight:600; cursor:pointer; transition:all 0.3s ease; box-shadow:0 4px 15px rgba(233,69,96,0.3);" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 20px rgba(233,69,96,0.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 15px rgba(233,69,96,0.3)'">Create My Invite</button>
+    </form>
+  </div>
+
   <div class="container">
     <div id="message" class="message"></div>
 
@@ -757,6 +814,8 @@
     let chatSessionId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
     let chatBubbles = []; // [{text, role}] for UI rebuild on restore
     var chatPhase = 'chatting'; // 'chatting' | 'confirmed' | 'styling'
+    var designChatPhase = null; // null = normal flow, 'collecting_details' | 'rsvp_fields' | 'tweaking'
+    var pendingDesignRequest = null; // design preference captured during collecting_details (e.g. "make it orange")
     var currentPreviewMode = 'invite';
 
     // Cost tracking state — tracks cumulative cost for this event (persisted across sessions)
@@ -771,7 +830,10 @@
 
     var token = localStorage.getItem('sb_access_token');
     var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
-    if (!token || !user) { window.location.href = '/v2/login/?redirect=/v2/create/'; }
+    var _loginRedirect = '/v2/create/' + window.location.search;
+    var _pendingTemplateId = new URLSearchParams(window.location.search).get('templateId');
+    if (_pendingTemplateId) localStorage.setItem('pending_templateId', _pendingTemplateId);
+    if (!token || !user) { window.location.href = '/v2/login/?redirect=' + encodeURIComponent(_loginRedirect); }
     else {
       var pn = document.getElementById('profileName');
       var pe = document.getElementById('profileEmail');
@@ -795,7 +857,7 @@
       refreshPromise = (async function() {
         try {
           var rt = localStorage.getItem('sb_refresh_token');
-          if (!rt) { window.location.href = '/v2/login/?redirect=/v2/create/'; return false; }
+          if (!rt) { window.location.href = '/v2/login/?redirect=' + encodeURIComponent(_loginRedirect); return false; }
           var res = await fetch('/api/v2/auth?action=refresh', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -808,10 +870,10 @@
             localStorage.setItem('sb_refresh_token', result.refreshToken);
             return true;
           }
-          window.location.href = '/v2/login/?redirect=/v2/create/';
+          window.location.href = '/v2/login/?redirect=' + encodeURIComponent(_loginRedirect);
           return false;
         } catch (e) {
-          window.location.href = '/v2/login/?redirect=/v2/create/';
+          window.location.href = '/v2/login/?redirect=' + encodeURIComponent(_loginRedirect);
           return false;
         } finally {
           isRefreshing = false;
@@ -846,6 +908,7 @@
       // Handle post-purchase redirect: restore state and auto-generate
       var urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('purchased') === 'true' && restoreCreateState()) {
+        localStorage.removeItem('pending_templateId');
         var stripeSessionId = urlParams.get('session_id');
         // Clean the URL
         window.history.replaceState({}, '', '/v2/create/');
@@ -888,6 +951,7 @@
       // Resume existing draft if ?eventId= is in the URL
       var resumeId = urlParams.get('eventId');
       if (resumeId) {
+        localStorage.removeItem('pending_templateId');
         // Fast path: if we have cached themes in sessionStorage, show them instantly
         var cachedThemes = null;
         try { cachedThemes = JSON.parse(sessionStorage.getItem('ryvite_theme_' + resumeId)); } catch(e) {}
@@ -939,7 +1003,18 @@
                 renderVersionGallery();
                 sessionStorage.setItem('ryvite_theme_' + ev.id, JSON.stringify(themeVersions));
               }
-              initDesignChatIfNeeded(false);
+              // Restore design chat phase for "Start from Design" flow
+              var chatPhase = ev.settings && ev.settings.design_chat_phase;
+              if (chatPhase === 'collecting_details' || chatPhase === 'rsvp_fields') {
+                designChatPhase = chatPhase;
+                var welcomeMsg = chatPhase === 'collecting_details'
+                  ? "Welcome back! Let's continue personalizing your design.\n\nTell me about your event — what's the occasion, when and where is it, and who's hosting?"
+                  : "Welcome back! Let's finalize your RSVP fields.\n\nYou can say things like \"remove email\", \"add plus-one count\", or \"make dietary restrictions required\".\nWhen you're happy, just say \"looks good\"!";
+                designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
+                renderDesignChat();
+              } else {
+                initDesignChatIfNeeded(false);
+              }
             }
           }).catch(function(e) { console.warn('Background refresh failed:', e); });
           return;
@@ -1023,10 +1098,21 @@
               document.getElementById('generatedView').style.display = 'block';
               renderPreview(themeVersions[0]);
               renderVersionGallery();
-              // Set pending rating so it shows when design chat initializes
-              var activeTheme2 = themeVersions[activeVersionIndex >= 0 ? activeVersionIndex : 0];
-              if (activeTheme2 && activeTheme2.id) pendingRatingThemeId = activeTheme2.id;
-              initDesignChatIfNeeded(false);
+              // Restore "Start from Design" collecting-details phase if applicable
+              var chatPhase = ev.settings && ev.settings.design_chat_phase;
+              if (chatPhase === 'collecting_details' || chatPhase === 'rsvp_fields') {
+                designChatPhase = chatPhase;
+                var welcomeMsg = chatPhase === 'collecting_details'
+                  ? "Welcome back! Let's continue personalizing your design.\n\nTell me about your event — what's the occasion, when and where is it, and who's hosting?"
+                  : "Welcome back! Let's finalize your RSVP fields.\n\nYou can say things like \"remove email\", \"add plus-one count\", or \"make dietary restrictions required\".\nWhen you're happy, just say \"looks good\"!";
+                designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
+                renderDesignChat();
+              } else {
+                // Set pending rating so it shows when design chat initializes
+                var activeTheme2 = themeVersions[activeVersionIndex >= 0 ? activeVersionIndex : 0];
+                if (activeTheme2 && activeTheme2.id) pendingRatingThemeId = activeTheme2.id;
+                initDesignChatIfNeeded(false);
+              }
               goToStep(2);
               initCostTracker();
               // Cache themes for fast reload
@@ -1054,6 +1140,125 @@
               + '<div class="chat-bubble assistant"><button class="btn btn-primary" onclick="location.reload()">Try Again</button> <button class="btn btn-secondary" onclick="location.href=\'/v2/create/?new=1\'">Start New Event</button></div>';
           }
         }
+      }
+
+      // ── START FROM DESIGN (Chat-first flow) ──
+      var templateId = urlParams.get('templateId') || localStorage.getItem('pending_templateId');
+      if (templateId) {
+        localStorage.removeItem('pending_templateId');
+        // Show loading state immediately so user doesn't see the step 1 chat flash
+        document.querySelector('.chat-container').style.display = 'none';
+        var loadingOverlay = document.createElement('div');
+        loadingOverlay.id = 'templateLoadingOverlay';
+        loadingOverlay.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:70vh;gap:20px;">'
+          + '<div style="width:48px;height:48px;border:3px solid #f0f0f0;border-top:3px solid #e8384f;border-radius:50%;animation:spin 1s linear infinite;"></div>'
+          + '<p style="font-size:1.1rem;color:#666;font-weight:500;">Loading your design...</p>'
+          + '<p style="font-size:0.85rem;color:#999;">Setting up your personalized invite</p>'
+          + '</div>';
+        document.querySelector('.container').appendChild(loadingOverlay);
+        (async function() {
+          try {
+            var tplRes = await fetch('/api/v2/templates?action=get&templateId=' + encodeURIComponent(templateId));
+            var tplData = await tplRes.json();
+            if (!tplData.success || !tplData.template) {
+              alert('Design not found. Starting fresh.');
+              window.location.href = '/v2/create/';
+              return;
+            }
+            var tpl = tplData.template;
+            window._templateSource = tpl;
+
+            // Set event type from template
+            if (tpl.eventType) extractedData.eventType = tpl.eventType;
+
+            // Push template as initial theme version
+            themeVersions = [{ id: null, version: 0, html: tpl.html, css: tpl.css || '', config: tpl.config || {}, isActive: true }];
+            activeVersionIndex = 0;
+
+            // Create draft event so we have an eventId
+            await createDraftEvent();
+
+            // Persist template theme to DB immediately so "Continue" can restore it
+            if (currentEvent) {
+              try {
+                var saveThemeRes = await authFetch('/api/v2/events?action=saveTheme', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    eventId: currentEvent.id,
+                    html: tpl.html,
+                    css: tpl.css || '',
+                    config: tpl.config || {},
+                    basedOnThemeId: tpl.id || templateId
+                  })
+                });
+                var saveThemeResult = await saveThemeRes.json();
+                if (saveThemeResult.success && saveThemeResult.themeId) {
+                  themeVersions[0].id = saveThemeResult.themeId;
+                  themeVersions[0].version = 1;
+                }
+              } catch (e) {
+                console.error('Template theme save failed:', e);
+              }
+              // Store template source ID and design chat phase in settings for resume
+              authFetch('/api/v2/events?action=update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  eventId: currentEvent.id,
+                  eventType: tpl.eventType || 'other',
+                  settings: { creation_step: 2, template_source_id: tpl.id || templateId, design_chat_phase: 'collecting_details' }
+                })
+              }).catch(function(e) { console.error('Settings save failed:', e); });
+              // Cache themes for fast reload on Continue
+              try { sessionStorage.setItem('ryvite_theme_' + currentEvent.id, JSON.stringify(themeVersions)); } catch(e) {}
+            }
+
+            // Remove loading overlay and jump to Step 2 split layout
+            var overlay = document.getElementById('templateLoadingOverlay');
+            if (overlay) overlay.remove();
+            document.getElementById('generatingView').style.display = 'none';
+            document.getElementById('generatedView').style.display = 'block';
+            renderPreview(themeVersions[0]);
+            renderVersionGallery();
+            goToStep(2);
+
+            // Set chat-first phase and initialize design chat with collecting welcome
+            designChatPhase = 'collecting_details';
+
+            // Seed chat history with template context so the AI knows the user
+            // started from an existing design and won't ask confused questions.
+            // This is NOT shown in the UI — it's only sent to the API.
+            var templateEventType = tpl.eventType || 'event';
+            var templateContextMsg = 'CONTEXT: The user selected an existing '
+              + templateEventType + ' invite design from our inspiration gallery and clicked "Start with This Design". '
+              + 'They already have a preview of the design on screen. '
+              + 'Your job is to collect their event details (title, date, location, etc.) to personalize this design. '
+              + 'They may also ask to modify RSVP fields, change text, or adjust the design — handle those requests directly without asking if they\'re working on an existing event. '
+              + 'They are DEFINITELY working on an existing design template.';
+            chatHistory = [
+              { role: 'user', content: templateContextMsg },
+              { role: 'assistant', content: '{"message":"Great choice! I\'ll personalize this design for you. Tell me about your event — what\'s the occasion, when and where is it, and who\'s hosting?","extracted":{},"ready":false,"confirmed":false,"missingRequired":["title","eventType","startDate","locationName"],"suggestedRsvpFields":null}' }
+            ];
+
+            var welcomeMsg = "Great choice! I'll personalize this design for you.\n\n"
+              + "Tell me about your event — what's the occasion, when and where is it, and who's hosting?";
+            designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
+            renderDesignChat();
+
+            initCostTracker();
+
+            // Clean URL
+            if (currentEvent) {
+              window.history.replaceState({}, '', '/v2/create/?eventId=' + currentEvent.id);
+            }
+          } catch (e) {
+            console.error('Design load failed:', e);
+            alert('Failed to load design. Starting fresh.');
+            window.location.href = '/v2/create/';
+          }
+        })();
+        return; // Skip normal init
       }
 
       // Clear draft and start fresh when user clicks "+ New Event"
@@ -2710,7 +2915,7 @@
       });
 
       currentStep = step;
-      if (step === 2 && !themeVersions.length && document.getElementById('generatingPaywall').style.display === 'none') generateTheme();
+      if (step === 2 && !themeVersions.length && !window._templateSource && document.getElementById('generatingPaywall').style.display === 'none') generateTheme();
       else if (step === 2 && themeVersions.length) {
         // Returning to step 2 with existing themes — show preview
         document.getElementById('generatingView').style.display = 'none';
@@ -2964,6 +3169,7 @@
           inspirationImageUrls: inspirationImageUrls.filter(function(u) { return !!u; }),
           photoUrls: personPhotoUrls.filter(function(u) { return !!u; })
         };
+        if (window._templateSource) payload.basedOnThemeId = window._templateSource.id || '';
         var res2 = await authFetch('/api/v2/generate-theme', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -3144,12 +3350,6 @@
       html += '<div style="margin-bottom:12px;">'
         + '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;opacity:0.9;">Name <span style="color:' + accent + ';">*</span></label>'
         + '<input type="text" placeholder="Your name" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">'
-        + '</div>';
-
-      // Email field
-      html += '<div style="margin-bottom:12px;">'
-        + '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;opacity:0.9;">Email</label>'
-        + '<input type="email" placeholder="your@email.com" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">'
         + '</div>';
 
       // RSVP Status — styled radio buttons
@@ -3336,6 +3536,133 @@
 
     // Inject RSVP form and event details into iframe after it loads.
     // Runs from the PARENT page via iframe.contentDocument — no scripts inside srcdoc.
+    // Number word ↔ digit conversion for template text replacement
+    var NUMBER_WORDS = ['zero','one','two','three','four','five','six','seven','eight','nine','ten',
+      'eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty'];
+
+    function wordToNum(word) {
+      var idx = NUMBER_WORDS.indexOf(word.toLowerCase());
+      return idx >= 0 ? idx : null;
+    }
+    function numToWord(n) { return n >= 0 && n < NUMBER_WORDS.length ? NUMBER_WORDS[n] : String(n); }
+    function matchCase(source, target) {
+      if (source === source.toUpperCase()) return target.toUpperCase();
+      if (source[0] === source[0].toUpperCase()) return target[0].toUpperCase() + target.slice(1);
+      return target.toLowerCase();
+    }
+    function ordinal(n) {
+      var s = ['th','st','nd','rd']; var v = n % 100;
+      return n + (s[(v-20)%10] || s[v] || s[0]);
+    }
+    function escapeRegex(str) { return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+    // Replace template placeholder text in the preview when starting from a design.
+    // Walks text nodes and swaps dummy content for user-provided data.
+    function replaceTemplateText(doc, dummyData) {
+      if (!doc || !doc.body) return;
+
+      var replacements = [];
+
+      // Extract user's age from all available fields
+      var userAge = null;
+      var userChildName = null;
+      var allText = [extractedData.title, extractedData.tagline, extractedData.description, extractedData.prompt].filter(Boolean).join(' ');
+
+      // Try numeric patterns first: "turning 5", "5th birthday", etc.
+      var ageMatch = allText.match(/(?:turning|turns|is)\s+(\d+)/i)
+        || allText.match(/(\d+)\s*(?:st|nd|rd|th)?\s*(?:birthday|bday)/i);
+      if (ageMatch) userAge = parseInt(ageMatch[1]);
+
+      // Try spelled-out: "turning five"
+      if (!userAge) {
+        var wordAgeMatch = allText.match(/(?:turning|turns|is)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)/i);
+        if (wordAgeMatch) userAge = wordToNum(wordAgeMatch[1]);
+      }
+
+      // Extract child name from title like "Max's 5th Birthday"
+      var nameMatch = (extractedData.title || '').match(/^(.+?)(?:'s|'s)\s/i);
+      if (nameMatch) userChildName = nameMatch[1];
+
+      // Build number word pattern that matches any spelled-out number (case-insensitive)
+      var numberWordPattern = '(?:' + NUMBER_WORDS.join('|') + ')';
+
+      if (userAge != null) {
+        var userWord = numToWord(userAge);
+        var userOrd = ordinal(userAge);
+
+        // "Turning EIGHT!" → "Turning FIVE!" (spelled-out numbers)
+        replacements.push({
+          pattern: new RegExp('(turning\\s+)(' + numberWordPattern + ')(\\s*!?)', 'gi'),
+          replace: function(m, pre, word, post) { return pre + matchCase(word, userWord) + post; }
+        });
+
+        // "Turning 8!" → "Turning 5!" (numeric)
+        replacements.push({
+          pattern: /([Tt]urning\s+)(\d+)(\s*!?)/g,
+          replace: function(m, pre, num, post) { return pre + userAge + post; }
+        });
+
+        // Standalone large number that's likely an age: "8!" or just "8" as the primary text
+        // Only match text nodes where the number is the main content (not inside sentences)
+        replacements.push({
+          pattern: /^(\s*)(\d{1,2})(\s*!?\s*)$/,
+          replace: function(m, pre, num, post) {
+            // Only replace if it looks like a birthday age display (1-20)
+            var n = parseInt(num);
+            if (n >= 1 && n <= 20) return pre + userAge + post;
+            return m;
+          }
+        });
+
+        // Spelled-out standalone: "EIGHT!" as main text
+        replacements.push({
+          pattern: new RegExp('^(\\s*)(' + numberWordPattern + ')(\\s*!?\\s*)$', 'i'),
+          replace: function(m, pre, word, post) {
+            return pre + matchCase(word, userWord) + post;
+          }
+        });
+
+        // "8th Birthday" → "5th Birthday" (ordinal + birthday)
+        replacements.push({
+          pattern: /\d+(?:st|nd|rd|th)\s+[Bb]irthday/g,
+          replace: userOrd + ' Birthday'
+        });
+      }
+
+      // Replace dummy child name from template with user's child name
+      if (userChildName && dummyData && dummyData.title) {
+        var dummyNameMatch = dummyData.title.match(/^(.+?)(?:'s|'s)\s/i);
+        if (dummyNameMatch && dummyNameMatch[1].toLowerCase() !== userChildName.toLowerCase()) {
+          replacements.push({
+            pattern: new RegExp(escapeRegex(dummyNameMatch[1]), 'gi'),
+            replace: function(m) { return matchCase(m, userChildName); }
+          });
+        }
+      }
+
+      if (replacements.length === 0) return;
+
+      // Walk all text nodes and apply replacements
+      var walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null, false);
+      var nodes = [];
+      var node;
+      while (node = walker.nextNode()) nodes.push(node);
+      for (var ni = 0; ni < nodes.length; ni++) {
+        var text = nodes[ni].textContent;
+        var changed = false;
+        for (var ri = 0; ri < replacements.length; ri++) {
+          var r = replacements[ri];
+          r.pattern.lastIndex = 0;
+          if (r.pattern.test(text)) {
+            r.pattern.lastIndex = 0;
+            text = text.replace(r.pattern, r.replace);
+            changed = true;
+          }
+        }
+        if (changed) nodes[ni].textContent = text;
+      }
+    }
+
     function injectRsvpForm(iframe) {
       try {
         var doc = iframe.contentDocument;
@@ -3347,6 +3674,29 @@
           var btn = slot.querySelector('.rsvp-button');
           var btnHtml = btn ? btn.outerHTML : '';
           slot.innerHTML = buildRsvpFormHtml() + btnHtml;
+        } else {
+          // Fallback: template has no .rsvp-slot — look for baked-in form fields
+          // and wrap them in a .rsvp-slot so we can control them
+          var formInputs = doc.querySelectorAll('input, select, textarea');
+          if (formInputs.length > 0) {
+            // Find the closest common container of all form inputs
+            var formContainer = formInputs[0].parentElement;
+            while (formContainer && formContainer.tagName !== 'BODY') {
+              var containsAll = true;
+              for (var fi = 0; fi < formInputs.length; fi++) {
+                if (!formContainer.contains(formInputs[fi])) { containsAll = false; break; }
+              }
+              if (containsAll) break;
+              formContainer = formContainer.parentElement;
+            }
+            if (formContainer && formContainer.tagName !== 'BODY') {
+              // Preserve the button if present
+              var existingBtn = formContainer.querySelector('button, [type="submit"], .rsvp-button');
+              var existingBtnHtml = existingBtn ? existingBtn.outerHTML : '';
+              formContainer.innerHTML = buildRsvpFormHtml() + existingBtnHtml;
+              formContainer.classList.add('rsvp-slot');
+            }
+          }
         }
 
         // Inject event details into .details-slot (new pattern — platform controls details HTML)
@@ -3367,6 +3717,22 @@
             titleEl.innerHTML = extractedData.title;
             if (origColor) titleEl.style.setProperty('color', origColor, 'important');
           }
+        }
+
+        // Override tagline/subtitle data-field if present
+        var taglineText = extractedData.tagline || extractedData.description || '';
+        if (taglineText) {
+          var taglineEl = doc.querySelector('[data-field="tagline"]') || doc.querySelector('[data-field="subtitle"]');
+          if (taglineEl) {
+            taglineEl.textContent = taglineText;
+          }
+        }
+
+        // Template text replacement: when starting from an existing design,
+        // scan visible text for template placeholder content and replace with
+        // user-provided data (e.g. "Turning 7!" → "Turning 5!")
+        if (window._templateSource && window._templateSource.dummyData) {
+          replaceTemplateText(doc, window._templateSource.dummyData);
         }
 
         // Legacy fallback: for old themes without .details-slot, override data-field elements
@@ -4193,11 +4559,253 @@
       document.getElementById('designChatPhotoPreview').innerHTML = '';
     }
 
+    // ── Chat-first "Start from Design" — Detail Collection Phase ──
+    async function sendDesignChatCollecting(text, input) {
+      designChatHistory.push({ role: 'user', content: text });
+      chatHistory.push({ role: 'user', content: text });
+      renderDesignChat();
+      input.value = '';
+      input.style.height = 'auto';
+
+      var sendBtn = document.getElementById('designChatSendBtn');
+      sendBtn.disabled = true;
+
+      // Show typing indicator in design chat
+      designChatHistory.push({ role: 'system', content: 'Thinking...', progress: 0 });
+      renderDesignChat();
+
+      try {
+        var res = await authFetch('/api/v2/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: chatHistory, sessionId: chatSessionId, eventId: currentEvent ? currentEvent.id : null })
+        });
+        var result = await res.json();
+
+        // Remove typing indicator
+        designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+
+        if (result.success) {
+          if (result.sessionId) chatSessionId = result.sessionId;
+          chatHistory.push({ role: 'assistant', content: JSON.stringify(result) });
+
+          // Merge extracted data and update preview
+          if (result.extracted) {
+            Object.assign(extractedData, result.extracted);
+            renderPreview(themeVersions[activeVersionIndex]);
+            // Incrementally save extracted details to DB so progress isn't lost
+            if (currentEvent) {
+              authFetch('/api/v2/events?action=update', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  eventId: currentEvent.id,
+                  title: extractedData.title || 'Untitled Event',
+                  eventDate: extractedData.startDate || '',
+                  endDate: extractedData.endDate || '',
+                  locationName: extractedData.locationName || '',
+                  locationAddress: extractedData.locationAddress || '',
+                  dressCode: extractedData.dressCode || '',
+                  eventType: extractedData.eventType || 'other',
+                  description: extractedData.description || ''
+                })
+              }).catch(function(e) { console.error('Incremental save failed:', e); });
+            }
+          }
+
+          // Capture design/style preferences to apply later in tweaking phase
+          var designKeywords = /\b(color|colour|palette|orange|blue|red|green|gold|black|white|pink|purple|dark|light|bright|pastel|theme|vibe|style|font|minimalist|elegant|rustic|modern|bold|playful|tropical|vintage)\b/i;
+          if (designKeywords.test(text)) {
+            pendingDesignRequest = (pendingDesignRequest ? pendingDesignRequest + '. ' : '') + text;
+          }
+
+          // Store suggested RSVP fields
+          if (result.suggestedRsvpFields && result.suggestedRsvpFields.length > 0) {
+            rsvpFields = result.suggestedRsvpFields.map(function(f) {
+              return Object.assign({}, f, { enabled: true });
+            });
+          }
+
+          designChatHistory.push({ role: 'assistant', content: result.message });
+          renderDesignChat();
+
+          // If chat API says details are ready AND confirmed, transition to RSVP phase
+          if (result.ready && result.confirmed) {
+            // Save event details to DB
+            await saveEventToDB();
+
+            // Template theme was already saved at draft creation — skip duplicate save
+            // (themeVersions[0].id is already set if save succeeded)
+
+            // Re-render preview with final extracted data
+            renderPreview(themeVersions[activeVersionIndex]);
+
+            // Transition to RSVP fields phase
+            designChatPhase = 'rsvp_fields';
+            // Persist phase for resume
+            if (currentEvent) authFetch('/api/v2/events?action=update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ eventId: currentEvent.id, settings: { design_chat_phase: 'rsvp_fields' } }) }).catch(function() {});
+            var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+            var fieldListStr = enabledFields.map(function(f) {
+              return '- ' + f.label + (f.is_required ? ' (required)' : '');
+            }).join('\n');
+
+            var rsvpMsg = "Your invite is looking great with your details filled in! Here are the RSVP fields I'd suggest:\n\n"
+              + fieldListStr + "\n\n"
+              + "You can say things like \"remove email\", \"add plus-one count\", or \"make dietary restrictions required\".\n"
+              + "When you're happy with the fields, just say \"looks good\"!";
+            designChatHistory.push({ role: 'assistant', content: rsvpMsg });
+            renderDesignChat();
+          }
+        } else {
+          var errMsg = result.detail || result.message || result.error || 'Something went wrong';
+          console.error('Chat API error (collecting):', JSON.stringify(result));
+          designChatHistory.push({ role: 'assistant', content: 'Sorry, something went wrong: ' + errMsg + '. Please try again.' });
+          renderDesignChat();
+        }
+      } catch (err) {
+        console.error('Chat connection error (collecting):', err);
+        designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+        designChatHistory.push({ role: 'assistant', content: 'Connection error. Please try again.' });
+        renderDesignChat();
+      }
+
+      sendBtn.disabled = false;
+    }
+
+    // ── Chat-first "Start from Design" — RSVP Fields Phase ──
+    async function sendDesignChatRsvpFields(text, input) {
+      designChatHistory.push({ role: 'user', content: text });
+      renderDesignChat();
+      input.value = '';
+      input.style.height = 'auto';
+
+      var sendBtn = document.getElementById('designChatSendBtn');
+      sendBtn.disabled = true;
+
+      var lower = text.toLowerCase().trim();
+
+      // Check if user is confirming fields
+      var confirmPatterns = /^(looks good|perfect|that'?s it|done|let'?s go|good to go|that works|i'?m good|all good|yep|yes|ok|okay|sounds good|great|fine|go ahead|ready|confirmed?|ship it|nice|all set|love it|approve|accept)[\s!.]*$/i;
+      if (confirmPatterns.test(lower)) {
+        // Save custom fields to DB
+        await saveCustomFields();
+
+        // Transition to tweaking phase
+        designChatPhase = 'tweaking';
+
+        // Persist creation_step
+        if (currentEvent) {
+          authFetch('/api/v2/events?action=update', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: currentEvent.id, settings: { creation_step: 2, design_chat_phase: 'tweaking' } })
+          }).catch(function() {});
+        }
+
+        // If user mentioned design preferences during collecting, auto-fire the tweak
+        if (pendingDesignRequest) {
+          var pendingReq = pendingDesignRequest;
+          pendingDesignRequest = null;
+          designChatHistory.push({ role: 'assistant', content: "All set! Now let me apply those design changes you mentioned..." });
+          renderDesignChat();
+          sendBtn.disabled = false;
+          // Simulate sending the pending design request through the normal tweak system
+          var designInput = document.getElementById('designChatInput');
+          designInput.value = pendingReq;
+          sendDesignChat();
+          return;
+        }
+
+        var tweakMsg = "All set! Your invite is personalized and ready.\n\n"
+          + "Want to tweak anything? You can adjust colors, fonts, layout, text, or anything else. Just describe what you'd like to change.";
+        designChatHistory.push({ role: 'assistant', content: tweakMsg });
+        renderDesignChat();
+        sendBtn.disabled = false;
+        return;
+      }
+
+      // Try instant RSVP field changes (tier 1)
+      var rsvpFieldResult = tryInstantRsvpFieldChange(text, false);
+      if (rsvpFieldResult && rsvpFieldResult.action !== 'add_async' && rsvpFieldResult.action !== 'mixed') {
+        applyRsvpFieldChanges(rsvpFieldResult.changes);
+        renderPreview(themeVersions[activeVersionIndex]);
+
+        // Show updated field list
+        var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+        var fieldListStr = enabledFields.map(function(f) {
+          return '- ' + f.label + (f.is_required ? ' (required)' : '');
+        }).join('\n');
+        designChatHistory.push({ role: 'assistant', content: rsvpFieldResult.chatResponse + '\n\nCurrent fields:\n' + fieldListStr + '\n\nSay "looks good" when you\'re happy, or keep adjusting!' });
+        renderDesignChat();
+        sendBtn.disabled = false;
+        return;
+      }
+
+      // Tier 1.5: Quick AI field interpretation for "add" requests
+      if (rsvpFieldResult && (rsvpFieldResult.action === 'add_async' || rsvpFieldResult.action === 'mixed')) {
+        if (rsvpFieldResult.action === 'mixed' && rsvpFieldResult.syncChanges) {
+          applyRsvpFieldChanges(rsvpFieldResult.syncChanges);
+          renderPreview(themeVersions[activeVersionIndex]);
+        }
+        var addMsg = rsvpFieldResult.action === 'mixed' ? rsvpFieldResult.addAsync.userMessage : rsvpFieldResult.userMessage;
+        var syncNote = rsvpFieldResult.action === 'mixed' ? rsvpFieldResult.syncResponse + ' ' : '';
+        try {
+          var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+          var interpretRes = await authFetch('/api/v2/generate-theme?action=interpretField', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userMessage: addMsg,
+              eventId: currentEvent ? currentEvent.id : null,
+              existingFields: enabledFields.map(function(f) { return { label: f.label, field_key: f.field_key }; })
+            })
+          });
+          if (interpretRes.ok) {
+            var interpretData = await interpretRes.json();
+            if (interpretData.success && interpretData.field) {
+              var f = interpretData.field;
+              var exists = enabledFields.some(function(ef) {
+                return (ef.field_key || '').toLowerCase() === (f.field_key || '').toLowerCase();
+              });
+              if (!exists) {
+                applyRsvpFieldChanges([{ action: 'add', field_key: f.field_key, label: f.label, field_type: f.field_type || 'text', is_required: f.is_required || false, placeholder: f.placeholder || null }]);
+                renderPreview(themeVersions[activeVersionIndex]);
+              }
+              var updatedFields = rsvpFields.filter(function(ff) { return ff.enabled; });
+              var fieldListStr = updatedFields.map(function(ff) {
+                return '- ' + ff.label + (ff.is_required ? ' (required)' : '');
+              }).join('\n');
+              var responseMsg = exists
+                ? syncNote + 'That field already exists!'
+                : syncNote + 'Added "' + f.label + '"!';
+              designChatHistory.push({ role: 'assistant', content: responseMsg + '\n\nCurrent fields:\n' + fieldListStr + '\n\nSay "looks good" when you\'re happy, or keep adjusting!' });
+              renderDesignChat();
+              sendBtn.disabled = false;
+              return;
+            }
+          }
+        } catch (err) {
+          console.error('[rsvp] interpretField error:', err);
+        }
+      }
+
+      // Fallback: didn't match any field operation, tell user
+      designChatHistory.push({ role: 'assistant', content: "I can help you add, remove, or modify RSVP fields. Try something like:\n- \"Add a dietary restrictions field\"\n- \"Remove email\"\n- \"Make name required\"\n\nOr say \"looks good\" when you're done!" });
+      renderDesignChat();
+      sendBtn.disabled = false;
+    }
+
     async function sendDesignChat() {
       var input = document.getElementById('designChatInput');
       var text = input.value.trim();
       var hasPhotos = designChatPhotoUrls.length > 0;
       if (!text && !hasPhotos) return;
+
+      // ── Phase routing for chat-first "Start from Design" flow ──
+      if (designChatPhase === 'collecting_details') {
+        return sendDesignChatCollecting(text, input);
+      }
+      if (designChatPhase === 'rsvp_fields') {
+        return sendDesignChatRsvpFields(text, input);
+      }
 
       // Detect if user mentions wanting a photo but didn't attach one
       if (text && !hasPhotos) {
@@ -4454,6 +5062,15 @@
       var ver = themeVersions[activeVersionIndex];
       try {
         var instructions = text || '';
+        // For "start from design" flow, add preservation context so the AI
+        // keeps the chosen design and only changes what was explicitly requested
+        if (window._templateSource) {
+          instructions = 'IMPORTANT: The user specifically chose this design from our inspiration gallery because they liked it. '
+            + 'Preserve the overall design, layout, structure, illustrations, and visual identity. '
+            + 'ONLY change what the user explicitly asks for — nothing else. '
+            + 'Keep all other design elements exactly as they are.\n\n'
+            + 'User request: ' + instructions;
+        }
         if (hasPhotos) {
           instructions += '\n\nThe user has uploaded ' + designChatPhotoUrls.length + ' photo(s). Embed them in the design.';
         }
@@ -4478,6 +5095,7 @@
           },
           rsvpFields: enabledFields.map(function(f) { return { field_key: f.field_key, label: f.label, field_type: f.field_type, is_required: f.is_required }; })
         };
+        if (window._templateSource) payload.basedOnThemeId = window._templateSource.id || '';
 
         // Use streaming SSE to avoid timeouts
         var sseRes = await authFetch('/api/v2/generate-theme?action=tweak', {
@@ -5245,6 +5863,26 @@
       var publishBtn = document.getElementById('publishBtn');
       publishBtn.textContent = 'Publishing...';
       try {
+        // Ensure event details are saved before publishing
+        await saveEventToDB();
+        await saveCustomFields();
+
+        // Ensure the active theme is saved to DB
+        var activeTheme = themeVersions[activeVersionIndex >= 0 ? activeVersionIndex : 0];
+        if (activeTheme && activeTheme.html) {
+          await authFetch('/api/v2/events?action=saveTheme', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventId: currentEvent.id,
+              html: activeTheme.html,
+              css: activeTheme.css || '',
+              config: activeTheme.config || {},
+              basedOnThemeId: window._templateSource ? (window._templateSource.id || '') : undefined
+            })
+          });
+        }
+
         var res = await authFetch('/api/v2/events?action=update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

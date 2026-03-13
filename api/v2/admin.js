@@ -903,7 +903,8 @@ export default async function handler(req, res) {
         ratedAt: row.rated_at || null,
         timesUsed: row.times_used || 0,
         archivedAt: row.archived_at || null,
-        archivedBy: row.archived_by || null
+        archivedBy: row.archived_by || null,
+        exclude_from_gallery: row.exclude_from_gallery || false
       }));
 
       return res.status(200).json({ success: true, library });
@@ -1859,7 +1860,7 @@ export default async function handler(req, res) {
 
       let query = supabaseAdmin
         .from('event_themes')
-        .select('id, event_id, version, is_active, html, css, config, model, input_tokens, output_tokens, latency_ms, admin_rating, admin_notes, rated_by, rated_at, prompt_version_id, created_at, events!inner(title, event_type, slug, user_id)', { count: 'exact' });
+        .select('id, event_id, version, is_active, html, css, config, model, input_tokens, output_tokens, latency_ms, admin_rating, admin_notes, rated_by, rated_at, prompt_version_id, created_at, exclude_from_gallery, events!inner(title, event_type, slug, user_id)', { count: 'exact' });
 
       if (ratingFilter === 'unrated') query = query.is('admin_rating', null);
       else if (ratingFilter === 'rated') query = query.not('admin_rating', 'is', null);
@@ -1932,6 +1933,26 @@ export default async function handler(req, res) {
 
       if (error) return res.status(500).json({ error: 'Failed to rate: ' + error.message });
       return res.status(200).json({ success: true });
+    }
+
+    // ---- TOGGLE EXCLUDE FROM GALLERY (inspiration page) ----
+    if (action === 'toggleExcludeFromGallery') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+      const { id, source, exclude } = req.body;
+      if (!id) return res.status(400).json({ error: 'id required' });
+      if (typeof exclude !== 'boolean') return res.status(400).json({ error: 'exclude must be boolean' });
+
+      const table = source === 'lab' ? 'prompt_test_runs'
+                  : source === 'style' ? 'style_library'
+                  : 'event_themes';
+
+      const { error } = await supabaseAdmin
+        .from(table)
+        .update({ exclude_from_gallery: exclude })
+        .eq('id', id);
+
+      if (error) return res.status(500).json({ error: 'Failed to update: ' + error.message });
+      return res.status(200).json({ success: true, excluded: exclude });
     }
 
     // ---- THEME QUALITY STATS (across all real generations) ----
