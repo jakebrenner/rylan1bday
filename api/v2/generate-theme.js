@@ -829,29 +829,29 @@ Rules:
       const fieldOutputTokens = resp.usage?.output_tokens || 0;
 
       // Log cost to generation_log + increment event cost
+      // CRITICAL: await these — fire-and-forget can lose records on Vercel
       const fieldLatency = Date.now() - fieldStartTime;
       const fieldCost = calcGenerationCost('claude-haiku-4-5-20251001', fieldInputTokens, fieldOutputTokens);
-      supabase.from('generation_log').insert({
+      const { error: fieldLogError } = await supabase.from('generation_log').insert({
         user_id: user.id, event_id: fieldEventId || null,
         prompt: 'interpretField: ' + userMessage.substring(0, 200),
         model: 'claude-haiku-4-5-20251001', input_tokens: fieldInputTokens,
         output_tokens: fieldOutputTokens, latency_ms: fieldLatency, status: 'success',
         is_tweak: true
-      }).catch(() => {});
+      });
+      if (fieldLogError) console.error('Field generation_log insert failed:', fieldLogError.message);
       if (fieldEventId) {
-        supabase.rpc('increment_event_cost', { p_event_id: fieldEventId, p_cost_cents: fieldCost.totalCostCents })
-          .then(({ error }) => {
-            if (error) {
-              supabase.from('events').select('total_cost_cents').eq('id', fieldEventId).single()
-                .then(({ data }) => {
-                  if (data) supabase.from('events')
-                    .update({ total_cost_cents: (data.total_cost_cents || 0) + fieldCost.totalCostCents })
-                    .eq('id', fieldEventId).then(() => {});
-                });
-            }
-          });
+        const { error: fieldCostError } = await supabase.rpc('increment_event_cost', { p_event_id: fieldEventId, p_cost_cents: fieldCost.totalCostCents });
+        if (fieldCostError) {
+          const { data } = await supabase.from('events').select('total_cost_cents').eq('id', fieldEventId).single();
+          if (data) {
+            await supabase.from('events')
+              .update({ total_cost_cents: (data.total_cost_cents || 0) + fieldCost.totalCostCents })
+              .eq('id', fieldEventId);
+          }
+        }
       }
-      checkAndChargeAiUsage(user.id).catch(() => {});
+      await checkAndChargeAiUsage(user.id).catch(() => {});
 
       let field;
       try {
@@ -1146,14 +1146,30 @@ Return ONLY a valid JSON object with these keys:
       } catch (parseErr) {
         // No valid JSON/HTML found — AI responded with conversational text instead of a theme.
         // Return it as a chat response so the client can display it gracefully.
+        const chatOnlyCost = calcGenerationCost(tweakModel, tweakInputTokens, tweakOutputTokens);
         sendSSE('done', {
           success: true,
           chatOnly: true,
           chatResponse: fullText.trim(),
           theme: null,
-          metadata: { model: tweakModel, latencyMs: Date.now() - startTime, tokens: { input: tweakInputTokens, output: tweakOutputTokens }, cost: calcGenerationCost(tweakModel, tweakInputTokens, tweakOutputTokens) }
+          metadata: { model: tweakModel, latencyMs: Date.now() - startTime, tokens: { input: tweakInputTokens, output: tweakOutputTokens }, cost: chatOnlyCost }
         });
-        return res.end();
+        res.end();
+        // Log chat-only tweak to generation_log — still consumed tokens
+        const chatOnlyMeta = getClientMeta(req);
+        await supabase.from('generation_log').insert({
+          event_id: eventId, user_id: user.id, prompt: 'Tweak (chat): ' + tweakInstructions.substring(0, 200),
+          model: tweakModel, input_tokens: tweakInputTokens,
+          output_tokens: tweakOutputTokens, latency_ms: Date.now() - startTime, status: 'success',
+          is_tweak: true, event_type: eventDetails?.eventType || '',
+          client_ip: chatOnlyMeta.ip, client_geo: chatOnlyMeta.geo, user_agent: chatOnlyMeta.userAgent
+        }).catch(e => console.error('Chat-only tweak log failed:', e.message));
+        if (eventId) {
+          await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: chatOnlyCost.totalCostCents })
+            .catch(() => {});
+        }
+        await checkAndChargeAiUsage(user.id).catch(() => {});
+        return;
       }
 
       // ── Light tweak: apply diff-based html_replacements ──
@@ -1266,35 +1282,36 @@ Return ONLY a valid JSON object with these keys:
         // Update theme with accurate tokens if they differ
         if (finalTweakInputTokens !== tweakInputTokens || finalTweakOutputTokens !== tweakOutputTokens) {
           if (newTweakTheme?.id) {
-            supabase.from('event_themes')
+            await supabase.from('event_themes')
               .update({ input_tokens: finalTweakInputTokens, output_tokens: finalTweakOutputTokens })
-              .eq('id', newTweakTheme.id).catch(() => {});
+              .eq('id', newTweakTheme.id);
           }
         }
 
+        // CRITICAL: These must be awaited — fire-and-forget inserts get lost when
+        // Vercel terminates the function after the handler returns.
         const tweakMeta = getClientMeta(req);
-        supabase.from('generation_log').insert({
+        const { error: tweakLogError } = await supabase.from('generation_log').insert({
           event_id: eventId, user_id: user.id, prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
           model: tweakModel, input_tokens: finalTweakInputTokens,
           output_tokens: finalTweakOutputTokens, latency_ms: latency, status: 'success',
           is_tweak: true, event_type: eventDetails?.eventType || '',
           client_ip: tweakMeta.ip, client_geo: tweakMeta.geo, user_agent: tweakMeta.userAgent
-        }).catch(() => {});
+        });
+        if (tweakLogError) console.error('Tweak generation_log insert failed:', tweakLogError.message);
         // Atomically increment persistent event cost with accurate amount
-        supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: finalTweakCost.totalCostCents })
-          .then(({ error }) => {
-            if (error) {
-              supabase.from('events').select('total_cost_cents').eq('id', eventId).single()
-                .then(({ data }) => {
-                  if (data) supabase.from('events')
-                    .update({ total_cost_cents: (data.total_cost_cents || 0) + finalTweakCost.totalCostCents })
-                    .eq('id', eventId).then(() => {});
-                });
-            }
-          });
+        const { error: tweakCostError } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: finalTweakCost.totalCostCents });
+        if (tweakCostError) {
+          const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
+          if (data) {
+            await supabase.from('events')
+              .update({ total_cost_cents: (data.total_cost_cents || 0) + finalTweakCost.totalCostCents })
+              .eq('id', eventId);
+          }
+        }
 
         // Check if usage-based AI billing threshold is reached
-        checkAndChargeAiUsage(user.id).catch(e => console.error('AI billing check error:', e.message));
+        await checkAndChargeAiUsage(user.id).catch(e => console.error('AI billing check error:', e.message));
       } catch (saveErr) {
         console.error('Tweak DB save error (theme already sent to client):', saveErr);
       }
@@ -1611,10 +1628,9 @@ This is the most common failure mode. Double-check it.`;
       }
       if (themeError) console.error('Failed to save theme:', themeError.message);
 
-      supabase.from('events')
+      await supabase.from('events')
         .update({ first_generation_at: new Date().toISOString() })
-        .eq('id', eventId).is('first_generation_at', null)
-        .then(() => {}).catch(() => {});
+        .eq('id', eventId).is('first_generation_at', null);
 
       // Now wait for accurate token usage (up to 5s) for cost logging
       try {
@@ -1628,37 +1644,51 @@ This is the most common failure mode. Double-check it.`;
       // Update theme with accurate tokens if they differ from estimates
       if (finalInputTokens !== genInputTokens || finalOutputTokens !== genOutputTokens) {
         if (newTheme?.id) {
-          supabase.from('event_themes')
+          await supabase.from('event_themes')
             .update({ input_tokens: finalInputTokens, output_tokens: finalOutputTokens })
-            .eq('id', newTheme.id).catch(() => {});
+            .eq('id', newTheme.id);
         }
       }
 
       // Log generation with accurate tokens + increment cost
+      // CRITICAL: These must be awaited — fire-and-forget inserts get lost when
+      // Vercel terminates the function after the handler returns.
       const genMeta = getClientMeta(req);
-      supabase.from('generation_log').insert({
+      const { error: genLogError } = await supabase.from('generation_log').insert({
         event_id: eventId, user_id: user.id, prompt: effectivePrompt,
         model: themeModel, input_tokens: finalInputTokens,
         output_tokens: finalOutputTokens, latency_ms: latency,
         status: 'success', event_type: eventType, style_library_ids: usedStyleIds,
         prompt_version_id: activePrompt.promptVersionId || null,
         client_ip: genMeta.ip, client_geo: genMeta.geo, user_agent: genMeta.userAgent
-      }).catch(() => {});
+      });
+      if (genLogError) {
+        console.error('generation_log insert failed:', genLogError.message);
+        // Retry without prompt_version_id in case column doesn't exist
+        if (genLogError.message?.includes('prompt_version_id')) {
+          await supabase.from('generation_log').insert({
+            event_id: eventId, user_id: user.id, prompt: effectivePrompt,
+            model: themeModel, input_tokens: finalInputTokens,
+            output_tokens: finalOutputTokens, latency_ms: latency,
+            status: 'success', event_type: eventType, style_library_ids: usedStyleIds,
+            client_ip: genMeta.ip, client_geo: genMeta.geo, user_agent: genMeta.userAgent
+          }).catch(e => console.error('generation_log retry failed:', e.message));
+        }
+      }
       // Atomically increment persistent event cost with accurate amount
-      supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: finalCost.totalCostCents })
-        .then(({ error }) => {
-          if (error) {
-            supabase.from('events').select('total_cost_cents').eq('id', eventId).single()
-              .then(({ data }) => {
-                if (data) supabase.from('events')
-                  .update({ total_cost_cents: (data.total_cost_cents || 0) + finalCost.totalCostCents })
-                  .eq('id', eventId).then(() => {});
-              });
-          }
-        });
+      const { error: costError } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: finalCost.totalCostCents });
+      if (costError) {
+        // Fallback: read-then-write if RPC fails
+        const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
+        if (data) {
+          await supabase.from('events')
+            .update({ total_cost_cents: (data.total_cost_cents || 0) + finalCost.totalCostCents })
+            .eq('id', eventId);
+        }
+      }
 
       // Check if usage-based AI billing threshold is reached
-      checkAndChargeAiUsage(user.id).catch(e => console.error('AI billing check error:', e.message));
+      await checkAndChargeAiUsage(user.id).catch(e => console.error('AI billing check error:', e.message));
     } catch (saveErr) {
       console.error('DB save error (theme already sent to client):', saveErr);
     }
