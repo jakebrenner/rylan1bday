@@ -4243,6 +4243,45 @@
       var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
       var results = [];
 
+      // --- Pre-check: protect built-in fields from removal/addition ---
+      // The regex-based extraction below can fail on natural phrasing like "remove the email field?"
+      // so we do a direct keyword check first for built-in field names.
+      var isRemoveIntent = /\b(?:remove|delete|drop|get rid of|take off|take out|hide|no more)\b/i.test(lower);
+      var isAddIntent = /\b(?:add|include|put|create|insert)\b/i.test(lower);
+      if (isRemoveIntent || isAddIntent) {
+        var builtInCheck = [
+          { pattern: /\b(?:email|e-mail)\b/i, name: 'Email' },
+          { pattern: /\b(?:phone|telephone|tel|mobile|cell)\b/i, name: 'Phone' },
+          { pattern: /\bname\b/i, name: 'Name' },
+          { pattern: /\b(?:rsvp|status|attendance|attending)\b/i, name: 'RSVP Status' }
+        ];
+        var protectedHits = [];
+        for (var bi = 0; bi < builtInCheck.length; bi++) {
+          if (builtInCheck[bi].pattern.test(lower)) {
+            protectedHits.push(builtInCheck[bi].name);
+          }
+        }
+        if (protectedHits.length > 0 && isRemoveIntent) {
+          var msg = protectedHits.join(' and ') + (protectedHits.length > 1 ? ' are' : ' is a')
+            + ' built-in ' + (protectedHits.length > 1 ? 'fields' : 'field')
+            + " and can't be removed. Every invite includes Name, Email, Phone, and RSVP Status"
+            + " — guests just need to provide either an email or phone number (not both required).";
+          return {
+            action: 'protected',
+            changes: [],
+            chatResponse: msg
+          };
+        }
+        if (protectedHits.length > 0 && isAddIntent && !isRemoveIntent) {
+          return {
+            action: 'protected',
+            changes: [],
+            chatResponse: protectedHits.join(' and ') + (protectedHits.length > 1 ? ' are' : ' is')
+              + ' already included as ' + (protectedHits.length > 1 ? 'built-in fields' : 'a built-in field') + '!'
+          };
+        }
+      }
+
       // --- Split on "and" / "&" / "," to handle compound requests ---
       // But only split on "and" that separates clauses (preceded by field/add/remove action words)
       var parts = [lower];
@@ -4259,13 +4298,6 @@
         if (removeMatch) {
           var searchTerm = (removeMatch[1] || removeMatch[2] || removeMatch[3] || '').trim().toLowerCase().replace(/[\s_-]+/g, '');
           if (searchTerm) {
-            // Protect built-in fields from removal
-            var builtInFields = ['name', 'email', 'phone', 'rsvpstatus', 'status'];
-            if (builtInFields.indexOf(searchTerm) !== -1) {
-              var friendlyName = searchTerm.charAt(0).toUpperCase() + searchTerm.slice(1);
-              results.push({ action: 'protected', label: friendlyName });
-              continue;
-            }
             var matchedField = enabledFields.find(function(f) {
               var fKey = (f.field_key || '').toLowerCase().replace(/[\s_-]+/g, '');
               var fLabel = (f.label || '').toLowerCase().replace(/[\s_-]+/g, '');
@@ -4289,12 +4321,6 @@
         if (!addDetected) addDetected = /\b(?:i want|i need|can you add|could you add|please add)\b/i.test(part)
           && /\b(?:field|question|ask|input)\b/i.test(part);
         if (addDetected) {
-          // Check if trying to add a built-in field
-          if (/\b(?:email|phone)\b/i.test(part) && !/\b(?:second|another|extra|additional)\b/i.test(part)) {
-            var builtInName = /\bemail\b/i.test(part) ? 'Email' : 'Phone';
-            results.push({ action: 'protected', label: builtInName + ' is already included as a built-in field!' });
-            continue;
-          }
           // Use the original text for the AI call (more context is better)
           results.push({ action: 'add_async', userMessage: text });
           continue;
@@ -4328,7 +4354,6 @@
       var responseMessages = syncChanges.map(function(r) {
         if (r.action === 'remove') return 'Removed the "' + r.label + '" field';
         if (r.action === 'modify') return 'Made "' + (r.label || r.field_key) + '" ' + (r.is_required ? 'required' : 'optional');
-        if (r.action === 'protected') return r.label + ' is a built-in field and can\'t be removed — it\'s needed so you can reach your guests!';
         return '';
       }).filter(Boolean);
 
