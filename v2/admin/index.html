@@ -1206,7 +1206,6 @@
         </div>
       </div>
     </div>
-  </div>
 
     <!-- Prompt Versions Tab -->
     <div class="tab-content" id="tab-promptversions">
@@ -1758,7 +1757,6 @@
         </div>
       </div>
     </div>
-  </div>
 
   <!-- Add/Edit Style Modal -->
   <div id="styleModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeStyleModal()">
@@ -1862,7 +1860,7 @@
             <option value="archived">Archived</option>
           </select>
           <button class="btn btn-sm" onclick="blogBulkChangeStatus()">Apply</button>
-          <button class="btn btn-sm" style="background:#E94560;color:#fff;" onclick="blogBulkDelete()">Delete Selected</button>
+          <button class="btn btn-sm btn-primary" onclick="blogBulkDelete()">Delete Selected</button>
         </div>
         <div class="table-container">
           <table>
@@ -2063,7 +2061,7 @@
         <div style="display:flex;gap:12px;margin-top:24px;padding-bottom:40px;">
           <button class="btn btn-primary" onclick="blogSavePost()" id="blogSaveBtn">Save Post</button>
           <button class="btn btn-secondary" onclick="closeBlogPostEditor()">Cancel</button>
-          <button class="btn btn-sm" id="blogDeleteBtn" style="background:#E94560;color:#fff;margin-left:auto;display:none;" onclick="blogDeletePost()">Delete Post</button>
+          <button class="btn btn-sm btn-primary" id="blogDeleteBtn" style="margin-left:auto;display:none;" onclick="blogDeletePost()">Delete Post</button>
         </div>
       </div>
     </div>
@@ -6631,12 +6629,12 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#888;">No posts found</td></tr>';
         } else {
           res.posts.forEach(function(p) {
-            var statusColor = p.status === 'published' ? '#10b981' : p.status === 'draft' ? '#f59e0b' : '#9ca3af';
+            var statusClass = p.status === 'published' ? 'badge-green' : p.status === 'draft' ? 'badge-yellow' : 'badge-gray';
             var row = document.createElement('tr');
             row.style.cursor = 'pointer';
             row.innerHTML = '<td onclick="event.stopPropagation()"><input type="checkbox" data-id="' + p.id + '" onchange="blogToggleSelect(this)"></td>'
               + '<td onclick="openBlogPostEditor(\'' + p.id + '\')">' + escapeHtml(p.title) + '</td>'
-              + '<td><span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;color:#fff;background:' + statusColor + ';">' + p.status + '</span></td>'
+              + '<td><span class="badge ' + statusClass + '">' + p.status + '</span></td>'
               + '<td>' + escapeHtml(p.category || '') + '</td>'
               + '<td>' + escapeHtml(p.author_slug || '') + '</td>'
               + '<td>' + (p.published_date ? new Date(p.published_date).toLocaleDateString() : '') + '</td>'
@@ -7120,7 +7118,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             + '<td>' + (c.postCount || 0) + '</td>'
             + '<td style="white-space:nowrap;">'
             + '<button class="btn btn-sm" onclick="blogUpdateCategory(\'' + c.id + '\', this)" style="margin-right:4px;">Save</button>'
-            + '<button class="btn btn-sm" style="background:#E94560;color:#fff;" onclick="blogDeleteCategory(\'' + c.id + '\', \'' + escapeHtml(c.name) + '\', ' + (c.postCount || 0) + ')">Delete</button>'
+            + '<button class="btn btn-sm btn-primary" onclick="blogDeleteCategory(\'' + c.id + '\', \'' + escapeHtml(c.name) + '\', ' + (c.postCount || 0) + ')">Delete</button>'
             + '</td>';
           tbody.appendChild(row);
         });
