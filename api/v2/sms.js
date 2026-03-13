@@ -592,8 +592,25 @@ export default async function handler(req, res) {
       const headlineFont = cfg.fontHeadline || 'Playfair Display';
       const bodyFont = cfg.fontBody || 'Inter';
       const fontsImport = cfg.googleFontsImport || '';
-      // Derive a light tint from primaryColor for the event details card
-      const detailsBg = primaryColor + '12'; // 7% opacity hex
+
+      // Derive email-safe colors (no opacity — many email clients don't support it)
+      // Mix primaryColor with white at ~10% for a soft tint background
+      const hexToRgb = (hex) => {
+        const h = hex.replace('#', '');
+        return [parseInt(h.substring(0,2),16), parseInt(h.substring(2,4),16), parseInt(h.substring(4,6),16)];
+      };
+      const rgbToHex = (r,g,b) => '#' + [r,g,b].map(c => Math.max(0,Math.min(255,Math.round(c))).toString(16).padStart(2,'0')).join('');
+      const mixWithWhite = (hex, amount) => {
+        const [r,g,b] = hexToRgb(hex);
+        return rgbToHex(r + (255-r)*amount, g + (255-g)*amount, b + (255-b)*amount);
+      };
+      const darken = (hex, amount) => {
+        const [r,g,b] = hexToRgb(hex);
+        return rgbToHex(r*(1-amount), g*(1-amount), b*(1-amount));
+      };
+      const detailsBg = mixWithWhite(primaryColor, 0.92);
+      const subtextColor = mixWithWhite(textColor, 0.4);
+      const dividerColor = mixWithWhite(primaryColor, 0.7);
 
       // Fetch guests with emails
       let query = supabaseAdmin
@@ -648,68 +665,131 @@ export default async function handler(req, res) {
             .replace(/\{name\}/gi, guestName)
             .replace(/\{link\}/gi, guestLink);
         } else {
-          // Build default themed email template
-          let bodyHtml = '';
+          // Build default themed email template — email-safe (table layout, inline styles, no opacity)
+          let personalMsg = '';
           if (message) {
             const resolvedMsg = message
               .replace(/\{name\}/gi, guestName)
               .replace(/\{link\}/gi, guestLink)
               .replace(/\n/g, '<br>');
-            bodyHtml = `<p style="color:${textColor};opacity:0.8;font-size:15px;line-height:1.6;margin:0 0 24px;">${resolvedMsg}</p>`;
-          } else {
-            bodyHtml = `
-              <p style="color:${textColor};opacity:0.8;font-size:16px;line-height:1.6;margin:0 0 24px;">
-                Hi <strong>${guestName}</strong>, <strong>${hostName}</strong> has invited you to:
-              </p>`;
+            personalMsg = `<tr><td style="padding:0 40px 24px;font-family:'${bodyFont}',Arial,sans-serif;font-size:15px;line-height:1.6;color:${subtextColor};">${resolvedMsg}</td></tr>`;
           }
 
+          // Button text color — ensure contrast against primaryColor
+          const [pr,pg,pb] = hexToRgb(primaryColor);
+          const primaryLuminance = (0.299*pr + 0.587*pg + 0.114*pb) / 255;
+          const btnTextColor = primaryLuminance > 0.6 ? '#1A1A2E' : '#FFFFFF';
+
           html = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-${fontsImport ? `<style>${fontsImport}</style>` : ''}
-</head><body style="margin:0;padding:0;background:#f4f4f4;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;">
-<tr><td align="center" style="padding:32px 16px;">
-<table role="presentation" width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:${bgColor};border-radius:20px;overflow:hidden;">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>You're invited to ${eventTitle}</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
+</head>
+<body style="margin:0;padding:0;background-color:#f0f0f0;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<!-- Preheader text (shows in inbox preview) -->
+<div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:#f0f0f0;">
+  ${hostName} has invited you to ${eventTitle}${eventDate ? ' on ' + eventDate : ''}. RSVP now!
+  ${'&nbsp;&zwnj;'.repeat(30)}
+</div>
 
-  <!-- Colored header band -->
-  <tr><td style="background:${primaryColor};height:8px;font-size:0;line-height:0;">&nbsp;</td></tr>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0f0f0;">
+<tr><td align="center" style="padding:24px 16px;">
 
-  <!-- Main content -->
-  <tr><td style="padding:36px 32px 32px;">
-    <!-- Headline -->
-    <h1 style="font-family:'${headlineFont}',Georgia,serif;font-size:28px;font-weight:700;color:${textColor};margin:0 0 8px;text-align:center;">You're Invited!</h1>
-    <div style="width:40px;height:3px;background:${primaryColor};margin:0 auto 28px;border-radius:2px;"></div>
+<!-- Email container -->
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:${bgColor};">
 
-    ${bodyHtml}
+  <!-- Decorative top accent -->
+  <tr><td style="background-color:${primaryColor};height:6px;font-size:0;line-height:0;" height="6">&nbsp;</td></tr>
 
-    <!-- Event details card -->
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${detailsBg};border-radius:12px;margin-bottom:28px;">
-    <tr><td style="padding:20px 24px;">
-      <div style="font-family:'${headlineFont}',Georgia,serif;font-size:20px;font-weight:700;color:${textColor};margin-bottom:8px;">${eventTitle}</div>
-      ${eventDate ? `<div style="font-family:'${bodyFont}',Arial,sans-serif;font-size:14px;color:${textColor};opacity:0.7;margin-bottom:4px;">${eventDate}</div>` : ''}
-      ${event.location_name ? `<div style="font-family:'${bodyFont}',Arial,sans-serif;font-size:14px;color:${textColor};opacity:0.7;">${event.location_name}</div>` : ''}
+  <!-- Spacer -->
+  <tr><td style="height:36px;font-size:0;line-height:0;" height="36">&nbsp;</td></tr>
+
+  <!-- "You're Invited" headline -->
+  <tr><td align="center" style="padding:0 40px;">
+    <h1 style="font-family:'${headlineFont}',Georgia,'Times New Roman',serif;font-size:32px;font-weight:700;color:${textColor};margin:0 0 6px;line-height:1.2;">You're Invited</h1>
+  </td></tr>
+
+  <!-- Decorative divider -->
+  <tr><td align="center" style="padding:12px 0 28px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td style="width:50px;height:3px;background-color:${dividerColor};font-size:0;line-height:0;" width="50" height="3">&nbsp;</td>
+    </tr></table>
+  </td></tr>
+
+  <!-- Personal greeting -->
+  <tr><td style="padding:0 40px 8px;font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:${subtextColor};">
+    Hi <strong style="color:${textColor};">${guestName}</strong>, <strong style="color:${textColor};">${hostName}</strong> has invited you to:
+  </td></tr>
+
+  <!-- Custom message if provided -->
+  ${personalMsg}
+
+  <!-- Event details card -->
+  <tr><td style="padding:0 40px 28px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${detailsBg};">
+      <!-- Card top accent line -->
+      <tr><td style="background-color:${primaryColor};height:3px;font-size:0;line-height:0;" height="3">&nbsp;</td></tr>
+      <tr><td style="padding:24px 28px;">
+        <!-- Event title -->
+        <h2 style="font-family:'${headlineFont}',Georgia,'Times New Roman',serif;font-size:22px;font-weight:700;color:${textColor};margin:0 0 12px;line-height:1.3;">${eventTitle}</h2>
+        ${eventDate ? `
+        <!-- Date -->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:6px;"><tr>
+          <td style="padding-right:10px;vertical-align:middle;font-size:16px;">&#128197;</td>
+          <td style="font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:14px;color:${subtextColor};line-height:1.4;">${eventDate}</td>
+        </tr></table>` : ''}
+        ${event.location_name ? `
+        <!-- Location -->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td style="padding-right:10px;vertical-align:middle;font-size:16px;">&#128205;</td>
+          <td style="font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:14px;color:${subtextColor};line-height:1.4;">${event.location_name}${event.location_address ? '<br>' + event.location_address : ''}</td>
+        </tr></table>` : ''}
+      </td></tr>
+    </table>
+  </td></tr>
+
+  <!-- CTA button -->
+  <tr><td align="center" style="padding:0 40px 36px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+    <tr><td align="center" style="background-color:${primaryColor};padding:16px 48px;">
+      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${guestLink}" style="height:52px;v-text-anchor:middle;width:220px;" arcsize="20%" fillcolor="${primaryColor}" stroke="f"><v:textbox inset="0,0,0,0"><center style="font-family:Arial,sans-serif;font-size:16px;font-weight:bold;color:${btnTextColor};">RSVP Now</center></v:textbox></v:roundrect><![endif]-->
+      <!--[if !mso]><!-->
+      <a href="${guestLink}" target="_blank" style="display:inline-block;font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:${btnTextColor};text-decoration:none;letter-spacing:0.5px;line-height:1;">RSVP Now</a>
+      <!--<![endif]-->
     </td></tr>
     </table>
+  </td></tr>
 
-    <!-- CTA button -->
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-    <tr><td align="center">
-      <a href="${guestLink}" style="display:inline-block;background:${primaryColor};color:#ffffff;padding:16px 40px;border-radius:12px;font-family:'${bodyFont}',Arial,sans-serif;font-weight:700;font-size:16px;text-decoration:none;letter-spacing:0.3px;">RSVP Now</a>
-    </td></tr>
-    </table>
+  <!-- Subtle teaser -->
+  <tr><td align="center" style="padding:0 40px 36px;font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:13px;color:${subtextColor};line-height:1.5;">
+    View the full invitation with all the details &rarr;
+  </td></tr>
+
+  <!-- Bottom divider -->
+  <tr><td style="padding:0 40px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td style="border-top:1px solid ${mixWithWhite(textColor, 0.88)};font-size:0;line-height:0;" height="1">&nbsp;</td>
+    </tr></table>
   </td></tr>
 
   <!-- Footer -->
-  <tr><td style="padding:0 32px 28px;text-align:center;">
-    <p style="font-family:'${bodyFont}',Arial,sans-serif;color:${textColor};opacity:0.35;font-size:11px;margin:0;">
-      Sent via <a href="https://ryvite.com" style="color:${textColor};opacity:0.5;">Ryvite</a>
-    </p>
+  <tr><td align="center" style="padding:20px 40px 28px;font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:11px;color:${mixWithWhite(textColor, 0.65)};line-height:1.5;">
+    Sent via <a href="https://ryvite.com" target="_blank" style="color:${mixWithWhite(textColor, 0.65)};text-decoration:underline;">Ryvite</a>
   </td></tr>
 
 </table>
+<!-- /Email container -->
+
 </td></tr>
 </table>
-</body></html>`;
+</body>
+</html>`;
         }
 
         try {

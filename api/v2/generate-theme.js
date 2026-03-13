@@ -994,14 +994,16 @@ Rules:
 - Preserve all data-field attributes`}`;
       } else if (isEmailMode) {
         // ── EMAIL DESIGN TWEAK: modify the email invite template ──
-        tweakMessage = `Here is an email invite template. The user is using the chat designer to modify their email invite.
+        tweakMessage = `Here is an email invite template. The user is customizing their email invite via the design chat.
+
+The email should feel like a polished teaser of their event invite — matching its personality, colors, and typography — while working reliably across all email clients.
 ${eventContext}
 **Current Email HTML:**
 \`\`\`html
 ${currentEmailHtml || ''}
 \`\`\`
 
-**Current Theme Config (for reference — colors, fonts):**
+**Theme Config (the invite's visual identity — match these in the email):**
 \`\`\`json
 ${JSON.stringify(currentConfig || {})}
 \`\`\`
@@ -1015,16 +1017,9 @@ Return the updated email as a JSON object:
   "chat_response": "Brief friendly message about what you changed"
 }
 
-## EMAIL TEMPLATE RULES
-- This is an EMAIL — use TABLE-BASED LAYOUT only (no flexbox, no grid, no CSS animations)
-- ALL styles must be INLINE (style="...") — email clients strip <style> blocks
-- Keep the email within 600px max-width for email client compatibility
-- Preserve the RSVP button link (the <a> tag with the RSVP URL)
-- Use the event's theme colors and fonts from the config for visual consistency
-- Google Fonts may not render in all email clients — include fallback font stacks
-- Images must use absolute URLs
-- Keep the email professional and clean — it's a real invitation being sent to guests
-- The {name} and {link} placeholders in the content will be replaced per-guest at send time`;
+Keep the \`{name}\` and \`{link}\` placeholders — they're replaced per-guest at send time.
+Preserve the RSVP button link and the "Sent via Ryvite" footer.
+Make ONLY the changes the user asked for — keep everything else the same.`;
       } else {
         // ── DESIGN TWEAK: full regeneration ──
         tweakMessage = `Here is an existing invite theme. The user is using the chat designer to modify their invite.
@@ -1087,7 +1082,7 @@ Remember: RSVP fields are rendered by the platform, NOT in theme HTML. Do NOT ad
       sendSSE('status', { phase: 'generating', isLightTweak });
 
       const tweakSystemPrompt = isEmailMode && !isLightTweak
-        ? `You are an elite email designer modifying event invitation emails via a conversational chat interface. Your modifications should produce beautiful, professional email invites.
+        ? `You are an elite email designer modifying event invitation emails. The email should feel like a premium, on-brand teaser for the event invite — making the recipient excited to click through.
 
 ## OUTPUT FORMAT
 Return ONLY a valid JSON object:
@@ -1096,15 +1091,47 @@ Return ONLY a valid JSON object:
   "chat_response": "Brief friendly message about what you changed."
 }
 
-## CRITICAL RULES
-- TABLE-BASED LAYOUT ONLY — no flexbox, grid, or CSS animations
-- ALL styles must be INLINE (style="...") — email clients strip <style> blocks
-- Max-width 600px for email client compatibility
-- Preserve the RSVP button link (<a> tag)
-- Keep {name} and {link} placeholders — they're replaced per-guest at send time
-- Use Google Fonts with web-safe fallbacks (font-family: 'Font Name', Georgia, serif)
-- Make ONLY the changes the user asked for — keep everything else the same
-- TEXT CONTRAST: All text must be readable. Dark backgrounds → white text. Light backgrounds → dark text.`
+## EMAIL CLIENT COMPATIBILITY (non-negotiable)
+These rules ensure the email renders correctly in Gmail, Apple Mail, Outlook, Yahoo, and mobile clients:
+
+### Layout
+- TABLE-BASED LAYOUT ONLY — no flexbox, no grid, no CSS float
+- Outer wrapper: \`<table width="100%" cellpadding="0" cellspacing="0" border="0">\`
+- Content table: max-width 600px with \`width="600"\` attribute AND \`style="max-width:600px;width:100%"\`
+- Use \`role="presentation"\` on all layout tables
+- Use \`border="0"\` on every table element
+
+### Styles
+- ALL styles INLINE (style="...") — Gmail/Outlook strip \`<style>\` blocks
+- Never use CSS shorthand for padding/margin in Outlook-critical areas (use padding-top, padding-right etc. separately if needed)
+- Never use \`opacity\` — derive actual hex colors instead (mix with white/black for lighter/darker)
+- Never use rgba() or hsla() — only hex colors (#RRGGBB)
+- Never use CSS variables, calc(), or any modern CSS
+- Avoid \`border-radius\` on outer containers (Outlook ignores it) — it's fine on inner elements for non-Outlook
+
+### Typography
+- Always include web-safe fallback stacks: \`'Custom Font', Georgia, 'Times New Roman', serif\` or \`'Custom Font', Arial, Helvetica, sans-serif\`
+- Use explicit \`font-family\` on EVERY text element — inheritance is unreliable
+- Use px for font-size, never em/rem
+
+### Images
+- No inline SVG (Outlook blocks it). Use img tags with absolute URLs only
+- Always include width/height attributes AND style dimensions
+- Always include descriptive alt text
+
+### Buttons (Outlook-safe)
+- Wrap \`<a>\` in a \`<td>\` with background-color — not on the \`<a>\` itself
+- Include VML roundrect comment for Outlook: \`<!--[if mso]>...<![endif]-->\`
+
+### Structure
+- Include preheader text (hidden preview text for inbox) in a hidden div at top of body
+- Include \`<meta name="color-scheme" content="light">\` and \`<meta name="supported-color-schemes" content="light">\`
+
+## DESIGN QUALITY
+- The email should match the event invite's visual identity — same color palette, same font spirit, same mood
+- Keep it a teaser — don't overwhelm. Show event name, date, location, a compelling CTA button, and a hint to "view the full invitation"
+- Text contrast: all text must be clearly readable. Use solid color values, not opacity tricks
+- The email is a first impression — make it feel special, not generic`
         : isLightTweak
         ? `You are modifying an event ${isEmailMode ? 'email invite' : 'invite'}. Make ONLY the specific text, wording, or content changes requested. Do NOT change design, layout, colors, fonts, or CSS.
 
