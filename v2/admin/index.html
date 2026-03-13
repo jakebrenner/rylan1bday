@@ -581,12 +581,9 @@
         <!-- Latency & Performance Trends (only shown for All Time view) -->
         <div id="trendsRow" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:20px;">
           <div class="stat-card" style="background:#faf5ff;border:1px solid #e9d5ff;">
-            <div class="stat-value" style="color:#7c3aed;font-size:22px;" id="latencyThemeAvg">—</div>
-            <div class="stat-label">Avg Theme Latency</div>
-          </div>
-          <div class="stat-card" style="background:#faf5ff;border:1px solid #e9d5ff;">
             <div class="stat-value" style="color:#7c3aed;font-size:22px;" id="latencyTheme7d">—</div>
             <div class="stat-label">Theme Latency (7d) <span id="latencyTheme7dTrend" style="font-size:13px;"></span></div>
+            <div style="font-size:11px;color:#a78bfa;margin-top:4px;" id="latencyThemeAllTime"></div>
           </div>
           <div class="stat-card" style="background:#f0fdf4;border:1px solid #bbf7d0;">
             <div class="stat-value" style="color:#16a34a;font-size:18px;" id="cost7dTrend">—</div>
@@ -597,27 +594,21 @@
             <div class="stat-label">Generations 7d vs Prior 7d</div>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px;">
           <div style="background:#f9f9f9;border-radius:8px;padding:16px;">
             <div style="font-size:12px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Chat (Event Planning)</div>
-            <div style="display:flex;justify-content:space-between;align-items:baseline;">
-              <span style="font-size:20px;font-weight:700;" id="costChat">—</span>
-              <span style="font-size:12px;color:#888;white-space:nowrap;" id="costChatCount">0 calls</span>
-            </div>
+            <div style="font-size:20px;font-weight:700;" id="costChat">—</div>
+            <div style="font-size:12px;color:#888;margin-top:2px;" id="costChatCount">0 calls</div>
           </div>
           <div style="background:#f9f9f9;border-radius:8px;padding:16px;">
             <div style="font-size:12px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Theme Generation</div>
-            <div style="display:flex;justify-content:space-between;align-items:baseline;">
-              <span style="font-size:20px;font-weight:700;" id="costTheme">—</span>
-              <span style="font-size:12px;color:#888;white-space:nowrap;" id="costThemeCount">0 generations</span>
-            </div>
+            <div style="font-size:20px;font-weight:700;" id="costTheme">—</div>
+            <div style="font-size:12px;color:#888;margin-top:2px;" id="costThemeCount">0 generations</div>
           </div>
           <div style="background:#f9f9f9;border-radius:8px;padding:16px;">
             <div style="font-size:12px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Prompt Lab Tests</div>
-            <div style="display:flex;justify-content:space-between;align-items:baseline;">
-              <span style="font-size:20px;font-weight:700;" id="costTest">—</span>
-              <span style="font-size:12px;color:#888;white-space:nowrap;" id="costTestCount">0 tests</span>
-            </div>
+            <div style="font-size:20px;font-weight:700;" id="costTest">—</div>
+            <div style="font-size:12px;color:#888;margin-top:2px;" id="costTestCount">0 tests</div>
           </div>
         </div>
         <div style="font-size:12px;color:#888;line-height:1.6;">
@@ -2016,8 +2007,9 @@
         return '<span style="color:' + color + ';font-weight:600;">' + arrow + Math.abs(pctChange) + '%</span>';
       }
 
-      document.getElementById('latencyThemeAvg').textContent = fmtLatency(lat.themeAvgMs);
       document.getElementById('latencyTheme7d').textContent = fmtLatency(lat.themeAvg7dMs);
+      var allTimeLatency = fmtLatency(lat.themeAvgMs);
+      document.getElementById('latencyThemeAllTime').textContent = lat.themeAvgMs ? ('All time: ' + allTimeLatency) : '';
 
       var tr = stats.trends || {};
       document.getElementById('latencyTheme7dTrend').innerHTML = trendBadge(tr.themeLatency7dChange, true);
