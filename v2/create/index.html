@@ -4264,8 +4264,7 @@
         if (protectedHits.length > 0 && isRemoveIntent) {
           var msg = protectedHits.join(' and ') + (protectedHits.length > 1 ? ' are' : ' is a')
             + ' built-in ' + (protectedHits.length > 1 ? 'fields' : 'field')
-            + " and can't be removed. Every invite includes Name, Email, Phone, and RSVP Status"
-            + " — guests just need to provide either an email or phone number (not both required).";
+            + " and can't be removed. Every invite includes Name, Email, Phone, and RSVP Status — but they're all optional except Name and RSVP Status.";
           return {
             action: 'protected',
             changes: [],
