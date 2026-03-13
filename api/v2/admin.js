@@ -505,16 +505,40 @@ export default async function handler(req, res) {
       if (statsFrom) logsQuery = logsQuery.gte('created_at', statsFrom);
       if (statsTo) logsQuery = logsQuery.lte('created_at', statsTo + 'T23:59:59.999Z');
 
-      const [usersRes, eventsRes, guestsRes, logsRes, markupRes] = await Promise.all([
+      // Build date-filtered queries for profiles, events, guests
+      let filteredProfilesQuery = supabaseAdmin.from('profiles').select('id', { count: 'exact', head: true });
+      let filteredEventsQuery = supabaseAdmin.from('events').select('id, status', { count: 'exact' });
+      let filteredGuestsQuery = supabaseAdmin.from('guests').select('id', { count: 'exact', head: true });
+      if (statsFrom) {
+        filteredProfilesQuery = filteredProfilesQuery.gte('created_at', statsFrom);
+        filteredEventsQuery = filteredEventsQuery.gte('created_at', statsFrom);
+        filteredGuestsQuery = filteredGuestsQuery.gte('created_at', statsFrom);
+      }
+      if (statsTo) {
+        const toEnd = statsTo + 'T23:59:59.999Z';
+        filteredProfilesQuery = filteredProfilesQuery.lte('created_at', toEnd);
+        filteredEventsQuery = filteredEventsQuery.lte('created_at', toEnd);
+        filteredGuestsQuery = filteredGuestsQuery.lte('created_at', toEnd);
+      }
+
+      const [allUsersRes, allEventsRes, allGuestsRes, filteredUsersRes, filteredEventsRes, filteredGuestsRes, logsRes, markupRes] = await Promise.all([
+        // All-time totals (never filtered)
         supabaseAdmin.from('profiles').select('id', { count: 'exact', head: true }),
         supabaseAdmin.from('events').select('id, status', { count: 'exact' }),
         supabaseAdmin.from('guests').select('id', { count: 'exact', head: true }),
+        // Date-filtered counts
+        filteredProfilesQuery,
+        filteredEventsQuery,
+        filteredGuestsQuery,
+        // Already date-filtered
         logsQuery,
         supabaseAdmin.from('app_config').select('value').eq('key', 'cost_markup_pct').single()
       ]);
 
-      const events = eventsRes.data || [];
-      const published = events.filter(e => e.status === 'published').length;
+      const allEvents = allEventsRes.data || [];
+      const allPublished = allEvents.filter(e => e.status === 'published').length;
+      const filteredEvents = filteredEventsRes.data || [];
+      const filteredPublished = filteredEvents.filter(e => e.status === 'published').length;
       const markupPct = parseFloat(markupRes.data?.value) || 100; // default 100% markup
 
       // AI model pricing per 1M tokens — must match generate-theme.js, chat.js, billing.js, ratings.js
@@ -640,10 +664,26 @@ export default async function handler(req, res) {
         success: true,
         dateFilter: { from: statsFrom || null, to: statsTo || null },
         stats: {
-          totalUsers: usersRes.count || 0,
-          totalEvents: eventsRes.count || 0,
-          publishedEvents: published,
-          totalRsvps: guestsRes.count || 0,
+          // All-time totals (never filtered)
+          allTime: {
+            totalUsers: allUsersRes.count || 0,
+            totalEvents: allEventsRes.count || 0,
+            publishedEvents: allPublished,
+            totalRsvps: allGuestsRes.count || 0
+          },
+          // Date-filtered activity counts
+          filtered: {
+            newUsers: filteredUsersRes.count || 0,
+            newEvents: filteredEventsRes.count || 0,
+            newPublishedEvents: filteredPublished,
+            newRsvps: filteredGuestsRes.count || 0,
+            generations: logsRes.count || 0
+          },
+          // Backward compat (deprecated — use allTime/filtered instead)
+          totalUsers: allUsersRes.count || 0,
+          totalEvents: allEventsRes.count || 0,
+          publishedEvents: allPublished,
+          totalRsvps: allGuestsRes.count || 0,
           totalGenerations: logsRes.count || 0,
           tokensByModel,
           costs: {
@@ -1117,21 +1157,39 @@ export default async function handler(req, res) {
 
     // ---- SMS STATS (admin overview) ----
     if (action === 'smsStats') {
-      const { count: totalSent } = await supabaseAdmin
-        .from('sms_messages')
-        .select('id', { count: 'exact', head: true });
+      const smsFrom = req.query.from;
+      const smsTo = req.query.to;
 
-      const { data: costData } = await supabaseAdmin
-        .from('sms_messages')
-        .select('cost_cents');
+      // All-time totals
+      const [allCountRes, allCostRes] = await Promise.all([
+        supabaseAdmin.from('sms_messages').select('id', { count: 'exact', head: true }),
+        supabaseAdmin.from('sms_messages').select('cost_cents')
+      ]);
+      const totalSent = allCountRes.count || 0;
+      const totalCostCents = (allCostRes.data || []).reduce((sum, m) => sum + (m.cost_cents || 0), 0);
 
-      const totalCostCents = (costData || []).reduce((sum, m) => sum + (m.cost_cents || 0), 0);
+      // Date-filtered totals
+      let filteredSent = totalSent;
+      let filteredCostCents = totalCostCents;
+      if (smsFrom || smsTo) {
+        let fq = supabaseAdmin.from('sms_messages').select('id, cost_cents');
+        if (smsFrom) fq = fq.gte('created_at', smsFrom);
+        if (smsTo) fq = fq.lte('created_at', smsTo + 'T23:59:59.999Z');
+        const { data: filteredData } = await fq;
+        filteredSent = (filteredData || []).length;
+        filteredCostCents = (filteredData || []).reduce((sum, m) => sum + (m.cost_cents || 0), 0);
+      }
 
       return res.status(200).json({
         success: true,
-        totalSent: totalSent || 0,
+        totalSent,
         totalCostCents,
-        totalRevenueCents: totalCostCents // revenue = cost to user (we charge $0.05, ClickSend costs us less)
+        totalRevenueCents: totalCostCents,
+        filtered: {
+          sent: filteredSent,
+          costCents: filteredCostCents,
+          revenueCents: filteredCostCents
+        }
       });
     }
 

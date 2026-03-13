@@ -400,6 +400,7 @@
 
     /* ── Mobile Responsive ── */
     @media (max-width: 768px) {
+      #platformTotalsGrid { grid-template-columns: repeat(2, 1fr) !important; }
       /* Header */
       .header { padding: 12px 14px; }
       .header h1 { font-size: 18px; }
@@ -492,6 +493,29 @@
 
     <!-- Overview Tab -->
     <div class="tab-content active" id="tab-overview">
+      <!-- Platform Totals — always all-time -->
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Platform Totals</div>
+        <div id="platformTotalsGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+          <div style="background:#f8fafc;border-radius:6px;padding:12px 14px;border:1px solid #e2e8f0;">
+            <div style="font-size:24px;font-weight:700;color:#475569;" id="statUsersAllTime">—</div>
+            <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.3px;">Users</div>
+          </div>
+          <div style="background:#f8fafc;border-radius:6px;padding:12px 14px;border:1px solid #e2e8f0;">
+            <div style="font-size:24px;font-weight:700;color:#475569;" id="statEventsAllTime">—</div>
+            <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.3px;">Events</div>
+          </div>
+          <div style="background:#f8fafc;border-radius:6px;padding:12px 14px;border:1px solid #e2e8f0;">
+            <div style="font-size:24px;font-weight:700;color:#475569;" id="statPublishedAllTime">—</div>
+            <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.3px;">Published</div>
+          </div>
+          <div style="background:#f8fafc;border-radius:6px;padding:12px 14px;border:1px solid #e2e8f0;">
+            <div style="font-size:24px;font-weight:700;color:#475569;" id="statRsvpsAllTime">—</div>
+            <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.3px;">RSVPs</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Data Accuracy Callout -->
       <div id="accuracyCallout" style="background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:none;align-items:center;gap:10px;font-size:13px;color:#92400e;">
         <span style="font-size:18px;">&#9888;</span>
@@ -504,8 +528,8 @@
       <!-- Date Range Filter -->
       <div class="config-section" style="padding:12px 16px;margin-bottom:16px;">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-          <span style="font-size:13px;font-weight:600;color:#666;">Date Range:</span>
-          <div style="display:flex;gap:6px;">
+          <span style="font-size:13px;font-weight:600;color:#666;">Filter activity by:</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
             <button class="btn btn-sm date-preset active" data-preset="all" onclick="setDatePreset('all')">All Time</button>
             <button class="btn btn-sm date-preset" data-preset="today" onclick="setDatePreset('today')">Today</button>
             <button class="btn btn-sm date-preset" data-preset="7d" onclick="setDatePreset('7d')">Last 7d</button>
@@ -523,14 +547,14 @@
         </div>
       </div>
 
-      <div class="stat-grid" id="statsGrid">
-        <div class="stat-card"><div class="stat-value" id="statUsers">—</div><div class="stat-label">Total Users</div></div>
-        <div class="stat-card"><div class="stat-value" id="statEvents">—</div><div class="stat-label">Total Events</div></div>
-        <div class="stat-card"><div class="stat-value" id="statPublished">—</div><div class="stat-label">Published</div></div>
-        <div class="stat-card"><div class="stat-value" id="statRsvps">—</div><div class="stat-label">Total RSVPs</div></div>
+      <!-- Activity — date-filtered -->
+      <div class="stat-grid" id="activityGrid">
+        <div class="stat-card"><div class="stat-value" id="statNewUsers">—</div><div class="stat-label" id="statNewUsersLabel">Total Users</div></div>
+        <div class="stat-card"><div class="stat-value" id="statNewEvents">—</div><div class="stat-label" id="statNewEventsLabel">Total Events</div></div>
+        <div class="stat-card"><div class="stat-value" id="statNewRsvps">—</div><div class="stat-label" id="statNewRsvpsLabel">Total RSVPs</div></div>
         <div class="stat-card"><div class="stat-value" id="statGenerations">—</div><div class="stat-label">AI Generations</div></div>
-        <div class="stat-card"><div class="stat-value" id="statSms">—</div><div class="stat-label">SMS Sent</div></div>
-        <div class="stat-card"><div class="stat-value" id="statSmsRevenue">—</div><div class="stat-label">SMS Revenue</div></div>
+        <div class="stat-card"><div class="stat-value" id="statSms">—</div><div class="stat-label" id="statSmsLabel">SMS Sent</div></div>
+        <div class="stat-card"><div class="stat-value" id="statSmsRevenue">—</div><div class="stat-label" id="statSmsRevenueLabel">SMS Revenue</div></div>
       </div>
 
       <!-- Cost Tracking -->
@@ -1914,18 +1938,41 @@
     }
 
     function showStats(stats) {
-      document.getElementById('statUsers').textContent = stats.totalUsers;
-      document.getElementById('statEvents').textContent = stats.totalEvents;
-      document.getElementById('statPublished').textContent = stats.publishedEvents;
-      document.getElementById('statRsvps').textContent = stats.totalRsvps;
-      document.getElementById('statGenerations').textContent = stats.totalGenerations;
+      var isFiltered = activePreset !== 'all';
 
-      // Load SMS stats
+      // Section 1: Platform Totals (always all-time)
+      var at = stats.allTime || {};
+      document.getElementById('statUsersAllTime').textContent = at.totalUsers || stats.totalUsers || 0;
+      document.getElementById('statEventsAllTime').textContent = at.totalEvents || stats.totalEvents || 0;
+      document.getElementById('statPublishedAllTime').textContent = at.publishedEvents != null ? at.publishedEvents : (stats.publishedEvents || 0);
+      document.getElementById('statRsvpsAllTime').textContent = at.totalRsvps || stats.totalRsvps || 0;
+
+      // Section 2: Activity (date-filtered)
+      var f = stats.filtered || {};
+      document.getElementById('statNewUsers').textContent = f.newUsers != null ? f.newUsers : (stats.totalUsers || 0);
+      document.getElementById('statNewUsersLabel').textContent = isFiltered ? 'New Users' : 'Total Users';
+      document.getElementById('statNewEvents').textContent = f.newEvents != null ? f.newEvents : (stats.totalEvents || 0);
+      document.getElementById('statNewEventsLabel').textContent = isFiltered ? 'New Events' : 'Total Events';
+      document.getElementById('statNewRsvps').textContent = f.newRsvps != null ? f.newRsvps : (stats.totalRsvps || 0);
+      document.getElementById('statNewRsvpsLabel').textContent = isFiltered ? 'New RSVPs' : 'Total RSVPs';
+      document.getElementById('statGenerations').textContent = f.generations != null ? f.generations : (stats.totalGenerations || 0);
+
+      // SMS stats — pass date params for filtering
       (async function() {
         try {
-          var smsRes = await adminFetch('smsStats');
-          document.getElementById('statSms').textContent = smsRes.totalSent || 0;
-          document.getElementById('statSmsRevenue').textContent = '$' + ((smsRes.totalRevenueCents || 0) / 100).toFixed(2);
+          var smsParams = '';
+          if (statsDateFrom) smsParams += '&from=' + statsDateFrom;
+          if (statsDateTo) smsParams += '&to=' + statsDateTo;
+          var smsRes = await adminFetch('smsStats' + smsParams);
+          if (isFiltered && smsRes.filtered) {
+            document.getElementById('statSms').textContent = smsRes.filtered.sent || 0;
+            document.getElementById('statSmsRevenue').textContent = '$' + ((smsRes.filtered.revenueCents || 0) / 100).toFixed(2);
+          } else {
+            document.getElementById('statSms').textContent = smsRes.totalSent || 0;
+            document.getElementById('statSmsRevenue').textContent = '$' + ((smsRes.totalRevenueCents || 0) / 100).toFixed(2);
+          }
+          document.getElementById('statSmsLabel').textContent = isFiltered ? 'SMS Sent' : 'SMS Sent';
+          document.getElementById('statSmsRevenueLabel').textContent = isFiltered ? 'SMS Revenue' : 'SMS Revenue';
         } catch (e) {
           document.getElementById('statSms').textContent = '0';
           document.getElementById('statSmsRevenue').textContent = '$0.00';
@@ -1934,7 +1981,6 @@
 
       // Cost tracking — adapt labels and visibility based on date filter
       var c = stats.costs || {};
-      var isFiltered = activePreset !== 'all';
       document.getElementById('costTotal').textContent = fmtCost(c.apiCostTotal || 0);
       document.getElementById('costTotalLabel').textContent = isFiltered ? 'API Cost (Filtered)' : 'API Cost (All Time)';
       document.getElementById('revenueTotalLabel').textContent = isFiltered ? 'Revenue (Filtered)' : 'Revenue Target';
