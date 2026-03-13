@@ -533,6 +533,9 @@
       <button class="tab" data-tab="promptversions" onclick="switchTab('promptversions')">Prompt Versions</button>
       <button class="tab" data-tab="promptlab" onclick="switchTab('promptlab')">Prompt Lab</button>
       <button class="tab" data-tab="stylelibrary" onclick="switchTab('stylelibrary')">Generations</button>
+      <button class="tab" data-tab="blogposts" onclick="switchTab('blogposts');loadBlogPosts();">Blog Posts</button>
+      <button class="tab" data-tab="blogcategories" onclick="switchTab('blogcategories');loadBlogCategories();">Blog Categories</button>
+      <button class="tab" data-tab="blogimport" onclick="switchTab('blogimport');">Blog Import</button>
     </div>
 
     <!-- Overview Tab -->
@@ -1795,6 +1798,344 @@
       </table>
     </div>
   </div>
+
+    <!-- ======================== BLOG POSTS TAB ======================== -->
+    <div class="tab-content" id="tab-blogposts">
+      <div id="blogPostsListView">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+          <h3 style="margin:0;">Blog Posts</h3>
+          <button class="btn btn-primary" onclick="openBlogPostEditor()">New Post</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+          <input type="text" id="blogSearchInput" placeholder="Search posts..." style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;width:220px;font-family:'Inter',sans-serif;" onkeyup="if(event.key==='Enter')loadBlogPosts()">
+          <select id="blogStatusFilter" onchange="loadBlogPosts()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+            <option value="">All Statuses</option>
+            <option value="draft">Draft</option>
+            <option value="published">Published</option>
+            <option value="archived">Archived</option>
+          </select>
+          <select id="blogCategoryFilter" onchange="loadBlogPosts()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+            <option value="">All Categories</option>
+          </select>
+          <button class="btn btn-sm" onclick="loadBlogPosts()">Search</button>
+        </div>
+        <!-- Bulk actions bar -->
+        <div id="blogBulkBar" style="display:none;background:#f0f4ff;border:1px solid #c7d2fe;border-radius:8px;padding:10px 16px;margin-bottom:12px;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span id="blogSelectedCount" style="font-size:13px;font-weight:600;">0 selected</span>
+          <select id="blogBulkStatusSelect" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;">
+            <option value="">Change Status...</option>
+            <option value="draft">Draft</option>
+            <option value="published">Published</option>
+            <option value="archived">Archived</option>
+          </select>
+          <button class="btn btn-sm" onclick="blogBulkChangeStatus()">Apply</button>
+          <button class="btn btn-sm" style="background:#E94560;color:#fff;" onclick="blogBulkDelete()">Delete Selected</button>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:30px;"><input type="checkbox" id="blogSelectAll" onchange="blogToggleSelectAll()"></th>
+                <th>Title</th>
+                <th>Status</th>
+                <th>Category</th>
+                <th>Author</th>
+                <th>Published</th>
+                <th>Updated</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="blogPostsTableBody">
+              <tr><td colspan="8" class="loading" style="text-align:center;padding:40px;color:#888;">Loading posts...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="blogPagination" style="display:flex;justify-content:center;gap:8px;margin-top:16px;align-items:center;"></div>
+      </div>
+
+      <!-- Blog Post Editor (full-screen overlay) -->
+      <div id="blogPostEditor" style="display:none;">
+        <div class="back-link" onclick="closeBlogPostEditor()" style="cursor:pointer;color:#E94560;font-size:14px;font-weight:600;margin-bottom:16px;">&#8592; Back to posts</div>
+        <h3 id="blogEditorTitle" style="margin-bottom:20px;">New Post</h3>
+
+        <!-- Slug change warning -->
+        <div id="blogSlugWarning" style="display:none;background:#fef3cd;border:1px solid #ffc107;border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:13px;color:#856404;">
+          Changing the slug will create a 301 redirect from the old URL.
+        </div>
+
+        <!-- Content Section -->
+        <div class="config-section" style="margin-bottom:20px;">
+          <h4 style="margin-bottom:12px;">Content</h4>
+          <div class="config-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="config-field">
+              <label>Title *</label>
+              <input type="text" id="blogPostTitle" placeholder="Post title" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;font-family:'Inter',sans-serif;" oninput="blogAutoSlug()">
+            </div>
+            <div class="config-field">
+              <label>Slug</label>
+              <div style="display:flex;gap:6px;">
+                <input type="text" id="blogPostSlug" placeholder="auto-generated" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;font-family:'Inter',sans-serif;" oninput="blogCheckSlugChange()">
+                <button class="btn btn-sm" onclick="blogRegenSlug()" title="Regenerate from title" style="white-space:nowrap;">Regen</button>
+              </div>
+            </div>
+          </div>
+          <div class="config-field" style="margin-top:12px;">
+            <label>Excerpt</label>
+            <textarea id="blogPostExcerpt" rows="3" placeholder="Short summary for cards and meta descriptions..." style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;resize:vertical;"></textarea>
+          </div>
+          <div class="config-field" style="margin-top:12px;">
+            <label>Content (HTML)</label>
+            <textarea id="blogPostContent" rows="20" placeholder="Full post content (HTML or Markdown)..." style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:monospace;resize:vertical;line-height:1.5;"></textarea>
+          </div>
+        </div>
+
+        <!-- Publishing Section -->
+        <div class="config-section" style="margin-bottom:20px;">
+          <h4 style="margin-bottom:12px;">Publishing</h4>
+          <div class="config-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+            <div class="config-field">
+              <label>Status</label>
+              <select id="blogPostStatus" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+            <div class="config-field">
+              <label>Category *</label>
+              <select id="blogPostCategory" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+                <option value="general">General</option>
+              </select>
+            </div>
+            <div class="config-field">
+              <label>Post Type</label>
+              <select id="blogPostType" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+                <option value="article">Article</option>
+                <option value="guide">Guide</option>
+                <option value="spotlight">Spotlight</option>
+                <option value="news">News</option>
+              </select>
+            </div>
+          </div>
+          <div class="config-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;">
+            <div class="config-field">
+              <label>Author Slug</label>
+              <input type="text" id="blogPostAuthor" value="ryvite-team" placeholder="author-slug" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+            </div>
+            <div class="config-field">
+              <label>Tags (comma-separated)</label>
+              <input type="text" id="blogPostTags" placeholder="tag1, tag2, tag3" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+            </div>
+          </div>
+          <div class="config-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;">
+            <div class="config-field">
+              <label>Published Date</label>
+              <input type="datetime-local" id="blogPostPublishedDate" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+            </div>
+            <div class="config-field" style="display:flex;align-items:center;gap:8px;padding-top:24px;">
+              <input type="checkbox" id="blogPostFeatured">
+              <label for="blogPostFeatured" style="margin:0;cursor:pointer;">Featured post</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Featured Image Section -->
+        <div class="config-section" style="margin-bottom:20px;">
+          <h4 style="margin-bottom:12px;">Featured Image</h4>
+          <div id="blogImageDropZone" style="border:2px dashed #ddd;border-radius:8px;padding:32px;text-align:center;cursor:pointer;transition:border-color 0.2s;margin-bottom:12px;" ondragover="event.preventDefault();this.style.borderColor='#E94560';" ondragleave="this.style.borderColor='#ddd';" ondrop="blogHandleImageDrop(event)" onclick="document.getElementById('blogImageFileInput').click()">
+            <div id="blogImagePreview" style="display:none;margin-bottom:12px;">
+              <img id="blogImagePreviewImg" src="" alt="" style="max-width:100%;max-height:200px;border-radius:6px;">
+            </div>
+            <div id="blogImageDropText">
+              <div style="font-size:14px;color:#888;margin-bottom:4px;">Drag & drop an image here, or click to browse</div>
+              <div style="font-size:11px;color:#aaa;">JPEG, PNG, GIF, WebP — max 10MB</div>
+            </div>
+            <input type="file" id="blogImageFileInput" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;" onchange="blogHandleImageSelect(event)">
+          </div>
+          <div class="config-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="config-field">
+              <label>Image URL (or upload above)</label>
+              <input type="text" id="blogImageSrc" placeholder="https://..." style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+            </div>
+            <div class="config-field">
+              <label>Alt Text</label>
+              <input type="text" id="blogImageAlt" placeholder="Descriptive alt text" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+            </div>
+          </div>
+          <div class="config-field" style="margin-top:8px;">
+            <label>Caption (optional)</label>
+            <input type="text" id="blogImageCaption" placeholder="Image caption" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+          </div>
+        </div>
+
+        <!-- SEO Section -->
+        <div class="config-section" style="margin-bottom:20px;">
+          <h4 style="margin-bottom:12px;">SEO</h4>
+          <div style="margin-bottom:12px;">
+            <button class="btn btn-primary" id="blogGenerateSeoBtn" onclick="blogGenerateSeo()">Generate SEO Tags</button>
+            <span id="blogSeoStatus" style="font-size:12px;color:#888;margin-left:8px;"></span>
+          </div>
+          <div class="config-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="config-field">
+              <label>Meta Title <span id="blogSeoMetaTitleCount" style="font-size:11px;color:#888;"></span></label>
+              <input type="text" id="blogSeoMetaTitle" placeholder="50-60 characters" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;" oninput="document.getElementById('blogSeoMetaTitleCount').textContent='('+this.value.length+'/60)'">
+            </div>
+            <div class="config-field">
+              <label>OG Title <span id="blogSeoOgTitleCount" style="font-size:11px;color:#888;"></span></label>
+              <input type="text" id="blogSeoOgTitle" placeholder="60-90 characters" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;" oninput="document.getElementById('blogSeoOgTitleCount').textContent='('+this.value.length+'/90)'">
+            </div>
+          </div>
+          <div class="config-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;">
+            <div class="config-field">
+              <label>Meta Description <span id="blogSeoMetaDescCount" style="font-size:11px;color:#888;"></span></label>
+              <textarea id="blogSeoMetaDesc" rows="2" placeholder="150-160 characters" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;resize:vertical;" oninput="document.getElementById('blogSeoMetaDescCount').textContent='('+this.value.length+'/160)'"></textarea>
+            </div>
+            <div class="config-field">
+              <label>OG Description <span id="blogSeoOgDescCount" style="font-size:11px;color:#888;"></span></label>
+              <textarea id="blogSeoOgDesc" rows="2" placeholder="100-200 characters" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;resize:vertical;" oninput="document.getElementById('blogSeoOgDescCount').textContent='('+this.value.length+'/200)'"></textarea>
+            </div>
+          </div>
+          <div class="config-row" style="display:grid;grid-template-columns:1fr auto;gap:16px;margin-top:12px;">
+            <div class="config-field">
+              <label>Canonical URL (optional)</label>
+              <input type="text" id="blogSeoCanonical" placeholder="https://..." style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+            </div>
+            <div class="config-field" style="display:flex;align-items:center;gap:8px;padding-top:24px;">
+              <input type="checkbox" id="blogSeoNoIndex">
+              <label for="blogSeoNoIndex" style="margin:0;cursor:pointer;font-size:13px;">noindex</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Related Posts + Review Section -->
+        <div class="config-section" style="margin-bottom:20px;">
+          <h4 style="margin-bottom:12px;">Related Posts & Review</h4>
+          <div class="config-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="config-field">
+              <label>Related Post Slugs (comma-separated)</label>
+              <input type="text" id="blogPostRelatedSlugs" placeholder="slug-1, slug-2, slug-3" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+            </div>
+            <div class="config-field">
+              <label>Reviewed By</label>
+              <input type="text" id="blogPostReviewedBy" placeholder="Reviewer name" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+            </div>
+          </div>
+          <div class="config-field" style="margin-top:12px;max-width:300px;">
+            <label>Last Reviewed Date</label>
+            <input type="date" id="blogPostReviewedDate" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div style="display:flex;gap:12px;margin-top:24px;padding-bottom:40px;">
+          <button class="btn btn-primary" onclick="blogSavePost()" id="blogSaveBtn">Save Post</button>
+          <button class="btn btn-secondary" onclick="closeBlogPostEditor()">Cancel</button>
+          <button class="btn btn-sm" id="blogDeleteBtn" style="background:#E94560;color:#fff;margin-left:auto;display:none;" onclick="blogDeletePost()">Delete Post</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================== BLOG CATEGORIES TAB ======================== -->
+    <div class="tab-content" id="tab-blogcategories">
+      <h3 style="margin-bottom:16px;">Blog Categories</h3>
+      <!-- Inline create form -->
+      <div class="config-section" style="margin-bottom:20px;">
+        <h4 style="margin-bottom:12px;">Add Category</h4>
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+          <div class="config-field">
+            <label>Name *</label>
+            <input type="text" id="blogCatName" placeholder="Category name" style="padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;width:200px;">
+          </div>
+          <div class="config-field">
+            <label>Description</label>
+            <input type="text" id="blogCatDesc" placeholder="Optional description" style="padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;width:300px;">
+          </div>
+          <button class="btn btn-primary" onclick="blogCreateCategory()">Add</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Slug</th>
+              <th>Description</th>
+              <th>Posts</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="blogCategoriesTableBody">
+            <tr><td colspan="5" style="text-align:center;padding:40px;color:#888;">Loading categories...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ======================== BLOG IMPORT TAB ======================== -->
+    <div class="tab-content" id="tab-blogimport">
+      <h3 style="margin-bottom:16px;">Blog CSV Import</h3>
+
+      <!-- Step 1: Upload -->
+      <div id="blogImportStep1" class="config-section" style="margin-bottom:20px;">
+        <h4 style="margin-bottom:12px;">Step 1: Upload CSV</h4>
+        <div style="margin-bottom:12px;">
+          <button class="btn btn-secondary" onclick="blogDownloadTemplate()">Download CSV Template</button>
+        </div>
+        <div id="blogImportDropZone" style="border:2px dashed #ddd;border-radius:8px;padding:32px;text-align:center;cursor:pointer;transition:border-color 0.2s;" ondragover="event.preventDefault();this.style.borderColor='#E94560';" ondragleave="this.style.borderColor='#ddd';" ondrop="blogHandleCsvDrop(event)" onclick="document.getElementById('blogCsvFileInput').click()">
+          <div style="font-size:14px;color:#888;margin-bottom:4px;">Drag & drop a CSV file here, or click to browse</div>
+          <div style="font-size:11px;color:#aaa;">CSV with columns: title, slug, excerpt, content, status, author_slug, category, tags, post_type, featured, ...</div>
+          <input type="file" id="blogCsvFileInput" accept=".csv" style="display:none;" onchange="blogHandleCsvSelect(event)">
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:#888;">
+          <strong>CSV columns:</strong> title (required), slug, excerpt, content, status, author_slug, category, tags (pipe-separated), post_type, featured, featured_image_src, featured_image_alt, featured_image_width, featured_image_height, related_slugs (pipe-separated), generate_seo
+        </div>
+      </div>
+
+      <!-- Step 2: Preview -->
+      <div id="blogImportStep2" style="display:none;" class="config-section" style="margin-bottom:20px;">
+        <h4 style="margin-bottom:12px;">Step 2: Preview Import</h4>
+        <div id="blogImportSummary" style="margin-bottom:12px;font-size:13px;"></div>
+        <div style="max-height:400px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;">
+          <table style="font-size:12px;">
+            <thead>
+              <tr>
+                <th>Row</th>
+                <th>Title</th>
+                <th>Slug</th>
+                <th>Category</th>
+                <th>Status</th>
+                <th>SEO</th>
+                <th>Valid</th>
+              </tr>
+            </thead>
+            <tbody id="blogImportPreviewBody"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:16px;">
+          <button class="btn btn-primary" onclick="blogRunImport()" id="blogImportBtn">Import</button>
+          <button class="btn btn-secondary" onclick="blogResetImport()">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Progress -->
+      <div id="blogImportStep3" style="display:none;" class="config-section" style="margin-bottom:20px;">
+        <h4 style="margin-bottom:12px;">Import Progress</h4>
+        <div style="background:#e2e8f0;border-radius:8px;overflow:hidden;height:24px;margin-bottom:12px;">
+          <div id="blogImportProgressBar" style="height:100%;background:var(--mint-fizz);transition:width 0.3s;width:0%;"></div>
+        </div>
+        <div id="blogImportProgressText" style="font-size:13px;color:#666;"></div>
+      </div>
+
+      <!-- Step 4: Results -->
+      <div id="blogImportStep4" style="display:none;" class="config-section" style="margin-bottom:20px;">
+        <h4 style="margin-bottom:12px;">Import Results</h4>
+        <div id="blogImportResults" style="font-size:13px;"></div>
+        <div style="margin-top:16px;">
+          <button class="btn btn-primary" onclick="blogResetImport()">Import More</button>
+          <button class="btn btn-secondary" onclick="switchTab('blogposts');loadBlogPosts();">View Posts</button>
+        </div>
+      </div>
+    </div>
 
   <script>
     var token = localStorage.getItem('sb_access_token');
@@ -6186,6 +6527,775 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       await _origLoadStyleLibrary();
       try { updateArchiveCounts(); } catch (e) { /* ignore */ }
     };
+
+    // ============================================================
+    // BLOG MANAGEMENT
+    // ============================================================
+
+    var blogCurrentPage = 1;
+    var blogEditingPostId = null;
+    var blogOriginalSlug = '';
+    var blogSelectedIds = [];
+    var blogParsedCsv = [];
+
+    function blogFetch(action, opts) {
+      var method = (opts && opts.method) || 'GET';
+      var url = '/api/v2/blog?action=' + action;
+      if (opts && opts.params) {
+        Object.keys(opts.params).forEach(function(k) {
+          url += '&' + k + '=' + encodeURIComponent(opts.params[k]);
+        });
+      }
+      var fetchOpts = { method: method, headers: { 'Authorization': 'Bearer ' + token } };
+      if (opts && opts.body) {
+        fetchOpts.headers['Content-Type'] = 'application/json';
+        fetchOpts.body = JSON.stringify(opts.body);
+      }
+      return fetch(url, fetchOpts).then(function(r) {
+        if (r.status === 401) {
+          return refreshToken().then(function(ok) {
+            if (!ok) throw new Error('Auth failed');
+            fetchOpts.headers['Authorization'] = 'Bearer ' + token;
+            return fetch(url, fetchOpts);
+          }).then(function(r2) { return r2.json(); });
+        }
+        return r.json();
+      });
+    }
+
+    // ---- Blog Posts List ----
+
+    async function loadBlogPosts() {
+      var search = document.getElementById('blogSearchInput').value;
+      var status = document.getElementById('blogStatusFilter').value;
+      var category = document.getElementById('blogCategoryFilter').value;
+
+      try {
+        var res = await blogFetch('listPosts', {
+          params: { page: blogCurrentPage, limit: 20, search: search, status: status, category: category }
+        });
+        if (!res.success) throw new Error(res.error);
+
+        var tbody = document.getElementById('blogPostsTableBody');
+        tbody.innerHTML = '';
+        blogSelectedIds = [];
+        blogUpdateBulkBar();
+
+        if (!res.posts || res.posts.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#888;">No posts found</td></tr>';
+        } else {
+          res.posts.forEach(function(p) {
+            var statusColor = p.status === 'published' ? '#10b981' : p.status === 'draft' ? '#f59e0b' : '#9ca3af';
+            var row = document.createElement('tr');
+            row.style.cursor = 'pointer';
+            row.innerHTML = '<td onclick="event.stopPropagation()"><input type="checkbox" data-id="' + p.id + '" onchange="blogToggleSelect(this)"></td>'
+              + '<td onclick="openBlogPostEditor(\'' + p.id + '\')">' + escapeHtml(p.title) + '</td>'
+              + '<td><span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;color:#fff;background:' + statusColor + ';">' + p.status + '</span></td>'
+              + '<td>' + escapeHtml(p.category || '') + '</td>'
+              + '<td>' + escapeHtml(p.author_slug || '') + '</td>'
+              + '<td>' + (p.published_date ? new Date(p.published_date).toLocaleDateString() : '') + '</td>'
+              + '<td>' + (p.modified_date ? new Date(p.modified_date).toLocaleDateString() : '') + '</td>'
+              + '<td><button class="btn btn-sm" onclick="event.stopPropagation();openBlogPostEditor(\'' + p.id + '\')">Edit</button></td>';
+            row.onclick = function() { openBlogPostEditor(p.id); };
+            tbody.appendChild(row);
+          });
+        }
+
+        // Pagination
+        var pag = res.pagination || {};
+        var pagDiv = document.getElementById('blogPagination');
+        pagDiv.innerHTML = '';
+        if (pag.totalPages > 1) {
+          if (pag.page > 1) {
+            var prevBtn = document.createElement('button');
+            prevBtn.className = 'btn btn-sm';
+            prevBtn.textContent = 'Previous';
+            prevBtn.onclick = function() { blogCurrentPage = pag.page - 1; loadBlogPosts(); };
+            pagDiv.appendChild(prevBtn);
+          }
+          var info = document.createElement('span');
+          info.style.fontSize = '13px';
+          info.style.color = '#666';
+          info.textContent = 'Page ' + pag.page + ' of ' + pag.totalPages + ' (' + pag.total + ' posts)';
+          pagDiv.appendChild(info);
+          if (pag.page < pag.totalPages) {
+            var nextBtn = document.createElement('button');
+            nextBtn.className = 'btn btn-sm';
+            nextBtn.textContent = 'Next';
+            nextBtn.onclick = function() { blogCurrentPage = pag.page + 1; loadBlogPosts(); };
+            pagDiv.appendChild(nextBtn);
+          }
+        }
+
+        // Load category filter options
+        blogLoadCategoryFilter();
+      } catch (err) {
+        console.error('Failed to load blog posts:', err);
+      }
+    }
+
+    async function blogLoadCategoryFilter() {
+      try {
+        var res = await blogFetch('listCategories');
+        if (!res.success) return;
+        var sel = document.getElementById('blogCategoryFilter');
+        var current = sel.value;
+        sel.innerHTML = '<option value="">All Categories</option>';
+        (res.categories || []).forEach(function(c) {
+          var opt = document.createElement('option');
+          opt.value = c.slug;
+          opt.textContent = c.name + ' (' + (c.postCount || 0) + ')';
+          sel.appendChild(opt);
+        });
+        sel.value = current;
+
+        // Also update post editor category dropdown
+        var edSel = document.getElementById('blogPostCategory');
+        var edCurrent = edSel.value;
+        edSel.innerHTML = '';
+        (res.categories || []).forEach(function(c) {
+          var opt = document.createElement('option');
+          opt.value = c.slug;
+          opt.textContent = c.name;
+          edSel.appendChild(opt);
+        });
+        if (edCurrent) edSel.value = edCurrent;
+      } catch (e) { /* ignore */ }
+    }
+
+    // ---- Selection & Bulk ----
+
+    function blogToggleSelect(checkbox) {
+      var id = checkbox.getAttribute('data-id');
+      if (checkbox.checked) {
+        if (blogSelectedIds.indexOf(id) === -1) blogSelectedIds.push(id);
+      } else {
+        blogSelectedIds = blogSelectedIds.filter(function(x) { return x !== id; });
+      }
+      blogUpdateBulkBar();
+    }
+
+    function blogToggleSelectAll() {
+      var checked = document.getElementById('blogSelectAll').checked;
+      document.querySelectorAll('#blogPostsTableBody input[type=checkbox]').forEach(function(cb) {
+        cb.checked = checked;
+        var id = cb.getAttribute('data-id');
+        if (checked && blogSelectedIds.indexOf(id) === -1) blogSelectedIds.push(id);
+      });
+      if (!checked) blogSelectedIds = [];
+      blogUpdateBulkBar();
+    }
+
+    function blogUpdateBulkBar() {
+      var bar = document.getElementById('blogBulkBar');
+      if (blogSelectedIds.length > 0) {
+        bar.style.display = 'flex';
+        document.getElementById('blogSelectedCount').textContent = blogSelectedIds.length + ' selected';
+      } else {
+        bar.style.display = 'none';
+      }
+    }
+
+    async function blogBulkChangeStatus() {
+      var status = document.getElementById('blogBulkStatusSelect').value;
+      if (!status) return alert('Select a status first');
+      if (!confirm('Change ' + blogSelectedIds.length + ' post(s) to ' + status + '?')) return;
+
+      try {
+        var res = await blogFetch('bulkUpdateStatus', { method: 'POST', body: { postIds: blogSelectedIds, status: status } });
+        if (!res.success) throw new Error(res.error);
+        blogSelectedIds = [];
+        document.getElementById('blogBulkStatusSelect').value = '';
+        loadBlogPosts();
+      } catch (err) { alert('Error: ' + err.message); }
+    }
+
+    async function blogBulkDelete() {
+      if (!confirm('Delete ' + blogSelectedIds.length + ' post(s)? This cannot be undone.')) return;
+      try {
+        var res = await blogFetch('bulkDelete', { method: 'POST', body: { postIds: blogSelectedIds } });
+        if (!res.success) throw new Error(res.error);
+        blogSelectedIds = [];
+        loadBlogPosts();
+      } catch (err) { alert('Error: ' + err.message); }
+    }
+
+    // ---- Post Editor ----
+
+    async function openBlogPostEditor(postId) {
+      blogEditingPostId = postId || null;
+      blogOriginalSlug = '';
+      document.getElementById('blogSlugWarning').style.display = 'none';
+
+      // Reset all fields
+      document.getElementById('blogPostTitle').value = '';
+      document.getElementById('blogPostSlug').value = '';
+      document.getElementById('blogPostExcerpt').value = '';
+      document.getElementById('blogPostContent').value = '';
+      document.getElementById('blogPostStatus').value = 'draft';
+      document.getElementById('blogPostCategory').value = 'general';
+      document.getElementById('blogPostType').value = 'article';
+      document.getElementById('blogPostAuthor').value = 'ryvite-team';
+      document.getElementById('blogPostTags').value = '';
+      document.getElementById('blogPostFeatured').checked = false;
+      document.getElementById('blogPostPublishedDate').value = '';
+      document.getElementById('blogImageSrc').value = '';
+      document.getElementById('blogImageAlt').value = '';
+      document.getElementById('blogImageCaption').value = '';
+      document.getElementById('blogImagePreview').style.display = 'none';
+      document.getElementById('blogImageDropText').style.display = 'block';
+      document.getElementById('blogSeoMetaTitle').value = '';
+      document.getElementById('blogSeoMetaDesc').value = '';
+      document.getElementById('blogSeoOgTitle').value = '';
+      document.getElementById('blogSeoOgDesc').value = '';
+      document.getElementById('blogSeoCanonical').value = '';
+      document.getElementById('blogSeoNoIndex').checked = false;
+      document.getElementById('blogPostRelatedSlugs').value = '';
+      document.getElementById('blogPostReviewedBy').value = '';
+      document.getElementById('blogPostReviewedDate').value = '';
+
+      // Reset character counters
+      ['blogSeoMetaTitleCount', 'blogSeoOgTitleCount', 'blogSeoMetaDescCount', 'blogSeoOgDescCount'].forEach(function(id) {
+        document.getElementById(id).textContent = '';
+      });
+
+      await blogLoadCategoryFilter();
+
+      if (postId) {
+        document.getElementById('blogEditorTitle').textContent = 'Edit Post';
+        document.getElementById('blogDeleteBtn').style.display = 'inline-block';
+
+        try {
+          var res = await blogFetch('getPost', { params: { postId: postId } });
+          if (!res.success) throw new Error(res.error);
+          var p = res.post;
+
+          blogOriginalSlug = p.slug || '';
+          document.getElementById('blogPostTitle').value = p.title || '';
+          document.getElementById('blogPostSlug').value = p.slug || '';
+          document.getElementById('blogPostExcerpt').value = p.excerpt || '';
+          document.getElementById('blogPostContent').value = p.content || '';
+          document.getElementById('blogPostStatus').value = p.status || 'draft';
+          document.getElementById('blogPostCategory').value = p.category || 'general';
+          document.getElementById('blogPostType').value = p.post_type || 'article';
+          document.getElementById('blogPostAuthor').value = p.author_slug || 'ryvite-team';
+          document.getElementById('blogPostTags').value = (p.tags || []).join(', ');
+          document.getElementById('blogPostFeatured').checked = !!p.featured;
+          document.getElementById('blogPostRelatedSlugs').value = (p.related_slugs || []).join(', ');
+          document.getElementById('blogPostReviewedBy').value = p.reviewed_by || '';
+
+          if (p.published_date) {
+            var dt = new Date(p.published_date);
+            document.getElementById('blogPostPublishedDate').value = dt.toISOString().slice(0, 16);
+          }
+          if (p.last_reviewed_date) {
+            document.getElementById('blogPostReviewedDate').value = new Date(p.last_reviewed_date).toISOString().slice(0, 10);
+          }
+
+          if (p.featured_image) {
+            document.getElementById('blogImageSrc').value = p.featured_image.src || '';
+            document.getElementById('blogImageAlt').value = p.featured_image.alt || '';
+            document.getElementById('blogImageCaption').value = p.featured_image.caption || '';
+            if (p.featured_image.src) {
+              document.getElementById('blogImagePreviewImg').src = p.featured_image.src;
+              document.getElementById('blogImagePreview').style.display = 'block';
+              document.getElementById('blogImageDropText').style.display = 'none';
+            }
+          }
+
+          if (p.seo) {
+            document.getElementById('blogSeoMetaTitle').value = p.seo.metaTitle || '';
+            document.getElementById('blogSeoMetaDesc').value = p.seo.metaDescription || '';
+            document.getElementById('blogSeoOgTitle').value = p.seo.ogTitle || '';
+            document.getElementById('blogSeoOgDesc').value = p.seo.ogDescription || '';
+            document.getElementById('blogSeoCanonical').value = p.seo.canonicalUrl || '';
+            document.getElementById('blogSeoNoIndex').checked = !!p.seo.noIndex;
+          }
+        } catch (err) {
+          alert('Failed to load post: ' + err.message);
+          return;
+        }
+      } else {
+        document.getElementById('blogEditorTitle').textContent = 'New Post';
+        document.getElementById('blogDeleteBtn').style.display = 'none';
+        // Set published date to now
+        document.getElementById('blogPostPublishedDate').value = new Date().toISOString().slice(0, 16);
+      }
+
+      document.getElementById('blogPostsListView').style.display = 'none';
+      document.getElementById('blogPostEditor').style.display = 'block';
+    }
+
+    function closeBlogPostEditor() {
+      document.getElementById('blogPostEditor').style.display = 'none';
+      document.getElementById('blogPostsListView').style.display = 'block';
+      blogEditingPostId = null;
+    }
+
+    function blogSlugify(text) {
+      return (text || '').toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s_]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 100);
+    }
+
+    function blogAutoSlug() {
+      if (!blogEditingPostId) {
+        document.getElementById('blogPostSlug').value = blogSlugify(document.getElementById('blogPostTitle').value);
+      }
+    }
+
+    function blogRegenSlug() {
+      document.getElementById('blogPostSlug').value = blogSlugify(document.getElementById('blogPostTitle').value);
+      blogCheckSlugChange();
+    }
+
+    function blogCheckSlugChange() {
+      if (blogEditingPostId && blogOriginalSlug && document.getElementById('blogPostSlug').value !== blogOriginalSlug) {
+        document.getElementById('blogSlugWarning').style.display = 'block';
+      } else {
+        document.getElementById('blogSlugWarning').style.display = 'none';
+      }
+    }
+
+    async function blogSavePost() {
+      var title = document.getElementById('blogPostTitle').value.trim();
+      if (!title) return alert('Title is required');
+
+      var tagsStr = document.getElementById('blogPostTags').value;
+      var tags = tagsStr ? tagsStr.split(',').map(function(t) { return t.trim(); }).filter(Boolean) : [];
+
+      var relatedStr = document.getElementById('blogPostRelatedSlugs').value;
+      var relatedSlugs = relatedStr ? relatedStr.split(',').map(function(t) { return t.trim(); }).filter(Boolean) : [];
+
+      var featuredImage = null;
+      var imgSrc = document.getElementById('blogImageSrc').value.trim();
+      if (imgSrc) {
+        featuredImage = {
+          src: imgSrc,
+          alt: document.getElementById('blogImageAlt').value || title,
+          width: 1200,
+          height: 630,
+          caption: document.getElementById('blogImageCaption').value || ''
+        };
+      }
+
+      var seo = {
+        metaTitle: document.getElementById('blogSeoMetaTitle').value,
+        metaDescription: document.getElementById('blogSeoMetaDesc').value,
+        ogTitle: document.getElementById('blogSeoOgTitle').value,
+        ogDescription: document.getElementById('blogSeoOgDesc').value,
+        canonicalUrl: document.getElementById('blogSeoCanonical').value,
+        noIndex: document.getElementById('blogSeoNoIndex').checked
+      };
+
+      // Only include seo if any field is set
+      var hasSeo = Object.values(seo).some(function(v) { return v && v !== false; });
+
+      var body = {
+        title: title,
+        slug: document.getElementById('blogPostSlug').value || blogSlugify(title),
+        excerpt: document.getElementById('blogPostExcerpt').value,
+        content: document.getElementById('blogPostContent').value,
+        status: document.getElementById('blogPostStatus').value,
+        category: document.getElementById('blogPostCategory').value,
+        post_type: document.getElementById('blogPostType').value,
+        author_slug: document.getElementById('blogPostAuthor').value,
+        tags: tags,
+        featured: document.getElementById('blogPostFeatured').checked,
+        related_slugs: relatedSlugs,
+        featured_image: featuredImage,
+        seo: hasSeo ? seo : null,
+        reviewed_by: document.getElementById('blogPostReviewedBy').value || null,
+        last_reviewed_date: document.getElementById('blogPostReviewedDate').value || null
+      };
+
+      var pubDate = document.getElementById('blogPostPublishedDate').value;
+      if (pubDate) body.published_date = new Date(pubDate).toISOString();
+
+      var btn = document.getElementById('blogSaveBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      try {
+        var action = blogEditingPostId ? 'updatePost' : 'createPost';
+        if (blogEditingPostId) body.postId = blogEditingPostId;
+
+        var res = await blogFetch(action, { method: 'POST', body: body });
+        if (!res.success) throw new Error(res.error);
+
+        if (!blogEditingPostId && res.post) {
+          blogEditingPostId = res.post.id;
+          blogOriginalSlug = res.post.slug;
+          document.getElementById('blogEditorTitle').textContent = 'Edit Post';
+          document.getElementById('blogDeleteBtn').style.display = 'inline-block';
+          document.getElementById('blogPostSlug').value = res.post.slug;
+        } else if (blogEditingPostId && res.post) {
+          blogOriginalSlug = res.post.slug;
+          document.getElementById('blogSlugWarning').style.display = 'none';
+        }
+
+        btn.textContent = 'Saved!';
+        setTimeout(function() { btn.textContent = 'Save Post'; btn.disabled = false; }, 1500);
+      } catch (err) {
+        alert('Save failed: ' + err.message);
+        btn.textContent = 'Save Post';
+        btn.disabled = false;
+      }
+    }
+
+    async function blogDeletePost() {
+      if (!blogEditingPostId) return;
+      if (!confirm('Delete this post? This cannot be undone.')) return;
+
+      try {
+        var res = await blogFetch('deletePost', { method: 'POST', body: { postId: blogEditingPostId } });
+        if (!res.success) throw new Error(res.error);
+        closeBlogPostEditor();
+        loadBlogPosts();
+      } catch (err) { alert('Delete failed: ' + err.message); }
+    }
+
+    // ---- Image Upload ----
+
+    function blogHandleImageDrop(event) {
+      event.preventDefault();
+      event.currentTarget.style.borderColor = '#ddd';
+      var file = event.dataTransfer.files[0];
+      if (file) blogUploadImage(file);
+    }
+
+    function blogHandleImageSelect(event) {
+      var file = event.target.files[0];
+      if (file) blogUploadImage(file);
+    }
+
+    async function blogUploadImage(file) {
+      if (file.size > 10 * 1024 * 1024) return alert('Image too large (max 10MB)');
+      if (!file.type.match(/^image\/(jpeg|png|gif|webp)$/)) return alert('Invalid image type');
+
+      document.getElementById('blogImageDropText').innerHTML = '<div style="color:#E94560;">Uploading...</div>';
+
+      try {
+        var reader = new FileReader();
+        var base64 = await new Promise(function(resolve, reject) {
+          reader.onload = function(e) { resolve(e.target.result.split(',')[1]); };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        var res = await fetch('/api/v2/upload', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ base64: base64, eventId: 'blog', filename: file.name, bucket: 'blog-images' })
+        }).then(function(r) { return r.json(); });
+
+        if (!res.success) throw new Error(res.error || 'Upload failed');
+
+        document.getElementById('blogImageSrc').value = res.url;
+        document.getElementById('blogImagePreviewImg').src = res.url;
+        document.getElementById('blogImagePreview').style.display = 'block';
+        document.getElementById('blogImageDropText').style.display = 'none';
+
+        if (!document.getElementById('blogImageAlt').value) {
+          document.getElementById('blogImageAlt').value = document.getElementById('blogPostTitle').value || 'Blog post image';
+        }
+      } catch (err) {
+        alert('Upload failed: ' + err.message);
+        document.getElementById('blogImageDropText').innerHTML = '<div style="font-size:14px;color:#888;margin-bottom:4px;">Drag & drop an image here, or click to browse</div><div style="font-size:11px;color:#aaa;">JPEG, PNG, GIF, WebP — max 10MB</div>';
+      }
+    }
+
+    // ---- AI SEO Generation ----
+
+    async function blogGenerateSeo() {
+      var title = document.getElementById('blogPostTitle').value.trim();
+      if (!title) return alert('Enter a post title first');
+
+      var btn = document.getElementById('blogGenerateSeoBtn');
+      var statusEl = document.getElementById('blogSeoStatus');
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+      statusEl.textContent = '';
+
+      try {
+        var res = await blogFetch('generateSeoTags', {
+          method: 'POST',
+          body: {
+            title: title,
+            content: document.getElementById('blogPostContent').value,
+            excerpt: document.getElementById('blogPostExcerpt').value,
+            slug: document.getElementById('blogPostSlug').value
+          }
+        });
+
+        if (!res.success) throw new Error(res.error);
+        var seo = res.seo;
+
+        document.getElementById('blogSeoMetaTitle').value = seo.metaTitle || '';
+        document.getElementById('blogSeoMetaDesc').value = seo.metaDescription || '';
+        document.getElementById('blogSeoOgTitle').value = seo.ogTitle || '';
+        document.getElementById('blogSeoOgDesc').value = seo.ogDescription || '';
+
+        // Update counters
+        document.getElementById('blogSeoMetaTitleCount').textContent = '(' + (seo.metaTitle || '').length + '/60)';
+        document.getElementById('blogSeoOgTitleCount').textContent = '(' + (seo.ogTitle || '').length + '/90)';
+        document.getElementById('blogSeoMetaDescCount').textContent = '(' + (seo.metaDescription || '').length + '/160)';
+        document.getElementById('blogSeoOgDescCount').textContent = '(' + (seo.ogDescription || '').length + '/200)';
+
+        statusEl.textContent = 'Generated!';
+        statusEl.style.color = '#10b981';
+      } catch (err) {
+        statusEl.textContent = 'Error: ' + err.message;
+        statusEl.style.color = '#E94560';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate SEO Tags';
+      }
+    }
+
+    // ---- Blog Categories ----
+
+    async function loadBlogCategories() {
+      try {
+        var res = await blogFetch('listCategories');
+        if (!res.success) throw new Error(res.error);
+
+        var tbody = document.getElementById('blogCategoriesTableBody');
+        tbody.innerHTML = '';
+
+        if (!res.categories || res.categories.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:#888;">No categories yet. Add one above.</td></tr>';
+          return;
+        }
+
+        res.categories.forEach(function(c) {
+          var row = document.createElement('tr');
+          row.innerHTML = '<td><input type="text" value="' + escapeHtml(c.name) + '" data-field="name" data-id="' + c.id + '" style="border:1px solid transparent;padding:6px 8px;border-radius:4px;font-size:13px;width:100%;font-family:\'Inter\',sans-serif;" onfocus="this.style.borderColor=\'#ddd\'" onblur="this.style.borderColor=\'transparent\'"></td>'
+            + '<td style="color:#888;font-size:12px;">' + escapeHtml(c.slug) + '</td>'
+            + '<td><input type="text" value="' + escapeHtml(c.description || '') + '" data-field="description" data-id="' + c.id + '" style="border:1px solid transparent;padding:6px 8px;border-radius:4px;font-size:13px;width:100%;font-family:\'Inter\',sans-serif;" onfocus="this.style.borderColor=\'#ddd\'" onblur="this.style.borderColor=\'transparent\'"></td>'
+            + '<td>' + (c.postCount || 0) + '</td>'
+            + '<td style="white-space:nowrap;">'
+            + '<button class="btn btn-sm" onclick="blogUpdateCategory(\'' + c.id + '\', this)" style="margin-right:4px;">Save</button>'
+            + '<button class="btn btn-sm" style="background:#E94560;color:#fff;" onclick="blogDeleteCategory(\'' + c.id + '\', \'' + escapeHtml(c.name) + '\', ' + (c.postCount || 0) + ')">Delete</button>'
+            + '</td>';
+          tbody.appendChild(row);
+        });
+      } catch (err) {
+        console.error('Failed to load categories:', err);
+      }
+    }
+
+    async function blogCreateCategory() {
+      var name = document.getElementById('blogCatName').value.trim();
+      if (!name) return alert('Category name is required');
+
+      try {
+        var res = await blogFetch('createCategory', {
+          method: 'POST',
+          body: { name: name, description: document.getElementById('blogCatDesc').value }
+        });
+        if (!res.success) throw new Error(res.error);
+        document.getElementById('blogCatName').value = '';
+        document.getElementById('blogCatDesc').value = '';
+        loadBlogCategories();
+      } catch (err) { alert('Error: ' + err.message); }
+    }
+
+    async function blogUpdateCategory(id, btn) {
+      var row = btn.closest('tr');
+      var nameInput = row.querySelector('[data-field="name"]');
+      var descInput = row.querySelector('[data-field="description"]');
+
+      try {
+        var res = await blogFetch('updateCategory', {
+          method: 'POST',
+          body: { id: id, name: nameInput.value, description: descInput.value }
+        });
+        if (!res.success) throw new Error(res.error);
+        btn.textContent = 'Saved!';
+        setTimeout(function() { btn.textContent = 'Save'; loadBlogCategories(); }, 1000);
+      } catch (err) { alert('Error: ' + err.message); }
+    }
+
+    async function blogDeleteCategory(id, name, postCount) {
+      if (postCount > 0) return alert('Cannot delete "' + name + '" — it has ' + postCount + ' post(s). Reassign them first.');
+      if (!confirm('Delete category "' + name + '"?')) return;
+
+      try {
+        var res = await blogFetch('deleteCategory', { method: 'POST', body: { id: id } });
+        if (!res.success) throw new Error(res.error);
+        loadBlogCategories();
+      } catch (err) { alert('Error: ' + err.message); }
+    }
+
+    // ---- CSV Import ----
+
+    function blogDownloadTemplate() {
+      var headers = 'title,slug,excerpt,content,status,author_slug,category,tags,post_type,featured,featured_image_src,featured_image_alt,featured_image_width,featured_image_height,related_slugs,generate_seo';
+      var example = '"My First Post","my-first-post","A great post about events","<p>Full content here...</p>","draft","ryvite-team","general","events|planning|tips","article","false","","","1200","630","","true"';
+      var csv = headers + '\n' + example;
+      var blob = new Blob([csv], { type: 'text/csv' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'blog-import-template.csv';
+      a.click();
+    }
+
+    function blogHandleCsvDrop(event) {
+      event.preventDefault();
+      event.currentTarget.style.borderColor = '#ddd';
+      var file = event.dataTransfer.files[0];
+      if (file) blogParseCsv(file);
+    }
+
+    function blogHandleCsvSelect(event) {
+      var file = event.target.files[0];
+      if (file) blogParseCsv(file);
+    }
+
+    function blogParseCsv(file) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var text = e.target.result;
+        var lines = text.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+        if (lines.length < 2) return alert('CSV must have a header row and at least one data row');
+
+        var headers = blogParseCsvLine(lines[0]);
+        blogParsedCsv = [];
+
+        for (var i = 1; i < lines.length; i++) {
+          var values = blogParseCsvLine(lines[i]);
+          var row = {};
+          headers.forEach(function(h, idx) { row[h.trim()] = (values[idx] || '').trim(); });
+          row._rowNum = i + 1;
+          row._valid = !!row.title;
+          row._error = row.title ? '' : 'Missing title';
+          blogParsedCsv.push(row);
+        }
+
+        blogShowImportPreview();
+      };
+      reader.readAsText(file);
+    }
+
+    function blogParseCsvLine(line) {
+      var result = [];
+      var current = '';
+      var inQuotes = false;
+      for (var i = 0; i < line.length; i++) {
+        var ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+          else { inQuotes = !inQuotes; }
+        } else if (ch === ',' && !inQuotes) {
+          result.push(current);
+          current = '';
+        } else {
+          current += ch;
+        }
+      }
+      result.push(current);
+      return result;
+    }
+
+    function blogShowImportPreview() {
+      var validCount = blogParsedCsv.filter(function(r) { return r._valid; }).length;
+      var errorCount = blogParsedCsv.length - validCount;
+
+      document.getElementById('blogImportSummary').innerHTML = '<strong>' + blogParsedCsv.length + ' rows</strong> — '
+        + '<span style="color:#10b981;">' + validCount + ' valid</span>, '
+        + '<span style="color:#E94560;">' + errorCount + ' errors</span>';
+
+      var tbody = document.getElementById('blogImportPreviewBody');
+      tbody.innerHTML = '';
+
+      blogParsedCsv.forEach(function(row) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + row._rowNum + '</td>'
+          + '<td>' + escapeHtml(row.title || '') + '</td>'
+          + '<td style="font-size:11px;">' + escapeHtml(row.slug || '(auto)') + '</td>'
+          + '<td>' + escapeHtml(row.category || 'general') + '</td>'
+          + '<td>' + escapeHtml(row.status || 'draft') + '</td>'
+          + '<td>' + (row.generate_seo === 'true' ? 'Yes' : 'No') + '</td>'
+          + '<td>' + (row._valid ? '<span style="color:#10b981;">&#10003;</span>' : '<span style="color:#E94560;" title="' + escapeHtml(row._error) + '">&#10007;</span>') + '</td>';
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('blogImportStep1').style.display = 'none';
+      document.getElementById('blogImportStep2').style.display = 'block';
+      document.getElementById('blogImportBtn').textContent = 'Import ' + validCount + ' Posts';
+    }
+
+    async function blogRunImport() {
+      var validRows = blogParsedCsv.filter(function(r) { return r._valid; });
+      if (validRows.length === 0) return alert('No valid rows to import');
+
+      document.getElementById('blogImportStep2').style.display = 'none';
+      document.getElementById('blogImportStep3').style.display = 'block';
+
+      var posts = validRows.map(function(row) {
+        return {
+          title: row.title,
+          slug: row.slug || '',
+          excerpt: row.excerpt || '',
+          content: row.content || '',
+          status: row.status || 'draft',
+          author_slug: row.author_slug || 'ryvite-team',
+          category: row.category || 'general',
+          tags: row.tags ? row.tags.split('|').map(function(t) { return t.trim(); }).filter(Boolean) : [],
+          post_type: row.post_type || 'article',
+          featured: row.featured === 'true',
+          featured_image_src: row.featured_image_src || '',
+          featured_image_alt: row.featured_image_alt || '',
+          featured_image_width: row.featured_image_width || '',
+          featured_image_height: row.featured_image_height || '',
+          related_slugs: row.related_slugs ? row.related_slugs.split('|').map(function(t) { return t.trim(); }).filter(Boolean) : [],
+          generate_seo: row.generate_seo === 'true'
+        };
+      });
+
+      document.getElementById('blogImportProgressBar').style.width = '30%';
+      document.getElementById('blogImportProgressText').textContent = 'Importing ' + posts.length + ' posts...';
+
+      try {
+        var res = await blogFetch('bulkImport', { method: 'POST', body: { posts: posts } });
+        document.getElementById('blogImportProgressBar').style.width = '100%';
+
+        if (!res.success) throw new Error(res.error);
+
+        document.getElementById('blogImportStep3').style.display = 'none';
+        document.getElementById('blogImportStep4').style.display = 'block';
+
+        var r = res.results;
+        var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">'
+          + '<div style="background:#ecfdf5;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:24px;font-weight:700;color:#10b981;">' + r.created + '</div><div style="font-size:12px;color:#666;">Created</div></div>'
+          + '<div style="background:#fef3cd;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:24px;font-weight:700;color:#f59e0b;">' + r.skipped + '</div><div style="font-size:12px;color:#666;">Skipped (duplicates)</div></div>'
+          + '<div style="background:#e0f2fe;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:24px;font-weight:700;color:#0ea5e9;">' + r.seoGenerated + '</div><div style="font-size:12px;color:#666;">SEO Generated</div></div>'
+          + '</div>';
+
+        if (r.errors && r.errors.length > 0) {
+          html += '<div style="margin-top:12px;"><strong>Errors:</strong><ul style="margin-top:4px;padding-left:20px;">';
+          r.errors.forEach(function(err) {
+            html += '<li style="font-size:12px;color:#E94560;">Row ' + err.row + ': ' + escapeHtml(err.error) + '</li>';
+          });
+          html += '</ul></div>';
+        }
+
+        document.getElementById('blogImportResults').innerHTML = html;
+      } catch (err) {
+        document.getElementById('blogImportProgressText').textContent = 'Error: ' + err.message;
+        document.getElementById('blogImportProgressText').style.color = '#E94560';
+      }
+    }
+
+    function blogResetImport() {
+      blogParsedCsv = [];
+      document.getElementById('blogImportStep1').style.display = 'block';
+      document.getElementById('blogImportStep2').style.display = 'none';
+      document.getElementById('blogImportStep3').style.display = 'none';
+      document.getElementById('blogImportStep4').style.display = 'none';
+      document.getElementById('blogImportProgressBar').style.width = '0%';
+      document.getElementById('blogCsvFileInput').value = '';
+    }
+
   </script>
   <div class="bulk-progress" id="bulkProgress" style="display:none;"></div>
   <!-- Style Detail View Overlay -->
