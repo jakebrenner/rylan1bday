@@ -64,6 +64,9 @@
     .btn-secondary { background: #f0f0f0; color: var(--midnight); }
     .btn-secondary:hover { background: #e0e0e0; }
     .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .date-preset { background: #f0f0f0; color: #555; border: 1px solid #ddd; }
+    .date-preset:hover { background: #e0e0e0; }
+    .date-preset.active { background: var(--party-coral); color: white; border-color: var(--party-coral); }
     .back-link { font-size: 13px; color: #888; cursor: pointer; margin-bottom: 16px; display: inline-flex; align-items: center; gap: 6px; }
     .back-link:hover { color: var(--party-coral); }
 
@@ -489,6 +492,37 @@
 
     <!-- Overview Tab -->
     <div class="tab-content active" id="tab-overview">
+      <!-- Data Accuracy Callout -->
+      <div id="accuracyCallout" style="background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:13px;color:#92400e;">
+        <span style="font-size:18px;">&#9888;</span>
+        <div>
+          <strong>Cost data before March 13, 2026 may be inaccurate</strong> due to a tracking bug that has been fixed.
+          Use the date filter below to view only data from today onward for reliable totals.
+        </div>
+      </div>
+
+      <!-- Date Range Filter -->
+      <div class="config-section" style="padding:12px 16px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:600;color:#666;">Date Range:</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm date-preset active" data-preset="all" onclick="setDatePreset('all')">All Time</button>
+            <button class="btn btn-sm date-preset" data-preset="today" onclick="setDatePreset('today')">Today</button>
+            <button class="btn btn-sm date-preset" data-preset="7d" onclick="setDatePreset('7d')">Last 7d</button>
+            <button class="btn btn-sm date-preset" data-preset="30d" onclick="setDatePreset('30d')">Last 30d</button>
+            <button class="btn btn-sm date-preset" data-preset="accurate" onclick="setDatePreset('accurate')">Since Fix (3/13)</button>
+            <button class="btn btn-sm date-preset" data-preset="custom" onclick="setDatePreset('custom')">Custom</button>
+          </div>
+          <div id="customDateRange" style="display:none;align-items:center;gap:8px;">
+            <input type="date" id="statsDateFrom" style="font-size:13px;padding:4px 8px;border:1px solid #ddd;border-radius:4px;">
+            <span style="color:#888;">to</span>
+            <input type="date" id="statsDateTo" style="font-size:13px;padding:4px 8px;border:1px solid #ddd;border-radius:4px;">
+            <button class="btn btn-sm btn-primary" onclick="applyCustomDateRange()">Apply</button>
+          </div>
+          <span id="dateRangeLabel" style="font-size:12px;color:#888;margin-left:auto;"></span>
+        </div>
+      </div>
+
       <div class="stat-grid" id="statsGrid">
         <div class="stat-card"><div class="stat-value" id="statUsers">—</div><div class="stat-label">Total Users</div></div>
         <div class="stat-card"><div class="stat-value" id="statEvents">—</div><div class="stat-label">Total Events</div></div>
@@ -1729,6 +1763,84 @@
         }
       })();
       return refreshPromise;
+    }
+
+    // ---- Date Range Filter ----
+    var statsDateFrom = null;
+    var statsDateTo = null;
+    var activePreset = 'all';
+    var ACCURACY_FIX_DATE = '2026-03-13';
+
+    function toISODate(d) {
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    function setDatePreset(preset) {
+      activePreset = preset;
+      var now = new Date();
+      var customEl = document.getElementById('customDateRange');
+      customEl.style.display = preset === 'custom' ? 'flex' : 'none';
+
+      // Update active button styling
+      document.querySelectorAll('.date-preset').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-preset') === preset);
+      });
+
+      if (preset === 'all') {
+        statsDateFrom = null;
+        statsDateTo = null;
+      } else if (preset === 'today') {
+        statsDateFrom = toISODate(now);
+        statsDateTo = toISODate(now);
+      } else if (preset === '7d') {
+        var d7 = new Date(now.getTime() - 7 * 86400000);
+        statsDateFrom = toISODate(d7);
+        statsDateTo = toISODate(now);
+      } else if (preset === '30d') {
+        var d30 = new Date(now.getTime() - 30 * 86400000);
+        statsDateFrom = toISODate(d30);
+        statsDateTo = toISODate(now);
+      } else if (preset === 'accurate') {
+        statsDateFrom = ACCURACY_FIX_DATE;
+        statsDateTo = null;
+      } else if (preset === 'custom') {
+        return; // Don't reload yet — wait for Apply click
+      }
+
+      updateDateLabel();
+      reloadStats();
+    }
+
+    function applyCustomDateRange() {
+      statsDateFrom = document.getElementById('statsDateFrom').value || null;
+      statsDateTo = document.getElementById('statsDateTo').value || null;
+      updateDateLabel();
+      reloadStats();
+    }
+
+    function updateDateLabel() {
+      var label = document.getElementById('dateRangeLabel');
+      if (!statsDateFrom && !statsDateTo) {
+        label.textContent = '';
+      } else if (statsDateFrom && statsDateTo) {
+        label.textContent = 'Showing: ' + statsDateFrom + ' to ' + statsDateTo;
+      } else if (statsDateFrom) {
+        label.textContent = 'Showing: ' + statsDateFrom + ' onward';
+      } else {
+        label.textContent = 'Showing: up to ' + statsDateTo;
+      }
+    }
+
+    async function reloadStats() {
+      try {
+        var params = '';
+        if (statsDateFrom) params += '&from=' + statsDateFrom;
+        if (statsDateTo) params += '&to=' + statsDateTo;
+        var res = await adminFetch('stats' + params);
+        if (res.success) showStats(res.stats);
+      } catch (e) {
+        console.error('Failed to reload stats:', e);
+      }
     }
 
     // ---- Init ----

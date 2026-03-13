@@ -494,11 +494,22 @@ export default async function handler(req, res) {
 
     // ---- PLATFORM STATS ----
     if (action === 'stats') {
+      // Optional date range filter for generation_log
+      const statsFrom = req.query.from; // ISO date string e.g. '2026-03-13'
+      const statsTo = req.query.to;     // ISO date string e.g. '2026-03-20'
+
+      let logsQuery = supabaseAdmin
+        .from('generation_log')
+        .select('id, event_id, model, input_tokens, output_tokens, latency_ms, created_at, prompt', { count: 'exact' })
+        .eq('status', 'success');
+      if (statsFrom) logsQuery = logsQuery.gte('created_at', statsFrom);
+      if (statsTo) logsQuery = logsQuery.lte('created_at', statsTo + 'T23:59:59.999Z');
+
       const [usersRes, eventsRes, guestsRes, logsRes, markupRes] = await Promise.all([
         supabaseAdmin.from('profiles').select('id', { count: 'exact', head: true }),
         supabaseAdmin.from('events').select('id, status', { count: 'exact' }),
         supabaseAdmin.from('guests').select('id', { count: 'exact', head: true }),
-        supabaseAdmin.from('generation_log').select('id, event_id, model, input_tokens, output_tokens, latency_ms, created_at, prompt', { count: 'exact' }).eq('status', 'success'),
+        logsQuery,
         supabaseAdmin.from('app_config').select('value').eq('key', 'cost_markup_pct').single()
       ]);
 
@@ -627,6 +638,7 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         success: true,
+        dateFilter: { from: statsFrom || null, to: statsTo || null },
         stats: {
           totalUsers: usersRes.count || 0,
           totalEvents: eventsRes.count || 0,
