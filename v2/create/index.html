@@ -3536,80 +3536,131 @@
 
     // Inject RSVP form and event details into iframe after it loads.
     // Runs from the PARENT page via iframe.contentDocument — no scripts inside srcdoc.
+    // Number word ↔ digit conversion for template text replacement
+    var NUMBER_WORDS = ['zero','one','two','three','four','five','six','seven','eight','nine','ten',
+      'eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty'];
+
+    function wordToNum(word) {
+      var idx = NUMBER_WORDS.indexOf(word.toLowerCase());
+      return idx >= 0 ? idx : null;
+    }
+    function numToWord(n) { return n >= 0 && n < NUMBER_WORDS.length ? NUMBER_WORDS[n] : String(n); }
+    function matchCase(source, target) {
+      if (source === source.toUpperCase()) return target.toUpperCase();
+      if (source[0] === source[0].toUpperCase()) return target[0].toUpperCase() + target.slice(1);
+      return target.toLowerCase();
+    }
+    function ordinal(n) {
+      var s = ['th','st','nd','rd']; var v = n % 100;
+      return n + (s[(v-20)%10] || s[v] || s[0]);
+    }
+    function escapeRegex(str) { return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
     // Replace template placeholder text in the preview when starting from a design.
     // Walks text nodes and swaps dummy content for user-provided data.
     function replaceTemplateText(doc, dummyData) {
       if (!doc || !doc.body) return;
 
-      // Build replacement map from dummy → user data
       var replacements = [];
 
-      // Age pattern: "Turning N!" → "Turning <userAge>!"
-      // Also handles "N th/st/nd/rd Birthday", "turns N", etc.
+      // Extract user's age from all available fields
       var userAge = null;
       var userChildName = null;
-      // Try to extract age from title like "Max's 5th Birthday"
-      var ageFields = [extractedData.title, extractedData.tagline, extractedData.description, extractedData.prompt].filter(Boolean).join(' ');
-      var ageMatch = ageFields.match(/(?:turning|turns|is)\s+(\d+)/i)
-        || ageFields.match(/(\d+)(?:st|nd|rd|th)?\s*(?:birthday|bday)/i)
-        || (extractedData.tagline || '').match(/(\d+)/);
-      if (ageMatch) userAge = ageMatch[1];
-      // Try to extract child name
+      var allText = [extractedData.title, extractedData.tagline, extractedData.description, extractedData.prompt].filter(Boolean).join(' ');
+
+      // Try numeric patterns first: "turning 5", "5th birthday", etc.
+      var ageMatch = allText.match(/(?:turning|turns|is)\s+(\d+)/i)
+        || allText.match(/(\d+)\s*(?:st|nd|rd|th)?\s*(?:birthday|bday)/i);
+      if (ageMatch) userAge = parseInt(ageMatch[1]);
+
+      // Try spelled-out: "turning five"
+      if (!userAge) {
+        var wordAgeMatch = allText.match(/(?:turning|turns|is)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)/i);
+        if (wordAgeMatch) userAge = wordToNum(wordAgeMatch[1]);
+      }
+
+      // Extract child name from title like "Max's 5th Birthday"
       var nameMatch = (extractedData.title || '').match(/^(.+?)(?:'s|'s)\s/i);
       if (nameMatch) userChildName = nameMatch[1];
 
-      if (userAge) {
-        // Replace "Turning N!" patterns
+      // Build number word pattern that matches any spelled-out number (case-insensitive)
+      var numberWordPattern = '(?:' + NUMBER_WORDS.join('|') + ')';
+
+      if (userAge != null) {
+        var userWord = numToWord(userAge);
+        var userOrd = ordinal(userAge);
+
+        // "Turning EIGHT!" → "Turning FIVE!" (spelled-out numbers)
         replacements.push({
-          pattern: /[Tt]urning\s+\d+\s*!?/g,
-          replace: 'Turning ' + userAge + '!'
+          pattern: new RegExp('(turning\\s+)(' + numberWordPattern + ')(\\s*!?)', 'gi'),
+          replace: function(m, pre, word, post) { return pre + matchCase(word, userWord) + post; }
         });
-        // Replace "Nth Birthday" patterns
+
+        // "Turning 8!" → "Turning 5!" (numeric)
+        replacements.push({
+          pattern: /([Tt]urning\s+)(\d+)(\s*!?)/g,
+          replace: function(m, pre, num, post) { return pre + userAge + post; }
+        });
+
+        // Standalone large number that's likely an age: "8!" or just "8" as the primary text
+        // Only match text nodes where the number is the main content (not inside sentences)
+        replacements.push({
+          pattern: /^(\s*)(\d{1,2})(\s*!?\s*)$/,
+          replace: function(m, pre, num, post) {
+            // Only replace if it looks like a birthday age display (1-20)
+            var n = parseInt(num);
+            if (n >= 1 && n <= 20) return pre + userAge + post;
+            return m;
+          }
+        });
+
+        // Spelled-out standalone: "EIGHT!" as main text
+        replacements.push({
+          pattern: new RegExp('^(\\s*)(' + numberWordPattern + ')(\\s*!?\\s*)$', 'i'),
+          replace: function(m, pre, word, post) {
+            return pre + matchCase(word, userWord) + post;
+          }
+        });
+
+        // "8th Birthday" → "5th Birthday" (ordinal + birthday)
         replacements.push({
           pattern: /\d+(?:st|nd|rd|th)\s+[Bb]irthday/g,
-          replace: ordinal(parseInt(userAge)) + ' Birthday'
+          replace: userOrd + ' Birthday'
         });
       }
 
-      if (userChildName && dummyData.title) {
-        // Replace dummy child name from template title (e.g. "Mia" → "Max")
+      // Replace dummy child name from template with user's child name
+      if (userChildName && dummyData && dummyData.title) {
         var dummyNameMatch = dummyData.title.match(/^(.+?)(?:'s|'s)\s/i);
-        if (dummyNameMatch && dummyNameMatch[1] !== userChildName) {
+        if (dummyNameMatch && dummyNameMatch[1].toLowerCase() !== userChildName.toLowerCase()) {
           replacements.push({
-            pattern: new RegExp(escapeRegex(dummyNameMatch[1]), 'g'),
-            replace: userChildName
+            pattern: new RegExp(escapeRegex(dummyNameMatch[1]), 'gi'),
+            replace: function(m) { return matchCase(m, userChildName); }
           });
         }
       }
 
       if (replacements.length === 0) return;
 
-      // Walk all text nodes in the document
+      // Walk all text nodes and apply replacements
       var walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null, false);
+      var nodes = [];
       var node;
-      while (node = walker.nextNode()) {
-        var text = node.textContent;
+      while (node = walker.nextNode()) nodes.push(node);
+      for (var ni = 0; ni < nodes.length; ni++) {
+        var text = nodes[ni].textContent;
         var changed = false;
         for (var ri = 0; ri < replacements.length; ri++) {
           var r = replacements[ri];
+          r.pattern.lastIndex = 0;
           if (r.pattern.test(text)) {
-            r.pattern.lastIndex = 0; // reset regex state
+            r.pattern.lastIndex = 0;
             text = text.replace(r.pattern, r.replace);
             changed = true;
           }
         }
-        if (changed) node.textContent = text;
+        if (changed) nodes[ni].textContent = text;
       }
-    }
-
-    function ordinal(n) {
-      var s = ['th','st','nd','rd'];
-      var v = n % 100;
-      return n + (s[(v-20)%10] || s[v] || s[0]);
-    }
-
-    function escapeRegex(str) {
-      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     function injectRsvpForm(iframe) {
