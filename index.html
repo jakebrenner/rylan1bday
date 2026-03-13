@@ -209,9 +209,9 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
 .demo-section { background:var(--cream); padding:5rem 2rem; }
 .demo-stage { display:grid; grid-template-columns:1fr 1fr; gap:3rem; align-items:center; margin-top:3rem; max-width:960px; margin-left:auto; margin-right:auto; }
 .demo-prompt-area { display:flex; flex-direction:column; justify-content:center; }
-.demo-chat-bubble { background:white; border-radius:20px; padding:2rem 2rem 1.5rem; box-shadow:0 4px 24px rgba(0,0,0,0.06); border:1px solid rgba(0,0,0,0.04); position:relative; }
+.demo-chat-bubble { background:white; border-radius:20px; padding:2rem 2rem 1.5rem; box-shadow:0 4px 24px rgba(0,0,0,0.06); border:1px solid rgba(0,0,0,0.04); position:relative; height:200px; overflow:hidden; }
 .demo-prompt-label { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:var(--party-coral); margin-bottom:0.75rem; }
-.demo-prompt-text { font-size:1.05rem; line-height:1.7; color:var(--midnight); height:5.5rem; overflow:hidden; font-family:var(--font-body); }
+.demo-prompt-text { font-size:1.05rem; line-height:1.7; color:var(--midnight); overflow:hidden; font-family:var(--font-body); }
 .demo-cursor { display:inline-block; width:2px; height:1.2em; background:var(--party-coral); margin-left:2px; vertical-align:text-bottom; animation:demoBlink 0.8s ease-in-out infinite; }
 @keyframes demoBlink { 0%,100%{opacity:1} 50%{opacity:0} }
 .demo-event-label { margin-top:1rem; padding-top:0.75rem; border-top:1px solid rgba(0,0,0,0.06); font-size:0.8rem; color:var(--slate); font-weight:500; }
@@ -231,11 +231,12 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
 .demo-dot.active { background:var(--party-coral); transform:scale(1.3); }
 
 /* Demo cost callout */
-.demo-cost { margin-top:2.5rem; display:inline-flex; align-items:center; gap:0.75rem; background:white; border-radius:16px; padding:1.25rem 2rem; box-shadow:0 4px 24px rgba(0,0,0,0.06); border:1px solid rgba(0,0,0,0.04); }
-.demo-cost-amount { font-family:var(--font-display); font-size:2rem; font-weight:700; color:var(--party-coral); line-height:1; }
-.demo-cost-detail { text-align:left; }
-.demo-cost-label { font-size:0.85rem; font-weight:600; color:var(--midnight); }
-.demo-cost-sub { font-size:0.75rem; color:var(--slate); margin-top:2px; }
+.demo-cost { margin-top:2.5rem; display:inline-flex; align-items:center; gap:1.25rem; background:white; border-radius:16px; padding:1.5rem 2.5rem; box-shadow:0 4px 24px rgba(0,0,0,0.06); border:1px solid rgba(0,0,0,0.04); }
+.demo-cost-amount { font-family:var(--font-display); font-size:2.5rem; font-weight:700; color:var(--party-coral); line-height:1; white-space:nowrap; }
+.demo-cost-detail { text-align:left; display:flex; flex-direction:column; gap:2px; }
+.demo-cost-label { font-size:1rem; font-weight:700; color:var(--midnight); display:block; }
+.demo-cost-unlimited { font-size:0.85rem; font-weight:600; color:var(--mint-fizz); display:block; }
+.demo-cost-sub { font-size:0.72rem; color:var(--slate); display:block; }
 
 /* Demo fade transitions */
 .demo-fade { transition:opacity 0.5s ease; }
@@ -249,8 +250,8 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
 @media (max-width: 600px) {
   .demo-section { padding:3.5rem 1.5rem; }
   .demo-phone { width:220px; }
-  .demo-chat-bubble { padding:1.5rem; }
-  .demo-prompt-text { font-size:0.95rem; height:5rem; }
+  .demo-chat-bubble { padding:1.5rem; height:180px; }
+  .demo-prompt-text { font-size:0.95rem; }
 }
 </style>
 </head>
@@ -627,12 +628,11 @@ document.getElementById("contactForm").addEventListener("submit", function(e) {
         var dollars = (est.aiCostCents / 100).toFixed(2);
         var costEl = document.getElementById("demoCost");
         if (!costEl) return;
-        var breakdown = est.breakdown || {};
-        var tweaks = breakdown.tweaks || 2;
         costEl.innerHTML = '<span class="demo-cost-amount">~$' + dollars + '</span>'
           + '<span class="demo-cost-detail">'
-          + '<span class="demo-cost-label">Estimated per event</span>'
-          + '<span class="demo-cost-sub">Includes ' + (breakdown.initialGenerations || 1) + ' design + ' + tweaks + ' revisions + ' + (breakdown.chatMessages || 4) + ' chat messages. + SMS costs.</span>'
+          + '<span class="demo-cost-label">Per Event</span>'
+          + '<span class="demo-cost-unlimited">Unlimited invites</span>'
+          + '<span class="demo-cost-sub">+ Optional SMS</span>'
           + '</span>';
         costEl.style.display = "";
       })
