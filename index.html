@@ -88,12 +88,6 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
 @keyframes fly-rl-1 { 0%{transform:translate(110vw,0) scaleX(-1);} 25%{transform:translate(75vw,-8px) scaleX(-1);} 50%{transform:translate(50vw,10px) scaleX(-1);} 75%{transform:translate(25vw,-5px) scaleX(-1);} 100%{transform:translate(-15vw,4px) scaleX(-1);} }
 @keyframes fly-lr-2 { 0%{transform:translate(-15vw,5px);} 30%{transform:translate(30vw,-12px);} 60%{transform:translate(60vw,10px);} 100%{transform:translate(110vw,-4px);} }
 
-/* ===== MARQUEE ===== */
-.marquee { background:var(--party-coral); color:white; padding:1.25rem 0; overflow:hidden; }
-.marquee-track { display:flex; animation:marquee-scroll 25s linear infinite; white-space:nowrap; gap:2.5rem; }
-.marquee-item { font-size:1rem; font-weight:600; flex-shrink:0; display:flex; align-items:center; gap:0.75rem; }
-.marquee-item::before { content:''; font-size:1.2rem; }
-@keyframes marquee-scroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
 
 /* ===== SECTIONS ===== */
 .section { padding:6rem 2rem; }
@@ -217,7 +211,7 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
 .demo-prompt-area { display:flex; flex-direction:column; justify-content:center; }
 .demo-chat-bubble { background:white; border-radius:20px; padding:2rem 2rem 1.5rem; box-shadow:0 4px 24px rgba(0,0,0,0.06); border:1px solid rgba(0,0,0,0.04); position:relative; }
 .demo-prompt-label { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:var(--party-coral); margin-bottom:0.75rem; }
-.demo-prompt-text { font-size:1.05rem; line-height:1.7; color:var(--midnight); min-height:3.5rem; font-family:var(--font-body); }
+.demo-prompt-text { font-size:1.05rem; line-height:1.7; color:var(--midnight); height:5.5rem; overflow:hidden; font-family:var(--font-body); }
 .demo-cursor { display:inline-block; width:2px; height:1.2em; background:var(--party-coral); margin-left:2px; vertical-align:text-bottom; animation:demoBlink 0.8s ease-in-out infinite; }
 @keyframes demoBlink { 0%,100%{opacity:1} 50%{opacity:0} }
 .demo-event-label { margin-top:1rem; padding-top:0.75rem; border-top:1px solid rgba(0,0,0,0.06); font-size:0.8rem; color:var(--slate); font-weight:500; }
@@ -249,7 +243,7 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
   .demo-section { padding:3.5rem 1.5rem; }
   .demo-phone { width:220px; }
   .demo-chat-bubble { padding:1.5rem; }
-  .demo-prompt-text { font-size:0.95rem; }
+  .demo-prompt-text { font-size:0.95rem; height:5rem; }
 }
 </style>
 </head>
@@ -322,22 +316,6 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
     <div class="demo-nav" id="demoNav"></div>
   </div>
 </section>
-
-<!-- Marquee -->
-<div class="marquee">
-  <div class="marquee-track">
-    <span class="marquee-item">Prompt to Party</span>
-    <span class="marquee-item">Every Moment Deserves Beauty</span>
-    <span class="marquee-item">AI-Powered Invitations</span>
-    <span class="marquee-item">Fairly Priced Per Event</span>
-    <span class="marquee-item">Totally Over-Engineered</span>
-    <span class="marquee-item">Prompt to Party</span>
-    <span class="marquee-item">Every Moment Deserves Beauty</span>
-    <span class="marquee-item">AI-Powered Invitations</span>
-    <span class="marquee-item">Fairly Priced Per Event</span>
-    <span class="marquee-item">Totally Over-Engineered</span>
-  </div>
-</div>
 
 <!-- How It Works -->
 <section class="section how-section" id="how">
