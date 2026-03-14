@@ -9,6 +9,13 @@ const playfairFontPromise = fetch(
   'https://fonts.gstatic.com/s/playfairdisplay/v37/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvXDTbtPY_Q.woff'
 ).then(res => res.arrayBuffer()).catch(() => null);
 
+// Build the circle-envelope SVG as a data URI (Satori doesn't support SVG child elements in JSX)
+function buildIconDataUri(color) {
+  const svg = `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="22" fill="none" stroke="${color}" stroke-width="2.2"/><path d="M18 24 L32 36 L46 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 42 L46 42" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+  // Edge runtime: use btoa for base64 encoding
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
 export default async function handler(req) {
   const url = new URL(req.url);
   const variant = url.searchParams.get('variant') || 'light';
@@ -16,6 +23,7 @@ export default async function handler(req) {
 
   const iconColor = isDark ? '#FFB74D' : '#E94560';
   const textColor = isDark ? '#FFFFFF' : '#1A1A2E';
+  const iconDataUri = buildIconDataUri(iconColor);
 
   const fontData = await playfairFontPromise;
 
@@ -40,44 +48,13 @@ export default async function handler(req) {
               gap: '8px',
             },
             children: [
-              // Circle envelope icon using SVG (same paths as nav bar logo)
+              // Circle envelope icon as data URI image
               {
-                type: 'svg',
+                type: 'img',
                 props: {
-                  viewBox: '0 0 64 64',
-                  width: '40',
-                  height: '40',
-                  xmlns: 'http://www.w3.org/2000/svg',
-                  children: [
-                    // Circle
-                    {
-                      type: 'circle',
-                      props: { cx: '32', cy: '32', r: '22', fill: 'none', stroke: iconColor, strokeWidth: '2.2' },
-                    },
-                    // Envelope flap (V shape)
-                    {
-                      type: 'path',
-                      props: {
-                        d: 'M18 24 L32 36 L46 24',
-                        fill: 'none',
-                        stroke: iconColor,
-                        strokeWidth: '2.2',
-                        strokeLinecap: 'round',
-                        strokeLinejoin: 'round',
-                      },
-                    },
-                    // Envelope bottom line
-                    {
-                      type: 'path',
-                      props: {
-                        d: 'M18 42 L46 42',
-                        fill: 'none',
-                        stroke: iconColor,
-                        strokeWidth: '1.8',
-                        strokeLinecap: 'round',
-                      },
-                    },
-                  ],
+                  src: iconDataUri,
+                  width: 40,
+                  height: 40,
                 },
               },
               // Wordmark in Playfair Display

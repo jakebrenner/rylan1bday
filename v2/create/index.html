@@ -3597,14 +3597,34 @@
         .replace(/<\/body\s*>/gi, '')
         .replace(/<script\b[\s\S]*?<\/script\s*>/gi, '');
 
+      // Strip stray @import from CSS body — they must be in their own <style> block first.
+      // A stray @import after any CSS rule kills all subsequent rules in that block.
+      var cleanedCss = sanitizeThemeText(css);
+      var strayImports = cleanedCss.match(/@import\s+url\([^)]+\);?\s*/g);
+      if (strayImports) {
+        strayImports.forEach(function(imp) { cleanedCss = cleanedCss.replace(imp, ''); });
+        // Add to fonts block if not already there
+        if (!fontsImport) {
+          var importUrl = strayImports[0].match(/url\(['"]?([^'"\)]+)['"]?\)/);
+          if (importUrl) fontsStyle = '<style>@import url(\'' + importUrl[1] + '\');</style>';
+        }
+      }
+
+      // Guaranteed fallback CSS — uses config colors as baseline so even broken AI CSS
+      // still shows a themed page. Low-specificity selectors so AI CSS overrides when it works.
+      var fallbackBg = config.backgroundColor || '#FFFAF5';
+      var fallbackText = config.textColor || '#1A1A2E';
+      var fallbackFont = config.fontBody || 'Inter';
+      var fallbackCSS = 'html, body { background:' + fallbackBg + '; color:' + fallbackText + '; font-family:\'' + fallbackFont + '\',sans-serif; }';
+
       // RSVP form and data-field overrides are injected via iframe.onload in the parent
       // (see injectRsvpForm) — NO script injection in srcdoc.
       return '<!DOCTYPE html><html><head><meta charset="UTF-8">'
         + '<meta name="viewport" content="width=393, initial-scale=1.0">'
         + fontsStyle
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; }</style>'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; } ' + fallbackCSS + '</style>'
         + (headStyles || '')
-        + '<style>' + sanitizeThemeText(css).replace(/<\/style/gi, '<\\/style') + '</style>'
+        + '<style>' + cleanedCss.replace(/<\/style/gi, '<\\/style') + '</style>'
         + '</head><body' + (bodyAttrs ? ' ' + bodyAttrs : '') + '>' + themeHtml + '</body></html>';
     }
 
@@ -3911,7 +3931,16 @@
         iframe.srcdoc = buildEmailSrcdoc(ver);
       } else if (currentPreviewMode === 'thankyou') {
         // Set onload BEFORE srcdoc to avoid race on fast loads
-        iframe.onload = function() { injectCalendarHandlers(iframe); };
+        iframe.onload = function() {
+          injectCalendarHandlers(iframe);
+          // Also check CSS rendering for thank you page (was previously missing)
+          var win = iframe.contentWindow;
+          if (win && win.requestAnimationFrame) {
+            win.requestAnimationFrame(function() { checkCssRendered(iframe, ver); });
+          } else {
+            setTimeout(function() { checkCssRendered(iframe, ver); }, 50);
+          }
+        };
         iframe.srcdoc = buildThankYouSrcdoc(ver);
       } else {
         iframe.onload = function() {
@@ -3993,6 +4022,22 @@
           console.warn('[checkCssRendered] Invite appears unstyled despite having CSS (' + ver.css.length + ' chars). Re-render attempt ' + _cssCheckRetries + '/' + _MAX_CSS_RETRIES);
           setTimeout(function() { iframe.srcdoc = buildSrcdoc(ver); }, 150);
           return;
+        }
+
+        // Last resort: retries exhausted and still unstyled — inject fallback CSS directly into iframe DOM
+        if (isUnstyled && _cssCheckRetries >= _MAX_CSS_RETRIES) {
+          console.error('[checkCssRendered] All retries exhausted. Injecting fallback CSS directly into iframe.');
+          try {
+            var fallbackConfig = ver.config || {};
+            var fbBg = fallbackConfig.backgroundColor || '#FFFAF5';
+            var fbText = fallbackConfig.textColor || '#1A1A2E';
+            var fbFont = fallbackConfig.fontBody || 'Inter';
+            var fallbackStyle = doc.createElement('style');
+            fallbackStyle.textContent = 'html, body { background:' + fbBg + ' !important; color:' + fbText + ' !important; font-family:\'' + fbFont + '\',sans-serif !important; }';
+            doc.head.appendChild(fallbackStyle);
+          } catch (injectErr) {
+            console.warn('[checkCssRendered] Failed to inject fallback CSS:', injectErr.message);
+          }
         }
 
         // If there's truly no CSS, check if HTML contains inline <style> we missed
@@ -4142,6 +4187,8 @@
     // Email-safe color utilities (no opacity — many email clients ignore it)
     function hexToRgb(hex) {
       var h = hex.replace('#', '');
+      // Expand 3-char hex to 6-char (e.g. '333' → '333333', 'f0a' → 'ff00aa')
+      if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
       return [parseInt(h.substring(0,2),16), parseInt(h.substring(2,4),16), parseInt(h.substring(4,6),16)];
     }
     function rgbToHex(r,g,b) {
@@ -4252,8 +4299,8 @@
       var config = ver.config || {};
       var fontsImport = config.googleFontsImport || '';
       var guestName = 'Sarah';
-      var title = extractedData.title || 'the event';
-      var pc = config.primaryColor || '#333';
+      var title = (extractedData && extractedData.title) || 'the event';
+      var pc = config.primaryColor || '#333333';
       var sc = config.secondaryColor || '#4CAF50';
       var ac = config.accentColor || '#2196F3';
 
@@ -4264,8 +4311,8 @@
       var textColor = config.textColor || '#1A1A2E';
       var headlineFont = config.fontHeadline || 'Playfair Display';
       var bodyFont = config.fontBody || 'Inter';
-      // Build a subtle gradient fallback from the theme colors
-      var gradientBg = 'linear-gradient(180deg, ' + mixColor(pc, '#FFFFFF', 0.85) + ' 0%, ' + mixColor(ac || sc, '#FFFFFF', 0.9) + ' 100%)';
+      // Build a visible gradient fallback from the theme colors (0.4/0.6 = clearly visible, not washed out)
+      var gradientBg = 'linear-gradient(180deg, ' + mixColor(pc, '#FFFFFF', 0.4) + ' 0%, ' + mixColor(ac || sc, '#FFFFFF', 0.6) + ' 100%)';
 
       var guaranteedCSS = '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;'
         + ' background:' + gradientBg + '; color:' + textColor + '; font-family:\'' + bodyFont + '\',sans-serif; }'
@@ -4361,8 +4408,21 @@
           + '</head><body>' + tyHtml + '</body></html>';
       }
 
-      // Fallback: build entirely from theme config with gradient background
+      // Fallback: build entirely from theme config with gradient background + decorative SVG
+      var fallbackSvg = '<div class="thankyou-decoration" style="margin-bottom:24px;">'
+        + '<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">'
+        + '<circle cx="60" cy="60" r="50" fill="none" stroke="' + pc + '" stroke-width="2" opacity="0.3"/>'
+        + '<circle cx="60" cy="60" r="35" fill="none" stroke="' + (ac || sc) + '" stroke-width="1.5" opacity="0.2"/>'
+        + '<path d="M60 25 L63 45 L60 42 L57 45 Z" fill="' + pc + '" opacity="0.6"/>'
+        + '<path d="M60 95 L63 75 L60 78 L57 75 Z" fill="' + pc + '" opacity="0.6"/>'
+        + '<path d="M25 60 L45 57 L42 60 L45 63 Z" fill="' + (ac || sc) + '" opacity="0.5"/>'
+        + '<path d="M95 60 L75 57 L78 60 L75 63 Z" fill="' + (ac || sc) + '" opacity="0.5"/>'
+        + '<circle cx="60" cy="60" r="18" fill="' + pc + '" opacity="0.15"/>'
+        + '<path d="M52 56 L60 68 L68 56" fill="none" stroke="' + pc + '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
+        + '<line x1="52" y1="65" x2="68" y2="65" stroke="' + pc + '" stroke-width="2" stroke-linecap="round" opacity="0.7"/>'
+        + '</svg></div>';
       var thankYouHtml = '<div class="thankyou-page">'
+        + fallbackSvg
         + '<div class="thankyou-hero">'
         + '<h1 class="thankyou-title">Thank You!</h1>'
         + '<p class="thankyou-subtitle">Thanks for RSVPing, <span class="thankyou-guest">' + escapeHtml(guestName) + '</span>! We can\'t wait to see you at <span class="thankyou-event">' + escapeHtml(title) + '</span>.</p>'
@@ -4374,8 +4434,9 @@
       var fontsStyle3 = fontsImport ? '<style>' + fontsImport + '</style>' : '';
       return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
         + fontsStyle3
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; }</style>'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; background:' + bgColor + '; }</style>'
         + '<style>' + guaranteedCSS + '</style>'
+        + '<style>' + sanitizeThemeText(ver.css || '').replace(/<\/style/gi, '<\\/style') + '</style>'
         + '</head><body>' + thankYouHtml + '</body></html>';
     }
 

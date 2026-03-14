@@ -553,7 +553,15 @@ function extractThemeFromHtmlDoc(html) {
   if (bodyMatch) body = bodyMatch[1].trim();
   body = body.replace(/<head[\s\S]*?<\/head>/gi, '').replace(/<\/?(html|head|!doctype)[^>]*>/gi, '').replace(/<(link|meta)[^>]*>/gi, '').trim();
   if (!body && !css) throw new Error('Invalid theme response — could not extract HTML or CSS');
-  return { theme_html: body, theme_css: css, theme_config: config, theme_thankyou_html: '' };
+  // Extract thankyou-page content if present in the HTML document
+  let thankyouHtml = '';
+  const thankyouMatch = body.match(/<div[^>]*class=["'][^"']*thankyou-page[^"']*["'][^>]*>[\s\S]*?<\/div>\s*$/i);
+  if (thankyouMatch) {
+    thankyouHtml = thankyouMatch[0];
+    body = body.replace(thankyouMatch[0], '').trim();
+    console.log('[extractThemeFromHtmlDoc] Extracted thankyou-page HTML (' + thankyouHtml.length + ' chars)');
+  }
+  return { theme_html: body, theme_css: css, theme_config: config, theme_thankyou_html: thankyouHtml };
 }
 
 function normalizeThemeKeys(theme) {
@@ -677,6 +685,26 @@ function validateThemeIntegrity(theme) {
   // 6. Check for raw JSON wrapper leaking into HTML
   if (html.startsWith('"') || html.startsWith('{')) issues.push('html_json_leak');
 
+  // 7. Check for stray @import in CSS body (should be in config.googleFontsImport only)
+  // A stray @import after any CSS rule kills all subsequent rules in that <style> block
+  if (css && /@import\s+url\(/i.test(css)) issues.push('css_stray_import');
+
+  // 8. Check for malformed @keyframes (nested brace mismatch within animation blocks)
+  if (css) {
+    const keyframeBlocks = css.match(/@keyframes\s+[\w-]+\s*\{/g);
+    if (keyframeBlocks) {
+      keyframeBlocks.forEach(kf => {
+        const startIdx = css.indexOf(kf);
+        let depth = 0, i = startIdx;
+        for (; i < css.length; i++) {
+          if (css[i] === '{') depth++;
+          else if (css[i] === '}') { depth--; if (depth === 0) break; }
+        }
+        if (depth !== 0) issues.push('css_malformed_keyframes');
+      });
+    }
+  }
+
   return { valid: issues.length === 0, issues };
 }
 
@@ -717,6 +745,26 @@ function repairTheme(theme, issues) {
         console.log('[repairTheme] Extracted ' + extracted.length + ' chars of CSS from inline <style> blocks');
       }
     }
+  }
+
+  // Move stray @import statements from CSS to config.googleFontsImport
+  if (issues.includes('css_stray_import')) {
+    const importMatches = (theme.theme_css || '').match(/@import\s+url\(['"]?([^'"\)]+)['"]?\);?\s*/g);
+    if (importMatches) {
+      const fontUrl = importMatches[0].match(/url\(['"]?([^'"\)]+)['"]?\)/);
+      if (fontUrl && !theme.theme_config?.googleFontsImport) {
+        if (!theme.theme_config) theme.theme_config = {};
+        theme.theme_config.googleFontsImport = "@import url('" + fontUrl[1] + "');";
+      }
+      theme.theme_css = theme.theme_css.replace(/@import\s+url\([^)]+\);?\s*/g, '');
+      console.log('[repairTheme] Moved ' + importMatches.length + ' stray @import(s) from CSS to config');
+    }
+  }
+
+  // Strip malformed @keyframes blocks (animations are decorative, not critical)
+  if (issues.includes('css_malformed_keyframes')) {
+    theme.theme_css = theme.theme_css.replace(/@keyframes\s+[\w-]+\s*\{[^}]*$/gm, '');
+    console.log('[repairTheme] Stripped malformed @keyframes block(s)');
   }
 }
 
@@ -1895,6 +1943,10 @@ This is the most common failure mode. Double-check it.`;
     // Store thank you HTML in config to avoid DB schema change
     if (theme.theme_thankyou_html) {
       theme.theme_config.thankyouHtml = theme.theme_thankyou_html;
+    } else {
+      // Log whether fallback will work — AI CSS may still have .thankyou-page rules
+      const hasTyCssRules = (theme.theme_css || '').includes('.thankyou-page');
+      console.warn('[generate] thankyouHtml is empty. CSS has .thankyou-page rules:', hasTyCssRules, '— client fallback will be used');
     }
 
     // ── CSS FAILSAFE: If CSS is empty but HTML contains <style> blocks, extract them ──
