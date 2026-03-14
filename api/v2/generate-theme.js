@@ -628,11 +628,11 @@ function buildStyleContext(selected, promptSpecificity) {
 // When user has strong creative direction, load only 1 reference (for technique) instead of 2
 // Returns { context, selectedIds } — context is the prompt string, selectedIds for logging
 //
-// Selection uses a composite score that blends three rating signals:
-//   - Admin style rating (40%) — curator's assessment of the template
-//   - Production theme quality (35%) — avg admin rating of themes generated using this style
-//   - User satisfaction (25%) — avg end-user rating of themes generated using this style
-// Falls back to admin_rating-only weighting if the production_style_effectiveness view isn't available.
+// Selection uses a confidence-gated composite score from production_style_effectiveness view:
+//   - Below 5 data points: pure admin_rating (prevents small-sample distortion)
+//   - Above 5: gradually blends in production quality (35%) + user satisfaction (25%),
+//     anchored by admin rating (40%), with Bayesian damping (blend_factor = n/(n+5))
+// Falls back to admin_rating-only weighting if the view isn't available.
 async function loadStyleReferences(eventType, promptSpecificity = 0) {
   try {
     const limit = promptSpecificity >= 0.5 ? 1 : 2;
@@ -684,11 +684,13 @@ async function loadStyleReferences(eventType, promptSpecificity = 0) {
   }
 }
 
-// Weighted random selection using composite scores from all rating sources.
+// Weighted random selection using confidence-gated composite scores.
 //
 // Weight calculation:
 //   1. If compositeScores map is available (from production_style_effectiveness view),
-//      use the composite score (1-5 scale blending admin + production + user ratings)
+//      use the composite score — which is confidence-gated in the SQL view:
+//      below 5 data points it equals admin_rating, above it gradually blends in
+//      production/user signals via Bayesian damping
 //   2. Otherwise fall back to admin_rating (1-5) or 2 for unrated
 //
 // Applies exponential scaling (weight^1.8) so quality differences are amplified:
@@ -697,8 +699,6 @@ async function loadStyleReferences(eventType, promptSpecificity = 0) {
 //   Score 3 → weight  7.2
 //   Score 2 → weight  3.5 (neutral baseline for unrated)
 //   Score 1 → weight  1.0 (still possible, not eliminated)
-//
-// This means a 5-star style is ~18x more likely than a 1-star style (vs 5x with linear).
 function weightedStylePick(items, count, compositeScores = null) {
   if (items.length <= count) return items;
   const weighted = items.map(item => {

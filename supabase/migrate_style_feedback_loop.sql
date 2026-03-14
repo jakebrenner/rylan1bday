@@ -34,15 +34,22 @@ create index if not exists idx_event_themes_style_ids
 --   - Admin style rating (direct assessment of the template)
 --   - Admin theme ratings (quality of generated output)
 --   - User invite ratings (end-user satisfaction)
+--   - Lab test scores (prompt lab results)
 --
--- Composite score formula (1-5 scale):
---   40% admin style rating (curator signal)
---   35% avg admin theme rating (production quality signal)
---   25% avg user rating (end-user satisfaction signal)
+-- CONFIDENCE GATING (small sample safety):
+--   Production/user signals only influence the composite score
+--   once a style has enough rated data points (threshold: 5).
+--   Below that, composite_score = admin_rating (or 2 for unrated).
 --
--- When production data is missing, falls back to the admin
--- style rating (or 2.0 for unrated styles) so new/unrated
--- styles still get a fair chance.
+--   Above threshold, signals blend in gradually via Bayesian-like
+--   damping: blend_factor = data_points / (data_points + 5)
+--     5 data points  → 50% production influence
+--     10 data points → 67% production influence
+--     20 data points → 80% production influence
+--     50 data points → 91% production influence
+--
+--   This prevents a single lucky/unlucky rating from swinging
+--   a style's selection weight at early-stage low volume.
 -- ============================================================
 
 create or replace view public.production_style_effectiveness as
@@ -61,16 +68,37 @@ select
   -- Lab test stats (from prompt_test_runs)
   count(ptr.id)::integer as lab_test_uses,
   round(avg(ptr.score)::numeric, 2) as avg_lab_score,
-  -- Composite score: weighted blend of all signals (1-5 scale)
+  -- Total rated data points (admin theme ratings + user-rated themes + lab tests)
+  (count(et.admin_rating) + count(ir_agg.event_theme_id) + count(ptr.score))::integer as data_points,
+  -- Confidence-gated composite score (1-5 scale)
+  -- Below 5 data points: pure admin_rating (or 2 for unrated)
+  -- Above 5: gradually blends in production/user signals
   round(
-    coalesce(sl.admin_rating, 2) * 0.4 +
-    coalesce(avg(et.admin_rating), coalesce(sl.admin_rating::numeric, 2)) * 0.35 +
-    coalesce(
-      -- Prefer user ratings when available, fall back to lab scores, then admin rating
-      avg(ir_agg.avg_rating),
-      avg(ptr.score)::numeric,
-      coalesce(sl.admin_rating::numeric, 2)
-    ) * 0.25
+    case
+      when (count(et.admin_rating) + count(ir_agg.event_theme_id) + count(ptr.score)) < 5 then
+        -- Not enough data — trust admin rating only
+        coalesce(sl.admin_rating, 2)::numeric
+      else
+        -- Enough data — blend with Bayesian damping
+        -- blend_factor = data_points / (data_points + 5)
+        coalesce(sl.admin_rating, 2)::numeric * (
+          1.0 - (count(et.admin_rating) + count(ir_agg.event_theme_id) + count(ptr.score))::numeric
+                / ((count(et.admin_rating) + count(ir_agg.event_theme_id) + count(ptr.score))::numeric + 5)
+        )
+        + (
+          -- Blended production score: weighted avg of available signals
+          coalesce(sl.admin_rating, 2)::numeric * 0.4 +
+          coalesce(avg(et.admin_rating), coalesce(sl.admin_rating::numeric, 2)) * 0.35 +
+          coalesce(
+            avg(ir_agg.avg_rating),
+            avg(ptr.score)::numeric,
+            coalesce(sl.admin_rating::numeric, 2)
+          ) * 0.25
+        ) * (
+          (count(et.admin_rating) + count(ir_agg.event_theme_id) + count(ptr.score))::numeric
+          / ((count(et.admin_rating) + count(ir_agg.event_theme_id) + count(ptr.score))::numeric + 5)
+        )
+    end
   , 2) as composite_score
 from public.style_library sl
 -- Join to event_themes via style_library_ids array
@@ -87,7 +115,7 @@ left join public.prompt_test_runs ptr
   on sl.id = any(ptr.style_library_ids)
 group by sl.id, sl.name, sl.admin_rating, sl.times_used;
 
-comment on view public.production_style_effectiveness is 'Composite style effectiveness scores blending admin ratings (40%), production theme quality (35%), and user satisfaction (25%). Used by the generation endpoint for weighted style selection.';
+comment on view public.production_style_effectiveness is 'Confidence-gated composite style scores. Below 5 data points: pure admin_rating. Above: gradually blends in production quality (35%), user satisfaction (25%), anchored by admin rating (40%). Used by generation endpoint for weighted selection.';
 
 -- ============================================================
 -- 3. STYLE RATING IMPACT VIEW

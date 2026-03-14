@@ -224,10 +224,13 @@ No auth required — supports host, guest, and anonymous raters.
 | **Status** | Implemented | API ready, admin UI not yet built | Host rating UI live, guest UI not yet built |
 
 ### Style Library Weighted Selection (Composite Feedback Loop)
-- Selection uses a **composite score** blending three rating signals (via `production_style_effectiveness` view):
-  - **40% admin style rating** — curator's assessment of the template itself (`style_library.admin_rating`)
-  - **35% production theme quality** — avg admin rating of themes generated using this style (`event_themes.admin_rating`)
-  - **25% user satisfaction** — avg end-user rating of themes generated using this style (`invite_ratings`)
+- Selection uses a **confidence-gated composite score** (via `production_style_effectiveness` view):
+  - **Below 5 data points**: pure `admin_rating` (prevents small-sample distortion at low volume)
+  - **Above 5 data points**: gradually blends in production signals via Bayesian damping (`blend = n/(n+5)`)
+    - **40% admin style rating** — curator's assessment of the template (`style_library.admin_rating`)
+    - **35% production theme quality** — avg admin rating of themes generated using this style (`event_themes.admin_rating`)
+    - **25% user satisfaction** — avg end-user rating of themes using this style (`invite_ratings`), falls back to lab scores
+  - At 5 data points → 50% blend | 10 → 67% | 20 → 80% | 50 → 91%
 - Falls back to `admin_rating`-only weighting if the `production_style_effectiveness` view isn't available
 - **Exponential scaling** (`weight^1.8`) amplifies quality differences: 5-star = 18x weight vs 1-star = 1x (compared to old linear 5x/1x)
 - `event_themes.style_library_ids` stores which styles influenced each generation (enables production correlation)
