@@ -3414,6 +3414,12 @@
     // ── Cost tracking functions ──
     async function initCostTracker() {
       if (!token || !currentEvent || !currentEvent.id) return;
+      // Under $4.99 flat pricing, AI costs are included — don't show pay-as-you-go cost tracker
+      var ps = currentEvent.paymentStatus || 'unpaid';
+      if (ps === 'free' || ps === 'paid' || ps === 'unpaid') {
+        document.getElementById('costTracker').classList.add('hidden');
+        return;
+      }
       try {
         // Load per-event cumulative cost from DB
         var costRes = await authFetch('/api/v2/billing?action=event_cost&eventId=' + encodeURIComponent(currentEvent.id));
@@ -3430,7 +3436,6 @@
         usagePlanUser = true;
 
         updateCostTrackerUI();
-        // Always show for usage-plan users — $0.50 transaction fee minimum
         document.getElementById('costTracker').classList.remove('hidden');
       } catch (e) {
         // Non-critical — cost tracker just won't show
