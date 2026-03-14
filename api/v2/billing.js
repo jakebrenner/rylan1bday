@@ -1621,7 +1621,7 @@ export async function checkUserLimits(userId) {
   // Sum limits across ALL active subscriptions (each purchase adds another event slot)
   const { data: activeSubs } = await supabaseAdmin
     .from('subscriptions')
-    .select('*, plans:plan_id (max_events, max_generations)')
+    .select('*, plans:plan_id (max_events, max_generations, billing_type)')
     .eq('user_id', userId)
     .eq('status', 'active')
     .order('created_at', { ascending: false });
@@ -1634,6 +1634,9 @@ export async function checkUserLimits(userId) {
       reason: 'No active plan. Purchase a plan to create events.'
     };
   }
+
+  // Usage plans (pay-as-you-go) have unlimited events — no cap enforcement
+  const hasUsagePlan = activeSubs.some(sub => sub.plans?.billing_type === 'usage');
 
   // Aggregate limits from all active subscriptions
   let maxEvents = 0;
@@ -1656,7 +1659,7 @@ export async function checkUserLimits(userId) {
     .eq('status', 'success')
     .not('event_id', 'is', null);
 
-  const canCreateEvent = (eventCount || 0) < maxEvents;
+  const canCreateEvent = hasUsagePlan || (eventCount || 0) < maxEvents;
   const canGenerate = (genCount || 0) < maxGenerations;
 
   return {
@@ -1664,7 +1667,7 @@ export async function checkUserLimits(userId) {
     canCreateEvent,
     canGenerate,
     eventsUsed: eventCount || 0,
-    eventsMax: maxEvents,
+    eventsMax: hasUsagePlan ? Infinity : maxEvents,
     generationsUsed: genCount || 0,
     generationsMax: maxGenerations,
     reason: !canCreateEvent
