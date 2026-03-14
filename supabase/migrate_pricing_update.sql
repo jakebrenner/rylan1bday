@@ -15,6 +15,7 @@ ALTER TABLE events ADD COLUMN IF NOT EXISTS paid_at timestamptz;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS sms_limit integer DEFAULT 1000;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS sms_sent_count integer DEFAULT 0;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS free_generation_used boolean DEFAULT false;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS free_redo_used boolean DEFAULT false;
 
 -- Index for payment_status (used in WHERE filters across billing, events, SMS, and generation APIs)
 CREATE INDEX IF NOT EXISTS idx_events_payment_status ON events(payment_status);

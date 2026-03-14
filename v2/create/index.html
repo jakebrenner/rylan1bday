@@ -4738,6 +4738,7 @@
           return;
         }
       }
+      var isRedesignRedo = skipRedesignDetection; // Capture before reset — true if this came through redesign flow
       skipRedesignDetection = false; // Reset flag after detection check
 
       var userMsg = text || '(uploaded photo' + (designChatPhotoUrls.length > 1 ? 's' : '') + ')';
@@ -5052,6 +5053,8 @@
           rsvpFields: enabledFields.map(function(f) { return { field_key: f.field_key, label: f.label, field_type: f.field_type, is_required: f.is_required }; })
         };
         if (window._templateSource) payload.basedOnThemeId = window._templateSource.id || '';
+        // If this is a redesign redo on a free event, flag it so backend allows one more generation
+        if (isRedesignRedo && currentEvent && currentEvent.paymentStatus === 'free') payload.freeRedo = true;
 
         // Use streaming SSE to avoid timeouts
         var sseRes = await authFetch('/api/v2/generate-theme?action=tweak', {
@@ -5066,8 +5069,12 @@
           if (sseRes.status === 403) {
             var errJson403 = {};
             try { errJson403 = await sseRes.json(); } catch(e) {}
-            if (errJson403.requiresPayment) {
-              designChatHistory.push({ role: 'upgrade', content: "I'd love to make that change! Your free event includes 1 AI design. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite." });
+            if (errJson403.requiresPayment && errJson403.freeRedoAvailable) {
+              // First generation used, but redo still available — guide the user
+              designChatHistory.push({ role: 'assistant', content: "I can't make small tweaks on the free plan, but if the design is completely off from what you asked for, I can generate a brand new one.\n\nJust tell me what's wrong with the current design (e.g., \"this is a rocket theme but I asked for trains\") and I'll start fresh.\n\nOr upgrade for $4.99 to unlock unlimited design changes." });
+            } else if (errJson403.requiresPayment) {
+              // Both free gen + redo used — upgrade required
+              designChatHistory.push({ role: 'upgrade', content: "You've used your free design and redo. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite." });
             } else {
               designChatHistory.push({ role: 'assistant', content: errJson403.error || "I wasn't able to make that change right now." });
             }

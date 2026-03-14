@@ -1016,27 +1016,62 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Invalid session' });
   }
 
-  // Check per-event generation limits (free tier: 1, paid: soft cap 10)
+  // Check per-event generation limits (free tier: 1 + 1 redo, paid: soft cap 10)
   try {
     const eventIdForCheck = req.body?.eventId;
     if (eventIdForCheck) {
-      // Get event payment status + free generation flag
+      // Get event payment status + free generation flags
       const { data: eventForLimit } = await supabase
         .from('events')
-        .select('payment_status, user_id, free_generation_used')
+        .select('payment_status, user_id, free_generation_used, free_redo_used')
         .eq('id', eventIdForCheck)
         .single();
 
       if (eventForLimit && eventForLimit.user_id === user.id) {
-        // Free events: use boolean flag (not generation_log count, which includes pre-migration history)
-        if (eventForLimit.payment_status === 'free' && eventForLimit.free_generation_used) {
-          return res.status(403).json({
-            error: 'Your free event includes 1 AI design. Upgrade to $4.99 for unlimited designs.',
-            limitReached: true,
-            requiresPayment: true,
-            generationCount: 1,
-            generationLimit: 1
-          });
+        if (eventForLimit.payment_status === 'free') {
+          const freeGenUsed = eventForLimit.free_generation_used;
+          const freeRedoUsed = eventForLimit.free_redo_used;
+          const isFreeRedo = req.body?.freeRedo === true;
+
+          // Column exists and first gen is used
+          if (freeGenUsed === true) {
+            // Allow one redo if the design was completely wrong
+            if (isFreeRedo && freeRedoUsed !== true) {
+              // Allow — redo will be marked as used after success
+              req._isFreeRedo = true;
+            } else {
+              return res.status(403).json({
+                error: freeRedoUsed
+                  ? 'Your free event includes 1 AI design. Upgrade to $4.99 for unlimited designs.'
+                  : 'Your free event includes 1 AI design. If the design was completely wrong, tell me what\'s off and I can try once more.',
+                limitReached: true,
+                requiresPayment: true,
+                freeRedoAvailable: freeRedoUsed !== true,
+                generationCount: 1,
+                generationLimit: 1
+              });
+            }
+          }
+          // Column doesn't exist (null/undefined) — fallback to generation_log count
+          else if (freeGenUsed == null) {
+            const { count: fallbackCount } = await supabase
+              .from('generation_log')
+              .select('id', { count: 'exact', head: true })
+              .eq('event_id', eventIdForCheck)
+              .eq('status', 'success');
+
+            if ((fallbackCount || 0) >= 2) {
+              return res.status(403).json({
+                error: 'Your free event includes 1 AI design. Upgrade to $4.99 for unlimited designs.',
+                limitReached: true,
+                requiresPayment: true,
+                freeRedoAvailable: false,
+                generationCount: fallbackCount,
+                generationLimit: 1
+              });
+            }
+          }
+          // freeGenUsed === false → first generation, allow it
         }
 
         // Paid events: soft cap at 10 (include flag but don't block)
@@ -1784,6 +1819,13 @@ Return ONLY a valid JSON object with these keys:
           is_tweak: true, event_type: eventDetails?.eventType || '',
           client_ip: tweakMeta.ip, client_geo: tweakMeta.geo, user_agent: tweakMeta.userAgent
 }).catch(() => {});
+        // Mark free redo as used if applicable
+        if (req._isFreeRedo) {
+          supabase.from('events')
+            .update({ free_redo_used: true })
+            .eq('id', eventId).eq('payment_status', 'free')
+            .then(() => {}).catch(() => {});
+        }
         // Atomically increment persistent event cost
         try {
           const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: tweakCost.totalCostCents });
@@ -2192,9 +2234,11 @@ This is the most common failure mode. Double-check it.`;
         .eq('id', eventId).is('first_generation_at', null)
         .then(() => {}).catch(() => {});
       // Mark free generation as used (separate update — first_generation_at may already be set for migrated events)
+      const freeUpdate = { free_generation_used: true };
+      if (req._isFreeRedo) freeUpdate.free_redo_used = true;
       supabase.from('events')
-        .update({ free_generation_used: true })
-        .eq('id', eventId).eq('payment_status', 'free').is('free_generation_used', false)
+        .update(freeUpdate)
+        .eq('id', eventId).eq('payment_status', 'free')
         .then(() => {}).catch(() => {});
       // Atomically increment persistent event cost
       try {
