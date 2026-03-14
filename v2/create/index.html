@@ -4628,7 +4628,15 @@
         return sendDesignChatRsvpFields(text, input);
       }
 
-      // ── Free tier gate: block design chat if generation limit reached ──
+      // ── Free/unpaid tier gate: block design chat if generation limit reached ──
+      if (currentEvent && currentEvent.paymentStatus === 'unpaid') {
+        designChatHistory.push({ role: 'user', content: text });
+        designChatHistory.push({ role: 'upgrade', content: "This event requires a $4.99 upgrade before you can make design changes. Upgrade to unlock AI designs, SMS delivery, and everything you need." });
+        renderDesignChat();
+        input.value = '';
+        input.style.height = 'auto';
+        return;
+      }
       if (currentEvent && currentEvent.paymentStatus === 'free' && currentEvent.freeGenerationUsed) {
         // Allow Tier 1 client-side operations (RSVP field changes) — they don't cost anything
         var rsvpFieldPattern = /\b(remove|delete|drop|hide|add|include|make .+ (required|optional))\b.{0,30}\b(field|name|email|phone|dietary|allergies|plus.?one|song|meal|kids|guests?|notes?|message|comment)\b/i;

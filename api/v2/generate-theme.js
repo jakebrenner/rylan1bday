@@ -1030,6 +1030,18 @@ export default async function handler(req, res) {
         .single();
 
       if (eventForLimit && eventForLimit.user_id === user.id) {
+        // Unpaid events (2nd+ event) must pay before generating
+        if (eventForLimit.payment_status === 'unpaid') {
+          return res.status(403).json({
+            error: 'This event requires payment before generating designs. Upgrade for $4.99.',
+            limitReached: true,
+            requiresPayment: true,
+            freeRedoAvailable: false,
+            generationCount: 0,
+            generationLimit: 0
+          });
+        }
+
         if (eventForLimit.payment_status === 'free') {
           const freeGenUsed = eventForLimit.free_generation_used;
           const freeRedoUsed = eventForLimit.free_redo_used;
@@ -1091,7 +1103,8 @@ export default async function handler(req, res) {
       }
     }
   } catch (e) {
-    console.warn('Generation limit check failed, allowing generation:', e.message);
+    console.error('Generation limit check failed, blocking generation:', e.message);
+    return res.status(500).json({ error: 'Unable to verify generation limits. Please try again.' });
   }
 
   const action = req.query?.action || req.body?.action || 'generate';
