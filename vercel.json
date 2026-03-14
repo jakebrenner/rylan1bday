@@ -62,6 +62,18 @@
       "maxDuration": 30
     }
   },
+  "redirects": [
+    {
+      "source": "/pricing",
+      "destination": "/v2/pricing/",
+      "permanent": true
+    },
+    {
+      "source": "/pricing/",
+      "destination": "/v2/pricing/",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/sitemap.xml",
