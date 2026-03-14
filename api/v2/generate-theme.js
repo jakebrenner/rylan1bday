@@ -1030,8 +1030,8 @@ export default async function handler(req, res) {
         .single();
 
       if (eventForLimit && eventForLimit.user_id === user.id) {
-        // Unpaid events (2nd+ event) must pay before generating
-        if (eventForLimit.payment_status === 'unpaid') {
+        // Unpaid or refunded events must pay before generating
+        if (eventForLimit.payment_status === 'unpaid' || eventForLimit.payment_status === 'refunded') {
           return res.status(403).json({
             error: 'This event requires payment before generating designs. Upgrade for $4.99.',
             limitReached: true,

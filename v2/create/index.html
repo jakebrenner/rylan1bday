@@ -4629,7 +4629,7 @@
       }
 
       // ── Free/unpaid tier gate: block design chat if generation limit reached ──
-      if (currentEvent && currentEvent.paymentStatus === 'unpaid') {
+      if (currentEvent && (currentEvent.paymentStatus === 'unpaid' || currentEvent.paymentStatus === 'refunded')) {
         designChatHistory.push({ role: 'user', content: text });
         designChatHistory.push({ role: 'upgrade', content: "This event requires a $4.99 upgrade before you can make design changes. Upgrade to unlock AI designs, SMS delivery, and everything you need." });
         renderDesignChat();
