@@ -675,8 +675,9 @@ export default async function handler(req, res) {
             .replace(/\{name\}/gi, guestName)
             .replace(/\{link\}/gi, guestLink);
         } else {
-          // Simple, branded email invite — drives clicks to the full invite page.
-          // Background uses a soft tint of the theme's primary color for brand consistency.
+          // Ryvite-branded email invite — dark header, cream background, clean card, gradient CTA.
+          // Matches the Ryvite auth emails and brand guidelines for a consistent experience.
+          const accentTint = mix(primaryColor, '#FFFFFF', 0.85);
 
           html = `<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
@@ -689,59 +690,69 @@ export default async function handler(req, res) {
 <title>You're invited to ${eventTitle}</title>
 <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 </head>
-<body style="margin:0;padding:0;background-color:${cardBg};-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<body style="margin:0;padding:0;background-color:#FFFAF5;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
 <!-- Preheader text -->
-<div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:${cardBg};">
+<div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:#FFFAF5;">
   ${hostName} has invited you to ${eventTitle}${eventDate ? ' on ' + eventDate : ''}. View your invitation and RSVP!
   ${'&nbsp;&zwnj;'.repeat(30)}
 </div>
 
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${cardBg};">
-<tr><td align="center" style="padding:40px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#FFFAF5;padding:40px 20px;">
+<tr><td align="center">
+<table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;width:100%;">
 
-<!-- Email container -->
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
+  <!-- Branded header -->
+  <tr><td align="center" style="padding-bottom:0;">
+    <div style="background:linear-gradient(135deg, #1A1A2E 0%, #0f3460 100%);border-radius:12px 12px 0 0;padding:28px 40px;text-align:center;">
+      <h1 style="margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px;color:#FFFFFF;letter-spacing:-0.5px;">Ryvite</h1>
+      <p style="margin:4px 0 0;font-size:12px;color:#FFB74D;font-style:italic;font-family:'Inter',Arial,sans-serif;">Prompt to Party</p>
+    </div>
+  </td></tr>
 
-  <!-- Main card -->
-  <tr><td align="center" style="background-color:${emailBg};padding:48px 40px 44px;">
+  <!-- Accent bar (event's primary color) -->
+  <tr><td style="height:4px;background-color:${primaryColor};font-size:0;line-height:0;" height="4">&nbsp;</td></tr>
+
+  <!-- Main card body -->
+  <tr><td style="background-color:#FFFFFF;padding:40px 36px 36px;box-shadow:0 4px 24px rgba(26,26,46,0.08);">
 
     <!-- "You're Invited" headline -->
-    <h1 style="font-family:'${headlineFont}',Georgia,'Times New Roman',serif;font-size:36px;font-weight:700;color:${emailTextColor};margin:0 0 8px;line-height:1.2;">You're Invited</h1>
+    <h2 style="font-family:'Playfair Display',Georgia,'Times New Roman',serif;font-size:30px;font-weight:700;color:#1A1A2E;margin:0 0 6px;line-height:1.2;text-align:center;">You're Invited</h2>
 
     <!-- Event title -->
-    <p style="font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:18px;color:${emailSubtextColor};margin:0 0 8px;line-height:1.4;">${eventTitle}</p>
+    <p style="font-family:'Inter',Arial,Helvetica,sans-serif;font-size:17px;color:#5A5A6E;margin:0 0 20px;line-height:1.4;text-align:center;">${eventTitle}</p>
 
-    <!-- Date and location -->
-    ${eventDate ? `<p style="font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:14px;color:${emailSubtextColor};margin:0 0 4px;line-height:1.4;">${eventDate}</p>` : ''}
-    ${event.location_name ? `<p style="font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:14px;color:${emailSubtextColor};margin:0;line-height:1.4;">${event.location_name}</p>` : ''}
+    <!-- Event details card (tinted with event color) -->
+    ${eventDate || event.location_name ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:${accentTint};padding:20px 24px;border-left:3px solid ${primaryColor};">
+      ${eventDate ? `<p style="font-family:'Inter',Arial,Helvetica,sans-serif;font-size:14px;color:#1A1A2E;margin:0 0 4px;line-height:1.5;font-weight:600;">${eventDate}</p>` : ''}
+      ${event.location_name ? `<p style="font-family:'Inter',Arial,Helvetica,sans-serif;font-size:14px;color:#5A5A6E;margin:0;line-height:1.5;">${event.location_name}</p>` : ''}
+    </td></tr></table>` : ''}
 
     <!-- Spacer -->
     <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td style="height:32px;font-size:0;line-height:0;" height="32">&nbsp;</td>
+      <td style="height:28px;font-size:0;line-height:0;" height="28">&nbsp;</td>
     </tr></table>
 
-    <!-- CTA button -->
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-    <tr><td align="center" style="background-color:${primaryColor};padding:18px 56px;">
-      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${guestLink}" style="height:56px;v-text-anchor:middle;width:240px;" arcsize="20%" fillcolor="${primaryColor}" stroke="f"><v:textbox inset="0,0,0,0"><center style="font-family:Arial,sans-serif;font-size:17px;font-weight:bold;color:${btnTextColor};">View Invitation</center></v:textbox></v:roundrect><![endif]-->
+    <!-- CTA button (Ryvite coral gradient, pill) -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr><td align="center" style="padding:0 0 8px;">
+      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${guestLink}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="50%" fillcolor="#E94560" stroke="f"><v:textbox inset="0,0,0,0"><center style="font-family:Arial,sans-serif;font-size:16px;font-weight:bold;color:#FFFFFF;">View Invitation</center></v:textbox></v:roundrect><![endif]-->
       <!--[if !mso]><!-->
-      <a href="${guestLink}" target="_blank" style="display:inline-block;font-family:'${bodyFont}',Arial,Helvetica,sans-serif;font-size:17px;font-weight:700;color:${btnTextColor};text-decoration:none;letter-spacing:0.5px;line-height:1;">View Invitation</a>
+      <a href="${guestLink}" target="_blank" style="display:inline-block;padding:14px 48px;background:linear-gradient(135deg, #E94560, #FF6B6B);color:#FFFFFF;font-size:16px;font-weight:600;text-decoration:none;border-radius:50px;font-family:'Inter',Arial,Helvetica,sans-serif;letter-spacing:0.3px;">View Invitation</a>
       <!--<![endif]-->
     </td></tr>
     </table>
 
+    <!-- Subtle helper text -->
+    <p style="font-family:'Inter',Arial,Helvetica,sans-serif;font-size:12px;color:#D1D5DB;margin:16px 0 0;line-height:1.5;text-align:center;">Tap the button to see your full invitation and RSVP</p>
+
   </td></tr>
 
-  <!-- Footer with Ryvite logo PNG -->
-  <tr><td align="center" style="padding:28px 40px;">
-    <a href="https://ryvite.com" target="_blank" style="text-decoration:none;">
-      <img src="${baseUrl}/api/logo.png" alt="Ryvite" width="80" height="24" style="display:inline-block;width:80px;height:24px;border:0;" />
-    </a>
+  <!-- Footer -->
+  <tr><td align="center" style="padding:20px 0 0;">
+    <p style="margin:0;font-size:12px;color:#D1D5DB;font-family:'Inter',Arial,sans-serif;">&copy; 2026 Ryvite &mdash; Beautiful invitations, effortlessly.</p>
   </td></tr>
 
 </table>
-<!-- /Email container -->
-
 </td></tr>
 </table>
 </body>

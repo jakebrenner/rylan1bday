@@ -1260,13 +1260,22 @@ These rules ensure the email renders correctly in Gmail, Apple Mail, Outlook, Ya
 - Include preheader text (hidden preview text for inbox) in a hidden div at top of body
 - Include \`<meta name="color-scheme" content="light">\` and \`<meta name="supported-color-schemes" content="light">\`
 
-## DESIGN PHILOSOPHY
-- The email body MUST always be white (#FFFFFF) or very light — NEVER use a dark background for the email body, even if the invite theme is dark. Dark-themed invites convey their personality through accent colors (top bar, card accent, button), headline fonts, and the details card tint — not a dark email background.
-- Use the theme's primaryColor for: top accent bar, details card top border, CTA button background
-- Use a very soft tint of primaryColor (mixed ~92% toward white) for the details card background
-- Text is always dark (#1A1A2E for headlines, #5A5A6E for body/subtext, #9A9AAE for footer) — never use the invite's textColor directly since it may be white (designed for dark backgrounds)
-- Keep it a teaser — show event name, date, location, a compelling CTA button, and a hint to "view the full invitation"
-- No emoji unicode characters (render inconsistently across clients) — use plain text instead
+## DESIGN PHILOSOPHY — RYVITE BRANDED EMAIL
+The email follows Ryvite's brand guidelines. The template structure is:
+1. **Dark branded header** — background: linear-gradient(135deg, #1A1A2E, #0f3460), border-radius: 12px 12px 0 0, "Ryvite" in Playfair Display white, "Prompt to Party" in #FFB74D italic
+2. **Accent bar** — 4px tall, uses the event's primaryColor for personality
+3. **White card body** — #FFFFFF background, centered content, box-shadow for depth
+4. **Event details card** — uses a soft tint of primaryColor (~85% toward white) background with a 3px left border in primaryColor
+5. **CTA button** — Ryvite coral gradient (linear-gradient(135deg, #E94560, #FF6B6B)), pill shape (border-radius: 50px), white text, "View Invitation"
+6. **Footer** — "&copy; 2026 Ryvite — Beautiful invitations, effortlessly." in #D1D5DB
+
+Outer background: #FFFAF5 (Ryvite cream). Max-width: 480px.
+
+- The event's primaryColor is used ONLY for the accent bar and details card tint/border — NOT the CTA button (always Ryvite coral gradient)
+- Text is always dark (#1A1A2E headlines, #5A5A6E body, #D1D5DB footer)
+- No emoji unicode characters (render inconsistently across clients)
+- Keep it a teaser — show event name, date, location, a compelling CTA, and a hint to "view the full invitation"
+- When users tweak the email, preserve the branded header/footer structure — only modify the card body content
 - The email is a first impression — make it feel premium and on-brand, not generic`
         : isLightTweak
         ? `You are modifying an event ${isEmailMode ? 'email invite' : 'invite'}. Make ONLY the specific text, wording, or content changes requested. Do NOT change design, layout, colors, fonts, or CSS.

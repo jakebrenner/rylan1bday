@@ -4161,20 +4161,13 @@
         return emailHtml;
       }
 
-      // Simple, branded email — clean card on a tinted background
+      // ── Ryvite-branded email template ──
+      // Matches the auth email style: dark header, cream background, clean card, gradient CTA
       var pc = config.primaryColor || '#E94560';
-      var hf = config.fontHeadline || 'Playfair Display';
-      var bf = config.fontBody || 'Inter';
 
-      var emailBg = '#FFFFFF';
-      var emailText = '#1A1A2E';
-      var emailSubtext = '#5A5A6E';
-      var cardBg = mixColor(pc, '#FFFFFF', 0.92);
-
-      // Button text contrast
-      var pcRgb = hexToRgb(pc);
-      var lum = (0.299*pcRgb[0] + 0.587*pcRgb[1] + 0.114*pcRgb[2]) / 255;
-      var btnText = lum > 0.55 ? '#1A1A2E' : '#FFFFFF';
+      // Derive a soft accent tint from the event's primary color
+      var accentTint = mixColor(pc, '#FFFFFF', 0.85);
+      var accentLine = pc;
 
       var title = extractedData.title || currentEvent?.title || 'Your Event';
       var eventDate = extractedData.startDate
@@ -4183,42 +4176,57 @@
       var location = extractedData.locationName || '';
 
       return '<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">'
-        + '<style>body{margin:0;padding:0;background-color:' + cardBg + ';-webkit-text-size-adjust:100%}</style>'
-        + '</head><body style="margin:0;padding:0;background-color:' + cardBg + ';">'
+        + '<style>body{margin:0;padding:0;background-color:#FFFAF5;-webkit-text-size-adjust:100%}</style>'
+        + '</head><body style="margin:0;padding:0;background-color:#FFFAF5;">'
 
-        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:' + cardBg + ';">'
-        + '<tr><td align="center" style="padding:40px 16px;">'
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#FFFAF5;padding:40px 20px;">'
+        + '<tr><td align="center">'
+        + '<table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;width:100%;">'
 
-        // Email container
-        + '<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">'
+        // ── Branded header (dark, matching auth emails) ──
+        + '<tr><td align="center" style="padding-bottom:0;">'
+        + '<div style="background:linear-gradient(135deg, #1A1A2E 0%, #0f3460 100%);border-radius:12px 12px 0 0;padding:28px 40px;text-align:center;">'
+        + '<h1 style="margin:0;font-family:\'Playfair Display\',Georgia,serif;font-size:24px;color:#FFFFFF;letter-spacing:-0.5px;">Ryvite</h1>'
+        + '<p style="margin:4px 0 0;font-size:12px;color:#FFB74D;font-style:italic;font-family:\'Inter\',Arial,sans-serif;">Prompt to Party</p>'
+        + '</div>'
+        + '</td></tr>'
 
-        // Main card
-        + '<tr><td align="center" style="background-color:' + emailBg + ';padding:48px 40px 44px;">'
+        // ── Accent bar (uses event's primary color) ──
+        + '<tr><td style="height:4px;background-color:' + accentLine + ';font-size:0;line-height:0;" height="4">&nbsp;</td></tr>'
 
-        // Headline
-        + '<h1 style="font-family:\'' + hf + '\',Georgia,\'Times New Roman\',serif;font-size:36px;font-weight:700;color:' + emailText + ';margin:0 0 8px;line-height:1.2;">You\'re Invited</h1>'
+        // ── Main card body ──
+        + '<tr><td style="background-color:#FFFFFF;padding:40px 36px 36px;">'
+
+        // "You're Invited" headline
+        + '<h2 style="font-family:\'Playfair Display\',Georgia,\'Times New Roman\',serif;font-size:30px;font-weight:700;color:#1A1A2E;margin:0 0 6px;line-height:1.2;text-align:center;">You\'re Invited</h2>'
 
         // Event title
-        + '<p style="font-family:\'' + bf + '\',Arial,Helvetica,sans-serif;font-size:18px;color:' + emailSubtext + ';margin:0 0 8px;line-height:1.4;">' + escapeHtml(title) + '</p>'
+        + '<p style="font-family:\'Inter\',Arial,Helvetica,sans-serif;font-size:17px;color:#5A5A6E;margin:0 0 20px;line-height:1.4;text-align:center;">' + escapeHtml(title) + '</p>'
 
-        // Date and location
-        + (eventDate ? '<p style="font-family:\'' + bf + '\',Arial,Helvetica,sans-serif;font-size:14px;color:' + emailSubtext + ';margin:0 0 4px;line-height:1.4;">' + escapeHtml(eventDate) + '</p>' : '')
-        + (location ? '<p style="font-family:\'' + bf + '\',Arial,Helvetica,sans-serif;font-size:14px;color:' + emailSubtext + ';margin:0;line-height:1.4;">' + escapeHtml(location) + '</p>' : '')
+        // ── Event details card (tinted with event color) ──
+        + (eventDate || location
+          ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:' + accentTint + ';padding:20px 24px;border-left:3px solid ' + accentLine + ';">'
+            + (eventDate ? '<p style="font-family:\'Inter\',Arial,Helvetica,sans-serif;font-size:14px;color:#1A1A2E;margin:0 0 4px;line-height:1.5;font-weight:600;">' + escapeHtml(eventDate) + '</p>' : '')
+            + (location ? '<p style="font-family:\'Inter\',Arial,Helvetica,sans-serif;font-size:14px;color:#5A5A6E;margin:0;line-height:1.5;">' + escapeHtml(location) + '</p>' : '')
+            + '</td></tr></table>'
+          : '')
 
         // Spacer
-        + '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="height:32px;font-size:0;line-height:0;" height="32">&nbsp;</td></tr></table>'
+        + '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="height:28px;font-size:0;line-height:0;" height="28">&nbsp;</td></tr></table>'
 
-        // CTA button
-        + '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>'
-        + '<td align="center" style="background-color:' + pc + ';padding:18px 56px;">'
-        + '<a href="#" target="_blank" style="display:inline-block;font-family:\'' + bf + '\',Arial,Helvetica,sans-serif;font-size:17px;font-weight:700;color:' + btnText + ';text-decoration:none;letter-spacing:0.5px;line-height:1;">View Invitation</a>'
+        // ── CTA button (coral gradient, pill shape) ──
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:0 0 8px;">'
+        + '<a href="#" target="_blank" style="display:inline-block;padding:14px 48px;background:linear-gradient(135deg, #E94560, #FF6B6B);color:#FFFFFF;font-size:16px;font-weight:600;text-decoration:none;border-radius:50px;font-family:\'Inter\',Arial,Helvetica,sans-serif;letter-spacing:0.3px;">View Invitation</a>'
         + '</td></tr></table>'
+
+        // Subtle message
+        + '<p style="font-family:\'Inter\',Arial,Helvetica,sans-serif;font-size:12px;color:#D1D5DB;margin:16px 0 0;line-height:1.5;text-align:center;">Tap the button to see your full invitation and RSVP</p>'
 
         + '</td></tr>'
 
-        // Footer with Ryvite logo
-        + '<tr><td align="center" style="padding:28px 40px;">'
-        + '<img src="/api/logo.png" alt="Ryvite" width="80" height="24" style="display:inline-block;width:80px;height:24px;border:0;" />'
+        // ── Footer ──
+        + '<tr><td align="center" style="padding:20px 0 0;">'
+        + '<p style="margin:0;font-size:12px;color:#D1D5DB;font-family:\'Inter\',Arial,sans-serif;">&copy; 2026 Ryvite &mdash; Beautiful invitations, effortlessly.</p>'
         + '</td></tr>'
 
         + '</table>'
