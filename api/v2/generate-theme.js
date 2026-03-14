@@ -1819,12 +1819,11 @@ Return ONLY a valid JSON object with these keys:
           is_tweak: true, event_type: eventDetails?.eventType || '',
           client_ip: tweakMeta.ip, client_geo: tweakMeta.geo, user_agent: tweakMeta.userAgent
 }).catch(() => {});
-        // Mark free redo as used if applicable
+        // Mark free redo as used if applicable — MUST be awaited
         if (req._isFreeRedo) {
-          supabase.from('events')
+          await supabase.from('events')
             .update({ free_redo_used: true })
-            .eq('id', eventId).eq('payment_status', 'free')
-            .then(() => {}).catch(() => {});
+            .eq('id', eventId).eq('payment_status', 'free');
         }
         // Atomically increment persistent event cost
         try {
@@ -2229,17 +2228,15 @@ This is the most common failure mode. Double-check it.`;
         prompt_version_id: activePrompt.promptVersionId || null,
         client_ip: genMeta.ip, client_geo: genMeta.geo, user_agent: genMeta.userAgent
 }).catch(() => {});
-      supabase.from('events')
+      await supabase.from('events')
         .update({ first_generation_at: new Date().toISOString() })
-        .eq('id', eventId).is('first_generation_at', null)
-        .then(() => {}).catch(() => {});
-      // Mark free generation as used (separate update — first_generation_at may already be set for migrated events)
+        .eq('id', eventId).is('first_generation_at', null);
+      // Mark free generation as used — MUST be awaited or Vercel kills the function before it completes
       const freeUpdate = { free_generation_used: true };
       if (req._isFreeRedo) freeUpdate.free_redo_used = true;
-      supabase.from('events')
+      await supabase.from('events')
         .update(freeUpdate)
-        .eq('id', eventId).eq('payment_status', 'free')
-        .then(() => {}).catch(() => {});
+        .eq('id', eventId).eq('payment_status', 'free');
       // Atomically increment persistent event cost
       try {
         const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: genCost.totalCostCents });
