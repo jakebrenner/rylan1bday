@@ -1151,7 +1151,7 @@
       var defaultMsg = manageMsgType === 'invite' ? defaultInviteMsg : '';
       var placeholder = manageMsgType === 'invite' ? 'Write your invite message...' : 'Type your update message...';
       html += '<textarea class="compose-textarea" id="smsComposeText" placeholder="' + placeholder + '" oninput="updateSmsPreview()">' + escapeHtml(defaultMsg) + '</textarea>';
-      html += '<div class="compose-helper">{name} will be replaced with each guest\'s name · {link} will insert the RSVP link</div>';
+      html += '<div class="compose-helper">{name} → guest\'s name · {link} → personalized RSVP link (unique per guest)</div>';
 
       // Stats row + test SMS
       html += '<div class="compose-stats">'
@@ -1282,8 +1282,9 @@
     }
 
     function resolveMessagePlaceholders(text) {
-      var inviteUrl = getInviteUrl();
-      return text.replace(/\{link\}/gi, inviteUrl);
+      // {name} and {link} are resolved server-side per-guest
+      // {link} generates a personalized URL with each guest's invite ID
+      return text;
     }
 
     async function sendTestSms() {

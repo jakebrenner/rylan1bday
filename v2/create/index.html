@@ -53,11 +53,11 @@
     .btn-secondary { background: #f0f0f0; color: var(--midnight); }
     .btn-secondary:hover { background: #e0e0e0; }
     .btn-sm { padding: 6px 14px; font-size: 12px; }
-    .button-group { display: flex; gap: 10px; margin-top: 40px; flex-wrap: wrap; }
-    .button-group .btn { flex: 1; min-width: 0; white-space: nowrap; font-size: 13px; padding: 12px 16px; }
+    .button-group { display: flex; gap: 12px; margin-top: 40px; flex-wrap: wrap; }
+    .button-group .btn { flex: 1; min-width: 0; white-space: nowrap; font-size: 15px; padding: 16px 24px; border-radius: 12px; }
     @media (max-width: 640px) {
-      .button-group { gap: 8px; }
-      .button-group .btn { font-size: 12px; padding: 10px 12px; }
+      .button-group { gap: 10px; }
+      .button-group .btn { font-size: 14px; padding: 14px 20px; }
     }
     @media (max-width: 420px) {
       .button-group { flex-direction: column; }
@@ -505,7 +505,7 @@
             <div class="gen-emoji-float" id="genEmoji">🎨</div>
             <h3 class="gen-title">Creating Your Invite</h3>
             <p class="gen-subtitle" id="generatingPun">Our AI is designing something special...</p>
-            <p class="gen-time-hint">This usually takes 30–60 seconds — good things take time!</p>
+            <p class="gen-time-hint">Right now invites are taking about a minute — good things take time!</p>
             <div class="gen-progress-track"><div class="gen-progress-bar" id="genProgressBar"></div></div>
             <div class="gen-stages" id="genStages">
               <div class="gen-stage active" data-stage="analyze">
@@ -720,8 +720,9 @@
           <!-- Right: Phone preview -->
           <div id="previewColumn" style="flex:0 0 auto;">
             <div id="previewToggle" style="display:flex;justify-content:center;gap:4px;margin-bottom:8px;">
-              <button class="preview-toggle-btn active" onclick="setPreviewMode('invite')">Invite</button>
-              <button class="preview-toggle-btn" onclick="setPreviewMode('thankyou')">Thank You</button>
+              <button class="preview-toggle-btn active" data-mode="invite" onclick="setPreviewMode('invite')">Invite</button>
+              <button class="preview-toggle-btn" data-mode="thankyou" onclick="setPreviewMode('thankyou')">Thank You</button>
+              <button class="preview-toggle-btn" data-mode="email" onclick="setPreviewMode('email')">Email</button>
             </div>
             <div class="phone-mockup">
               <div class="phone-frame">
@@ -793,7 +794,54 @@
       <div class="button-group" style="max-width:640px;margin:24px auto 0;">
         <button class="btn btn-secondary" onclick="previousStep()">Back to Design</button>
         <button class="btn" onclick="publishEvent(false)" style="background:#f0f0f0;color:var(--midnight);">Only Publish</button>
-        <button class="btn btn-primary" id="publishBtn" onclick="publishEvent(true)">Publish & Send Invites</button>
+        <button class="btn btn-primary" id="publishBtn" onclick="showSendOptions()">Publish & Send Invites</button>
+      </div>
+
+      <!-- Send Options Modal -->
+      <div id="sendOptionsModal" onclick="if(event.target===this)closeSendOptions()" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:16px;max-width:480px;width:90%;max-height:90vh;overflow-y:auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+          <h3 style="margin:0 0 4px;font-size:20px;color:var(--midnight);">Send Invites</h3>
+          <p style="margin:0 0 20px;font-size:14px;color:#888;">Choose how to notify your guests</p>
+
+          <!-- SMS option -->
+          <label id="sendOptSms" class="send-option" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:2px solid var(--party-coral);border-radius:12px;cursor:pointer;margin-bottom:10px;background:rgba(233,69,96,0.04);">
+            <input type="checkbox" id="sendViaSms" checked onchange="updateSendPreview()" style="margin-top:3px;width:18px;height:18px;accent-color:var(--party-coral);">
+            <div style="flex:1;">
+              <div style="font-weight:600;font-size:15px;color:var(--midnight);">SMS Text Message</div>
+              <div id="smsGuestCount" style="font-size:13px;color:#888;margin-top:2px;"></div>
+            </div>
+          </label>
+
+          <!-- Email option -->
+          <label id="sendOptEmail" class="send-option" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:2px solid #e0e0e0;border-radius:12px;cursor:pointer;margin-bottom:16px;">
+            <input type="checkbox" id="sendViaEmail" onchange="updateSendPreview()" style="margin-top:3px;width:18px;height:18px;accent-color:var(--party-coral);">
+            <div style="flex:1;">
+              <div style="font-weight:600;font-size:15px;color:var(--midnight);">Email</div>
+              <div style="font-size:13px;color:#888;margin-top:2px;" id="emailGuestCount"></div>
+            </div>
+          </label>
+
+          <!-- SMS Message Template -->
+          <div id="smsTemplateSection">
+            <label style="font-weight:600;font-size:13px;color:var(--midnight);display:block;margin-bottom:6px;">SMS Message</label>
+            <textarea id="sendSmsMessage" style="width:100%;min-height:72px;border:1.5px solid #ddd;border-radius:10px;padding:12px;font-family:inherit;font-size:14px;resize:vertical;box-sizing:border-box;" oninput="updateSendPreview()"></textarea>
+            <div style="font-size:12px;color:#999;margin-top:4px;">{name} = guest's name &middot; {link} = personalized RSVP link</div>
+          </div>
+
+          <!-- Email note -->
+          <div id="emailTemplateSection" style="display:none;margin-top:12px;padding:12px 16px;background:rgba(233,69,96,0.04);border-radius:10px;font-size:13px;color:#666;">
+            A branded email invite will be sent with the event details and a personalized RSVP link.
+          </div>
+
+          <!-- Cost estimate -->
+          <div id="sendCostEstimate" style="margin-top:16px;padding:12px 16px;background:#f8f8f8;border-radius:10px;font-size:14px;color:var(--midnight);display:none;"></div>
+
+          <!-- Buttons -->
+          <div style="display:flex;gap:10px;margin-top:20px;">
+            <button class="btn btn-secondary" onclick="closeSendOptions()" style="flex:1;">Cancel</button>
+            <button class="btn btn-primary" id="confirmSendBtn" onclick="publishAndSend()" style="flex:1;">Publish & Send</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -824,6 +872,28 @@
     var _genRetried = false; // prevents infinite retry on mobile "Load failed"
     var eventGenCount = 0;
     var usagePlanUser = false;
+
+    // ── Average generation time (fetched from API, replaces hardcoded "30-60 seconds") ──
+    var _avgGenTimeText = 'about a minute'; // fallback until API responds
+    (function fetchAvgLatency() {
+      fetch('/api/v2/generate-theme?action=avgLatency')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d && d.displaySeconds) {
+            var secs = d.displaySeconds;
+            if (secs <= 30) _avgGenTimeText = 'about 30 seconds';
+            else if (secs <= 60) _avgGenTimeText = 'about ' + secs + ' seconds';
+            else if (secs <= 90) _avgGenTimeText = 'about a minute';
+            else if (secs <= 120) _avgGenTimeText = 'about ' + Math.round(secs / 60) + ' minutes';
+            else _avgGenTimeText = 'about ' + Math.round(secs / 60) + ' minutes';
+            // Update any already-rendered hints
+            document.querySelectorAll('.gen-time-hint').forEach(function(el) {
+              el.textContent = 'Right now invites are taking ' + _avgGenTimeText + ' \u2014 good things take time!';
+            });
+          }
+        })
+        .catch(function() { /* use fallback */ });
+    })();
 
     var ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp'];
     var ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.heic', '.heif', '.webp'];
@@ -991,9 +1061,11 @@
                 dressCode: ev.dressCode || '', description: ev.description || '', prompt: ''
               };
               if (ev.customFields && ev.customFields.length > 0) {
-                rsvpFields = ev.customFields.map(function(f) {
-                  return { field_key: f.key, label: f.label, field_type: f.type, is_required: f.required, options: f.options, placeholder: f.placeholder, enabled: true };
-                });
+                rsvpFields = ev.customFields
+                  .filter(function(f) { return f.key !== 'email' && f.key !== 'phone'; })
+                  .map(function(f) {
+                    return { field_key: f.key, label: f.label, field_type: f.type, is_required: f.required, options: f.options, placeholder: f.placeholder, enabled: true };
+                  });
               }
               // Update themes if server has newer data
               if (ev.themeVersions && ev.themeVersions.length > 0) {
@@ -1056,11 +1128,13 @@
               description: ev.description || '',
               prompt: ''
             };
-            // Restore RSVP fields
+            // Restore RSVP fields (filter out email/phone since they are now built-in)
             if (ev.customFields && ev.customFields.length > 0) {
-              rsvpFields = ev.customFields.map(function(f) {
-                return { field_key: f.key, label: f.label, field_type: f.type, is_required: f.required, options: f.options, placeholder: f.placeholder, enabled: true };
-              });
+              rsvpFields = ev.customFields
+                .filter(function(f) { return f.key !== 'email' && f.key !== 'phone'; })
+                .map(function(f) {
+                  return { field_key: f.key, label: f.label, field_type: f.type, is_required: f.required, options: f.options, placeholder: f.placeholder, enabled: true };
+                });
             }
             // Restore theme versions
             if (ev.themeVersions && ev.themeVersions.length > 0) {
@@ -1079,7 +1153,7 @@
               + '<div class="gen-emoji-float" id="genEmoji">🎨</div>'
               + '<h3 class="gen-title">Creating Your Invite</h3>'
               + '<p class="gen-subtitle" id="generatingPun">Our AI is designing something special...</p>'
-              + '<p class="gen-time-hint">This usually takes 30\u201360 seconds \u2014 good things take time!</p>'
+              + '<p class="gen-time-hint">Right now invites are taking ' + _avgGenTimeText + ' \u2014 good things take time!</p>'
               + '<div class="gen-progress-track"><div class="gen-progress-bar" id="genProgressBar"></div></div>'
               + '<div class="gen-stages" id="genStages">'
               + '<div class="gen-stage active" data-stage="analyze"><div class="gen-stage-icon"><div class="gen-spinner"></div></div><div class="gen-stage-text">Analyzing your event details</div></div>'
@@ -1352,17 +1426,18 @@
           }
 
           // Store suggested RSVP fields when AI proposes them (awaiting confirmation)
+          // Filter out email/phone since they are now built-in fields
           if (result.suggestedRsvpFields && result.suggestedRsvpFields.length > 0) {
-            rsvpFields = result.suggestedRsvpFields.map(function(f) {
-              return Object.assign({}, f, { enabled: true });
-            });
+            rsvpFields = result.suggestedRsvpFields
+              .filter(function(f) { return f.field_key !== 'email' && f.field_key !== 'phone'; })
+              .map(function(f) { return Object.assign({}, f, { enabled: true }); });
           }
 
           // Always keep latest RSVP fields from the AI
           if (result.suggestedRsvpFields && result.suggestedRsvpFields.length > 0) {
-            rsvpFields = result.suggestedRsvpFields.map(function(f) {
-              return Object.assign({}, f, { enabled: true });
-            });
+            rsvpFields = result.suggestedRsvpFields
+              .filter(function(f) { return f.field_key !== 'email' && f.field_key !== 'phone'; })
+              .map(function(f) { return Object.assign({}, f, { enabled: true }); });
           }
 
           addChatBubble(result.message, 'assistant');
@@ -1414,7 +1489,6 @@
       };
 
       rsvpFields = [
-        { field_key: 'email', label: 'Email', field_type: 'email', is_required: false, options: null, placeholder: 'your@email.com', enabled: true },
         { field_key: 'dietary_restrictions', label: 'Dietary Restrictions', field_type: 'text', is_required: false, options: null, placeholder: 'Any allergies or dietary needs?', enabled: true },
         { field_key: 'number_of_kids', label: 'Number of Kids Attending', field_type: 'number', is_required: true, options: null, placeholder: '1', enabled: true }
       ];
@@ -1503,7 +1577,7 @@
       if (enabledFields.length > 0) {
         html += '<div style="margin-top:16px;border-top:1px solid #eee;padding-top:14px;">'
           + '<h4 style="font-size:14px;font-weight:600;margin-bottom:8px;">RSVP Fields</h4>'
-          + '<div style="font-size:11px;color:#999;margin-bottom:8px;padding:6px 10px;background:#f9f9f9;border-radius:6px;">Always included: <strong>Name</strong>, <strong>RSVP Status</strong></div>'
+          + '<div style="font-size:11px;color:#999;margin-bottom:8px;padding:6px 10px;background:#f9f9f9;border-radius:6px;">Always included: <strong>Name</strong>, <strong>Email</strong>, <strong>Phone</strong>, <strong>RSVP Status</strong></div>'
           + enabledFields.map(function(f) {
               var meta = (FIELD_TYPE_LABELS[f.field_type] || f.field_type);
               return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px;">'
@@ -1515,7 +1589,7 @@
 
           + '<h4 style="font-size:14px;font-weight:600;margin-bottom:4px;">RSVP Fields</h4>'
           + '<p style="font-size:12px;color:#888;margin-bottom:10px;">Here\'s what I\'d suggest — remove any you don\'t want, or just ask me to add more!</p>'
-          + '<div style="font-size:11px;color:#999;margin-bottom:10px;padding:6px 10px;background:#f9f9f9;border-radius:6px;">Always included: <strong>Name</strong>, <strong>RSVP Status</strong></div>'
+          + '<div style="font-size:11px;color:#999;margin-bottom:10px;padding:6px 10px;background:#f9f9f9;border-radius:6px;">Always included: <strong>Name</strong>, <strong>Email</strong>, <strong>Phone</strong>, <strong>RSVP Status</strong></div>'
           + '<div id="rsvpFieldList">' + renderRsvpFields() + '</div>'
           + '</div>';
       }
@@ -1792,7 +1866,7 @@
             + '<div class="gen-emoji-float" id="genEmoji">🎨</div>'
             + '<h3 class="gen-title">Creating Your Invite</h3>'
             + '<p class="gen-subtitle" id="generatingPun">Starting up...</p>'
-            + '<p class="gen-time-hint">This usually takes 30\u201360 seconds \u2014 good things take time!</p>'
+            + '<p class="gen-time-hint">Right now invites are taking ' + _avgGenTimeText + ' \u2014 good things take time!</p>'
             + '<div class="gen-progress-track"><div class="gen-progress-bar" id="genProgressBar"></div></div>'
             + '<div class="gen-stages" id="genStages">'
             + '<div class="gen-stage active" data-stage="analyze"><div class="gen-stage-icon"><div class="gen-spinner"></div></div><div class="gen-stage-text">Analyzing your event details</div></div>'
@@ -3368,7 +3442,7 @@
         + '<div class="gen-emoji-float" id="genEmoji">🎨</div>'
         + '<h3 class="gen-title">Creating Your Invite</h3>'
         + '<p class="gen-subtitle" id="generatingPun">One more try...</p>'
-        + '<p class="gen-time-hint">This usually takes 30\u201360 seconds \u2014 good things take time!</p>'
+        + '<p class="gen-time-hint">Right now invites are taking ' + _avgGenTimeText + ' \u2014 good things take time!</p>'
         + '<div class="gen-progress-track"><div class="gen-progress-bar" id="genProgressBar"></div></div>'
         + '<div class="gen-stages" id="genStages">'
         + '<div class="gen-stage active" data-stage="analyze"><div class="gen-stage-icon"><div class="gen-spinner"></div></div><div class="gen-stage-text">Analyzing your event details</div></div>'
@@ -3464,6 +3538,26 @@
 
     function buildSrcdoc(ver) {
       var config = ver.config || {};
+
+      // ── CSS FAILSAFE: If ver.css is empty/missing, try to extract from ver.html ──
+      // This catches cases where the AI embedded all CSS in <style> blocks inside the HTML
+      // and the server-side extraction didn't run (e.g., cached/resumed themes from older versions).
+      var css = ver.css || '';
+      if (!css.trim() && ver.html) {
+        var styleBlocks = ver.html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+        if (styleBlocks) {
+          css = styleBlocks.map(function(s) {
+            return s.replace(/<style[^>]*>/gi, '').replace(/<\/style\s*>/gi, '');
+          }).join('\n');
+          console.warn('[buildSrcdoc] CSS was empty — extracted ' + css.length + ' chars from <style> blocks in HTML');
+          // Also persist the fix so it doesn't happen again on re-render
+          ver.css = css;
+        }
+      }
+      // If CSS is STILL empty, log a warning — this is a real bug
+      if (!css.trim()) {
+        console.error('[buildSrcdoc] WARNING: No CSS found for theme version', ver.id, '— invite will appear unstyled');
+      }
       var fontsImport = config.googleFontsImport || '';
       // Normalize: ensure it's a full @import statement, not just a URL
       if (fontsImport && !fontsImport.startsWith('@import')) {
@@ -3503,14 +3597,34 @@
         .replace(/<\/body\s*>/gi, '')
         .replace(/<script\b[\s\S]*?<\/script\s*>/gi, '');
 
+      // Strip stray @import from CSS body — they must be in their own <style> block first.
+      // A stray @import after any CSS rule kills all subsequent rules in that block.
+      var cleanedCss = sanitizeThemeText(css);
+      var strayImports = cleanedCss.match(/@import\s+url\([^)]+\);?\s*/g);
+      if (strayImports) {
+        strayImports.forEach(function(imp) { cleanedCss = cleanedCss.replace(imp, ''); });
+        // Add to fonts block if not already there
+        if (!fontsImport) {
+          var importUrl = strayImports[0].match(/url\(['"]?([^'"\)]+)['"]?\)/);
+          if (importUrl) fontsStyle = '<style>@import url(\'' + importUrl[1] + '\');</style>';
+        }
+      }
+
+      // Guaranteed fallback CSS — uses config colors as baseline so even broken AI CSS
+      // still shows a themed page. Low-specificity selectors so AI CSS overrides when it works.
+      var fallbackBg = config.backgroundColor || '#FFFAF5';
+      var fallbackText = config.textColor || '#1A1A2E';
+      var fallbackFont = config.fontBody || 'Inter';
+      var fallbackCSS = 'html, body { background:' + fallbackBg + '; color:' + fallbackText + '; font-family:\'' + fallbackFont + '\',sans-serif; }';
+
       // RSVP form and data-field overrides are injected via iframe.onload in the parent
       // (see injectRsvpForm) — NO script injection in srcdoc.
       return '<!DOCTYPE html><html><head><meta charset="UTF-8">'
         + '<meta name="viewport" content="width=393, initial-scale=1.0">'
         + fontsStyle
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; }</style>'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; } ' + fallbackCSS + '</style>'
         + (headStyles || '')
-        + '<style>' + sanitizeThemeText(ver.css || '').replace(/<\/style/gi, '<\\/style') + '</style>'
+        + '<style>' + cleanedCss.replace(/<\/style/gi, '<\\/style') + '</style>'
         + '</head><body' + (bodyAttrs ? ' ' + bodyAttrs : '') + '>' + themeHtml + '</body></html>';
     }
 
@@ -3812,9 +3926,21 @@
 
     function renderPreview(ver) {
       var iframe = document.getElementById('previewFrame');
-      if (currentPreviewMode === 'thankyou') {
+      if (currentPreviewMode === 'email') {
+        iframe.onload = null;
+        iframe.srcdoc = buildEmailSrcdoc(ver);
+      } else if (currentPreviewMode === 'thankyou') {
         // Set onload BEFORE srcdoc to avoid race on fast loads
-        iframe.onload = function() { injectCalendarHandlers(iframe); };
+        iframe.onload = function() {
+          injectCalendarHandlers(iframe);
+          // Also check CSS rendering for thank you page (was previously missing)
+          var win = iframe.contentWindow;
+          if (win && win.requestAnimationFrame) {
+            win.requestAnimationFrame(function() { checkCssRendered(iframe, ver); });
+          } else {
+            setTimeout(function() { checkCssRendered(iframe, ver); }, 50);
+          }
+        };
         iframe.srcdoc = buildThankYouSrcdoc(ver);
       } else {
         iframe.onload = function() {
@@ -3822,12 +3948,125 @@
           // read computed colors. Mobile Safari can fire onload before paint.
           var win = iframe.contentWindow;
           if (win && win.requestAnimationFrame) {
-            win.requestAnimationFrame(function() { injectRsvpForm(iframe); });
+            win.requestAnimationFrame(function() {
+              injectRsvpForm(iframe);
+              checkCssRendered(iframe, ver);
+            });
           } else {
-            setTimeout(function() { injectRsvpForm(iframe); }, 50);
+            setTimeout(function() {
+              injectRsvpForm(iframe);
+              checkCssRendered(iframe, ver);
+            }, 50);
           }
         };
         iframe.srcdoc = buildSrcdoc(ver);
+      }
+    }
+
+    // ── CSS RENDER FAILSAFE: Detect unstyled invites and auto-recover ──
+    // Tracks retry count to prevent infinite re-render loops
+    var _cssCheckRetries = 0;
+    var _MAX_CSS_RETRIES = 2;
+
+    function checkCssRendered(iframe, ver) {
+      try {
+        var doc = iframe.contentDocument;
+        if (!doc || !doc.body) return;
+        var win = doc.defaultView;
+        var bodyStyle = win.getComputedStyle(doc.body);
+        var bodyBg = bodyStyle.backgroundColor;
+
+        // Check 1: Body background (existing check)
+        var isUnstyled = (!bodyBg || bodyBg === 'rgba(0, 0, 0, 0)' || bodyBg === 'rgb(255, 255, 255)');
+
+        // Check 2: Look for styled elements deeper in the DOM
+        // Even if body bg is white/transparent, the invite may have styled children
+        if (isUnstyled) {
+          var firstDiv = doc.querySelector('div, section, main, header');
+          if (firstDiv) {
+            var divStyle = win.getComputedStyle(firstDiv);
+            var divBg = divStyle.backgroundColor;
+            // If any child has a non-default background, CSS IS working — just body is transparent
+            if (divBg && divBg !== 'rgba(0, 0, 0, 0)' && divBg !== 'rgb(255, 255, 255)') {
+              isUnstyled = false;
+            }
+          }
+        }
+
+        // Check 3: Verify CSS custom properties are applied (our themes use CSS vars)
+        if (!isUnstyled) {
+          var rootStyles = win.getComputedStyle(doc.documentElement);
+          // If theme has CSS vars but they didn't resolve, something's broken
+          if (ver.css && ver.css.includes('--') && doc.body.children.length > 0) {
+            var testEl = doc.body.children[0];
+            var testFont = win.getComputedStyle(testEl).fontFamily;
+            // If font is still Times/serif default, CSS likely didn't load
+            if (testFont === 'Times' || testFont === '"Times New Roman"' || testFont === 'serif') {
+              // Check if CSS specifies a custom font
+              if (ver.css.match(/font-family\s*:/i)) {
+                console.warn('[checkCssRendered] CSS specifies custom fonts but default serif is rendering');
+                // Don't force re-render for font issues — Google Fonts may just be slow to load
+              }
+            }
+          }
+        }
+
+        // Check 4: Content overflow detection — text flowing outside visible area
+        if (!isUnstyled && doc.body.scrollWidth > 420) {
+          console.warn('[checkCssRendered] Content overflow detected: scrollWidth=' + doc.body.scrollWidth + 'px (max 393px)');
+        }
+
+        if (isUnstyled && ver.css && ver.css.trim().length > 100 && _cssCheckRetries < _MAX_CSS_RETRIES) {
+          // CSS exists but didn't apply — likely a rendering glitch. Force reload.
+          _cssCheckRetries++;
+          console.warn('[checkCssRendered] Invite appears unstyled despite having CSS (' + ver.css.length + ' chars). Re-render attempt ' + _cssCheckRetries + '/' + _MAX_CSS_RETRIES);
+          setTimeout(function() { iframe.srcdoc = buildSrcdoc(ver); }, 150);
+          return;
+        }
+
+        // Last resort: retries exhausted and still unstyled — inject fallback CSS directly into iframe DOM
+        if (isUnstyled && _cssCheckRetries >= _MAX_CSS_RETRIES) {
+          console.error('[checkCssRendered] All retries exhausted. Injecting fallback CSS directly into iframe.');
+          try {
+            var fallbackConfig = ver.config || {};
+            var fbBg = fallbackConfig.backgroundColor || '#FFFAF5';
+            var fbText = fallbackConfig.textColor || '#1A1A2E';
+            var fbFont = fallbackConfig.fontBody || 'Inter';
+            var fallbackStyle = doc.createElement('style');
+            fallbackStyle.textContent = 'html, body { background:' + fbBg + ' !important; color:' + fbText + ' !important; font-family:\'' + fbFont + '\',sans-serif !important; }';
+            doc.head.appendChild(fallbackStyle);
+          } catch (injectErr) {
+            console.warn('[checkCssRendered] Failed to inject fallback CSS:', injectErr.message);
+          }
+        }
+
+        // If there's truly no CSS, check if HTML contains inline <style> we missed
+        if (isUnstyled && (!ver.css || !ver.css.trim())) {
+          console.error('[checkCssRendered] Invite has no CSS. This is a generation bug. Theme version:', ver.id);
+          // Try one more extraction pass from the raw HTML
+          var styleBlocks = (ver.html || '').match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+          if (styleBlocks) {
+            ver.css = styleBlocks.map(function(s) {
+              return s.replace(/<style[^>]*>/gi, '').replace(/<\/style\s*>/gi, '');
+            }).join('\n');
+            console.log('[checkCssRendered] Recovered ' + ver.css.length + ' chars of CSS from HTML. Re-rendering...');
+            _cssCheckRetries = 0; // Reset for new CSS
+            iframe.srcdoc = buildSrcdoc(ver);
+          }
+        }
+
+        // Check 5: Validate no markdown fences leaked into rendered content
+        if (doc.body.textContent && doc.body.textContent.includes('```')) {
+          console.warn('[checkCssRendered] Markdown fences detected in rendered content — cleaning');
+          ver.html = ver.html.replace(/```(?:html|css)?\s*/g, '').replace(/```\s*/g, '');
+          ver.css = ver.css.replace(/```(?:css)?\s*/g, '').replace(/```\s*/g, '');
+          iframe.srcdoc = buildSrcdoc(ver);
+        }
+
+        // Reset retry counter on successful render
+        if (!isUnstyled) _cssCheckRetries = 0;
+      } catch (e) {
+        // Cross-origin iframe or other error — can't check, skip silently
       }
     }
 
@@ -3944,15 +4183,110 @@
       }).catch(function() {});
     }
 
-    // ---- Preview mode toggle (Invite / Thank You) ----
+    // Build email invite preview — uses theme colors/fonts, matches what's actually sent
+    // Email-safe color utilities (no opacity — many email clients ignore it)
+    function hexToRgb(hex) {
+      var h = hex.replace('#', '');
+      // Expand 3-char hex to 6-char (e.g. '333' → '333333', 'f0a' → 'ff00aa')
+      if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+      return [parseInt(h.substring(0,2),16), parseInt(h.substring(2,4),16), parseInt(h.substring(4,6),16)];
+    }
+    function rgbToHex(r,g,b) {
+      return '#' + [r,g,b].map(function(c) { return Math.max(0,Math.min(255,Math.round(c))).toString(16).padStart(2,'0'); }).join('');
+    }
+    function mixColor(hex, target, amount) {
+      var rgb1 = hexToRgb(hex), rgb2 = hexToRgb(target);
+      return rgbToHex(rgb1[0]+(rgb2[0]-rgb1[0])*amount, rgb1[1]+(rgb2[1]-rgb1[1])*amount, rgb1[2]+(rgb2[2]-rgb1[2])*amount);
+    }
+
+    function buildEmailSrcdoc(ver) {
+      var config = ver.config || {};
+      var emailHtml = config.emailHtml || '';
+
+      // If AI has generated custom email HTML, use it directly
+      if (emailHtml) {
+        return emailHtml;
+      }
+
+      // ── Ryvite-branded email template ──
+      // Matches the auth email style: dark header, cream background, clean card, gradient CTA
+      var pc = config.primaryColor || '#E94560';
+
+      // Derive a soft accent tint from the event's primary color
+      var accentTint = mixColor(pc, '#FFFFFF', 0.85);
+      var accentLine = pc;
+
+      var title = extractedData.title || currentEvent?.title || 'Your Event';
+      var eventDate = extractedData.startDate
+        ? new Date(extractedData.startDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+        : '';
+      var location = extractedData.locationName || '';
+
+      return '<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">'
+        + '<style>body{margin:0;padding:0;background-color:#FFFAF5;-webkit-text-size-adjust:100%}</style>'
+        + '</head><body style="margin:0;padding:0;background-color:#FFFAF5;">'
+
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#FFFAF5;padding:40px 20px;">'
+        + '<tr><td align="center">'
+        + '<table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;width:100%;">'
+
+        // ── Branded header (dark, with logo + wordmark) ──
+        + '<tr><td align="center" style="padding-bottom:0;">'
+        + '<div style="background:linear-gradient(135deg, #1A1A2E 0%, #0f3460 100%);border-radius:12px 12px 0 0;padding:24px 40px;text-align:center;">'
+        + '<img src="/api/logo.png?variant=dark" alt="Ryvite" width="160" height="44" style="display:block;margin:0 auto 4px;width:160px;height:44px;border:0;" />'
+        + '<p style="margin:0;font-size:12px;color:#FFB74D;font-style:italic;font-family:\'Inter\',Arial,sans-serif;">Prompt to Party</p>'
+        + '</div>'
+        + '</td></tr>'
+
+        // ── Accent bar (uses event's primary color) ──
+        + '<tr><td style="height:4px;background-color:' + accentLine + ';font-size:0;line-height:0;" height="4">&nbsp;</td></tr>'
+
+        // ── Main card body ──
+        + '<tr><td style="background-color:#FFFFFF;padding:40px 36px 36px;">'
+
+        // "You're Invited" headline
+        + '<h2 style="font-family:\'Playfair Display\',Georgia,\'Times New Roman\',serif;font-size:30px;font-weight:700;color:#1A1A2E;margin:0 0 6px;line-height:1.2;text-align:center;">You\'re Invited</h2>'
+
+        // Event title
+        + '<p style="font-family:\'Inter\',Arial,Helvetica,sans-serif;font-size:17px;color:#5A5A6E;margin:0 0 20px;line-height:1.4;text-align:center;">' + escapeHtml(title) + '</p>'
+
+        // ── Event details card (tinted with event color) ──
+        + (eventDate || location
+          ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:' + accentTint + ';padding:20px 24px;border-left:3px solid ' + accentLine + ';">'
+            + (eventDate ? '<p style="font-family:\'Inter\',Arial,Helvetica,sans-serif;font-size:14px;color:#1A1A2E;margin:0 0 4px;line-height:1.5;font-weight:600;">' + escapeHtml(eventDate) + '</p>' : '')
+            + (location ? '<p style="font-family:\'Inter\',Arial,Helvetica,sans-serif;font-size:14px;color:#5A5A6E;margin:0;line-height:1.5;">' + escapeHtml(location) + '</p>' : '')
+            + '</td></tr></table>'
+          : '')
+
+        // Spacer
+        + '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="height:28px;font-size:0;line-height:0;" height="28">&nbsp;</td></tr></table>'
+
+        // ── CTA button (coral gradient, pill shape) ──
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:0 0 8px;">'
+        + '<a href="#" target="_blank" style="display:inline-block;padding:14px 48px;background:linear-gradient(135deg, #E94560, #FF6B6B);color:#FFFFFF;font-size:16px;font-weight:600;text-decoration:none;border-radius:50px;font-family:\'Inter\',Arial,Helvetica,sans-serif;letter-spacing:0.3px;">View Invitation</a>'
+        + '</td></tr></table>'
+
+        // Subtle message
+        + '<p style="font-family:\'Inter\',Arial,Helvetica,sans-serif;font-size:12px;color:#D1D5DB;margin:16px 0 0;line-height:1.5;text-align:center;">Tap the button to see your full invitation and RSVP</p>'
+
+        + '</td></tr>'
+
+        // ── Footer ──
+        + '<tr><td align="center" style="padding:20px 0 0;">'
+        + '<p style="margin:0;font-size:12px;color:#D1D5DB;font-family:\'Inter\',Arial,sans-serif;">&copy; 2026 Ryvite &mdash; Beautiful invitations, effortlessly.</p>'
+        + '</td></tr>'
+
+        + '</table>'
+        + '</td></tr></table>'
+        + '</body></html>';
+    }
+
+    // ---- Preview mode toggle (Invite / Thank You / Email) ----
     function setPreviewMode(mode) {
       currentPreviewMode = mode;
-      document.querySelectorAll('.preview-toggle-btn').forEach(function(btn) { btn.classList.remove('active'); });
-      if (mode === 'invite') {
-        document.querySelectorAll('.preview-toggle-btn')[0].classList.add('active');
-      } else {
-        document.querySelectorAll('.preview-toggle-btn')[1].classList.add('active');
-      }
+      document.querySelectorAll('.preview-toggle-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
+      });
       var ver = themeVersions[activeVersionIndex];
       if (!ver) return;
       renderPreview(ver);
@@ -3965,15 +4299,26 @@
       var config = ver.config || {};
       var fontsImport = config.googleFontsImport || '';
       var guestName = 'Sarah';
-      var title = extractedData.title || 'the event';
-      var pc = config.primaryColor || '#333';
+      var title = (extractedData && extractedData.title) || 'the event';
+      var pc = config.primaryColor || '#333333';
       var sc = config.secondaryColor || '#4CAF50';
       var ac = config.accentColor || '#2196F3';
 
-      // Guaranteed CSS — these are the structural styles we control
-      var guaranteedCSS = '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }'
+      // Guaranteed CSS — structural styles + theme-derived fallback colors/fonts
+      // These provide a themed baseline that the AI's CSS overrides if present.
+      // Without these, a missing .thankyou-page background means a plain white page.
+      var bgColor = config.backgroundColor || '#FFFAF5';
+      var textColor = config.textColor || '#1A1A2E';
+      var headlineFont = config.fontHeadline || 'Playfair Display';
+      var bodyFont = config.fontBody || 'Inter';
+      // Build a visible gradient fallback from the theme colors (0.4/0.6 = clearly visible, not washed out)
+      var gradientBg = 'linear-gradient(180deg, ' + mixColor(pc, '#FFFFFF', 0.4) + ' 0%, ' + mixColor(ac || sc, '#FFFFFF', 0.6) + ' 100%)';
+
+      var guaranteedCSS = '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;'
+        + ' background:' + gradientBg + '; color:' + textColor + '; font-family:\'' + bodyFont + '\',sans-serif; }'
+        + '.thankyou-decoration { margin-bottom:24px; }'
         + '.thankyou-hero { margin-bottom:32px; }'
-        + '.thankyou-title { font-size:36px; font-weight:700; margin-bottom:12px; }'
+        + '.thankyou-title { font-family:\'' + headlineFont + '\',serif; font-size:36px; font-weight:700; margin-bottom:12px; color:' + pc + '; }'
         + '.thankyou-subtitle { font-size:16px; line-height:1.5; opacity:0.8; }'
         + '.thankyou-calendar-section { width:100%; max-width:320px; padding:0 8px; }'
         + '.calendar-label { font-size:14px; margin-bottom:16px; opacity:0.7; }'
@@ -4002,11 +4347,35 @@
       if (config.thankyouHtml) {
         var tyHtml = sanitizeThemeText(config.thankyouHtml);
 
-        // New simplified format: AI provides empty .thankyou-hero — platform fills it
+        // Platform ALWAYS injects hero text — whether AI left it empty or put decorative content inside
         var heroContent = '<h1 class="thankyou-title">Thank You!</h1>'
           + '<p class="thankyou-subtitle">Thanks for RSVPing, <span class="thankyou-guest">' + escapeHtml(guestName) + '</span>! We can\'t wait to see you at <span class="thankyou-event">' + escapeHtml(title) + '</span>.</p>';
-        // Check if .thankyou-hero is empty (new themes) — inject hero content
-        tyHtml = tyHtml.replace(/<div class="thankyou-hero">\s*<\/div>/, '<div class="thankyou-hero">' + heroContent + '</div>');
+
+        // Check if hero already has our title text (legacy themes that pre-generated it)
+        var hasHeroText = /class=["']thankyou-title["']/.test(tyHtml);
+        if (!hasHeroText) {
+          // Try to find and fill the thankyou-hero div (flexible attribute matching)
+          var heroRegex = /<div[^>]*class=["'][^"']*thankyou-hero[^"']*["'][^>]*>([\s\S]*?)<\/div>/i;
+          var heroMatch = tyHtml.match(heroRegex);
+          if (heroMatch) {
+            var decoration = heroMatch[1].trim();
+            tyHtml = tyHtml.replace(heroMatch[0], '<div class="thankyou-hero">' + (decoration ? decoration : '') + heroContent + '</div>');
+          } else {
+            // No thankyou-hero div found at all — inject one before calendar/footer
+            // Find the closing .thankyou-page div and insert hero before calendar
+            console.warn('[buildThankYouSrcdoc] No .thankyou-hero div found in AI output — injecting hero text directly');
+            var heroBlock = '<div class="thankyou-hero">' + heroContent + '</div>';
+            // Insert after .thankyou-decoration if it exists, otherwise at start of .thankyou-page
+            var decorationEnd = tyHtml.indexOf('</div>');
+            if (tyHtml.indexOf('thankyou-decoration') !== -1 && decorationEnd !== -1) {
+              // After the first closing div (the decoration div)
+              tyHtml = tyHtml.substring(0, decorationEnd + 6) + heroBlock + tyHtml.substring(decorationEnd + 6);
+            } else {
+              // Prepend inside .thankyou-page
+              tyHtml = tyHtml.replace(/<div[^>]*class=["'][^"']*thankyou-page[^"']*["'][^>]*>/i, function(m) { return m + heroBlock; });
+            }
+          }
+        }
 
         // Legacy: replace guest/event placeholders if AI generated them
         tyHtml = tyHtml.replace(/<span class="thankyou-guest">[^<]*<\/span>/g, '<span class="thankyou-guest">' + escapeHtml(guestName) + '</span>');
@@ -4039,16 +4408,23 @@
           + '</head><body>' + tyHtml + '</body></html>';
       }
 
-      // Fallback: build entirely from theme config
-      var accent = config.accentColor || config.primaryColor || '#E94560';
-      var bgColor = config.backgroundColor || '#FFFAF5';
-      var textColor = config.textColor || '#1A1A2E';
-      var headlineFont = config.fontHeadline || 'serif';
-      var bodyFont = config.fontBody || 'sans-serif';
-
-      var thankYouHtml = '<div class="thankyou-page" style="background:' + bgColor + ';color:' + textColor + ';font-family:' + bodyFont + ',sans-serif;">'
+      // Fallback: build entirely from theme config with gradient background + decorative SVG
+      var fallbackSvg = '<div class="thankyou-decoration" style="margin-bottom:24px;">'
+        + '<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">'
+        + '<circle cx="60" cy="60" r="50" fill="none" stroke="' + pc + '" stroke-width="2" opacity="0.3"/>'
+        + '<circle cx="60" cy="60" r="35" fill="none" stroke="' + (ac || sc) + '" stroke-width="1.5" opacity="0.2"/>'
+        + '<path d="M60 25 L63 45 L60 42 L57 45 Z" fill="' + pc + '" opacity="0.6"/>'
+        + '<path d="M60 95 L63 75 L60 78 L57 75 Z" fill="' + pc + '" opacity="0.6"/>'
+        + '<path d="M25 60 L45 57 L42 60 L45 63 Z" fill="' + (ac || sc) + '" opacity="0.5"/>'
+        + '<path d="M95 60 L75 57 L78 60 L75 63 Z" fill="' + (ac || sc) + '" opacity="0.5"/>'
+        + '<circle cx="60" cy="60" r="18" fill="' + pc + '" opacity="0.15"/>'
+        + '<path d="M52 56 L60 68 L68 56" fill="none" stroke="' + pc + '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
+        + '<line x1="52" y1="65" x2="68" y2="65" stroke="' + pc + '" stroke-width="2" stroke-linecap="round" opacity="0.7"/>'
+        + '</svg></div>';
+      var thankYouHtml = '<div class="thankyou-page">'
+        + fallbackSvg
         + '<div class="thankyou-hero">'
-        + '<h1 class="thankyou-title" style="font-family:' + headlineFont + ',serif;color:' + accent + ';">Thank You!</h1>'
+        + '<h1 class="thankyou-title">Thank You!</h1>'
         + '<p class="thankyou-subtitle">Thanks for RSVPing, <span class="thankyou-guest">' + escapeHtml(guestName) + '</span>! We can\'t wait to see you at <span class="thankyou-event">' + escapeHtml(title) + '</span>.</p>'
         + '</div>'
         + guaranteedCalendarHTML
@@ -4058,8 +4434,9 @@
       var fontsStyle3 = fontsImport ? '<style>' + fontsImport + '</style>' : '';
       return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
         + fontsStyle3
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; }</style>'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; background:' + bgColor + '; }</style>'
         + '<style>' + guaranteedCSS + '</style>'
+        + '<style>' + sanitizeThemeText(ver.css || '').replace(/<\/style/gi, '<\\/style') + '</style>'
         + '</head><body>' + thankYouHtml + '</body></html>';
     }
 
@@ -4113,6 +4490,9 @@
     var pendingRedesignText = null; // Holds original message while awaiting clarification
     var awaitingRedesignClarification = false;
     var skipRedesignDetection = false; // Flag to skip detection when sending clarified message
+    var awaitingIntentClarification = false; // Holds state while awaiting intent clarification
+    var pendingIntentText = null; // Original message being clarified
+    var skipIntentClassification = false; // Skip classification when sending clarified message
 
     function switchTab(tab) {
       document.querySelectorAll('.panel-tab').forEach(function(t) { t.classList.remove('active'); });
@@ -4238,6 +4618,44 @@
       var lower = text.toLowerCase().trim();
       var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
       var results = [];
+
+      // --- Pre-check: protect built-in fields from removal/addition ---
+      // The regex-based extraction below can fail on natural phrasing like "remove the email field?"
+      // so we do a direct keyword check first for built-in field names.
+      var isRemoveIntent = /\b(?:remove|delete|drop|get rid of|take off|take out|hide|no more)\b/i.test(lower);
+      var isAddIntent = /\b(?:add|include|put|create|insert)\b/i.test(lower);
+      if (isRemoveIntent || isAddIntent) {
+        var builtInCheck = [
+          { pattern: /\b(?:email|e-mail)\b/i, name: 'Email' },
+          { pattern: /\b(?:phone|telephone|tel|mobile|cell)\b/i, name: 'Phone' },
+          { pattern: /\bname\b/i, name: 'Name' },
+          { pattern: /\b(?:rsvp|status|attendance|attending)\b/i, name: 'RSVP Status' }
+        ];
+        var protectedHits = [];
+        for (var bi = 0; bi < builtInCheck.length; bi++) {
+          if (builtInCheck[bi].pattern.test(lower)) {
+            protectedHits.push(builtInCheck[bi].name);
+          }
+        }
+        if (protectedHits.length > 0 && isRemoveIntent) {
+          var msg = protectedHits.join(' and ') + (protectedHits.length > 1 ? ' are' : ' is a')
+            + ' built-in ' + (protectedHits.length > 1 ? 'fields' : 'field')
+            + " and can't be removed. Every invite includes Name, Email, Phone, and RSVP Status — but they're all optional except Name and RSVP Status.";
+          return {
+            action: 'protected',
+            changes: [],
+            chatResponse: msg
+          };
+        }
+        if (protectedHits.length > 0 && isAddIntent && !isRemoveIntent) {
+          return {
+            action: 'protected',
+            changes: [],
+            chatResponse: protectedHits.join(' and ') + (protectedHits.length > 1 ? ' are' : ' is')
+              + ' already included as ' + (protectedHits.length > 1 ? 'built-in fields' : 'a built-in field') + '!'
+          };
+        }
+      }
 
       // --- Split on "and" / "&" / "," to handle compound requests ---
       // But only split on "and" that separates clauses (preceded by field/add/remove action words)
@@ -4429,7 +4847,7 @@
         if (msg.options && msg.options.length > 0) {
           html += '<div class="design-chat-options" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">';
           msg.options.forEach(function(opt) {
-            html += '<button class="design-chat-option-btn" onclick="handleRedesignOption(this.dataset.val)" data-val="' + escapeHtml(opt.value) + '" style="background:#f0f0f0;border:1px solid #ddd;border-radius:16px;padding:6px 14px;font-size:12px;cursor:pointer;transition:all 0.15s;white-space:nowrap;"'
+            html += '<button class="design-chat-option-btn" onclick="handleChatOption(this.dataset.val)" data-val="' + escapeHtml(opt.value) + '" style="background:#f0f0f0;border:1px solid #ddd;border-radius:16px;padding:6px 14px;font-size:12px;cursor:pointer;transition:all 0.15s;white-space:nowrap;"'
               + ' onmouseover="this.style.background=\'#e0e0e0\';this.style.borderColor=\'#bbb\'"'
               + ' onmouseout="this.style.background=\'#f0f0f0\';this.style.borderColor=\'#ddd\'">'
               + escapeHtml(opt.label) + '</button>';
@@ -4697,13 +5115,13 @@
         } else {
           var errMsg = result.detail || result.message || result.error || 'Something went wrong';
           console.error('Chat API error (collecting):', JSON.stringify(result));
-          designChatHistory.push({ role: 'assistant', content: 'Sorry, something went wrong: ' + errMsg + '. Please try again.' });
+          designChatHistory.push({ role: 'assistant', content: "I had a little trouble understanding that — could you try telling me about your event again? For example:\n- \"I'm planning a birthday party for my daughter\"\n- \"We're having a wedding reception in June\"" });
           renderDesignChat();
         }
       } catch (err) {
         console.error('Chat connection error (collecting):', err);
         designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
-        designChatHistory.push({ role: 'assistant', content: 'Connection error. Please try again.' });
+        designChatHistory.push({ role: 'assistant', content: "Looks like our connection dropped — no worries! Just send your message again and we'll pick up right where we left off." });
         renderDesignChat();
       }
 
@@ -4883,6 +5301,29 @@
         return;
       }
 
+      // If we're awaiting intent clarification, treat this message as the clarification
+      if (awaitingIntentClarification && text) {
+        awaitingIntentClarification = false;
+        // Remove the option buttons from the last assistant message
+        var lastAssistant = null;
+        for (var ci = designChatHistory.length - 1; ci >= 0; ci--) {
+          if (designChatHistory[ci].role === 'assistant' && designChatHistory[ci].options) {
+            lastAssistant = designChatHistory[ci];
+            break;
+          }
+        }
+        if (lastAssistant) delete lastAssistant.options;
+        // Combine the original request with the user's clarification
+        var combined = pendingIntentText + '\n\nClarification from user: ' + text;
+        pendingIntentText = null;
+        skipIntentClassification = true;
+        skipRedesignDetection = true;
+        input.value = combined;
+        input.style.height = 'auto';
+        sendDesignChat();
+        return;
+      }
+
       // Detect if user is asking to change event details (date, time, location, etc.)
       // These are data changes, not design changes — redirect to the Details tab
       if (text && !hasPhotos) {
@@ -5022,26 +5463,49 @@
         }
         // If interpretation failed but we had sync changes, still report those
         if (rsvpFieldResult.action === 'mixed' && syncNote) {
-          designChatHistory.push({ role: 'assistant', content: syncNote + 'I couldn\'t figure out the field to add though — could you try rephrasing that part?\n\nWant to make any more changes?' });
+          designChatHistory.push({ role: 'assistant', content: syncNote + "I wasn't sure about the field to add though. Could you tell me more specifically what you'd like? For example:\n- \"Add a text field for dietary restrictions\"\n- \"Add a dropdown for meal choice with options: chicken, fish, veggie\"" });
           clearDesignChatPhoto();
           sendBtn.disabled = false;
           renderDesignChat();
           return;
         }
-        // Full fallthrough to AI tweak
+        // Pure add_async that failed interpretation — ask for clarification instead of expensive fallthrough
+        if (rsvpFieldResult.action === 'add_async') {
+          designChatHistory.push({ role: 'assistant', content: "I think you want to add a field to your RSVP form, but I want to make sure I get it right. Could you describe the field in a bit more detail? For example:\n- \"Add a text field for dietary restrictions\"\n- \"Add a number field for how many guests\"\n- \"Add a dropdown for t-shirt size with options: S, M, L, XL\"" });
+          clearDesignChatPhoto();
+          sendBtn.disabled = false;
+          renderDesignChat();
+          return;
+        }
       }
 
       // ── TIER 1.75: Instant text swap for "change X to Y" requests ──
       var textSwap = tryInstantTextSwap(text, hasPhotos);
       if (textSwap) {
         var ver = themeVersions[activeVersionIndex];
+        // For email mode, swap text in emailHtml
+        if (currentPreviewMode === 'email' && ver && ver.config && ver.config.emailHtml) {
+          var emailLower = ver.config.emailHtml.toLowerCase();
+          var searchLower = textSwap.oldText.toLowerCase();
+          var idx = emailLower.indexOf(searchLower);
+          if (idx !== -1) {
+            var originalSubstr = ver.config.emailHtml.substring(idx, idx + textSwap.oldText.length);
+            ver.config.emailHtml = ver.config.emailHtml.substring(0, idx) + textSwap.newText + ver.config.emailHtml.substring(idx + originalSubstr.length);
+            themeVersions[activeVersionIndex] = ver;
+            renderPreview(ver);
+            designChatHistory.push({ role: 'assistant', content: 'Done! Changed "' + originalSubstr + '" to "' + textSwap.newText + '" in the email.\n\nWant to make any more changes?' });
+            clearDesignChatPhoto();
+            sendBtn.disabled = false;
+            renderDesignChat();
+            return;
+          }
+        }
+        // For invite/thankyou mode, swap in invite HTML
         if (ver && ver.html) {
-          // Case-insensitive search in the HTML
           var htmlLower = ver.html.toLowerCase();
           var searchLower = textSwap.oldText.toLowerCase();
           var idx = htmlLower.indexOf(searchLower);
           if (idx !== -1) {
-            // Preserve the case structure: replace the exact substring found
             var originalSubstr = ver.html.substring(idx, idx + textSwap.oldText.length);
             ver.html = ver.html.substring(0, idx) + textSwap.newText + ver.html.substring(idx + originalSubstr.length);
             themeVersions[activeVersionIndex] = ver;
@@ -5056,6 +5520,105 @@
           console.log('[tweak] Text swap: "' + textSwap.oldText + '" not found in HTML, falling through to AI');
         }
       }
+
+      // ── INTENT CLASSIFICATION GATE: Quick Haiku check before expensive AI calls ──
+      // Skip if we already got clarification, or if there are photos (photos imply clear intent)
+      if (text && !skipIntentClassification && !hasPhotos) {
+        try {
+          console.log('[tweak] Classifying intent before AI call...');
+          var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+          var classifyRes = await authFetch('/api/v2/generate-theme?action=classifyIntent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userMessage: text,
+              currentFields: enabledFields.map(function(f) { return { label: f.label, field_type: f.field_type }; }),
+              eventType: currentEvent ? currentEvent.event_type : null,
+              previewMode: currentPreviewMode
+            })
+          });
+          if (classifyRes.ok) {
+            var classification = await classifyRes.json();
+            console.log('[tweak] Classification:', classification.intent, 'confidence:', classification.confidence);
+            if (classification.metadata) updateCostFromGeneration(classification);
+
+            // If the classifier detected this is a field addition with high confidence,
+            // route it directly to Tier 1.5 (interpretField) instead of expensive Tier 2/3
+            if (classification.intent === 'add_field' && classification.confidence >= 0.8 && classification.field_details) {
+              console.log('[tweak] Classifier routed to field add:', classification.field_details);
+              var fd = classification.field_details;
+              var fieldKey = fd.field_key || (fd.label || '').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+              var exists = enabledFields.some(function(ef) {
+                return (ef.field_key || '').toLowerCase() === fieldKey.toLowerCase() ||
+                       (ef.label || '').toLowerCase() === (fd.label || '').toLowerCase();
+              });
+              if (!exists) {
+                applyRsvpFieldChanges([{ action: 'add', field_key: fieldKey, label: fd.label, field_type: fd.field_type || 'text', is_required: fd.is_required || false, placeholder: fd.placeholder || null }]);
+                renderPreview(themeVersions[activeVersionIndex]);
+                designChatHistory.push({ role: 'assistant', content: 'Done! Added a "' + fd.label + '" field to your RSVP form.\n\nWant to make any more changes?' });
+              } else {
+                designChatHistory.push({ role: 'assistant', content: 'That field already exists in your RSVP form!\n\nWant to make any other changes?' });
+              }
+              clearDesignChatPhoto();
+              sendBtn.disabled = false;
+              renderDesignChat();
+              return;
+            }
+
+            // If the classifier detected this is a question, answer conversationally
+            if (classification.intent === 'question' && classification.confidence >= 0.6) {
+              designChatHistory.push({ role: 'assistant', content: (classification.summary || "That's a great question!") + "\n\nI'm your design assistant — I can help you change colors, fonts, layout, add photos, or tweak any visual element of your invite. Just tell me what you'd like to change!" });
+              clearDesignChatPhoto();
+              sendBtn.disabled = false;
+              renderDesignChat();
+              return;
+            }
+
+            // Low confidence — ask for clarification instead of running expensive AI
+            if (classification.confidence < 0.8 && classification.clarification) {
+              console.log('[tweak] Low confidence (' + classification.confidence + '), asking for clarification');
+              pendingIntentText = text;
+              awaitingIntentClarification = true;
+
+              var intentOptions = [];
+              if (classification.suggested_options && classification.suggested_options.length > 0) {
+                intentOptions = classification.suggested_options.map(function(opt) {
+                  return { label: opt, value: opt };
+                });
+              } else {
+                // Default options based on detected intent
+                if (classification.intent === 'add_field' || classification.intent === 'modify_field') {
+                  intentOptions = [
+                    { label: 'Add an RSVP field', value: 'I want to add a new RSVP form field for: ' + (classification.summary || text) },
+                    { label: 'Change the design', value: 'I want to change the visual design: ' + text }
+                  ];
+                } else {
+                  intentOptions = [
+                    { label: 'Change the design', value: 'I want to change the visual design: ' + text },
+                    { label: 'Change the text', value: 'I want to change specific text/wording: ' + text },
+                    { label: 'Add an RSVP field', value: 'I want to add a new RSVP form field' }
+                  ];
+                }
+              }
+
+              designChatHistory.push({
+                role: 'assistant',
+                content: classification.clarification,
+                options: intentOptions
+              });
+              clearDesignChatPhoto();
+              sendBtn.disabled = false;
+              renderDesignChat();
+              return;
+            }
+            // High confidence — fall through to Tier 2/3 with the original text
+          }
+        } catch (err) {
+          console.error('[tweak] Intent classification error (non-blocking):', err);
+          // Classification failed — fall through to Tier 2/3 anyway (never block the user)
+        }
+      }
+      skipIntentClassification = false; // Reset flag
 
       // ── TIER 2 & 3: AI-powered tweaks (text-only via Haiku or design via Sonnet) ──
       // Add thinking message with cycling puns
@@ -5118,9 +5681,11 @@
           action: 'tweak',
           eventId: currentEvent.id,
           tweakInstructions: instructions,
+          previewMode: currentPreviewMode,
           currentHtml: ver.html,
           currentCss: ver.css,
           currentConfig: ver.config,
+          currentEmailHtml: currentPreviewMode === 'email' ? buildEmailSrcdoc(ver) : undefined,
           photoUrls: hasPhotos ? designChatPhotoUrls : undefined,
           photoUrl: hasPhotos ? designChatPhotoUrls[0] : undefined,
           eventDetails: {
@@ -5147,11 +5712,12 @@
           clearInterval(tweakPunInterval);
           designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
           if (sseRes.status === 504) {
-            designChatHistory.push({ role: 'assistant', content: 'That update took too long and timed out. Try a simpler change, or just try again!' });
+            designChatHistory.push({ role: 'assistant', content: "That took a bit too long — my apologies! Could you try breaking it into a smaller change? For example:\n- \"Make the background darker\"\n- \"Change the heading font\"\n\nSmaller tweaks work much faster!" });
           } else {
             var errText = '';
             try { var errJson = await sseRes.json(); errText = errJson.error || errJson.message || ''; } catch(e) {}
-            designChatHistory.push({ role: 'assistant', content: 'Sorry, I had trouble with that change' + (errText ? ': ' + errText : '') + '. Could you try rephrasing?' });
+            console.error('[tweak] Non-200 response:', sseRes.status, errText);
+            designChatHistory.push({ role: 'assistant', content: "I ran into a hiccup trying to make that change. Could you rephrase what you'd like? For example:\n- \"Make the colors warmer\"\n- \"Use a more elegant font\"\n- \"Add more spacing between sections\"" });
           }
         } else {
           // Read full response as text (avoids ReadableStream which Safari kills on mobile)
@@ -5192,7 +5758,7 @@
             if (tweakResult.metadata) updateCostFromGeneration(tweakResult.metadata);
             designChatHistory.push({ role: 'assistant', content: chatOnlyMsg });
             renderDesignChat();
-            enableSendBtn();
+            sendBtn.disabled = false;
             return;
           }
 
@@ -5223,38 +5789,38 @@
             // Show rating widget for every generation (tweaks included)
             showThemeRating(newVer.id);
           } else if (tweakError) {
-            designChatHistory.push({ role: 'assistant', content: 'Sorry, I had trouble with that change: ' + (tweakError.message || tweakError.error || 'Unknown error') + '. Could you try rephrasing?' });
+            console.error('[tweak] Server error:', tweakError.message || tweakError.error);
+            designChatHistory.push({ role: 'assistant', content: "I wasn't able to make that change — let me try to help another way. Could you describe what you'd like differently? For example:\n- \"Make the background a deep navy blue\"\n- \"Use a playful, rounded font\"\n- \"Make the layout more spacious\"" });
           } else {
-            // Debug: show what we actually received so we can diagnose
+            // No result parsed from response — log debug info, show friendly recovery
             var debugInfo = 'Status: ' + sseRes.status + ' | Bytes: ' + tweakFullText.length + ' | Lines: ' + tweakLines.length;
             var hasEventLines = tweakLines.filter(function(l) { return l.startsWith('event:'); }).length;
             var hasDataLines = tweakLines.filter(function(l) { return l.startsWith('data:'); }).length;
             debugInfo += ' | Events: ' + hasEventLines + ' | Data: ' + hasDataLines;
-            // Check if we got a JSON error response instead of SSE
-            if (tweakFullText.startsWith('{')) {
-              try {
-                var jsonResp = JSON.parse(tweakFullText);
-                var jsonErr = jsonResp.error || jsonResp.message || JSON.stringify(jsonResp).substring(0, 200);
-                designChatHistory.push({ role: 'assistant', content: 'Error: ' + jsonErr });
-              } catch(e) {
-                designChatHistory.push({ role: 'assistant', content: 'Something went wrong (no result in response).\n\nDebug: ' + debugInfo + '\nFirst 200 chars: ' + tweakFullText.substring(0, 200) });
-              }
-            } else {
-              designChatHistory.push({ role: 'assistant', content: 'Something went wrong (no result in response).\n\nDebug: ' + debugInfo + '\nFirst 200 chars: ' + tweakFullText.substring(0, 200) });
-            }
             console.error('[tweak] No result found. Debug:', debugInfo, 'Full text:', tweakFullText.substring(0, 1000));
+            designChatHistory.push({ role: 'assistant', content: "Hmm, something went wrong on my end — sorry about that! Let's try again. What change would you like to make? I work best with specific requests like:\n- \"Make the heading larger\"\n- \"Change the background to a gradient\"\n- \"Add a border around the RSVP section\"" });
           }
         }
       } catch (err) {
         console.error('[tweak] CATCH error:', err, err.stack);
         clearInterval(tweakPunInterval);
         designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
-        designChatHistory.push({ role: 'assistant', content: 'Connection error: ' + (err.message || 'Unknown') + '. This usually means the request timed out or was interrupted. Try again!' });
+        console.error('[tweak] Connection error details:', err.message);
+        designChatHistory.push({ role: 'assistant', content: "Looks like our connection was interrupted — these things happen! Let's try again. Just send your request one more time and I'll get right on it." });
       }
 
       clearDesignChatPhoto();
       sendBtn.disabled = false;
       renderDesignChat();
+    }
+
+    function handleChatOption(value) {
+      // Route to the appropriate handler based on which clarification is active
+      if (awaitingIntentClarification) {
+        handleIntentOption(value);
+      } else {
+        handleRedesignOption(value);
+      }
     }
 
     function handleRedesignOption(value) {
@@ -5272,6 +5838,28 @@
       // Combine original request with clarification and send — skip redesign detection
       var combined = (pendingRedesignText || 'Give me a new design') + '\n\nClarification from user: ' + value;
       pendingRedesignText = null;
+      skipRedesignDetection = true;
+      var input = document.getElementById('designChatInput');
+      input.value = combined;
+      sendDesignChat();
+    }
+
+    function handleIntentOption(value) {
+      // Remove option buttons from the clarification message
+      for (var ci = designChatHistory.length - 1; ci >= 0; ci--) {
+        if (designChatHistory[ci].role === 'assistant' && designChatHistory[ci].options) {
+          delete designChatHistory[ci].options;
+          break;
+        }
+      }
+      awaitingIntentClarification = false;
+      // Show the user's selection as a message
+      designChatHistory.push({ role: 'user', content: value });
+      renderDesignChat();
+      // Combine original request with the user's choice and send — skip classification
+      var combined = (pendingIntentText || value) + '\n\nClarification from user: ' + value;
+      pendingIntentText = null;
+      skipIntentClassification = true;
       skipRedesignDetection = true;
       var input = document.getElementById('designChatInput');
       input.value = combined;
@@ -5429,7 +6017,7 @@
     }
 
     async function saveCustomFields() {
-      var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+      var enabledFields = rsvpFields.filter(function(f) { return f.enabled && f.field_key !== 'email' && f.field_key !== 'phone'; });
       if (enabledFields.length === 0 || !currentEvent) return;
 
       try {
@@ -5659,14 +6247,28 @@
 
     async function loadContactsForInvite() {
       try {
-        var [contactsRes, tagsRes] = await Promise.all([
+        var fetches = [
           authFetch('/api/v2/contacts?action=list'),
           authFetch('/api/v2/contacts?action=listTags')
-        ]);
-        var contactsData = await contactsRes.json();
-        var tagsData = await tagsRes.json();
+        ];
+        // Load existing guests from DB if we have an event and haven't loaded yet
+        if (currentEvent && addedGuests.length === 0) {
+          fetches.push(authFetch('/api/v2/events?action=rsvps&eventId=' + currentEvent.id));
+        }
+        var results = await Promise.all(fetches);
+        var contactsData = await results[0].json();
+        var tagsData = await results[1].json();
         if (contactsData.success) allContacts = contactsData.contacts || [];
         if (tagsData.success) allTags = tagsData.tags || [];
+        // Populate addedGuests from DB if loaded
+        if (results[2]) {
+          var guestsData = await results[2].json();
+          if (guestsData.success && guestsData.rsvps && guestsData.rsvps.length > 0) {
+            addedGuests = guestsData.rsvps.map(function(g) {
+              return { id: g.id, serverId: g.id, name: g.name, email: g.email, phone: g.phone, contactId: g.contactId };
+            });
+          }
+        }
       } catch (e) {
         allContacts = [];
         allTags = [];
@@ -5764,13 +6366,20 @@
         });
         var result = await res.json();
         if (result.success) {
-          // Add to local guest list
-          ids.forEach(function(cid) {
-            var contact = allContacts.find(function(c) { return c.id === cid; });
-            if (contact) {
-              addedGuests.push({ id: 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2,4), name: contact.name, email: contact.email, phone: contact.phone, contactId: cid });
-            }
-          });
+          // Add to local guest list using server-returned guest data (with real IDs)
+          if (result.guests && result.guests.length) {
+            result.guests.forEach(function(g) {
+              addedGuests.push({ id: g.id, serverId: g.id, name: g.name, email: g.email, phone: g.phone, contactId: g.contactId });
+            });
+          } else {
+            // Fallback for skipped (already-added) contacts
+            ids.forEach(function(cid) {
+              var contact = allContacts.find(function(c) { return c.id === cid; });
+              if (contact && !addedGuests.some(function(g) { return g.contactId === cid; })) {
+                addedGuests.push({ id: 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2,4), name: contact.name, email: contact.email, phone: contact.phone, contactId: cid });
+              }
+            });
+          }
           selectedContactIds.clear();
           renderGuestList();
           filterContacts();
@@ -5866,15 +6475,20 @@
         }
 
         // Add as guest to event
+        var serverId = null;
         if (currentEvent && contactId) {
-          await authFetch('/api/v2/events?action=addGuests', {
+          var addRes = await authFetch('/api/v2/events?action=addGuests', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ eventId: currentEvent.id, contactIds: [contactId] })
           });
+          var addResult = await addRes.json();
+          if (addResult.guests && addResult.guests.length) {
+            serverId = addResult.guests[0].id;
+          }
         }
 
-        addedGuests.push({ id: 'guest_' + Date.now(), name: name, email: email, phone: phone, contactId: contactId, isNew: true });
+        addedGuests.push({ id: serverId || ('guest_' + Date.now()), serverId: serverId, name: name, email: email, phone: phone, contactId: contactId, isNew: true });
         // Refresh contact list
         allContacts.push({ id: contactId, name: name, email: email, phone: phone, tags: [] });
 
@@ -5894,13 +6508,11 @@
       }
     }
 
+    // "Only Publish" — no invites sent
     async function publishEvent(sendInvites) {
       if (!currentEvent) { showMessage('Event not created yet', 'error'); return; }
-      // Disable all publish buttons
       var btns = document.querySelectorAll('.button-group .btn');
       btns.forEach(function(b) { b.disabled = true; });
-      var publishBtn = document.getElementById('publishBtn');
-      publishBtn.textContent = 'Publishing...';
       try {
         // Ensure event details are saved before publishing
         await saveEventToDB();
@@ -5925,7 +6537,7 @@
         var res = await authFetch('/api/v2/events?action=update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventId: currentEvent.id, status: 'Published', settings: { invites_sent: !!sendInvites } })
+          body: JSON.stringify({ eventId: currentEvent.id, status: 'Published' })
         });
         var result = await res.json();
         if (result.success) {
@@ -5935,7 +6547,190 @@
       } catch (err) { showMessage('Error publishing event', 'error'); }
       finally {
         btns.forEach(function(b) { b.disabled = false; });
-        publishBtn.textContent = 'Publish & Send Invites';
+      }
+    }
+
+    // Show send options modal
+    function showSendOptions() {
+      if (!currentEvent) { showMessage('Event not created yet', 'error'); return; }
+
+      var smsCount = addedGuests.filter(function(g) { return g.phone; }).length;
+      var emailCount = addedGuests.filter(function(g) { return g.email; }).length;
+      var totalGuests = addedGuests.length;
+
+      document.getElementById('smsGuestCount').textContent = smsCount + ' of ' + totalGuests + ' guest' + (totalGuests !== 1 ? 's' : '') + ' have a phone number';
+      document.getElementById('emailGuestCount').textContent = emailCount + ' of ' + totalGuests + ' guest' + (totalGuests !== 1 ? 's' : '') + ' have an email';
+
+      // Default SMS message
+      var title = currentEvent.title || 'our event';
+      var msgEl = document.getElementById('sendSmsMessage');
+      if (!msgEl.value) {
+        msgEl.value = 'Hi {name}, you\'re invited to ' + title + '! RSVP here: {link}';
+      }
+
+      // Configure SMS option
+      var smsOpt = document.getElementById('sendOptSms');
+      var smsCheck = document.getElementById('sendViaSms');
+      if (smsCount === 0) {
+        smsCheck.checked = false;
+        smsCheck.disabled = true;
+        smsOpt.style.opacity = '0.5';
+        smsOpt.style.cursor = 'not-allowed';
+        smsOpt.style.borderColor = '#e0e0e0';
+        smsOpt.style.background = 'transparent';
+      } else {
+        smsCheck.checked = true;
+        smsCheck.disabled = false;
+        smsOpt.style.opacity = '1';
+        smsOpt.style.cursor = 'pointer';
+        smsOpt.style.borderColor = 'var(--party-coral)';
+        smsOpt.style.background = 'rgba(233,69,96,0.04)';
+      }
+
+      // Configure Email option
+      var emailOpt = document.getElementById('sendOptEmail');
+      var emailCheck = document.getElementById('sendViaEmail');
+      if (emailCount === 0) {
+        emailCheck.checked = false;
+        emailCheck.disabled = true;
+        emailOpt.style.opacity = '0.5';
+        emailOpt.style.cursor = 'not-allowed';
+        emailOpt.style.borderColor = '#e0e0e0';
+        emailOpt.style.background = 'transparent';
+      } else {
+        emailCheck.checked = true;
+        emailCheck.disabled = false;
+        emailOpt.style.opacity = '1';
+        emailOpt.style.cursor = 'pointer';
+        emailOpt.style.borderColor = 'var(--party-coral)';
+        emailOpt.style.background = 'rgba(233,69,96,0.04)';
+      }
+
+      updateSendPreview();
+
+      var modal = document.getElementById('sendOptionsModal');
+      modal.style.display = 'flex';
+    }
+
+    function closeSendOptions() {
+      document.getElementById('sendOptionsModal').style.display = 'none';
+    }
+
+    function updateSendPreview() {
+      var smsChecked = document.getElementById('sendViaSms').checked;
+      var emailChecked = document.getElementById('sendViaEmail').checked;
+      var smsTemplate = document.getElementById('smsTemplateSection');
+      var emailTemplate = document.getElementById('emailTemplateSection');
+      var costEl = document.getElementById('sendCostEstimate');
+
+      smsTemplate.style.display = smsChecked ? 'block' : 'none';
+      emailTemplate.style.display = emailChecked ? 'block' : 'none';
+
+      // Style option borders based on checked state
+      var smsOpt = document.getElementById('sendOptSms');
+      var emailOpt = document.getElementById('sendOptEmail');
+      if (!document.getElementById('sendViaSms').disabled) {
+        smsOpt.style.borderColor = smsChecked ? 'var(--party-coral)' : '#e0e0e0';
+        smsOpt.style.background = smsChecked ? 'rgba(233,69,96,0.04)' : 'transparent';
+      }
+      if (!document.getElementById('sendViaEmail').disabled) {
+        emailOpt.style.borderColor = emailChecked ? 'var(--party-coral)' : '#e0e0e0';
+        emailOpt.style.background = emailChecked ? 'rgba(233,69,96,0.04)' : 'transparent';
+      }
+
+      // Cost estimate (only SMS has a cost)
+      if (smsChecked) {
+        var smsCount = addedGuests.filter(function(g) { return g.phone; }).length;
+        var cost = (smsCount * 0.10).toFixed(2);
+        costEl.style.display = 'block';
+        costEl.textContent = 'SMS cost: $' + cost + ' (' + smsCount + ' message' + (smsCount !== 1 ? 's' : '') + ' x $0.10)' + (emailChecked ? ' · Email is free' : '');
+      } else if (emailChecked) {
+        costEl.style.display = 'block';
+        costEl.textContent = 'Email invites are free';
+      } else {
+        costEl.style.display = 'none';
+      }
+
+      // Update confirm button text
+      var btn = document.getElementById('confirmSendBtn');
+      var channels = [];
+      if (smsChecked) channels.push('SMS');
+      if (emailChecked) channels.push('Email');
+      if (channels.length > 0) {
+        btn.textContent = 'Publish & Send ' + channels.join(' + ');
+      } else {
+        btn.textContent = 'Just Publish';
+      }
+    }
+
+    // Publish the event AND send invites via selected channels
+    async function publishAndSend() {
+      if (!currentEvent) return;
+
+      var sendSms = document.getElementById('sendViaSms').checked;
+      var sendEmail = document.getElementById('sendViaEmail').checked;
+      var btn = document.getElementById('confirmSendBtn');
+      btn.disabled = true;
+      btn.textContent = 'Publishing...';
+
+      try {
+        // Step 1: Publish the event
+        var pubRes = await authFetch('/api/v2/events?action=update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: currentEvent.id, status: 'Published', settings: { invites_sent: sendSms || sendEmail } })
+        });
+        var pubResult = await pubRes.json();
+        if (!pubResult.success) {
+          showMessage(pubResult.error || 'Failed to publish', 'error');
+          return;
+        }
+
+        var errors = [];
+
+        // Step 2: Send SMS if selected
+        if (sendSms) {
+          btn.textContent = 'Sending SMS...';
+          var message = document.getElementById('sendSmsMessage').value.trim();
+          if (!message) message = 'Hi {name}, you\'re invited! RSVP here: {link}';
+
+          try {
+            var smsRes = await authFetch('/api/v2/sms?action=sendInvites', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ eventId: currentEvent.id, message: message, allGuests: true })
+            });
+            var smsResult = await smsRes.json();
+            if (!smsResult.success) errors.push('SMS: ' + (smsResult.error || 'failed'));
+          } catch (e) { errors.push('SMS: network error'); }
+        }
+
+        // Step 3: Send Email if selected
+        if (sendEmail) {
+          btn.textContent = sendSms ? 'Sending emails...' : 'Sending emails...';
+          try {
+            var emailRes = await authFetch('/api/v2/sms?action=sendEmailInvites', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ eventId: currentEvent.id, allGuests: true })
+            });
+            var emailResult = await emailRes.json();
+            if (!emailResult.success) errors.push('Email: ' + (emailResult.error || 'failed'));
+          } catch (e) { errors.push('Email: network error'); }
+        }
+
+        // Redirect to dashboard
+        clearDraft();
+        var params = 'published=' + currentEvent.id;
+        if (sendSms && !errors.some(function(e) { return e.startsWith('SMS'); })) params += '&smsSent=1';
+        if (sendEmail && !errors.some(function(e) { return e.startsWith('Email'); })) params += '&emailSent=1';
+        if (errors.length) params += '&sendErrors=' + encodeURIComponent(errors.join('; '));
+        window.location.href = '/v2/dashboard/?' + params;
+      } catch (err) {
+        showMessage('Error publishing event', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Publish & Send';
       }
     }
 

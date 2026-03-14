@@ -365,30 +365,48 @@ If photos are provided via URL, use them in \`<img>\` tags with the exact URL pr
 - Style with border-radius, box-shadow, border, or creative framing per the event type
 - If photos are bad quality, the treatment should save them (overlay, vignette, color grade via CSS filter)
 
-## THANK YOU PAGE (theme_thankyou_html) — SIMPLIFIED
-The platform injects the hero text, calendar buttons, and footer. You provide:
+## THANK YOU PAGE (theme_thankyou_html) — CRITICAL
+The platform injects the "Thank You!" heading, subtitle text, calendar buttons, and footer at runtime.
+Your job: provide the **visual wrapper and decorative illustration** that makes it feel like a celebration, not a blank page.
+
 \`\`\`html
 <div class="thankyou-page">
-  <!-- Optional: ONE small decorative SVG or animation element, under 1KB -->
+  <!-- REQUIRED: A theme-centric decorative SVG illustration (under 2KB) -->
+  <!-- Examples: confetti burst, balloons, party hat, checkmark with sparkles, -->
+  <!-- champagne glasses, birthday cake, gift box, rainbow, stars cluster, etc. -->
+  <!-- Match the event type and theme — make it feel like a CELEBRATION -->
+  <div class="thankyou-decoration">
+    <svg ...><!-- theme-matching illustration --></svg>
+  </div>
+  <!-- LEAVE EMPTY — platform fills with "Thank You!" title + confirmation subtitle -->
   <div class="thankyou-hero"></div>
 </div>
 \`\`\`
+
 Rules:
 - \`.thankyou-page\` MUST have a branded background matching the invite (gradient, pattern, texture, or solid color)
-- \`.thankyou-hero\` must be EMPTY — the platform fills it with title + subtitle text
-- Optional: add ONE small decorative SVG element (stars, confetti, simple illustration) inside \`.thankyou-page\` but OUTSIDE \`.thankyou-hero\`. Keep it under 1KB.
-- NO text content, NO emojis, NO calendar buttons, NO footer, NO extra sections
-- Include these CSS rules in theme_css (customize colors/fonts to match invite):
+- \`.thankyou-hero\` MUST be completely empty — no text, no emojis, no SVGs inside it. The platform fills it with title + subtitle.
+- **REQUIRED**: Include a decorative SVG illustration OUTSIDE \`.thankyou-hero\` but INSIDE \`.thankyou-page\`. This is NOT optional — a bare page with just text and buttons looks broken. The illustration should:
+  - Match the event theme (unicorn for kids party, champagne for wedding, etc.)
+  - Be an inline SVG, under 2KB
+  - Have CSS animation (fade-in, bounce, float, scale-up)
+  - Be placed ABOVE \`.thankyou-hero\` so it appears at the top
+- NO text content anywhere, NO emojis, NO calendar buttons, NO footer
+- **VISUAL CONSISTENCY IS MANDATORY**: The thank you page must look like it belongs with the invite. If the invite has a pink gradient background, the thank you page needs a similar pink gradient. If the invite uses purple and gold, the thank you page should too. A plain white thank you page after a vibrant themed invite is a broken experience.
+- Include these CSS rules in theme_css — **customize ALL colors/fonts/backgrounds to match the invite**:
 \`\`\`css
 .thankyou-page {
   max-width: 393px; margin: 0 auto; padding: 60px 32px 40px;
   min-height: 100vh; display: flex; flex-direction: column;
   align-items: center; justify-content: center; text-align: center;
-  /* MUST match the invite's background treatment */
+  /* COPY the invite's background treatment here — gradient, color, pattern */
+  background: /* same gradient or color as the invite body */;
+  font-family: /* same body font as the invite */;
 }
+.thankyou-decoration { margin-bottom: 24px; /* add entrance animation */ }
 .thankyou-hero { margin-bottom: 32px; }
-.thankyou-title { font-size: 36px; font-weight: 700; margin-bottom: 12px; /* use invite heading font + color */ }
-.thankyou-subtitle { font-size: 16px; line-height: 1.5; opacity: 0.8; /* use invite body font */ }
+.thankyou-title { font-size: 36px; font-weight: 700; margin-bottom: 12px; font-family: /* same heading font */; color: /* same accent/heading color */; }
+.thankyou-subtitle { font-size: 16px; line-height: 1.5; opacity: 0.8; }
 \`\`\`
 
 ## TEXT CONTRAST — CRITICAL, NEVER VIOLATE
@@ -535,7 +553,15 @@ function extractThemeFromHtmlDoc(html) {
   if (bodyMatch) body = bodyMatch[1].trim();
   body = body.replace(/<head[\s\S]*?<\/head>/gi, '').replace(/<\/?(html|head|!doctype)[^>]*>/gi, '').replace(/<(link|meta)[^>]*>/gi, '').trim();
   if (!body && !css) throw new Error('Invalid theme response — could not extract HTML or CSS');
-  return { theme_html: body, theme_css: css, theme_config: config, theme_thankyou_html: '' };
+  // Extract thankyou-page content if present in the HTML document
+  let thankyouHtml = '';
+  const thankyouMatch = body.match(/<div[^>]*class=["'][^"']*thankyou-page[^"']*["'][^>]*>[\s\S]*?<\/div>\s*$/i);
+  if (thankyouMatch) {
+    thankyouHtml = thankyouMatch[0];
+    body = body.replace(thankyouMatch[0], '').trim();
+    console.log('[extractThemeFromHtmlDoc] Extracted thankyou-page HTML (' + thankyouHtml.length + ' chars)');
+  }
+  return { theme_html: body, theme_css: css, theme_config: config, theme_thankyou_html: thankyouHtml };
 }
 
 function normalizeThemeKeys(theme) {
@@ -605,6 +631,141 @@ function extractStyleEssence(html) {
   if (classNames.length > 0) summary += `Classes: ${classNames.join(', ')}\n\n`;
   if (css) summary += `CSS:\n\`\`\`css\n${css}\n\`\`\``;
   return summary;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SERVER-SIDE THEME VALIDATION & AUTO-REPAIR
+// Catches common AI output issues before sending to the client.
+// ═══════════════════════════════════════════════════════════════════
+function validateThemeIntegrity(theme) {
+  const issues = [];
+  const html = theme.theme_html || '';
+  const css = theme.theme_css || '';
+
+  // 1. CSS must exist and have meaningful content (selectors + rules)
+  if (!css.trim()) {
+    issues.push('css_empty');
+  } else if (css.trim().length < 100) {
+    issues.push('css_too_short');
+  } else {
+    // CSS must contain at least one selector with a rule block
+    const hasSelectorAndRule = /[.#\w@:][^{]*\{[^}]+\}/s.test(css);
+    if (!hasSelectorAndRule) issues.push('css_no_rules');
+  }
+
+  // 2. HTML must have structural elements (not just raw text)
+  if (!html.trim()) {
+    issues.push('html_empty');
+  } else {
+    const hasStructure = /<(div|section|main|header|article)\b/i.test(html);
+    if (!hasStructure) issues.push('html_no_structure');
+  }
+
+  // 3. CSS should reference classes/elements that exist in the HTML
+  if (css && html) {
+    const cssClasses = [...new Set((css.match(/\.([a-zA-Z][\w-]*)/g) || []).map(c => c.substring(1)))];
+    const htmlContent = html.toLowerCase();
+    if (cssClasses.length > 0) {
+      const matchCount = cssClasses.filter(c => htmlContent.includes(c.toLowerCase())).length;
+      const matchRatio = matchCount / cssClasses.length;
+      if (matchRatio < 0.2) issues.push('css_html_mismatch');
+    }
+  }
+
+  // 4. Check for broken/incomplete CSS (unclosed braces)
+  if (css) {
+    const opens = (css.match(/\{/g) || []).length;
+    const closes = (css.match(/\}/g) || []).length;
+    if (opens !== closes) issues.push('css_unclosed_braces');
+  }
+
+  // 5. Check for leftover markdown fences in CSS or HTML
+  if (css.includes('```') || html.includes('```')) issues.push('markdown_fences');
+
+  // 6. Check for raw JSON wrapper leaking into HTML
+  if (html.startsWith('"') || html.startsWith('{')) issues.push('html_json_leak');
+
+  // 7. Check for stray @import in CSS body (should be in config.googleFontsImport only)
+  // A stray @import after any CSS rule kills all subsequent rules in that <style> block
+  if (css && /@import\s+url\(/i.test(css)) issues.push('css_stray_import');
+
+  // 8. Check for malformed @keyframes (nested brace mismatch within animation blocks)
+  if (css) {
+    const keyframeBlocks = css.match(/@keyframes\s+[\w-]+\s*\{/g);
+    if (keyframeBlocks) {
+      keyframeBlocks.forEach(kf => {
+        const startIdx = css.indexOf(kf);
+        let depth = 0, i = startIdx;
+        for (; i < css.length; i++) {
+          if (css[i] === '{') depth++;
+          else if (css[i] === '}') { depth--; if (depth === 0) break; }
+        }
+        if (depth !== 0) issues.push('css_malformed_keyframes');
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+function repairTheme(theme, issues) {
+  // Fix markdown fences
+  if (issues.includes('markdown_fences')) {
+    theme.theme_css = (theme.theme_css || '').replace(/```(?:css)?\s*/g, '').replace(/```\s*/g, '');
+    theme.theme_html = (theme.theme_html || '').replace(/```(?:html)?\s*/g, '').replace(/```\s*/g, '');
+  }
+
+  // Fix JSON leak in HTML (strip leading quotes/braces)
+  if (issues.includes('html_json_leak')) {
+    let h = theme.theme_html;
+    // Strip leading "theme_html": " wrapper
+    h = h.replace(/^["']?\s*/, '');
+    // Strip trailing quotes
+    h = h.replace(/["']\s*$/, '');
+    theme.theme_html = h;
+  }
+
+  // Fix unclosed braces — close any open ones
+  if (issues.includes('css_unclosed_braces')) {
+    const opens = (theme.theme_css.match(/\{/g) || []).length;
+    const closes = (theme.theme_css.match(/\}/g) || []).length;
+    if (opens > closes) {
+      theme.theme_css += '}'.repeat(opens - closes);
+    }
+  }
+
+  // If CSS is empty/too short but HTML has inline styles, extract them
+  if (issues.includes('css_empty') || issues.includes('css_too_short')) {
+    const styleBlocks = (theme.theme_html || '').match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+    if (styleBlocks) {
+      const extracted = styleBlocks.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+      if (extracted.trim().length > (theme.theme_css || '').trim().length) {
+        theme.theme_css = extracted;
+        theme.theme_html = theme.theme_html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+        console.log('[repairTheme] Extracted ' + extracted.length + ' chars of CSS from inline <style> blocks');
+      }
+    }
+  }
+
+  // Move stray @import statements from CSS to config.googleFontsImport
+  if (issues.includes('css_stray_import')) {
+    const importMatches = (theme.theme_css || '').match(/@import\s+url\(['"]?([^'"\)]+)['"]?\);?\s*/g);
+    if (importMatches) {
+      const fontUrl = importMatches[0].match(/url\(['"]?([^'"\)]+)['"]?\)/);
+      if (fontUrl && !theme.theme_config?.googleFontsImport) {
+        if (!theme.theme_config) theme.theme_config = {};
+        theme.theme_config.googleFontsImport = "@import url('" + fontUrl[1] + "');";
+      }
+      theme.theme_css = theme.theme_css.replace(/@import\s+url\([^)]+\);?\s*/g, '');
+      console.log('[repairTheme] Moved ' + importMatches.length + ' stray @import(s) from CSS to config');
+    }
+  }
+
+  // Strip malformed @keyframes blocks (animations are decorative, not critical)
+  if (issues.includes('css_malformed_keyframes')) {
+    theme.theme_css = theme.theme_css.replace(/@keyframes\s+[\w-]+\s*\{[^}]*$/gm, '');
+    console.log('[repairTheme] Stripped malformed @keyframes block(s)');
+  }
 }
 
 function buildStyleContext(selected, promptSpecificity) {
@@ -798,10 +959,48 @@ function getClientMeta(req) {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // ── PUBLIC ENDPOINT: Average generation latency (no auth required) ──
+  // Used by the loading screen to show accurate time estimates
+  if (req.method === 'GET' && (req.query?.action === 'avgLatency')) {
+    try {
+      // Get successful full-generation logs from the last 7 days (not tweaks/chat)
+      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from('generation_log')
+        .select('latency_ms')
+        .eq('status', 'success')
+        .gte('created_at', since)
+        .gt('latency_ms', 5000)    // Only full generations (>5s), not quick tweaks
+        .lt('latency_ms', 600000); // Exclude outliers (>10min)
+
+      if (error || !data || data.length === 0) {
+        return res.status(200).json({ avgSeconds: null, sampleSize: 0 });
+      }
+      const latencies = data.map(d => d.latency_ms).sort((a, b) => a - b);
+      // Use median for robustness against outliers
+      const median = latencies[Math.floor(latencies.length / 2)];
+      const avg = Math.round(latencies.reduce((s, v) => s + v, 0) / latencies.length);
+      // Round up to nearest 10s for display (e.g. 73s → "about 80 seconds")
+      const displaySeconds = Math.ceil(median / 1000 / 10) * 10;
+      // Cache for 5 minutes
+      res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
+      return res.status(200).json({
+        avgSeconds: Math.round(avg / 1000),
+        medianSeconds: Math.round(median / 1000),
+        displaySeconds,
+        sampleSize: latencies.length
+      });
+    } catch (e) {
+      console.error('[avgLatency] Error:', e.message);
+      return res.status(200).json({ avgSeconds: null, sampleSize: 0 });
+    }
+  }
+
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   // Verify session
@@ -833,7 +1032,7 @@ export default async function handler(req, res) {
   }
 
   const action = req.query?.action || req.body?.action || 'generate';
-  const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages, inspirationImageUrls, tweakInstructions, currentHtml, currentCss, currentConfig, photoBase64, photoUrl, photoUrls, basedOnThemeId } = req.body;
+  const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages, inspirationImageUrls, tweakInstructions, currentHtml, currentCss, currentConfig, photoBase64, photoUrl, photoUrls, basedOnThemeId, previewMode, currentEmailHtml } = req.body;
 
   // --- INTERPRET FIELD: quick Haiku call to parse natural language into field definition ---
   if (action === 'interpretField') {
@@ -902,6 +1101,64 @@ try {
     }
   }
 
+  // --- CLASSIFY INTENT: quick Haiku call to understand user's request before executing ---
+  // Returns intent, confidence score, and a clarifying question if confidence is low.
+  // This prevents expensive AI calls on ambiguous requests and ensures the chat never fails silently.
+  if (action === 'classifyIntent') {
+    const { userMessage, currentFields, eventType, previewMode: classifyPreviewMode } = req.body;
+    if (!userMessage) return res.status(400).json({ error: 'Missing userMessage' });
+
+    try {
+      const fieldList = (currentFields || []).map(f => `"${f.label}" (${f.field_type})`).join(', ');
+      const resp = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        system: 'You classify user requests in a design chat for event invitations. Return ONLY a JSON object, no markdown.',
+        messages: [{ role: 'user', content: `The user is customizing their ${eventType || 'event'} invite${classifyPreviewMode === 'email' ? ' email' : ''} and said:
+"${userMessage}"
+
+Current RSVP fields: ${fieldList || 'none'}
+
+Classify this request. Return JSON:
+{
+  "intent": "add_field|remove_field|modify_field|design_change|text_change|add_photo|question|unclear",
+  "confidence": 0.0 to 1.0,
+  "summary": "One sentence: what the user wants",
+  "clarification": "A friendly question to ask if you're not confident (null if confident)",
+  "suggested_options": ["option1", "option2", "option3"] or null
+}
+
+Rules:
+- "add_field": user wants to add an RSVP form field (e.g. "add number of adults", "I need a dietary field")
+- "design_change": visual changes (colors, fonts, layout, style, animations, spacing)
+- "text_change": change specific text/wording in the invite
+- "question": user is asking a question, not requesting a change
+- "unclear": you genuinely can't determine what they want
+- confidence 0.9+: crystal clear request. confidence 0.5-0.8: probably understand but should confirm. confidence <0.5: genuinely unclear
+- For add_field with confidence >= 0.8, include "field_details": {"label": "...", "field_type": "..."} so we can skip a second AI call
+- The clarification should be warm, conversational, and show you understood SOMETHING (never "what do you mean?")
+- suggested_options: 2-3 clickable options that help the user clarify (null if confident)` }]
+      });
+
+      const text = resp.content[0]?.text?.trim() || '';
+      const classifyCost = calcGenerationCost('claude-haiku-4-5-20251001', resp.usage?.input_tokens || 0, resp.usage?.output_tokens || 0);
+      let classification;
+      try {
+        const cleaned = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
+        classification = JSON.parse(cleaned);
+      } catch {
+        // If parsing fails, return a conservative "unclear" classification
+        classification = { intent: 'unclear', confidence: 0.3, summary: 'Could not classify', clarification: "I want to make sure I get this right — could you tell me a bit more about what you'd like to change?", suggested_options: null };
+      }
+      await checkAndChargeAiUsage(user.id).catch(() => {});
+      return res.json({ success: true, ...classification, metadata: { cost: classifyCost } });
+    } catch (err) {
+      console.error('classifyIntent error:', err);
+      // On error, return a safe fallback that asks for clarification rather than failing
+      return res.json({ success: true, intent: 'unclear', confidence: 0.3, summary: 'Classification unavailable', clarification: "I want to make sure I get this right — could you tell me a bit more about what you'd like to change?", suggested_options: null });
+    }
+  }
+
   // --- TWEAK MODE: stream response via SSE to avoid timeouts ---
   if (action === 'tweak') {
     if (!eventId || !currentHtml || !currentCss || !tweakInstructions) {
@@ -961,13 +1218,17 @@ try {
 
       let tweakMessage;
 
+      const isEmailMode = previewMode === 'email';
+
       if (isLightTweak) {
         // ── LIGHT TWEAK: diff-based approach (much smaller output) ──
-        tweakMessage = `Here is an invite theme. The user wants a small text/content change.
+        const targetHtml = isEmailMode ? (currentEmailHtml || '') : currentHtml;
+        const targetLabel = isEmailMode ? 'email invite' : 'invite theme';
+        tweakMessage = `Here is an ${targetLabel}. The user wants a small text/content change.
 ${eventContext}
-**Current HTML:**
+**Current ${isEmailMode ? 'Email ' : ''}HTML:**
 \`\`\`html
-${currentHtml}
+${targetHtml}
 \`\`\`
 
 **User's request:** ${tweakInstructions}
@@ -975,17 +1236,47 @@ ${currentHtml}
 Return a JSON object with ONLY the changes needed:
 {
   "html_replacements": [{"old": "exact text to find", "new": "replacement text"}],
-  "rsvp_field_changes": [...] or null,
+  ${isEmailMode ? '' : '"rsvp_field_changes": [...] or null,'}
   "chat_response": "Brief friendly message about what you changed"
 }
 
 Rules:
-- "old" must be an EXACT substring from the current HTML (copy-paste it precisely, including tags)
-- "new" is the replacement string
+- "old" must be an EXACT substring from the current ${isEmailMode ? 'email ' : ''}HTML (copy-paste it precisely, including tags)
+- "new" is the replacement string${isEmailMode ? `
+- This is an EMAIL template — it must use table-based layout for email client compatibility
+- Keep all inline styles — email clients don't support <style> blocks reliably` : `
 - For RSVP field changes: { "action": "remove"|"add"|"modify", "field_key": "...", "label": "...", "field_type": "text"|"number"|"select"|"checkbox"|"textarea", "is_required": false }
 - RSVP fields are rendered by the platform, NOT in the HTML. Do NOT add form inputs to html_replacements.
 - .rsvp-slot MUST contain ONLY a <button class="rsvp-button">
-- Preserve all data-field attributes`;
+- Preserve all data-field attributes`}`;
+      } else if (isEmailMode) {
+        // ── EMAIL DESIGN TWEAK: modify the email invite template ──
+        tweakMessage = `Here is an email invite template. The user is customizing their email invite via the design chat.
+
+The email should feel like a polished teaser of their event invite — matching its personality, colors, and typography — while working reliably across all email clients.
+${eventContext}
+**Current Email HTML:**
+\`\`\`html
+${currentEmailHtml || ''}
+\`\`\`
+
+**Theme Config (the invite's visual identity — match these in the email):**
+\`\`\`json
+${JSON.stringify(currentConfig || {})}
+\`\`\`
+
+**User's message:**
+${tweakInstructions}
+
+Return the updated email as a JSON object:
+{
+  "theme_email_html": "...the full updated email HTML...",
+  "chat_response": "Brief friendly message about what you changed"
+}
+
+Keep the \`{name}\` and \`{link}\` placeholders — they're replaced per-guest at send time.
+Preserve the RSVP button link and the "Sent via Ryvite" footer.
+Make ONLY the changes the user asked for — keep everything else the same.`;
       } else {
         // ── DESIGN TWEAK: full regeneration ──
         tweakMessage = `Here is an existing invite theme. The user is using the chat designer to modify their invite.
@@ -1047,8 +1338,71 @@ Remember: RSVP fields are rendered by the platform, NOT in theme HTML. Do NOT ad
       // Stream the response from Claude
       sendSSE('status', { phase: 'generating', isLightTweak });
 
-      const tweakSystemPrompt = isLightTweak
-        ? `You are modifying an event invite. Make ONLY the specific text, wording, or content changes requested. Do NOT change design, layout, colors, fonts, or CSS.
+      const tweakSystemPrompt = isEmailMode && !isLightTweak
+        ? `You are an elite email designer modifying event invitation emails. The email should feel like a premium, on-brand teaser for the event invite — making the recipient excited to click through.
+
+## OUTPUT FORMAT
+Return ONLY a valid JSON object:
+{
+  "theme_email_html": "...the complete updated email HTML...",
+  "chat_response": "Brief friendly message about what you changed."
+}
+
+## EMAIL CLIENT COMPATIBILITY (non-negotiable)
+These rules ensure the email renders correctly in Gmail, Apple Mail, Outlook, Yahoo, and mobile clients:
+
+### Layout
+- TABLE-BASED LAYOUT ONLY — no flexbox, no grid, no CSS float
+- Outer wrapper: \`<table width="100%" cellpadding="0" cellspacing="0" border="0">\`
+- Content table: max-width 600px with \`width="600"\` attribute AND \`style="max-width:600px;width:100%"\`
+- Use \`role="presentation"\` on all layout tables
+- Use \`border="0"\` on every table element
+
+### Styles
+- ALL styles INLINE (style="...") — Gmail/Outlook strip \`<style>\` blocks
+- Never use CSS shorthand for padding/margin in Outlook-critical areas (use padding-top, padding-right etc. separately if needed)
+- Never use \`opacity\` — derive actual hex colors instead (mix with white/black for lighter/darker)
+- Never use rgba() or hsla() — only hex colors (#RRGGBB)
+- Never use CSS variables, calc(), or any modern CSS
+- Avoid \`border-radius\` on outer containers (Outlook ignores it) — it's fine on inner elements for non-Outlook
+
+### Typography
+- Always include web-safe fallback stacks: \`'Custom Font', Georgia, 'Times New Roman', serif\` or \`'Custom Font', Arial, Helvetica, sans-serif\`
+- Use explicit \`font-family\` on EVERY text element — inheritance is unreliable
+- Use px for font-size, never em/rem
+
+### Images
+- No inline SVG (Outlook blocks it). Use img tags with absolute URLs only
+- Always include width/height attributes AND style dimensions
+- Always include descriptive alt text
+
+### Buttons (Outlook-safe)
+- Wrap \`<a>\` in a \`<td>\` with background-color — not on the \`<a>\` itself
+- Include VML roundrect comment for Outlook: \`<!--[if mso]>...<![endif]-->\`
+
+### Structure
+- Include preheader text (hidden preview text for inbox) in a hidden div at top of body
+- Include \`<meta name="color-scheme" content="light">\` and \`<meta name="supported-color-schemes" content="light">\`
+
+## DESIGN PHILOSOPHY — RYVITE BRANDED EMAIL
+The email follows Ryvite's brand guidelines. The template structure is:
+1. **Dark branded header** — background: linear-gradient(135deg, #1A1A2E, #0f3460), border-radius: 12px 12px 0 0, "Ryvite" in Playfair Display white, "Prompt to Party" in #FFB74D italic
+2. **Accent bar** — 4px tall, uses the event's primaryColor for personality
+3. **White card body** — #FFFFFF background, centered content, box-shadow for depth
+4. **Event details card** — uses a soft tint of primaryColor (~85% toward white) background with a 3px left border in primaryColor
+5. **CTA button** — Ryvite coral gradient (linear-gradient(135deg, #E94560, #FF6B6B)), pill shape (border-radius: 50px), white text, "View Invitation"
+6. **Footer** — "&copy; 2026 Ryvite — Beautiful invitations, effortlessly." in #D1D5DB
+
+Outer background: #FFFAF5 (Ryvite cream). Max-width: 480px.
+
+- The event's primaryColor is used ONLY for the accent bar and details card tint/border — NOT the CTA button (always Ryvite coral gradient)
+- Text is always dark (#1A1A2E headlines, #5A5A6E body, #D1D5DB footer)
+- No emoji unicode characters (render inconsistently across clients)
+- Keep it a teaser — show event name, date, location, a compelling CTA, and a hint to "view the full invitation"
+- When users tweak the email, preserve the branded header/footer structure — only modify the card body content
+- The email is a first impression — make it feel premium and on-brand, not generic`
+        : isLightTweak
+        ? `You are modifying an event ${isEmailMode ? 'email invite' : 'invite'}. Make ONLY the specific text, wording, or content changes requested. Do NOT change design, layout, colors, fonts, or CSS.
 
 ## OUTPUT FORMAT
 Return ONLY a valid JSON object:
@@ -1108,7 +1462,7 @@ Return ONLY a valid JSON object with these keys:
 - No JavaScript, no external images (except Google Fonts and user-uploaded photos)
 - Make minimal changes — only what the user asked for, keep everything else exactly the same
 - Preserve and enhance CSS animations — every invite should feel alive with entrance animations, ambient motion, and hover effects
-- Thank you page: ONLY provide .thankyou-page container with .thankyou-hero (.thankyou-title + .thankyou-subtitle with .thankyou-guest span). NO calendar buttons, NO footer — the platform injects those automatically. NO emojis. Match invite's background/fonts. Style .thankyou-page, .thankyou-hero, .thankyou-title, .thankyou-subtitle in CSS.
+- Thank you page: Provide .thankyou-page container with a REQUIRED decorative SVG illustration (in .thankyou-decoration div) + empty .thankyou-hero div. The platform injects "Thank You!" title, subtitle, calendar buttons, and footer. NO text, NO emojis, NO calendar buttons, NO footer in your output. MUST include a theme-matching SVG illustration with CSS animation. Match invite's background/fonts. Style .thankyou-page, .thankyou-decoration, .thankyou-hero, .thankyou-title, .thankyou-subtitle in CSS.
 - TEXT CONTRAST: EVERY text element must be clearly readable against its background. Never light-on-light or dark-on-dark. Buttons must have contrasting text. This is non-negotiable. CONCRETE RULE: on any dark/colored background section, text MUST be #FFFFFF or #FAFAFA. On light backgrounds, text MUST be #1A1A1A or darker. Do NOT use theme accent colors (coral, salmon, rose, etc.) as text on dark backgrounds.
 - For photo additions: use the EXACT URL(s) provided in <img> tags. Style with creative framing per the event type.`;
 
@@ -1178,9 +1532,26 @@ Return ONLY a valid JSON object with these keys:
       const latency = Date.now() - startTime;
 
       // Parse the accumulated text using robust parser
+      // Light tweaks may return {html_replacements, rsvp_field_changes, chat_response} — no theme_html.
+      // parseThemeResponse→normalizeThemeKeys throws when theme_html is missing, so handle light tweak
+      // JSON separately to avoid the raw JSON leaking as a "chat" message.
       let theme;
       try {
-        theme = parseThemeResponse(fullText);
+        let lightTweakText = fullText.trim();
+        // Strip markdown fences if present
+        const fenceMatch = lightTweakText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+        if (fenceMatch) lightTweakText = fenceMatch[1].trim();
+        try {
+          const parsed = JSON.parse(lightTweakText);
+          if (parsed && (parsed.html_replacements || parsed.rsvp_field_changes) && !parsed.theme_html && !parsed.html) {
+            // Light tweak response — use directly without normalizeThemeKeys
+            theme = parsed;
+          } else {
+            theme = parseThemeResponse(fullText);
+          }
+        } catch (_) {
+          theme = parseThemeResponse(fullText);
+        }
       } catch (parseErr) {
         // No valid JSON/HTML found — AI responded with conversational text instead of a theme.
         // Return it as a chat response so the client can display it gracefully.
@@ -1210,8 +1581,42 @@ Return ONLY a valid JSON object with these keys:
         return;
       }
 
+      // ── Email mode: handle email-specific response ──
+      if (isEmailMode) {
+        const emailHtmlResult = theme.theme_email_html || theme.email_html || null;
+
+        if (isLightTweak && theme.html_replacements && Array.isArray(theme.html_replacements)) {
+          // Apply replacements to email HTML
+          console.log(`[tweak] Applying ${theme.html_replacements.length} email HTML replacement(s)`);
+          let patchedEmail = currentEmailHtml || '';
+          let appliedCount = 0;
+          for (const rep of theme.html_replacements) {
+            if (rep.old && rep.new !== undefined && patchedEmail.includes(rep.old)) {
+              patchedEmail = patchedEmail.replace(rep.old, rep.new);
+              appliedCount++;
+            } else if (rep.old) {
+              console.warn('[tweak] Email replacement not found:', rep.old.substring(0, 100));
+            }
+          }
+          console.log(`[tweak] Applied ${appliedCount}/${theme.html_replacements.length} email replacements`);
+          theme.theme_html = currentHtml;
+          theme.theme_css = currentCss;
+          theme.theme_config = { ...(currentConfig || {}), emailHtml: patchedEmail };
+        } else if (emailHtmlResult) {
+          // Full email design tweak — AI returned complete email HTML
+          console.log(`[tweak] Got full email HTML from AI (${emailHtmlResult.length} chars)`);
+          theme.theme_html = currentHtml;
+          theme.theme_css = currentCss;
+          theme.theme_config = { ...(currentConfig || {}), emailHtml: emailHtmlResult };
+        } else {
+          // No email changes — keep existing
+          theme.theme_html = currentHtml;
+          theme.theme_css = currentCss;
+          theme.theme_config = currentConfig || {};
+        }
+      }
       // ── Light tweak: apply diff-based html_replacements ──
-      if (isLightTweak && theme.html_replacements && Array.isArray(theme.html_replacements)) {
+      else if (isLightTweak && theme.html_replacements && Array.isArray(theme.html_replacements)) {
         console.log(`[tweak] Applying ${theme.html_replacements.length} HTML replacement(s)`);
         let patchedHtml = currentHtml;
         let appliedCount = 0;
@@ -1261,6 +1666,10 @@ Return ONLY a valid JSON object with these keys:
         tweakConfig.thankyouHtml = theme.theme_thankyou_html;
       } else if (currentConfig?.thankyouHtml) {
         tweakConfig.thankyouHtml = currentConfig.thankyouHtml;
+      }
+      // Preserve emailHtml across non-email tweaks
+      if (!tweakConfig.emailHtml && currentConfig?.emailHtml) {
+        tweakConfig.emailHtml = currentConfig.emailHtml;
       }
 
       // Save tweak theme to DB BEFORE closing SSE so it's reliable
@@ -1415,7 +1824,7 @@ Return ONLY a valid JSON object with these keys:
 
   try {
     // Build RSVP fields description
-    let rsvpFieldsDesc = 'Default fields: Name, RSVP Status (Attending/Declined/Maybe)';
+    let rsvpFieldsDesc = 'Default fields: Name, Email, Phone, RSVP Status (Attending/Declined/Maybe)';
     if (rsvpFields?.length > 0) {
       rsvpFieldsDesc += '\nCustom fields: ' + rsvpFields.map(f => `${f.label} (${f.field_type}${f.is_required ? ', required' : ''})`).join(', ');
     }
@@ -1609,6 +2018,40 @@ This is the most common failure mode. Double-check it.`;
     // Store thank you HTML in config to avoid DB schema change
     if (theme.theme_thankyou_html) {
       theme.theme_config.thankyouHtml = theme.theme_thankyou_html;
+    } else {
+      // Log whether fallback will work — AI CSS may still have .thankyou-page rules
+      const hasTyCssRules = (theme.theme_css || '').includes('.thankyou-page');
+      console.warn('[generate] thankyouHtml is empty. CSS has .thankyou-page rules:', hasTyCssRules, '— client fallback will be used');
+    }
+
+    // ── CSS FAILSAFE: If CSS is empty but HTML contains <style> blocks, extract them ──
+    if ((!theme.theme_css || !theme.theme_css.trim()) && theme.theme_html) {
+      const fallbackStyleMatch = theme.theme_html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+      if (fallbackStyleMatch) {
+        const fallbackCss = fallbackStyleMatch.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+        if (fallbackCss.trim()) {
+          console.warn('[generate] CSS was empty — extracted ' + fallbackCss.length + ' chars from <style> blocks in HTML');
+          theme.theme_css = fallbackCss;
+          theme.theme_html = theme.theme_html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+        }
+      }
+    }
+    if (!theme.theme_css || !theme.theme_css.trim()) {
+      console.error('[generate] WARNING: Theme has no CSS! HTML length:', theme.theme_html?.length, 'Keys:', Object.keys(theme).join(', '));
+    }
+
+    // ── SERVER-SIDE THEME VALIDATION: Catch broken output before sending to client ──
+    const validation = validateThemeIntegrity(theme);
+    if (!validation.valid) {
+      console.warn('[generate] Theme validation failed:', validation.issues.join(', '), '— attempting auto-repair');
+      repairTheme(theme, validation.issues);
+      // Re-validate after repair
+      const recheck = validateThemeIntegrity(theme);
+      if (!recheck.valid) {
+        console.error('[generate] Theme still has issues after repair:', recheck.issues.join(', '));
+      } else {
+        console.log('[generate] Theme auto-repair succeeded');
+      }
     }
 
     // CRITICAL: Send theme to client and close connection IMMEDIATELY.

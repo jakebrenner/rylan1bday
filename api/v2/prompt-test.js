@@ -258,14 +258,15 @@ Style these classes in theme_css to match the theme:
 - No JavaScript. No fixed positioning. No iframes. Google Fonts only.
 - Keep height reasonable — 3-5 phone screen scrolls.
 
-## THANK YOU PAGE (theme_thankyou_html) — SIMPLIFIED
-The platform injects the hero text, calendar buttons, and footer. You provide:
-- \`<div class="thankyou-page"><div class="thankyou-hero"></div></div>\`
+## THANK YOU PAGE (theme_thankyou_html) — CRITICAL
+The platform injects "Thank You!" heading, subtitle text, calendar buttons, and footer at runtime.
+Your job: provide the **visual wrapper and a decorative illustration** that makes it feel like a celebration.
+- Structure: \`<div class="thankyou-page"><div class="thankyou-decoration"><svg>...</svg></div><div class="thankyou-hero"></div></div>\`
 - \`.thankyou-page\` MUST have a branded background matching the invite (gradient, pattern, texture, or solid color)
-- \`.thankyou-hero\` must be EMPTY — the platform fills it
-- Optional: ONE small decorative SVG element inside \`.thankyou-page\` but outside \`.thankyou-hero\` (under 1KB)
+- \`.thankyou-hero\` MUST be completely EMPTY — the platform fills it with title + subtitle
+- **REQUIRED**: Include a theme-centric decorative SVG illustration (under 2KB) in \`.thankyou-decoration\` with CSS animation (bounce, fade-in, etc.). Examples: confetti, balloons, party hat, checkmark with sparkles, champagne glasses, cake, etc. A blank page with no illustration looks broken.
 - NO text content, NO emojis, NO calendar buttons, NO footer
-- Include CSS for .thankyou-page, .thankyou-hero, .thankyou-title, .thankyou-subtitle in theme_css
+- Include CSS for .thankyou-page, .thankyou-decoration, .thankyou-hero, .thankyou-title, .thankyou-subtitle in theme_css
 
 ## TEXT CONTRAST — CRITICAL, NEVER VIOLATE
 - EVERY piece of text must have sufficient contrast against its background (WCAG AA minimum)
@@ -743,7 +744,7 @@ You MUST only place a styled \`<button class="rsvp-button">\` inside \`.rsvp-slo
 Make the button text fun and on-theme.
 
 Fields that will be injected (for awareness only — do NOT render):
-Default fields: Name, RSVP Status (Attending/Declined/Maybe)${styleContext}
+Default fields: Name, Email, Phone, RSVP Status (Attending/Declined/Maybe)${styleContext}
 
 ══════════════════════
 ⚠️ FINAL CHECK — TEXT CONTRAST (NON-NEGOTIABLE)

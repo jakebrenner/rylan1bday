@@ -112,10 +112,14 @@
       }).join('');
     }
 
+    var invitedGuest = null; // Set when guest arrives via personalized invite link
+    var guestId = ''; // Guest ID from URL ?gid= parameter
+
     async function loadEvent() {
       var params = new URLSearchParams(window.location.search);
       var slug = params.get('slug');
       var eventId = params.get('eid');
+      guestId = params.get('gid') || '';
 
       // Support clean URLs: /v2/event/my-slug
       if (!slug && !eventId) {
@@ -137,6 +141,17 @@
 
         currentEventData = result.event;
         document.title = result.event.title + ' — Ryvite';
+
+        // If guest arrived via personalized invite link, look up their info
+        if (guestId) {
+          try {
+            var gRes = await fetch('/api/v2/events?action=getGuest&guestId=' + encodeURIComponent(guestId) + '&eventId=' + encodeURIComponent(result.event.id));
+            var gData = await gRes.json();
+            if (gData.success && gData.guest) {
+              invitedGuest = gData.guest;
+            }
+          } catch (e) { /* fall back to walk-in mode */ }
+        }
 
         if (result.event.themeHtml && result.event.themeCss) {
           var config = result.event.themeConfig || {};
@@ -169,17 +184,31 @@
       var customFields = event.customFields || [];
       var html = '<h3>RSVP</h3><div id="rsvpForm">';
 
-      // Name (always required)
+      // Welcome note for invited guests
+      if (invitedGuest) {
+        html += '<div class="invite-welcome" style="padding:12px 16px;margin-bottom:16px;background:rgba(0,0,0,0.03);border-radius:8px;font-size:14px;">'
+          + 'Welcome, <strong>' + escapeHtml(invitedGuest.name) + '</strong>! Just confirm your RSVP below.'
+          + '</div>';
+      }
+
+      // Name (always required — pre-filled for invited guests)
       html += '<div class="rsvp-form-group">'
         + '<label for="rsvpName">Name <span class="required-star">*</span></label>'
-        + '<input type="text" id="rsvpName" placeholder="Your name" required>'
+        + '<input type="text" id="rsvpName" placeholder="Your name" required'
+        + (invitedGuest ? ' value="' + escapeHtml(invitedGuest.name) + '"' : '') + '>'
         + '</div>';
 
-      // Email field — only show if host added it as a custom field
-      var hasEmail = customFields.some(function(f) { return f.key === 'email'; });
-      if (hasEmail) {
-        var emailField = customFields.find(function(f) { return f.key === 'email'; });
-        html += renderField(emailField);
+      // Email and Phone — only shown for walk-in visitors (no invite ID)
+      if (!invitedGuest) {
+        html += '<div class="rsvp-form-group">'
+          + '<label for="rsvpEmail">Email</label>'
+          + '<input type="email" id="rsvpEmail" placeholder="your@email.com">'
+          + '</div>';
+
+        html += '<div class="rsvp-form-group">'
+          + '<label for="rsvpPhone">Phone</label>'
+          + '<input type="tel" id="rsvpPhone" placeholder="(555) 123-4567">'
+          + '</div>';
       }
 
       // RSVP Status (always required)
@@ -192,9 +221,9 @@
         + '<option value="maybe">Maybe</option>'
         + '</select></div>';
 
-      // Render custom fields (skip email since handled above)
+      // Render custom fields (skip email and phone since handled above as built-in)
       customFields.forEach(function(field) {
-        if (field.key === 'email') return;
+        if (field.key === 'email' || field.key === 'phone') return;
         html += renderField(field);
       });
 
@@ -250,12 +279,10 @@
       var status = document.getElementById('rsvpStatus').value;
       if (!name || !status) { alert('Please fill in your name and RSVP status'); return; }
 
-      // Collect email
-      var emailEl = document.getElementById('rsvpEmail') || document.getElementById('custom_email');
+      // Collect email and phone (only shown for walk-in visitors)
+      var emailEl = document.getElementById('rsvpEmail');
+      var phoneEl = document.getElementById('rsvpPhone');
       var email = emailEl ? emailEl.value.trim() : '';
-
-      // Collect phone
-      var phoneEl = document.getElementById('custom_phone');
       var phone = phoneEl ? phoneEl.value.trim() : '';
 
       // Collect custom field values
@@ -264,7 +291,7 @@
       var missingRequired = false;
 
       customFields.forEach(function(field) {
-        if (field.key === 'email') return; // handled above
+        if (field.key === 'email' || field.key === 'phone') return; // handled above as built-in
         var el = document.getElementById('custom_' + field.key);
         if (!el) return;
         var val;
@@ -276,9 +303,6 @@
           if (field.required && !val) { missingRequired = true; }
         }
         if (val) responseData[field.key] = val;
-        if (field.key === 'phone' || field.type === 'phone' || field.type === 'tel') {
-          phone = val;
-        }
       });
 
       if (missingRequired) { alert('Please fill in all required fields'); return; }
@@ -313,10 +337,7 @@
       }
 
       try {
-        var res = await fetch('/api/v2/events?action=rsvp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        var rsvpBody = {
             eventId: currentEventData.id,
             name: name,
             email: email,
@@ -324,7 +345,14 @@
             status: status,
             plusOnes: plusOnes,
             responseData: responseData
-          })
+        };
+        // Include guestId for invited guests — triggers UPDATE instead of INSERT
+        if (guestId && invitedGuest) rsvpBody.guestId = guestId;
+
+        var res = await fetch('/api/v2/events?action=rsvp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(rsvpBody)
         });
         var result = await res.json();
         if (result.success) {
