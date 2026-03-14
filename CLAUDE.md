@@ -123,6 +123,14 @@ Adds rich metadata to `generation_log` (client_ip, client_geo, style_library_ids
 | `invite_ratings` | End-user ratings (1-5 stars + feedback) on invite designs. Links to `event_themes`. Supports host, guest, and anonymous raters. |
 | `theme_rating_summary` (view) | Aggregated avg rating, total count, positive/negative counts per theme |
 
+### Style Feedback Loop (`supabase/migrate_style_feedback_loop.sql`)
+Adds `style_library_ids` to `event_themes` for direct traceability, and composite scoring views.
+
+| View | Purpose |
+|------|---------|
+| `production_style_effectiveness` | Composite score (1-5) per style blending admin rating (40%), production theme quality (35%), and user satisfaction (25%) — used by generation endpoint for weighted selection |
+| `style_rating_impact` | Validates whether admin style ratings are predictive of output quality — groups by rating tier and shows avg output quality per tier |
+
 ### Key Relationships
 - `event_themes.event_id` → `events.id` (one event has many theme versions, one active)
 - `guests.event_id` → `events.id`
@@ -215,12 +223,17 @@ No auth required — supports host, guest, and anonymous raters.
 | **Auth required** | Admin token | Admin token | None (dedup by fingerprint) |
 | **Status** | Implemented | API ready, admin UI not yet built | Host rating UI live, guest UI not yet built |
 
-### Style Library Weighted Selection
-- `style_library.admin_rating` (1-5) drives weighted random selection during generation
-- Weight formula: rating value = weight multiplier (5-star = 5x, 1-star = 1x, unrated = 2x neutral)
-- Higher-rated styles are more likely to be picked as references, but selection is probabilistic (not deterministic)
+### Style Library Weighted Selection (Composite Feedback Loop)
+- Selection uses a **composite score** blending three rating signals (via `production_style_effectiveness` view):
+  - **40% admin style rating** — curator's assessment of the template itself (`style_library.admin_rating`)
+  - **35% production theme quality** — avg admin rating of themes generated using this style (`event_themes.admin_rating`)
+  - **25% user satisfaction** — avg end-user rating of themes generated using this style (`invite_ratings`)
+- Falls back to `admin_rating`-only weighting if the `production_style_effectiveness` view isn't available
+- **Exponential scaling** (`weight^1.8`) amplifies quality differences: 5-star = 18x weight vs 1-star = 1x (compared to old linear 5x/1x)
+- `event_themes.style_library_ids` stores which styles influenced each generation (enables production correlation)
 - `style_library.times_used` tracks how often each style is selected (for identifying over/under-used styles)
 - `event_themes.prompt_version_id` tracks which prompt version produced each theme (set at generation time)
+- `style_rating_impact` view validates whether admin ratings are predictive of actual output quality
 
 ### Key Metrics
 - **Generations-to-Publish (GTP)**: Number of theme generations before a user publishes their event. Lower = better UX. Tracked on `events.generations_to_publish`, computed when status first changes to "published".
