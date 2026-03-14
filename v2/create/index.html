@@ -1731,6 +1731,7 @@
         showGeneratingError('Unable to load pricing. Please try again.');
         return;
       }
+      var isUsagePlan = plan.billingType === 'usage' && plan.priceCents === 0;
       var priceDisplay = '$' + (plan.priceCents / 100).toFixed(2);
       window._paywallPlan = plan;
 
@@ -1752,17 +1753,25 @@
           + '<div style="font-size:11px;color:#999;">Expires ' + savedCard.expMonth + '/' + savedCard.expYear + '</div></div></div>';
       }
 
+      // Button text depends on plan type
+      var btnText = isUsagePlan
+        ? 'Start Designing'
+        : 'Purchase for ' + priceDisplay;
+      var subtitle = isUsagePlan
+        ? 'You\'ve used all the events in your current plan. Start a new event — you only pay for what you use!'
+        : 'You\'ve used all the events in your current plan. Purchase another event to keep going!';
+
       loadingState.innerHTML = '<div class="gen-container">'
         + '<div style="font-size:48px;margin-bottom:12px;">🎉</div>'
         + '<h3 class="gen-title" style="color:var(--midnight);">Create Another Event?</h3>'
-        + '<p style="margin-bottom:16px;font-size:14px;color:#888;">You\'ve used all the events in your current plan. Purchase another event to keep going!</p>'
+        + '<p style="margin-bottom:16px;font-size:14px;color:#888;">' + subtitle + '</p>'
         + cardHtml
         + '<div style="margin-bottom:8px;">'
         + (savedCard
-          ? '<button id="additionalEventBtn" class="btn btn-primary" onclick="purchaseAdditionalEvent()" style="font-size:14px;padding:12px 28px;">Purchase for ' + priceDisplay + '</button>'
-          : '<button id="additionalEventBtn" class="btn btn-primary" onclick="purchaseAdditionalEventCheckout()" style="font-size:14px;padding:12px 28px;">Purchase for ' + priceDisplay + '</button>')
+          ? '<button id="additionalEventBtn" class="btn btn-primary" onclick="purchaseAdditionalEvent()" style="font-size:14px;padding:12px 28px;">' + btnText + '</button>'
+          : '<button id="additionalEventBtn" class="btn btn-primary" onclick="purchaseAdditionalEventCheckout()" style="font-size:14px;padding:12px 28px;">' + btnText + '</button>')
         + '</div>'
-        + (savedCard ? '<div style="margin-bottom:8px;"><a href="#" onclick="purchaseAdditionalEventCheckout();return false;" style="font-size:12px;color:#aaa;">Use a different card</a></div>' : '')
+        + (savedCard && !isUsagePlan ? '<div style="margin-bottom:8px;"><a href="#" onclick="purchaseAdditionalEventCheckout();return false;" style="font-size:12px;color:#aaa;">Use a different card</a></div>' : '')
         + '<div><button class="btn btn-secondary" onclick="goToStep(1)" style="font-size:13px;padding:10px 20px;">Back</button></div>'
         + '</div>';
     }
@@ -1774,14 +1783,9 @@
       btn.textContent = 'Processing...';
       try {
         var plan = window._paywallPlan;
-        var res = await authFetch('/api/v2/billing?action=quick-charge', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ planId: plan.id })
-        });
-        var data = await res.json();
-        if (data.success) {
-          // Payment succeeded — now create event and generate
+        var isUsagePlan = plan.billingType === 'usage' && plan.priceCents === 0;
+
+        function showGeneratingUI() {
           var loadingState = document.getElementById('generatingLoadingState');
           loadingState.innerHTML = '<div class="gen-container">'
             + '<div class="gen-emoji-float" id="genEmoji">🎨</div>'
@@ -1795,6 +1799,39 @@
             + '<div class="gen-stage" data-stage="polish"><div class="gen-stage-icon">✨</div><div class="gen-stage-text">Adding finishing touches</div></div>'
             + '</div></div>';
           startGeneratingPuns();
+        }
+
+        if (isUsagePlan) {
+          // Usage plan — no charge, just activate and proceed
+          var activateRes = await authFetch('/api/v2/billing?action=activate-usage-plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ planId: plan.id })
+          });
+          var activateData = await activateRes.json();
+          if (!activateData.success) {
+            throw new Error(activateData.error || 'Failed to activate plan');
+          }
+          showGeneratingUI();
+          var saved = await saveEventToDB();
+          if (saved !== true) {
+            stopGeneratingPuns();
+            showGeneratingError('Plan activated but event creation failed. Please try again.');
+            return;
+          }
+          generateTheme();
+          return;
+        }
+
+        var res = await authFetch('/api/v2/billing?action=quick-charge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ planId: plan.id })
+        });
+        var data = await res.json();
+        if (data.success) {
+          // Payment succeeded — now create event and generate
+          showGeneratingUI();
           var saved = await saveEventToDB();
           if (saved !== true) {
             stopGeneratingPuns();
@@ -1809,9 +1846,10 @@
         }
       } catch (e) {
         var plan2 = window._paywallPlan;
+        var isUsage2 = plan2.billingType === 'usage' && plan2.priceCents === 0;
         btn.disabled = false;
-        btn.textContent = 'Purchase for $' + (plan2.priceCents / 100).toFixed(2);
-        showMessage('Payment error. Please try again.', 'error');
+        btn.textContent = isUsage2 ? 'Start Designing' : 'Purchase for $' + (plan2.priceCents / 100).toFixed(2);
+        showMessage(e.message || 'Payment error. Please try again.', 'error');
       }
     }
 
