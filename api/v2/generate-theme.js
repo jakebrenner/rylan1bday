@@ -1774,6 +1774,13 @@ Return ONLY a valid JSON object with these keys:
         console.error('Tweak theme DB save failed:', saveErr);
       }
 
+      // Mark free redo as used BEFORE sending response (prevents race with next request)
+      if (req._isFreeRedo) {
+        await supabase.from('events')
+          .update({ free_redo_used: true })
+          .eq('id', eventId).eq('payment_status', 'free');
+      }
+
       // Send result to client with real DB ID
       sendSSE('done', {
         success: true,
@@ -1821,12 +1828,7 @@ Return ONLY a valid JSON object with these keys:
           is_tweak: true, event_type: eventDetails?.eventType || '',
           client_ip: tweakMeta.ip, client_geo: tweakMeta.geo, user_agent: tweakMeta.userAgent
 }).catch(() => {});
-        // Mark free redo as used if applicable — MUST be awaited
-        if (req._isFreeRedo) {
-          await supabase.from('events')
-            .update({ free_redo_used: true })
-            .eq('id', eventId).eq('payment_status', 'free');
-        }
+        // free_redo_used is already set before res.end() — no need to duplicate here
         // Atomically increment persistent event cost
         try {
           const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: tweakCost.totalCostCents });
@@ -2124,8 +2126,17 @@ This is the most common failure mode. Double-check it.`;
       }
     }
 
-    // CRITICAL: Send theme to client and close connection IMMEDIATELY.
-    // res.text() on client buffers until res.end(), so DB saves MUST happen after.
+    // CRITICAL: Mark free generation as used BEFORE sending response to client.
+    // If we wait until after res.end(), the client can fire a tweak request before
+    // the DB update completes, bypassing the free tier limit.
+    const freeUpdate = { free_generation_used: true };
+    if (req._isFreeRedo) freeUpdate.free_redo_used = true;
+    await supabase.from('events')
+      .update(freeUpdate)
+      .eq('id', eventId).eq('payment_status', 'free');
+
+    // Send theme to client and close connection.
+    // res.text() on client buffers until res.end(), so remaining DB saves happen after.
     const genCost = calcGenerationCost(themeModel, genInputTokens, genOutputTokens);
     console.log('[cost] Sending to client:', { genCost, model: themeModel, inputTokens: genInputTokens, outputTokens: genOutputTokens });
     sendSSE('done', {
@@ -2148,7 +2159,7 @@ This is the most common failure mode. Double-check it.`;
         cost: genCost
       }
     });
-    res.end(); // Unblock the client NOW — DB saves continue in background
+    res.end(); // Unblock the client NOW — remaining DB saves continue in background
 
     // Background DB saves — client already has the theme and connection is closed
     // CRITICAL: Save theme to DB IMMEDIATELY so resume works if user navigates away.
@@ -2233,12 +2244,7 @@ This is the most common failure mode. Double-check it.`;
       await supabase.from('events')
         .update({ first_generation_at: new Date().toISOString() })
         .eq('id', eventId).is('first_generation_at', null);
-      // Mark free generation as used — MUST be awaited or Vercel kills the function before it completes
-      const freeUpdate = { free_generation_used: true };
-      if (req._isFreeRedo) freeUpdate.free_redo_used = true;
-      await supabase.from('events')
-        .update(freeUpdate)
-        .eq('id', eventId).eq('payment_status', 'free');
+      // free_generation_used is already set before res.end() — no need to duplicate here
       // Atomically increment persistent event cost
       try {
         const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: genCost.totalCostCents });
