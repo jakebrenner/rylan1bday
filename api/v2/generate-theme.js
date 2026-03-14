@@ -573,10 +573,11 @@ function normalizeThemeKeys(theme) {
   if (!theme.theme_config && theme.themeConfig) theme.theme_config = theme.themeConfig;
   if (!theme.theme_thankyou_html && theme.thankyou_html) theme.theme_thankyou_html = theme.thankyou_html;
   if (!theme.theme_thankyou_html && theme.thankyouHtml) theme.theme_thankyou_html = theme.thankyouHtml;
-  // Fix double-escaped quotes in HTML/CSS (models sometimes output \" inside JSON strings)
-  if (theme.theme_html && theme.theme_html.includes('\\"')) theme.theme_html = theme.theme_html.replace(/\\"/g, '"');
-  if (theme.theme_css && theme.theme_css.includes('\\"')) theme.theme_css = theme.theme_css.replace(/\\"/g, '"');
-  if (theme.theme_thankyou_html && theme.theme_thankyou_html.includes('\\"')) theme.theme_thankyou_html = theme.theme_thankyou_html.replace(/\\"/g, '"');
+  // Fix multi-level escaped quotes in HTML/CSS (models sometimes output \\\" or deeper nesting)
+  // Loop until stable — one pass of \\" → \" still leaves a backslash-quote
+  while (theme.theme_html && theme.theme_html.includes('\\"')) theme.theme_html = theme.theme_html.replace(/\\"/g, '"');
+  while (theme.theme_css && theme.theme_css.includes('\\"')) theme.theme_css = theme.theme_css.replace(/\\"/g, '"');
+  while (theme.theme_thankyou_html && theme.theme_thankyou_html.includes('\\"')) theme.theme_thankyou_html = theme.theme_thankyou_html.replace(/\\"/g, '"');
   // Fix double-escaped whitespace (models sometimes output \\n inside JSON string values)
   // After JSON.parse, \\n becomes literal backslash-n text — convert to real whitespace
   if (theme.theme_html && theme.theme_html.includes('\\n')) theme.theme_html = theme.theme_html.replace(/\\n/g, '\n');

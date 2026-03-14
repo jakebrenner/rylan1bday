@@ -2855,6 +2855,9 @@
     // Fix double-escaped whitespace from AI model output (cached themes or pre-fix DB themes)
     function sanitizeThemeText(str) {
       if (!str) return str;
+      // Fix multi-level escaped quotes (AI sometimes produces \\\" in SVG attributes)
+      // Loop until stable — one pass of \\" → \" still leaves backslash-quote
+      while (str.indexOf('\\"') !== -1) str = str.replace(/\\"/g, '"');
       if (str.indexOf('\\n') !== -1) str = str.replace(/\\n/g, '\n');
       if (str.indexOf('\\t') !== -1) str = str.replace(/\\t/g, '\t');
       return str;

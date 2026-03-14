@@ -471,15 +471,15 @@ function normalizeThemeKeys(theme) {
   if (!theme.theme_thankyou_html && theme.thankyou_html) theme.theme_thankyou_html = theme.thankyou_html;
   if (!theme.theme_thankyou_html && theme.thankyouHtml) theme.theme_thankyou_html = theme.thankyouHtml;
 
-  // Fix double-escaped quotes in HTML/CSS (models sometimes output \" inside JSON string values)
-  // These appear as literal backslash-quote in the parsed string, breaking SVG attributes etc.
-  if (theme.theme_html && theme.theme_html.includes('\\"')) {
+  // Fix multi-level escaped quotes in HTML/CSS (models sometimes output \\\" or deeper nesting)
+  // Loop until stable — one pass of \\" → \" still leaves a backslash-quote
+  while (theme.theme_html && theme.theme_html.includes('\\"')) {
     theme.theme_html = theme.theme_html.replace(/\\"/g, '"');
   }
-  if (theme.theme_css && theme.theme_css.includes('\\"')) {
+  while (theme.theme_css && theme.theme_css.includes('\\"')) {
     theme.theme_css = theme.theme_css.replace(/\\"/g, '"');
   }
-  if (theme.theme_thankyou_html && theme.theme_thankyou_html.includes('\\"')) {
+  while (theme.theme_thankyou_html && theme.theme_thankyou_html.includes('\\"')) {
     theme.theme_thankyou_html = theme.theme_thankyou_html.replace(/\\"/g, '"');
   }
   // Fix double-escaped whitespace (models sometimes output \\n inside JSON string values)
