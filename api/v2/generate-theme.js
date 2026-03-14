@@ -1474,9 +1474,26 @@ Return ONLY a valid JSON object with these keys:
       const latency = Date.now() - startTime;
 
       // Parse the accumulated text using robust parser
+      // Light tweaks may return {html_replacements, rsvp_field_changes, chat_response} — no theme_html.
+      // parseThemeResponse→normalizeThemeKeys throws when theme_html is missing, so handle light tweak
+      // JSON separately to avoid the raw JSON leaking as a "chat" message.
       let theme;
       try {
-        theme = parseThemeResponse(fullText);
+        let lightTweakText = fullText.trim();
+        // Strip markdown fences if present
+        const fenceMatch = lightTweakText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+        if (fenceMatch) lightTweakText = fenceMatch[1].trim();
+        try {
+          const parsed = JSON.parse(lightTweakText);
+          if (parsed && (parsed.html_replacements || parsed.rsvp_field_changes) && !parsed.theme_html && !parsed.html) {
+            // Light tweak response — use directly without normalizeThemeKeys
+            theme = parsed;
+          } else {
+            theme = parseThemeResponse(fullText);
+          }
+        } catch (_) {
+          theme = parseThemeResponse(fullText);
+        }
       } catch (parseErr) {
         // No valid JSON/HTML found — AI responded with conversational text instead of a theme.
         // Return it as a chat response so the client can display it gracefully.

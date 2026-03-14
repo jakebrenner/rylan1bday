@@ -5625,7 +5625,7 @@
             if (tweakResult.metadata) updateCostFromGeneration(tweakResult.metadata);
             designChatHistory.push({ role: 'assistant', content: chatOnlyMsg });
             renderDesignChat();
-            enableSendBtn();
+            sendBtn.disabled = false;
             return;
           }
 
