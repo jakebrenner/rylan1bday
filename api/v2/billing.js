@@ -381,7 +381,7 @@ export default async function handler(req, res) {
     if (action === 'checkout') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
-      const { eventId, eventTitle, couponCode, returnUrl, embedded } = req.body || {};
+      const { eventId, eventTitle, couponCode, returnUrl, embedded, successUrl, cancelUrl } = req.body || {};
       if (!eventId) return res.status(400).json({ error: 'eventId required' });
 
       // Verify user owns this event
@@ -458,8 +458,13 @@ export default async function handler(req, res) {
         sessionParams.ui_mode = 'embedded';
         sessionParams.return_url = `${baseUrl}${returnUrl || '/v2/dashboard/'}?event=${eventId}&payment=success&session_id={CHECKOUT_SESSION_ID}`;
       } else {
-        sessionParams.success_url = `${baseUrl}/v2/dashboard/?event=${eventId}&payment=success&session_id={CHECKOUT_SESSION_ID}`;
-        sessionParams.cancel_url = `${baseUrl}/v2/dashboard/?event=${eventId}&payment=cancelled`;
+        // Allow custom redirect URLs (e.g., back to create page after design-chat upgrade)
+        const defaultSuccess = `/v2/dashboard/?event=${eventId}&payment=success&session_id={CHECKOUT_SESSION_ID}`;
+        const defaultCancel = `/v2/dashboard/?event=${eventId}&payment=cancelled`;
+        const finalSuccessPath = successUrl ? `${successUrl}${successUrl.includes('?') ? '&' : '?'}session_id={CHECKOUT_SESSION_ID}` : defaultSuccess;
+        const finalCancelPath = cancelUrl || defaultCancel;
+        sessionParams.success_url = `${baseUrl}${finalSuccessPath}`;
+        sessionParams.cancel_url = `${baseUrl}${finalCancelPath}`;
       }
 
       const session = await stripe.checkout.sessions.create(sessionParams);

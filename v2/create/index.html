@@ -912,17 +912,23 @@
         return; // Skip normal init
       }
 
-      // Handle return from per-event Stripe payment
+      // Handle return from per-event Stripe payment (design-chat upgrade)
       if (urlParams.get('payment') === 'success') {
         var paidEventId = urlParams.get('eventId');
+        var stripeReturnSessionId = urlParams.get('session_id');
+        // Clean URL but keep eventId for resume
         window.history.replaceState({}, '', '/v2/create/' + (paidEventId ? '?eventId=' + paidEventId : ''));
         if (paidEventId) {
-          // Update local payment status and redirect to dashboard
-          if (currentEvent && currentEvent.id === paidEventId) {
-            currentEvent.paymentStatus = 'paid';
+          // Verify the Stripe session in background
+          if (stripeReturnSessionId) {
+            authFetch('/api/v2/billing?action=verify-session&session_id=' + encodeURIComponent(stripeReturnSessionId)).catch(function() {});
           }
-          window.location.href = '/v2/dashboard/?published=' + paidEventId;
-          return;
+          // Mark event as paid locally so generation limits are lifted
+          currentEvent = currentEvent || { id: paidEventId };
+          currentEvent.paymentStatus = 'paid';
+          justUpgraded = true;
+          // Don't redirect — let the normal ?eventId= resume flow below handle it.
+          // It will load cached themes and put the user back on step 2.
         }
       }
 
@@ -3802,6 +3808,7 @@
     // ---- Tab switching & edit panel ----
     var designChatHistory = [];
     var pendingRatingThemeId = null;
+    var justUpgraded = false; // Set when returning from Stripe payment
     var designChatPhotoBase64 = null;
     var designChatPhotoUrl = null;
     var designChatPhotoUrls = []; // Support multiple photo uploads
@@ -3890,6 +3897,14 @@
         // Chat already initialized (regeneration/resume) — show rating directly
         showThemeRating(pendingRatingThemeId);
         pendingRatingThemeId = null;
+        renderDesignChat();
+      }
+      // Show upgrade success message after returning from Stripe payment
+      if (justUpgraded) {
+        justUpgraded = false;
+        // Remove any previous upgrade upsell cards
+        designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'upgrade'; });
+        designChatHistory.push({ role: 'assistant', content: "You're all set! Your event is now upgraded with unlimited AI design changes, SMS delivery, and all the features.\n\nGo ahead — tell me what you'd like to change!" });
         renderDesignChat();
       }
     }
@@ -4159,6 +4174,25 @@
         }
         if (msg.role === 'rating') {
           return renderRatingWidget(msg.themeId);
+        }
+        if (msg.role === 'upgrade') {
+          return '<div class="design-chat-msg assistant">'
+            + '<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:16px;margin-top:4px;">'
+            + '<div style="font-weight:600;color:#1A1A2E;margin-bottom:8px;">Unlock Unlimited Design Changes</div>'
+            + '<div style="color:#4B5563;font-size:13px;line-height:1.6;margin-bottom:12px;">' + escapeHtml(msg.content).replace(/\n/g, '<br>') + '</div>'
+            + '<ul style="margin:0 0 16px;padding-left:18px;color:#1A1A2E;font-size:13px;line-height:1.8;">'
+            + '<li>Unlimited AI design changes &amp; regenerations</li>'
+            + '<li>SMS delivery (up to 1,000 texts)</li>'
+            + '<li>Email delivery &mdash; unlimited</li>'
+            + '<li>Full RSVP tracking &amp; guest management</li>'
+            + '<li>Custom RSVP fields</li>'
+            + '<li>Calendar links (ICS, Google, Outlook)</li>'
+            + '</ul>'
+            + '<div style="display:flex;gap:10px;align-items:center;">'
+            + '<button onclick="handleDesignChatUpgrade()" style="padding:10px 24px;border:none;border-radius:50px;background:#E94560;color:#fff;cursor:pointer;font-size:14px;font-weight:600;font-family:Inter,sans-serif;">Upgrade &mdash; $4.99</button>'
+            + '<span style="color:#9CA3AF;font-size:12px;">One-time payment &middot; Powered by Stripe</span>'
+            + '</div>'
+            + '</div></div>';
         }
         var cls = msg.role === 'user' ? 'user' : 'assistant';
         var html = '<div class="design-chat-msg ' + cls + '">' + escapeHtml(msg.content).replace(/\n/g, '<br>');
@@ -5029,7 +5063,15 @@
         if (!sseRes.ok) {
           clearInterval(tweakPunInterval);
           designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
-          if (sseRes.status === 504) {
+          if (sseRes.status === 403) {
+            var errJson403 = {};
+            try { errJson403 = await sseRes.json(); } catch(e) {}
+            if (errJson403.requiresPayment) {
+              designChatHistory.push({ role: 'upgrade', content: "I'd love to make that change! Your free event includes 1 AI design. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite." });
+            } else {
+              designChatHistory.push({ role: 'assistant', content: errJson403.error || "I wasn't able to make that change right now." });
+            }
+          } else if (sseRes.status === 504) {
             designChatHistory.push({ role: 'assistant', content: "That took a bit too long — my apologies! Could you try breaking it into a smaller change? For example:\n- \"Make the background darker\"\n- \"Change the heading font\"\n\nSmaller tweaks work much faster!" });
           } else {
             var errText = '';
@@ -6326,6 +6368,35 @@
       document.getElementById('generatingLoadingState').style.display = 'none';
       document.getElementById('generatingPaywall').style.display = 'none';
       document.getElementById('createPaymentGate').style.display = 'flex';
+    }
+
+    async function handleDesignChatUpgrade() {
+      var eventId = currentEvent ? currentEvent.id : null;
+      if (!eventId) { showMessage('Event not found.', 'error'); return; }
+      // Disable the button while redirecting
+      var upBtn = document.querySelector('[onclick="handleDesignChatUpgrade()"]');
+      if (upBtn) { upBtn.textContent = 'Redirecting...'; upBtn.disabled = true; }
+      try {
+        var resp = await authFetch('/api/v2/billing?action=checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId: eventId,
+            successUrl: '/v2/create/?eventId=' + eventId + '&payment=success',
+            cancelUrl: '/v2/create/?eventId=' + eventId
+          })
+        });
+        var data = await resp.json();
+        if (data.checkoutUrl || data.url) {
+          window.location.href = data.checkoutUrl || data.url;
+        } else {
+          showMessage(data.error || 'Error creating checkout session', 'error');
+          if (upBtn) { upBtn.textContent = 'Upgrade \u2014 $4.99'; upBtn.disabled = false; }
+        }
+      } catch (e) {
+        showMessage('Payment error: ' + e.message, 'error');
+        if (upBtn) { upBtn.textContent = 'Upgrade \u2014 $4.99'; upBtn.disabled = false; }
+      }
     }
 
     async function handleCreatePayment() {
