@@ -3916,7 +3916,7 @@
         justUpgraded = false;
         // Remove any previous upgrade upsell cards
         designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'upgrade'; });
-        designChatHistory.push({ role: 'assistant', content: "You're all set! Your event is now upgraded with unlimited AI design changes, SMS delivery, and all the features.\n\nGo ahead — tell me what you'd like to change!" });
+        designChatHistory.push({ role: 'assistant', content: "Awesome, you've upgraded! Thanks so much for helping support Ryvite.\n\nLet's get back to customizing your invite. What can I help you with?" });
         renderDesignChat();
       }
     }
@@ -4644,7 +4644,7 @@
         if (!rsvpFieldPattern.test(text) && !textSwapPattern.test(text)) {
           designChatHistory.push({ role: 'user', content: text });
           if (!currentEvent.freeRedoUsed) {
-            designChatHistory.push({ role: 'assistant', content: "I can't make design tweaks on the free plan, but if the design is completely off from what you asked for, I can generate a brand new one.\n\nJust tell me what's wrong with the current design and I'll start fresh.\n\nOr upgrade for $4.99 to unlock unlimited design changes." });
+            designChatHistory.push({ role: 'upgrade', content: "I can't make design tweaks on the free plan, but if the design was completely off from what you asked for, I can generate a brand new one \u2014 just tell me what's wrong.\n\nOr upgrade for $4.99 to unlock unlimited design changes." });
           } else {
             designChatHistory.push({ role: 'upgrade', content: "You've used your free design and redo. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite." });
           }
@@ -6420,33 +6420,9 @@
       document.getElementById('createPaymentGate').style.display = 'flex';
     }
 
-    async function handleDesignChatUpgrade() {
-      var eventId = currentEvent ? currentEvent.id : null;
-      if (!eventId) { showMessage('Event not found.', 'error'); return; }
-      // Disable the button while redirecting
-      var upBtn = document.querySelector('[onclick="handleDesignChatUpgrade()"]');
-      if (upBtn) { upBtn.textContent = 'Redirecting...'; upBtn.disabled = true; }
-      try {
-        var resp = await authFetch('/api/v2/billing?action=checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            eventId: eventId,
-            successUrl: '/v2/create/?eventId=' + eventId + '&payment=success',
-            cancelUrl: '/v2/create/?eventId=' + eventId
-          })
-        });
-        var data = await resp.json();
-        if (data.checkoutUrl || data.url) {
-          window.location.href = data.checkoutUrl || data.url;
-        } else {
-          showMessage(data.error || 'Error creating checkout session', 'error');
-          if (upBtn) { upBtn.textContent = 'Upgrade \u2014 $4.99'; upBtn.disabled = false; }
-        }
-      } catch (e) {
-        showMessage('Payment error: ' + e.message, 'error');
-        if (upBtn) { upBtn.textContent = 'Upgrade \u2014 $4.99'; upBtn.disabled = false; }
-      }
+    function handleDesignChatUpgrade() {
+      var modal = document.getElementById('createPaymentGate');
+      if (modal) modal.style.display = 'flex';
     }
 
     async function handleCreatePayment() {
@@ -6464,7 +6440,11 @@
         var resp = await authFetch('/api/v2/billing?action=checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventId: eventId })
+          body: JSON.stringify({
+            eventId: eventId,
+            successUrl: '/v2/create/?eventId=' + eventId + '&payment=success',
+            cancelUrl: '/v2/create/?eventId=' + eventId
+          })
         });
         var data = await resp.json();
         if (data.checkoutUrl || data.url) {
@@ -6493,7 +6473,7 @@
         <li>Full RSVP tracking &amp; guest management</li>
       </ul>
       <div style="display: flex; gap: 12px; justify-content: center;">
-        <button onclick="document.getElementById('createPaymentGate').style.display='none'; goToStep(1);" style="padding: 10px 24px; border: 1px solid #ddd; border-radius: 50px; background: white; cursor: pointer; font-size: 14px; font-family: Inter, sans-serif;">Maybe Later</button>
+        <button onclick="document.getElementById('createPaymentGate').style.display='none';" style="padding: 10px 24px; border: 1px solid #ddd; border-radius: 50px; background: white; cursor: pointer; font-size: 14px; font-family: Inter, sans-serif;">Maybe Later</button>
         <button id="createPayBtn" onclick="handleCreatePayment()" style="padding: 10px 24px; border: none; border-radius: 50px; background: #E94560; color: white; cursor: pointer; font-size: 14px; font-weight: 600; font-family: Inter, sans-serif;">Upgrade &#8212; $4.99</button>
       </div>
       <p style="color: #D1D5DB; font-size: 12px; margin: 16px 0 0;">Powered by Stripe</p>
