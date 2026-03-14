@@ -627,11 +627,32 @@ function buildStyleContext(selected, promptSpecificity) {
 // Load style references matching event type from the library
 // When user has strong creative direction, load only 1 reference (for technique) instead of 2
 // Returns { context, selectedIds } — context is the prompt string, selectedIds for logging
+//
+// Selection uses a confidence-gated composite score from production_style_effectiveness view,
+// filtered by event type (wedding ratings don't influence birthday selection):
+//   - Below 5 data points for this event type: pure admin_rating (prevents small-sample distortion)
+//   - Above 5: gradually blends in production quality (35%) + user satisfaction (25%),
+//     anchored by admin rating (40%), with Bayesian damping (blend_factor = n/(n+5))
+// Falls back to admin_rating-only weighting if the view isn't available.
 async function loadStyleReferences(eventType, promptSpecificity = 0) {
   try {
     const limit = promptSpecificity >= 0.5 ? 1 : 2;
-    // Fetch more candidates than needed so we can weight by admin_rating
+    // Fetch more candidates than needed for weighted selection
     const fetchLimit = Math.max(limit * 3, 6);
+
+    // Try to load composite effectiveness scores for this event type
+    // (requires migrate_style_feedback_loop.sql — view is per event type)
+    let compositeScores = null;
+    try {
+      const { data: effectivenessData } = await supabase
+        .from('production_style_effectiveness')
+        .select('style_id, composite_score')
+        .eq('event_type', eventType);
+      if (effectivenessData?.length > 0) {
+        compositeScores = new Map(effectivenessData.map(row => [row.style_id, row.composite_score]));
+      }
+    } catch { /* view doesn't exist yet — fall back to admin_rating */ }
+
     let res = await supabase
       .from('style_library')
       .select('*')
@@ -649,8 +670,8 @@ async function loadStyleReferences(eventType, promptSpecificity = 0) {
     }
     const data = res.data;
     if (!data || data.length === 0) return { context: '', selectedIds: [] };
-    // Weighted selection: higher-rated styles get picked more often
-    const selected = weightedStylePick(data, limit);
+    // Weighted selection using composite scores when available, admin_rating as fallback
+    const selected = weightedStylePick(data, limit, compositeScores);
     const selectedIds = selected.map(row => row.id);
     const matched = selected.map(row => ({
       name: row.name, description: row.description, html: row.html,
@@ -666,14 +687,30 @@ async function loadStyleReferences(eventType, promptSpecificity = 0) {
   }
 }
 
-// Weighted random selection: admin_rating acts as a weight multiplier
-// Rating 5 = 5x weight, Rating 1 = 1x, Unrated = 2x (neutral)
-function weightedStylePick(items, count) {
+// Weighted random selection using confidence-gated composite scores.
+//
+// Weight calculation:
+//   1. If compositeScores map is available (from production_style_effectiveness view,
+//      filtered by event type), use the composite score — which is confidence-gated
+//      per event type in the SQL view: below 5 data points it equals admin_rating,
+//      above it gradually blends in production/user signals via Bayesian damping
+//   2. Otherwise fall back to admin_rating (1-5) or 2 for unrated
+//
+// Applies exponential scaling (weight^1.8) so quality differences are amplified:
+//   Score 5 → weight 18.1 (dominant)
+//   Score 4 → weight 12.1
+//   Score 3 → weight  7.2
+//   Score 2 → weight  3.5 (neutral baseline for unrated)
+//   Score 1 → weight  1.0 (still possible, not eliminated)
+function weightedStylePick(items, count, compositeScores = null) {
   if (items.length <= count) return items;
-  const weighted = items.map(item => ({
-    item,
-    weight: item.admin_rating || 2
-  }));
+  const weighted = items.map(item => {
+    const baseScore = compositeScores?.get(item.id) || item.admin_rating || 2;
+    return {
+      item,
+      weight: Math.pow(baseScore, 1.8) // Exponential scaling amplifies quality differences
+    };
+  });
   const selected = [];
   const remaining = [...weighted];
   for (let i = 0; i < count && remaining.length > 0; i++) {
@@ -1631,13 +1668,15 @@ This is the most common failure mode. Double-check it.`;
         input_tokens: genInputTokens,
         output_tokens: genOutputTokens,
         latency_ms: latency,
-        prompt_version_id: activePrompt.promptVersionId || null
+        prompt_version_id: activePrompt.promptVersionId || null,
+        style_library_ids: usedStyleIds
       };
       if (basedOnThemeId) genInsert.based_on_theme_id = basedOnThemeId;
       let { data: newTheme, error: themeError } = await supabase
         .from('event_themes').insert(genInsert).select().single();
-      if (themeError && themeError.message?.includes('prompt_version_id')) {
+      if (themeError && (themeError.message?.includes('prompt_version_id') || themeError.message?.includes('style_library_ids'))) {
         delete genInsert.prompt_version_id;
+        delete genInsert.style_library_ids;
         ({ data: newTheme, error: themeError } = await supabase
           .from('event_themes').insert(genInsert).select().single());
       }

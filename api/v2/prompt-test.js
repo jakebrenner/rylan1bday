@@ -150,13 +150,15 @@ function extractStyleEssence(html) {
   return summary;
 }
 
-// Weighted random selection: admin_rating acts as a weight multiplier
-// Rating 5 = 5x weight, Rating 1 = 1x, Unrated = 2x (neutral)
+// Weighted random selection with exponential scaling.
+// Uses admin_rating as base score (1-5, unrated = 2), then applies
+// exponential scaling (^1.8) to amplify quality differences:
+//   Score 5 → weight 18.1 | Score 3 → 7.2 | Score 1 → 1.0
 function weightedStylePick(items, count) {
   if (items.length <= count) return items;
   const weighted = items.map(item => ({
     item,
-    weight: item.admin_rating || 2
+    weight: Math.pow(item.admin_rating || 2, 1.8)
   }));
   const selected = [];
   const remaining = [...weighted];
