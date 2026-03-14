@@ -505,7 +505,7 @@
             <div class="gen-emoji-float" id="genEmoji">🎨</div>
             <h3 class="gen-title">Creating Your Invite</h3>
             <p class="gen-subtitle" id="generatingPun">Our AI is designing something special...</p>
-            <p class="gen-time-hint">This usually takes 30–60 seconds — good things take time!</p>
+            <p class="gen-time-hint">Right now invites are taking about a minute — good things take time!</p>
             <div class="gen-progress-track"><div class="gen-progress-bar" id="genProgressBar"></div></div>
             <div class="gen-stages" id="genStages">
               <div class="gen-stage active" data-stage="analyze">
@@ -873,6 +873,28 @@
     var eventGenCount = 0;
     var usagePlanUser = false;
 
+    // ── Average generation time (fetched from API, replaces hardcoded "30-60 seconds") ──
+    var _avgGenTimeText = 'about a minute'; // fallback until API responds
+    (function fetchAvgLatency() {
+      fetch('/api/v2/generate-theme?action=avgLatency')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d && d.displaySeconds) {
+            var secs = d.displaySeconds;
+            if (secs <= 30) _avgGenTimeText = 'about 30 seconds';
+            else if (secs <= 60) _avgGenTimeText = 'about ' + secs + ' seconds';
+            else if (secs <= 90) _avgGenTimeText = 'about a minute';
+            else if (secs <= 120) _avgGenTimeText = 'about ' + Math.round(secs / 60) + ' minutes';
+            else _avgGenTimeText = 'about ' + Math.round(secs / 60) + ' minutes';
+            // Update any already-rendered hints
+            document.querySelectorAll('.gen-time-hint').forEach(function(el) {
+              el.textContent = 'Right now invites are taking ' + _avgGenTimeText + ' \u2014 good things take time!';
+            });
+          }
+        })
+        .catch(function() { /* use fallback */ });
+    })();
+
     var ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp'];
     var ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.heic', '.heif', '.webp'];
     var FIELD_TYPE_LABELS = { text: 'Text', number: 'Number', select: 'Dropdown', checkbox: 'Checkbox', email: 'Email', phone: 'Phone', textarea: 'Long text' };
@@ -1131,7 +1153,7 @@
               + '<div class="gen-emoji-float" id="genEmoji">🎨</div>'
               + '<h3 class="gen-title">Creating Your Invite</h3>'
               + '<p class="gen-subtitle" id="generatingPun">Our AI is designing something special...</p>'
-              + '<p class="gen-time-hint">This usually takes 30\u201360 seconds \u2014 good things take time!</p>'
+              + '<p class="gen-time-hint">Right now invites are taking ' + _avgGenTimeText + ' \u2014 good things take time!</p>'
               + '<div class="gen-progress-track"><div class="gen-progress-bar" id="genProgressBar"></div></div>'
               + '<div class="gen-stages" id="genStages">'
               + '<div class="gen-stage active" data-stage="analyze"><div class="gen-stage-icon"><div class="gen-spinner"></div></div><div class="gen-stage-text">Analyzing your event details</div></div>'
@@ -1844,7 +1866,7 @@
             + '<div class="gen-emoji-float" id="genEmoji">🎨</div>'
             + '<h3 class="gen-title">Creating Your Invite</h3>'
             + '<p class="gen-subtitle" id="generatingPun">Starting up...</p>'
-            + '<p class="gen-time-hint">This usually takes 30\u201360 seconds \u2014 good things take time!</p>'
+            + '<p class="gen-time-hint">Right now invites are taking ' + _avgGenTimeText + ' \u2014 good things take time!</p>'
             + '<div class="gen-progress-track"><div class="gen-progress-bar" id="genProgressBar"></div></div>'
             + '<div class="gen-stages" id="genStages">'
             + '<div class="gen-stage active" data-stage="analyze"><div class="gen-stage-icon"><div class="gen-spinner"></div></div><div class="gen-stage-text">Analyzing your event details</div></div>'
@@ -3420,7 +3442,7 @@
         + '<div class="gen-emoji-float" id="genEmoji">🎨</div>'
         + '<h3 class="gen-title">Creating Your Invite</h3>'
         + '<p class="gen-subtitle" id="generatingPun">One more try...</p>'
-        + '<p class="gen-time-hint">This usually takes 30\u201360 seconds \u2014 good things take time!</p>'
+        + '<p class="gen-time-hint">Right now invites are taking ' + _avgGenTimeText + ' \u2014 good things take time!</p>'
         + '<div class="gen-progress-track"><div class="gen-progress-bar" id="genProgressBar"></div></div>'
         + '<div class="gen-stages" id="genStages">'
         + '<div class="gen-stage active" data-stage="analyze"><div class="gen-stage-icon"><div class="gen-spinner"></div></div><div class="gen-stage-text">Analyzing your event details</div></div>'
@@ -3913,19 +3935,66 @@
     }
 
     // ── CSS RENDER FAILSAFE: Detect unstyled invites and auto-recover ──
+    // Tracks retry count to prevent infinite re-render loops
+    var _cssCheckRetries = 0;
+    var _MAX_CSS_RETRIES = 2;
+
     function checkCssRendered(iframe, ver) {
       try {
         var doc = iframe.contentDocument;
         if (!doc || !doc.body) return;
-        var bodyBg = doc.defaultView.getComputedStyle(doc.body).backgroundColor;
-        // If body bg is transparent/white AND we have CSS, something went wrong
+        var win = doc.defaultView;
+        var bodyStyle = win.getComputedStyle(doc.body);
+        var bodyBg = bodyStyle.backgroundColor;
+
+        // Check 1: Body background (existing check)
         var isUnstyled = (!bodyBg || bodyBg === 'rgba(0, 0, 0, 0)' || bodyBg === 'rgb(255, 255, 255)');
-        if (isUnstyled && ver.css && ver.css.trim().length > 100) {
+
+        // Check 2: Look for styled elements deeper in the DOM
+        // Even if body bg is white/transparent, the invite may have styled children
+        if (isUnstyled) {
+          var firstDiv = doc.querySelector('div, section, main, header');
+          if (firstDiv) {
+            var divStyle = win.getComputedStyle(firstDiv);
+            var divBg = divStyle.backgroundColor;
+            // If any child has a non-default background, CSS IS working — just body is transparent
+            if (divBg && divBg !== 'rgba(0, 0, 0, 0)' && divBg !== 'rgb(255, 255, 255)') {
+              isUnstyled = false;
+            }
+          }
+        }
+
+        // Check 3: Verify CSS custom properties are applied (our themes use CSS vars)
+        if (!isUnstyled) {
+          var rootStyles = win.getComputedStyle(doc.documentElement);
+          // If theme has CSS vars but they didn't resolve, something's broken
+          if (ver.css && ver.css.includes('--') && doc.body.children.length > 0) {
+            var testEl = doc.body.children[0];
+            var testFont = win.getComputedStyle(testEl).fontFamily;
+            // If font is still Times/serif default, CSS likely didn't load
+            if (testFont === 'Times' || testFont === '"Times New Roman"' || testFont === 'serif') {
+              // Check if CSS specifies a custom font
+              if (ver.css.match(/font-family\s*:/i)) {
+                console.warn('[checkCssRendered] CSS specifies custom fonts but default serif is rendering');
+                // Don't force re-render for font issues — Google Fonts may just be slow to load
+              }
+            }
+          }
+        }
+
+        // Check 4: Content overflow detection — text flowing outside visible area
+        if (!isUnstyled && doc.body.scrollWidth > 420) {
+          console.warn('[checkCssRendered] Content overflow detected: scrollWidth=' + doc.body.scrollWidth + 'px (max 393px)');
+        }
+
+        if (isUnstyled && ver.css && ver.css.trim().length > 100 && _cssCheckRetries < _MAX_CSS_RETRIES) {
           // CSS exists but didn't apply — likely a rendering glitch. Force reload.
-          console.warn('[checkCssRendered] Invite appears unstyled despite having CSS (' + ver.css.length + ' chars). Force re-rendering...');
-          setTimeout(function() { iframe.srcdoc = buildSrcdoc(ver); }, 100);
+          _cssCheckRetries++;
+          console.warn('[checkCssRendered] Invite appears unstyled despite having CSS (' + ver.css.length + ' chars). Re-render attempt ' + _cssCheckRetries + '/' + _MAX_CSS_RETRIES);
+          setTimeout(function() { iframe.srcdoc = buildSrcdoc(ver); }, 150);
           return;
         }
+
         // If there's truly no CSS, check if HTML contains inline <style> we missed
         if (isUnstyled && (!ver.css || !ver.css.trim())) {
           console.error('[checkCssRendered] Invite has no CSS. This is a generation bug. Theme version:', ver.id);
@@ -3936,9 +4005,21 @@
               return s.replace(/<style[^>]*>/gi, '').replace(/<\/style\s*>/gi, '');
             }).join('\n');
             console.log('[checkCssRendered] Recovered ' + ver.css.length + ' chars of CSS from HTML. Re-rendering...');
+            _cssCheckRetries = 0; // Reset for new CSS
             iframe.srcdoc = buildSrcdoc(ver);
           }
         }
+
+        // Check 5: Validate no markdown fences leaked into rendered content
+        if (doc.body.textContent && doc.body.textContent.includes('```')) {
+          console.warn('[checkCssRendered] Markdown fences detected in rendered content — cleaning');
+          ver.html = ver.html.replace(/```(?:html|css)?\s*/g, '').replace(/```\s*/g, '');
+          ver.css = ver.css.replace(/```(?:css)?\s*/g, '').replace(/```\s*/g, '');
+          iframe.srcdoc = buildSrcdoc(ver);
+        }
+
+        // Reset retry counter on successful render
+        if (!isUnstyled) _cssCheckRetries = 0;
       } catch (e) {
         // Cross-origin iframe or other error — can't check, skip silently
       }

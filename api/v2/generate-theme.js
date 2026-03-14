@@ -607,6 +607,101 @@ function extractStyleEssence(html) {
   return summary;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// SERVER-SIDE THEME VALIDATION & AUTO-REPAIR
+// Catches common AI output issues before sending to the client.
+// ═══════════════════════════════════════════════════════════════════
+function validateThemeIntegrity(theme) {
+  const issues = [];
+  const html = theme.theme_html || '';
+  const css = theme.theme_css || '';
+
+  // 1. CSS must exist and have meaningful content (selectors + rules)
+  if (!css.trim()) {
+    issues.push('css_empty');
+  } else if (css.trim().length < 100) {
+    issues.push('css_too_short');
+  } else {
+    // CSS must contain at least one selector with a rule block
+    const hasSelectorAndRule = /[.#\w@:][^{]*\{[^}]+\}/s.test(css);
+    if (!hasSelectorAndRule) issues.push('css_no_rules');
+  }
+
+  // 2. HTML must have structural elements (not just raw text)
+  if (!html.trim()) {
+    issues.push('html_empty');
+  } else {
+    const hasStructure = /<(div|section|main|header|article)\b/i.test(html);
+    if (!hasStructure) issues.push('html_no_structure');
+  }
+
+  // 3. CSS should reference classes/elements that exist in the HTML
+  if (css && html) {
+    const cssClasses = [...new Set((css.match(/\.([a-zA-Z][\w-]*)/g) || []).map(c => c.substring(1)))];
+    const htmlContent = html.toLowerCase();
+    if (cssClasses.length > 0) {
+      const matchCount = cssClasses.filter(c => htmlContent.includes(c.toLowerCase())).length;
+      const matchRatio = matchCount / cssClasses.length;
+      if (matchRatio < 0.2) issues.push('css_html_mismatch');
+    }
+  }
+
+  // 4. Check for broken/incomplete CSS (unclosed braces)
+  if (css) {
+    const opens = (css.match(/\{/g) || []).length;
+    const closes = (css.match(/\}/g) || []).length;
+    if (opens !== closes) issues.push('css_unclosed_braces');
+  }
+
+  // 5. Check for leftover markdown fences in CSS or HTML
+  if (css.includes('```') || html.includes('```')) issues.push('markdown_fences');
+
+  // 6. Check for raw JSON wrapper leaking into HTML
+  if (html.startsWith('"') || html.startsWith('{')) issues.push('html_json_leak');
+
+  return { valid: issues.length === 0, issues };
+}
+
+function repairTheme(theme, issues) {
+  // Fix markdown fences
+  if (issues.includes('markdown_fences')) {
+    theme.theme_css = (theme.theme_css || '').replace(/```(?:css)?\s*/g, '').replace(/```\s*/g, '');
+    theme.theme_html = (theme.theme_html || '').replace(/```(?:html)?\s*/g, '').replace(/```\s*/g, '');
+  }
+
+  // Fix JSON leak in HTML (strip leading quotes/braces)
+  if (issues.includes('html_json_leak')) {
+    let h = theme.theme_html;
+    // Strip leading "theme_html": " wrapper
+    h = h.replace(/^["']?\s*/, '');
+    // Strip trailing quotes
+    h = h.replace(/["']\s*$/, '');
+    theme.theme_html = h;
+  }
+
+  // Fix unclosed braces — close any open ones
+  if (issues.includes('css_unclosed_braces')) {
+    const opens = (theme.theme_css.match(/\{/g) || []).length;
+    const closes = (theme.theme_css.match(/\}/g) || []).length;
+    if (opens > closes) {
+      theme.theme_css += '}'.repeat(opens - closes);
+    }
+  }
+
+  // If CSS is empty/too short but HTML has inline styles, extract them
+  if (issues.includes('css_empty') || issues.includes('css_too_short')) {
+    const styleBlocks = (theme.theme_html || '').match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+    if (styleBlocks) {
+      const extracted = styleBlocks.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+      if (extracted.trim().length > (theme.theme_css || '').trim().length) {
+        theme.theme_css = extracted;
+        theme.theme_html = theme.theme_html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+        console.log('[repairTheme] Extracted ' + extracted.length + ' chars of CSS from inline <style> blocks');
+      }
+    }
+  }
+}
+
 function buildStyleContext(selected, promptSpecificity) {
   const isHighSpecificity = promptSpecificity >= 0.5;
   const framing = isHighSpecificity
@@ -798,10 +893,48 @@ function getClientMeta(req) {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // ── PUBLIC ENDPOINT: Average generation latency (no auth required) ──
+  // Used by the loading screen to show accurate time estimates
+  if (req.method === 'GET' && (req.query?.action === 'avgLatency')) {
+    try {
+      // Get successful full-generation logs from the last 7 days (not tweaks/chat)
+      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from('generation_log')
+        .select('latency_ms')
+        .eq('status', 'success')
+        .gte('created_at', since)
+        .gt('latency_ms', 5000)    // Only full generations (>5s), not quick tweaks
+        .lt('latency_ms', 600000); // Exclude outliers (>10min)
+
+      if (error || !data || data.length === 0) {
+        return res.status(200).json({ avgSeconds: null, sampleSize: 0 });
+      }
+      const latencies = data.map(d => d.latency_ms).sort((a, b) => a - b);
+      // Use median for robustness against outliers
+      const median = latencies[Math.floor(latencies.length / 2)];
+      const avg = Math.round(latencies.reduce((s, v) => s + v, 0) / latencies.length);
+      // Round up to nearest 10s for display (e.g. 73s → "about 80 seconds")
+      const displaySeconds = Math.ceil(median / 1000 / 10) * 10;
+      // Cache for 5 minutes
+      res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
+      return res.status(200).json({
+        avgSeconds: Math.round(avg / 1000),
+        medianSeconds: Math.round(median / 1000),
+        displaySeconds,
+        sampleSize: latencies.length
+      });
+    } catch (e) {
+      console.error('[avgLatency] Error:', e.message);
+      return res.status(200).json({ avgSeconds: null, sampleSize: 0 });
+    }
+  }
+
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   // Verify session
@@ -1751,6 +1884,20 @@ This is the most common failure mode. Double-check it.`;
     }
     if (!theme.theme_css || !theme.theme_css.trim()) {
       console.error('[generate] WARNING: Theme has no CSS! HTML length:', theme.theme_html?.length, 'Keys:', Object.keys(theme).join(', '));
+    }
+
+    // ── SERVER-SIDE THEME VALIDATION: Catch broken output before sending to client ──
+    const validation = validateThemeIntegrity(theme);
+    if (!validation.valid) {
+      console.warn('[generate] Theme validation failed:', validation.issues.join(', '), '— attempting auto-repair');
+      repairTheme(theme, validation.issues);
+      // Re-validate after repair
+      const recheck = validateThemeIntegrity(theme);
+      if (!recheck.valid) {
+        console.error('[generate] Theme still has issues after repair:', recheck.issues.join(', '));
+      } else {
+        console.log('[generate] Theme auto-repair succeeded');
+      }
     }
 
     // CRITICAL: Send theme to client and close connection IMMEDIATELY.
