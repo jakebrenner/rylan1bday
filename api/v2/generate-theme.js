@@ -392,18 +392,21 @@ Rules:
   - Have CSS animation (fade-in, bounce, float, scale-up)
   - Be placed ABOVE \`.thankyou-hero\` so it appears at the top
 - NO text content anywhere, NO emojis, NO calendar buttons, NO footer
-- Include these CSS rules in theme_css (customize colors/fonts to match invite):
+- **VISUAL CONSISTENCY IS MANDATORY**: The thank you page must look like it belongs with the invite. If the invite has a pink gradient background, the thank you page needs a similar pink gradient. If the invite uses purple and gold, the thank you page should too. A plain white thank you page after a vibrant themed invite is a broken experience.
+- Include these CSS rules in theme_css — **customize ALL colors/fonts/backgrounds to match the invite**:
 \`\`\`css
 .thankyou-page {
   max-width: 393px; margin: 0 auto; padding: 60px 32px 40px;
   min-height: 100vh; display: flex; flex-direction: column;
   align-items: center; justify-content: center; text-align: center;
-  /* MUST match the invite's background treatment */
+  /* COPY the invite's background treatment here — gradient, color, pattern */
+  background: /* same gradient or color as the invite body */;
+  font-family: /* same body font as the invite */;
 }
 .thankyou-decoration { margin-bottom: 24px; /* add entrance animation */ }
 .thankyou-hero { margin-bottom: 32px; }
-.thankyou-title { font-size: 36px; font-weight: 700; margin-bottom: 12px; /* use invite heading font + color */ }
-.thankyou-subtitle { font-size: 16px; line-height: 1.5; opacity: 0.8; /* use invite body font */ }
+.thankyou-title { font-size: 36px; font-weight: 700; margin-bottom: 12px; font-family: /* same heading font */; color: /* same accent/heading color */; }
+.thankyou-subtitle { font-size: 16px; line-height: 1.5; opacity: 0.8; }
 \`\`\`
 
 ## TEXT CONTRAST — CRITICAL, NEVER VIOLATE

@@ -4257,10 +4257,21 @@
       var sc = config.secondaryColor || '#4CAF50';
       var ac = config.accentColor || '#2196F3';
 
-      // Guaranteed CSS — these are the structural styles we control
-      var guaranteedCSS = '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }'
+      // Guaranteed CSS — structural styles + theme-derived fallback colors/fonts
+      // These provide a themed baseline that the AI's CSS overrides if present.
+      // Without these, a missing .thankyou-page background means a plain white page.
+      var bgColor = config.backgroundColor || '#FFFAF5';
+      var textColor = config.textColor || '#1A1A2E';
+      var headlineFont = config.fontHeadline || 'Playfair Display';
+      var bodyFont = config.fontBody || 'Inter';
+      // Build a subtle gradient fallback from the theme colors
+      var gradientBg = 'linear-gradient(180deg, ' + mixColor(pc, '#FFFFFF', 0.85) + ' 0%, ' + mixColor(ac || sc, '#FFFFFF', 0.9) + ' 100%)';
+
+      var guaranteedCSS = '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;'
+        + ' background:' + gradientBg + '; color:' + textColor + '; font-family:\'' + bodyFont + '\',sans-serif; }'
+        + '.thankyou-decoration { margin-bottom:24px; }'
         + '.thankyou-hero { margin-bottom:32px; }'
-        + '.thankyou-title { font-size:36px; font-weight:700; margin-bottom:12px; }'
+        + '.thankyou-title { font-family:\'' + headlineFont + '\',serif; font-size:36px; font-weight:700; margin-bottom:12px; color:' + pc + '; }'
         + '.thankyou-subtitle { font-size:16px; line-height:1.5; opacity:0.8; }'
         + '.thankyou-calendar-section { width:100%; max-width:320px; padding:0 8px; }'
         + '.calendar-label { font-size:14px; margin-bottom:16px; opacity:0.7; }'
@@ -4350,16 +4361,10 @@
           + '</head><body>' + tyHtml + '</body></html>';
       }
 
-      // Fallback: build entirely from theme config
-      var accent = config.accentColor || config.primaryColor || '#E94560';
-      var bgColor = config.backgroundColor || '#FFFAF5';
-      var textColor = config.textColor || '#1A1A2E';
-      var headlineFont = config.fontHeadline || 'serif';
-      var bodyFont = config.fontBody || 'sans-serif';
-
-      var thankYouHtml = '<div class="thankyou-page" style="background:' + bgColor + ';color:' + textColor + ';font-family:' + bodyFont + ',sans-serif;">'
+      // Fallback: build entirely from theme config with gradient background
+      var thankYouHtml = '<div class="thankyou-page">'
         + '<div class="thankyou-hero">'
-        + '<h1 class="thankyou-title" style="font-family:' + headlineFont + ',serif;color:' + accent + ';">Thank You!</h1>'
+        + '<h1 class="thankyou-title">Thank You!</h1>'
         + '<p class="thankyou-subtitle">Thanks for RSVPing, <span class="thankyou-guest">' + escapeHtml(guestName) + '</span>! We can\'t wait to see you at <span class="thankyou-event">' + escapeHtml(title) + '</span>.</p>'
         + '</div>'
         + guaranteedCalendarHTML
