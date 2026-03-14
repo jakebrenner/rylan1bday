@@ -488,7 +488,8 @@ const SYSTEM_PROMPT = STRUCTURAL_RULES + '\n\n' + DEFAULT_CREATIVE_DIRECTION;
 // ═══════════════════════════════════════════════════════════════════
 function parseThemeResponse(rawText) {
   let text = (typeof rawText === 'string' ? rawText : '').trim();
-  if (text.match(/^<!DOCTYPE/i) || text.match(/^<html/i)) return extractThemeFromHtmlDoc(text);
+  // ALL paths funnel through normalizeThemeKeys at the end to fix escaping
+  if (text.match(/^<!DOCTYPE/i) || text.match(/^<html/i)) return normalizeThemeKeys(extractThemeFromHtmlDoc(text));
   const jsonBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
   if (jsonBlockMatch) text = jsonBlockMatch[1].trim();
   if (!text.startsWith('{') || text.match(/^\{\s*--/)) {
@@ -504,16 +505,16 @@ function parseThemeResponse(rawText) {
       text = lastBrace !== -1 ? text.substring(startIdx, lastBrace + 1) : text.substring(startIdx);
     } else if (text.includes('<html') || text.includes('<!DOCTYPE') || text.includes('<body')) {
       const htmlMatch = text.match(/<(!DOCTYPE[\s\S]*|html[\s\S]*)<\/html>/i);
-      if (htmlMatch) return extractThemeFromHtmlDoc(htmlMatch[0]);
+      if (htmlMatch) return normalizeThemeKeys(extractThemeFromHtmlDoc(htmlMatch[0]));
     } else if (text.match(/^\{\s*--/) || text.match(/^\s*:root\s*\{/)) {
       // Model returned raw CSS (possibly followed by HTML)
       const htmlStart = text.match(/<(div|section|main|header|article)\b/i);
       if (htmlStart) {
         const htmlIdx = text.indexOf(htmlStart[0]);
-        return { theme_html: text.substring(htmlIdx).trim(), theme_css: text.substring(0, htmlIdx).trim(), theme_config: {}, theme_thankyou_html: '' };
+        return normalizeThemeKeys({ theme_html: text.substring(htmlIdx).trim(), theme_css: text.substring(0, htmlIdx).trim(), theme_config: {}, theme_thankyou_html: '' });
       }
       if (text.includes('.') && text.includes('{')) {
-        return { theme_html: '', theme_css: text, theme_config: {}, theme_thankyou_html: '' };
+        return normalizeThemeKeys({ theme_html: '', theme_css: text, theme_config: {}, theme_thankyou_html: '' });
       }
     }
   }
@@ -528,13 +529,13 @@ function parseThemeResponse(rawText) {
     for (let i = 0; i < bracketDepth; i++) repaired += ']';
     for (let i = 0; i < braceDepth; i++) repaired += '}';
     try { theme = JSON.parse(repaired); } catch (e2) {
-      if (rawText.includes('<div') || rawText.includes('<section') || rawText.includes('<style')) return extractThemeFromHtmlDoc(rawText);
+      if (rawText.includes('<div') || rawText.includes('<section') || rawText.includes('<style')) return normalizeThemeKeys(extractThemeFromHtmlDoc(rawText));
       // Try splitting CSS + HTML if raw text contains HTML elements
       const htmlTag = rawText.match(/<(div|section|main|header|article)\b/i);
       if (htmlTag) {
         const idx = rawText.indexOf(htmlTag[0]);
         const html = rawText.substring(idx).trim();
-        if (html.length > 100) return { theme_html: html, theme_css: rawText.substring(0, idx).trim(), theme_config: {}, theme_thankyou_html: '' };
+        if (html.length > 100) return normalizeThemeKeys({ theme_html: html, theme_css: rawText.substring(0, idx).trim(), theme_config: {}, theme_thankyou_html: '' });
       }
       throw new Error('Failed to parse theme JSON: ' + parseErr.message + ' | First 300 chars: ' + text.substring(0, 300));
     }

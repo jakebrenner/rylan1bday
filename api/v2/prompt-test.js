@@ -325,7 +325,7 @@ function parseThemeResponse(rawText) {
   // Step 1: Check if the response is a full HTML document (not JSON at all)
   // Some models return <!DOCTYPE html>... instead of JSON
   if (text.match(/^<!DOCTYPE/i) || text.match(/^<html/i)) {
-    return extractThemeFromHtmlDoc(text);
+    return normalizeThemeKeys(extractThemeFromHtmlDoc(text));
   }
 
   // Step 2: Strip markdown code fences
@@ -347,7 +347,7 @@ function parseThemeResponse(rawText) {
       text = lastBrace !== -1 ? text.substring(startIdx, lastBrace + 1) : text.substring(startIdx);
     } else if (text.includes('<html') || text.includes('<!DOCTYPE') || text.includes('<body')) {
       const htmlMatch = text.match(/<(!DOCTYPE[\s\S]*|html[\s\S]*)<\/html>/i);
-      if (htmlMatch) return extractThemeFromHtmlDoc(htmlMatch[0]);
+      if (htmlMatch) return normalizeThemeKeys(extractThemeFromHtmlDoc(htmlMatch[0]));
     } else if (text.match(/^\{\s*--/) || text.match(/^\s*:root\s*\{/)) {
       // Model returned raw CSS (possibly followed by HTML). Try to assemble a theme.
       // Look for HTML content after the CSS
@@ -356,11 +356,11 @@ function parseThemeResponse(rawText) {
         const htmlIdx = text.indexOf(htmlStart[0]);
         const cssBlock = text.substring(0, htmlIdx).trim();
         const htmlBlock = text.substring(htmlIdx).trim();
-        return { theme_html: htmlBlock, theme_css: cssBlock, theme_config: {}, theme_thankyou_html: '' };
+        return normalizeThemeKeys({ theme_html: htmlBlock, theme_css: cssBlock, theme_config: {}, theme_thankyou_html: '' });
       }
       // Pure CSS with no HTML — wrap in a style tag and try extractThemeFromHtmlDoc
       if (text.includes('.') && text.includes('{')) {
-        return { theme_html: '', theme_css: text, theme_config: {}, theme_thankyou_html: '' };
+        return normalizeThemeKeys({ theme_html: '', theme_css: text, theme_config: {}, theme_thankyou_html: '' });
       }
     }
   }
@@ -396,7 +396,7 @@ function parseThemeResponse(rawText) {
     } catch (e2) {
       // Step 6: Last resort — try to extract HTML/CSS from the raw text
       if (rawText.includes('<div') || rawText.includes('<section') || rawText.includes('<style')) {
-        return extractThemeFromHtmlDoc(rawText);
+        return normalizeThemeKeys(extractThemeFromHtmlDoc(rawText));
       }
       // If the raw text contains CSS selectors and HTML elements, try to split them
       const htmlTag = rawText.match(/<(div|section|main|header|article)\b/i);
@@ -405,7 +405,7 @@ function parseThemeResponse(rawText) {
         const css = rawText.substring(0, idx).trim();
         const html = rawText.substring(idx).trim();
         if (html.length > 100) {
-          return { theme_html: html, theme_css: css, theme_config: {}, theme_thankyou_html: '' };
+          return normalizeThemeKeys({ theme_html: html, theme_css: css, theme_config: {}, theme_thankyou_html: '' });
         }
       }
       throw new Error('Failed to parse theme JSON: ' + parseErr.message + ' | First 300 chars: ' + text.substring(0, 300));
