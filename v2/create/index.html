@@ -4058,9 +4058,21 @@
         // --- ADD field (detected client-side, interpreted by quick AI call) ---
         var addDetected = /\b(?:add|include|put|create|insert)\b/i.test(part)
           && (/\b(?:field|input|question|section|form field)\b/i.test(part)
-            || /\b(?:for|called|named|asking|about)\b/i.test(part));
+            || /\b(?:for|called|named|asking|about)\b/i.test(part)
+            || parts.length > 1);
         if (!addDetected) addDetected = /\b(?:i want|i need|can you add|could you add|please add)\b/i.test(part)
           && /\b(?:field|question|ask|input)\b/i.test(part);
+        // Bare "add [noun phrase]" — safe if it doesn't look like a design request
+        if (!addDetected) {
+          var isAddVerb = /^\s*(?:add|include|create|insert)\s+/i.test(part);
+          if (isAddVerb) {
+            var addDesignWords = ['color', 'colour', 'font', 'background', 'theme', 'style',
+              'layout', 'animation', 'border', 'shadow', 'gradient', 'photo', 'image',
+              'sparkle', 'glitter', 'confetti', 'effect', 'texture', 'pattern'];
+            var hasDesignWord = addDesignWords.some(function(w) { return part.indexOf(w) !== -1; });
+            if (!hasDesignWord) addDetected = true;
+          }
+        }
         if (addDetected) {
           // Use the original text for the AI call (more context is better)
           results.push({ action: 'add_async', userMessage: text });
@@ -4082,6 +4094,26 @@
             continue;
           }
         }
+
+        // --- RENAME/RELABEL field ---
+        var renameMatch = part.match(/(?:rename|relabel|change)\s+(?:the\s+)?(?:"([^"]+)"|'([^']+)'|(.+?))\s+(?:field\s+)?(?:label\s+)?(?:to|into)\s+(?:"([^"]+)"|'([^']+)'|(.+?))\s*$/i);
+        if (renameMatch) {
+          var oldName = (renameMatch[1] || renameMatch[2] || renameMatch[3] || '').trim().toLowerCase().replace(/[\s_-]+/g, '');
+          var newLabel = (renameMatch[4] || renameMatch[5] || renameMatch[6] || '').trim();
+          if (oldName && newLabel) {
+            var renameField = enabledFields.find(function(f) {
+              var fKey = (f.field_key || '').toLowerCase().replace(/[\s_-]+/g, '');
+              var fLabel = (f.label || '').toLowerCase().replace(/[\s_-]+/g, '');
+              return fKey === oldName || fLabel === oldName
+                || fKey.indexOf(oldName) !== -1 || fLabel.indexOf(oldName) !== -1
+                || oldName.indexOf(fKey) !== -1 || oldName.indexOf(fLabel) !== -1;
+            });
+            if (renameField) {
+              results.push({ action: 'modify', field_key: renameField.field_key, label: newLabel });
+              continue;
+            }
+          }
+        }
       }
 
       if (results.length === 0) return null;
@@ -4094,6 +4126,7 @@
       // Build response messages for sync changes
       var responseMessages = syncChanges.map(function(r) {
         if (r.action === 'remove') return 'Removed the "' + r.label + '" field';
+        if (r.action === 'modify' && r.label && r.is_required === undefined) return 'Renamed "' + r.field_key + '" to "' + r.label + '"';
         if (r.action === 'modify') return 'Made "' + (r.label || r.field_key) + '" ' + (r.is_required ? 'required' : 'optional');
         return '';
       }).filter(Boolean);
