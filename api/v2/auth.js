@@ -15,15 +15,26 @@ async function sendAdminSignupNotifications(userEmail, displayName, userPhone) {
   try {
     const CLICKSEND_USERNAME = process.env.CLICKSEND_USERNAME;
     const CLICKSEND_API_KEY = process.env.CLICKSEND_API_KEY;
-    if (!CLICKSEND_USERNAME || !CLICKSEND_API_KEY) return;
+    if (!CLICKSEND_USERNAME || !CLICKSEND_API_KEY) {
+      console.warn('Admin signup notification skipped — CLICKSEND_USERNAME or CLICKSEND_API_KEY not set');
+      return;
+    }
 
     // Find all admins who want signup notifications
-    const { data: subscribers } = await supabase
+    const { data: subscribers, error: queryError } = await supabase
       .from('admin_notification_prefs')
       .select('admin_user_id, phone')
       .eq('new_user_signup', true);
 
-    if (!subscribers?.length) return;
+    if (queryError) {
+      console.error('Admin signup notification — failed to query prefs:', queryError.message);
+      return;
+    }
+
+    if (!subscribers?.length) {
+      console.log('Admin signup notification — no subscribers with new_user_signup enabled');
+      return;
+    }
 
     // Build message with all available info
     let body = `New Ryvite signup: ${userEmail}`;
@@ -35,7 +46,10 @@ async function sendAdminSignupNotifications(userEmail, displayName, userPhone) {
     for (const sub of subscribers) {
       const digits = (sub.phone || '').replace(/\D/g, '');
       const e164 = digits.length >= 10 ? `+1${digits.slice(-10)}` : null;
-      if (!e164) continue;
+      if (!e164) {
+        console.warn(`Admin signup notification — skipping subscriber ${sub.admin_user_id}: invalid phone "${sub.phone}"`);
+        continue;
+      }
 
       const response = await fetch(CLICKSEND_API_URL, {
         method: 'POST',
@@ -50,6 +64,10 @@ async function sendAdminSignupNotifications(userEmail, displayName, userPhone) {
 
       const result = await response.json();
       const csMsg = result.data?.messages?.[0];
+
+      if (csMsg?.status !== 'SUCCESS') {
+        console.error(`Admin signup notification — ClickSend failed for ${e164}:`, csMsg?.status, csMsg);
+      }
 
       // Log to notification_log (no event_id, no billing — platform cost)
       await supabase.from('notification_log').insert({

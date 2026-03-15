@@ -2201,6 +2201,15 @@
           <button class="btn btn-primary" onclick="saveAdminNotifPrefs()">Save Preferences</button>
           <span class="config-saved" id="notifSaved">Saved!</span>
         </div>
+
+        <hr style="border:none;border-top:1px solid #eee;margin:28px 0;">
+
+        <h4 style="margin-bottom:8px;">Test Notification</h4>
+        <p style="font-size:13px;color:#888;margin-bottom:16px;">Send a test SMS to your saved phone number to verify notifications are working end-to-end.</p>
+        <div class="config-actions">
+          <button class="btn btn-secondary" id="testNotifBtn" onclick="sendTestNotification()">Send Test SMS</button>
+          <span id="testNotifStatus" style="font-size:13px;margin-left:12px;"></span>
+        </div>
       </div>
     </div>
 
@@ -7520,12 +7529,46 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           var saved = document.getElementById('notifSaved');
           saved.style.display = 'inline';
           setTimeout(function() { saved.style.display = 'none'; }, 2000);
+          notifPrefsLoaded = false; // allow reload with fresh data
         } else {
           alert(json.error || 'Failed to save preferences');
         }
       } catch (e) {
         alert('Network error — could not save preferences');
       }
+    }
+
+    async function sendTestNotification() {
+      var btn = document.getElementById('testNotifBtn');
+      var status = document.getElementById('testNotifStatus');
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      status.textContent = '';
+      status.style.color = '';
+
+      try {
+        var resp = await fetch('/api/v2/admin?action=sendTestNotification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          }
+        });
+        var json = await resp.json();
+        if (json.success) {
+          status.textContent = 'Sent! Check your phone.';
+          status.style.color = '#22c55e';
+        } else {
+          status.textContent = json.error || 'Failed to send test notification';
+          status.style.color = '#ef4444';
+        }
+      } catch (e) {
+        status.textContent = 'Network error — could not send test notification';
+        status.style.color = '#ef4444';
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Send Test SMS';
     }
 
   </script>

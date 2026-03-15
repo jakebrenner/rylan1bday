@@ -2557,6 +2557,88 @@ ${cssSnippet}`
       return res.status(200).json({ success: true });
     }
 
+    if (action === 'sendTestNotification') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      // Check ClickSend credentials
+      const CLICKSEND_USERNAME = process.env.CLICKSEND_USERNAME;
+      const CLICKSEND_API_KEY = process.env.CLICKSEND_API_KEY;
+      if (!CLICKSEND_USERNAME || !CLICKSEND_API_KEY) {
+        return res.status(500).json({
+          success: false,
+          error: 'ClickSend credentials not configured — CLICKSEND_USERNAME and CLICKSEND_API_KEY environment variables are required'
+        });
+      }
+
+      // Get admin's notification phone
+      const { data: prefs } = await supabaseAdmin
+        .from('admin_notification_prefs')
+        .select('phone')
+        .eq('admin_user_id', admin.id)
+        .maybeSingle();
+
+      const phone = prefs?.phone;
+      if (!phone) {
+        return res.status(400).json({
+          success: false,
+          error: 'No phone number saved — save your notification preferences first'
+        });
+      }
+
+      const digits = phone.replace(/\D/g, '');
+      const e164 = digits.length >= 10 ? `+1${digits.slice(-10)}` : null;
+      if (!e164) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid phone number in notification preferences'
+        });
+      }
+
+      const testBody = `Ryvite test notification — if you're reading this, admin SMS notifications are working!`;
+      const credentials = Buffer.from(`${CLICKSEND_USERNAME}:${CLICKSEND_API_KEY}`).toString('base64');
+
+      try {
+        const csResp = await fetch('https://rest.clicksend.com/v3/sms/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Basic ${credentials}`
+          },
+          body: JSON.stringify({
+            messages: [{ to: e164, body: testBody, source: 'ryvite-admin-test' }]
+          })
+        });
+
+        const csResult = await csResp.json();
+        const csMsg = csResult.data?.messages?.[0];
+
+        // Log to notification_log
+        await supabaseAdmin.from('notification_log').insert({
+          channel: 'sms',
+          recipient: digits.slice(-10),
+          status: csMsg?.status === 'SUCCESS' ? 'sent' : 'failed',
+          provider_id: csMsg?.message_id || null,
+          error: csMsg?.status !== 'SUCCESS' ? (csMsg?.status || 'unknown') : null,
+          sent_at: new Date().toISOString()
+        });
+
+        if (csMsg?.status === 'SUCCESS') {
+          return res.status(200).json({ success: true, message: 'Test notification sent!' });
+        } else {
+          return res.status(500).json({
+            success: false,
+            error: `ClickSend returned status: ${csMsg?.status || 'unknown'}`,
+            detail: csMsg
+          });
+        }
+      } catch (fetchErr) {
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to reach ClickSend API: ' + fetchErr.message
+        });
+      }
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Admin API error:', err);
