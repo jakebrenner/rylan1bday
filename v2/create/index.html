@@ -921,7 +921,7 @@
         if (paidEventId) {
           // Verify the Stripe session in background
           if (stripeReturnSessionId) {
-            authFetch('/api/v2/billing?action=verify-session&session_id=' + encodeURIComponent(stripeReturnSessionId)).catch(function() {});
+            verifyPaymentPromise = authFetch('/api/v2/billing?action=verify-session&session_id=' + encodeURIComponent(stripeReturnSessionId)).catch(function() {});
           }
           // Mark event as paid locally so generation limits are lifted
           currentEvent = currentEvent || { id: paidEventId };
@@ -3821,6 +3821,7 @@
     var designChatHistory = [];
     var pendingRatingThemeId = null;
     var justUpgraded = false; // Set when returning from Stripe payment
+    var verifyPaymentPromise = null; // Stored verify-session promise for redirect flow
     var pendingUpgradeMessage = null; // Holds user's blocked message to replay after payment
     var designChatPhotoBase64 = null;
     var designChatPhotoUrl = null;
@@ -3920,13 +3921,20 @@
         var savedPendingMsg = sessionStorage.getItem('ryvite_pending_upgrade_msg');
         if (savedPendingMsg) {
           sessionStorage.removeItem('ryvite_pending_upgrade_msg');
-          var input = document.getElementById('designChatInput');
-          if (input) {
-            input.value = savedPendingMsg;
-            designChatHistory.push({ role: 'assistant', content: "Awesome, you've upgraded! Thanks so much for helping support Ryvite. Let me work on that for you now..." });
-            renderDesignChat();
-            setTimeout(function() { sendDesignChat(); }, 500);
-          }
+          (async function() {
+            // Wait for payment verification to complete before replaying
+            if (verifyPaymentPromise) {
+              try { await verifyPaymentPromise; } catch(e) {}
+              verifyPaymentPromise = null;
+            }
+            var input = document.getElementById('designChatInput');
+            if (input) {
+              input.value = savedPendingMsg;
+              designChatHistory.push({ role: 'assistant', content: "Awesome, you've upgraded! Thanks so much for helping support Ryvite. Let me work on that for you now..." });
+              renderDesignChat();
+              setTimeout(function() { sendDesignChat(); }, 500);
+            }
+          })();
         } else {
           designChatHistory.push({ role: 'assistant', content: "Awesome, you've upgraded! Thanks so much for helping support Ryvite.\n\nLet's get back to customizing your invite. What can I help you with?" });
           renderDesignChat();

@@ -1251,16 +1251,16 @@ Rules:
     const hasPhotos = (photoUrls?.length > 0) || photoUrl || photoBase64;
     const designKeywords = [
       'color', 'colour', 'font', 'background', 'layout', 'animation', 'animate',
-      'style', 'theme', 'darker', 'lighter', 'bigger', 'smaller', 'spacing',
+      'style', 'theme', 'themed', 'darker', 'lighter', 'bigger', 'smaller', 'spacing',
       'margin', 'padding', 'border', 'shadow', 'gradient', 'photo', 'image',
       'minimalist', 'maximalist', 'elegant', 'bold', 'modern', 'vintage',
-      'vibe', 'mood', 'swap', 'redesign', 'completely', 'overhaul',
-      'move', 'position', 'align', 'center', 'left', 'right',
+      'vibe', 'mood', 'redesign', 'overhaul',
+      'move', 'position', 'align', 'center',
       'css', 'width', 'height', 'size', 'rounded', 'hover'
     ];
     // Text swap patterns ("change X to Y") are light ONLY when swapping literal text,
     // not when requesting a thematic/design change like "change it to toy story themed"
-    const hasDesignKeyword = designKeywords.some(kw => lowerInstructions.includes(kw));
+    const hasDesignKeyword = designKeywords.some(kw => new RegExp('\\b' + kw + '\\b').test(lowerInstructions));
     const isTextSwap = /\b(?:change|replace|update|switch)\b.+\b(?:to|with|for|into)\b/i.test(lowerInstructions)
       && !/\b(?:color|colour|font|background|layout|theme|style)\s+(?:to|with|for|into)\b/i.test(lowerInstructions)
       && !hasDesignKeyword;
