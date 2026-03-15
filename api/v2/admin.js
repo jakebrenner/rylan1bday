@@ -68,7 +68,7 @@ export default async function handler(req, res) {
     if (action === 'users') {
       const { data: profiles, error } = await supabaseAdmin
         .from('profiles')
-        .select('id, email, display_name, phone, tier, created_at')
+        .select('id, email, display_name, phone, tier, free_event_credits, purchased_event_credits, created_at')
         .order('created_at', { ascending: false });
 
       if (error) return res.status(400).json({ error: error.message });
@@ -106,6 +106,8 @@ export default async function handler(req, res) {
           displayName: p.display_name,
           phone: p.phone,
           tier: p.tier,
+          freeEventCredits: p.free_event_credits || 0,
+          purchasedEventCredits: p.purchased_event_credits || 0,
           createdAt: p.created_at,
           events: userStats[p.id] || { total: 0, published: 0, draft: 0 }
         }))

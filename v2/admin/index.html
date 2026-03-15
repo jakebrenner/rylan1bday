@@ -723,15 +723,14 @@
             <thead>
               <tr>
                 <th>User</th>
-                <th>Tier</th>
                 <th>Events</th>
-                <th>Published</th>
+                <th>Credits</th>
                 <th>Joined</th>
                 <th></th>
               </tr>
             </thead>
             <tbody id="usersTableBody">
-              <tr><td colspan="6" class="loading">Loading users...</td></tr>
+              <tr><td colspan="5" class="loading">Loading users...</td></tr>
             </tbody>
           </table>
         </div>
@@ -2602,17 +2601,16 @@
     function renderUsersTable() {
       var tbody = document.getElementById('usersTableBody');
       if (allUsers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="color:#888;">No users yet</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="color:#888;">No users yet</td></tr>';
         return;
       }
       tbody.innerHTML = allUsers.map(function(u) {
-        var tierClass = u.tier === 'pro' ? 'badge-blue' : u.tier === 'business' ? 'badge-green' : 'badge-gray';
+        var totalCredits = (u.freeEventCredits || 0) + (u.purchasedEventCredits || 0);
         return '<tr>'
           + '<td><div class="user-email clickable" onclick="viewUser(\'' + u.id + '\')">' + escapeHtml(u.email) + '</div>'
           + (u.displayName ? '<div class="user-name clickable" onclick="viewUser(\'' + u.id + '\')" style="cursor:pointer;">' + escapeHtml(u.displayName) + '</div>' : '') + '</td>'
-          + '<td><span class="badge ' + tierClass + '">' + escapeHtml(u.tier) + '</span></td>'
           + '<td>' + u.events.total + '</td>'
-          + '<td>' + u.events.published + '</td>'
+          + '<td>' + totalCredits + '</td>'
           + '<td>' + formatDate(u.createdAt) + '</td>'
           + '<td><button class="btn btn-secondary btn-sm" onclick="viewUser(\'' + u.id + '\')">View</button></td>'
           + '</tr>';
@@ -2666,8 +2664,7 @@
       document.getElementById('udName').textContent = u.displayName || u.email;
       document.getElementById('udMeta').innerHTML =
         '<span>' + escapeHtml(u.email) + '</span><span class="sep">|</span>'
-        + '<span class="badge ' + (u.tier === 'free' ? 'badge-gray' : 'badge-blue') + '">' + escapeHtml(u.tier) + '</span>'
-        + '<span class="sep">|</span><span>Joined ' + formatDate(u.createdAt) + '</span>';
+        + '<span>Joined ' + formatDate(u.createdAt) + '</span>';
 
       // Reset to overview section
       switchUserSection('overview');
@@ -2690,10 +2687,8 @@
       // Update header
       document.getElementById('udAvatar').textContent = getInitials(u.displayName, u.email);
       document.getElementById('udName').textContent = u.displayName || u.email;
-      var tierClass = u.tier === 'pro' ? 'badge-blue' : u.tier === 'business' ? 'badge-green' : 'badge-gray';
       document.getElementById('udMeta').innerHTML =
-        '<span>' + escapeHtml(u.email) + '</span><span class="sep">|</span>'
-        + '<span class="badge ' + tierClass + '">' + escapeHtml(u.tier) + '</span>'
+        '<span>' + escapeHtml(u.email) + '</span>'
         + (u.isBanned ? '<span class="sep">|</span><span class="badge badge-red">Deactivated</span>' : '')
         + '<span class="sep">|</span><span>Joined ' + formatDate(u.createdAt) + '</span>'
         + (u.phone ? '<span class="sep">|</span><span>' + escapeHtml(u.phone) + '</span>' : '');
