@@ -6438,6 +6438,7 @@
     }
 
     var embeddedCheckoutInstance = null;
+    var checkoutSessionId = null;
 
     function handleDesignChatUpgrade() {
       var modal = document.getElementById('createPaymentGate');
@@ -6489,6 +6490,8 @@
         });
         var data = await resp.json();
 
+        checkoutSessionId = data.sessionId || null;
+
         if (data.alreadyPaid) {
           handlePaymentComplete();
           return;
@@ -6524,7 +6527,7 @@
       }
     }
 
-    function handlePaymentComplete() {
+    async function handlePaymentComplete() {
       // Close modal
       document.getElementById('createPaymentGate').style.display = 'none';
       // Clean up embedded checkout
@@ -6546,8 +6549,15 @@
         currentEvent.freeRedoUsed = false;
       }
 
-      // Verify session in background
-      authFetch('/api/v2/billing?action=verify-session').catch(function() {});
+      // Verify session server-side (ensures DB has payment_status='paid' before replay)
+      if (checkoutSessionId) {
+        try {
+          await authFetch('/api/v2/billing?action=verify-session&session_id=' + encodeURIComponent(checkoutSessionId));
+        } catch (e) {
+          console.error('[payment] verify-session failed, webhook will catch up:', e);
+        }
+        checkoutSessionId = null;
+      }
 
       // Remove upgrade upsell cards
       designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'upgrade'; });
