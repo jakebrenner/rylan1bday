@@ -476,7 +476,7 @@ export default async function handler(req, res) {
     if (action === 'buy-credits') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
-      const { quantity: rawQty, couponCode, returnUrl } = req.body || {};
+      const { quantity: rawQty, couponCode } = req.body || {};
       const quantity = Math.max(1, Math.min(10, parseInt(rawQty) || 1));
 
       let discount = null;
@@ -501,12 +501,62 @@ export default async function handler(req, res) {
         unitPriceCents = Math.max(0, EVENT_PRICE_CENTS - discountCents);
       }
 
+      const totalCents = unitPriceCents * quantity;
       const customerId = await getOrCreateStripeCustomer(user);
-      const baseUrl = getBaseUrl(req);
 
+      // Check for saved payment method — charge instantly if available
+      const paymentMethods = await stripe.paymentMethods.list({
+        customer: customerId,
+        type: 'card',
+        limit: 1
+      });
+
+      if (paymentMethods.data.length > 0) {
+        // Instant charge with saved card
+        const savedCard = paymentMethods.data[0];
+        try {
+          const paymentIntent = await stripe.paymentIntents.create({
+            amount: totalCents,
+            currency: 'usd',
+            customer: customerId,
+            payment_method: savedCard.id,
+            off_session: true,
+            confirm: true,
+            metadata: {
+              supabase_user_id: user.id,
+              checkout_type: 'credit_purchase',
+              quantity: String(quantity),
+              coupon_id: coupon?.id || '',
+              coupon_code: couponCode || '',
+              original_amount_cents: String(EVENT_PRICE_CENTS),
+              discount_cents: String(discountCents)
+            }
+          });
+
+          if (paymentIntent.status === 'succeeded') {
+            // Process immediately — increment credits, billing history
+            await processCreditPurchase(user.id, quantity, totalCents, paymentIntent.id, customerId, coupon?.id);
+            return res.status(200).json({
+              success: true,
+              charged: true,
+              quantity,
+              amountCents: totalCents,
+              cardLast4: savedCard.card.last4,
+              cardBrand: savedCard.card.brand
+            });
+          }
+
+          // 3D Secure or other action required — fall through to embedded checkout
+        } catch (cardErr) {
+          // Card declined or error — fall through to embedded checkout
+          console.error('Saved card charge failed:', cardErr.message);
+        }
+      }
+
+      // No saved card or charge failed — use embedded checkout
+      const baseUrl = getBaseUrl(req);
       const sessionParams = {
         customer: customerId,
-        payment_method_types: ['card'],
         line_items: [{
           price_data: {
             currency: 'usd',
@@ -519,6 +569,8 @@ export default async function handler(req, res) {
           quantity
         }],
         mode: 'payment',
+        ui_mode: 'embedded',
+        redirect_on_completion: 'never',
         payment_intent_data: { setup_future_usage: 'off_session' },
         metadata: {
           supabase_user_id: user.id,
@@ -528,17 +580,16 @@ export default async function handler(req, res) {
           coupon_code: couponCode || '',
           original_amount_cents: String(EVENT_PRICE_CENTS),
           discount_cents: String(discountCents)
-        },
-        success_url: `${baseUrl}${returnUrl || '/v2/profile/'}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}${returnUrl || '/v2/profile/'}?payment=cancelled`
+        }
       };
 
       const session = await stripe.checkout.sessions.create(sessionParams);
 
       return res.status(200).json({
         success: true,
+        charged: false,
         sessionId: session.id,
-        checkoutUrl: session.url
+        clientSecret: session.client_secret
       });
     }
 
@@ -896,6 +947,58 @@ async function handleWebhook(req, res) {
   } catch (err) {
     console.error('Webhook handler error:', err);
     return res.status(500).json({ error: 'Webhook handler error' });
+  }
+}
+
+// ---- PROCESS CREDIT PURCHASE (direct charge) ----
+// Called when saved card is charged instantly for credit purchase
+async function processCreditPurchase(userId, quantity, amountCents, paymentIntentId, customerId, couponId) {
+  // Increment purchased_event_credits
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('purchased_event_credits')
+    .eq('id', userId)
+    .single();
+
+  await supabaseAdmin
+    .from('profiles')
+    .update({
+      purchased_event_credits: ((profile?.purchased_event_credits || 0) + quantity),
+      stripe_customer_id: customerId
+    })
+    .eq('id', userId);
+
+  // Create billing history record
+  let receiptUrl = null;
+  if (paymentIntentId) {
+    try {
+      const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+      if (pi.latest_charge) {
+        const charge = await stripe.charges.retrieve(pi.latest_charge);
+        receiptUrl = charge.receipt_url || null;
+      }
+    } catch (e) { /* Non-critical */ }
+  }
+
+  await supabaseAdmin
+    .from('billing_history')
+    .insert({
+      user_id: userId,
+      stripe_payment_intent_id: paymentIntentId,
+      amount_cents: amountCents,
+      currency: 'usd',
+      status: 'succeeded',
+      description: quantity === 1 ? 'Event credit purchase' : `Event credit purchase (×${quantity})`,
+      receipt_url: receiptUrl
+    });
+
+  // Handle coupon redemption
+  if (couponId) {
+    await supabaseAdmin.from('coupon_redemptions').insert({ coupon_id: couponId, user_id: userId });
+    await supabaseAdmin.rpc('increment_coupon_usage', { coupon_uuid: couponId }).catch(async () => {
+      const { data: c } = await supabaseAdmin.from('coupons').select('times_used').eq('id', couponId).single();
+      if (c) await supabaseAdmin.from('coupons').update({ times_used: (c.times_used || 0) + 1 }).eq('id', couponId);
+    });
   }
 }
 

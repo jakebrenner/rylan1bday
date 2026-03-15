@@ -261,6 +261,9 @@
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="buyMoreEvents()" id="buyCreditsBtn">Buy More Events — $4.99 each</button>
       </div>
+      <div id="embeddedCheckoutWrap" style="display:none;margin-top:16px;border:1px solid #eee;border-radius:10px;overflow:hidden;">
+        <div id="embeddedCheckoutEl"></div>
+      </div>
     </div>
 
     <!-- Payment Method -->
@@ -449,29 +452,90 @@
       }
     }
 
+    var embeddedCheckoutInstance = null;
+
     async function buyMoreEvents() {
       var btn = document.getElementById('buyCreditsBtn');
       btn.disabled = true;
-      btn.textContent = 'Redirecting to checkout...';
+      btn.textContent = 'Processing...';
       try {
         var res = await authFetch('/api/v2/billing?action=buy-credits', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ quantity: 1, returnUrl: '/v2/profile/' })
+          body: JSON.stringify({ quantity: 1 })
         });
         var result = await res.json();
-        if (result.success && result.checkoutUrl) {
-          window.location.href = result.checkoutUrl;
-        } else {
-          showToast(result.error || 'Failed to start checkout');
+        if (!result.success) {
+          showToast(result.error || 'Failed to process purchase');
           btn.disabled = false;
           btn.textContent = 'Buy More Events — $4.99 each';
+          return;
         }
+
+        if (result.charged) {
+          // Instant charge succeeded with saved card
+          var cardInfo = result.cardBrand ? (result.cardBrand.charAt(0).toUpperCase() + result.cardBrand.slice(1) + ' ••••' + result.cardLast4) : 'saved card';
+          showToast('Event credit purchased! Charged ' + cardInfo);
+          btn.disabled = false;
+          btn.textContent = 'Buy More Events — $4.99 each';
+          loadBillingData(); // Refresh counts
+          return;
+        }
+
+        // No saved card — show embedded checkout
+        await showEmbeddedCheckout(result.clientSecret);
+        btn.disabled = false;
+        btn.textContent = 'Buy More Events — $4.99 each';
       } catch (e) {
-        showToast('Error starting checkout');
+        showToast('Error processing purchase');
         btn.disabled = false;
         btn.textContent = 'Buy More Events — $4.99 each';
       }
+    }
+
+    async function showEmbeddedCheckout(clientSecret) {
+      // Load Stripe.js if needed
+      if (!stripeInstance) {
+        var configRes = await authFetch('/api/v2/billing?action=config');
+        var configData = await configRes.json();
+        if (!window.Stripe) {
+          await new Promise(function(resolve) {
+            var script = document.createElement('script');
+            script.src = 'https://js.stripe.com/v3/';
+            script.onload = resolve;
+            document.head.appendChild(script);
+          });
+        }
+        stripeInstance = Stripe(configData.publishableKey);
+      }
+
+      // Destroy previous instance if any
+      if (embeddedCheckoutInstance) {
+        embeddedCheckoutInstance.destroy();
+        embeddedCheckoutInstance = null;
+      }
+
+      var wrap = document.getElementById('embeddedCheckoutWrap');
+      wrap.style.display = 'block';
+      document.getElementById('embeddedCheckoutEl').innerHTML = '';
+
+      embeddedCheckoutInstance = await stripeInstance.initEmbeddedCheckout({
+        clientSecret: clientSecret,
+        onComplete: async function() {
+          // Payment completed — verify and refresh
+          showToast('Event credit purchased!');
+          if (embeddedCheckoutInstance) {
+            embeddedCheckoutInstance.destroy();
+            embeddedCheckoutInstance = null;
+          }
+          wrap.style.display = 'none';
+          loadBillingData();
+          loadPaymentMethod(); // Card is now saved
+        }
+      });
+
+      embeddedCheckoutInstance.mount('#embeddedCheckoutEl');
+      wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     function escapeHtml(str) { var d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
