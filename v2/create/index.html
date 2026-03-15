@@ -914,7 +914,7 @@
 
       // Handle return from per-event Stripe payment (design-chat upgrade)
       if (urlParams.get('payment') === 'success') {
-        var paidEventId = urlParams.get('eventId');
+        var paidEventId = urlParams.get('eventId') || urlParams.get('event');
         var stripeReturnSessionId = urlParams.get('session_id');
         // Clean URL but keep eventId for resume
         window.history.replaceState({}, '', '/v2/create/' + (paidEventId ? '?eventId=' + paidEventId : ''));
@@ -6420,14 +6420,26 @@
       document.getElementById('createPaymentGate').style.display = 'flex';
     }
 
+    var embeddedCheckoutInstance = null;
+
     function handleDesignChatUpgrade() {
       var modal = document.getElementById('createPaymentGate');
-      if (modal) modal.style.display = 'flex';
+      if (modal) {
+        // Reset to initial state (value prop view, not checkout view)
+        document.getElementById('paymentGateInfo').style.display = '';
+        document.getElementById('paymentGateCheckout').style.display = 'none';
+        document.getElementById('paymentGateCheckout').innerHTML = '';
+        if (embeddedCheckoutInstance) {
+          embeddedCheckoutInstance.destroy();
+          embeddedCheckoutInstance = null;
+        }
+        modal.style.display = 'flex';
+      }
     }
 
     async function handleCreatePayment() {
       var btn = document.getElementById('createPayBtn');
-      btn.textContent = 'Redirecting...';
+      btn.textContent = 'Loading...';
       btn.disabled = true;
       try {
         var eventId = currentEvent ? currentEvent.id : null;
@@ -6437,46 +6449,114 @@
           btn.disabled = false;
           return;
         }
+
+        // Get Stripe publishable key
+        var configRes = await authFetch('/api/v2/billing?action=config');
+        var configData = await configRes.json();
+        if (!configData.publishableKey) {
+          showMessage('Payment configuration error', 'error');
+          btn.textContent = 'Upgrade \u2014 $4.99';
+          btn.disabled = false;
+          return;
+        }
+
+        // Create embedded checkout session
         var resp = await authFetch('/api/v2/billing?action=checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             eventId: eventId,
-            successUrl: '/v2/create/?eventId=' + eventId + '&payment=success',
-            cancelUrl: '/v2/create/?eventId=' + eventId
+            embedded: true,
+            returnUrl: '/v2/create/'
           })
         });
         var data = await resp.json();
-        if (data.checkoutUrl || data.url) {
-          window.location.href = data.checkoutUrl || data.url;
-        } else {
+
+        if (data.alreadyPaid) {
+          handlePaymentComplete();
+          return;
+        }
+
+        if (!data.clientSecret) {
           showMessage(data.error || 'Error creating checkout session', 'error');
           btn.textContent = 'Upgrade \u2014 $4.99';
           btn.disabled = false;
+          return;
         }
+
+        // Switch modal to checkout view
+        document.getElementById('paymentGateInfo').style.display = 'none';
+        var checkoutContainer = document.getElementById('paymentGateCheckout');
+        checkoutContainer.style.display = 'block';
+        checkoutContainer.innerHTML = '<div id="stripeEmbeddedCheckout"></div>';
+
+        // Mount Stripe Embedded Checkout
+        var stripe = Stripe(configData.publishableKey);
+        embeddedCheckoutInstance = await stripe.initEmbeddedCheckout({
+          clientSecret: data.clientSecret,
+          onComplete: function() {
+            handlePaymentComplete();
+          }
+        });
+        embeddedCheckoutInstance.mount('#stripeEmbeddedCheckout');
+
       } catch (e) {
         showMessage('Payment error: ' + e.message, 'error');
         btn.textContent = 'Upgrade \u2014 $4.99';
         btn.disabled = false;
       }
     }
+
+    function handlePaymentComplete() {
+      // Close modal
+      document.getElementById('createPaymentGate').style.display = 'none';
+      // Clean up embedded checkout
+      if (embeddedCheckoutInstance) {
+        embeddedCheckoutInstance.destroy();
+        embeddedCheckoutInstance = null;
+      }
+      // Reset modal to info view for next time
+      document.getElementById('paymentGateInfo').style.display = '';
+      document.getElementById('paymentGateCheckout').style.display = 'none';
+      document.getElementById('paymentGateCheckout').innerHTML = '';
+      var btn = document.getElementById('createPayBtn');
+      if (btn) { btn.textContent = 'Upgrade \u2014 $4.99'; btn.disabled = false; }
+
+      // Update local state
+      if (currentEvent) {
+        currentEvent.paymentStatus = 'paid';
+        currentEvent.freeGenerationUsed = false;
+        currentEvent.freeRedoUsed = false;
+      }
+
+      // Verify session in background
+      authFetch('/api/v2/billing?action=verify-session').catch(function() {});
+
+      // Remove upgrade upsell cards and add welcome-back message
+      designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'upgrade'; });
+      designChatHistory.push({ role: 'assistant', content: "Awesome, you've upgraded! Thanks so much for helping support Ryvite.\n\nLet's get back to customizing your invite. What can I help you with?" });
+      renderDesignChat();
+    }
   </script>
 
   <!-- Payment Gate Modal -->
-  <div id="createPaymentGate" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:20px;max-width:440px;width:90%;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;">
-      <h3 style="margin:0 0 12px; font-family: 'Playfair Display', serif; font-size:22px; color:var(--midnight);">Unlock Full Features</h3>
-      <p style="color: #6B7280; margin: 0 0 20px; line-height: 1.6; font-size:14px;">Your first event includes 1 free AI design. Upgrade for <strong>$4.99</strong> to get unlimited designs, SMS delivery, and more.</p>
-      <ul style="text-align: left; margin: 0 0 24px; padding-left: 20px; color: #1A1A2E; line-height: 1.8; font-size:14px;">
-        <li>Unlimited AI-designed invitations</li>
-        <li>SMS + email delivery</li>
-        <li>Full RSVP tracking &amp; guest management</li>
-      </ul>
-      <div style="display: flex; gap: 12px; justify-content: center;">
-        <button onclick="document.getElementById('createPaymentGate').style.display='none';" style="padding: 10px 24px; border: 1px solid #ddd; border-radius: 50px; background: white; cursor: pointer; font-size: 14px; font-family: Inter, sans-serif;">Maybe Later</button>
-        <button id="createPayBtn" onclick="handleCreatePayment()" style="padding: 10px 24px; border: none; border-radius: 50px; background: #E94560; color: white; cursor: pointer; font-size: 14px; font-weight: 600; font-family: Inter, sans-serif;">Upgrade &#8212; $4.99</button>
+  <div id="createPaymentGate" onclick="if(event.target===this){if(embeddedCheckoutInstance){embeddedCheckoutInstance.destroy();embeddedCheckoutInstance=null;}document.getElementById('paymentGateInfo').style.display='';document.getElementById('paymentGateCheckout').style.display='none';document.getElementById('paymentGateCheckout').innerHTML='';var b=document.getElementById('createPayBtn');if(b){b.textContent='Upgrade \u2014 $4.99';b.disabled=false;}this.style.display='none';}" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:20px;max-width:520px;width:95%;max-height:90vh;overflow-y:auto;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;">
+      <div id="paymentGateInfo">
+        <h3 style="margin:0 0 12px; font-family: 'Playfair Display', serif; font-size:22px; color:var(--midnight);">Unlock Full Features</h3>
+        <p style="color: #6B7280; margin: 0 0 20px; line-height: 1.6; font-size:14px;">Your first event includes 1 free AI design. Upgrade for <strong>$4.99</strong> to get unlimited designs, SMS delivery, and more.</p>
+        <ul style="text-align: left; margin: 0 0 24px; padding-left: 20px; color: #1A1A2E; line-height: 1.8; font-size:14px;">
+          <li>Unlimited AI-designed invitations</li>
+          <li>SMS + email delivery</li>
+          <li>Full RSVP tracking &amp; guest management</li>
+        </ul>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button onclick="document.getElementById('createPaymentGate').style.display='none';" style="padding: 10px 24px; border: 1px solid #ddd; border-radius: 50px; background: white; cursor: pointer; font-size: 14px; font-family: Inter, sans-serif;">Maybe Later</button>
+          <button id="createPayBtn" onclick="handleCreatePayment()" style="padding: 10px 24px; border: none; border-radius: 50px; background: #E94560; color: white; cursor: pointer; font-size: 14px; font-weight: 600; font-family: Inter, sans-serif;">Upgrade &#8212; $4.99</button>
+        </div>
+        <p style="color: #D1D5DB; font-size: 12px; margin: 16px 0 0;">Powered by Stripe</p>
       </div>
-      <p style="color: #D1D5DB; font-size: 12px; margin: 16px 0 0;">Powered by Stripe</p>
+      <div id="paymentGateCheckout" style="display:none;"></div>
     </div>
   </div>
 </body>
