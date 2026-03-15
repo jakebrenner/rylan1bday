@@ -1695,11 +1695,20 @@ export default async function handler(req, res) {
     // ---- TEST RUN STATS / REPORTING ----
     if (action === 'testRunStats') {
       // Get all scored test runs with prompt version info
-      const { data: runs, error } = await supabaseAdmin
+      let { data: runs, error } = await supabaseAdmin
         .from('prompt_test_runs')
         .select('id, prompt_version_id, model, event_type, score, input_tokens, output_tokens, latency_ms, style_library_ids, test_session_id, created_at')
         .not('score', 'is', null)
         .order('created_at', { ascending: false });
+
+      // Retry without optional columns if migrations haven't been run
+      if (error && (error.message?.includes('style_library_ids') || error.message?.includes('test_session_id'))) {
+        ({ data: runs, error } = await supabaseAdmin
+          .from('prompt_test_runs')
+          .select('id, prompt_version_id, model, event_type, score, input_tokens, output_tokens, latency_ms, created_at')
+          .not('score', 'is', null)
+          .order('created_at', { ascending: false }));
+      }
 
       if (error) return res.status(400).json({ error: error.message });
 
@@ -1973,6 +1982,26 @@ export default async function handler(req, res) {
 
       if (error) return res.status(500).json({ error: 'Failed to update: ' + error.message });
       return res.status(200).json({ success: true, excluded: exclude });
+    }
+
+    // ---- SET DESIGN GROUP (link variations together) ----
+    if (action === 'setDesignGroup') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+      const { id, source, designGroupId } = req.body;
+      if (!id) return res.status(400).json({ error: 'id required' });
+      if (!designGroupId) return res.status(400).json({ error: 'designGroupId required' });
+
+      const table = source === 'lab' ? 'prompt_test_runs'
+                  : source === 'style' ? 'style_library'
+                  : 'event_themes';
+
+      const { error } = await supabaseAdmin
+        .from(table)
+        .update({ design_group_id: designGroupId })
+        .eq('id', id);
+
+      if (error) return res.status(500).json({ error: 'Failed to update: ' + error.message });
+      return res.status(200).json({ success: true });
     }
 
     // ---- THEME QUALITY STATS (across all real generations) ----

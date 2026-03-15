@@ -6394,10 +6394,14 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       userGenerations.forEach(function(theme) {
         var card = grid.querySelector('.style-card[data-theme-id="' + theme.id + '"]');
         if (card) {
-          var fontsImport = (theme.config && theme.config.googleFontsImport) || '';
-          card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
-            + '<style>' + fontsImport + '</style>'
-            + '<style>' + (theme.css || '') + '</style></head><body>' + (theme.html || '') + '</body></html>';
+          if (theme.html) {
+            var fontsImport = (theme.config && theme.config.googleFontsImport) || '';
+            card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+              + '<style>' + fontsImport + '</style>'
+              + '<style>' + (theme.css || '') + '</style></head><body>' + (theme.html || '') + '</body></html>';
+          } else {
+            card.dataset.previewHtml = '<!DOCTYPE html><html><body style="display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:system-ui;color:#999;text-align:center;"><div><p style="font-size:14px;">No preview available</p><p style="font-size:11px;opacity:0.6;">Theme HTML not stored</p></div></body></html>';
+          }
         }
       });
       requestAnimationFrame(function() { setupLazyIframes(grid); });
