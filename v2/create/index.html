@@ -755,7 +755,7 @@
     let chatHistory = [];
     let chatSessionId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
     let chatBubbles = []; // [{text, role}] for UI rebuild on restore
-    var chatPhase = 'chatting'; // 'chatting' | 'confirmed'
+    var chatPhase = 'chatting'; // 'chatting' | 'confirmed' | 'themeReady'
     var designChatPhase = null; // null = normal flow, 'collecting_details' | 'rsvp_fields' | 'tweaking'
     var pendingDesignRequest = null; // design preference captured during collecting_details (e.g. "make it orange")
     var currentPreviewMode = 'invite';
@@ -1266,6 +1266,9 @@
           // Restore interactive UI based on chatPhase
           if (chatPhase === 'confirmed') {
             showConfirmationCard();
+          } else if (chatPhase === 'themeReady') {
+            showConfirmationCard();
+            showDesignReadyCard();
           }
         }
       }
@@ -1350,14 +1353,16 @@
           addChatBubble(result.message, 'assistant');
 
           // If confirmed, show final confirmation card with all details + RSVP fields
-          if (result.ready && result.confirmed && chatPhase !== 'confirmed') {
+          if (result.ready && result.confirmed && chatPhase !== 'confirmed' && chatPhase !== 'themeReady') {
             chatPhase = 'confirmed';
             showConfirmationCard();
-            // Auto-save event to DB as early as possible
-            saveEventToDB().catch(function() {});
           }
 
-          // themeReady is handled by the confirmation card's Generate button now
+          // If theme discovery is complete, show photo uploads + Generate button
+          if (result.themeReady && chatPhase !== 'themeReady') {
+            chatPhase = 'themeReady';
+            showDesignReadyCard();
+          }
         } else {
           var errMsg = result.detail || result.message || result.error || 'Something went wrong';
           console.error('Chat API error:', JSON.stringify(result));
@@ -1423,7 +1428,7 @@
 
       // Set design prompt and proceed directly to generation
       designPrompt = extractedData.prompt || 'Whimsical rainbow unicorn theme with sparkles, pastel colors, and playful typography';
-      generateFromCard();
+      generateFromDesignReady();
     }
 
     function addChatBubble(text, role, skipSave) {
@@ -1450,8 +1455,7 @@
       var existing = document.getElementById('confirmationCard');
       if (existing) existing.remove();
 
-      // Hide chat input — user interacts via the card now
-      document.querySelector('.chat-input-area').style.display = 'none';
+      // Keep chat input visible — user continues chatting about design
 
       var card = document.createElement('div');
       card.className = 'chat-extracted';
@@ -1459,73 +1463,75 @@
 
       var html = '';
 
-      // RSVP Fields — editable with Remove buttons
-      var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+      // RSVP Fields — compact, editable with Remove buttons
       html += '<h4 style="font-size:14px;font-weight:600;margin-bottom:6px;">RSVP Fields</h4>'
         + '<div style="font-size:11px;color:#999;margin-bottom:8px;padding:6px 10px;background:#f9f9f9;border-radius:6px;">Always included: <strong>Name</strong>, <strong>Email</strong>, <strong>Phone</strong>, <strong>RSVP Status</strong></div>'
         + '<div id="rsvpFieldList">' + renderRsvpFields() + '</div>'
         + '<div id="addFieldContainer"></div>'
         + '<button class="btn btn-secondary btn-sm" onclick="showAddFieldFormStep1()" style="margin-top:8px;font-size:11px;padding:4px 12px;">+ Add field</button>';
 
-      // Style / design direction
-      var existingPrompt = extractedData.prompt || extractedData.description || '';
-      html += '<div style="margin-top:16px;border-top:1px solid #eee;padding-top:14px;">'
-        + '<div style="font-size:13px;font-weight:600;color:var(--midnight);margin-bottom:6px;">Design Direction <span style="font-weight:400;color:#999;">(optional)</span></div>'
-        + '<textarea id="confirmStyleInput" placeholder="e.g. Bold monster trucks, bright colors, playful and fun..." style="width:100%;min-height:56px;max-height:120px;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;">' + escapeHtml(existingPrompt) + '</textarea>'
-        + '</div>';
+      card.innerHTML = html;
+      document.getElementById('chatMessages').appendChild(card);
+      scrollChat();
 
-      // Photo uploads — compact
+      // Auto-save event to DB as early as possible
+      saveEventToDB().catch(function() {});
+    }
+
+    function showDesignReadyCard() {
+      // Remove any existing design ready card
+      var existing = document.getElementById('designReadyCard');
+      if (existing) existing.remove();
+
       var eventType = extractedData.eventType || 'other';
       var photoRec = photoRecommendations[eventType];
 
-      html += '<div style="margin-top:14px;border-top:1px solid #eee;padding-top:14px;">'
-        + '<div style="display:flex;gap:10px;">'
+      var card = document.createElement('div');
+      card.className = 'chat-extracted';
+      card.id = 'designReadyCard';
+
+      var html = '<div style="font-size:14px;font-weight:500;margin-bottom:12px;">Ready to generate! Add any photos before we start:</div>';
+
+      // Photo uploads — side by side
+      html += '<div style="display:flex;gap:10px;margin-bottom:14px;">'
         + '<div style="flex:1;">'
-        + '<div class="image-upload-area" id="confirmInspoDropZone" onclick="document.getElementById(\'confirmInspoInput\').click()" style="padding:10px;border-radius:8px;">'
+        + '<div class="image-upload-area" id="readyInspoDropZone" onclick="document.getElementById(\'readyInspoInput\').click()" style="padding:10px;border-radius:8px;">'
         + '<p style="font-size:12px;margin:0;">Inspiration images</p>'
         + '<p style="font-size:10px;color:#999;margin:2px 0 0;">optional · max 6</p>'
         + '</div>'
-        + '<input type="file" id="confirmInspoInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleInspirationUpload(event)">'
+        + '<input type="file" id="readyInspoInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleInspirationUpload(event)">'
         + '<div id="inspirationPreviews" class="image-previews"></div>'
         + '</div>'
         + '<div style="flex:1;">'
-        + '<div class="image-upload-area" id="confirmPersonDropZone" onclick="document.getElementById(\'confirmPersonInput\').click()" style="padding:10px;border-radius:8px;">'
+        + '<div class="image-upload-area" id="readyPersonDropZone" onclick="document.getElementById(\'readyPersonInput\').click()" style="padding:10px;border-radius:8px;">'
         + '<p style="font-size:12px;margin:0;">Photos of the person</p>'
         + '<p style="font-size:10px;color:#999;margin:2px 0 0;">' + (photoRec ? photoRec.strength.toLowerCase() : 'optional') + ' · max 6</p>'
         + '</div>'
-        + '<input type="file" id="confirmPersonInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handlePersonUpload(event)">'
+        + '<input type="file" id="readyPersonInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handlePersonUpload(event)">'
         + '<div id="personPreviews" class="image-previews"></div>'
-        + '</div>'
         + '</div>'
         + '</div>';
 
-      // Generate button — prominent CTA
-      html += '<button class="btn btn-primary chat-proceed" onclick="generateFromCard()" style="width:100%;padding:14px;font-size:15px;font-weight:600;margin-top:16px;">Generate My Invite</button>';
+      // Generate button
+      html += '<button class="btn btn-primary chat-proceed" onclick="generateFromDesignReady()" style="width:100%;padding:14px;font-size:15px;font-weight:600;">Generate My Invite</button>';
 
       card.innerHTML = html;
       document.getElementById('chatMessages').appendChild(card);
       scrollChat();
 
-      // Set up drag & drop on photo upload zones
-      setupDropZone('confirmInspoDropZone', 'inspiration');
-      setupDropZone('confirmPersonDropZone', 'person');
+      // Hide chat input — design chat is done
+      document.querySelector('.chat-input-area').style.display = 'none';
+
+      // Set up drag & drop
+      setupDropZone('readyInspoDropZone', 'inspiration');
+      setupDropZone('readyPersonDropZone', 'person');
     }
 
-    function generateFromCard() {
-      // Grab style from the textarea (user may have edited it)
-      var styleInput = document.getElementById('confirmStyleInput');
-      var styleText = styleInput ? styleInput.value.trim() : '';
+    function generateFromDesignReady() {
+      designPrompt = extractedData.prompt || 'Create a beautiful, event-appropriate invite design.';
 
-      // Update extractedData.prompt with whatever the user wrote
-      if (styleText) {
-        extractedData.prompt = styleText;
-      }
-
-      // Set designPrompt and proceed to generation
-      designPrompt = styleText || extractedData.prompt || 'Create a beautiful, event-appropriate invite design.';
-
-      // Disable the button to prevent double-clicks
-      var btn = document.querySelector('#confirmationCard .chat-proceed');
+      // Disable button
+      var btn = document.querySelector('#designReadyCard .chat-proceed');
       if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
 
       addChatBubble('Let\'s design it!', 'user');
@@ -1539,7 +1545,6 @@
           return;
         }
         if (result !== true) {
-          // Re-enable button on failure
           if (btn) { btn.disabled = false; btn.textContent = 'Generate My Invite'; }
           return;
         }
@@ -1741,7 +1746,7 @@
     }
 
 
-    // confirmDetailsAndAskStyle removed — replaced by generateFromCard()
+    // Old confirmDetailsAndAskStyle removed — replaced by generateFromDesignReady()
 
 
     // ---- Payment helpers (per-event $4.99 model) ----
