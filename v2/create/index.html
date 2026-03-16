@@ -84,8 +84,15 @@
     .chat-bubble.typing span:nth-child(2) { animation-delay: 0.2s; }
     .chat-bubble.typing span:nth-child(3) { animation-delay: 0.4s; }
     @keyframes typingBounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
-    .chat-input-area { flex-shrink: 0; padding: 16px 0 32px; border-top: 1px solid #eee; background: var(--cream); }
-    .chat-input-row { display: flex; gap: 10px; }
+    .chat-input-area { flex-shrink: 0; padding: 16px 0 32px; border-top: 1px solid #eee; background: var(--cream); position: relative; }
+    .chat-input-row { display: flex; gap: 10px; align-items: center; }
+    .chat-photo-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #ddd; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; color: #888; }
+    .chat-photo-btn:hover { border-color: var(--party-coral); color: var(--party-coral); background: rgba(233,69,96,0.05); }
+    .chat-photo-menu { display: none; position: absolute; bottom: 100%; left: 0; margin-bottom: 8px; background: white; border: 1px solid #e0e0e0; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); overflow: hidden; z-index: 10; min-width: 200px; }
+    .chat-photo-menu.open { display: block; }
+    .chat-photo-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 16px; border: none; background: none; cursor: pointer; font-size: 13px; font-family: inherit; color: var(--midnight); transition: background 0.15s; }
+    .chat-photo-menu button:hover { background: #f5f5f5; }
+    .chat-photo-menu button:first-child { border-bottom: 1px solid #f0f0f0; }
     .chat-input { flex: 1; padding: 14px 18px; border: 1px solid #ddd; border-radius: 24px; font-family: 'Inter', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s; background: white; }
     .chat-input:focus { border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
     .chat-send { width: 48px; height: 48px; border-radius: 50%; background: var(--party-coral); color: white; border: none; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
@@ -430,9 +437,25 @@
       </div>
     </div>
     <div class="chat-input-area">
+      <div id="chatPhotoPreview" class="image-previews" style="padding:0 4px;"></div>
       <div class="chat-input-row">
+        <button class="chat-photo-btn" id="chatPhotoBtn" onclick="toggleChatPhotoMenu()" title="Upload photos">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+        </button>
         <input type="text" class="chat-input" id="chatInput" placeholder="Tell me what's on your mind..." autofocus>
         <button class="chat-send" id="chatSendBtn" onclick="sendMessage()">&#10148;</button>
+      </div>
+      <input type="file" id="chatInspoInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleInspirationUpload(event)">
+      <input type="file" id="chatPersonInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handlePersonUpload(event)">
+      <div class="chat-photo-menu" id="chatPhotoMenu">
+        <button onclick="document.getElementById('chatInspoInput').click(); toggleChatPhotoMenu();">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+          Inspiration images
+        </button>
+        <button onclick="document.getElementById('chatPersonInput').click(); toggleChatPhotoMenu();">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+          Photos of the person
+        </button>
       </div>
     </div>
   </div>
@@ -1275,6 +1298,20 @@
     })();
 
     // ---- Chat Functions ----
+
+    function toggleChatPhotoMenu() {
+      var menu = document.getElementById('chatPhotoMenu');
+      menu.classList.toggle('open');
+    }
+
+    // Close photo menu when clicking elsewhere
+    document.addEventListener('click', function(e) {
+      var menu = document.getElementById('chatPhotoMenu');
+      var btn = document.getElementById('chatPhotoBtn');
+      if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
+        menu.classList.remove('open');
+      }
+    });
 
     async function sendMessage() {
       var input = document.getElementById('chatInput');
@@ -5192,8 +5229,8 @@
       }
       var container = document.getElementById(previewContainerId);
       if (!container) {
-        // Fallback for legacy flows
-        container = document.getElementById('imagePreviews');
+        // Fallback: use chat photo preview area, then legacy
+        container = document.getElementById('chatPhotoPreview') || document.getElementById('imagePreviews');
       }
       for (var i = 0; i < files.length; i++) {
         if (base64Arr.length >= 6) break;
