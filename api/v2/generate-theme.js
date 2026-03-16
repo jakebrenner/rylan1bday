@@ -707,6 +707,23 @@ function validateThemeIntegrity(theme) {
     }
   }
 
+  // 9. Content completeness — required platform elements
+  if (html) {
+    const hasDetailsSlot = /class\s*=\s*["'][^"']*\bdetails-slot\b/.test(html);
+    const hasLegacyDetails = /data-field\s*=\s*["'](datetime|location)["']/.test(html);
+    if (!hasDetailsSlot && !hasLegacyDetails) issues.push('missing_details_slot');
+
+    const hasRsvpSlot = /class\s*=\s*["'][^"']*\brsvp-slot\b/.test(html) || /class\s*=\s*["'][^"']*\brsvp-button\b/.test(html);
+    if (!hasRsvpSlot) issues.push('missing_rsvp_slot');
+
+    const hasTitleField = /data-field\s*=\s*["']title["']/.test(html);
+    if (!hasTitleField) issues.push('missing_title_field');
+
+    // Check for meaningful text content (strip tags, check remaining text length)
+    const textOnly = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (textOnly.length < 20) issues.push('content_too_sparse');
+  }
+
   return { valid: issues.length === 0, issues };
 }
 
@@ -767,6 +784,41 @@ function repairTheme(theme, issues) {
   if (issues.includes('css_malformed_keyframes')) {
     theme.theme_css = theme.theme_css.replace(/@keyframes\s+[\w-]+\s*\{[^}]*$/gm, '');
     console.log('[repairTheme] Stripped malformed @keyframes block(s)');
+  }
+
+  // Inject missing platform elements so the client can still inject content
+  if (issues.includes('missing_title_field')) {
+    // Try to add data-field="title" to the first prominent heading
+    const headingMatch = (theme.theme_html || '').match(/<(h[12])\b([^>]*)>/i);
+    if (headingMatch) {
+      const tag = headingMatch[0];
+      if (!tag.includes('data-field')) {
+        theme.theme_html = theme.theme_html.replace(tag, tag.replace('>', ' data-field="title">'));
+        console.log('[repairTheme] Added data-field="title" to existing heading');
+      }
+    }
+  }
+
+  if (issues.includes('missing_rsvp_slot')) {
+    // Inject minimal RSVP slot at end of HTML
+    theme.theme_html = (theme.theme_html || '') + '\n<div class="rsvp-slot"><button class="rsvp-button">RSVP</button></div>';
+    console.log('[repairTheme] Injected missing .rsvp-slot');
+  }
+
+  if (issues.includes('missing_details_slot')) {
+    // Inject details slot before RSVP slot if possible, otherwise at end
+    const rsvpIdx = (theme.theme_html || '').indexOf('rsvp-slot');
+    if (rsvpIdx > 0) {
+      // Find the opening tag of the rsvp-slot container
+      const beforeRsvp = theme.theme_html.lastIndexOf('<', rsvpIdx);
+      if (beforeRsvp >= 0) {
+        theme.theme_html = theme.theme_html.slice(0, beforeRsvp) + '<div class="details-slot"></div>\n' + theme.theme_html.slice(beforeRsvp);
+        console.log('[repairTheme] Injected missing .details-slot before rsvp-slot');
+      }
+    } else {
+      theme.theme_html = (theme.theme_html || '') + '\n<div class="details-slot"></div>';
+      console.log('[repairTheme] Injected missing .details-slot at end');
+    }
   }
 }
 
@@ -1229,7 +1281,7 @@ Current RSVP fields: ${fieldList || 'none'}
 
 Classify this request. Return JSON:
 {
-  "intent": "add_field|remove_field|modify_field|design_change|text_change|add_photo|question|unclear",
+  "intent": "add_field|remove_field|modify_field|design_change|text_change|add_photo|question|broken_render|unclear",
   "confidence": 0.0 to 1.0,
   "summary": "One sentence: what the user wants",
   "clarification": "A friendly question to ask if you're not confident (null if confident)",
@@ -1241,6 +1293,7 @@ Rules:
 - "design_change": visual changes (colors, fonts, layout, style, animations, spacing)
 - "text_change": change specific text/wording in the invite
 - "question": user is asking a question, not requesting a change
+- "broken_render": user is reporting the invite looks broken, is missing content/text/fields, appears blank, cut off, or didn't render correctly (e.g. "it's missing all the text", "nothing is showing", "where are the fields", "the invite is blank")
 - "unclear": you genuinely can't determine what they want
 - confidence 0.9+: crystal clear request. confidence 0.5-0.8: probably understand but should confirm. confidence <0.5: genuinely unclear
 - For add_field with confidence >= 0.8, include "field_details": {"label": "...", "field_type": "..."} so we can skip a second AI call
@@ -1783,6 +1836,19 @@ Return ONLY a valid JSON object with these keys:
         tweakConfig.emailHtml = currentConfig.emailHtml;
       }
 
+      // ── SERVER-SIDE THEME VALIDATION for tweaks (same as generation path) ──
+      const tweakValidation = validateThemeIntegrity(theme);
+      if (!tweakValidation.valid) {
+        console.warn('[tweak] Theme validation failed:', tweakValidation.issues.join(', '), '— attempting auto-repair');
+        repairTheme(theme, tweakValidation.issues);
+        const tweakRecheck = validateThemeIntegrity(theme);
+        if (!tweakRecheck.valid) {
+          console.error('[tweak] Theme still has issues after repair:', tweakRecheck.issues.join(', '));
+        } else {
+          console.log('[tweak] Theme auto-repair succeeded');
+        }
+      }
+
       // Save tweak theme to DB BEFORE closing SSE so it's reliable
       const tweakCost = calcGenerationCost(tweakModel, tweakInputTokens, tweakOutputTokens);
       let savedTweakThemeId = 'pending';
@@ -1839,10 +1905,15 @@ Return ONLY a valid JSON object with these keys:
           .in('payment_status', ['free', 'unpaid']);
       }
 
+      // Collect content warnings for the client (post-repair)
+      const tweakFinalCheck = validateThemeIntegrity(theme);
+      const tweakContentWarnings = tweakFinalCheck.issues.filter(i => i.startsWith('missing_') || i === 'content_too_sparse');
+
       // Send result to client with real DB ID
       sendSSE('done', {
         success: true,
         softCapReached: !!res.softCapReached,
+        contentWarnings: tweakContentWarnings.length > 0 ? tweakContentWarnings : undefined,
         theme: { id: savedTweakThemeId, version: savedTweakVersion, html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
         chatResponse: theme.chat_response || null,
         rsvpFieldChanges: theme.rsvp_field_changes || null,
@@ -2198,9 +2269,14 @@ This is the most common failure mode. Double-check it.`;
     // res.text() on client buffers until res.end(), so remaining DB saves happen after.
     const genCost = calcGenerationCost(themeModel, genInputTokens, genOutputTokens);
     console.log('[cost] Sending to client:', { genCost, model: themeModel, inputTokens: genInputTokens, outputTokens: genOutputTokens });
+    // Collect content warnings for the client (post-repair)
+    const finalCheck = validateThemeIntegrity(theme);
+    const contentWarnings = finalCheck.issues.filter(i => i.startsWith('missing_') || i === 'content_too_sparse');
+
     sendSSE('done', {
       success: true,
       softCapReached: !!res.softCapReached,
+      contentWarnings: contentWarnings.length > 0 ? contentWarnings : undefined,
       theme: {
         id: 'pending',
         version: 1,

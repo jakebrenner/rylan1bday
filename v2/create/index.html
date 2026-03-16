@@ -2473,6 +2473,10 @@
           window._lastGenDebug = 'Status: ' + res2.status + ' | Bytes: ' + fullText.length + ' | Elapsed: ' + elapsed + 's | Result: ' + !!genResult + ' | Build: 2026-03-12a';
 
           if (genResult && genResult.success) {
+            // Log server-side content warnings if present
+            if (genResult.contentWarnings && genResult.contentWarnings.length > 0) {
+              console.warn('[generate] Server content warnings:', genResult.contentWarnings.join(', '));
+            }
             // Mark free generation as used client-side so design chat gate works immediately
             if (currentEvent && currentEvent.paymentStatus === 'free') {
               currentEvent.freeGenerationUsed = true;
@@ -3091,11 +3095,31 @@
             win.requestAnimationFrame(function() {
               injectRsvpForm(iframe);
               checkCssRendered(iframe, ver);
+              // Content completeness check — runs after injection, with a short delay for paint
+              setTimeout(function() {
+                var result = validateContentCompleteness(iframe);
+                if (!result.valid && !autoRetryInProgress) {
+                  handleBrokenRender(result.missing);
+                } else if (result.valid) {
+                  lastRenderBroken = false;
+                  brokenRenderCount = 0;
+                }
+              }, 200);
             });
           } else {
             setTimeout(function() {
               injectRsvpForm(iframe);
               checkCssRendered(iframe, ver);
+              // Content completeness check
+              setTimeout(function() {
+                var result = validateContentCompleteness(iframe);
+                if (!result.valid && !autoRetryInProgress) {
+                  handleBrokenRender(result.missing);
+                } else if (result.valid) {
+                  lastRenderBroken = false;
+                  brokenRenderCount = 0;
+                }
+              }, 200);
             }, 50);
           }
         };
@@ -3207,6 +3231,197 @@
         if (!isUnstyled) _cssCheckRetries = 0;
       } catch (e) {
         // Cross-origin iframe or other error — can't check, skip silently
+      }
+    }
+
+    // ── CONTENT COMPLETENESS VALIDATION: Detect missing content after render ──
+    // Runs after injectRsvpForm() to verify key platform elements are present and visible.
+    function validateContentCompleteness(iframe) {
+      try {
+        var doc = iframe.contentDocument;
+        if (!doc || !doc.body) return { valid: true, missing: [] };
+
+        var missing = [];
+
+        // 1. Check details-slot has children (populated by injectRsvpForm)
+        var detailsSlot = doc.querySelector('.details-slot');
+        if (!detailsSlot || detailsSlot.children.length === 0) {
+          // Also check legacy data-field elements
+          var legacyDate = doc.querySelector('[data-field="datetime"]');
+          var legacyLoc = doc.querySelector('[data-field="location"]');
+          if (!legacyDate && !legacyLoc) missing.push('details');
+        }
+
+        // 2. Check rsvp-slot has form elements or button
+        var rsvpSlot = doc.querySelector('.rsvp-slot');
+        if (!rsvpSlot) {
+          missing.push('rsvp');
+        } else {
+          var hasFormContent = rsvpSlot.querySelector('input, select, textarea, button, .rsvp-button');
+          if (!hasFormContent) missing.push('rsvp');
+        }
+
+        // 3. Check title exists and has text
+        var titleEl = doc.querySelector('[data-field="title"]');
+        if (!titleEl || !titleEl.textContent.trim()) missing.push('title');
+
+        // 4. Check for minimum visible text content
+        var bodyText = doc.body.textContent || '';
+        var cleanText = bodyText.replace(/\s+/g, ' ').trim();
+        if (cleanText.length < 30) missing.push('text');
+
+        // 5. Check that key elements have non-zero dimensions (not display:none)
+        if (rsvpSlot && rsvpSlot.offsetHeight === 0) {
+          if (missing.indexOf('rsvp') === -1) missing.push('rsvp');
+        }
+        if (detailsSlot && detailsSlot.offsetHeight === 0 && detailsSlot.children.length > 0) {
+          if (missing.indexOf('details') === -1) missing.push('details');
+        }
+
+        var valid = missing.length === 0;
+        if (!valid) {
+          console.warn('[validateContentCompleteness] Missing elements:', missing.join(', '));
+        }
+        return { valid: valid, missing: missing };
+      } catch (e) {
+        console.warn('[validateContentCompleteness] Error:', e.message);
+        return { valid: true, missing: [] }; // Fail open — don't block on errors
+      }
+    }
+
+    // Handle broken render detection and auto-retry
+    function handleBrokenRender(missing) {
+      lastRenderBroken = true;
+      brokenRenderCount++;
+
+      var missingLabels = {
+        title: 'event title',
+        details: 'event details (date, location)',
+        rsvp: 'RSVP section',
+        text: 'text content'
+      };
+      var missingDesc = missing.map(function(m) { return missingLabels[m] || m; }).join(', ');
+
+      if (brokenRenderCount <= 1 && !autoRetryInProgress) {
+        // First broken render — notify and auto-retry
+        autoRetryInProgress = true;
+        designChatHistory.push({
+          role: 'assistant',
+          content: "Hmm, that didn't render correctly \u2014 the " + missingDesc + " seem to be missing. Let me fix that for you."
+        });
+        designChatHistory.push({ role: 'system', content: 'Regenerating your invite...' });
+        renderDesignChat();
+
+        // Trigger full regeneration (not a tweak)
+        triggerBrokenRenderRegeneration();
+      } else if (brokenRenderCount > 1) {
+        // Multiple broken renders — offer options
+        designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+        designChatHistory.push({
+          role: 'assistant',
+          content: "I'm having trouble getting this right \u2014 the " + missingDesc + " keep not rendering properly. Let's try a different approach.",
+          options: [
+            { label: 'Try a fresh design', value: 'Start completely fresh with a new design \u2014 different theme, different layout' },
+            { label: 'Try a simpler style', value: 'Generate a clean, simple invite design with minimal animations \u2014 focus on readability' },
+            { label: 'Keep current', value: 'Keep the current design as-is, I\'ll work with it' }
+          ]
+        });
+        autoRetryInProgress = false;
+        renderDesignChat();
+      }
+    }
+
+    // Trigger a full regeneration when broken render is detected
+    async function triggerBrokenRenderRegeneration() {
+      try {
+        var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+        var payload = {
+          eventId: currentEvent.id,
+          eventDetails: {
+            title: extractedData.title || '',
+            startDate: extractedData.startDate || '',
+            endDate: extractedData.endDate || '',
+            locationName: extractedData.locationName || '',
+            locationAddress: extractedData.locationAddress || '',
+            dressCode: extractedData.dressCode || '',
+            eventType: extractedData.eventType || 'other'
+          },
+          rsvpFields: enabledFields.map(function(f) { return { field_key: f.field_key, label: f.label, field_type: f.field_type, is_required: f.is_required }; })
+        };
+
+        var sseRes = await authFetch('/api/v2/generate-theme?action=generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        // Remove system loading message
+        designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+
+        if (!sseRes.ok) {
+          autoRetryInProgress = false;
+          designChatHistory.push({
+            role: 'assistant',
+            content: "I wasn't able to regenerate \u2014 sorry about that! Try sending a message like \"start fresh\" and I'll give it another go."
+          });
+          renderDesignChat();
+          return;
+        }
+
+        var regenText = await sseRes.text();
+        var regenResult = null;
+        var regenLines = regenText.split('\n');
+        var regenEventType = null;
+        for (var li = 0; li < regenLines.length; li++) {
+          var line = regenLines[li];
+          if (line.startsWith('event: ')) regenEventType = line.substring(7).trim();
+          else if (line.startsWith('data: ') && regenEventType === 'done') {
+            try { regenResult = JSON.parse(line.substring(6)); } catch(e) {}
+            regenEventType = null;
+          }
+        }
+
+        if (regenResult && regenResult.success && regenResult.theme) {
+          var regenId = regenResult.theme.id === 'pending' ? ('pending-' + Date.now()) : regenResult.theme.id;
+          var newVer = { id: regenId, version: regenResult.theme.version, html: regenResult.theme.html, css: regenResult.theme.css, config: regenResult.theme.config };
+          themeVersions.push(newVer);
+          activeVersionIndex = themeVersions.length - 1;
+          currentEvent.themeHtml = newVer.html;
+          currentEvent.themeCss = newVer.css;
+          currentEvent.themeConfig = newVer.config;
+          renderPreview(newVer);
+          renderVersionGallery();
+          if (regenResult.metadata) updateCostFromGeneration(regenResult.metadata);
+
+          // Check if the new render has content warnings from server
+          if (regenResult.contentWarnings && regenResult.contentWarnings.length > 0) {
+            console.warn('[brokenRenderRetry] Server still reports content warnings:', regenResult.contentWarnings.join(', '));
+          }
+
+          designChatHistory.push({
+            role: 'assistant',
+            content: "Done! I've regenerated your invite. Take a look at the preview.\n\nWant to make any changes?"
+          });
+          showThemeRating(newVer.id);
+          // Note: validateContentCompleteness will run again via renderPreview's iframe onload
+        } else {
+          designChatHistory.push({
+            role: 'assistant',
+            content: "The regeneration didn't produce a valid result. Let me know if you'd like to try again or start fresh with a different style."
+          });
+        }
+
+        autoRetryInProgress = false;
+        renderDesignChat();
+      } catch (err) {
+        console.error('[brokenRenderRetry] Error:', err);
+        autoRetryInProgress = false;
+        designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+        designChatHistory.push({
+          role: 'assistant',
+          content: "Something went wrong while regenerating \u2014 sorry about that! Try typing \"start fresh\" and I'll give it another go."
+        });
+        renderDesignChat();
       }
     }
 
@@ -3641,6 +3856,9 @@
     var awaitingIntentClarification = false; // Holds state while awaiting intent clarification
     var pendingIntentText = null; // Original message being clarified
     var skipIntentClassification = false; // Skip classification when sending clarified message
+    var lastRenderBroken = false; // Set when content validation detects missing elements
+    var brokenRenderCount = 0; // Tracks consecutive broken renders for escalation
+    var autoRetryInProgress = false; // Prevents recursive auto-retry loops
 
     function switchTab(tab) {
       document.querySelectorAll('.panel-tab').forEach(function(t) { t.classList.remove('active'); });
@@ -4660,6 +4878,38 @@
         }
       }
 
+      // ── BROKEN RENDER DETECTION: Catch user complaints about broken/missing content ──
+      // Must run BEFORE redesign detection to prevent broken renders from entering clarification flow
+      if (text && !skipRedesignDetection) {
+        var brokenRenderPattern = /\b(missing|broken|not showing|blank|empty|no text|can'?t see|where is|nothing there|doesn'?t show|not displaying|cut off|disappeared|gone|invisible|white screen)\b/i;
+        var brokenContentPattern = /\bno\s*.{0,10}\b(text|content|info|information|fields|details|words|title|rsvp)\b/i;
+        var justBackgroundPattern = /\bjust\s*.{0,10}\b(background|image|picture|color)\b/i;
+        var isBrokenComplaint = brokenRenderPattern.test(text) || brokenContentPattern.test(text) || justBackgroundPattern.test(text);
+
+        // If we already know the render is broken, ANY complaint should trigger recovery
+        if (isBrokenComplaint || (lastRenderBroken && vagueKeywords && /\b(don'?t|not|wrong|bad|off|broken|missing)\b/i.test(text))) {
+          designChatHistory.push({ role: 'user', content: text });
+          designChatHistory.push({
+            role: 'assistant',
+            content: "I can see the issue \u2014 the invite didn't render correctly. Let me regenerate it for you."
+          });
+          designChatHistory.push({ role: 'system', content: 'Regenerating your invite...' });
+          renderDesignChat();
+          input.value = '';
+          input.style.height = 'auto';
+          if (window.innerWidth <= 900) input.focus();
+
+          // Trigger full regeneration
+          var sendBtn = document.getElementById('designChatSendBtn');
+          sendBtn.disabled = true;
+          autoRetryInProgress = true;
+          triggerBrokenRenderRegeneration().then(function() {
+            sendBtn.disabled = false;
+          });
+          return;
+        }
+      }
+
       // Detect if user is asking for a new design OR is vague/unsure about what to change
       if (text && !skipRedesignDetection) {
         // Match explicit redesign requests
@@ -4902,6 +5152,23 @@
               return;
             }
 
+            // If the classifier detected a broken render report, bypass clarification and auto-regenerate
+            if (classification.intent === 'broken_render' && classification.confidence >= 0.6) {
+              console.log('[tweak] Classifier detected broken_render — triggering auto-regeneration');
+              designChatHistory.push({
+                role: 'assistant',
+                content: "I can see the issue \u2014 the invite didn't render correctly. Let me regenerate it for you."
+              });
+              designChatHistory.push({ role: 'system', content: 'Regenerating your invite...' });
+              clearDesignChatPhoto();
+              renderDesignChat();
+              autoRetryInProgress = true;
+              triggerBrokenRenderRegeneration().then(function() {
+                sendBtn.disabled = false;
+              });
+              return;
+            }
+
             // Low confidence — ask for clarification instead of running expensive AI
             if (classification.confidence < 0.8 && classification.clarification) {
               console.log('[tweak] Low confidence (' + classification.confidence + '), asking for clarification');
@@ -5105,6 +5372,10 @@
           }
 
           if (tweakResult && tweakResult.success) {
+            // Log server-side content warnings if present
+            if (tweakResult.contentWarnings && tweakResult.contentWarnings.length > 0) {
+              console.warn('[tweak] Server content warnings:', tweakResult.contentWarnings.join(', '));
+            }
             // Mark free redo as used client-side if this was a redesign redo
             if (currentEvent && currentEvent.paymentStatus === 'free' && isRedesignRedo) {
               currentEvent.freeRedoUsed = true;
