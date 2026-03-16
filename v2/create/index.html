@@ -1108,7 +1108,7 @@
               // Has theme — show preview
               genView.style.display = 'none';
               document.getElementById('generatedView').style.display = 'block';
-              renderPreview(themeVersions[0]);
+              renderPreview(themeVersions[activeVersionIndex >= 0 ? activeVersionIndex : 0]);
               renderVersionGallery();
               // Restore "Start from Design" collecting-details phase if applicable
               var chatPhase = ev.settings && ev.settings.design_chat_phase;
@@ -3433,7 +3433,15 @@
       } else {
         document.querySelector('.panel-tab:nth-child(1)').classList.add('active');
         document.getElementById('tabDesign').classList.add('active');
-        if (designChatHistory.length === 0) initDesignChat();
+        if (designChatHistory.length === 0) {
+          var savedChat = currentEvent && currentEvent.id ? loadDesignChatHistory(currentEvent.id) : null;
+          if (savedChat && savedChat.length > 0) {
+            designChatHistory = savedChat;
+            renderDesignChat();
+          } else {
+            initDesignChat();
+          }
+        }
       }
     }
 
@@ -3492,7 +3500,18 @@
 
     function initDesignChatIfNeeded(showLoader) {
       if (designChatHistory.length === 0) {
-        initDesignChat(showLoader);
+        // Try restoring persisted design chat history first
+        var savedChat = currentEvent && currentEvent.id ? loadDesignChatHistory(currentEvent.id) : null;
+        if (savedChat && savedChat.length > 0) {
+          designChatHistory = savedChat;
+          if (pendingRatingThemeId) {
+            showThemeRating(pendingRatingThemeId);
+            pendingRatingThemeId = null;
+          }
+          renderDesignChat();
+        } else {
+          initDesignChat(showLoader);
+        }
       } else if (pendingRatingThemeId) {
         // Chat already initialized (regeneration/resume) — show rating directly
         showThemeRating(pendingRatingThemeId);
@@ -3810,7 +3829,25 @@
       return null;
     }
 
+    function saveDesignChatHistory() {
+      if (!currentEvent || !currentEvent.id) return;
+      try {
+        // Save only persistent messages (skip system/loading messages)
+        var persistable = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+        sessionStorage.setItem('ryvite_designchat_' + currentEvent.id, JSON.stringify(persistable));
+      } catch(e) {}
+    }
+
+    function loadDesignChatHistory(eventId) {
+      try {
+        var raw = sessionStorage.getItem('ryvite_designchat_' + eventId);
+        if (raw) return JSON.parse(raw);
+      } catch(e) {}
+      return null;
+    }
+
     function renderDesignChat() {
+      saveDesignChatHistory();
       var container = document.getElementById('designChatMessages');
       container.innerHTML = designChatHistory.map(function(msg) {
         if (msg.role === 'system') {
