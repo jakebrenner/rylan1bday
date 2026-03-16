@@ -1030,6 +1030,33 @@ export default async function handler(req, res) {
         .single();
 
       if (eventForLimit && eventForLimit.user_id === user.id) {
+        // Unpaid events — check if user has credits to unlock before blocking
+        if (eventForLimit.payment_status === 'unpaid') {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('purchased_event_credits, free_event_credits')
+            .eq('id', user.id)
+            .single();
+
+          let newStatus = null;
+          if (profileData && (profileData.purchased_event_credits || 0) > 0) {
+            newStatus = 'paid';
+            await supabase.from('profiles').update({ purchased_event_credits: (profileData.purchased_event_credits || 0) - 1 }).eq('id', user.id);
+          } else if (profileData && (profileData.free_event_credits || 0) > 0) {
+            newStatus = 'free';
+            await supabase.from('profiles').update({ free_event_credits: (profileData.free_event_credits || 0) - 1 }).eq('id', user.id);
+          } else {
+            // Check if user has never had a free event (first event is free)
+            const { count: freeEventCount } = await supabase.from('events').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('payment_status', 'free');
+            if ((freeEventCount || 0) === 0) newStatus = 'free';
+          }
+
+          if (newStatus) {
+            await supabase.from('events').update({ payment_status: newStatus }).eq('id', eventIdForCheck);
+            eventForLimit.payment_status = newStatus;
+          }
+        }
+
         // Unpaid or refunded events must pay before generating
         if (eventForLimit.payment_status === 'unpaid' || eventForLimit.payment_status === 'refunded') {
           return res.status(403).json({

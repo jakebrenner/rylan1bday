@@ -510,6 +510,50 @@ export default async function handler(req, res) {
 
       if (error || !data) return res.status(404).json({ success: false, error: 'Event not found' });
 
+      // If event is unpaid and user owns it, check for available credits to unlock it
+      if (data.payment_status === 'unpaid' && data.user_id === user.id) {
+        const { data: profileData } = await supabaseAdmin
+          .from('profiles')
+          .select('purchased_event_credits, free_event_credits')
+          .eq('id', user.id)
+          .single();
+
+        if (profileData) {
+          let newStatus = null;
+          if ((profileData.purchased_event_credits || 0) > 0) {
+            newStatus = 'paid';
+            await supabaseAdmin
+              .from('profiles')
+              .update({ purchased_event_credits: (profileData.purchased_event_credits || 0) - 1 })
+              .eq('id', user.id);
+          } else if ((profileData.free_event_credits || 0) > 0) {
+            newStatus = 'free';
+            await supabaseAdmin
+              .from('profiles')
+              .update({ free_event_credits: (profileData.free_event_credits || 0) - 1 })
+              .eq('id', user.id);
+          } else {
+            // Check if user has never had a free event (first event is free)
+            const { count: freeEventCount } = await supabaseAdmin
+              .from('events')
+              .select('id', { count: 'exact', head: true })
+              .eq('user_id', user.id)
+              .eq('payment_status', 'free');
+            if ((freeEventCount || 0) === 0) {
+              newStatus = 'free';
+            }
+          }
+
+          if (newStatus) {
+            await supabaseAdmin
+              .from('events')
+              .update({ payment_status: newStatus })
+              .eq('id', eventId);
+            data.payment_status = newStatus;
+          }
+        }
+      }
+
       const { data: theme } = await supabaseAdmin
         .from('event_themes')
         .select('html, css, config')
