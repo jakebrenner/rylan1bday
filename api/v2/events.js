@@ -254,8 +254,8 @@ export default async function handler(req, res) {
             .update({ purchased_event_credits: (profileData.purchased_event_credits || 0) - 1 })
             .eq('id', user.id);
         } else if (profileData && (profileData.free_event_credits || 0) > 0) {
-          // Admin-granted free credits
-          isFirstEvent = true;
+          // Admin-granted free credits → full paid access
+          isPrepaid = true;
           await supabaseAdmin
             .from('profiles')
             .update({ free_event_credits: (profileData.free_event_credits || 0) - 1 })
