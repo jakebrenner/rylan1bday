@@ -755,7 +755,7 @@
     let chatHistory = [];
     let chatSessionId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
     let chatBubbles = []; // [{text, role}] for UI rebuild on restore
-    var chatPhase = 'chatting'; // 'chatting' | 'confirmed' | 'themeReady'
+    var chatPhase = 'chatting'; // 'chatting' | 'confirmed'
     var designChatPhase = null; // null = normal flow, 'collecting_details' | 'rsvp_fields' | 'tweaking'
     var pendingDesignRequest = null; // design preference captured during collecting_details (e.g. "make it orange")
     var currentPreviewMode = 'invite';
@@ -1266,9 +1266,6 @@
           // Restore interactive UI based on chatPhase
           if (chatPhase === 'confirmed') {
             showConfirmationCard();
-          } else if (chatPhase === 'themeReady') {
-            showConfirmationCard();
-            showDesignReadyCard();
           }
         }
       }
@@ -1353,18 +1350,14 @@
           addChatBubble(result.message, 'assistant');
 
           // If confirmed, show final confirmation card with all details + RSVP fields
-          if (result.ready && result.confirmed && chatPhase !== 'confirmed' && chatPhase !== 'themeReady') {
+          if (result.ready && result.confirmed && chatPhase !== 'confirmed') {
             chatPhase = 'confirmed';
             showConfirmationCard();
             // Auto-save event to DB as early as possible
             saveEventToDB().catch(function() {});
           }
 
-          // If theme discovery is complete, show the "Let's design it!" button
-          if (result.themeReady && chatPhase !== 'themeReady') {
-            chatPhase = 'themeReady';
-            showDesignReadyCard();
-          }
+          // themeReady is handled by the confirmation card's Generate button now
         } else {
           var errMsg = result.detail || result.message || result.error || 'Something went wrong';
           console.error('Chat API error:', JSON.stringify(result));
@@ -1430,7 +1423,7 @@
 
       // Set design prompt and proceed directly to generation
       designPrompt = extractedData.prompt || 'Whimsical rainbow unicorn theme with sparkles, pastel colors, and playful typography';
-      confirmDetailsAndAskStyle();
+      generateFromCard();
     }
 
     function addChatBubble(text, role, skipSave) {
@@ -1457,82 +1450,57 @@
       var existing = document.getElementById('confirmationCard');
       if (existing) existing.remove();
 
-      var d = extractedData;
-      var fields = [];
-      if (d.title) fields.push(['Event', d.title]);
-      if (d.startDate) fields.push(['When', formatDate(d.startDate)]);
-      if (d.endDate) fields.push(['Until', formatDate(d.endDate)]);
-      if (d.locationName) fields.push(['Where', d.locationName]);
-      if (d.locationAddress) fields.push(['Address', d.locationAddress]);
-      if (d.dressCode) fields.push(['Dress Code', d.dressCode]);
-      if (d.description) fields.push(['Details', d.description]);
+      // Hide chat input — user interacts via the card now
+      document.querySelector('.chat-input-area').style.display = 'none';
 
       var card = document.createElement('div');
       card.className = 'chat-extracted';
       card.id = 'confirmationCard';
 
-      var html = '<h4>Event Details</h4>'
-        + '<div class="chat-extracted-grid">'
-        + fields.map(function(f) {
-            return '<span class="chat-extracted-label">' + escapeHtml(f[0]) + '</span>'
-              + '<span class="chat-extracted-value">' + escapeHtml(f[1]) + '</span>';
-          }).join('')
+      var html = '';
+
+      // RSVP Fields — editable with Remove buttons
+      var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+      html += '<h4 style="font-size:14px;font-weight:600;margin-bottom:6px;">RSVP Fields</h4>'
+        + '<div style="font-size:11px;color:#999;margin-bottom:8px;padding:6px 10px;background:#f9f9f9;border-radius:6px;">Always included: <strong>Name</strong>, <strong>Email</strong>, <strong>Phone</strong>, <strong>RSVP Status</strong></div>'
+        + '<div id="rsvpFieldList">' + renderRsvpFields() + '</div>'
+        + '<div id="addFieldContainer"></div>'
+        + '<button class="btn btn-secondary btn-sm" onclick="showAddFieldFormStep1()" style="margin-top:8px;font-size:11px;padding:4px 12px;">+ Add field</button>';
+
+      // Style / design direction
+      var existingPrompt = extractedData.prompt || extractedData.description || '';
+      html += '<div style="margin-top:16px;border-top:1px solid #eee;padding-top:14px;">'
+        + '<div style="font-size:13px;font-weight:600;color:var(--midnight);margin-bottom:6px;">Design Direction <span style="font-weight:400;color:#999;">(optional)</span></div>'
+        + '<textarea id="confirmStyleInput" placeholder="e.g. Bold monster trucks, bright colors, playful and fun..." style="width:100%;min-height:56px;max-height:120px;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;">' + escapeHtml(existingPrompt) + '</textarea>'
         + '</div>';
 
-      // RSVP Fields — clean summary (already confirmed via chat)
-      var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
-      if (enabledFields.length > 0) {
-        html += '<div style="margin-top:16px;border-top:1px solid #eee;padding-top:14px;">'
-          + '<h4 style="font-size:14px;font-weight:600;margin-bottom:8px;">RSVP Fields</h4>'
-          + '<div style="font-size:11px;color:#999;margin-bottom:8px;padding:6px 10px;background:#f9f9f9;border-radius:6px;">Always included: <strong>Name</strong>, <strong>Email</strong>, <strong>Phone</strong>, <strong>RSVP Status</strong></div>'
-          + enabledFields.map(function(f) {
-              var meta = (FIELD_TYPE_LABELS[f.field_type] || f.field_type);
-              return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px;">'
-                + '<span style="color:var(--mint-fizz);font-weight:700;">&#10003;</span>'
-                + '<span style="font-weight:500;">' + escapeHtml(f.label) + '</span>'
-                + '<span style="color:#999;font-size:11px;">(' + escapeHtml(meta) + ')</span>'
-                + '</div>';
-            }).join('')
-
-          + '<h4 style="font-size:14px;font-weight:600;margin-bottom:4px;">RSVP Fields</h4>'
-          + '<p style="font-size:12px;color:#888;margin-bottom:10px;">Here\'s what I\'d suggest — remove any you don\'t want, or just ask me to add more!</p>'
-          + '<div style="font-size:11px;color:#999;margin-bottom:10px;padding:6px 10px;background:#f9f9f9;border-radius:6px;">Always included: <strong>Name</strong>, <strong>Email</strong>, <strong>Phone</strong>, <strong>RSVP Status</strong></div>'
-          + '<div id="rsvpFieldList">' + renderRsvpFields() + '</div>'
-          + '</div>';
-      }
-
-      // Photo uploads — accessible while chatting about theme
+      // Photo uploads — compact
       var eventType = extractedData.eventType || 'other';
       var photoRec = photoRecommendations[eventType];
-      var photoRecHtml = '';
-      if (photoRec) {
-        photoRecHtml = '<div style="background:rgba(233,69,96,0.06);padding:10px 14px;border-radius:8px;margin-bottom:12px;border-left:3px solid var(--party-coral);">'
-          + '<div style="font-size:13px;font-weight:600;color:var(--midnight);margin-bottom:4px;">' + photoRec.emoji + ' Photos — ' + photoRec.strength + '</div>'
-          + '<div style="font-size:12px;color:#555;">' + photoRec.text + '</div>'
-          + '</div>';
-      }
 
-      html += '<div style="margin-top:16px;border-top:1px solid #eee;padding-top:14px;">'
-        + '<div style="margin-bottom:14px;">'
-        + '<div style="font-size:13px;font-weight:600;color:var(--midnight);margin-bottom:6px;">Inspiration Images <span style="font-weight:400;color:#999;">(optional)</span></div>'
-        + '<div style="font-size:12px;color:#666;margin-bottom:8px;">Upload images that capture the vibe, colors, or style you want. The AI will use these as visual references.</div>'
-        + '<div class="image-upload-area" id="confirmInspoDropZone" onclick="document.getElementById(\'confirmInspoInput\').click()" style="padding:14px;border-radius:8px;">'
-        + '<p style="font-size:13px;">Upload inspiration images</p>'
-        + '<p style="font-size:11px;color:#999;margin-top:2px;">JPG, PNG, HEIC, WebP (max 6 images)</p>'
+      html += '<div style="margin-top:14px;border-top:1px solid #eee;padding-top:14px;">'
+        + '<div style="display:flex;gap:10px;">'
+        + '<div style="flex:1;">'
+        + '<div class="image-upload-area" id="confirmInspoDropZone" onclick="document.getElementById(\'confirmInspoInput\').click()" style="padding:10px;border-radius:8px;">'
+        + '<p style="font-size:12px;margin:0;">Inspiration images</p>'
+        + '<p style="font-size:10px;color:#999;margin:2px 0 0;">optional · max 6</p>'
         + '</div>'
         + '<input type="file" id="confirmInspoInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleInspirationUpload(event)">'
         + '<div id="inspirationPreviews" class="image-previews"></div>'
         + '</div>'
-        + photoRecHtml
-        + '<div style="margin-bottom:14px;">'
-        + '<div class="image-upload-area" id="confirmPersonDropZone" onclick="document.getElementById(\'confirmPersonInput\').click()" style="padding:14px;border-radius:8px;">'
-        + '<p style="font-size:13px;">Upload photos of the person</p>'
-        + '<p style="font-size:11px;color:#999;margin-top:2px;">JPG, PNG, HEIC, WebP (max 6 images)</p>'
+        + '<div style="flex:1;">'
+        + '<div class="image-upload-area" id="confirmPersonDropZone" onclick="document.getElementById(\'confirmPersonInput\').click()" style="padding:10px;border-radius:8px;">'
+        + '<p style="font-size:12px;margin:0;">Photos of the person</p>'
+        + '<p style="font-size:10px;color:#999;margin:2px 0 0;">' + (photoRec ? photoRec.strength.toLowerCase() : 'optional') + ' · max 6</p>'
         + '</div>'
         + '<input type="file" id="confirmPersonInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handlePersonUpload(event)">'
         + '<div id="personPreviews" class="image-previews"></div>'
         + '</div>'
+        + '</div>'
         + '</div>';
+
+      // Generate button — prominent CTA
+      html += '<button class="btn btn-primary chat-proceed" onclick="generateFromCard()" style="width:100%;padding:14px;font-size:15px;font-weight:600;margin-top:16px;">Generate My Invite</button>';
 
       card.innerHTML = html;
       document.getElementById('chatMessages').appendChild(card);
@@ -1543,19 +1511,40 @@
       setupDropZone('confirmPersonDropZone', 'person');
     }
 
-    function showDesignReadyCard() {
-      // Remove any existing design ready card
-      var existing = document.getElementById('designReadyCard');
-      if (existing) existing.remove();
+    function generateFromCard() {
+      // Grab style from the textarea (user may have edited it)
+      var styleInput = document.getElementById('confirmStyleInput');
+      var styleText = styleInput ? styleInput.value.trim() : '';
 
-      var card = document.createElement('div');
-      card.className = 'chat-bubble assistant';
-      card.id = 'designReadyCard';
-      card.innerHTML = '<div style="margin-bottom:12px;font-weight:500;">I\'ve got a great picture of what you\'re looking for! Ready to bring it to life?</div>'
-        + '<div style="background:rgba(0,0,0,0.03);padding:10px 14px;border-radius:8px;font-size:13px;font-style:italic;margin-bottom:14px;color:var(--midnight);">' + escapeHtml(extractedData.prompt || '') + '</div>'
-        + '<button class="btn btn-primary chat-proceed" onclick="confirmDetailsAndAskStyle()" style="width:100%;padding:12px;font-size:14px;">Let\'s design it!</button>';
-      document.getElementById('chatMessages').appendChild(card);
-      scrollChat();
+      // Update extractedData.prompt with whatever the user wrote
+      if (styleText) {
+        extractedData.prompt = styleText;
+      }
+
+      // Set designPrompt and proceed to generation
+      designPrompt = styleText || extractedData.prompt || 'Create a beautiful, event-appropriate invite design.';
+
+      // Disable the button to prevent double-clicks
+      var btn = document.querySelector('#confirmationCard .chat-proceed');
+      if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+
+      addChatBubble('Let\'s design it!', 'user');
+      addChatBubble('Great choice! Let me generate your invite...', 'assistant');
+
+      var saveResult = saveEventToDB();
+      saveResult.then(function(result) {
+        if (result && result.limitReached) {
+          goToStep(2);
+          showCreatePaymentGate();
+          return;
+        }
+        if (result !== true) {
+          // Re-enable button on failure
+          if (btn) { btn.disabled = false; btn.textContent = 'Generate My Invite'; }
+          return;
+        }
+        goToStep(2);
+      });
     }
 
     function renderRsvpFields() {
@@ -1752,31 +1741,7 @@
     }
 
 
-    function confirmDetailsAndAskStyle() {
-      // Remove the confirmation card's button
-      var btn = document.querySelector('#confirmationCard .chat-proceed');
-      if (btn) btn.remove();
-
-      // Set designPrompt from extracted prompt and proceed to generation
-      designPrompt = extractedData.prompt || 'Create a beautiful, event-appropriate invite design.';
-
-      addChatBubble('Let\'s design it!', 'user');
-      addChatBubble('Great choice! Let me generate your invite...', 'assistant');
-
-      // Hide the chat input area
-      document.querySelector('.chat-input-area').style.display = 'none';
-
-      var saveResult = saveEventToDB();
-      saveResult.then(function(result) {
-        if (result && result.limitReached) {
-          goToStep(2);
-          showCreatePaymentGate();
-          return;
-        }
-        if (result !== true) return;
-        goToStep(2);
-      });
-    }
+    // confirmDetailsAndAskStyle removed — replaced by generateFromCard()
 
 
     // ---- Payment helpers (per-event $4.99 model) ----
