@@ -5959,7 +5959,11 @@
               body: JSON.stringify({ eventId: currentEvent.id, allGuests: true })
             });
             var emailResult = await emailRes.json();
-            if (!emailResult.success) errors.push('Email: ' + (emailResult.error || 'failed'));
+            if (!emailResult.success) {
+              errors.push('Email: ' + (emailResult.error || 'failed to send'));
+            } else if (emailResult.failed > 0) {
+              errors.push('Email: ' + emailResult.failed + ' of ' + emailResult.total + ' emails failed');
+            }
           } catch (e) { errors.push('Email: network error'); }
         }
 
