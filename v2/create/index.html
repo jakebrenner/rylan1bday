@@ -5290,10 +5290,25 @@
         var redesignKeywords = /\b(new design|redesign|start over|start fresh|completely different|totally different|whole new|from scratch|different design|different look|different style|redo it|redo the|redo this|another design|new look|new theme|different theme|change everything|scrap this)\b/i;
         // Match vague dissatisfaction / unclear change requests
         var vagueKeywords = /\b(don'?t (like|love|know|feel)|not (sure|happy|feeling|loving|into|vibing|what)|make.{0,15}change[s]?|change (it|this|the design)|switch it|something (different|else|new)|doesn'?t (feel|look|seem)|i'?m not |not.{0,8}right|want.{0,10}(different|change|to change)|don'?t.{0,10}(like|love)|try.{0,5}again|meh|hmm|idk|i want to (change|modify|update|tweak|edit))\b/i;
-        // Only trigger clarification for vague messages — NOT for specific instructions like "make the background darker"
-        var hasSpecificInstruction = /\b(make the|change the|move the|add a|remove the|bigger|smaller|darker|lighter|bolder|font|color|background|button|text|photo|image|spacing|padding|margin|border|shadow|size|position)\b/i.test(text);
 
-        if (redesignKeywords.test(text) || (vagueKeywords.test(text) && !hasSpecificInstruction)) {
+        // Directed theme/style change: user says WHAT broad change they want (e.g., "make the theme more modern",
+        // "change the theme to garden focused", "make it more elegant"). These have clear intent so they should
+        // skip clarification and go straight to regeneration as a design tweak with freeRedo enabled.
+        var directedThemeChange = /\b(?:change|make|switch|update)\s+(?:the\s+)?(?:theme|style|vibe|look|design|whole thing)\s+(?:to\s+(?:be\s+)?|more\s+)/i.test(text)
+          || /\b(?:make|change)\s+(?:it|this)\s+(?:more\s+|to\s+(?:be\s+)?(?:more\s+)?)\w+/i.test(text)
+          || /\bmore\s+\w+\s+(?:theme|style|look|vibe|focused|inspired)\b/i.test(text);
+
+        // Only trigger clarification for vague messages — NOT for specific instructions like "make the background darker"
+        // Exclude broad theme/style/vibe targets — "change the theme" is broad, "change the background" is specific
+        var broadTargets = /\b(make the|change the)\s+(theme|style|vibe|look|design|whole thing|entire)\b/i.test(text);
+        var hasSpecificInstruction = !broadTargets && /\b(make the|change the|move the|add a|remove the|bigger|smaller|darker|lighter|bolder|font|color|background|button|text|photo|image|spacing|padding|margin|border|shadow|size|position)\b/i.test(text);
+
+        // Directed theme changes with clear intent → skip clarification, treat as redesign redo
+        if (directedThemeChange && !redesignKeywords.test(text)) {
+          console.log('[tweak] Directed theme change detected — skipping clarification, routing as redesign');
+          skipRedesignDetection = true; // Will make isRedesignRedo = true for freeRedo
+          // Fall through to tier 2/3 — the intent is clear, no need to ask
+        } else if (redesignKeywords.test(text) || (vagueKeywords.test(text) && !hasSpecificInstruction)) {
           pendingRedesignText = text;
           awaitingRedesignClarification = true;
           pushDesignChat({ role: 'user', content: text });
