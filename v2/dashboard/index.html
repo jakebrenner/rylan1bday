@@ -1133,7 +1133,7 @@
           + '<li>Full RSVP tracking</li>'
           + '</ul>'
           + '</div>'
-          + '<button onclick="showPaymentGate(\'' + manageEventId + '\')" style="padding:12px 32px;border:none;border-radius:50px;background:var(--party-coral);color:white;cursor:pointer;font-size:15px;font-weight:600;font-family:Inter,sans-serif;margin-bottom:20px;">Upgrade — $4.99</button>'
+          + '<button id="smsUpgradeBtn" onclick="startDirectCheckout(\'' + manageEventId + '\')" style="padding:12px 32px;border:none;border-radius:50px;background:var(--party-coral);color:white;cursor:pointer;font-size:15px;font-weight:600;font-family:Inter,sans-serif;margin-bottom:20px;">Upgrade — $4.99</button>'
           + '<div style="border-top:1px solid #f0f0f0;padding-top:16px;margin-top:4px;">'
           + '<p style="font-size:12px;color:#9CA3AF;margin:0 0 10px;font-weight:600;">FREE ALTERNATIVES</p>'
           + '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">'
@@ -1892,6 +1892,56 @@
       if (manageEventId) {
         managePaymentStatus = 'paid';
         switchTab(manageCurrentTab);
+      }
+    }
+
+    async function startDirectCheckout(eventId) {
+      paymentGateEventId = eventId;
+      // Show modal in checkout-only mode (skip info view)
+      document.getElementById('paymentGateInfo').style.display = 'none';
+      var checkoutContainer = document.getElementById('paymentGateCheckout');
+      checkoutContainer.style.display = 'block';
+      checkoutContainer.innerHTML = '<div style="padding:40px;text-align:center;color:#6B7280;">Loading checkout...</div>';
+      document.getElementById('paymentGateOverlay').style.display = 'flex';
+
+      try {
+        var configRes = await authFetch('/api/v2/billing?action=config');
+        var configData = await configRes.json();
+        if (!configData.publishableKey) {
+          showToast('Payment configuration error');
+          dismissPaymentGate();
+          return;
+        }
+
+        var resp = await authFetch('/api/v2/billing?action=checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: eventId, embedded: true, returnUrl: '/v2/dashboard/' })
+        });
+        var data = await resp.json();
+        dashCheckoutSessionId = data.sessionId || null;
+
+        if (data.alreadyPaid) {
+          handleDashPaymentComplete();
+          return;
+        }
+
+        if (!data.clientSecret) {
+          showToast(data.error || 'Error creating checkout session');
+          dismissPaymentGate();
+          return;
+        }
+
+        checkoutContainer.innerHTML = '<div id="dashStripeEmbeddedCheckout"></div>';
+        var stripe = Stripe(configData.publishableKey);
+        dashEmbeddedCheckout = await stripe.initEmbeddedCheckout({
+          clientSecret: data.clientSecret,
+          onComplete: function() { handleDashPaymentComplete(); }
+        });
+        dashEmbeddedCheckout.mount('#dashStripeEmbeddedCheckout');
+      } catch (e) {
+        showToast('Payment error: ' + e.message);
+        dismissPaymentGate();
       }
     }
 
