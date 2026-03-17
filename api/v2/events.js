@@ -354,24 +354,7 @@ export default async function handler(req, res) {
       // Status: frontend sends "Published"/"Draft"/"Archived" — normalize to lowercase enum
       if (updates.status !== undefined) dbUpdates.status = updates.status.toLowerCase();
 
-      // Payment check at publish time (only for unpaid events that aren't already published)
-      if (dbUpdates.status === 'published') {
-        const { data: paymentCheck } = await supabaseAdmin
-          .from('events')
-          .select('payment_status, status')
-          .eq('id', eventId)
-          .single();
-
-        // Only block if truly unpaid AND not already published (re-publishing a live event is always OK)
-        if (paymentCheck?.payment_status === 'unpaid' && paymentCheck?.status !== 'published') {
-          return res.status(403).json({
-            success: false,
-            error: 'Payment required to publish this event. $4.99 per event.',
-            requiresPayment: true,
-            eventPriceCents: 499
-          });
-        }
-      }
+      // All events (free, unpaid, paid) can publish — payment is only required for SMS delivery
 
       // Track generations-to-publish when first published
       if (dbUpdates.status === 'published') {
@@ -509,6 +492,50 @@ export default async function handler(req, res) {
         .single();
 
       if (error || !data) return res.status(404).json({ success: false, error: 'Event not found' });
+
+      // If event is unpaid and user owns it, check for available credits to unlock it
+      if (data.payment_status === 'unpaid' && data.user_id === user.id) {
+        const { data: profileData } = await supabaseAdmin
+          .from('profiles')
+          .select('purchased_event_credits, free_event_credits')
+          .eq('id', user.id)
+          .single();
+
+        if (profileData) {
+          let newStatus = null;
+          if ((profileData.purchased_event_credits || 0) > 0) {
+            newStatus = 'paid';
+            await supabaseAdmin
+              .from('profiles')
+              .update({ purchased_event_credits: (profileData.purchased_event_credits || 0) - 1 })
+              .eq('id', user.id);
+          } else if ((profileData.free_event_credits || 0) > 0) {
+            newStatus = 'free';
+            await supabaseAdmin
+              .from('profiles')
+              .update({ free_event_credits: (profileData.free_event_credits || 0) - 1 })
+              .eq('id', user.id);
+          } else {
+            // Check if user has never had a free event (first event is free)
+            const { count: freeEventCount } = await supabaseAdmin
+              .from('events')
+              .select('id', { count: 'exact', head: true })
+              .eq('user_id', user.id)
+              .eq('payment_status', 'free');
+            if ((freeEventCount || 0) === 0) {
+              newStatus = 'free';
+            }
+          }
+
+          if (newStatus) {
+            await supabaseAdmin
+              .from('events')
+              .update({ payment_status: newStatus })
+              .eq('id', eventId);
+            data.payment_status = newStatus;
+          }
+        }
+      }
 
       const { data: theme } = await supabaseAdmin
         .from('event_themes')
@@ -710,13 +737,11 @@ export default async function handler(req, res) {
       const { data: ev } = await supabaseAdmin.from('events').select('id').eq('id', eventId).eq('user_id', user.id).single();
       if (!ev) return res.status(403).json({ error: 'Not your event' });
 
-      // Deactivate any existing themes
-      await supabaseAdmin.from('event_themes').update({ is_active: false }).eq('event_id', eventId);
-
-      // Insert the template theme as a new active version
+      // Get next version number
       const { data: existing } = await supabaseAdmin.from('event_themes').select('version').eq('event_id', eventId).order('version', { ascending: false }).limit(1);
       const nextVersion = (existing && existing.length > 0) ? existing[0].version + 1 : 1;
 
+      // Insert new theme first (don't deactivate old ones until insert succeeds)
       const insertData = {
         event_id: eventId,
         version: nextVersion,
@@ -733,6 +758,10 @@ export default async function handler(req, res) {
       const { data: theme, error } = await supabaseAdmin.from('event_themes').insert(insertData).select('id').single();
 
       if (error) return res.status(500).json({ error: 'Failed to save theme: ' + error.message });
+
+      // Only deactivate old themes after new one is safely inserted
+      await supabaseAdmin.from('event_themes').update({ is_active: false }).eq('event_id', eventId).neq('id', theme.id);
+
       return res.status(200).json({ success: true, themeId: theme.id });
     }
 

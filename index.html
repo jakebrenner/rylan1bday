@@ -58,6 +58,9 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
 .nav-logo-icon { height:72px; width:auto; }
 .nav-cta { padding:0.6rem 1.4rem; background:linear-gradient(135deg, var(--party-coral), var(--blush-pop)); color:white; border:none; border-radius:50px; font-family:var(--font-body); font-size:0.85rem; font-weight:600; cursor:pointer; text-decoration:none; transition: var(--transition); white-space:nowrap; }
 .nav-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(233,69,96,0.4); }
+.nav-links { display:flex; gap:8px; align-items:center; }
+.nav-hamburger { display:none; background:none; border:none; color:white; cursor:pointer; padding:8px; line-height:1; }
+.nav-hamburger svg { width:28px; height:28px; }
 
 /* ===== HERO ===== */
 .hero { background: linear-gradient(135deg, var(--midnight) 0%, #0f3460 100%); color: white; padding: 10rem 2rem 8rem; text-align: center; position: relative; overflow: hidden; }
@@ -177,6 +180,12 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
   .nav { padding:0.75rem 1rem; }
   .nav-logo-icon { height:50px; }
   .nav-cta { padding:0.5rem 1rem; font-size:0.8rem; }
+  .nav-hamburger { display:block; }
+  .nav-links { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(26,26,46,0.98); flex-direction:column; align-items:center; justify-content:center; gap:16px; z-index:200; }
+  .nav-links.open { display:flex; }
+  .nav-links a { font-size:1.2rem !important; padding:12px 24px !important; }
+  .nav-links .nav-cta { font-size:1rem !important; padding:14px 32px !important; }
+  .nav-links .nav-menu-close { position:absolute; top:20px; right:20px; background:none; border:none; color:white; font-size:32px; cursor:pointer; padding:8px; line-height:1; }
 }
 
 /* ===== DEMO SHOWCASE ===== */
@@ -336,7 +345,9 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
 <!-- Nav -->
 <nav class="nav" id="nav">
   <a href="/" class="nav-logo"><svg class="nav-logo-icon" viewBox="0 0 210 80" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="40" r="22" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M18 30 L32 42 L46 30" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 50 L46 50" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><text x="64" y="50" font-family="Playfair Display, serif" font-size="34" font-weight="600" fill="currentColor">Ryvite</text></svg></a>
-  <div style="display:flex; gap:8px; align-items:center;">
+  <button class="nav-hamburger" onclick="document.getElementById('navLinks').classList.add('open')" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+  <div class="nav-links" id="navLinks">
+    <button class="nav-menu-close" onclick="document.getElementById('navLinks').classList.remove('open')" aria-label="Close">&times;</button>
     <a href="/inspiration/" style="color:rgba(255,255,255,0.75); text-decoration:none; font-size:0.85rem; font-weight:500; padding:0.5rem 0.8rem; transition:color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.75)'">Inspiration</a>
     <a href="/v2/pricing/" style="color:rgba(255,255,255,0.75); text-decoration:none; font-size:0.85rem; font-weight:500; padding:0.5rem 0.8rem; transition:color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.75)'">Pricing</a>
     <a href="/blog/" style="color:rgba(255,255,255,0.75); text-decoration:none; font-size:0.85rem; font-weight:500; padding:0.5rem 0.8rem; transition:color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.75)'">Blog</a>
