@@ -408,7 +408,7 @@ async function diagnoseAndHeal(incidentId, ctx) {
     const cssIssuesList = ctx.triggerData?.cssIssues || ctx.validationResults?.client?.cssIssues || [];
     const missingElements = ctx.triggerData?.missing || ctx.validationResults?.client?.missing || [];
     const issueContext = cssIssuesList.length > 0
-      ? `\nClient-detected CSS visual issues: ${cssIssuesList.join(', ')}\n(e.g., "invisible_title" = title has opacity<0.1, "low_contrast_title" = text/bg contrast ratio <2:1, "offscreen_rsvp" = RSVP section outside viewport, "tiny_details" = details section too small to see)`
+      ? `\nClient-detected CSS visual issues: ${cssIssuesList.join(', ')}\n(e.g., "invisible_title" = title has opacity<0.1, "low_contrast_title" = text/bg contrast ratio <2:1, "low_contrast_rsvp_form" = RSVP form labels unreadable on dark background, "offscreen_rsvp" = RSVP section outside viewport, "tiny_details" = details section too small to see)`
       : '';
     const missingContext = missingElements.length > 0
       ? `\nMissing DOM elements: ${missingElements.join(', ')}`

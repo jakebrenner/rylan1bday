@@ -2996,6 +2996,60 @@
           }
         }
 
+        // RSVP form contrast auto-fix: detect dark backgrounds and force light text
+        var rsvpSlotForContrast = doc.querySelector('.rsvp-slot');
+        if (rsvpSlotForContrast) {
+          try {
+            var ifrWin = iframe.contentWindow || doc.defaultView;
+            var rsvpBg = findEffectiveBgColor(rsvpSlotForContrast, ifrWin);
+            if (rsvpBg && isDarkColor(rsvpBg)) {
+              // Dark background detected — force light text on all form elements
+              rsvpSlotForContrast.style.setProperty('color', '#FFFFFF', 'important');
+              var formEls = rsvpSlotForContrast.querySelectorAll('label, input, select, textarea, span, div:not(.rsvp-button)');
+              for (var fei = 0; fei < formEls.length; fei++) {
+                var fe = formEls[fei];
+                // Don't override the submit button or elements that already have explicit light colors
+                if (fe.classList.contains('rsvp-button') || fe.tagName === 'BUTTON') continue;
+                var feColor = ifrWin.getComputedStyle(fe).color;
+                if (feColor && isDarkColor(feColor)) {
+                  fe.style.setProperty('color', '#FFFFFF', 'important');
+                }
+              }
+              // Fix input placeholder visibility
+              var inputs = rsvpSlotForContrast.querySelectorAll('input, select, textarea');
+              for (var ii = 0; ii < inputs.length; ii++) {
+                var inp = inputs[ii];
+                var inpBg = ifrWin.getComputedStyle(inp).backgroundColor;
+                // If input background is also dark or transparent, ensure text is light
+                inp.style.setProperty('color', '#FFFFFF', 'important');
+              }
+              console.log('[injectRsvpForm] Dark RSVP background detected — forced light text for contrast');
+            } else if (rsvpBg) {
+              // Light background — check if text is light (would be invisible)
+              var rsvpTextColor = ifrWin.getComputedStyle(rsvpSlotForContrast).color;
+              if (rsvpTextColor) {
+                var rsvpTextRgb = parseRgb(rsvpTextColor);
+                var rsvpBgRgb = parseRgb(rsvpBg);
+                if (rsvpTextRgb && rsvpBgRgb) {
+                  var l1 = relativeLuminance(rsvpTextRgb), l2 = relativeLuminance(rsvpBgRgb);
+                  var contrastRatio = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+                  if (contrastRatio < 2.5) {
+                    // Very low contrast — force dark text on light background
+                    rsvpSlotForContrast.style.setProperty('color', '#1A1A1A', 'important');
+                    var lightFormEls = rsvpSlotForContrast.querySelectorAll('label, input, select, textarea, span');
+                    for (var lfi = 0; lfi < lightFormEls.length; lfi++) {
+                      if (!lightFormEls[lfi].classList.contains('rsvp-button')) {
+                        lightFormEls[lfi].style.setProperty('color', '#1A1A1A', 'important');
+                      }
+                    }
+                    console.log('[injectRsvpForm] Low RSVP contrast detected (' + contrastRatio.toFixed(2) + ':1) — forced dark text');
+                  }
+                }
+              }
+            }
+          } catch (ce) { console.warn('[injectRsvpForm] Contrast fix error:', ce.message); }
+        }
+
         // Inject event details into .details-slot (new pattern — platform controls details HTML)
         var detailsSlot = doc.querySelector('.details-slot');
         if (detailsSlot) {
@@ -3414,6 +3468,30 @@
               }
             }
           } catch (e3) { /* ignore contrast check errors */ }
+        }
+
+        // 6b2. Contrast check on RSVP form labels
+        if (rsvpSlot && win) {
+          try {
+            var rsvpLabel = rsvpSlot.querySelector('label');
+            if (rsvpLabel) {
+              var rsvpLabelColor = win.getComputedStyle(rsvpLabel).color;
+              var rsvpBgColor = findEffectiveBgColor(rsvpSlot, win);
+              if (rsvpLabelColor && rsvpBgColor) {
+                var rlc = parseRgb(rsvpLabelColor);
+                var rbc = parseRgb(rsvpBgColor);
+                if (rlc && rbc) {
+                  var rlLum = relativeLuminance(rlc);
+                  var rbLum = relativeLuminance(rbc);
+                  var rsvpRatio = (Math.max(rlLum, rbLum) + 0.05) / (Math.min(rlLum, rbLum) + 0.05);
+                  if (rsvpRatio < 2.5) {
+                    cssIssues.push('low_contrast_rsvp_form');
+                    console.warn('[validateContentCompleteness] Low RSVP form contrast:', rsvpRatio.toFixed(2), rsvpLabelColor, 'on', rsvpBgColor);
+                  }
+                }
+              }
+            }
+          } catch (e3b) { /* ignore rsvp contrast check errors */ }
         }
 
         // 6c. Viewport bounds check — key elements within visible area
