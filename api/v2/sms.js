@@ -742,9 +742,13 @@ export default async function handler(req, res) {
             .replace(/\{name\}/gi, guestName)
             .replace(/\{link\}/gi, guestLink);
         } else {
-          // Ryvite-branded email invite — dark header, cream background, clean card, gradient CTA.
-          // Matches the Ryvite auth emails and brand guidelines for a consistent experience.
-          const accentTint = mix(primaryColor, '#FFFFFF', 0.85);
+          // Ryvite-branded email invite — personalized, vibrant, event-themed.
+          // Uses the event's primary color throughout for a cohesive feel.
+          const accentTint = mix(primaryColor, '#FFFFFF', 0.92);
+          const accentTintMedium = mix(primaryColor, '#FFFFFF', 0.85);
+          const primaryDark = mix(primaryColor, '#000000', 0.25);
+          const btnColor = primaryColor;
+          const btnText = luminance(primaryColor) > 0.55 ? '#1A1A2E' : '#FFFFFF';
 
           html = `<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
@@ -764,59 +768,83 @@ export default async function handler(req, res) {
   ${'&nbsp;&zwnj;'.repeat(30)}
 </div>
 
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#FFFAF5;padding:40px 20px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#FFFAF5;padding:32px 16px;">
 <tr><td align="center">
 <table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;width:100%;">
 
-  <!-- Branded header with text wordmark -->
-  <tr><td align="center" style="padding-bottom:0;">
-    <div style="background:linear-gradient(135deg, #1A1A2E 0%, #0f3460 100%);border-radius:12px 12px 0 0;padding:24px 40px;text-align:center;">
-      <p style="margin:0;font-size:28px;color:#FFFFFF;font-family:'Playfair Display',Georgia,serif;font-weight:700;letter-spacing:0.5px;">Ryvite</p>
-      <p style="margin:4px 0 0;font-size:12px;color:#FFB74D;font-style:italic;font-family:'Inter',Arial,sans-serif;">Prompt to Party</p>
-    </div>
+  <!-- Hero section — bold colored header with sparkle -->
+  <tr><td align="center" style="padding:0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${primaryColor};border-radius:16px 16px 0 0;">
+    <tr><td style="padding:40px 32px 32px;text-align:center;">
+      <p style="margin:0 0 8px;font-size:28px;line-height:1;">&#10024;</p>
+      <p style="margin:0 0 6px;font-family:'Inter',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${btnText};opacity:0.7;">YOU'RE INVITED</p>
+      <h1 style="margin:0;font-family:'Playfair Display',Georgia,'Times New Roman',serif;font-size:28px;font-weight:700;color:${btnText};line-height:1.25;">${eventTitle}</h1>
+    </td></tr>
+    </table>
   </td></tr>
 
-  <!-- Accent bar (event's primary color) -->
-  <tr><td style="height:4px;background-color:${primaryColor};font-size:0;line-height:0;" height="4">&nbsp;</td></tr>
-
   <!-- Main card body -->
-  <tr><td style="background-color:#FFFFFF;padding:40px 36px 36px;box-shadow:0 4px 24px rgba(26,26,46,0.08);">
+  <tr><td style="background-color:#FFFFFF;padding:0;border-radius:0 0 16px 16px;border:1px solid #f0ebe5;border-top:none;">
 
-    <!-- "You're Invited" headline -->
-    <h2 style="font-family:'Playfair Display',Georgia,'Times New Roman',serif;font-size:30px;font-weight:700;color:#1A1A2E;margin:0 0 6px;line-height:1.2;text-align:center;">You're Invited</h2>
-
-    <!-- Event title -->
-    <p style="font-family:'Inter',Arial,Helvetica,sans-serif;font-size:17px;color:#5A5A6E;margin:0 0 20px;line-height:1.4;text-align:center;">${eventTitle}</p>
-
-    <!-- Event details card (tinted with event color) -->
-    ${eventDate || event.location_name ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:${accentTint};padding:20px 24px;border-left:3px solid ${primaryColor};">
-      ${eventDate ? `<p style="font-family:'Inter',Arial,Helvetica,sans-serif;font-size:14px;color:#1A1A2E;margin:0 0 4px;line-height:1.5;font-weight:600;">${eventDate}</p>` : ''}
-      ${event.location_name ? `<p style="font-family:'Inter',Arial,Helvetica,sans-serif;font-size:14px;color:#5A5A6E;margin:0;line-height:1.5;">${event.location_name}</p>` : ''}
-    </td></tr></table>` : ''}
-
-    <!-- Spacer -->
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td style="height:28px;font-size:0;line-height:0;" height="28">&nbsp;</td>
-    </tr></table>
-
-    <!-- CTA button (Ryvite coral gradient, pill) -->
+    <!-- Personal greeting -->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-    <tr><td align="center" style="padding:0 0 8px;">
-      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${guestLink}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="50%" fillcolor="#E94560" stroke="f"><v:textbox inset="0,0,0,0"><center style="font-family:Arial,sans-serif;font-size:16px;font-weight:bold;color:#FFFFFF;">View Invitation</center></v:textbox></v:roundrect><![endif]-->
+    <tr><td style="padding:28px 32px 0;">
+      <p style="font-family:'Inter',Arial,Helvetica,sans-serif;font-size:15px;color:#1A1A2E;margin:0;line-height:1.6;">Hey ${guestName},</p>
+      <p style="font-family:'Inter',Arial,Helvetica,sans-serif;font-size:15px;color:#5A5A6E;margin:6px 0 0;line-height:1.6;">${hostName} would love for you to be there! Check out the full invite and let them know if you can make it.</p>
+    </td></tr>
+    </table>
+
+    <!-- Event details card -->
+    ${eventDate || event.location_name ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr><td style="padding:20px 32px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${accentTint};border-radius:12px;">
+      <tr><td style="padding:18px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        ${eventDate ? `<tr>
+          <td style="width:32px;vertical-align:top;padding-right:12px;">
+            <p style="margin:0;font-size:18px;line-height:1;">&#128197;</p>
+          </td>
+          <td style="vertical-align:top;">
+            <p style="font-family:'Inter',Arial,Helvetica,sans-serif;font-size:14px;color:#1A1A2E;margin:0;line-height:1.5;font-weight:600;">${eventDate}</p>
+          </td>
+        </tr>` : ''}
+        ${event.location_name ? `<tr>
+          <td style="width:32px;vertical-align:top;padding-right:12px;${eventDate ? 'padding-top:10px;' : ''}">
+            <p style="margin:0;font-size:18px;line-height:1;">&#128205;</p>
+          </td>
+          <td style="vertical-align:top;${eventDate ? 'padding-top:10px;' : ''}">
+            <p style="font-family:'Inter',Arial,Helvetica,sans-serif;font-size:14px;color:#5A5A6E;margin:0;line-height:1.5;">${event.location_name}</p>
+          </td>
+        </tr>` : ''}
+        </table>
+      </td></tr>
+      </table>
+    </td></tr>
+    </table>` : ''}
+
+    <!-- CTA button -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr><td align="center" style="padding:28px 32px 0;">
+      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${guestLink}" style="height:52px;v-text-anchor:middle;width:280px;" arcsize="50%" fillcolor="${btnColor}" stroke="f"><v:textbox inset="0,0,0,0"><center style="font-family:Arial,sans-serif;font-size:16px;font-weight:bold;color:${btnText};">View Invitation &amp; RSVP</center></v:textbox></v:roundrect><![endif]-->
       <!--[if !mso]><!-->
-      <a href="${guestLink}" target="_blank" style="display:inline-block;padding:14px 48px;background:linear-gradient(135deg, #E94560, #FF6B6B);color:#FFFFFF;font-size:16px;font-weight:600;text-decoration:none;border-radius:50px;font-family:'Inter',Arial,Helvetica,sans-serif;letter-spacing:0.3px;">View Invitation</a>
+      <a href="${guestLink}" target="_blank" style="display:inline-block;padding:16px 48px;background-color:${btnColor};color:${btnText};font-size:16px;font-weight:700;text-decoration:none;border-radius:50px;font-family:'Inter',Arial,Helvetica,sans-serif;letter-spacing:0.3px;min-width:200px;text-align:center;">View Invitation &amp; RSVP</a>
       <!--<![endif]-->
     </td></tr>
     </table>
 
-    <!-- Subtle helper text -->
-    <p style="font-family:'Inter',Arial,Helvetica,sans-serif;font-size:12px;color:#D1D5DB;margin:16px 0 0;line-height:1.5;text-align:center;">Tap the button to see your full invitation and RSVP</p>
+    <!-- Divider + helper text -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr><td style="padding:24px 32px 24px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="border-top:1px solid #f0ebe5;height:1px;font-size:0;line-height:0;">&nbsp;</td></tr></table>
+      <p style="font-family:'Inter',Arial,Helvetica,sans-serif;font-size:12px;color:#B0B0B8;margin:16px 0 0;line-height:1.5;text-align:center;">Tap the button to see your full invitation and RSVP</p>
+    </td></tr>
+    </table>
 
   </td></tr>
 
   <!-- Footer -->
-  <tr><td align="center" style="padding:20px 0 0;">
-    <p style="margin:0;font-size:12px;color:#D1D5DB;font-family:'Inter',Arial,sans-serif;">&copy; 2026 Ryvite &mdash; Beautiful invitations, effortlessly.</p>
+  <tr><td align="center" style="padding:24px 0 0;">
+    <p style="margin:0;font-size:11px;color:#C8C8D0;font-family:'Inter',Arial,sans-serif;">Sent via <span style="color:#E94560;font-weight:600;">Ryvite</span> &mdash; Beautiful invitations, effortlessly.</p>
   </td></tr>
 
 </table>
