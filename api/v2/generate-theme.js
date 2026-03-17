@@ -2204,6 +2204,63 @@ Return ONLY a valid JSON object with these keys:
   const activePrompt = await getActivePrompt();
   const startTime = Date.now();
 
+  // ── Incident pattern awareness: avoid known-bad patterns in generation ──
+  let incidentAvoidanceNote = '';
+  try {
+    const { data: recentPatterns } = await supabase
+      .rpc('get_quality_root_cause_patterns_simple')
+      .catch(() => ({ data: null }));
+
+    // Fallback: direct query if the RPC doesn't exist
+    if (!recentPatterns) {
+      const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentIncidents } = await supabase
+        .from('quality_incidents')
+        .select('trigger_type, trigger_data')
+        .gte('created_at', since7d)
+        .eq('trigger_type', 'broken_render')
+        .limit(50);
+
+      if (recentIncidents && recentIncidents.length >= 5) {
+        // Aggregate common missing elements
+        const missingCounts = {};
+        const cssCounts = {};
+        recentIncidents.forEach(i => {
+          const td = i.trigger_data || {};
+          (td.missing || []).forEach(m => { missingCounts[m] = (missingCounts[m] || 0) + 1; });
+          (td.cssIssues || []).forEach(c => { cssCounts[c] = (cssCounts[c] || 0) + 1; });
+        });
+        const topMissing = Object.entries(missingCounts).sort((a,b) => b[1]-a[1]).slice(0, 3);
+        const topCss = Object.entries(cssCounts).sort((a,b) => b[1]-a[1]).slice(0, 3);
+
+        if (topMissing.length > 0 || topCss.length > 0) {
+          incidentAvoidanceNote = '\n\nKNOWN ISSUES TO AVOID (based on recent quality incidents):\n';
+          topMissing.forEach(([el, count]) => {
+            incidentAvoidanceNote += `- "${el}" element has been missing in ${count} recent generations. ENSURE it is present.\n`;
+          });
+          topCss.forEach(([issue, count]) => {
+            const issueMap = {
+              invisible_title: 'Title text is invisible (opacity:0 or same color as background). ENSURE title has visible, contrasting color.',
+              low_contrast_title: 'Title has poor contrast ratio. ENSURE text color contrasts with background.',
+              offscreen_rsvp: 'RSVP section is positioned offscreen. ENSURE rsvp-slot is within viewport.',
+              hidden_details: 'Details section has display:none. ENSURE details-slot is visible.',
+              tiny_details: 'Details section has zero/tiny height. ENSURE it has adequate min-height.'
+            };
+            incidentAvoidanceNote += `- ${issueMap[issue] || issue} (${count} incidents)\n`;
+          });
+        }
+      }
+    }
+  } catch (e) {
+    // Don't block generation if pattern query fails
+    console.warn('[generate] Incident pattern query failed:', e.message);
+  }
+
+  // Append incident avoidance note to system prompt if patterns found
+  if (incidentAvoidanceNote) {
+    activePrompt.systemPrompt += incidentAvoidanceNote;
+  }
+
   // Set up SSE headers to avoid Vercel timeout
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');

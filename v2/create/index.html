@@ -3444,7 +3444,8 @@
               brokenRenderCount: brokenRenderCount
             },
             themeSnapshot: ver ? { html: ver.html, css: ver.css, config: ver.config } : null,
-            validationResults: { client: { valid: false, missing: missing, cssIssues: detectedCssIssues } }
+            validationResults: { client: { valid: false, missing: missing, cssIssues: detectedCssIssues } },
+            clientDeviceInfo: getClientDeviceInfo()
           })
         }).catch(function(e) { console.warn('[quality] Broken render incident failed:', e.message); });
       }
@@ -4051,6 +4052,24 @@
     var lastRenderBroken = false; // Set when content validation detects missing elements
     var brokenRenderCount = 0; // Tracks consecutive broken renders for escalation
     var autoRetryInProgress = false; // Prevents recursive auto-retry loops
+
+    // ── Client device info for quality incident reports ──
+    function getClientDeviceInfo() {
+      return {
+        screen_width: window.screen.width,
+        screen_height: window.screen.height,
+        viewport_width: window.innerWidth,
+        viewport_height: window.innerHeight,
+        device_pixel_ratio: window.devicePixelRatio || 1,
+        platform: navigator.platform,
+        user_agent: navigator.userAgent,
+        touch: 'ontouchstart' in window,
+        connection: navigator.connection ? {
+          type: navigator.connection.effectiveType,
+          downlink: navigator.connection.downlink
+        } : null
+      };
+    }
 
     // ── Design Chat Persistence: Push + persist every message ──
     function pushDesignChat(msg) {
@@ -6411,9 +6430,66 @@
       }
     }
 
+    // ── Visual fingerprint check — samples 5 points across the rendered invite ──
+    // Catches completely unstyled or invisible invites before publish
+    function captureVisualFingerprint() {
+      try {
+        var iframe = document.getElementById('previewFrame');
+        if (!iframe) return null;
+        var doc = iframe.contentDocument;
+        if (!doc || !doc.body) return null;
+        var win = doc.defaultView;
+        var points = [
+          { x: 196, y: 50 },   // top center (title area)
+          { x: 196, y: 200 },  // middle (details area)
+          { x: 196, y: 400 },  // lower (RSVP area)
+          { x: 50, y: 300 },   // left edge
+          { x: 340, y: 300 }   // right edge
+        ];
+        var colors = points.map(function(p) {
+          var el = doc.elementFromPoint(p.x, p.y);
+          if (!el) return null;
+          var style = win.getComputedStyle(el);
+          return {
+            bg: style.backgroundColor,
+            color: style.color,
+            display: style.display,
+            visibility: style.visibility,
+            opacity: style.opacity
+          };
+        });
+        var validColors = colors.filter(Boolean);
+        var uniqueBgs = [];
+        validColors.forEach(function(c) {
+          if (uniqueBgs.indexOf(c.bg) === -1) uniqueBgs.push(c.bg);
+        });
+        var allInvisible = validColors.length > 0 && validColors.every(function(c) {
+          return c.opacity === '0' || c.visibility === 'hidden' || c.display === 'none';
+        });
+        return {
+          colorDiversity: uniqueBgs.length,
+          allInvisible: allInvisible,
+          sampleColors: colors,
+          suspicious: uniqueBgs.length <= 1 || allInvisible
+        };
+      } catch(e) { return null; }
+    }
+
     // "Only Publish" — no invites sent
     async function publishEvent(sendInvites) {
       if (!currentEvent) { showMessage('Event not created yet', 'error'); return; }
+
+      // ── Pre-publish visual fingerprint check ──
+      var fingerprint = captureVisualFingerprint();
+      if (fingerprint && fingerprint.suspicious) {
+        var proceed = confirm(
+          'Your invite may not be displaying correctly — the preview appears ' +
+          (fingerprint.allInvisible ? 'invisible (all elements hidden)' : 'unstyled (single background color)') +
+          '.\n\nAre you sure you want to publish?'
+        );
+        if (!proceed) return;
+      }
+
       var btns = document.querySelectorAll('.button-group .btn');
       btns.forEach(function(b) { b.disabled = true; });
       try {
@@ -6449,7 +6525,8 @@
             status: 'Published',
             metaEventId: metaEventId,
             fbp: metaCtx.fbp || '',
-            fbc: metaCtx.fbc || ''
+            fbc: metaCtx.fbc || '',
+            visualFingerprint: fingerprint
           })
         });
         var result = await res.json();
@@ -6870,7 +6947,8 @@
               triggerType: 'low_rating',
               triggerData: { rating: rating, feedback: feedback || '' },
               themeSnapshot: ver ? { html: ver.html, css: ver.css, config: ver.config } : null,
-              validationResults: null
+              validationResults: null,
+              clientDeviceInfo: getClientDeviceInfo()
             })
           }).catch(function(e) { console.warn('[quality] Low rating incident failed:', e.message); });
         }

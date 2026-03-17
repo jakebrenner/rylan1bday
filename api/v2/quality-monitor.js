@@ -32,6 +32,33 @@ async function getUser(req) {
   return user;
 }
 
+// ── Extract client metadata from request headers + client-sent device info ──
+function getClientMeta(req, clientDeviceInfo) {
+  const ip = (req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || '').split(',')[0].trim();
+  const geo = {};
+  if (req.headers['x-vercel-ip-country']) geo.country = req.headers['x-vercel-ip-country'];
+  if (req.headers['x-vercel-ip-country-region']) geo.region = req.headers['x-vercel-ip-country-region'];
+  if (req.headers['x-vercel-ip-city']) geo.city = decodeURIComponent(req.headers['x-vercel-ip-city'] || '');
+  if (req.headers['x-vercel-ip-latitude']) geo.latitude = req.headers['x-vercel-ip-latitude'];
+  if (req.headers['x-vercel-ip-longitude']) geo.longitude = req.headers['x-vercel-ip-longitude'];
+  const userAgent = (req.headers['user-agent'] || '').substring(0, 500);
+
+  // Merge server headers with client-sent device info
+  return {
+    user_agent: clientDeviceInfo?.user_agent || userAgent,
+    client_ip: ip,
+    client_geo: Object.keys(geo).length > 0 ? geo : null,
+    screen_width: clientDeviceInfo?.screen_width || null,
+    screen_height: clientDeviceInfo?.screen_height || null,
+    viewport_width: clientDeviceInfo?.viewport_width || null,
+    viewport_height: clientDeviceInfo?.viewport_height || null,
+    device_pixel_ratio: clientDeviceInfo?.device_pixel_ratio || null,
+    platform: clientDeviceInfo?.platform || null,
+    touch: clientDeviceInfo?.touch || null,
+    connection: clientDeviceInfo?.connection || null
+  };
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -78,7 +105,7 @@ export default async function handler(req, res) {
     const user = await getUser(req);
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { eventId, eventThemeId, triggerType, triggerData, themeSnapshot, validationResults } = req.body;
+    const { eventId, eventThemeId, triggerType, triggerData, themeSnapshot, validationResults, clientDeviceInfo } = req.body;
     if (!eventId || !triggerType) {
       return res.status(400).json({ error: 'eventId and triggerType are required' });
     }
@@ -100,6 +127,9 @@ export default async function handler(req, res) {
     if (recentIncident?.length > 0) {
       return res.status(200).json({ success: true, incidentId: recentIncident[0].id, deduplicated: true });
     }
+
+    // Build client_meta from request headers + client-sent device info
+    const clientMeta = getClientMeta(req, clientDeviceInfo);
 
     // Fetch recent design chat for this event
     let chatSnapshot = null;
@@ -130,6 +160,7 @@ export default async function handler(req, res) {
         design_chat_snapshot: chatSnapshot,
         theme_snapshot: themeSnapshot || null,
         validation_results: validationResults || null,
+        client_meta: clientMeta,
         resolution_type: 'unresolved'
       })
       .select('id')
@@ -199,7 +230,152 @@ export default async function handler(req, res) {
     });
   }
 
+  // ── REPORT GUEST INCIDENT (no auth required — guests aren't logged in) ──
+  if (action === 'reportGuestIncident' && req.method === 'POST') {
+    const { eventId, slug, triggerType, triggerData, themeSnapshot, clientDeviceInfo } = req.body;
+    if (!eventId) {
+      return res.status(400).json({ error: 'eventId is required' });
+    }
+
+    // Rate limit: max 1 incident per IP per event per 10 minutes
+    const clientIp = (req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || '').split(',')[0].trim();
+    const { data: recentGuestIncident } = await supabase
+      .from('quality_incidents')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('trigger_type', 'guest_broken_render')
+      .gte('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString())
+      .limit(1);
+
+    if (recentGuestIncident?.length > 0) {
+      return res.status(200).json({ success: true, deduplicated: true });
+    }
+
+    const clientMeta = getClientMeta(req, clientDeviceInfo);
+
+    const { data: incident, error: insertErr } = await supabase
+      .from('quality_incidents')
+      .insert({
+        event_id: eventId,
+        user_id: null,
+        trigger_type: 'guest_broken_render',
+        trigger_data: { ...(triggerData || {}), slug: slug || '' },
+        theme_snapshot: themeSnapshot || null,
+        client_meta: clientMeta,
+        resolution_type: 'unresolved'
+      })
+      .select('id')
+      .single();
+
+    if (insertErr) {
+      console.error('[quality-monitor] Guest incident insert failed:', insertErr.message);
+      return res.status(500).json({ error: 'Failed to create incident' });
+    }
+
+    console.log('[quality-monitor] Guest incident created:', { incidentId: incident.id, eventId, slug, ip: clientIp });
+    return res.status(200).json({ success: true, incidentId: incident.id });
+  }
+
   return res.status(400).json({ error: 'Unknown action: ' + action });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PATTERN DETECTION
+// After diagnosis, check if this root cause has hit a threshold
+// that warrants a suggested prompt rule change.
+// ═══════════════════════════════════════════════════════════════════
+async function checkForPatterns(rootCause, incidentId) {
+  if (!rootCause || rootCause === 'unknown') return;
+
+  try {
+    // Count incidents with same root cause in last 24 hours
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { count: count24h } = await supabase
+      .from('quality_incidents')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', since24h)
+      .filter('ai_diagnosis', 'neq', null);
+
+    // We need to do a more specific query — filter by rootCause in JSONB
+    // Supabase doesn't support direct JSONB text field filtering easily, so query and filter
+    const { data: recentDiagnosed } = await supabase
+      .from('quality_incidents')
+      .select('id, ai_diagnosis, event_id, client_meta')
+      .gte('created_at', since24h)
+      .not('ai_diagnosis', 'is', null)
+      .limit(100);
+
+    // ai_diagnosis is a TEXT field containing the diagnosis string, not the full JSON
+    // The rootCause is stored in the diagnosis response but we only save the text.
+    // We need to check if a suggested_rule for this rootCause already exists recently
+    const { data: existingSuggestion } = await supabase
+      .from('suggested_rules')
+      .select('id')
+      .eq('root_cause', rootCause)
+      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+      .limit(1);
+
+    if (existingSuggestion?.length > 0) return; // Already suggested recently
+
+    // Count incidents with this rootCause — we'll use trigger_data or check a pattern
+    // Since rootCause is not directly queryable (it's in the AI response),
+    // use a simpler heuristic: count broken_render incidents in 24h
+    const { data: brokenRenders } = await supabase
+      .from('quality_incidents')
+      .select('id, trigger_type')
+      .gte('created_at', since24h)
+      .eq('trigger_type', 'broken_render');
+
+    const incidentCount = (brokenRenders || []).length;
+    if (incidentCount < 5) return; // Not enough to suggest a pattern
+
+    // Generate a suggested rule via Haiku
+    const suggestion = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      messages: [{
+        role: 'user',
+        content: `We've seen ${incidentCount} broken render quality incidents in the last 24 hours on our invite design platform. The most recent root cause was "${rootCause}".
+
+Suggest a concise rule (1-2 sentences) to add to our AI prompt's design instructions to prevent this type of rendering issue. The rule should be actionable for an AI generating HTML/CSS invite designs.
+
+Return ONLY the rule text, no explanation or formatting.`
+      }]
+    });
+
+    const ruleText = (suggestion.content[0]?.text || '').trim();
+    if (!ruleText || ruleText.length > 500) return;
+
+    // Collect affected browsers from recent incidents
+    const affectedBrowsers = [...new Set(
+      (recentDiagnosed || [])
+        .map(i => {
+          const ua = i.client_meta?.user_agent || '';
+          if (ua.includes('Safari') && !ua.includes('Chrome')) return 'Safari';
+          if (ua.includes('Chrome')) return 'Chrome';
+          if (ua.includes('Firefox')) return 'Firefox';
+          return 'Other';
+        })
+        .filter(Boolean)
+    )];
+
+    const affectedEvents = new Set((recentDiagnosed || []).map(i => i.event_id).filter(Boolean)).size;
+
+    await supabase.from('suggested_rules').insert({
+      root_cause: rootCause,
+      trigger_pattern: `${rootCause} x${incidentCount} in 24h`,
+      suggested_text: ruleText,
+      source_incidents: [incidentId],
+      incident_count: incidentCount,
+      affected_events: affectedEvents,
+      affected_browsers: affectedBrowsers,
+      status: 'pending'
+    });
+
+    console.log('[quality-monitor] Suggested rule created for pattern:', rootCause, '—', ruleText.substring(0, 80));
+  } catch (e) {
+    console.warn('[quality-monitor] Pattern check failed:', e.message);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -302,6 +478,13 @@ Return JSON:
     canAutoHeal: diagnosis.canAutoHeal,
     latencyMs: Date.now() - startTime
   });
+
+  // ── Check for recurring patterns → generate suggested rules ──
+  try {
+    await checkForPatterns(diagnosis.rootCause, incidentId);
+  } catch (e) {
+    console.warn('[quality-monitor] Pattern check failed:', e.message);
+  }
 
   // ── AUTO-HEAL if possible ──
   if (diagnosis.canAutoHeal && diagnosis.healStrategy && ctx.eventId) {

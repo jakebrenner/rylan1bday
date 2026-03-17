@@ -2895,6 +2895,150 @@ ${cssSnippet}`
       });
     }
 
+    // ---- QUALITY BY BROWSER ----
+    if (action === 'qualityByBrowser') {
+      const { data, error } = await supabaseAdmin
+        .from('quality_incidents')
+        .select('trigger_type, resolution_type, client_meta')
+        .not('client_meta', 'is', null)
+        .gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString());
+
+      if (error) return res.status(400).json({ error: error.message });
+
+      // Aggregate by browser + device class
+      const breakdown = {};
+      (data || []).forEach(i => {
+        const ua = i.client_meta?.user_agent || '';
+        const sw = parseInt(i.client_meta?.screen_width) || 0;
+        let browser = 'Other';
+        if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
+        else if (ua.includes('Chrome') && !ua.includes('Edg')) browser = 'Chrome';
+        else if (ua.includes('Edg')) browser = 'Edge';
+        else if (ua.includes('Firefox')) browser = 'Firefox';
+        else if (ua.includes('SamsungBrowser')) browser = 'Samsung';
+
+        let device = 'Desktop';
+        if (sw > 0 && sw <= 430) device = 'Mobile';
+        else if (sw > 0 && sw <= 1024) device = 'Tablet';
+
+        const key = browser + '|' + device;
+        if (!breakdown[key]) breakdown[key] = { browser, device, total: 0, healed: 0, unresolved: 0, byTrigger: {} };
+        breakdown[key].total++;
+        if (i.resolution_type === 'auto_healed') breakdown[key].healed++;
+        if (i.resolution_type === 'unresolved') breakdown[key].unresolved++;
+        breakdown[key].byTrigger[i.trigger_type] = (breakdown[key].byTrigger[i.trigger_type] || 0) + 1;
+      });
+
+      return res.status(200).json({
+        success: true,
+        browserBreakdown: Object.values(breakdown).sort((a, b) => b.total - a.total)
+      });
+    }
+
+    // ---- LIST SUGGESTED RULES ----
+    if (action === 'listSuggestedRules') {
+      const status = req.query.status || 'pending';
+      let query = supabaseAdmin
+        .from('suggested_rules')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (status !== 'all') query = query.eq('status', status);
+
+      const { data, error } = await query;
+      if (error) return res.status(400).json({ error: error.message });
+
+      return res.status(200).json({ success: true, rules: data || [] });
+    }
+
+    // ---- REVIEW SUGGESTED RULE (apply/dismiss/flag) ----
+    if (action === 'reviewSuggestedRule' && req.method === 'POST') {
+      const { ruleId, status, dismissReason } = req.body;
+      if (!ruleId || !status) return res.status(400).json({ error: 'ruleId and status required' });
+
+      const validStatuses = ['applied', 'dismissed', 'needs_deploy'];
+      if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+
+      const updates = {
+        status,
+        reviewed_by: user.id,
+        reviewed_at: new Date().toISOString()
+      };
+      if (status === 'dismissed' && dismissReason) updates.dismiss_reason = dismissReason;
+
+      // If applying, append the rule to the active prompt version's creative_direction
+      if (status === 'applied') {
+        // Get the rule text
+        const { data: rule } = await supabaseAdmin
+          .from('suggested_rules')
+          .select('suggested_text')
+          .eq('id', ruleId)
+          .single();
+
+        if (rule) {
+          // Get active prompt version
+          const { data: activePrompt } = await supabaseAdmin
+            .from('prompt_versions')
+            .select('id, creative_direction')
+            .eq('is_active', true)
+            .single();
+
+          if (activePrompt) {
+            const updatedDirection = (activePrompt.creative_direction || '') + '\n\n## Auto-applied quality rule\n' + rule.suggested_text;
+            await supabaseAdmin
+              .from('prompt_versions')
+              .update({ creative_direction: updatedDirection })
+              .eq('id', activePrompt.id);
+            updates.applied_to_prompt_version = activePrompt.id;
+          }
+        }
+      }
+
+      const { error } = await supabaseAdmin
+        .from('suggested_rules')
+        .update(updates)
+        .eq('id', ruleId);
+
+      if (error) return res.status(400).json({ error: error.message });
+      return res.status(200).json({ success: true });
+    }
+
+    // ---- QUALITY ROOT CAUSE PATTERNS ----
+    if (action === 'qualityPatterns') {
+      const since = new Date(Date.now() - 30 * 86400000).toISOString();
+      const { data: incidents } = await supabaseAdmin
+        .from('quality_incidents')
+        .select('trigger_type, trigger_data, ai_diagnosis, resolution_type, client_meta, event_id, created_at')
+        .not('ai_diagnosis', 'is', null)
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      // Group by trigger_type and common patterns
+      const patterns = {};
+      (incidents || []).forEach(i => {
+        const key = i.trigger_type;
+        if (!patterns[key]) patterns[key] = { trigger_type: key, count: 0, last_24h: 0, last_7d: 0, events: new Set(), browsers: new Set() };
+        patterns[key].count++;
+        const age = Date.now() - new Date(i.created_at).getTime();
+        if (age < 86400000) patterns[key].last_24h++;
+        if (age < 7 * 86400000) patterns[key].last_7d++;
+        if (i.event_id) patterns[key].events.add(i.event_id);
+        const ua = i.client_meta?.user_agent || '';
+        if (ua.includes('Safari') && !ua.includes('Chrome')) patterns[key].browsers.add('Safari');
+        else if (ua.includes('Chrome')) patterns[key].browsers.add('Chrome');
+        else if (ua.includes('Firefox')) patterns[key].browsers.add('Firefox');
+      });
+
+      const patternList = Object.values(patterns).map(p => ({
+        ...p,
+        events: p.events.size,
+        browsers: [...p.browsers]
+      })).sort((a, b) => b.last_7d - a.last_7d);
+
+      return res.status(200).json({ success: true, patterns: patternList });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Admin API error:', err);
