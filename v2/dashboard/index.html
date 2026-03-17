@@ -706,7 +706,7 @@
         if (hasTheme) {
           var config = event.themeConfig || {};
           var fontsImport = config.googleFontsImport || '';
-          var srcdoc = '<!DOCTYPE html><html><head><meta charset=&quot;UTF-8&quot;><meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1.0&quot;><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#f9f9f9;overflow:hidden}' + fontsImport.replace(/"/g, '&quot;') + '</style><style>' + event.themeCss.replace(/"/g, '&quot;') + '</style></head><body>' + event.themeHtml.replace(/"/g, '&quot;') + '</body></html>';
+          var srcdoc = '<!DOCTYPE html><html><head><meta charset=&quot;UTF-8&quot;><meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1.0&quot;><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:' + (config.backgroundColor || '#f9f9f9').replace(/"/g, '&quot;') + ';overflow:hidden}' + fontsImport.replace(/"/g, '&quot;') + '</style><style>' + event.themeCss.replace(/"/g, '&quot;') + '</style></head><body>' + event.themeHtml.replace(/"/g, '&quot;') + '</body></html>';
           headerHtml = '<div class="event-card-header has-preview">'
             + '<iframe srcdoc="' + srcdoc + '" sandbox="allow-same-origin" loading="lazy"></iframe>'
             + '<div class="event-card-header-overlay">'
@@ -714,7 +714,11 @@
             + '<span class="event-card-date">' + eventDate + '</span>'
             + '</div></div>';
         } else {
-          headerHtml = '<div class="event-card-header no-preview">'
+          var cardConfig2 = event.themeConfig || {};
+          var cardBg2 = (cardConfig2.primaryColor && cardConfig2.backgroundColor)
+            ? 'linear-gradient(135deg, ' + cardConfig2.primaryColor + ', ' + cardConfig2.backgroundColor + ')'
+            : 'linear-gradient(135deg, var(--party-coral), var(--confetti-gold))';
+          headerHtml = '<div class="event-card-header no-preview" style="background:' + cardBg2 + '">'
             + '<h3>' + escapeHtml(event.title) + '</h3>'
             + '<span class="event-card-date">' + eventDate + '</span>'
             + '</div>';
@@ -835,7 +839,7 @@
         if (hasTheme) {
           var config = event.themeConfig || {};
           var fontsImport = config.googleFontsImport || '';
-          var srcdoc = '<!DOCTYPE html><html><head><meta charset=&quot;UTF-8&quot;><meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1.0&quot;><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#f9f9f9;overflow:hidden}' + fontsImport.replace(/"/g, '&quot;') + '</style><style>' + event.themeCss.replace(/"/g, '&quot;') + '</style></head><body>' + event.themeHtml.replace(/"/g, '&quot;') + '</body></html>';
+          var srcdoc = '<!DOCTYPE html><html><head><meta charset=&quot;UTF-8&quot;><meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1.0&quot;><style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:' + (config.backgroundColor || '#f9f9f9').replace(/"/g, '&quot;') + ';overflow:hidden}' + fontsImport.replace(/"/g, '&quot;') + '</style><style>' + event.themeCss.replace(/"/g, '&quot;') + '</style></head><body>' + event.themeHtml.replace(/"/g, '&quot;') + '</body></html>';
           headerHtml = '<div class="event-card-header has-preview"' + (isArchived ? ' style="opacity:0.7"' : '') + '>'
             + archiveXHtml
             + '<iframe srcdoc="' + srcdoc + '" sandbox="allow-same-origin" loading="lazy"></iframe>'
@@ -844,7 +848,12 @@
             + '<span class="event-card-date">' + eventDate + '</span>'
             + '</div></div>';
         } else {
-          headerHtml = '<div class="event-card-header no-preview"' + (isArchived ? ' style="opacity:0.7"' : '') + '>'
+          // Use theme config colors if available, otherwise default gradient
+          var cardConfig = event.themeConfig || {};
+          var cardBg = (cardConfig.primaryColor && cardConfig.backgroundColor)
+            ? 'linear-gradient(135deg, ' + cardConfig.primaryColor + ', ' + cardConfig.backgroundColor + ')'
+            : 'linear-gradient(135deg, var(--party-coral), var(--confetti-gold))';
+          headerHtml = '<div class="event-card-header no-preview" style="background:' + cardBg + ';' + (isArchived ? 'opacity:0.7;' : '') + '">'
             + archiveXHtml
             + '<h3>' + escapeHtml(event.title) + '</h3>'
             + '<span class="event-card-date">' + eventDate + '</span>'
