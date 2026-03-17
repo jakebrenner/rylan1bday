@@ -1057,8 +1057,8 @@ export default async function handler(req, res) {
           }
         }
 
-        // Unpaid or refunded events must pay before generating
-        if (eventForLimit.payment_status === 'unpaid' || eventForLimit.payment_status === 'refunded') {
+        // Refunded events must pay before generating
+        if (eventForLimit.payment_status === 'refunded') {
           return res.status(403).json({
             error: 'This event requires payment before generating designs. Upgrade for $4.99.',
             limitReached: true,
@@ -1069,7 +1069,8 @@ export default async function handler(req, res) {
           });
         }
 
-        if (eventForLimit.payment_status === 'free') {
+        // Unpaid and free events both get 1 free generation + 1 redo
+        if (eventForLimit.payment_status === 'free' || eventForLimit.payment_status === 'unpaid') {
           const freeGenUsed = eventForLimit.free_generation_used;
           const freeRedoUsed = eventForLimit.free_redo_used;
           const isFreeRedo = req.body?.freeRedo === true;
@@ -1832,7 +1833,8 @@ Return ONLY a valid JSON object with these keys:
       if (req._isFreeRedo) {
         await supabase.from('events')
           .update({ free_redo_used: true })
-          .eq('id', eventId).eq('payment_status', 'free');
+          .eq('id', eventId)
+          .in('payment_status', ['free', 'unpaid']);
       }
 
       // Send result to client with real DB ID
@@ -2187,7 +2189,8 @@ This is the most common failure mode. Double-check it.`;
     if (req._isFreeRedo) freeUpdate.free_redo_used = true;
     await supabase.from('events')
       .update(freeUpdate)
-      .eq('id', eventId).eq('payment_status', 'free');
+      .eq('id', eventId)
+      .in('payment_status', ['free', 'unpaid']);
 
     // Send theme to client and close connection.
     // res.text() on client buffers until res.end(), so remaining DB saves happen after.
