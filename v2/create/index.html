@@ -3095,31 +3095,64 @@
             win.requestAnimationFrame(function() {
               injectRsvpForm(iframe);
               checkCssRendered(iframe, ver);
-              // Content completeness check — runs after injection, with a short delay for paint
+              // Content completeness check — runs after injection, with delay for paint + CSS animations
               setTimeout(function() {
                 var result = validateContentCompleteness(iframe);
                 if (!result.valid && !autoRetryInProgress) {
-                  handleBrokenRender(result.missing, result.cssIssues);
+                  // Only trigger broken render for truly missing structural elements,
+                  // not CSS visual issues (opacity/size during animations)
+                  var structuralMissing = result.missing.filter(function(m) {
+                    // Filter out items that were only added by CSS visual checks
+                    // Keep only items from structural checks (1-5)
+                    var doc2 = iframe.contentDocument;
+                    if (!doc2) return true;
+                    if (m === 'title') {
+                      var t = doc2.querySelector('[data-field="title"]');
+                      return !t || !t.textContent.trim(); // truly missing, not just invisible
+                    }
+                    return true;
+                  });
+                  if (structuralMissing.length > 0) {
+                    handleBrokenRender(structuralMissing, result.cssIssues);
+                  } else {
+                    // CSS issues only — warn but don't regenerate
+                    lastRenderBroken = false;
+                    brokenRenderCount = 0;
+                  }
                 } else if (result.valid) {
                   lastRenderBroken = false;
                   brokenRenderCount = 0;
                 }
-              }, 200);
+              }, 800);
             });
           } else {
             setTimeout(function() {
               injectRsvpForm(iframe);
               checkCssRendered(iframe, ver);
-              // Content completeness check
+              // Content completeness check — with delay for CSS animations
               setTimeout(function() {
                 var result = validateContentCompleteness(iframe);
                 if (!result.valid && !autoRetryInProgress) {
-                  handleBrokenRender(result.missing, result.cssIssues);
+                  var structuralMissing = result.missing.filter(function(m) {
+                    var doc2 = iframe.contentDocument;
+                    if (!doc2) return true;
+                    if (m === 'title') {
+                      var t = doc2.querySelector('[data-field="title"]');
+                      return !t || !t.textContent.trim();
+                    }
+                    return true;
+                  });
+                  if (structuralMissing.length > 0) {
+                    handleBrokenRender(structuralMissing, result.cssIssues);
+                  } else {
+                    lastRenderBroken = false;
+                    brokenRenderCount = 0;
+                  }
                 } else if (result.valid) {
                   lastRenderBroken = false;
                   brokenRenderCount = 0;
                 }
-              }, 200);
+              }, 800);
             }, 50);
           }
         };
@@ -3146,12 +3179,27 @@
         // Check 2: Look for styled elements deeper in the DOM
         // Even if body bg is white/transparent, the invite may have styled children
         if (isUnstyled) {
-          var firstDiv = doc.querySelector('div, section, main, header');
-          if (firstDiv) {
-            var divStyle = win.getComputedStyle(firstDiv);
+          // Check multiple elements — themes often nest colorful backgrounds deeper
+          var candidates = doc.querySelectorAll('div, section, main, header, article');
+          for (var ci = 0; ci < Math.min(candidates.length, 10); ci++) {
+            var divStyle = win.getComputedStyle(candidates[ci]);
             var divBg = divStyle.backgroundColor;
-            // If any child has a non-default background, CSS IS working — just body is transparent
+            // If any child has a non-default background, CSS IS working
             if (divBg && divBg !== 'rgba(0, 0, 0, 0)' && divBg !== 'rgb(255, 255, 255)') {
+              isUnstyled = false;
+              break;
+            }
+            // Also check for background-image (gradients, images)
+            var bgImg = divStyle.backgroundImage;
+            if (bgImg && bgImg !== 'none') {
+              isUnstyled = false;
+              break;
+            }
+          }
+          // Also check if any non-default font is applied (CSS is working even if bg is white)
+          if (isUnstyled && doc.body.children.length > 0) {
+            var anyFont = win.getComputedStyle(doc.body.children[0]).fontFamily;
+            if (anyFont && anyFont !== 'Times' && anyFont !== '"Times New Roman"' && anyFont !== 'serif' && anyFont !== 'Times New Roman') {
               isUnstyled = false;
             }
           }
@@ -3284,6 +3332,21 @@
         var win = iframe.contentWindow;
 
         // 6a. Computed visibility check on key elements
+        // Helper: check if element or ancestors have CSS animation/transition on opacity
+        var hasOpacityAnimation = function(el) {
+          try {
+            var cur = el;
+            while (cur && cur !== doc.documentElement) {
+              var s = win.getComputedStyle(cur);
+              var anim = (s.animation || s.webkitAnimation || '').toLowerCase();
+              var trans = (s.transition || s.webkitTransition || '').toLowerCase();
+              if (anim && anim !== 'none' && (anim.indexOf('opacity') !== -1 || anim.indexOf('fade') !== -1 || anim.indexOf('all') !== -1)) return true;
+              if (trans && trans !== 'none' && (trans.indexOf('opacity') !== -1 || trans.indexOf('all') !== -1)) return true;
+              cur = cur.parentElement;
+            }
+          } catch(e) {}
+          return false;
+        };
         var keyEls = [
           { el: titleEl, name: 'title' },
           { el: rsvpSlot, name: 'rsvp' },
@@ -3294,10 +3357,11 @@
           if (!item.el) continue;
           try {
             var style = win.getComputedStyle(item.el);
-            // Check opacity (could be inherited from parent)
-            if (parseFloat(style.opacity) < 0.1) {
+            // Check opacity — but skip if element has animation/transition (fade-in effects)
+            if (parseFloat(style.opacity) < 0.1 && !hasOpacityAnimation(item.el)) {
               cssIssues.push('invisible_' + item.name);
-              if (missing.indexOf(item.name) === -1) missing.push(item.name);
+              // Only add to missing for hard-hidden elements (visibility/display), not opacity
+              // Opacity issues are CSS-only warnings — don't trigger regeneration
             }
             // Check visibility
             if (style.visibility === 'hidden' || style.visibility === 'collapse') {
@@ -3313,7 +3377,7 @@
             var rect = item.el.getBoundingClientRect();
             if (rect.width < 20 || rect.height < 10) {
               cssIssues.push('tiny_' + item.name);
-              if (missing.indexOf(item.name) === -1) missing.push(item.name);
+              // Don't add to missing — tiny dimensions during animation shouldn't trigger regen
             }
           } catch (e2) { /* ignore per-element errors */ }
         }
