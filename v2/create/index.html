@@ -3569,8 +3569,10 @@
           + "- \u{1F4DD} **Update text** \u2014 \"change the date to April 20th\" or \"change the title to ...\"\n"
           + "- \u{2795} **Add RSVP fields** \u2014 \"add a dietary restrictions field\"\n"
           + "- \u{2796} **Remove RSVP fields** \u2014 \"remove the plus-one field\"\n"
-          + "- \u{1F4E7} **Send email invites** from the publish step\n\n"
-          + "Want unlimited AI redesigns, SMS delivery, and more? Upgrade anytime for $4.99.";
+          + "- \u{1F4E7} **Send email invites** to your guests\n"
+          + "- \u{1F517} **Publish & share** your invite link\n\n"
+          + "Happy with the design? Tap **Next** to add guests and publish!\n\n"
+          + "Want AI redesigns or SMS delivery? Upgrade anytime for $4.99.";
       } else {
         welcomeMsg = "Hey! I'm your design assistant for " + title + ". I'm here to help with the finishing touches.\n\n"
           + "Here are some things I can do:\n"
@@ -3898,7 +3900,11 @@
             + '&#x1F4DD; Update any text &mdash; &ldquo;change the date to April 20th&rdquo;<br>'
             + '&#x2795; Add RSVP fields &mdash; &ldquo;add a dietary restrictions field&rdquo;<br>'
             + '&#x2796; Remove RSVP fields &mdash; &ldquo;remove the plus-one field&rdquo;<br>'
-            + '&#x1F4E7; Send email invites from the publish step'
+            + '&#x1F4E7; Send email invites to your guests<br>'
+            + '&#x1F517; Publish &amp; share your invite link'
+            + '</div>'
+            + '<div style="margin-top:10px;text-align:center;">'
+            + '<span onclick="goToStep(3)" style="color:var(--party-coral);font-weight:600;font-size:13px;cursor:pointer;text-decoration:underline;">Happy with the design? Publish &amp; invite your guests &rarr;</span>'
             + '</div>'
             + '</div></div>';
         }
@@ -5368,17 +5374,11 @@
       var onlyBtn = document.getElementById('onlyPublishBtn');
       var mainBtn = document.getElementById('publishBtn');
       var ps = currentEvent ? currentEvent.paymentStatus : 'unpaid';
-      if (ps === 'free') {
-        onlyBtn.textContent = 'Publish for Free';
-        onlyBtn.style.background = 'var(--mint-fizz)';
-        onlyBtn.style.color = 'white';
+      if (ps === 'free' || ps === 'unpaid') {
+        onlyBtn.textContent = 'Just Publish';
+        onlyBtn.style.background = '#f0f0f0';
+        onlyBtn.style.color = 'var(--midnight)';
         mainBtn.textContent = 'Publish & Send Invites';
-      } else if (ps === 'unpaid') {
-        onlyBtn.textContent = 'Publish for $4.99';
-        onlyBtn.style.background = 'var(--party-coral)';
-        onlyBtn.style.color = 'white';
-        mainBtn.textContent = 'Publish & Send — $4.99';
-        mainBtn.style.background = 'var(--party-coral)';
       } else {
         // paid
         onlyBtn.textContent = 'Publish';
@@ -5389,13 +5389,6 @@
     }
 
     function handlePublishClick(withInvites) {
-      var ps = currentEvent ? currentEvent.paymentStatus : 'unpaid';
-      if (ps === 'unpaid') {
-        // Trigger Stripe checkout
-        initiateEventPayment();
-        return;
-      }
-      // free or paid — proceed directly
       if (withInvites) {
         showSendOptions();
       } else {
@@ -5736,9 +5729,6 @@
         if (result.success) {
           clearDraft();
           window.location.href = '/v2/dashboard/?published=' + currentEvent.id;
-        } else if (result.requiresPayment) {
-          // Server rejected publish — payment required
-          initiateEventPayment();
         } else { showMessage(result.error || 'Failed to publish', 'error'); }
       } catch (err) { showMessage('Error publishing event', 'error'); }
       finally {
@@ -5767,13 +5757,26 @@
       // Configure SMS option
       var smsOpt = document.getElementById('sendOptSms');
       var smsCheck = document.getElementById('sendViaSms');
-      if (smsCount === 0) {
+      var ps = currentEvent ? currentEvent.paymentStatus : 'unpaid';
+      var smsLocked = (ps === 'unpaid' || ps === 'free');
+      // Remove any previous upgrade badge
+      var oldBadge = smsOpt.querySelector('.sms-upgrade-badge');
+      if (oldBadge) oldBadge.remove();
+
+      if (smsLocked || smsCount === 0) {
         smsCheck.checked = false;
         smsCheck.disabled = true;
         smsOpt.style.opacity = '0.5';
         smsOpt.style.cursor = 'not-allowed';
         smsOpt.style.borderColor = '#e0e0e0';
         smsOpt.style.background = 'transparent';
+        if (smsLocked && smsCount > 0) {
+          var badge = document.createElement('div');
+          badge.className = 'sms-upgrade-badge';
+          badge.innerHTML = '<span style="font-size:11px;color:var(--party-coral);font-weight:600;cursor:pointer;" onclick="event.preventDefault();event.stopPropagation();handleDesignChatUpgrade();">Upgrade to unlock SMS &rarr;</span>';
+          badge.style.marginTop = '4px';
+          smsOpt.querySelector('div').appendChild(badge);
+        }
       } else {
         smsCheck.checked = true;
         smsCheck.disabled = false;
@@ -6141,8 +6144,10 @@
           + "- \u{1F4DD} **Update text** \u2014 \"change Saturday to Sunday\" or \"change the title to ...\"\n"
           + "- \u{2795} **Add RSVP fields** \u2014 \"add a plus-one count field\"\n"
           + "- \u{2796} **Remove RSVP fields** \u2014 \"remove the dietary restrictions field\"\n"
-          + "- \u{1F4E7} **Send email invites** from the publish step\n\n"
-          + "For AI redesigns, SMS delivery, and more \u2014 upgrade anytime for $4.99." });
+          + "- \u{1F4E7} **Send email invites** to your guests\n"
+          + "- \u{1F517} **Publish & share** your invite link\n\n"
+          + "Happy with the design? Tap **Next** to add guests and publish!\n\n"
+          + "For AI redesigns or SMS delivery \u2014 upgrade anytime for $4.99." });
         renderDesignChat();
         initCostTracker();
         updateMobileLayout();
