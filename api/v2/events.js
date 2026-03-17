@@ -737,13 +737,11 @@ export default async function handler(req, res) {
       const { data: ev } = await supabaseAdmin.from('events').select('id').eq('id', eventId).eq('user_id', user.id).single();
       if (!ev) return res.status(403).json({ error: 'Not your event' });
 
-      // Deactivate any existing themes
-      await supabaseAdmin.from('event_themes').update({ is_active: false }).eq('event_id', eventId);
-
-      // Insert the template theme as a new active version
+      // Get next version number
       const { data: existing } = await supabaseAdmin.from('event_themes').select('version').eq('event_id', eventId).order('version', { ascending: false }).limit(1);
       const nextVersion = (existing && existing.length > 0) ? existing[0].version + 1 : 1;
 
+      // Insert new theme first (don't deactivate old ones until insert succeeds)
       const insertData = {
         event_id: eventId,
         version: nextVersion,
@@ -760,6 +758,10 @@ export default async function handler(req, res) {
       const { data: theme, error } = await supabaseAdmin.from('event_themes').insert(insertData).select('id').single();
 
       if (error) return res.status(500).json({ error: 'Failed to save theme: ' + error.message });
+
+      // Only deactivate old themes after new one is safely inserted
+      await supabaseAdmin.from('event_themes').update({ is_active: false }).eq('event_id', eventId).neq('id', theme.id);
+
       return res.status(200).json({ success: true, themeId: theme.id });
     }
 
