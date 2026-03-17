@@ -4073,7 +4073,7 @@
 
     // ── Design Chat Persistence: Push + persist every message ──
     function pushDesignChat(msg) {
-      pushDesignChat(msg);
+      designChatHistory.push(msg);
       // Persist to backend (fire-and-forget, skip system/rating messages)
       if (msg.role === 'system' || msg.role === 'rating' || msg.role === 'upgrade') return;
       if (!currentEvent || !currentEvent.id) return;
