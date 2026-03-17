@@ -1408,13 +1408,13 @@
               .map(function(f) { return Object.assign({}, f, { enabled: true }); });
           }
 
-          addChatBubble(result.message, 'assistant');
-
-          // If confirmed, show final confirmation card with all details + RSVP fields
+          // If confirmed, show RSVP card first so the AI's "what's next" message appears below it
           if (result.ready && result.confirmed && chatPhase !== 'confirmed' && chatPhase !== 'themeReady') {
             chatPhase = 'confirmed';
             showConfirmationCard();
           }
+
+          addChatBubble(result.message, 'assistant');
 
           // If theme discovery is complete, show photo uploads + Generate button
           if (result.themeReady && chatPhase !== 'themeReady') {
