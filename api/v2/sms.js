@@ -628,6 +628,11 @@ export default async function handler(req, res) {
     if (action === 'sendEmailInvites') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
+      if (!process.env.RESEND_API_KEY) {
+        console.error('RESEND_API_KEY is not configured');
+        return res.status(500).json({ success: false, error: 'Email service is not configured. Please contact support.' });
+      }
+
       const { eventId, subject, message, allGuests, guestIds } = req.body || {};
 
       if (!eventId) {
@@ -869,10 +874,11 @@ export default async function handler(req, res) {
       }
 
       return res.status(200).json({
-        success: true,
+        success: sentCount > 0,
         sent: sentCount,
         failed: failedCount,
-        total: validGuests.length
+        total: validGuests.length,
+        error: sentCount === 0 && failedCount > 0 ? 'All emails failed to send. Please check your Resend configuration.' : undefined
       });
     }
 
