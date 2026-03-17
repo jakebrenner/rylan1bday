@@ -724,6 +724,114 @@ function validateThemeIntegrity(theme) {
     if (textOnly.length < 20) issues.push('content_too_sparse');
   }
 
+  // ── 10. CSS Visual Rendering Analysis ──
+  // Catch CSS patterns that produce invisible/broken output the AI commonly generates.
+  // These are auto-repaired by repairTheme() before the client ever sees them.
+  if (css && html) {
+    // 10a. Invisible text — color matching background-color on same selector
+    const ruleBlocks = css.match(/[^{}]+\{[^}]+\}/g) || [];
+    for (const rule of ruleBlocks) {
+      const colorMatch = rule.match(/(?:^|;\s*)color\s*:\s*([^;!}]+)/i);
+      const bgMatch = rule.match(/background(?:-color)?\s*:\s*([^;!}]+)/i);
+      if (colorMatch && bgMatch) {
+        const c = colorMatch[1].trim().toLowerCase().replace(/\s+/g, '');
+        const bg = bgMatch[1].trim().toLowerCase().replace(/\s+/g, '');
+        // Exact match (white on white, #fff on #fff, etc.) — not gradient backgrounds
+        if (c === bg && !bg.includes('gradient') && !bg.includes('url(')) {
+          issues.push('css_invisible_text');
+          break;
+        }
+      }
+    }
+
+    // 10b. Offscreen positioning — elements pushed way off viewport
+    if (/(?:left|right|top|margin-left|margin-right|transform)\s*:\s*-(?:9{3,}|[5-9]\d{3,})px/i.test(css)) {
+      issues.push('css_offscreen_content');
+    }
+    // translateX/Y with large negative values
+    if (/translate[XY]?\s*\(\s*-(?:9{3,}|[1-9]\d{3,})px/i.test(css)) {
+      issues.push('css_offscreen_content');
+    }
+
+    // 10c. Zero-dimension key containers
+    const keySelectors = ['rsvp-slot', 'details-slot', 'rsvp-button'];
+    for (const sel of keySelectors) {
+      // Find rule blocks that target this selector
+      const selRegex = new RegExp('\\.' + sel.replace('-', '[-]?') + '\\s*\\{([^}]+)\\}', 'i');
+      const selMatch = css.match(selRegex);
+      if (selMatch) {
+        const rules = selMatch[1];
+        if (/(?:^|;\s*)(?:width|height)\s*:\s*0(?:px)?\s*(?:[;!}]|$)/i.test(rules) &&
+            !/overflow/.test(rules)) {
+          issues.push('css_zero_dimension_' + sel.replace('-', '_'));
+        }
+      }
+    }
+
+    // 10d. Permanent opacity:0 without animation (elements invisible forever)
+    // Check if any key element has opacity:0 but no animation that restores it
+    for (const sel of keySelectors) {
+      const selRegex = new RegExp('\\.' + sel.replace('-', '[-]?') + '\\s*\\{([^}]+)\\}', 'i');
+      const selMatch = css.match(selRegex);
+      if (selMatch) {
+        const rules = selMatch[1];
+        if (/opacity\s*:\s*0\s*[;!}]/i.test(rules)) {
+          // Check if there's an animation that would restore it
+          const animName = rules.match(/animation(?:-name)?\s*:\s*([\w-]+)/i);
+          if (animName) {
+            // Check if the @keyframes ends at opacity > 0
+            const kfRegex = new RegExp('@keyframes\\s+' + animName[1] + '\\s*\\{([\\s\\S]*?)\\}\\s*\\}', 'i');
+            const kfMatch = css.match(kfRegex);
+            if (kfMatch && /(?:to|100%)\s*\{[^}]*opacity\s*:\s*(?:0(?:\.0+)?)\s*[;!}]/i.test(kfMatch[1])) {
+              issues.push('css_animation_hides_' + sel.replace('-', '_'));
+            } else if (!kfMatch) {
+              // opacity:0 with animation referencing nonexistent keyframes
+              issues.push('css_opacity_zero_' + sel.replace('-', '_'));
+            }
+          } else {
+            // opacity:0 with no animation at all — permanently invisible
+            issues.push('css_opacity_zero_' + sel.replace('-', '_'));
+          }
+        }
+      }
+    }
+
+    // 10e. Overflow clipping on containers with very small fixed heights
+    for (const sel of ['rsvp-slot', 'details-slot']) {
+      const selRegex = new RegExp('\\.' + sel.replace('-', '[-]?') + '\\s*\\{([^}]+)\\}', 'i');
+      const selMatch = css.match(selRegex);
+      if (selMatch) {
+        const rules = selMatch[1];
+        const hasOverflowHidden = /overflow\s*:\s*hidden/i.test(rules);
+        const heightMatch = rules.match(/(?:max-)?height\s*:\s*(\d+)px/i);
+        if (hasOverflowHidden && heightMatch && parseInt(heightMatch[1]) < 30) {
+          issues.push('css_clipped_' + sel.replace('-', '_'));
+        }
+      }
+    }
+
+    // 10f. display:none on key elements (outside @media queries)
+    // Strip @media blocks first, then check for display:none on key selectors
+    const cssNoMedia = css.replace(/@media[^{]*\{(?:[^{}]*\{[^}]*\})*[^}]*\}/g, '');
+    for (const sel of keySelectors) {
+      const selRegex = new RegExp('\\.' + sel.replace('-', '[-]?') + '\\s*\\{([^}]+)\\}', 'i');
+      const selMatch = cssNoMedia.match(selRegex);
+      if (selMatch && /display\s*:\s*none/i.test(selMatch[1])) {
+        issues.push('css_display_none_' + sel.replace('-', '_'));
+      }
+    }
+
+    // 10g. visibility:hidden on key elements (outside @media and @keyframes)
+    const cssNoMediaKf = cssNoMedia.replace(/@keyframes[^{]*\{(?:[^{}]*\{[^}]*\})*[^}]*\}/g, '');
+    for (const sel of keySelectors) {
+      const selRegex = new RegExp('\\.' + sel.replace('-', '[-]?') + '\\s*\\{([^}]+)\\}', 'i');
+      const selMatch = cssNoMediaKf.match(selRegex);
+      if (selMatch && /visibility\s*:\s*hidden/i.test(selMatch[1])) {
+        issues.push('css_visibility_hidden_' + sel.replace('-', '_'));
+      }
+    }
+  }
+
   return { valid: issues.length === 0, issues };
 }
 
@@ -818,6 +926,77 @@ function repairTheme(theme, issues) {
     } else {
       theme.theme_html = (theme.theme_html || '') + '\n<div class="details-slot"></div>';
       console.log('[repairTheme] Injected missing .details-slot at end');
+    }
+  }
+
+  // ── CSS Visual Rendering Repairs ──
+  // Fix CSS patterns that produce invisible/broken output.
+  // These repairs are surgical — they target only the specific broken property
+  // without regenerating the entire theme.
+
+  // Helper: replace a CSS property within a specific selector's rule block
+  function replaceCssProperty(css, selectorPart, propRegex, replacement) {
+    const selRegex = new RegExp('(\\.' + selectorPart.replace('-', '[-]?') + '\\s*\\{)([^}]+)(\\})', 'i');
+    return css.replace(selRegex, (match, open, rules, close) => {
+      return open + rules.replace(propRegex, replacement) + close;
+    });
+  }
+
+  // 10a. Invisible text (color same as background) — set text to contrasting color
+  if (issues.includes('css_invisible_text')) {
+    const ruleBlocks = (theme.theme_css || '').match(/([^{}]+)\{([^}]+)\}/g) || [];
+    for (const rule of ruleBlocks) {
+      const colorMatch = rule.match(/(?:^|;\s*)color\s*:\s*([^;!}]+)/i);
+      const bgMatch = rule.match(/background(?:-color)?\s*:\s*([^;!}]+)/i);
+      if (colorMatch && bgMatch) {
+        const c = colorMatch[1].trim().toLowerCase().replace(/\s+/g, '');
+        const bg = bgMatch[1].trim().toLowerCase().replace(/\s+/g, '');
+        if (c === bg && !bg.includes('gradient') && !bg.includes('url(')) {
+          // Flip text to contrasting color: light bg → dark text, dark bg → light text
+          const isLightBg = /(?:white|#f|#e|rgb\s*\(\s*2[0-5]\d|rgba?\s*\(\s*2[0-5]\d)/i.test(bg);
+          const contrastColor = isLightBg ? '#1a1a1a' : '#ffffff';
+          theme.theme_css = theme.theme_css.replace(
+            new RegExp('(color\\s*:\\s*)' + c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
+            '$1' + contrastColor
+          );
+          console.log('[repairTheme] Fixed invisible text: set color to', contrastColor);
+          break; // Fix first occurrence
+        }
+      }
+    }
+  }
+
+  // 10b. Offscreen content — remove offscreen positioning
+  if (issues.includes('css_offscreen_content')) {
+    theme.theme_css = theme.theme_css
+      .replace(/(?:left|right|margin-left|margin-right)\s*:\s*-(?:9{3,}|[5-9]\d{3,})px[^;]*;?/gi, '')
+      .replace(/transform\s*:\s*translate[XY]?\s*\(\s*-(?:9{3,}|[1-9]\d{3,})px[^;)]*\)[^;]*;?/gi, '');
+    console.log('[repairTheme] Removed offscreen positioning rules');
+  }
+
+  // 10c/10d/10f/10g. Fix display:none, visibility:hidden, opacity:0, zero dimensions on key elements
+  const keySels = ['rsvp-slot', 'details-slot', 'rsvp-button'];
+  for (const sel of keySels) {
+    const selKey = sel.replace('-', '_');
+    if (issues.some(i => i === 'css_display_none_' + selKey)) {
+      theme.theme_css = replaceCssProperty(theme.theme_css, sel, /display\s*:\s*none\s*;?/gi, 'display: block;');
+      console.log('[repairTheme] Fixed display:none on .' + sel);
+    }
+    if (issues.some(i => i === 'css_visibility_hidden_' + selKey)) {
+      theme.theme_css = replaceCssProperty(theme.theme_css, sel, /visibility\s*:\s*hidden\s*;?/gi, 'visibility: visible;');
+      console.log('[repairTheme] Fixed visibility:hidden on .' + sel);
+    }
+    if (issues.some(i => i === 'css_opacity_zero_' + selKey || i === 'css_animation_hides_' + selKey)) {
+      theme.theme_css = replaceCssProperty(theme.theme_css, sel, /opacity\s*:\s*0\s*;?/gi, 'opacity: 1;');
+      console.log('[repairTheme] Fixed opacity:0 on .' + sel);
+    }
+    if (issues.some(i => i === 'css_zero_dimension_' + selKey)) {
+      theme.theme_css = replaceCssProperty(theme.theme_css, sel, /(?:width|height)\s*:\s*0(?:px)?\s*;?/gi, '');
+      console.log('[repairTheme] Removed zero width/height on .' + sel);
+    }
+    if (issues.some(i => i === 'css_clipped_' + selKey)) {
+      theme.theme_css = replaceCssProperty(theme.theme_css, sel, /overflow\s*:\s*hidden\s*;?/gi, 'overflow: visible;');
+      console.log('[repairTheme] Fixed overflow clipping on .' + sel);
     }
   }
 }

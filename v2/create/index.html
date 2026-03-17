@@ -3099,7 +3099,7 @@
               setTimeout(function() {
                 var result = validateContentCompleteness(iframe);
                 if (!result.valid && !autoRetryInProgress) {
-                  handleBrokenRender(result.missing);
+                  handleBrokenRender(result.missing, result.cssIssues);
                 } else if (result.valid) {
                   lastRenderBroken = false;
                   brokenRenderCount = 0;
@@ -3114,7 +3114,7 @@
               setTimeout(function() {
                 var result = validateContentCompleteness(iframe);
                 if (!result.valid && !autoRetryInProgress) {
-                  handleBrokenRender(result.missing);
+                  handleBrokenRender(result.missing, result.cssIssues);
                 } else if (result.valid) {
                   lastRenderBroken = false;
                   brokenRenderCount = 0;
@@ -3278,21 +3278,155 @@
           if (missing.indexOf('details') === -1) missing.push('details');
         }
 
+        // ── 6. CSS Visual Rendering Smoke Tests ──
+        // Catch CSS issues the server can't detect (requires actual rendering).
+        var cssIssues = [];
+        var win = iframe.contentWindow;
+
+        // 6a. Computed visibility check on key elements
+        var keyEls = [
+          { el: titleEl, name: 'title' },
+          { el: rsvpSlot, name: 'rsvp' },
+          { el: detailsSlot, name: 'details' }
+        ];
+        for (var k = 0; k < keyEls.length; k++) {
+          var item = keyEls[k];
+          if (!item.el) continue;
+          try {
+            var style = win.getComputedStyle(item.el);
+            // Check opacity (could be inherited from parent)
+            if (parseFloat(style.opacity) < 0.1) {
+              cssIssues.push('invisible_' + item.name);
+              if (missing.indexOf(item.name) === -1) missing.push(item.name);
+            }
+            // Check visibility
+            if (style.visibility === 'hidden' || style.visibility === 'collapse') {
+              cssIssues.push('hidden_' + item.name);
+              if (missing.indexOf(item.name) === -1) missing.push(item.name);
+            }
+            // Check display
+            if (style.display === 'none') {
+              cssIssues.push('displaynone_' + item.name);
+              if (missing.indexOf(item.name) === -1) missing.push(item.name);
+            }
+            // Check minimum dimensions (width AND height)
+            var rect = item.el.getBoundingClientRect();
+            if (rect.width < 20 || rect.height < 10) {
+              cssIssues.push('tiny_' + item.name);
+              if (missing.indexOf(item.name) === -1) missing.push(item.name);
+            }
+          } catch (e2) { /* ignore per-element errors */ }
+        }
+
+        // 6b. Contrast check on title text
+        if (titleEl && win) {
+          try {
+            var titleStyle = win.getComputedStyle(titleEl);
+            var textColor = titleStyle.color;
+            var bgColor = titleStyle.backgroundColor;
+            // Parse rgb values
+            var parseRgb = function(c) {
+              var m = (c || '').match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+              return m ? { r: parseInt(m[1]), g: parseInt(m[2]), b: parseInt(m[3]) } : null;
+            };
+            var tc = parseRgb(textColor);
+            var bc = parseRgb(bgColor);
+            if (tc && bc) {
+              // Relative luminance (simplified sRGB)
+              var lum = function(rgb) {
+                var rs = rgb.r / 255, gs = rgb.g / 255, bs = rgb.b / 255;
+                rs = rs <= 0.03928 ? rs / 12.92 : Math.pow((rs + 0.055) / 1.055, 2.4);
+                gs = gs <= 0.03928 ? gs / 12.92 : Math.pow((gs + 0.055) / 1.055, 2.4);
+                bs = bs <= 0.03928 ? bs / 12.92 : Math.pow((bs + 0.055) / 1.055, 2.4);
+                return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+              };
+              var l1 = lum(tc), l2 = lum(bc);
+              var ratio = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+              // WCAG AA minimum is 4.5:1 for normal text; we use 2:1 as a bare minimum
+              // (lower threshold because bg may be transparent/inherited)
+              if (ratio < 2.0 && bc.r + bc.g + bc.b > 0) {
+                cssIssues.push('low_contrast_title');
+                console.warn('[validateContentCompleteness] Low title contrast:', ratio.toFixed(2), textColor, 'on', bgColor);
+              }
+            }
+          } catch (e3) { /* ignore contrast check errors */ }
+        }
+
+        // 6c. Viewport bounds check — key elements within visible area
+        if (rsvpSlot) {
+          try {
+            var rsvpRect = rsvpSlot.getBoundingClientRect();
+            var iframeWidth = iframe.clientWidth || 393;
+            var iframeHeight = iframe.clientHeight || 800;
+            // RSVP completely offscreen (not just partially — allow 50% overlap)
+            if (rsvpRect.right < 0 || rsvpRect.left > iframeWidth ||
+                rsvpRect.bottom < 0 || rsvpRect.top > iframeHeight * 3) {
+              cssIssues.push('offscreen_rsvp');
+              if (missing.indexOf('rsvp') === -1) missing.push('rsvp');
+            }
+          } catch (e4) { /* ignore bounds check errors */ }
+        }
+
+        if (cssIssues.length > 0) {
+          console.warn('[validateContentCompleteness] CSS visual issues:', cssIssues.join(', '));
+        }
+
         var valid = missing.length === 0;
         if (!valid) {
           console.warn('[validateContentCompleteness] Missing elements:', missing.join(', '));
         }
-        return { valid: valid, missing: missing };
+        return { valid: valid, missing: missing, cssIssues: cssIssues };
       } catch (e) {
         console.warn('[validateContentCompleteness] Error:', e.message);
-        return { valid: true, missing: [] }; // Fail open — don't block on errors
+        return { valid: true, missing: [], cssIssues: [] }; // Fail open — don't block on errors
       }
     }
 
+    // Poll quality monitor for healed themes after a broken render is reported.
+    // The server diagnoses and heals in the background (2-15s). We poll at increasing
+    // intervals. If a healed theme arrives, we apply it and skip the fallback options.
+    var healPollTimer = null;
+    function pollForHealedTheme(onHealed, onTimeout) {
+      if (!currentEvent || !currentEvent.id) { onTimeout(); return; }
+      var attempts = 0;
+      var maxAttempts = 5;
+      var delays = [2000, 3000, 4000, 5000, 6000]; // Total: ~20s of polling
+
+      function poll() {
+        if (attempts >= maxAttempts) {
+          healPollTimer = null;
+          onTimeout();
+          return;
+        }
+        authFetch('/api/v2/quality-monitor?action=checkHealedTheme&eventId=' + currentEvent.id)
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            if (data.healed && data.newTheme) {
+              healPollTimer = null;
+              onHealed(data.newTheme, data.diagnosis);
+            } else {
+              attempts++;
+              healPollTimer = setTimeout(poll, delays[attempts] || 5000);
+            }
+          })
+          .catch(function() {
+            attempts++;
+            healPollTimer = setTimeout(poll, delays[attempts] || 5000);
+          });
+      }
+      // Start first poll after initial delay (give server time to diagnose)
+      healPollTimer = setTimeout(poll, delays[0]);
+    }
+
+    function stopHealPolling() {
+      if (healPollTimer) { clearTimeout(healPollTimer); healPollTimer = null; }
+    }
+
     // Handle broken render detection and auto-retry
-    function handleBrokenRender(missing) {
+    function handleBrokenRender(missing, cssIssues) {
       lastRenderBroken = true;
       brokenRenderCount++;
+      var detectedCssIssues = cssIssues || [];
 
       // ── Report quality incident for broken render ──
       if (currentEvent && currentEvent.id) {
@@ -3304,9 +3438,13 @@
             eventId: currentEvent.id,
             eventThemeId: ver ? ver.id : null,
             triggerType: 'broken_render',
-            triggerData: { missing: missing, brokenRenderCount: brokenRenderCount },
+            triggerData: {
+              missing: missing,
+              cssIssues: detectedCssIssues,
+              brokenRenderCount: brokenRenderCount
+            },
             themeSnapshot: ver ? { html: ver.html, css: ver.css, config: ver.config } : null,
-            validationResults: { client: { valid: false, missing: missing } }
+            validationResults: { client: { valid: false, missing: missing, cssIssues: detectedCssIssues } }
           })
         }).catch(function(e) { console.warn('[quality] Broken render incident failed:', e.message); });
       }
@@ -3332,19 +3470,56 @@
         // Trigger full regeneration (not a tweak)
         triggerBrokenRenderRegeneration();
       } else if (brokenRenderCount > 1) {
-        // Multiple broken renders — offer options
+        // Multiple broken renders — try quality-monitor self-heal before showing fallback options.
+        // The incident was already reported above; now poll for the healed result.
         designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
         pushDesignChat({
           role: 'assistant',
-          content: "I'm having trouble getting this right \u2014 the " + missingDesc + " keep not rendering properly. Let's try a different approach.",
-          options: [
-            { label: 'Try a fresh design', value: 'Start completely fresh with a new design \u2014 different theme, different layout' },
-            { label: 'Try a simpler style', value: 'Generate a clean, simple invite design with minimal animations \u2014 focus on readability' },
-            { label: 'Keep current', value: 'Keep the current design as-is, I\'ll work with it' }
-          ]
+          content: "I'm having trouble getting this right \u2014 the " + missingDesc + " keep not rendering properly. Let me try a different approach..."
         });
-        autoRetryInProgress = false;
+        pushDesignChat({ role: 'system', content: 'Attempting enhanced recovery...' });
         renderDesignChat();
+
+        pollForHealedTheme(
+          // onHealed — quality monitor fixed it
+          function(newTheme, diagnosis) {
+            designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+            var healedVer = {
+              id: newTheme.id,
+              html: newTheme.html,
+              css: newTheme.css,
+              config: newTheme.config,
+              version: themeVersions.length + 1
+            };
+            themeVersions.push(healedVer);
+            activeVersionIndex = themeVersions.length - 1;
+            renderPreview(healedVer);
+            renderVersionGallery();
+            brokenRenderCount = 0;
+            autoRetryInProgress = false;
+            lastRenderBroken = false;
+            pushDesignChat({
+              role: 'assistant',
+              content: "I've fixed the rendering issue and regenerated your invite. Take a look!\n\nWant to make any changes?"
+            });
+            renderDesignChat();
+          },
+          // onTimeout — self-heal didn't complete in time, show fallback options
+          function() {
+            designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+            autoRetryInProgress = false;
+            pushDesignChat({
+              role: 'assistant',
+              content: "I wasn't able to auto-fix the rendering issue. Let's try a different approach.",
+              options: [
+                { label: 'Try a fresh design', value: 'Start completely fresh with a new design \u2014 different theme, different layout' },
+                { label: 'Try a simpler style', value: 'Generate a clean, simple invite design with minimal animations \u2014 focus on readability' },
+                { label: 'Keep current', value: 'Keep the current design as-is, I\'ll work with it' }
+              ]
+            });
+            renderDesignChat();
+          }
+        );
       }
     }
 

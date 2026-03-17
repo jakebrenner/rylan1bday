@@ -228,6 +228,16 @@ async function diagnoseAndHeal(incidentId, ctx) {
   let diagnosisTokens = { input: 0, output: 0 };
 
   try {
+    // Build issue-specific context for smarter diagnosis
+    const cssIssuesList = ctx.triggerData?.cssIssues || ctx.validationResults?.client?.cssIssues || [];
+    const missingElements = ctx.triggerData?.missing || ctx.validationResults?.client?.missing || [];
+    const issueContext = cssIssuesList.length > 0
+      ? `\nClient-detected CSS visual issues: ${cssIssuesList.join(', ')}\n(e.g., "invisible_title" = title has opacity<0.1, "low_contrast_title" = text/bg contrast ratio <2:1, "offscreen_rsvp" = RSVP section outside viewport, "tiny_details" = details section too small to see)`
+      : '';
+    const missingContext = missingElements.length > 0
+      ? `\nMissing DOM elements: ${missingElements.join(', ')}`
+      : '';
+
     const resp = await client.messages.create({
       model: diagnosisModel,
       max_tokens: 500,
@@ -235,7 +245,7 @@ async function diagnoseAndHeal(incidentId, ctx) {
       messages: [{ role: 'user', content: `Analyze this invite that triggered a "${ctx.triggerType}" quality incident.
 
 Trigger details: ${JSON.stringify(ctx.triggerData || {})}
-Validation issues: ${JSON.stringify(ctx.validationResults || {})}
+Validation issues: ${JSON.stringify(ctx.validationResults || {})}${issueContext}${missingContext}
 
 Theme HTML (first 3KB):
 ${htmlPreview}
@@ -249,11 +259,12 @@ ${chatPreview}
 Return JSON:
 {
   "diagnosis": "Plain English explanation of what went wrong (2-3 sentences)",
-  "rootCause": "css_missing" | "css_broken" | "content_truncated" | "structure_broken" | "render_error" | "style_mismatch" | "user_dissatisfaction" | "unknown",
+  "rootCause": "css_missing" | "css_broken" | "css_invisible" | "css_offscreen" | "css_contrast" | "content_truncated" | "structure_broken" | "render_error" | "style_mismatch" | "user_dissatisfaction" | "unknown",
   "severity": "critical" | "major" | "minor",
   "canAutoHeal": true or false,
   "healStrategy": "regenerate" | "css_repair" | "content_inject" | null,
-  "healInstructions": "Specific instructions for the healing AI if canAutoHeal is true, null otherwise"
+  "healInstructions": "Specific CSS fix instructions if healStrategy is css_repair (e.g., 'set .rsvp-slot opacity to 1, change title color to #1a1a1a for contrast'). For regenerate, describe what the new design must avoid. Null if canAutoHeal is false.",
+  "cssPropertiesToFix": ["list of specific CSS property:value pairs to change, e.g. '.rsvp-slot { opacity: 1; }' — only for css_repair strategy"]
 }` }]
     });
 
@@ -324,7 +335,93 @@ async function attemptAutoHeal(incidentId, ctx, diagnosis) {
 
   let healPrompt;
   if (diagnosis.healStrategy === 'css_repair') {
+    // If we have specific CSS properties to fix, attempt a surgical patch first
+    const hasSurgicalFix = Array.isArray(diagnosis.cssPropertiesToFix) && diagnosis.cssPropertiesToFix.length > 0;
+
+    if (hasSurgicalFix) {
+      // Try surgical CSS patch without AI — just apply the fixes directly
+      try {
+        let patchedCss = ctx.themeSnapshot?.css || '';
+        let patchApplied = false;
+        for (const fix of diagnosis.cssPropertiesToFix) {
+          // Parse "selector { property: value; }" format
+          const fixMatch = fix.match(/([^{]+)\{\s*([^}]+)\}/);
+          if (fixMatch) {
+            const selector = fixMatch[1].trim();
+            const properties = fixMatch[2].trim();
+            // Find the selector in CSS and append/replace properties
+            const selRegex = new RegExp('(' + selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s*') + '\\s*\\{)([^}]*)(\\})', 'i');
+            if (selRegex.test(patchedCss)) {
+              // Parse individual properties to replace
+              const propPairs = properties.split(';').filter(p => p.trim());
+              for (const prop of propPairs) {
+                const [propName] = prop.split(':').map(s => s.trim());
+                if (propName) {
+                  const propReplace = new RegExp(propName.replace(/[-]/g, '[-]') + '\\s*:[^;]+;?', 'gi');
+                  patchedCss = patchedCss.replace(selRegex, (match, open, rules, close) => {
+                    if (propReplace.test(rules)) {
+                      return open + rules.replace(propReplace, prop.trim() + ';') + close;
+                    }
+                    return open + rules + ' ' + prop.trim() + ';' + close;
+                  });
+                  patchApplied = true;
+                }
+              }
+            }
+          }
+        }
+
+        if (patchApplied) {
+          console.log('[quality-monitor] Surgical CSS patch applied without AI call');
+          // Skip the AI heal entirely — use the patched CSS
+          const healedTheme = {
+            html: ctx.themeSnapshot?.html || '',
+            css: patchedCss,
+            config: ctx.themeSnapshot?.config || {}
+          };
+
+          // Validate and save (same flow as below)
+          const hasRsvp = healedTheme.html.includes('rsvp-slot');
+          const hasDetails = healedTheme.html.includes('details-slot');
+          const hasTitle = healedTheme.html.includes('data-field="title"');
+          if (hasRsvp && hasDetails && hasTitle) {
+            const { data: existingThemes } = await supabase
+              .from('event_themes').select('version').eq('event_id', ctx.eventId)
+              .order('version', { ascending: false }).limit(1);
+            const nextVersion = existingThemes?.length > 0 ? existingThemes[0].version + 1 : 1;
+            await supabase.from('event_themes').update({ is_active: false })
+              .eq('event_id', ctx.eventId).eq('is_active', true);
+            const { data: newTheme, error: themeErr } = await supabase
+              .from('event_themes').insert({
+                event_id: ctx.eventId, version: nextVersion, is_active: true,
+                html: healedTheme.html, css: healedTheme.css, config: healedTheme.config,
+                model: 'css_patch_no_ai', input_tokens: 0, output_tokens: 0,
+                latency_ms: Date.now() - startTime,
+                prompt: 'Surgical CSS patch: ' + diagnosis.cssPropertiesToFix.join('; ')
+              }).select('id').single();
+            if (!themeErr && newTheme) {
+              await supabase.from('quality_incidents').update({
+                resolution_type: 'auto_healed',
+                resolution_data: {
+                  new_theme_id: newTheme.id, model_used: 'css_patch_no_ai',
+                  action_taken: 'surgical_css_patch', cssFixes: diagnosis.cssPropertiesToFix,
+                  latencyMs: Date.now() - startTime
+                },
+                resolved_at: new Date().toISOString()
+              }).eq('id', incidentId);
+              console.log('[quality-monitor] Surgical CSS patch saved:', newTheme.id);
+              return; // Done — no AI needed
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[quality-monitor] Surgical CSS patch failed, falling back to AI:', e.message);
+      }
+    }
+
     healPrompt = `Fix the CSS for this invite. The diagnosis says: "${diagnosis.diagnosis}"
+${hasSurgicalFix ? '\nSpecific CSS fixes needed:\n' + diagnosis.cssPropertiesToFix.join('\n') : ''}
+${diagnosis.healInstructions ? '\nInstructions: ' + diagnosis.healInstructions : ''}
 
 Current CSS:
 ${ctx.themeSnapshot?.css || '[empty]'}
@@ -391,21 +488,27 @@ Return JSON:
     }
   }
 
-  // Validate the healed theme has required elements
+  // Validate the healed theme has required elements AND no CSS visual issues
   const hasRsvp = healedTheme.html.includes('rsvp-slot');
   const hasDetails = healedTheme.html.includes('details-slot');
   const hasTitle = healedTheme.html.includes('data-field="title"');
+  const structuralOk = hasRsvp && hasDetails && hasTitle;
 
-  if (!hasRsvp || !hasDetails || !hasTitle) {
-    console.warn('[quality-monitor] Healed theme still missing elements. rsvp:', hasRsvp, 'details:', hasDetails, 'title:', hasTitle);
-    // Don't save a broken heal — mark as escalated
+  // Run CSS visual checks on the healed output to prevent healing with same bugs
+  const cssVisualIssues = validateHealedCss(healedTheme.html, healedTheme.css);
+
+  if (!structuralOk || cssVisualIssues.length > 0) {
+    console.warn('[quality-monitor] Healed theme still has issues.',
+      'structural:', { rsvp: hasRsvp, details: hasDetails, title: hasTitle },
+      'cssVisual:', cssVisualIssues);
     await supabase.from('quality_incidents').update({
       resolution_type: 'escalated',
       resolution_data: {
         healStrategy: diagnosis.healStrategy,
         model: healModel,
         healedButStillBroken: true,
-        missing: { rsvp: !hasRsvp, details: !hasDetails, title: !hasTitle }
+        missing: { rsvp: !hasRsvp, details: !hasDetails, title: !hasTitle },
+        cssVisualIssues
       }
     }).eq('id', incidentId);
     return;
@@ -487,4 +590,75 @@ Return JSON:
     costCents: healCostCents,
     latencyMs: Date.now() - startTime
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CSS VISUAL VALIDATION (subset of generate-theme.js validateThemeIntegrity)
+// Checks healed output for the same visual rendering issues that the
+// main generation pipeline detects. Prevents saving a "healed" theme
+// that still has the same CSS bugs.
+// ═══════════════════════════════════════════════════════════════════
+function validateHealedCss(html, css) {
+  const issues = [];
+  if (!css || !html) return issues;
+
+  // Invisible text — color matching background-color
+  const ruleBlocks = css.match(/[^{}]+\{[^}]+\}/g) || [];
+  for (const rule of ruleBlocks) {
+    const colorMatch = rule.match(/(?:^|;\s*)color\s*:\s*([^;!}]+)/i);
+    const bgMatch = rule.match(/background(?:-color)?\s*:\s*([^;!}]+)/i);
+    if (colorMatch && bgMatch) {
+      const c = colorMatch[1].trim().toLowerCase().replace(/\s+/g, '');
+      const bg = bgMatch[1].trim().toLowerCase().replace(/\s+/g, '');
+      if (c === bg && !bg.includes('gradient') && !bg.includes('url(')) {
+        issues.push('css_invisible_text');
+        break;
+      }
+    }
+  }
+
+  // Offscreen positioning
+  if (/(?:left|right|top|margin-left|margin-right|transform)\s*:\s*-(?:9{3,}|[5-9]\d{3,})px/i.test(css)) {
+    issues.push('css_offscreen_content');
+  }
+  if (/translate[XY]?\s*\(\s*-(?:9{3,}|[1-9]\d{3,})px/i.test(css)) {
+    issues.push('css_offscreen_content');
+  }
+
+  // Key element issues — display:none, visibility:hidden, opacity:0, zero dimensions
+  const keySelectors = ['rsvp-slot', 'details-slot', 'rsvp-button'];
+  const cssNoMedia = css.replace(/@media[^{]*\{(?:[^{}]*\{[^}]*\})*[^}]*\}/g, '');
+  const cssNoMediaKf = cssNoMedia.replace(/@keyframes[^{]*\{(?:[^{}]*\{[^}]*\})*[^}]*\}/g, '');
+
+  for (const sel of keySelectors) {
+    const selRegex = new RegExp('\\.' + sel.replace('-', '[-]?') + '\\s*\\{([^}]+)\\}', 'i');
+
+    // display:none
+    const dnMatch = cssNoMedia.match(selRegex);
+    if (dnMatch && /display\s*:\s*none/i.test(dnMatch[1])) {
+      issues.push('css_display_none_' + sel);
+    }
+
+    // visibility:hidden
+    const vhMatch = cssNoMediaKf.match(selRegex);
+    if (vhMatch && /visibility\s*:\s*hidden/i.test(vhMatch[1])) {
+      issues.push('css_visibility_hidden_' + sel);
+    }
+
+    // opacity:0 without restoring animation
+    const opMatch = css.match(selRegex);
+    if (opMatch && /opacity\s*:\s*0\s*[;!}]/i.test(opMatch[1])) {
+      const animName = opMatch[1].match(/animation(?:-name)?\s*:\s*([\w-]+)/i);
+      if (!animName) {
+        issues.push('css_opacity_zero_' + sel);
+      }
+    }
+
+    // Zero dimensions
+    if (opMatch && /(?:width|height)\s*:\s*0(?:px)?\s*(?:[;!}]|$)/i.test(opMatch[1])) {
+      issues.push('css_zero_dimension_' + sel);
+    }
+  }
+
+  return issues;
 }
