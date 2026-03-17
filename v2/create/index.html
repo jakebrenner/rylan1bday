@@ -341,6 +341,21 @@
     .invite-page { max-width: 640px; margin: 0 auto; }
     .invite-section { background: white; border: 1px solid #eee; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
     .invite-section h3 { font-size: 16px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    /* Accordion for invite sections on mobile */
+    @media (max-width: 600px) {
+      .invite-section { padding: 0; overflow: hidden; }
+      .invite-section h3 { margin: 0; padding: 16px; cursor: pointer; user-select: none; position: relative; }
+      .invite-section h3::after { content: ''; position: absolute; right: 16px; top: 50%; width: 8px; height: 8px; border-right: 2px solid #999; border-bottom: 2px solid #999; transform: translateY(-60%) rotate(45deg); transition: transform 0.2s; }
+      .invite-section.collapsed h3::after { transform: translateY(-40%) rotate(-45deg); }
+      .invite-section .invite-section-body { padding: 0 16px 16px; }
+      .invite-section.collapsed .invite-section-body { display: none; }
+      .invite-section .add-new-contact { margin-top: 0; }
+      .step[data-step="3"] { padding-top: 20px; padding-bottom: 120px; }
+      .step[data-step="3"] h2 { font-size: 22px; padding: 0 4px; }
+      .step[data-step="3"] .step-desc { padding: 0 4px; }
+      .step[data-step="3"] > .button-group { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px 16px; margin: 0; box-shadow: 0 -2px 12px rgba(0,0,0,0.08); z-index: 100; border-top: 1px solid #eee; flex-direction: row; max-width: none; }
+      .step[data-step="3"] > .button-group .btn { font-size: 13px; padding: 12px 10px; flex: 1; }
+    }
     .contact-search { width: 100%; padding: 10px 14px 10px 36px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.2s; background: white; }
     .contact-search:focus { border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
     .contact-search-wrap { position: relative; margin-bottom: 12px; }
@@ -662,47 +677,53 @@
     </div>
 
     <!-- Step 4: Review & Publish -->
-    <div class="step" data-step="3">
+    <div class="step" data-step="3" style="padding: 20px 0 40px;">
       <h2>Invite People</h2>
       <p class="step-desc">Add guests to your event — you can always add more later</p>
       <div class="invite-page">
-        <!-- Added guests section -->
-        <div class="invite-section">
-          <h3><span>👥</span> Guest List <span class="invited-count" id="guestCount">0 invited</span></h3>
-          <div id="guestList" class="guest-list">
-            <div class="empty-contacts" id="noGuestsMsg">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-              <div>No guests added yet</div>
-              <div style="font-size:12px;margin-top:4px;">Search your contacts below or add someone new</div>
+        <!-- Guest list section — always open -->
+        <div class="invite-section" id="sectionGuestList">
+          <h3 onclick="toggleInviteSection(this)"><span>👥</span> Guest List <span class="invited-count" id="guestCount">0 invited</span></h3>
+          <div class="invite-section-body">
+            <div id="guestList" class="guest-list">
+              <div class="empty-contacts" id="noGuestsMsg">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                <div>No guests added yet</div>
+                <div style="font-size:12px;margin-top:4px;">Add someone below</div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Add from contacts -->
-        <div class="invite-section">
-          <h3><span>📇</span> Add from Contacts</h3>
-          <div id="tagFilterBar" class="tag-filter-bar"></div>
-          <div class="contact-search-wrap">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" class="contact-search" id="contactSearch" placeholder="Search by name, email, or phone..." oninput="filterContacts()">
+        <!-- Add someone new — open by default on mobile -->
+        <div class="invite-section" id="sectionAddNew">
+          <h3 onclick="toggleInviteSection(this)"><span>➕</span> Add Someone New</h3>
+          <div class="invite-section-body">
+            <div class="add-new-contact">
+              <div class="add-contact-row">
+                <input type="text" id="newGuestName" placeholder="Name *">
+                <input type="email" id="newGuestEmail" placeholder="Email">
+              </div>
+              <div class="add-contact-row">
+                <input type="tel" id="newGuestPhone" placeholder="Phone">
+                <button class="btn btn-primary btn-sm" onclick="addNewGuest()" style="white-space:nowrap;">Add Guest</button>
+              </div>
+              <div id="newGuestMsg" style="font-size:12px;margin-top:4px;display:none;"></div>
+            </div>
           </div>
-          <div id="contactListContainer" class="contact-list"></div>
-          <button class="btn btn-primary btn-sm" id="addSelectedBtn" onclick="addSelectedContacts()" style="margin-top:10px;display:none;">Add Selected</button>
         </div>
 
-        <!-- Add new contact -->
-        <div class="invite-section">
-          <h3><span>➕</span> Add Someone New</h3>
-          <div class="add-new-contact">
-            <div class="add-contact-row">
-              <input type="text" id="newGuestName" placeholder="Name *">
-              <input type="email" id="newGuestEmail" placeholder="Email">
+        <!-- Add from contacts — collapsed by default on mobile -->
+        <div class="invite-section" id="sectionContacts">
+          <h3 onclick="toggleInviteSection(this)"><span>📇</span> Add from Contacts</h3>
+          <div class="invite-section-body">
+            <div id="tagFilterBar" class="tag-filter-bar"></div>
+            <div class="contact-search-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" class="contact-search" id="contactSearch" placeholder="Search by name, email, or phone..." oninput="filterContacts()">
             </div>
-            <div class="add-contact-row">
-              <input type="tel" id="newGuestPhone" placeholder="Phone">
-              <button class="btn btn-primary btn-sm" onclick="addNewGuest()" style="white-space:nowrap;">Add Guest</button>
-            </div>
-            <div id="newGuestMsg" style="font-size:12px;margin-top:4px;display:none;"></div>
+            <div id="contactListContainer" class="contact-list"></div>
+            <button class="btn btn-primary btn-sm" id="addSelectedBtn" onclick="addSelectedContacts()" style="margin-top:10px;display:none;">Add Selected</button>
           </div>
         </div>
       </div>
@@ -1909,9 +1930,9 @@
     function goToStep(step) {
       document.querySelector('.chat-container').style.display = step === 1 ? 'flex' : 'none';
 
-      // Lock body scroll on chat/summary steps (prevents iOS keyboard body-scroll);
-      // unlock on design step so user can scroll past preview to edit/regenerate buttons
-      if (step === 2) {
+      // Lock body scroll on chat steps (prevents iOS keyboard body-scroll);
+      // unlock on design step and invite step so user can scroll
+      if (step === 2 || step === 3) {
         document.documentElement.classList.remove('no-scroll');
         document.body.classList.remove('no-scroll');
       } else {
@@ -1932,6 +1953,10 @@
       });
 
       currentStep = step;
+      if (step === 3) {
+        initMobileAccordions();
+        window.scrollTo(0, 0);
+      }
       if (step === 2 && !themeVersions.length && !window._templateSource && document.getElementById('generatingPaywall').style.display === 'none') generateTheme();
       else if (step === 2 && themeVersions.length) {
         // Returning to step 2 with existing themes — show preview
@@ -2020,6 +2045,21 @@
       requestAnimationFrame(apply);
       // Fallback: re-sync after fonts/images load
       setTimeout(apply, 300);
+    }
+
+    // Accordion toggle for invite sections (mobile)
+    function toggleInviteSection(h3El) {
+      if (window.innerWidth > 600) return; // Only accordion on mobile
+      var section = h3El.closest('.invite-section');
+      section.classList.toggle('collapsed');
+    }
+
+    // Collapse "Add from Contacts" by default on mobile
+    function initMobileAccordions() {
+      if (window.innerWidth <= 600) {
+        var contactsSection = document.getElementById('sectionContacts');
+        if (contactsSection) contactsSection.classList.add('collapsed');
+      }
     }
 
     function nextStep() { if (currentStep < totalSteps) goToStep(currentStep + 1); }
