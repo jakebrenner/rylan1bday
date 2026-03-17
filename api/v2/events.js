@@ -354,24 +354,7 @@ export default async function handler(req, res) {
       // Status: frontend sends "Published"/"Draft"/"Archived" — normalize to lowercase enum
       if (updates.status !== undefined) dbUpdates.status = updates.status.toLowerCase();
 
-      // Payment check at publish time (only for unpaid events that aren't already published)
-      if (dbUpdates.status === 'published') {
-        const { data: paymentCheck } = await supabaseAdmin
-          .from('events')
-          .select('payment_status, status')
-          .eq('id', eventId)
-          .single();
-
-        // Only block if truly unpaid AND not already published (re-publishing a live event is always OK)
-        if (paymentCheck?.payment_status === 'unpaid' && paymentCheck?.status !== 'published') {
-          return res.status(403).json({
-            success: false,
-            error: 'Payment required to publish this event. $4.99 per event.',
-            requiresPayment: true,
-            eventPriceCents: 499
-          });
-        }
-      }
+      // All events (free, unpaid, paid) can publish — payment is only required for SMS delivery
 
       // Track generations-to-publish when first published
       if (dbUpdates.status === 'published') {
