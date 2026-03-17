@@ -3607,7 +3607,7 @@
           role: 'assistant',
           content: "Hmm, that didn't render correctly \u2014 the " + missingDesc + " seem to be missing. Let me fix that for you."
         });
-        pushDesignChat({ role: 'system', content: 'Regenerating your invite...' });
+        pushDesignChat({ role: 'system', content: 'Building a fresh design with all your details — this usually takes 15-30 seconds...' });
         renderDesignChat();
 
         // Trigger full regeneration (not a tweak)
@@ -3620,7 +3620,7 @@
           role: 'assistant',
           content: "I'm having trouble getting this right \u2014 the " + missingDesc + " keep not rendering properly. Let me try a different approach..."
         });
-        pushDesignChat({ role: 'system', content: 'Attempting enhanced recovery...' });
+        pushDesignChat({ role: 'system', content: 'Trying a different design approach — hang tight, this may take up to a minute...' });
         renderDesignChat();
 
         pollForHealedTheme(
@@ -5267,7 +5267,7 @@
             role: 'assistant',
             content: "I can see the issue \u2014 the invite didn't render correctly. Let me regenerate it for you."
           });
-          pushDesignChat({ role: 'system', content: 'Regenerating your invite...' });
+          pushDesignChat({ role: 'system', content: 'Building a fresh design with all your details — this usually takes 15-30 seconds...' });
           renderDesignChat();
           input.value = '';
           input.style.height = 'auto';
@@ -5533,7 +5533,7 @@
                 role: 'assistant',
                 content: "I can see the issue \u2014 the invite didn't render correctly. Let me regenerate it for you."
               });
-              pushDesignChat({ role: 'system', content: 'Regenerating your invite...' });
+              pushDesignChat({ role: 'system', content: 'Building a fresh design with all your details — this usually takes 15-30 seconds...' });
               clearDesignChatPhoto();
               renderDesignChat();
               autoRetryInProgress = true;
@@ -5590,6 +5590,25 @@
       skipIntentClassification = false; // Reset flag
 
       // ── TIER 2 & 3: AI-powered tweaks (text-only via Haiku or design via Sonnet) ──
+      // Build a contextual acknowledgment so the user knows we heard them
+      var tweakAck = '';
+      if (typeof classification !== 'undefined' && classification && classification.summary) {
+        // Use the AI's understanding of the request to acknowledge specifically
+        var intent = classification.intent || '';
+        if (intent === 'design_change') {
+          tweakAck = "On it! I'm updating the design — " + classification.summary.charAt(0).toLowerCase() + classification.summary.slice(1) + " This may take a few seconds.";
+        } else if (intent === 'text_change') {
+          tweakAck = "Got it! I'm updating the text for you now. One moment...";
+        } else {
+          tweakAck = "Got it! Working on that for you now — " + classification.summary.charAt(0).toLowerCase() + classification.summary.slice(1) + " Hang tight...";
+        }
+      } else {
+        // No classification available (e.g., skipped) — use a generic but clear message
+        tweakAck = "Got it! I'm working on that change for you now. This may take a few seconds...";
+      }
+      pushDesignChat({ role: 'assistant', content: tweakAck });
+      renderDesignChat();
+
       // Add thinking message with cycling puns
       var tweakPuns = [
         "RSVPerfecting your design...",
