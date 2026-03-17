@@ -228,14 +228,14 @@ export default async function handler(req, res) {
       if (!title) return res.status(400).json({ success: false, error: 'Title is required' });
 
       // Under $4.99 model, anyone can create events (payment gate at publish/send time)
-      // Check if user has EVER had a free event (regardless of archive status)
-      const { count: freeEventCount } = await supabaseAdmin
+      // Check if user has EVER created any event (regardless of status or payment_status)
+      // This ensures archived, refunded, or any other events count toward the "first event free" check
+      const { count: totalEventCount } = await supabaseAdmin
         .from('events')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('payment_status', 'free');
+        .eq('user_id', user.id);
 
-      let isFirstEvent = (freeEventCount || 0) === 0;
+      let isFirstEvent = (totalEventCount || 0) === 0;
       let isPrepaid = false;
 
       // If not first event, check for purchased or admin-granted credits
@@ -510,19 +510,20 @@ export default async function handler(req, res) {
               .update({ purchased_event_credits: (profileData.purchased_event_credits || 0) - 1 })
               .eq('id', user.id);
           } else if ((profileData.free_event_credits || 0) > 0) {
-            newStatus = 'free';
+            // Admin-granted free credits give full paid access (not limited free-tier)
+            newStatus = 'paid';
             await supabaseAdmin
               .from('profiles')
               .update({ free_event_credits: (profileData.free_event_credits || 0) - 1 })
               .eq('id', user.id);
           } else {
-            // Check if user has never had a free event (first event is free)
-            const { count: freeEventCount } = await supabaseAdmin
+            // Check if this is the user's ONLY event (first event is free)
+            // Count all events to prevent loopholes from refunded/archived events
+            const { count: totalEventCount } = await supabaseAdmin
               .from('events')
               .select('id', { count: 'exact', head: true })
-              .eq('user_id', user.id)
-              .eq('payment_status', 'free');
-            if ((freeEventCount || 0) === 0) {
+              .eq('user_id', user.id);
+            if ((totalEventCount || 0) <= 1) {
               newStatus = 'free';
             }
           }

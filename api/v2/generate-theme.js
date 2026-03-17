@@ -1043,12 +1043,14 @@ export default async function handler(req, res) {
             newStatus = 'paid';
             await supabase.from('profiles').update({ purchased_event_credits: (profileData.purchased_event_credits || 0) - 1 }).eq('id', user.id);
           } else if (profileData && (profileData.free_event_credits || 0) > 0) {
-            newStatus = 'free';
+            // Admin-granted free credits give full paid access (not limited free-tier)
+            newStatus = 'paid';
             await supabase.from('profiles').update({ free_event_credits: (profileData.free_event_credits || 0) - 1 }).eq('id', user.id);
           } else {
-            // Check if user has never had a free event (first event is free)
-            const { count: freeEventCount } = await supabase.from('events').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('payment_status', 'free');
-            if ((freeEventCount || 0) === 0) newStatus = 'free';
+            // Check if this is the user's ONLY event (first event is free)
+            // Count all events to prevent loopholes from refunded/archived events
+            const { count: totalEventCount } = await supabase.from('events').select('id', { count: 'exact', head: true }).eq('user_id', user.id);
+            if ((totalEventCount || 0) <= 1) newStatus = 'free';
           }
 
           if (newStatus) {

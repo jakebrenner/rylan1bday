@@ -1853,7 +1853,9 @@
         var cardWidth = header.offsetWidth;
         var scale = cardWidth / 393;
         iframe.style.transform = 'scale(' + scale + ')';
-        iframe.style.marginLeft = '-' + (393 / 2) + 'px';
+        iframe.style.left = '50%';
+        iframe.style.marginLeft = '-' + ((393 * scale) / 2) + 'px';
+        header.style.height = '180px';
       });
     }
     window.addEventListener('resize', rescalePreviewIframes);
