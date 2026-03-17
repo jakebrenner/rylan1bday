@@ -5877,15 +5877,19 @@
         emailOpt.style.background = emailChecked ? 'rgba(233,69,96,0.04)' : 'transparent';
       }
 
-      // Cost estimate (only SMS has a cost)
+      // Delivery summary
+      var channels = [];
       if (smsChecked) {
         var smsCount = addedGuests.filter(function(g) { return g.phone; }).length;
-        var cost = (smsCount * 0.10).toFixed(2);
+        channels.push(smsCount + ' SMS');
+      }
+      if (emailChecked) {
+        var emCount = addedGuests.filter(function(g) { return g.email; }).length;
+        channels.push(emCount + ' email' + (emCount !== 1 ? 's' : ''));
+      }
+      if (channels.length > 0) {
         costEl.style.display = 'block';
-        costEl.textContent = 'SMS cost: $' + cost + ' (' + smsCount + ' message' + (smsCount !== 1 ? 's' : '') + ' x $0.10)' + (emailChecked ? ' · Email is free' : '');
-      } else if (emailChecked) {
-        costEl.style.display = 'block';
-        costEl.textContent = 'Email invites are free';
+        costEl.textContent = channels.join(' + ') + ' will be sent';
       } else {
         costEl.style.display = 'none';
       }
