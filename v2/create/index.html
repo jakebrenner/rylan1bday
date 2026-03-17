@@ -1437,8 +1437,187 @@
       input.focus();
     }
 
+    var TEST_MODE_PROMPTS = [
+      {
+        userMessage: "I'm throwing a birthday party for my daughter Emma. She's turning 7 on April 15th at Sunshine Park from 2-5pm. It's a rainbow unicorn theme!",
+        data: {
+          title: "Emma's 7th Birthday Party",
+          eventType: 'kidsBirthday',
+          startDate: '2026-04-15T14:00:00',
+          endDate: '2026-04-15T17:00:00',
+          locationName: 'Sunshine Park',
+          locationAddress: '123 Rainbow Lane',
+          dressCode: 'Casual & colorful',
+          description: "Rainbow unicorn themed birthday party for Emma's 7th birthday! Join us for cake, games, and magical fun.",
+          prompt: 'Whimsical rainbow unicorn theme with sparkles, pastel colors, and playful typography'
+        },
+        rsvpFields: [
+          { field_key: 'number_of_kids', label: 'Number of Kids Attending', field_type: 'number', is_required: true, options: null, placeholder: '1', enabled: true }
+        ]
+      },
+      {
+        userMessage: "We're getting married! Jake and Sarah's wedding on June 21st at The Grand Estate from 4-10pm. Elegant garden party vibes.",
+        data: {
+          title: "Jake & Sarah's Wedding",
+          eventType: 'wedding',
+          startDate: '2026-06-21T16:00:00',
+          endDate: '2026-06-21T22:00:00',
+          locationName: 'The Grand Estate',
+          locationAddress: '450 Magnolia Drive, Charleston, SC',
+          dressCode: 'Black tie optional',
+          description: "Join us as we celebrate the marriage of Jake and Sarah. Garden ceremony followed by dinner and dancing under the stars.",
+          prompt: 'Elegant garden wedding with soft florals, gold accents, and romantic serif typography'
+        },
+        rsvpFields: [
+          { field_key: 'meal_preference', label: 'Meal Preference', field_type: 'select', is_required: true, options: ['Beef', 'Chicken', 'Fish', 'Vegetarian'], placeholder: '', enabled: true },
+          { field_key: 'plus_one', label: 'Plus One Name', field_type: 'text', is_required: false, options: null, placeholder: 'Guest name', enabled: true }
+        ]
+      },
+      {
+        userMessage: "Planning a corporate holiday party for our team. December 18th at the Downtown Loft from 6-10pm. Modern and festive!",
+        data: {
+          title: 'Annual Holiday Celebration',
+          eventType: 'corporate',
+          startDate: '2026-12-18T18:00:00',
+          endDate: '2026-12-18T22:00:00',
+          locationName: 'The Downtown Loft',
+          locationAddress: '88 Commerce St, Floor 12',
+          dressCode: 'Cocktail attire',
+          description: "Join us for an evening of celebration, great food, and holiday cheer with the whole team.",
+          prompt: 'Sleek modern holiday party with deep jewel tones, geometric patterns, and clean sans-serif type'
+        },
+        rsvpFields: [
+          { field_key: 'dietary_restrictions', label: 'Dietary Restrictions', field_type: 'text', is_required: false, options: null, placeholder: 'Allergies or preferences', enabled: true }
+        ]
+      },
+      {
+        userMessage: "Throwing a backyard BBQ for the 4th of July! Our place, noon to 8pm. Casual and fun, bring the whole family.",
+        data: {
+          title: '4th of July Backyard BBQ',
+          eventType: 'social',
+          startDate: '2026-07-04T12:00:00',
+          endDate: '2026-07-04T20:00:00',
+          locationName: 'The Miller Residence',
+          locationAddress: '742 Evergreen Terrace',
+          dressCode: 'Casual — wear your red, white & blue!',
+          description: "Burgers, dogs, fireworks, and fun. Bring a side dish and your swimsuit — the pool will be open!",
+          prompt: 'Fun patriotic cookout vibe with bold red-white-blue, hand-drawn illustrations, and playful retro lettering'
+        },
+        rsvpFields: [
+          { field_key: 'bringing', label: 'What are you bringing?', field_type: 'text', is_required: false, options: null, placeholder: 'Side dish, dessert, drinks...', enabled: true },
+          { field_key: 'headcount', label: 'Total Guests', field_type: 'number', is_required: true, options: null, placeholder: '2', enabled: true }
+        ]
+      },
+      {
+        userMessage: "Baby shower for my sister Priya! May 10th at the Rosewood Tea Room from 1-4pm. She's having a girl — think soft pinks and botanicals.",
+        data: {
+          title: "Priya's Baby Shower",
+          eventType: 'babyShower',
+          startDate: '2026-05-10T13:00:00',
+          endDate: '2026-05-10T16:00:00',
+          locationName: 'Rosewood Tea Room',
+          locationAddress: '55 Garden Way, Suite B',
+          dressCode: 'Garden party chic',
+          description: "Celebrate the upcoming arrival of baby girl! Join us for tea, treats, and games at a beautiful afternoon shower for Priya.",
+          prompt: 'Soft botanical baby shower with blush pinks, watercolor florals, delicate greenery, and elegant script typography'
+        },
+        rsvpFields: [
+          { field_key: 'gift_registry', label: 'Will you use the gift registry?', field_type: 'select', is_required: false, options: ['Yes', 'No', 'Bringing something else'], placeholder: '', enabled: true }
+        ]
+      },
+      {
+        userMessage: "Hosting a Halloween costume party! October 31st at our warehouse space from 8pm to midnight. Spooky and immersive.",
+        data: {
+          title: 'Halloween Costume Party',
+          eventType: 'social',
+          startDate: '2026-10-31T20:00:00',
+          endDate: '2026-11-01T00:00:00',
+          locationName: 'The Warehouse on 5th',
+          locationAddress: '500 5th Ave, Unit C',
+          dressCode: 'Costume required!',
+          description: "Enter if you dare. A night of frights, dancing, costume contests, and spooky cocktails in our haunted warehouse.",
+          prompt: 'Dark immersive Halloween theme with eerie purple-green glow, creepy elegant typography, and gothic illustrations'
+        },
+        rsvpFields: [
+          { field_key: 'costume_hint', label: 'Costume Hint', field_type: 'text', is_required: false, options: null, placeholder: "What are you dressing as?", enabled: true }
+        ]
+      },
+      {
+        userMessage: "Graduation party for our son Marcus! He just finished med school. June 7th at Lakeview Pavilion from 3-7pm.",
+        data: {
+          title: "Marcus's Graduation Celebration",
+          eventType: 'graduation',
+          startDate: '2026-06-07T15:00:00',
+          endDate: '2026-06-07T19:00:00',
+          locationName: 'Lakeview Pavilion',
+          locationAddress: '200 Lakeshore Drive',
+          dressCode: 'Smart casual',
+          description: "He did it! Join us to celebrate Marcus earning his MD. Food, drinks, and good times by the lake.",
+          prompt: 'Proud sophisticated graduation celebration with navy and gold, clean modern layout, and bold confident typography'
+        },
+        rsvpFields: [
+          { field_key: 'message_for_grad', label: 'Message for Marcus', field_type: 'textarea', is_required: false, options: null, placeholder: 'Congrats message...', enabled: true }
+        ]
+      },
+      {
+        userMessage: "Dinner party at our apartment, March 28th from 7-11pm. Going for a moody, intimate supper club vibe. Only 12 seats.",
+        data: {
+          title: 'Intimate Supper Club',
+          eventType: 'dinnerParty',
+          startDate: '2026-03-28T19:00:00',
+          endDate: '2026-03-28T23:00:00',
+          locationName: 'Our Place',
+          locationAddress: '1201 Broadway, Apt 4A',
+          dressCode: 'Dress to impress',
+          description: "An intimate evening of wine, a multi-course meal, and great conversation. Only 12 seats — reserve yours.",
+          prompt: 'Moody intimate supper club with dark background, warm candlelight tones, minimal elegant serif typography'
+        },
+        rsvpFields: [
+          { field_key: 'wine_preference', label: 'Wine Preference', field_type: 'select', is_required: false, options: ['Red', 'White', 'Both', 'Non-drinker'], placeholder: '', enabled: true },
+          { field_key: 'allergies', label: 'Food Allergies', field_type: 'text', is_required: false, options: null, placeholder: 'Any allergies?', enabled: true }
+        ]
+      },
+      {
+        userMessage: "Sweet 16 for my niece Aaliyah! August 22nd at the Skyline Rooftop from 6-10pm. Glam and sparkly — think pink and gold.",
+        data: {
+          title: "Aaliyah's Sweet 16",
+          eventType: 'birthday',
+          startDate: '2026-08-22T18:00:00',
+          endDate: '2026-08-22T22:00:00',
+          locationName: 'Skyline Rooftop',
+          locationAddress: '1000 High St, Penthouse Level',
+          dressCode: 'Glam / semi-formal',
+          description: "It's Aaliyah's Sweet 16! Join us for a glamorous rooftop celebration with music, dancing, and a photo booth.",
+          prompt: 'Glamorous Sweet 16 with hot pink and gold, sparkle effects, bold fashion-forward typography, and luxury vibes'
+        },
+        rsvpFields: [
+          { field_key: 'song_request', label: 'Song Request', field_type: 'text', is_required: false, options: null, placeholder: 'Request a song for the DJ', enabled: true }
+        ]
+      },
+      {
+        userMessage: "Engagement party for Mia and Ravi! April 5th at Olive & Vine from 5-9pm. Mediterranean garden feel.",
+        data: {
+          title: "Mia & Ravi's Engagement Party",
+          eventType: 'engagement',
+          startDate: '2026-04-05T17:00:00',
+          endDate: '2026-04-05T21:00:00',
+          locationName: 'Olive & Vine',
+          locationAddress: '78 Mediterranean Blvd',
+          dressCode: 'Garden party attire',
+          description: "They said yes! Join us for an evening celebrating Mia and Ravi's engagement with Mediterranean food, wine, and love.",
+          prompt: 'Mediterranean-inspired engagement celebration with olive greens, terracotta, warm sunshine tones, and romantic handwritten script'
+        },
+        rsvpFields: [
+          { field_key: 'attending_with', label: 'Bringing a date?', field_type: 'select', is_required: true, options: ['Just me', 'Me + 1'], placeholder: '', enabled: true }
+        ]
+      }
+    ];
+
     async function runTestMode() {
       var delay = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
+
+      // Pick a random test prompt
+      var testCase = TEST_MODE_PROMPTS[Math.floor(Math.random() * TEST_MODE_PROMPTS.length)];
 
       addChatBubble('engage_test_mode', 'user');
       await delay(300);
@@ -1446,34 +1625,21 @@
       await delay(400);
 
       // Simulate user describing an event
-      addChatBubble('I\'m throwing a birthday party for my daughter Emma. She\'s turning 7 on April 15th at Sunshine Park from 2-5pm. It\'s a rainbow unicorn theme!', 'user');
+      addChatBubble(testCase.userMessage, 'user');
       await delay(500);
 
       // Populate extracted data
-      extractedData = {
-        title: 'Emma\'s 7th Birthday Party',
-        eventType: 'kidsBirthday',
-        startDate: '2026-04-15T14:00:00',
-        endDate: '2026-04-15T17:00:00',
-        locationName: 'Sunshine Park',
-        locationAddress: '123 Rainbow Lane',
-        dressCode: 'Casual & colorful',
-        description: 'Rainbow unicorn themed birthday party for Emma\'s 7th birthday! Join us for cake, games, and magical fun.',
-        prompt: 'Whimsical rainbow unicorn theme with sparkles, pastel colors, and playful typography'
-      };
-
-      rsvpFields = [
-        { field_key: 'number_of_kids', label: 'Number of Kids Attending', field_type: 'number', is_required: true, options: null, placeholder: '1', enabled: true }
-      ];
+      extractedData = Object.assign({}, testCase.data);
+      rsvpFields = testCase.rsvpFields.map(function(f) { return Object.assign({}, f); });
 
       // Fake chat history so it looks like a real conversation happened
       chatHistory = [
         { role: 'user', content: 'engage_test_mode' },
-        { role: 'user', content: 'Birthday party for Emma, turning 7, April 15th at Sunshine Park 2-5pm, rainbow unicorn theme' },
+        { role: 'user', content: testCase.userMessage },
         { role: 'assistant', content: JSON.stringify({ success: true, message: 'Got it!', extracted: extractedData, suggestedRsvpFields: rsvpFields, ready: true, confirmed: true }) }
       ];
 
-      addChatBubble('Got it! Here\'s what I have for Emma\'s birthday party. Let me set everything up...', 'assistant');
+      addChatBubble('Got it! Here\'s what I have. Let me set everything up...', 'assistant');
       await delay(400);
 
       // Create draft event
@@ -1485,7 +1651,7 @@
       await delay(800);
 
       // Set design prompt and proceed directly to generation
-      designPrompt = extractedData.prompt || 'Whimsical rainbow unicorn theme with sparkles, pastel colors, and playful typography';
+      designPrompt = extractedData.prompt;
       generateFromDesignReady();
     }
 
