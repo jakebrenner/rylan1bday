@@ -1427,6 +1427,8 @@
     function renderRemindersTab() {
       var content = document.getElementById('manageContent');
       var html = '';
+      var ps = (managePaymentStatus || '').toLowerCase();
+      var canSms = (ps === 'paid');
 
       // Event date banner
       if (manageDate) {
@@ -1464,10 +1466,14 @@
           var statusCls = r.status === 'pending' ? 'sms-badge-queued' : r.status === 'sent' ? 'sms-badge-delivered' : r.status === 'cancelled' ? 'sms-badge-queued' : 'sms-badge-failed';
           var statusLabel = r.status.charAt(0).toUpperCase() + r.status.slice(1);
           var msgPreview = r.message ? (r.message.length > 60 ? r.message.substring(0, 60) + '...' : r.message) : '';
+          var method = r.delivery_method || 'sms';
+          var methodBadge = method === 'email'
+            ? '<span style="display:inline-block;font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:#EFF6FF;color:#1D4ED8;margin-left:6px;">EMAIL</span>'
+            : '<span style="display:inline-block;font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:#F0FDF4;color:#15803D;margin-left:6px;">SMS</span>';
 
           html += '<li class="reminder-item">'
             + '<div class="reminder-item-info">'
-            + '<div class="reminder-item-label">' + escapeHtml(label) + '</div>'
+            + '<div class="reminder-item-label">' + escapeHtml(label) + methodBadge + '</div>'
             + '<div class="reminder-item-time">' + scheduledDate + '</div>'
             + (msgPreview ? '<div class="reminder-item-msg">' + escapeHtml(msgPreview) + '</div>' : '')
             + '</div>'
@@ -1494,6 +1500,8 @@
       var defaultMsg = 'Reminder: ' + manageTitle + ' is coming up! Don\'t forget to RSVP: ' + inviteUrl;
       var offsetVal = presetMinutes || '';
       var unitVal = 'minutes';
+      var ps = (managePaymentStatus || '').toLowerCase();
+      var canSms = (ps === 'paid');
 
       if (presetMinutes > 0) {
         if (presetMinutes >= 10080 && presetMinutes % 10080 === 0) { offsetVal = presetMinutes / 10080; unitVal = 'weeks'; }
@@ -1502,8 +1510,23 @@
         else { offsetVal = presetMinutes; unitVal = 'minutes'; }
       }
 
+      // Delivery method selector
+      var deliveryHtml = '<div style="margin-bottom:14px;">'
+        + '<div style="font-size:12px;font-weight:600;color:#666;margin-bottom:6px;">Send via</div>'
+        + '<div style="display:flex;gap:8px;">'
+        + '<button id="reminderMethodEmail" onclick="setReminderMethod(\'email\')" style="flex:1;padding:8px 12px;border:2px solid var(--party-coral);background:rgba(233,69,96,0.06);color:var(--party-coral);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;transition:all 0.15s;">Email</button>';
+      if (canSms) {
+        deliveryHtml += '<button id="reminderMethodSms" onclick="setReminderMethod(\'sms\')" style="flex:1;padding:8px 12px;border:2px solid #ddd;background:white;color:#666;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:Inter,sans-serif;transition:all 0.15s;">SMS</button>';
+      } else {
+        deliveryHtml += '<button onclick="startDirectCheckout(\'' + manageEventId + '\')" style="flex:1;padding:8px 12px;border:2px solid #e0e0e0;background:#fafafa;color:#999;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:Inter,sans-serif;" title="Upgrade to unlock SMS reminders">SMS &#x1F512;</button>';
+      }
+      deliveryHtml += '</div>'
+        + '<input type="hidden" id="reminderDeliveryMethod" value="email">'
+        + '</div>';
+
       container.innerHTML = '<div class="reminder-form">'
         + '<div style="font-size:14px;font-weight:600;margin-bottom:12px;">Schedule a reminder</div>'
+        + deliveryHtml
         + '<div class="reminder-form-row">'
         + '<input type="number" id="reminderOffsetVal" value="' + offsetVal + '" min="1" placeholder="1">'
         + '<select id="reminderOffsetUnit">'
@@ -1522,6 +1545,25 @@
         + '</div></div>';
     }
 
+    function setReminderMethod(method) {
+      document.getElementById('reminderDeliveryMethod').value = method;
+      var emailBtn = document.getElementById('reminderMethodEmail');
+      var smsBtn = document.getElementById('reminderMethodSms');
+      if (method === 'email') {
+        emailBtn.style.borderColor = 'var(--party-coral)';
+        emailBtn.style.background = 'rgba(233,69,96,0.06)';
+        emailBtn.style.color = 'var(--party-coral)';
+        emailBtn.style.fontWeight = '600';
+        if (smsBtn) { smsBtn.style.borderColor = '#ddd'; smsBtn.style.background = 'white'; smsBtn.style.color = '#666'; smsBtn.style.fontWeight = '500'; }
+      } else {
+        if (smsBtn) { smsBtn.style.borderColor = 'var(--party-coral)'; smsBtn.style.background = 'rgba(233,69,96,0.06)'; smsBtn.style.color = 'var(--party-coral)'; smsBtn.style.fontWeight = '600'; }
+        emailBtn.style.borderColor = '#ddd';
+        emailBtn.style.background = 'white';
+        emailBtn.style.color = '#666';
+        emailBtn.style.fontWeight = '500';
+      }
+    }
+
     function hideReminderForm() {
       manageReminderFormOpen = false;
       var container = document.getElementById('reminderFormContainer');
@@ -1532,6 +1574,7 @@
       var val = parseInt(document.getElementById('reminderOffsetVal').value);
       var unit = document.getElementById('reminderOffsetUnit').value;
       var msg = document.getElementById('reminderMsg').value.trim();
+      var deliveryMethod = (document.getElementById('reminderDeliveryMethod') || {}).value || 'email';
 
       if (!val || val < 1) { showToast('Enter a valid time'); return; }
       if (!msg) { showToast('Enter a reminder message'); return; }
@@ -1543,7 +1586,7 @@
         var res = await authFetch('/api/v2/sms?action=saveReminder', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventId: manageEventId, reminders: [{ offsetMinutes: offsetMinutes, message: msg }] })
+          body: JSON.stringify({ eventId: manageEventId, reminders: [{ offsetMinutes: offsetMinutes, message: msg, deliveryMethod: deliveryMethod }] })
         });
         var result = await res.json();
         if (result.success) {
