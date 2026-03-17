@@ -5913,6 +5913,24 @@
       btn.textContent = 'Publishing...';
 
       try {
+        // Step 0: Save event details + theme before publishing
+        await saveEventToDB();
+        await saveCustomFields();
+        var activeTheme = themeVersions[activeVersionIndex >= 0 ? activeVersionIndex : 0];
+        if (activeTheme && activeTheme.html) {
+          await authFetch('/api/v2/events?action=saveTheme', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventId: currentEvent.id,
+              html: activeTheme.html,
+              css: activeTheme.css || '',
+              config: activeTheme.config || {},
+              basedOnThemeId: window._templateSource ? (window._templateSource.id || '') : undefined
+            })
+          });
+        }
+
         // Step 1: Publish the event
         var pubRes = await authFetch('/api/v2/events?action=update', {
           method: 'POST',
