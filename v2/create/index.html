@@ -3294,6 +3294,23 @@
       lastRenderBroken = true;
       brokenRenderCount++;
 
+      // ── Report quality incident for broken render ──
+      if (currentEvent && currentEvent.id) {
+        var ver = themeVersions[activeVersionIndex];
+        authFetch('/api/v2/quality-monitor?action=reportIncident', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId: currentEvent.id,
+            eventThemeId: ver ? ver.id : null,
+            triggerType: 'broken_render',
+            triggerData: { missing: missing, brokenRenderCount: brokenRenderCount },
+            themeSnapshot: ver ? { html: ver.html, css: ver.css, config: ver.config } : null,
+            validationResults: { client: { valid: false, missing: missing } }
+          })
+        }).catch(function(e) { console.warn('[quality] Broken render incident failed:', e.message); });
+      }
+
       var missingLabels = {
         title: 'event title',
         details: 'event details (date, location)',
@@ -3305,11 +3322,11 @@
       if (brokenRenderCount <= 1 && !autoRetryInProgress) {
         // First broken render — notify and auto-retry
         autoRetryInProgress = true;
-        designChatHistory.push({
+        pushDesignChat({
           role: 'assistant',
           content: "Hmm, that didn't render correctly \u2014 the " + missingDesc + " seem to be missing. Let me fix that for you."
         });
-        designChatHistory.push({ role: 'system', content: 'Regenerating your invite...' });
+        pushDesignChat({ role: 'system', content: 'Regenerating your invite...' });
         renderDesignChat();
 
         // Trigger full regeneration (not a tweak)
@@ -3317,7 +3334,7 @@
       } else if (brokenRenderCount > 1) {
         // Multiple broken renders — offer options
         designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
-        designChatHistory.push({
+        pushDesignChat({
           role: 'assistant',
           content: "I'm having trouble getting this right \u2014 the " + missingDesc + " keep not rendering properly. Let's try a different approach.",
           options: [
@@ -3360,7 +3377,7 @@
 
         if (!sseRes.ok) {
           autoRetryInProgress = false;
-          designChatHistory.push({
+          pushDesignChat({
             role: 'assistant',
             content: "I wasn't able to regenerate \u2014 sorry about that! Try sending a message like \"start fresh\" and I'll give it another go."
           });
@@ -3398,14 +3415,14 @@
             console.warn('[brokenRenderRetry] Server still reports content warnings:', regenResult.contentWarnings.join(', '));
           }
 
-          designChatHistory.push({
+          pushDesignChat({
             role: 'assistant',
             content: "Done! I've regenerated your invite. Take a look at the preview.\n\nWant to make any changes?"
           });
           showThemeRating(newVer.id);
           // Note: validateContentCompleteness will run again via renderPreview's iframe onload
         } else {
-          designChatHistory.push({
+          pushDesignChat({
             role: 'assistant',
             content: "The regeneration didn't produce a valid result. Let me know if you'd like to try again or start fresh with a different style."
           });
@@ -3417,7 +3434,7 @@
         console.error('[brokenRenderRetry] Error:', err);
         autoRetryInProgress = false;
         designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
-        designChatHistory.push({
+        pushDesignChat({
           role: 'assistant',
           content: "Something went wrong while regenerating \u2014 sorry about that! Try typing \"start fresh\" and I'll give it another go."
         });
@@ -3860,6 +3877,27 @@
     var brokenRenderCount = 0; // Tracks consecutive broken renders for escalation
     var autoRetryInProgress = false; // Prevents recursive auto-retry loops
 
+    // ── Design Chat Persistence: Push + persist every message ──
+    function pushDesignChat(msg) {
+      pushDesignChat(msg);
+      // Persist to backend (fire-and-forget, skip system/rating messages)
+      if (msg.role === 'system' || msg.role === 'rating' || msg.role === 'upgrade') return;
+      if (!currentEvent || !currentEvent.id) return;
+      try {
+        authFetch('/api/v2/quality-monitor?action=logChatMessage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId: currentEvent.id,
+            role: msg.role,
+            content: (msg.content || '').substring(0, 5000),
+            themeVersionIndex: activeVersionIndex,
+            metadata: msg.options ? { hasOptions: true } : undefined
+          })
+        }).catch(function(e) { /* non-critical */ });
+      } catch (e) { /* non-critical */ }
+    }
+
     function switchTab(tab) {
       document.querySelectorAll('.panel-tab').forEach(function(t) { t.classList.remove('active'); });
       document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
@@ -3976,13 +4014,13 @@
             var input = document.getElementById('designChatInput');
             if (input) {
               input.value = savedPendingMsg;
-              designChatHistory.push({ role: 'assistant', content: "Awesome, you've upgraded! Thanks so much for helping support Ryvite. Let me work on that for you now..." });
+              pushDesignChat({ role: 'assistant', content: "Awesome, you've upgraded! Thanks so much for helping support Ryvite. Let me work on that for you now..." });
               renderDesignChat();
               setTimeout(function() { sendDesignChat(); }, 500);
             }
           })();
         } else {
-          designChatHistory.push({ role: 'assistant', content: "Awesome, you've upgraded! Thanks so much for helping support Ryvite.\n\nLet's get back to customizing your invite. What can I help you with?" });
+          pushDesignChat({ role: 'assistant', content: "Awesome, you've upgraded! Thanks so much for helping support Ryvite.\n\nLet's get back to customizing your invite. What can I help you with?" });
           renderDesignChat();
         }
       }
@@ -4525,7 +4563,7 @@
 
     // ── Chat-first "Start from Design" — Detail Collection Phase ──
     async function sendDesignChatCollecting(text, input) {
-      designChatHistory.push({ role: 'user', content: text });
+      pushDesignChat({ role: 'user', content: text });
       chatHistory.push({ role: 'user', content: text });
       renderDesignChat();
       input.value = '';
@@ -4535,7 +4573,7 @@
       sendBtn.disabled = true;
 
       // Show typing indicator in design chat
-      designChatHistory.push({ role: 'system', content: 'Thinking...', progress: 0 });
+      pushDesignChat({ role: 'system', content: 'Thinking...', progress: 0 });
       renderDesignChat();
 
       try {
@@ -4589,7 +4627,7 @@
             });
           }
 
-          designChatHistory.push({ role: 'assistant', content: result.message });
+          pushDesignChat({ role: 'assistant', content: result.message });
           renderDesignChat();
 
           // If chat API says details are ready AND confirmed, transition to RSVP phase
@@ -4616,19 +4654,19 @@
               + fieldListStr + "\n\n"
               + "You can say things like \"remove email\", \"add plus-one count\", or \"make dietary restrictions required\".\n"
               + "When you're happy with the fields, just say \"looks good\"!";
-            designChatHistory.push({ role: 'assistant', content: rsvpMsg });
+            pushDesignChat({ role: 'assistant', content: rsvpMsg });
             renderDesignChat();
           }
         } else {
           var errMsg = result.detail || result.message || result.error || 'Something went wrong';
           console.error('Chat API error (collecting):', JSON.stringify(result));
-          designChatHistory.push({ role: 'assistant', content: "I had a little trouble understanding that — could you try telling me about your event again? For example:\n- \"I'm planning a birthday party for my daughter\"\n- \"We're having a wedding reception in June\"" });
+          pushDesignChat({ role: 'assistant', content: "I had a little trouble understanding that — could you try telling me about your event again? For example:\n- \"I'm planning a birthday party for my daughter\"\n- \"We're having a wedding reception in June\"" });
           renderDesignChat();
         }
       } catch (err) {
         console.error('Chat connection error (collecting):', err);
         designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
-        designChatHistory.push({ role: 'assistant', content: "Looks like our connection dropped — no worries! Just send your message again and we'll pick up right where we left off." });
+        pushDesignChat({ role: 'assistant', content: "Looks like our connection dropped — no worries! Just send your message again and we'll pick up right where we left off." });
         renderDesignChat();
       }
 
@@ -4637,7 +4675,7 @@
 
     // ── Chat-first "Start from Design" — RSVP Fields Phase ──
     async function sendDesignChatRsvpFields(text, input) {
-      designChatHistory.push({ role: 'user', content: text });
+      pushDesignChat({ role: 'user', content: text });
       renderDesignChat();
       input.value = '';
       input.style.height = 'auto';
@@ -4668,7 +4706,7 @@
         if (pendingDesignRequest) {
           var pendingReq = pendingDesignRequest;
           pendingDesignRequest = null;
-          designChatHistory.push({ role: 'assistant', content: "All set! Now let me apply those design changes you mentioned..." });
+          pushDesignChat({ role: 'assistant', content: "All set! Now let me apply those design changes you mentioned..." });
           renderDesignChat();
           sendBtn.disabled = false;
           // Simulate sending the pending design request through the normal tweak system
@@ -4680,7 +4718,7 @@
 
         var tweakMsg = "All set! Your invite is personalized and ready.\n\n"
           + "Want to tweak anything? You can adjust colors, fonts, layout, text, or anything else. Just describe what you'd like to change.";
-        designChatHistory.push({ role: 'assistant', content: tweakMsg });
+        pushDesignChat({ role: 'assistant', content: tweakMsg });
         renderDesignChat();
         sendBtn.disabled = false;
         return;
@@ -4697,7 +4735,7 @@
         var fieldListStr = enabledFields.map(function(f) {
           return '- ' + f.label + (f.is_required ? ' (required)' : '');
         }).join('\n');
-        designChatHistory.push({ role: 'assistant', content: rsvpFieldResult.chatResponse + '\n\nCurrent fields:\n' + fieldListStr + '\n\nSay "looks good" when you\'re happy, or keep adjusting!' });
+        pushDesignChat({ role: 'assistant', content: rsvpFieldResult.chatResponse + '\n\nCurrent fields:\n' + fieldListStr + '\n\nSay "looks good" when you\'re happy, or keep adjusting!' });
         renderDesignChat();
         sendBtn.disabled = false;
         return;
@@ -4740,7 +4778,7 @@
               var responseMsg = exists
                 ? syncNote + 'That field already exists!'
                 : syncNote + 'Added "' + f.label + '"!';
-              designChatHistory.push({ role: 'assistant', content: responseMsg + '\n\nCurrent fields:\n' + fieldListStr + '\n\nSay "looks good" when you\'re happy, or keep adjusting!' });
+              pushDesignChat({ role: 'assistant', content: responseMsg + '\n\nCurrent fields:\n' + fieldListStr + '\n\nSay "looks good" when you\'re happy, or keep adjusting!' });
               renderDesignChat();
               sendBtn.disabled = false;
               return;
@@ -4752,7 +4790,7 @@
       }
 
       // Fallback: didn't match any field operation, tell user
-      designChatHistory.push({ role: 'assistant', content: "I can help you add, remove, or modify RSVP fields. Try something like:\n- \"Add a dietary restrictions field\"\n- \"Remove email\"\n- \"Make name required\"\n\nOr say \"looks good\" when you're done!" });
+      pushDesignChat({ role: 'assistant', content: "I can help you add, remove, or modify RSVP fields. Try something like:\n- \"Add a dietary restrictions field\"\n- \"Remove email\"\n- \"Make name required\"\n\nOr say \"looks good\" when you're done!" });
       renderDesignChat();
       sendBtn.disabled = false;
     }
@@ -4775,8 +4813,8 @@
       if (currentEvent && (currentEvent.paymentStatus === 'unpaid' || currentEvent.paymentStatus === 'refunded')) {
         pendingUpgradeMessage = text;
         sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
-        designChatHistory.push({ role: 'user', content: text });
-        designChatHistory.push({ role: 'upgrade', content: "This event requires a $4.99 upgrade before you can make design changes. Upgrade to unlock AI designs, SMS delivery, and everything you need." });
+        pushDesignChat({ role: 'user', content: text });
+        pushDesignChat({ role: 'upgrade', content: "This event requires a $4.99 upgrade before you can make design changes. Upgrade to unlock AI designs, SMS delivery, and everything you need." });
         renderDesignChat();
         input.value = '';
         input.style.height = 'auto';
@@ -4789,11 +4827,11 @@
         if (!rsvpFieldPattern.test(text) && !textSwapPattern.test(text)) {
           pendingUpgradeMessage = text;
           sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
-          designChatHistory.push({ role: 'user', content: text });
+          pushDesignChat({ role: 'user', content: text });
           if (!currentEvent.freeRedoUsed) {
-            designChatHistory.push({ role: 'upgrade', content: "I can't make design tweaks on the free plan, but if the design was completely off from what you asked for, I can generate a brand new one \u2014 just tell me what's wrong.\n\nOr upgrade for $4.99 to unlock unlimited design changes." });
+            pushDesignChat({ role: 'upgrade', content: "I can't make design tweaks on the free plan, but if the design was completely off from what you asked for, I can generate a brand new one \u2014 just tell me what's wrong.\n\nOr upgrade for $4.99 to unlock unlimited design changes." });
           } else {
-            designChatHistory.push({ role: 'upgrade', content: "You've used your free design and redo. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite." });
+            pushDesignChat({ role: 'upgrade', content: "You've used your free design and redo. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite." });
           }
           renderDesignChat();
           input.value = '';
@@ -4806,8 +4844,8 @@
       if (text && !hasPhotos) {
         var photoKeywords = /\b(photo|picture|image|pic|selfie|headshot|portrait|snapshot|upload.*(photo|image|pic)|include.*(photo|image|pic)|(add|use|put|include|attach|insert).*(photo|picture|image|pic))\b/i;
         if (photoKeywords.test(text)) {
-          designChatHistory.push({ role: 'user', content: text });
-          designChatHistory.push({ role: 'assistant', content: "It looks like you want to include a photo, but I don't see one attached! Tap the photo icon (bottom left) to upload your image(s), then send your message again. You can upload up to 6 photos!" });
+          pushDesignChat({ role: 'user', content: text });
+          pushDesignChat({ role: 'assistant', content: "It looks like you want to include a photo, but I don't see one attached! Tap the photo icon (bottom left) to upload your image(s), then send your message again. You can upload up to 6 photos!" });
           renderDesignChat();
           input.value = '';
           input.style.height = 'auto';
@@ -4868,8 +4906,8 @@
         var detailChangePattern = /\b(change|update|move|switch|set|make)\b.{0,20}\b(date|time|day|event date|start time|end time|location|venue|address|place|dress code|dresscode|title|event name)\b/i;
         var dateChangePattern = /\b(a day|one day|two days?|a week|next week|later|earlier|sooner|different day|different date|different time)\b/i;
         if (detailChangePattern.test(text) || (dateChangePattern.test(text) && /\b(change|update|move|push|bump)\b/i.test(text))) {
-          designChatHistory.push({ role: 'user', content: text });
-          designChatHistory.push({ role: 'assistant', content: "I handle the visual design of your invite, but I can't change event details like dates, times, or locations. You can update those in the **Details** tab above — just tap \"Details\" and edit from there!\n\nIs there anything design-related I can help with?" });
+          pushDesignChat({ role: 'user', content: text });
+          pushDesignChat({ role: 'assistant', content: "I handle the visual design of your invite, but I can't change event details like dates, times, or locations. You can update those in the **Details** tab above — just tap \"Details\" and edit from there!\n\nIs there anything design-related I can help with?" });
           renderDesignChat();
           input.value = '';
           input.style.height = 'auto';
@@ -4888,12 +4926,12 @@
 
         // If we already know the render is broken, ANY complaint should trigger recovery
         if (isBrokenComplaint || (lastRenderBroken && vagueKeywords && /\b(don'?t|not|wrong|bad|off|broken|missing)\b/i.test(text))) {
-          designChatHistory.push({ role: 'user', content: text });
-          designChatHistory.push({
+          pushDesignChat({ role: 'user', content: text });
+          pushDesignChat({
             role: 'assistant',
             content: "I can see the issue \u2014 the invite didn't render correctly. Let me regenerate it for you."
           });
-          designChatHistory.push({ role: 'system', content: 'Regenerating your invite...' });
+          pushDesignChat({ role: 'system', content: 'Regenerating your invite...' });
           renderDesignChat();
           input.value = '';
           input.style.height = 'auto';
@@ -4922,7 +4960,7 @@
         if (redesignKeywords.test(text) || (vagueKeywords.test(text) && !hasSpecificInstruction)) {
           pendingRedesignText = text;
           awaitingRedesignClarification = true;
-          designChatHistory.push({ role: 'user', content: text });
+          pushDesignChat({ role: 'user', content: text });
 
           // Tailor the question based on whether it's a full redesign or vague dissatisfaction
           var isFullRedesign = redesignKeywords.test(text);
@@ -4944,7 +4982,7 @@
                 { label: 'Start fresh', value: 'Start completely fresh — new theme, new layout, new colors, surprise me' }
               ];
 
-          designChatHistory.push({
+          pushDesignChat({
             role: 'assistant',
             content: clarifyMsg,
             options: clarifyOptions
@@ -4963,7 +5001,7 @@
       if (hasPhotos && text) userMsg = text + ' (with ' + designChatPhotoUrls.length + ' photo' + (designChatPhotoUrls.length > 1 ? 's' : '') + ')';
       else if (hasPhotos) userMsg = '(uploaded ' + designChatPhotoUrls.length + ' photo' + (designChatPhotoUrls.length > 1 ? 's' : '') + ')';
 
-      designChatHistory.push({ role: 'user', content: userMsg });
+      pushDesignChat({ role: 'user', content: userMsg });
       renderDesignChat();
       input.value = '';
       input.style.height = 'auto';
@@ -4978,7 +5016,7 @@
         console.log('[tweak] INSTANT field change:', rsvpFieldResult.action);
         applyRsvpFieldChanges(rsvpFieldResult.changes);
         renderPreview(themeVersions[activeVersionIndex]);
-        designChatHistory.push({ role: 'assistant', content: rsvpFieldResult.chatResponse + '\n\nWant to make any more changes?' });
+        pushDesignChat({ role: 'assistant', content: rsvpFieldResult.chatResponse + '\n\nWant to make any more changes?' });
         clearDesignChatPhoto();
         sendBtn.disabled = false;
         renderDesignChat();
@@ -5026,9 +5064,9 @@
               renderPreview(themeVersions[activeVersionIndex]);
               if (addedLabels.length > 0) {
                 var fieldListStr = addedLabels.map(function(l) { return '"' + l + '"'; }).join(' and ');
-                designChatHistory.push({ role: 'assistant', content: 'Done! ' + syncNote + 'Added ' + fieldListStr + ' to your RSVP form.\n\nWant to make any more changes?' });
+                pushDesignChat({ role: 'assistant', content: 'Done! ' + syncNote + 'Added ' + fieldListStr + ' to your RSVP form.\n\nWant to make any more changes?' });
               } else {
-                designChatHistory.push({ role: 'assistant', content: syncNote + 'Those fields already exist in your RSVP form!\n\nWant to make any other changes?' });
+                pushDesignChat({ role: 'assistant', content: syncNote + 'Those fields already exist in your RSVP form!\n\nWant to make any other changes?' });
               }
               clearDesignChatPhoto();
               sendBtn.disabled = false;
@@ -5041,7 +5079,7 @@
         }
         // If interpretation failed but we had sync changes, still report those
         if (rsvpFieldResult.action === 'mixed' && syncNote) {
-          designChatHistory.push({ role: 'assistant', content: syncNote + "I wasn't sure about the field to add though. Could you tell me more specifically what you'd like? For example:\n- \"Add a text field for dietary restrictions\"\n- \"Add a dropdown for meal choice with options: chicken, fish, veggie\"" });
+          pushDesignChat({ role: 'assistant', content: syncNote + "I wasn't sure about the field to add though. Could you tell me more specifically what you'd like? For example:\n- \"Add a text field for dietary restrictions\"\n- \"Add a dropdown for meal choice with options: chicken, fish, veggie\"" });
           clearDesignChatPhoto();
           sendBtn.disabled = false;
           renderDesignChat();
@@ -5049,7 +5087,7 @@
         }
         // Pure add_async that failed interpretation — ask for clarification instead of expensive fallthrough
         if (rsvpFieldResult.action === 'add_async') {
-          designChatHistory.push({ role: 'assistant', content: "I think you want to add a field to your RSVP form, but I want to make sure I get it right. Could you describe the field in a bit more detail? For example:\n- \"Add a text field for dietary restrictions\"\n- \"Add a number field for how many guests\"\n- \"Add a dropdown for t-shirt size with options: S, M, L, XL\"" });
+          pushDesignChat({ role: 'assistant', content: "I think you want to add a field to your RSVP form, but I want to make sure I get it right. Could you describe the field in a bit more detail? For example:\n- \"Add a text field for dietary restrictions\"\n- \"Add a number field for how many guests\"\n- \"Add a dropdown for t-shirt size with options: S, M, L, XL\"" });
           clearDesignChatPhoto();
           sendBtn.disabled = false;
           renderDesignChat();
@@ -5071,7 +5109,7 @@
             ver.config.emailHtml = ver.config.emailHtml.substring(0, idx) + textSwap.newText + ver.config.emailHtml.substring(idx + originalSubstr.length);
             themeVersions[activeVersionIndex] = ver;
             renderPreview(ver);
-            designChatHistory.push({ role: 'assistant', content: 'Done! Changed "' + originalSubstr + '" to "' + textSwap.newText + '" in the email.\n\nWant to make any more changes?' });
+            pushDesignChat({ role: 'assistant', content: 'Done! Changed "' + originalSubstr + '" to "' + textSwap.newText + '" in the email.\n\nWant to make any more changes?' });
             clearDesignChatPhoto();
             sendBtn.disabled = false;
             renderDesignChat();
@@ -5088,7 +5126,7 @@
             ver.html = ver.html.substring(0, idx) + textSwap.newText + ver.html.substring(idx + originalSubstr.length);
             themeVersions[activeVersionIndex] = ver;
             renderPreview(ver);
-            designChatHistory.push({ role: 'assistant', content: 'Done! Changed "' + originalSubstr + '" to "' + textSwap.newText + '".\n\nWant to make any more changes?' });
+            pushDesignChat({ role: 'assistant', content: 'Done! Changed "' + originalSubstr + '" to "' + textSwap.newText + '".\n\nWant to make any more changes?' });
             clearDesignChatPhoto();
             sendBtn.disabled = false;
             renderDesignChat();
@@ -5133,9 +5171,9 @@
               if (!exists) {
                 applyRsvpFieldChanges([{ action: 'add', field_key: fieldKey, label: fd.label, field_type: fd.field_type || 'text', is_required: fd.is_required || false, placeholder: fd.placeholder || null }]);
                 renderPreview(themeVersions[activeVersionIndex]);
-                designChatHistory.push({ role: 'assistant', content: 'Done! Added a "' + fd.label + '" field to your RSVP form.\n\nWant to make any more changes?' });
+                pushDesignChat({ role: 'assistant', content: 'Done! Added a "' + fd.label + '" field to your RSVP form.\n\nWant to make any more changes?' });
               } else {
-                designChatHistory.push({ role: 'assistant', content: 'That field already exists in your RSVP form!\n\nWant to make any other changes?' });
+                pushDesignChat({ role: 'assistant', content: 'That field already exists in your RSVP form!\n\nWant to make any other changes?' });
               }
               clearDesignChatPhoto();
               sendBtn.disabled = false;
@@ -5145,7 +5183,7 @@
 
             // If the classifier detected this is a question, answer conversationally
             if (classification.intent === 'question' && classification.confidence >= 0.6) {
-              designChatHistory.push({ role: 'assistant', content: (classification.summary || "That's a great question!") + "\n\nI'm your design assistant — I can help you change colors, fonts, layout, add photos, or tweak any visual element of your invite. Just tell me what you'd like to change!" });
+              pushDesignChat({ role: 'assistant', content: (classification.summary || "That's a great question!") + "\n\nI'm your design assistant — I can help you change colors, fonts, layout, add photos, or tweak any visual element of your invite. Just tell me what you'd like to change!" });
               clearDesignChatPhoto();
               sendBtn.disabled = false;
               renderDesignChat();
@@ -5155,11 +5193,11 @@
             // If the classifier detected a broken render report, bypass clarification and auto-regenerate
             if (classification.intent === 'broken_render' && classification.confidence >= 0.6) {
               console.log('[tweak] Classifier detected broken_render — triggering auto-regeneration');
-              designChatHistory.push({
+              pushDesignChat({
                 role: 'assistant',
                 content: "I can see the issue \u2014 the invite didn't render correctly. Let me regenerate it for you."
               });
-              designChatHistory.push({ role: 'system', content: 'Regenerating your invite...' });
+              pushDesignChat({ role: 'system', content: 'Regenerating your invite...' });
               clearDesignChatPhoto();
               renderDesignChat();
               autoRetryInProgress = true;
@@ -5196,7 +5234,7 @@
                 }
               }
 
-              designChatHistory.push({
+              pushDesignChat({
                 role: 'assistant',
                 content: classification.clarification,
                 options: intentOptions
@@ -5235,7 +5273,7 @@
       var shuffledTweakPuns = tweakPuns.sort(function() { return Math.random() - 0.5; });
       var tweakPunIdx = 0;
       var tweakProgress = 5;
-      designChatHistory.push({ role: 'system', content: shuffledTweakPuns[0], progress: tweakProgress });
+      pushDesignChat({ role: 'system', content: shuffledTweakPuns[0], progress: tweakProgress });
       renderDesignChat();
       var tweakPunInterval = setInterval(function() {
         tweakPunIdx = (tweakPunIdx + 1) % shuffledTweakPuns.length;
@@ -5313,20 +5351,20 @@
             try { errJson403 = await sseRes.json(); } catch(e) {}
             if (errJson403.requiresPayment && errJson403.freeRedoAvailable) {
               // First generation used, but redo still available — guide the user
-              designChatHistory.push({ role: 'assistant', content: "I can't make small tweaks on the free plan, but if the design is completely off from what you asked for, I can generate a brand new one.\n\nJust tell me what's wrong with the current design (e.g., \"this is a rocket theme but I asked for trains\") and I'll start fresh.\n\nOr upgrade for $4.99 to unlock unlimited design changes." });
+              pushDesignChat({ role: 'assistant', content: "I can't make small tweaks on the free plan, but if the design is completely off from what you asked for, I can generate a brand new one.\n\nJust tell me what's wrong with the current design (e.g., \"this is a rocket theme but I asked for trains\") and I'll start fresh.\n\nOr upgrade for $4.99 to unlock unlimited design changes." });
             } else if (errJson403.requiresPayment) {
               // Both free gen + redo used — upgrade required
-              designChatHistory.push({ role: 'upgrade', content: "You've used your free design and redo. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite." });
+              pushDesignChat({ role: 'upgrade', content: "You've used your free design and redo. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite." });
             } else {
-              designChatHistory.push({ role: 'assistant', content: errJson403.error || "I wasn't able to make that change right now." });
+              pushDesignChat({ role: 'assistant', content: errJson403.error || "I wasn't able to make that change right now." });
             }
           } else if (sseRes.status === 504) {
-            designChatHistory.push({ role: 'assistant', content: "That took a bit too long — my apologies! Could you try breaking it into a smaller change? For example:\n- \"Make the background darker\"\n- \"Change the heading font\"\n\nSmaller tweaks work much faster!" });
+            pushDesignChat({ role: 'assistant', content: "That took a bit too long — my apologies! Could you try breaking it into a smaller change? For example:\n- \"Make the background darker\"\n- \"Change the heading font\"\n\nSmaller tweaks work much faster!" });
           } else {
             var errText = '';
             try { var errJson = await sseRes.json(); errText = errJson.error || errJson.message || ''; } catch(e) {}
             console.error('[tweak] Non-200 response:', sseRes.status, errText);
-            designChatHistory.push({ role: 'assistant', content: "I ran into a hiccup trying to make that change. Could you rephrase what you'd like? For example:\n- \"Make the colors warmer\"\n- \"Use a more elegant font\"\n- \"Add more spacing between sections\"" });
+            pushDesignChat({ role: 'assistant', content: "I ran into a hiccup trying to make that change. Could you rephrase what you'd like? For example:\n- \"Make the colors warmer\"\n- \"Use a more elegant font\"\n- \"Add more spacing between sections\"" });
           }
         } else {
           // Read full response as text (avoids ReadableStream which Safari kills on mobile)
@@ -5365,7 +5403,7 @@
             // AI returned conversational text instead of a theme change — display it
             var chatOnlyMsg = (tweakResult.chatResponse || 'Could you tell me what specific changes you\'d like?') + '\n\nTry something like:\n- "Make the background darker"\n- "Change the fonts to something more elegant"\n- "Add more gold accents"';
             if (tweakResult.metadata) updateCostFromGeneration(tweakResult.metadata);
-            designChatHistory.push({ role: 'assistant', content: chatOnlyMsg });
+            pushDesignChat({ role: 'assistant', content: chatOnlyMsg });
             renderDesignChat();
             sendBtn.disabled = false;
             return;
@@ -5402,12 +5440,12 @@
             // Track tweak cost — show estimate immediately, then refresh from DB
             if (tweakResult.metadata) updateCostFromGeneration(tweakResult.metadata);
             setTimeout(function() { initCostTracker(); }, 6000);
-            designChatHistory.push({ role: 'assistant', content: chatMsg });
+            pushDesignChat({ role: 'assistant', content: chatMsg });
             // Show rating widget for every generation (tweaks included)
             showThemeRating(newVer.id);
           } else if (tweakError) {
             console.error('[tweak] Server error:', tweakError.message || tweakError.error);
-            designChatHistory.push({ role: 'assistant', content: "I wasn't able to make that change — let me try to help another way. Could you describe what you'd like differently? For example:\n- \"Make the background a deep navy blue\"\n- \"Use a playful, rounded font\"\n- \"Make the layout more spacious\"" });
+            pushDesignChat({ role: 'assistant', content: "I wasn't able to make that change — let me try to help another way. Could you describe what you'd like differently? For example:\n- \"Make the background a deep navy blue\"\n- \"Use a playful, rounded font\"\n- \"Make the layout more spacious\"" });
           } else {
             // No result parsed from response — log debug info, show friendly recovery
             var debugInfo = 'Status: ' + sseRes.status + ' | Bytes: ' + tweakFullText.length + ' | Lines: ' + tweakLines.length;
@@ -5415,7 +5453,7 @@
             var hasDataLines = tweakLines.filter(function(l) { return l.startsWith('data:'); }).length;
             debugInfo += ' | Events: ' + hasEventLines + ' | Data: ' + hasDataLines;
             console.error('[tweak] No result found. Debug:', debugInfo, 'Full text:', tweakFullText.substring(0, 1000));
-            designChatHistory.push({ role: 'assistant', content: "Hmm, something went wrong on my end — sorry about that! Let's try again. What change would you like to make? I work best with specific requests like:\n- \"Make the heading larger\"\n- \"Change the background to a gradient\"\n- \"Add a border around the RSVP section\"" });
+            pushDesignChat({ role: 'assistant', content: "Hmm, something went wrong on my end — sorry about that! Let's try again. What change would you like to make? I work best with specific requests like:\n- \"Make the heading larger\"\n- \"Change the background to a gradient\"\n- \"Add a border around the RSVP section\"" });
           }
         }
       } catch (err) {
@@ -5423,7 +5461,7 @@
         clearInterval(tweakPunInterval);
         designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
         console.error('[tweak] Connection error details:', err.message);
-        designChatHistory.push({ role: 'assistant', content: "Looks like our connection was interrupted — these things happen! Let's try again. Just send your request one more time and I'll get right on it." });
+        pushDesignChat({ role: 'assistant', content: "Looks like our connection was interrupted — these things happen! Let's try again. Just send your request one more time and I'll get right on it." });
       }
 
       clearDesignChatPhoto();
@@ -5450,7 +5488,7 @@
       }
       awaitingRedesignClarification = false;
       // Show the user's selection as a message
-      designChatHistory.push({ role: 'user', content: value });
+      pushDesignChat({ role: 'user', content: value });
       renderDesignChat();
       // Combine original request with clarification and send — skip redesign detection
       var combined = (pendingRedesignText || 'Give me a new design') + '\n\nClarification from user: ' + value;
@@ -5471,7 +5509,7 @@
       }
       awaitingIntentClarification = false;
       // Show the user's selection as a message
-      designChatHistory.push({ role: 'user', content: value });
+      pushDesignChat({ role: 'user', content: value });
       renderDesignChat();
       // Combine original request with the user's choice and send — skip classification
       var combined = (pendingIntentText || value) + '\n\nClarification from user: ' + value;
@@ -6520,7 +6558,7 @@
       var alreadyInHistory = designChatHistory.some(function(m) { return m.role === 'rating' && m.themeId === themeId; });
       if (alreadyInHistory) return;
 
-      designChatHistory.push({ role: 'rating', themeId: themeId });
+      pushDesignChat({ role: 'rating', themeId: themeId });
     }
 
     function renderRatingWidget(themeId) {
@@ -6602,20 +6640,8 @@
       // Always submit immediately — no chips/send-feedback step
       hostRatingsByTheme[themeId] = { rating: rating, feedback: '' };
 
-      if (rating === 1) {
-        hostOneStarCount++;
-        var result = await submitHostRating(themeId, rating, '');
-        if (result && result.oneStarCredit) {
-          var creditCents = result.creditCents || 0;
-          eventCostCents = Math.max(0, eventCostCents - creditCents);
-          updateCostTrackerUI();
-          hostRatingsByTheme[themeId].creditMessage = 'Sorry about that! We won\'t charge you for this generation' + (creditCents > 0 ? ' (' + formatCents(creditCents) + ' credited)' : '') + '.';
-        } else if (result && result.supportRequired) {
-          hostRatingsByTheme[themeId].supportMessage = 'Dang it, maybe something is wrong if we keep getting this wrong. Please contact support at support@ryvite.com and provide them ' + (currentEvent ? currentEvent.id : 'your event ID') + ' so they can investigate.';
-        }
-      } else {
-        submitHostRating(themeId, rating, '');
-      }
+      // Submit rating (quality incident is triggered inside submitHostRating for 1-2 star ratings)
+      submitHostRating(themeId, rating, '');
 
       // Inject assistant response based on rating
       var assistantMsg;
@@ -6630,7 +6656,7 @@
           ? 'I can do better! Tell me what you\'d like — a completely different style, different colors, different layout? Or describe the vibe you\'re going for.'
           : 'Got it, let\'s improve this. What\'s not working for you? I can change the colors, fonts, layout, or go in a totally different direction.';
       }
-      designChatHistory.push({ role: 'assistant', content: assistantMsg });
+      pushDesignChat({ role: 'assistant', content: assistantMsg });
 
       renderDesignChat();
       scrollDesignChat();
@@ -6655,7 +6681,26 @@
             fingerprint: hostFingerprint
           })
         });
-        return await resp.json();
+        var result = await resp.json();
+
+        // ── Quality incident trigger: low ratings (1-2 stars) ──
+        if (rating <= 2 && currentEvent.id) {
+          var ver = themeVersions[activeVersionIndex];
+          authFetch('/api/v2/quality-monitor?action=reportIncident', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventId: currentEvent.id,
+              eventThemeId: themeId,
+              triggerType: 'low_rating',
+              triggerData: { rating: rating, feedback: feedback || '' },
+              themeSnapshot: ver ? { html: ver.html, css: ver.css, config: ver.config } : null,
+              validationResults: null
+            })
+          }).catch(function(e) { console.warn('[quality] Low rating incident failed:', e.message); });
+        }
+
+        return result;
       } catch(e) { return null; }
     }
 
@@ -6844,13 +6889,13 @@
         var input = document.getElementById('designChatInput');
         if (input) {
           input.value = replayMsg;
-          designChatHistory.push({ role: 'assistant', content: "Awesome, you've upgraded! Thanks so much for helping support Ryvite. Let me work on that for you now..." });
+          pushDesignChat({ role: 'assistant', content: "Awesome, you've upgraded! Thanks so much for helping support Ryvite. Let me work on that for you now..." });
           renderDesignChat();
           // Small delay so the user sees the message before the request fires
           setTimeout(function() { sendDesignChat(); }, 500);
         }
       } else {
-        designChatHistory.push({ role: 'assistant', content: "Awesome, you've upgraded! Thanks so much for helping support Ryvite.\n\nLet's get back to customizing your invite. What can I help you with?" });
+        pushDesignChat({ role: 'assistant', content: "Awesome, you've upgraded! Thanks so much for helping support Ryvite.\n\nLet's get back to customizing your invite. What can I help you with?" });
         renderDesignChat();
       }
     }

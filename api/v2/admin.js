@@ -2724,6 +2724,177 @@ ${cssSnippet}`
       }
     }
 
+    // ---- QUALITY DASHBOARD ----
+    if (action === 'qualityDashboard') {
+      const days = parseInt(req.query.days) || 30;
+      const since = new Date(Date.now() - days * 86400000).toISOString();
+
+      // Incidents by trigger type
+      const { data: incidents } = await supabaseAdmin
+        .from('quality_incidents')
+        .select('trigger_type, resolution_type, created_at')
+        .gte('created_at', since);
+
+      const byTrigger = {};
+      const byResolution = {};
+      let totalIncidents = 0;
+      let autoHealed = 0;
+      let unresolved = 0;
+
+      (incidents || []).forEach(i => {
+        totalIncidents++;
+        byTrigger[i.trigger_type] = (byTrigger[i.trigger_type] || 0) + 1;
+        byResolution[i.resolution_type] = (byResolution[i.resolution_type] || 0) + 1;
+        if (i.resolution_type === 'auto_healed') autoHealed++;
+        if (i.resolution_type === 'unresolved') unresolved++;
+      });
+
+      // Top users with incidents
+      const { data: userIncidents } = await supabaseAdmin
+        .from('quality_incidents')
+        .select('user_id')
+        .gte('created_at', since)
+        .not('user_id', 'is', null);
+
+      const userCounts = {};
+      (userIncidents || []).forEach(i => {
+        userCounts[i.user_id] = (userCounts[i.user_id] || 0) + 1;
+      });
+      const topUsers = Object.entries(userCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([userId, count]) => ({ userId, count }));
+
+      // Fetch emails for top users
+      if (topUsers.length > 0) {
+        const { data: profiles } = await supabaseAdmin
+          .from('profiles')
+          .select('id, email')
+          .in('id', topUsers.map(u => u.userId));
+        const emailMap = {};
+        (profiles || []).forEach(p => { emailMap[p.id] = p.email; });
+        topUsers.forEach(u => { u.email = emailMap[u.userId] || null; });
+      }
+
+      return res.status(200).json({
+        success: true,
+        dashboard: {
+          period: days + 'd',
+          totalIncidents,
+          autoHealed,
+          unresolved,
+          autoHealRate: totalIncidents > 0 ? Math.round(autoHealed / totalIncidents * 100) : 0,
+          byTrigger,
+          byResolution,
+          topUsers
+        }
+      });
+    }
+
+    // ---- LIST QUALITY INCIDENTS ----
+    if (action === 'listQualityIncidents') {
+      const page = Math.max(1, parseInt(req.query.page) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+      const offset = (page - 1) * limit;
+
+      let query = supabaseAdmin
+        .from('quality_incidents')
+        .select('id, event_id, event_theme_id, user_id, trigger_type, trigger_data, ai_diagnosis, resolution_type, resolution_data, resolved_at, created_at', { count: 'exact' });
+
+      if (req.query.triggerType) query = query.eq('trigger_type', req.query.triggerType);
+      if (req.query.resolutionType) query = query.eq('resolution_type', req.query.resolutionType);
+      if (req.query.userId) query = query.eq('user_id', req.query.userId);
+      if (req.query.eventId) query = query.eq('event_id', req.query.eventId);
+
+      query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+
+      const { data, error, count } = await query;
+      if (error) return res.status(400).json({ error: error.message });
+
+      // Enrich with user emails and event titles
+      const userIds = [...new Set((data || []).map(i => i.user_id).filter(Boolean))];
+      const eventIds = [...new Set((data || []).map(i => i.event_id).filter(Boolean))];
+
+      let emailMap = {};
+      let eventMap = {};
+
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabaseAdmin
+          .from('profiles')
+          .select('id, email')
+          .in('id', userIds);
+        (profiles || []).forEach(p => { emailMap[p.id] = p.email; });
+      }
+
+      if (eventIds.length > 0) {
+        const { data: events } = await supabaseAdmin
+          .from('events')
+          .select('id, title')
+          .in('id', eventIds);
+        (events || []).forEach(e => { eventMap[e.id] = e.title; });
+      }
+
+      const enriched = (data || []).map(i => ({
+        ...i,
+        userEmail: emailMap[i.user_id] || null,
+        eventTitle: eventMap[i.event_id] || null
+      }));
+
+      return res.status(200).json({
+        success: true,
+        incidents: enriched,
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil((count || 0) / limit)
+      });
+    }
+
+    // ---- GET INCIDENT DETAIL ----
+    if (action === 'getIncidentDetail') {
+      const incidentId = req.query.incidentId;
+      if (!incidentId) return res.status(400).json({ error: 'incidentId required' });
+
+      const { data: incident, error } = await supabaseAdmin
+        .from('quality_incidents')
+        .select('*')
+        .eq('id', incidentId)
+        .single();
+
+      if (error) return res.status(404).json({ error: 'Incident not found' });
+
+      // Enrich with user info
+      let userInfo = null;
+      if (incident.user_id) {
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('id, email, display_name, tier')
+          .eq('id', incident.user_id)
+          .single();
+        userInfo = profile || null;
+      }
+
+      // Enrich with event info
+      let eventInfo = null;
+      if (incident.event_id) {
+        const { data: event } = await supabaseAdmin
+          .from('events')
+          .select('id, title, event_type, status, created_at')
+          .eq('id', incident.event_id)
+          .single();
+        eventInfo = event || null;
+      }
+
+      return res.status(200).json({
+        success: true,
+        incident: {
+          ...incident,
+          userInfo,
+          eventInfo
+        }
+      });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Admin API error:', err);

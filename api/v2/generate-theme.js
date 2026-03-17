@@ -1909,6 +1909,18 @@ Return ONLY a valid JSON object with these keys:
       const tweakFinalCheck = validateThemeIntegrity(theme);
       const tweakContentWarnings = tweakFinalCheck.issues.filter(i => i.startsWith('missing_') || i === 'content_too_sparse');
 
+      // ── Quality signal: Content warnings persist after tweak repair ──
+      if (tweakContentWarnings.length > 0) {
+        supabase.from('quality_incidents').insert({
+          event_id: eventId, user_id: user.id,
+          trigger_type: 'content_warning',
+          trigger_data: { contentWarnings: tweakContentWarnings, htmlLength: theme.theme_html.length, isTweak: true },
+          theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
+          validation_results: { server: tweakContentWarnings },
+          resolution_type: 'unresolved'
+        }).catch(e => console.error('[quality] Tweak content warning incident failed:', e.message));
+      }
+
       // Send result to client with real DB ID
       sendSSE('done', {
         success: true,
@@ -2273,6 +2285,18 @@ This is the most common failure mode. Double-check it.`;
     const finalCheck = validateThemeIntegrity(theme);
     const contentWarnings = finalCheck.issues.filter(i => i.startsWith('missing_') || i === 'content_too_sparse');
 
+    // ── Quality signal: Content warnings persist after repair ──
+    if (contentWarnings.length > 0) {
+      supabase.from('quality_incidents').insert({
+        event_id: eventId, user_id: user.id,
+        trigger_type: 'content_warning',
+        trigger_data: { contentWarnings, htmlLength: theme.theme_html.length },
+        theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: theme.theme_config },
+        validation_results: { server: contentWarnings },
+        resolution_type: 'unresolved'
+      }).catch(e => console.error('[quality] Content warning incident failed:', e.message));
+    }
+
     sendSSE('done', {
       success: true,
       softCapReached: !!res.softCapReached,
@@ -2366,6 +2390,26 @@ This is the most common failure mode. Double-check it.`;
       await supabase.from('events')
         .update({ first_generation_at: new Date().toISOString() })
         .eq('id', eventId).is('first_generation_at', null);
+
+      // ── Quality signal: High GTP (3+ generations without publish) ──
+      try {
+        const { count: themeCount } = await supabase
+          .from('event_themes').select('id', { count: 'exact', head: true })
+          .eq('event_id', eventId);
+        if (themeCount >= 3) {
+          const { data: evt } = await supabase.from('events').select('status').eq('id', eventId).single();
+          if (evt && evt.status !== 'published') {
+            await supabase.from('quality_incidents').insert({
+              event_id: eventId, user_id: user.id,
+              event_theme_id: newTheme?.id || null,
+              trigger_type: 'high_gtp',
+              trigger_data: { generationCount: themeCount },
+              theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: theme.theme_config },
+              resolution_type: 'unresolved'
+            });
+          }
+        }
+      } catch (e) { /* non-critical quality monitoring */ }
 
       // Now wait for accurate token usage (up to 5s) for cost logging
       try {
