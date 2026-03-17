@@ -3561,17 +3561,29 @@
 
     function finishDesignChatInit() {
       var title = extractedData.title || 'your event';
-      var welcomeMsg = "Hey! I'm your design assistant for " + title + ". I'm here to help with the finishing touches.\n\n"
-        + "Here are some things I can do:\n"
-        + "- \u{1F3A8} Change colors, fonts, or overall vibe\n"
-        + "- \u{1F4F7} Add your photos — upload a pic to use directly in the invite, not just for inspiration\n"
-        + "- \u{2728} Adjust animations, layout, or spacing\n"
-        + "- \u{1F58C}\uFE0F Swap the style entirely (minimalist, maximalist, editorial, etc.)\n"
-        + "- \u{1F4DD} Tweak wording on the invite\n\n"
-        + "Try something like:\n"
-        + "\"Make the background darker and the fonts more elegant\"\n"
-        + "\"Add my photo as the hero image\" (upload below)\n"
-        + "\"Switch to a gold and black color scheme\"";
+      var isUnpaid = currentEvent && currentEvent.paymentStatus === 'unpaid';
+      var welcomeMsg;
+
+      if (isUnpaid) {
+        welcomeMsg = "Your invite for " + title + " is ready! Here's what you can do for free:\n\n"
+          + "- \u{1F4DD} **Update text** \u2014 \"change the date to April 20th\" or \"change the title to ...\"\n"
+          + "- \u{2795} **Add RSVP fields** \u2014 \"add a dietary restrictions field\"\n"
+          + "- \u{2796} **Remove RSVP fields** \u2014 \"remove the plus-one field\"\n"
+          + "- \u{1F4E7} **Send email invites** from the publish step\n\n"
+          + "Want unlimited AI redesigns, SMS delivery, and more? Upgrade anytime for $4.99.";
+      } else {
+        welcomeMsg = "Hey! I'm your design assistant for " + title + ". I'm here to help with the finishing touches.\n\n"
+          + "Here are some things I can do:\n"
+          + "- \u{1F3A8} Change colors, fonts, or overall vibe\n"
+          + "- \u{1F4F7} Add your photos — upload a pic to use directly in the invite, not just for inspiration\n"
+          + "- \u{2728} Adjust animations, layout, or spacing\n"
+          + "- \u{1F58C}\uFE0F Swap the style entirely (minimalist, maximalist, editorial, etc.)\n"
+          + "- \u{1F4DD} Tweak wording on the invite\n\n"
+          + "Try something like:\n"
+          + "\"Make the background darker and the fonts more elegant\"\n"
+          + "\"Add my photo as the hero image\" (upload below)\n"
+          + "\"Switch to a gold and black color scheme\"";
+      }
 
       designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
       // If a generation just completed, show its rating prompt
@@ -6118,30 +6130,20 @@
         renderVersionGallery();
         // Add a message about free-tier capabilities
         designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
-        designChatHistory.push({ role: 'assistant', content: "No worries! You can still make changes that don't require a full redesign:\n\n"
-          + "- \u{1F4DD} **Swap text** \u2014 \"change Saturday to Sunday\" or \"change the title to ...\"\n"
-          + "- \u{1F3A8} **Tweak colors** \u2014 \"make the background darker\" or \"change the accent to blue\"\n"
+        designChatHistory.push({ role: 'assistant', content: "No worries! Here's what you can still do for free:\n\n"
+          + "- \u{1F4DD} **Update text** \u2014 \"change Saturday to Sunday\" or \"change the title to ...\"\n"
           + "- \u{2795} **Add RSVP fields** \u2014 \"add a plus-one count field\"\n"
-          + "- \u{2796} **Remove RSVP fields** \u2014 \"remove the dietary restrictions field\"\n\n"
-          + "For full redesigns and unlimited AI changes, you can upgrade anytime for $4.99." });
+          + "- \u{2796} **Remove RSVP fields** \u2014 \"remove the dietary restrictions field\"\n"
+          + "- \u{1F4E7} **Send email invites** from the publish step\n\n"
+          + "For AI redesigns, SMS delivery, and more \u2014 upgrade anytime for $4.99." });
         renderDesignChat();
         initCostTracker();
         updateMobileLayout();
       } else {
-        // No themes yet — stay on step 2 but show a helpful message
-        // Try to generate the free first design if payment status allows
-        var canGenerate = currentEvent && currentEvent.paymentStatus && currentEvent.paymentStatus !== 'unpaid';
-        if (canGenerate) {
-          // Payment status was upgraded (credit applied) — retry generation
-          document.getElementById('generatingLoadingState').style.display = '';
-          generateTheme();
-        } else {
-          // Truly unpaid — go back to step 1 chat with explanation
-          var hideStyle = document.getElementById('resumeHideChat');
-          if (hideStyle) hideStyle.remove();
-          goToStep(1);
-          addChatBubble("No problem! Your event details are saved. When you're ready to generate your invite design, you can upgrade for $4.99 or come back anytime — your progress won't be lost.", 'assistant');
-        }
+        // No themes yet — generate the free first design
+        // All events (including unpaid) get 1 free AI generation
+        document.getElementById('generatingLoadingState').style.display = '';
+        generateTheme();
       }
     }
 
