@@ -401,6 +401,17 @@ export default async function handler(req, res) {
           return res.status(400).json({ success: false, error: 'Each reminder needs offsetMinutes and message' });
         }
 
+        const deliveryMethod = r.deliveryMethod === 'sms' ? 'sms' : 'email';
+
+        // SMS reminders require paid event
+        if (deliveryMethod === 'sms' && event.payment_status !== 'paid') {
+          return res.status(403).json({
+            success: false,
+            error: 'SMS reminders require the $4.99 event upgrade. Use email reminders instead, or upgrade to unlock SMS.',
+            requiresPayment: true
+          });
+        }
+
         const scheduledFor = new Date(eventDate.getTime() - r.offsetMinutes * 60 * 1000);
 
         if (scheduledFor <= now) {
@@ -415,6 +426,7 @@ export default async function handler(req, res) {
           user_id: user.id,
           offset_minutes: r.offsetMinutes,
           message: r.message,
+          delivery_method: deliveryMethod,
           scheduled_for: scheduledFor.toISOString(),
           status: 'pending'
         });
