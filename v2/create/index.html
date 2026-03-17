@@ -6128,10 +6128,20 @@
         initCostTracker();
         updateMobileLayout();
       } else {
-        // No themes at all — go back to step 1 chat
-        var hideStyle = document.getElementById('resumeHideChat');
-        if (hideStyle) hideStyle.remove();
-        goToStep(1);
+        // No themes yet — stay on step 2 but show a helpful message
+        // Try to generate the free first design if payment status allows
+        var canGenerate = currentEvent && currentEvent.paymentStatus && currentEvent.paymentStatus !== 'unpaid';
+        if (canGenerate) {
+          // Payment status was upgraded (credit applied) — retry generation
+          document.getElementById('generatingLoadingState').style.display = '';
+          generateTheme();
+        } else {
+          // Truly unpaid — go back to step 1 chat with explanation
+          var hideStyle = document.getElementById('resumeHideChat');
+          if (hideStyle) hideStyle.remove();
+          goToStep(1);
+          addChatBubble("No problem! Your event details are saved. When you're ready to generate your invite design, you can upgrade for $4.99 or come back anytime — your progress won't be lost.", 'assistant');
+        }
       }
     }
 
