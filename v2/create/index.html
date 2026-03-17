@@ -74,7 +74,8 @@
 
     /* Chat UI */
     .chat-container { display: flex; flex-direction: column; height: calc(100vh - 110px); height: calc(100dvh - 110px); max-width: 720px; margin: 0 auto; padding: 0 20px; }
-    .chat-messages { flex: 1; overflow-y: auto; padding: 24px 0; display: flex; flex-direction: column; gap: 16px; min-height: 0; justify-content: flex-end; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 24px 0; display: flex; flex-direction: column; gap: 16px; min-height: 0; }
+    .chat-messages::before { content: ''; flex: 1 0 0px; }
     .chat-bubble { max-width: 85%; padding: 14px 18px; border-radius: 16px; font-size: 14px; line-height: 1.6; animation: fadeIn 0.3s; }
     .chat-bubble.assistant { background: white; border: 1px solid #eee; align-self: flex-start; border-bottom-left-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
     .chat-bubble.user { background: var(--party-coral); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
@@ -83,8 +84,15 @@
     .chat-bubble.typing span:nth-child(2) { animation-delay: 0.2s; }
     .chat-bubble.typing span:nth-child(3) { animation-delay: 0.4s; }
     @keyframes typingBounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
-    .chat-input-area { flex-shrink: 0; padding: 16px 0 32px; border-top: 1px solid #eee; background: var(--cream); }
-    .chat-input-row { display: flex; gap: 10px; }
+    .chat-input-area { flex-shrink: 0; padding: 16px 0 32px; border-top: 1px solid #eee; background: var(--cream); position: relative; }
+    .chat-input-row { display: flex; gap: 10px; align-items: center; }
+    .chat-photo-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #ddd; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; color: #888; }
+    .chat-photo-btn:hover { border-color: var(--party-coral); color: var(--party-coral); background: rgba(233,69,96,0.05); }
+    .chat-photo-menu { display: none; position: absolute; bottom: 100%; left: 0; margin-bottom: 8px; background: white; border: 1px solid #e0e0e0; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); overflow: hidden; z-index: 10; min-width: 200px; }
+    .chat-photo-menu.open { display: block; }
+    .chat-photo-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 16px; border: none; background: none; cursor: pointer; font-size: 13px; font-family: inherit; color: var(--midnight); transition: background 0.15s; }
+    .chat-photo-menu button:hover { background: #f5f5f5; }
+    .chat-photo-menu button:first-child { border-bottom: 1px solid #f0f0f0; }
     .chat-input { flex: 1; padding: 14px 18px; border: 1px solid #ddd; border-radius: 24px; font-family: 'Inter', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s; background: white; }
     .chat-input:focus { border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
     .chat-send { width: 48px; height: 48px; border-radius: 50%; background: var(--party-coral); color: white; border: none; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
@@ -333,6 +341,21 @@
     .invite-page { max-width: 640px; margin: 0 auto; }
     .invite-section { background: white; border: 1px solid #eee; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
     .invite-section h3 { font-size: 16px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    /* Accordion for invite sections on mobile */
+    @media (max-width: 600px) {
+      .invite-section { padding: 0; overflow: hidden; }
+      .invite-section h3 { margin: 0; padding: 16px; cursor: pointer; user-select: none; position: relative; }
+      .invite-section h3::after { content: ''; position: absolute; right: 16px; top: 50%; width: 8px; height: 8px; border-right: 2px solid #999; border-bottom: 2px solid #999; transform: translateY(-60%) rotate(45deg); transition: transform 0.2s; }
+      .invite-section.collapsed h3::after { transform: translateY(-40%) rotate(-45deg); }
+      .invite-section .invite-section-body { padding: 0 16px 16px; }
+      .invite-section.collapsed .invite-section-body { display: none; }
+      .invite-section .add-new-contact { margin-top: 0; }
+      .step[data-step="3"] { padding-top: 20px; padding-bottom: 120px; }
+      .step[data-step="3"] h2 { font-size: 22px; padding: 0 4px; }
+      .step[data-step="3"] .step-desc { padding: 0 4px; }
+      .step[data-step="3"] > .button-group { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px 16px; margin: 0; box-shadow: 0 -2px 12px rgba(0,0,0,0.08); z-index: 100; border-top: 1px solid #eee; flex-direction: row; max-width: none; }
+      .step[data-step="3"] > .button-group .btn { font-size: 13px; padding: 12px 10px; flex: 1; }
+    }
     .contact-search { width: 100%; padding: 10px 14px 10px 36px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.2s; background: white; }
     .contact-search:focus { border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
     .contact-search-wrap { position: relative; margin-bottom: 12px; }
@@ -429,9 +452,25 @@
       </div>
     </div>
     <div class="chat-input-area">
+      <div id="chatPhotoPreview" class="image-previews" style="padding:0 4px;"></div>
       <div class="chat-input-row">
+        <button class="chat-photo-btn" id="chatPhotoBtn" onclick="toggleChatPhotoMenu()" title="Upload photos">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+        </button>
         <input type="text" class="chat-input" id="chatInput" placeholder="Tell me what's on your mind..." autofocus>
         <button class="chat-send" id="chatSendBtn" onclick="sendMessage()">&#10148;</button>
+      </div>
+      <input type="file" id="chatInspoInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleInspirationUpload(event)">
+      <input type="file" id="chatPersonInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handlePersonUpload(event)">
+      <div class="chat-photo-menu" id="chatPhotoMenu">
+        <button onclick="document.getElementById('chatInspoInput').click(); toggleChatPhotoMenu();">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+          Inspiration images
+        </button>
+        <button onclick="document.getElementById('chatPersonInput').click(); toggleChatPhotoMenu();">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+          Photos of the person
+        </button>
       </div>
     </div>
   </div>
@@ -638,47 +677,53 @@
     </div>
 
     <!-- Step 4: Review & Publish -->
-    <div class="step" data-step="3">
+    <div class="step" data-step="3" style="padding: 20px 0 40px;">
       <h2>Invite People</h2>
       <p class="step-desc">Add guests to your event — you can always add more later</p>
       <div class="invite-page">
-        <!-- Added guests section -->
-        <div class="invite-section">
-          <h3><span>👥</span> Guest List <span class="invited-count" id="guestCount">0 invited</span></h3>
-          <div id="guestList" class="guest-list">
-            <div class="empty-contacts" id="noGuestsMsg">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-              <div>No guests added yet</div>
-              <div style="font-size:12px;margin-top:4px;">Search your contacts below or add someone new</div>
+        <!-- Guest list section — always open -->
+        <div class="invite-section" id="sectionGuestList">
+          <h3 onclick="toggleInviteSection(this)"><span>👥</span> Guest List <span class="invited-count" id="guestCount">0 invited</span></h3>
+          <div class="invite-section-body">
+            <div id="guestList" class="guest-list">
+              <div class="empty-contacts" id="noGuestsMsg">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                <div>No guests added yet</div>
+                <div style="font-size:12px;margin-top:4px;">Add someone below</div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Add from contacts -->
-        <div class="invite-section">
-          <h3><span>📇</span> Add from Contacts</h3>
-          <div id="tagFilterBar" class="tag-filter-bar"></div>
-          <div class="contact-search-wrap">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" class="contact-search" id="contactSearch" placeholder="Search by name, email, or phone..." oninput="filterContacts()">
+        <!-- Add someone new — open by default on mobile -->
+        <div class="invite-section" id="sectionAddNew">
+          <h3 onclick="toggleInviteSection(this)"><span>➕</span> Add Someone New</h3>
+          <div class="invite-section-body">
+            <div class="add-new-contact">
+              <div class="add-contact-row">
+                <input type="text" id="newGuestName" placeholder="Name *">
+                <input type="email" id="newGuestEmail" placeholder="Email">
+              </div>
+              <div class="add-contact-row">
+                <input type="tel" id="newGuestPhone" placeholder="Phone">
+                <button class="btn btn-primary btn-sm" onclick="addNewGuest()" style="white-space:nowrap;">Add Guest</button>
+              </div>
+              <div id="newGuestMsg" style="font-size:12px;margin-top:4px;display:none;"></div>
+            </div>
           </div>
-          <div id="contactListContainer" class="contact-list"></div>
-          <button class="btn btn-primary btn-sm" id="addSelectedBtn" onclick="addSelectedContacts()" style="margin-top:10px;display:none;">Add Selected</button>
         </div>
 
-        <!-- Add new contact -->
-        <div class="invite-section">
-          <h3><span>➕</span> Add Someone New</h3>
-          <div class="add-new-contact">
-            <div class="add-contact-row">
-              <input type="text" id="newGuestName" placeholder="Name *">
-              <input type="email" id="newGuestEmail" placeholder="Email">
+        <!-- Add from contacts — collapsed by default on mobile -->
+        <div class="invite-section" id="sectionContacts">
+          <h3 onclick="toggleInviteSection(this)"><span>📇</span> Add from Contacts</h3>
+          <div class="invite-section-body">
+            <div id="tagFilterBar" class="tag-filter-bar"></div>
+            <div class="contact-search-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" class="contact-search" id="contactSearch" placeholder="Search by name, email, or phone..." oninput="filterContacts()">
             </div>
-            <div class="add-contact-row">
-              <input type="tel" id="newGuestPhone" placeholder="Phone">
-              <button class="btn btn-primary btn-sm" onclick="addNewGuest()" style="white-space:nowrap;">Add Guest</button>
-            </div>
-            <div id="newGuestMsg" style="font-size:12px;margin-top:4px;display:none;"></div>
+            <div id="contactListContainer" class="contact-list"></div>
+            <button class="btn btn-primary btn-sm" id="addSelectedBtn" onclick="addSelectedContacts()" style="margin-top:10px;display:none;">Add Selected</button>
           </div>
         </div>
       </div>
@@ -754,7 +799,7 @@
     let chatHistory = [];
     let chatSessionId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
     let chatBubbles = []; // [{text, role}] for UI rebuild on restore
-    var chatPhase = 'chatting'; // 'chatting' | 'confirmed' | 'styling'
+    var chatPhase = 'chatting'; // 'chatting' | 'confirmed' | 'themeReady'
     var designChatPhase = null; // null = normal flow, 'collecting_details' | 'rsvp_fields' | 'tweaking'
     var pendingDesignRequest = null; // design preference captured during collecting_details (e.g. "make it orange")
     var currentPreviewMode = 'invite';
@@ -1084,7 +1129,7 @@
               // Has theme — show preview
               genView.style.display = 'none';
               document.getElementById('generatedView').style.display = 'block';
-              renderPreview(themeVersions[0]);
+              renderPreview(themeVersions[activeVersionIndex >= 0 ? activeVersionIndex : 0]);
               renderVersionGallery();
               // Restore "Start from Design" collecting-details phase if applicable
               var chatPhase = ev.settings && ev.settings.design_chat_phase;
@@ -1265,19 +1310,29 @@
           // Restore interactive UI based on chatPhase
           if (chatPhase === 'confirmed') {
             showConfirmationCard();
-          } else if (chatPhase === 'styling') {
-            // Show confirmation card without the button, then style choice
+          } else if (chatPhase === 'themeReady') {
             showConfirmationCard();
-            var proceedBtn = document.querySelector('#confirmationCard .chat-proceed');
-            if (proceedBtn) proceedBtn.remove();
-            document.querySelector('.chat-input-area').style.display = 'none';
-            showStyleChoiceCard();
+            showDesignReadyCard();
           }
         }
       }
     })();
 
     // ---- Chat Functions ----
+
+    function toggleChatPhotoMenu() {
+      var menu = document.getElementById('chatPhotoMenu');
+      menu.classList.toggle('open');
+    }
+
+    // Close photo menu when clicking elsewhere
+    document.addEventListener('click', function(e) {
+      var menu = document.getElementById('chatPhotoMenu');
+      var btn = document.getElementById('chatPhotoBtn');
+      if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
+        menu.classList.remove('open');
+      }
+    });
 
     async function sendMessage() {
       var input = document.getElementById('chatInput');
@@ -1353,12 +1408,18 @@
               .map(function(f) { return Object.assign({}, f, { enabled: true }); });
           }
 
-          addChatBubble(result.message, 'assistant');
-
-          // If confirmed, show final confirmation card with all details + RSVP fields
-          if (result.ready && result.confirmed) {
+          // If confirmed, show RSVP card first so the AI's "what's next" message appears below it
+          if (result.ready && result.confirmed && chatPhase !== 'confirmed' && chatPhase !== 'themeReady') {
             chatPhase = 'confirmed';
             showConfirmationCard();
+          }
+
+          addChatBubble(result.message, 'assistant');
+
+          // If theme discovery is complete, show photo uploads + Generate button
+          if (result.themeReady && chatPhase !== 'themeReady') {
+            chatPhase = 'themeReady';
+            showDesignReadyCard();
           }
         } else {
           var errMsg = result.detail || result.message || result.error || 'Something went wrong';
@@ -1423,18 +1484,9 @@
       showConfirmationCard();
       await delay(800);
 
-      // Click "Let's design it!" — same as confirmDetailsAndAskStyle()
-      confirmDetailsAndAskStyle();
-      await delay(500);
-
-      // Click "I have a style in mind" — triggers showCustomStyleInput()
-      showCustomStyleInput();
-      await delay(400);
-
-      // Fill the style textarea and submit
-      var styleEl = document.getElementById('customStyleText');
-      if (styleEl) styleEl.value = extractedData.prompt;
-      submitCustomStyle();
+      // Set design prompt and proceed directly to generation
+      designPrompt = extractedData.prompt || 'Whimsical rainbow unicorn theme with sparkles, pastel colors, and playful typography';
+      generateFromDesignReady();
     }
 
     function addChatBubble(text, role, skipSave) {
@@ -1461,56 +1513,101 @@
       var existing = document.getElementById('confirmationCard');
       if (existing) existing.remove();
 
-      var d = extractedData;
-      var fields = [];
-      if (d.title) fields.push(['Event', d.title]);
-      if (d.eventType) fields.push(['Type', formatEventType(d.eventType)]);
-      if (d.startDate) fields.push(['When', formatDate(d.startDate)]);
-      if (d.endDate) fields.push(['Until', formatDate(d.endDate)]);
-      if (d.locationName) fields.push(['Where', d.locationName]);
-      if (d.locationAddress) fields.push(['Address', d.locationAddress]);
-      if (d.dressCode) fields.push(['Dress Code', d.dressCode]);
-      if (d.description) fields.push(['Details', d.description]);
+      // Keep chat input visible — user continues chatting about design
 
       var card = document.createElement('div');
       card.className = 'chat-extracted';
       card.id = 'confirmationCard';
 
-      var html = '<h4>Event Details</h4>'
-        + '<div class="chat-extracted-grid">'
-        + fields.map(function(f) {
-            return '<span class="chat-extracted-label">' + escapeHtml(f[0]) + '</span>'
-              + '<span class="chat-extracted-value">' + escapeHtml(f[1]) + '</span>';
-          }).join('')
-        + '</div>';
+      var html = '';
 
-      // RSVP Fields — clean summary (already confirmed via chat)
-      var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
-      if (enabledFields.length > 0) {
-        html += '<div style="margin-top:16px;border-top:1px solid #eee;padding-top:14px;">'
-          + '<h4 style="font-size:14px;font-weight:600;margin-bottom:8px;">RSVP Fields</h4>'
-          + '<div style="font-size:11px;color:#999;margin-bottom:8px;padding:6px 10px;background:#f9f9f9;border-radius:6px;">Always included: <strong>Name</strong>, <strong>Email</strong>, <strong>Phone</strong>, <strong>RSVP Status</strong></div>'
-          + enabledFields.map(function(f) {
-              var meta = (FIELD_TYPE_LABELS[f.field_type] || f.field_type);
-              return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px;">'
-                + '<span style="color:var(--mint-fizz);font-weight:700;">&#10003;</span>'
-                + '<span style="font-weight:500;">' + escapeHtml(f.label) + '</span>'
-                + '<span style="color:#999;font-size:11px;">(' + escapeHtml(meta) + ')</span>'
-                + '</div>';
-            }).join('')
-
-          + '<h4 style="font-size:14px;font-weight:600;margin-bottom:4px;">RSVP Fields</h4>'
-          + '<p style="font-size:12px;color:#888;margin-bottom:10px;">Here\'s what I\'d suggest — remove any you don\'t want, or just ask me to add more!</p>'
-          + '<div style="font-size:11px;color:#999;margin-bottom:10px;padding:6px 10px;background:#f9f9f9;border-radius:6px;">Always included: <strong>Name</strong>, <strong>Email</strong>, <strong>Phone</strong>, <strong>RSVP Status</strong></div>'
-          + '<div id="rsvpFieldList">' + renderRsvpFields() + '</div>'
-          + '</div>';
-      }
-
-      html += '<button class="btn btn-primary chat-proceed" onclick="confirmDetailsAndAskStyle()" style="margin-top:16px;width:100%;">Let\'s design it!</button>';
+      // RSVP Fields — compact, editable with Remove buttons
+      html += '<h4 style="font-size:14px;font-weight:600;margin-bottom:6px;">RSVP Fields</h4>'
+        + '<div style="font-size:11px;color:#999;margin-bottom:8px;padding:6px 10px;background:#f9f9f9;border-radius:6px;">Always included: <strong>Name</strong>, <strong>Email</strong>, <strong>Phone</strong>, <strong>RSVP Status</strong></div>'
+        + '<div id="rsvpFieldList">' + renderRsvpFields() + '</div>'
+        + '<div id="addFieldContainer"></div>'
+        + '<button class="btn btn-secondary btn-sm" onclick="showAddFieldFormStep1()" style="margin-top:8px;font-size:11px;padding:4px 12px;">+ Add field</button>';
 
       card.innerHTML = html;
       document.getElementById('chatMessages').appendChild(card);
       scrollChat();
+
+      // Auto-save event to DB as early as possible
+      saveEventToDB().catch(function() {});
+    }
+
+    function showDesignReadyCard() {
+      // Remove any existing design ready card
+      var existing = document.getElementById('designReadyCard');
+      if (existing) existing.remove();
+
+      var eventType = extractedData.eventType || 'other';
+      var photoRec = photoRecommendations[eventType];
+
+      var card = document.createElement('div');
+      card.className = 'chat-extracted';
+      card.id = 'designReadyCard';
+
+      var html = '<div style="font-size:14px;font-weight:500;margin-bottom:12px;">Ready to generate! Add any photos before we start:</div>';
+
+      // Photo uploads — side by side
+      html += '<div style="display:flex;gap:10px;margin-bottom:14px;">'
+        + '<div style="flex:1;">'
+        + '<div class="image-upload-area" id="readyInspoDropZone" onclick="document.getElementById(\'readyInspoInput\').click()" style="padding:10px;border-radius:8px;">'
+        + '<p style="font-size:12px;margin:0;">Inspiration images</p>'
+        + '<p style="font-size:10px;color:#999;margin:2px 0 0;">optional · max 6</p>'
+        + '</div>'
+        + '<input type="file" id="readyInspoInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleInspirationUpload(event)">'
+        + '<div id="inspirationPreviews" class="image-previews"></div>'
+        + '</div>'
+        + '<div style="flex:1;">'
+        + '<div class="image-upload-area" id="readyPersonDropZone" onclick="document.getElementById(\'readyPersonInput\').click()" style="padding:10px;border-radius:8px;">'
+        + '<p style="font-size:12px;margin:0;">Photos of the person</p>'
+        + '<p style="font-size:10px;color:#999;margin:2px 0 0;">' + (photoRec ? photoRec.strength.toLowerCase() : 'optional') + ' · max 6</p>'
+        + '</div>'
+        + '<input type="file" id="readyPersonInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handlePersonUpload(event)">'
+        + '<div id="personPreviews" class="image-previews"></div>'
+        + '</div>'
+        + '</div>';
+
+      // Generate button
+      html += '<button class="btn btn-primary chat-proceed" onclick="generateFromDesignReady()" style="width:100%;padding:14px;font-size:15px;font-weight:600;">Generate My Invite</button>';
+
+      card.innerHTML = html;
+      document.getElementById('chatMessages').appendChild(card);
+      scrollChat();
+
+      // Hide chat input — design chat is done
+      document.querySelector('.chat-input-area').style.display = 'none';
+
+      // Set up drag & drop
+      setupDropZone('readyInspoDropZone', 'inspiration');
+      setupDropZone('readyPersonDropZone', 'person');
+    }
+
+    function generateFromDesignReady() {
+      designPrompt = extractedData.prompt || 'Create a beautiful, event-appropriate invite design.';
+
+      // Disable button
+      var btn = document.querySelector('#designReadyCard .chat-proceed');
+      if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+
+      addChatBubble('Let\'s design it!', 'user');
+      addChatBubble('Great choice! Let me generate your invite...', 'assistant');
+
+      var saveResult = saveEventToDB();
+      saveResult.then(function(result) {
+        if (result && result.limitReached) {
+          goToStep(2);
+          showCreatePaymentGate();
+          return;
+        }
+        if (result !== true) {
+          if (btn) { btn.disabled = false; btn.textContent = 'Generate My Invite'; }
+          return;
+        }
+        goToStep(2);
+      });
     }
 
     function renderRsvpFields() {
@@ -1592,8 +1689,6 @@
     }
 
     // ---- Style Selection Flow (in chat) ----
-
-    var brainstormAnswers = {};
 
     async function updateDraftEvent() {
       if (!currentEvent) return;
@@ -1709,122 +1804,8 @@
     }
 
 
-    function confirmDetailsAndAskStyle() {
-      // Remove the confirmation card's button
-      var btn = document.querySelector('#confirmationCard .chat-proceed');
-      if (btn) btn.remove();
+    // Old confirmDetailsAndAskStyle removed — replaced by generateFromDesignReady()
 
-      addChatBubble('Looks good!', 'user');
-      chatPhase = 'styling';
-
-      // Hide the chat input area — the user is done describing their event
-      document.querySelector('.chat-input-area').style.display = 'none';
-
-      // Auto-save event to DB as early as possible (silently — don't block if it fails)
-      saveEventToDB().catch(function() {});
-
-      // Ask about style preference
-      showStyleChoiceCard();
-    }
-
-    function showStyleChoiceCard() {
-      var card = document.createElement('div');
-      card.className = 'chat-bubble assistant';
-      card.innerHTML = '<div style="margin-bottom:12px;">Now let\'s design your invite! Do you already have a style in mind, or would you like to explore some options?</div>'
-        + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
-        + '<button class="btn btn-primary" onclick="showCustomStyleInput()" style="padding:10px 16px;font-size:13px;">I have a style in mind</button>'
-        + '<button class="btn btn-secondary" onclick="startBrainstorm()" style="padding:10px 16px;font-size:13px;">Help me brainstorm</button>'
-        + '</div>';
-      document.getElementById('chatMessages').appendChild(card);
-      scrollChat();
-      // Scroll the style choice card into view so it's centered on screen
-      setTimeout(function() {
-        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100);
-    }
-
-    // ---- "I have a style in mind" flow ----
-
-    function showCustomStyleInput() {
-      // Remove the choice buttons
-      var lastBubble = document.querySelector('#chatMessages .chat-bubble:last-child');
-      if (lastBubble) lastBubble.querySelector('div:last-child').remove();
-
-      addChatBubble('I have a style in mind', 'user');
-
-      var eventType = extractedData.eventType || 'other';
-      var photoRec = photoRecommendations[eventType];
-      var photoRecHtml = '';
-      if (photoRec) {
-        photoRecHtml = '<div style="background:rgba(233,69,96,0.06);padding:10px 14px;border-radius:8px;margin-bottom:12px;border-left:3px solid var(--party-coral);">'
-          + '<div style="font-size:13px;font-weight:600;color:var(--midnight);margin-bottom:4px;">' + photoRec.emoji + ' Photos — ' + photoRec.strength + '</div>'
-          + '<div style="font-size:12px;color:#555;">' + photoRec.text + '</div>'
-          + '</div>';
-      }
-
-      // Build a suggested style prompt from conversation context
-      var styleParts = [];
-      if (extractedData.prompt) styleParts.push(extractedData.prompt);
-      if (extractedData.tagline) styleParts.push('Tagline: "' + extractedData.tagline + '"');
-      if (extractedData.description && !extractedData.prompt) styleParts.push(extractedData.description);
-      var prefillStyle = styleParts.join('\n');
-
-      var card = document.createElement('div');
-      card.className = 'chat-bubble assistant';
-      card.id = 'customStyleCard';
-      var stylePromptLabel = extractedData.prompt
-        ? 'Here\'s what I picked up from our chat — feel free to tweak it or add more detail!'
-        : 'Describe the mood, colors, and style you\'re going for.';
-      card.innerHTML = '<div style="margin-bottom:12px;">' + stylePromptLabel + '</div>'
-        + '<textarea id="customStyleText" placeholder="e.g., Modern minimalist with gold accents and a warm, elegant feel..." style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-family:Inter,sans-serif;min-height:80px;resize:none;margin-bottom:10px;box-sizing:border-box;"></textarea>'
-
-      card.innerHTML = '<div style="margin-bottom:12px;">' + (prefillStyle ? 'Here\'s what I picked up from our chat — feel free to edit, add more detail, or upload inspiration images!' : 'Describe the mood, colors, and style you\'re going for. You can also upload photos and inspiration images!') + '</div>'
-        + '<textarea id="customStyleText" placeholder="e.g., Modern minimalist with gold accents and a warm, elegant feel..." style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-family:Inter,sans-serif;min-height:80px;resize:none;margin-bottom:10px;box-sizing:border-box;">' + escapeHtml(prefillStyle) + '</textarea>'
-        + '<div style="margin-bottom:12px;">'
-        + '<div class="example-chips" style="margin-top:0;">'
-        + '<button class="chip" onclick="addToCustomStyle(\'Elegant and luxurious with gold accents\')">Elegant + Gold</button>'
-        + '<button class="chip" onclick="addToCustomStyle(\'Playful and colorful with confetti\')">Playful + Colorful</button>'
-        + '<button class="chip" onclick="addToCustomStyle(\'Modern minimalist with sleek typography\')">Modern + Minimal</button>'
-        + '<button class="chip" onclick="addToCustomStyle(\'Rustic and cozy with warm earth tones\')">Rustic + Warm</button>'
-        + '</div></div>'
-        + '<div style="margin-bottom:14px;">'
-        + '<div style="font-size:13px;font-weight:600;color:var(--midnight);margin-bottom:6px;">🎨 Inspiration Images <span style="font-weight:400;color:#999;">(optional)</span></div>'
-        + '<div style="font-size:12px;color:#666;margin-bottom:8px;">Upload images that capture the vibe, colors, or style you want. The AI will use these as visual references.</div>'
-        + '<div class="image-upload-area" id="chatInspoDropZone" onclick="document.getElementById(\'chatInspoInput\').click()" style="padding:14px;border-radius:8px;">'
-        + '<p style="font-size:13px;">Upload inspiration images</p>'
-        + '<p style="font-size:11px;color:#999;margin-top:2px;">JPG, PNG, HEIC, WebP (max 6 images)</p>'
-        + '</div>'
-        + '<input type="file" id="chatInspoInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleInspirationUpload(event)">'
-        + '<div id="inspirationPreviews" class="image-previews"></div>'
-        + '</div>'
-        + photoRecHtml
-        + '<div style="margin-bottom:14px;">'
-        + '<div class="image-upload-area" id="chatPersonDropZone" onclick="document.getElementById(\'chatPersonInput\').click()" style="padding:14px;border-radius:8px;">'
-        + '<p style="font-size:13px;">Upload photos of the person</p>'
-        + '<p style="font-size:11px;color:#999;margin-top:2px;">JPG, PNG, HEIC, WebP (max 6 images)</p>'
-        + '</div>'
-        + '<input type="file" id="chatPersonInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handlePersonUpload(event)">'
-        + '<div id="personPreviews" class="image-previews"></div>'
-        + '</div>'
-        + '<button class="btn btn-primary" onclick="submitCustomStyle()" style="width:100%;padding:12px;font-size:14px;">Generate My Invite</button>';
-      document.getElementById('chatMessages').appendChild(card);
-
-      // Pre-fill with vibe/style the user already described in the chat
-      if (extractedData.prompt) {
-        document.getElementById('customStyleText').value = extractedData.prompt;
-      }
-
-      scrollChat();
-
-      // Set up drag & drop on the new drop zones
-      setupDropZone('chatInspoDropZone', 'inspiration');
-      setupDropZone('chatPersonDropZone', 'person');
-    }
-
-    function addToCustomStyle(text) {
-      var el = document.getElementById('customStyleText');
-      if (el) el.value = el.value ? el.value + ' ' + text : text;
-    }
 
     // ---- Payment helpers (per-event $4.99 model) ----
 
@@ -1914,305 +1895,8 @@
     }
 
 
-    async function submitCustomStyle() {
-      var text = document.getElementById('customStyleText').value.trim();
-      if (!text) {
-        document.getElementById('customStyleText').style.borderColor = '#E94560';
-        document.getElementById('customStyleText').focus();
-        return;
-      }
-      designPrompt = text;
-      // Remove the style card
-      var card = document.getElementById('customStyleCard');
-      if (card) card.remove();
-      addChatBubble(text, 'user');
+    // ---- Brainstorm flow (removed — replaced by chat-based theme discovery) ----
 
-      addChatBubble('Great choice! Let me generate your invite...', 'assistant');
-      var saveResult = await saveEventToDB();
-      if (saveResult && saveResult.limitReached) {
-        goToStep(2);
-        showCreatePaymentGate();
-        return;
-      }
-      if (saveResult !== true) return;
-      goToStep(2);
-    }
-
-    // ---- Brainstorm flow ----
-
-    // Event-type-specific brainstorm questions
-    var brainstormBranches = {
-      kidsBirthday: [
-        { key: 'vibe', question: 'What vibe for the party?', options: [
-          { label: 'Maximalist & Colorful', emoji: '🎨', desc: 'Loud, joyful, chaotic in the best way' },
-          { label: 'Soft & Whimsical', emoji: '🦋', desc: 'Pastel, illustrated, gentle' },
-          { label: 'Bold & Graphic', emoji: '⚡', desc: 'Strong shapes, high contrast, modern' },
-          { label: 'Rustic & Warm', emoji: '🌿', desc: 'Earthy tones, natural textures' }
-        ]},
-        { key: 'theme', question: 'Any party theme?', options: [
-          { label: 'Dinosaurs', emoji: '🦕', desc: 'Roar! Prehistoric fun' },
-          { label: 'Rainbow / Colorful', emoji: '🌈', desc: 'All the colors, all the joy' },
-          { label: 'Jungle / Safari', emoji: '🦁', desc: 'Wild animal adventure' },
-          { label: 'Under the Sea', emoji: '🐠', desc: 'Ocean creatures and waves' },
-          { label: 'Outer Space', emoji: '🚀', desc: 'Stars, rockets, planets' },
-          { label: 'No theme — just fun!', emoji: '🎈', desc: 'Balloons and celebration' }
-        ]},
-        { key: 'colors', question: 'Color palette?', options: [
-          { label: 'Bright & Saturated', emoji: '🌈', desc: 'Bold, cheerful, vibrant' },
-          { label: 'Soft Pastels', emoji: '🌸', desc: 'Gentle pinks, blues, lavenders' },
-          { label: 'Earthy & Warm', emoji: '🍂', desc: 'Sage, mustard, terracotta' },
-          { label: 'Let AI decide', emoji: '🎨', desc: 'Match the theme perfectly' }
-        ]}
-      ],
-      adultBirthday: [
-        { key: 'vibe', question: 'What tone are you going for?', options: [
-          { label: 'Glamorous', emoji: '✨', desc: 'Gold, champagne bubbles, luxury' },
-          { label: 'Retro / Nostalgic', emoji: '📻', desc: 'Decade-themed: 70s, 80s, 90s vibes' },
-          { label: 'Sophisticated & Minimal', emoji: '◻️', desc: 'Editorial, grown-up, clean' },
-          { label: 'Fun & Party-Forward', emoji: '🥂', desc: 'Celebratory, vibrant energy' }
-        ]},
-        { key: 'theme', question: 'Any era or theme?', options: [
-          { label: 'Gatsby / 1920s', emoji: '🎩', desc: 'Art deco, gold, elegance' },
-          { label: 'Disco / 70s-80s', emoji: '🪩', desc: 'Groovy, neon, retro' },
-          { label: 'Garden Party', emoji: '🌸', desc: 'Outdoor, floral, fresh' },
-          { label: 'Black & Gold', emoji: '🖤', desc: 'Classic, bold, timeless' },
-          { label: 'Tropical', emoji: '🌴', desc: 'Lush, vibrant, sun-drenched' },
-          { label: 'No theme', emoji: '🎉', desc: 'Just a great celebration' }
-        ]},
-        { key: 'colors', question: 'Color palette?', options: [
-          { label: 'Gold & Black', emoji: '🖤', desc: 'Glamorous, timeless' },
-          { label: 'Moody & Rich', emoji: '🍷', desc: 'Deep burgundy, navy, emerald' },
-          { label: 'Bright & Bold', emoji: '🌈', desc: 'Vibrant, saturated, lively' },
-          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on your vibe and theme' }
-        ]}
-      ],
-      babyShower: [
-        { key: 'vibe', question: 'What aesthetic direction?', options: [
-          { label: 'Soft & Botanical', emoji: '🌿', desc: 'Watercolor florals, eucalyptus' },
-          { label: 'Modern Minimal', emoji: '◻️', desc: 'Clean type, quiet luxury' },
-          { label: 'Whimsical Illustrated', emoji: '🐻', desc: 'Animals, storybook, pastel' },
-          { label: 'Boho / Earthy', emoji: '🍂', desc: 'Terracotta, sage, rattan' }
-        ]},
-        { key: 'colors', question: 'Color direction?', options: [
-          { label: 'Blue / Navy / Mint', emoji: '💙', desc: 'For a boy or neutral cool tones' },
-          { label: 'Blush / Rose / Lavender', emoji: '💗', desc: 'Soft and feminine' },
-          { label: 'Greens & Yellows', emoji: '💛', desc: 'Gender neutral, warm and fresh' },
-          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on your aesthetic' }
-        ]}
-      ],
-      engagement: [
-        { key: 'vibe', question: 'What tone for the celebration?', options: [
-          { label: 'Romantic & Dreamy', emoji: '💕', desc: 'Soft, candlelit, garden party' },
-          { label: 'Modern & Editorial', emoji: '◻️', desc: 'Bold type, architectural, cool' },
-          { label: 'Fun & Celebratory', emoji: '🥂', desc: 'Bubbly, vibrant, party energy' },
-          { label: 'Intimate & Personal', emoji: '💛', desc: 'Storytelling-first, warm' }
-        ]},
-        { key: 'colors', question: 'Color palette?', options: [
-          { label: 'Blush & Gold', emoji: '✨', desc: 'Romantic and elegant' },
-          { label: 'Modern Neutrals', emoji: '🤍', desc: 'Black, white, cream' },
-          { label: 'Rich & Moody', emoji: '🍷', desc: 'Deep tones, sophisticated' },
-          { label: 'Let AI decide', emoji: '🎨', desc: 'From your photos or vibe' }
-        ]}
-      ],
-      wedding: [
-        { key: 'vibe', question: 'Wedding aesthetic?', options: [
-          { label: 'Classic & Timeless', emoji: '🌹', desc: 'Ivory, gold, florals, serif type' },
-          { label: 'Modern Romantic', emoji: '🖤', desc: 'Architectural, moody, editorial' },
-          { label: 'Boho / Outdoor', emoji: '🌿', desc: 'Earthy, organic, wildflowers' },
-          { label: 'Art Deco / Vintage', emoji: '✨', desc: 'Geometric, gold, rich color' }
-        ]},
-        { key: 'colors', question: 'Wedding colors?', options: [
-          { label: 'Ivory & Gold', emoji: '✨', desc: 'Classic and luxurious' },
-          { label: 'Sage & Cream', emoji: '🌿', desc: 'Natural and organic' },
-          { label: 'Moody & Dark', emoji: '🖤', desc: 'Black, burgundy, forest' },
-          { label: 'Custom colors', emoji: '🎨', desc: 'I\'ll describe mine' }
-        ]}
-      ],
-      graduation: [
-        { key: 'vibe', question: 'What tone for the celebration?', options: [
-          { label: 'Proud & Celebratory', emoji: '🏆', desc: 'Achievement-forward, bold' },
-          { label: 'Fun & Party-Forward', emoji: '🎉', desc: 'Party first, graduation second' },
-          { label: 'Classy & Refined', emoji: '✨', desc: 'Underplayed, tasteful, adult' }
-        ]},
-        { key: 'colors', question: 'Color palette?', options: [
-          { label: 'School Colors', emoji: '🎓', desc: 'Match the school spirit' },
-          { label: 'Gold & Black', emoji: '🖤', desc: 'Classic achievement colors' },
-          { label: 'Bright & Bold', emoji: '🌈', desc: 'Celebratory and fun' },
-          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on the vibe' }
-        ]}
-      ],
-      holiday: [
-        { key: 'holiday', question: 'Which holiday?', options: [
-          { label: 'Christmas', emoji: '🎄', desc: 'Festive, cozy, merry' },
-          { label: 'New Year\'s Eve', emoji: '🎆', desc: 'Glamorous, countdown, sparkles' },
-          { label: 'Halloween', emoji: '🎃', desc: 'Spooky, fun, costumed' },
-          { label: 'Thanksgiving', emoji: '🦃', desc: 'Grateful, warm, harvest' },
-          { label: 'Fourth of July', emoji: '🎇', desc: 'Patriotic, BBQ, fireworks' },
-          { label: 'Other Holiday', emoji: '🎉', desc: 'Hanukkah, Diwali, Easter, etc.' }
-        ]},
-        { key: 'vibe', question: 'What tone?', options: [
-          { label: 'Classic & Traditional', emoji: '🕯️', desc: 'Timeless holiday feel' },
-          { label: 'Modern & Editorial', emoji: '◻️', desc: 'Holiday but make it fashion' },
-          { label: 'Cozy & Warm', emoji: '☕', desc: 'Fireplace, blankets, comfort' },
-          { label: 'Maximalist & Festive', emoji: '✨', desc: 'Over the top celebration' }
-        ]}
-      ],
-      dinnerParty: [
-        { key: 'vibe', question: 'What\'s the tone?', options: [
-          { label: 'Sophisticated & Minimal', emoji: '🍷', desc: 'Quiet luxury, grown-up restraint' },
-          { label: 'Warm & Convivial', emoji: '🕯️', desc: 'Candlelight, rustic, linen' },
-          { label: 'Playful & Informal', emoji: '🎉', desc: 'Bright, fun, casual' },
-          { label: 'Chic & Editorial', emoji: '✨', desc: 'Magazine-worthy, stylish' }
-        ]},
-        { key: 'colors', question: 'Color direction?', options: [
-          { label: 'Warm Neutrals', emoji: '🤎', desc: 'Cream, tan, warm gold' },
-          { label: 'Deep & Moody', emoji: '🍷', desc: 'Wine, charcoal, dark wood' },
-          { label: 'Bright & Fresh', emoji: '🌿', desc: 'Garden, citrus, airy' },
-          { label: 'Let AI decide', emoji: '🎨', desc: 'Match the dinner vibe' }
-        ]}
-      ],
-      retirement: [
-        { key: 'vibe', question: 'What tone for the celebration?', options: [
-          { label: 'Celebratory & Heartfelt', emoji: '💛', desc: 'Honoring a legacy' },
-          { label: 'Fun & Roast-Forward', emoji: '😄', desc: '"Finally free!" energy' },
-          { label: 'Elegant & Refined', emoji: '✨', desc: 'Dinner-party level quality' },
-          { label: 'Nostalgic', emoji: '📸', desc: 'Career retrospective, memories' }
-        ]},
-        { key: 'colors', question: 'Color palette?', options: [
-          { label: 'Navy & Gold', emoji: '💙', desc: 'Distinguished and warm' },
-          { label: 'Warm Neutrals', emoji: '🤎', desc: 'Cream, sage, soft tones' },
-          { label: 'Bright & Celebratory', emoji: '🎉', desc: 'Fun, colorful, party' },
-          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on the tone' }
-        ]}
-      ],
-      anniversary: [
-        { key: 'vibe', question: 'What tone?', options: [
-          { label: 'Romantic & Nostalgic', emoji: '💕', desc: 'Looking back with love' },
-          { label: 'Celebratory', emoji: '🥂', desc: 'Party energy, milestone' },
-          { label: 'Intimate & Personal', emoji: '💛', desc: 'Close family and friends' }
-        ]},
-        { key: 'colors', question: 'Color palette?', options: [
-          { label: 'Gold & Warm', emoji: '✨', desc: 'Classic milestone colors' },
-          { label: 'Blush & Romantic', emoji: '💗', desc: 'Soft and loving' },
-          { label: 'Rich & Elegant', emoji: '🍷', desc: 'Deep, sophisticated tones' },
-          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on the couple' }
-        ]}
-      ],
-      sports: [
-        { key: 'vibe', question: 'What energy?', options: [
-          { label: 'Hype & Energetic', emoji: '🏟️', desc: 'Stadium energy, bold, loud' },
-          { label: 'Casual & Fun', emoji: '🍔', desc: 'Backyard BBQ vibes' },
-          { label: 'Premium Viewing', emoji: '🥂', desc: 'Sports bar elegance, VIP feel' }
-        ]},
-        { key: 'colors', question: 'Color palette?', options: [
-          { label: 'Team Colors', emoji: '🏆', desc: 'Match the team spirit' },
-          { label: 'Classic Sports', emoji: '⚽', desc: 'Green, white, bold primary' },
-          { label: 'Let AI decide', emoji: '🎨', desc: 'Based on the sport and vibe' }
-        ]}
-      ],
-      bridalShower: [
-        { key: 'vibe', question: 'What aesthetic?', options: [
-          { label: 'Garden Party', emoji: '🌸', desc: 'Floral, lush, summery' },
-          { label: 'Brunch Chic', emoji: '🥂', desc: 'Blush, champagne, casual elegance' },
-          { label: 'Modern Minimal', emoji: '◻️', desc: 'Clean, architectural, grown-up' },
-          { label: 'Maximalist Floral', emoji: '🌺', desc: 'Over-the-top beautiful' }
-        ]},
-        { key: 'colors', question: 'Color palette?', options: [
-          { label: 'Blush & Gold', emoji: '✨', desc: 'Classic bridal' },
-          { label: 'Sage & Cream', emoji: '🌿', desc: 'Natural and fresh' },
-          { label: 'Lavender & White', emoji: '💜', desc: 'Soft and dreamy' },
-          { label: 'Let AI decide', emoji: '🎨', desc: 'Match the wedding colors' }
-        ]}
-      ]
-    };
-
-    // Fallback generic questions for event types without specific branches
-    var defaultBrainstormQuestions = [
-      { key: 'vibe', question: 'What vibe are you going for?', options: [
-        { label: 'Elegant & Classy', emoji: '✨', desc: 'Sophisticated, luxurious, refined' },
-        { label: 'Fun & Playful', emoji: '🎉', desc: 'Bright colors, whimsical, energetic' },
-        { label: 'Modern & Minimal', emoji: '◻️', desc: 'Clean lines, sleek, contemporary' },
-        { label: 'Warm & Cozy', emoji: '🕯️', desc: 'Rustic, earthy, inviting' },
-        { label: 'Bold & Dramatic', emoji: '🔥', desc: 'Eye-catching, vibrant, statement' },
-        { label: 'Whimsical & Dreamy', emoji: '🌙', desc: 'Soft, magical, fairy-tale feel' }
-      ]},
-      { key: 'colors', question: 'What colors feel right?', options: [
-        { label: 'Gold & Black', emoji: '🖤', desc: 'Glamorous, timeless' },
-        { label: 'Pastels', emoji: '🌸', desc: 'Soft pinks, blues, lavenders' },
-        { label: 'Bright & Bold', emoji: '🌈', desc: 'Vibrant, saturated, lively' },
-        { label: 'Earth Tones', emoji: '🍂', desc: 'Browns, greens, warm neutrals' },
-        { label: 'Let AI decide', emoji: '🎨', desc: 'Based on your event type & vibe' }
-      ]}
-    ];
-
-    function getBrainstormQuestions() {
-      var eventType = extractedData.eventType || 'other';
-      return brainstormBranches[eventType] || defaultBrainstormQuestions;
-    }
-
-    var brainstormQuestions = [];
-
-    var brainstormStep = 0;
-
-    function startBrainstorm() {
-      // Remove the choice buttons
-      var lastBubble = document.querySelector('#chatMessages .chat-bubble:last-child');
-      if (lastBubble) lastBubble.querySelector('div:last-child').remove();
-
-      addChatBubble('Help me brainstorm', 'user');
-      brainstormStep = 0;
-      brainstormAnswers = {};
-      brainstormQuestions = getBrainstormQuestions();
-      showBrainstormQuestion(0);
-    }
-
-    function showBrainstormQuestion(idx) {
-      if (idx >= brainstormQuestions.length) {
-        finishBrainstorm();
-        return;
-      }
-      var q = brainstormQuestions[idx];
-
-      var card = document.createElement('div');
-      card.className = 'chat-bubble assistant';
-      card.id = 'brainstormQ' + idx;
-      card.innerHTML = '<div style="margin-bottom:12px;font-weight:500;">' + q.question + '</div>'
-        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
-        + q.options.map(function(opt) {
-            return '<button class="brainstorm-option" onclick="pickBrainstormOption(' + idx + ',this)" style="display:flex;flex-direction:column;align-items:center;padding:14px 10px;border:2px solid #eee;border-radius:12px;background:white;cursor:pointer;transition:all 0.2s;font-family:Inter,sans-serif;text-align:center;">'
-              + '<span style="font-size:24px;margin-bottom:6px;">' + opt.emoji + '</span>'
-              + '<span style="font-size:13px;font-weight:600;color:var(--midnight);">' + escapeHtml(opt.label) + '</span>'
-              + '<span style="font-size:11px;color:#888;margin-top:2px;">' + escapeHtml(opt.desc) + '</span>'
-              + '</button>';
-          }).join('')
-        + '</div>';
-      document.getElementById('chatMessages').appendChild(card);
-      scrollChat();
-    }
-
-    function pickBrainstormOption(qIdx, btn) {
-      var q = brainstormQuestions[qIdx];
-      var label = btn.querySelector('span:nth-child(2)').textContent;
-      brainstormAnswers[q.key] = label;
-
-      // Highlight selection and disable other buttons
-      var card = document.getElementById('brainstormQ' + qIdx);
-      card.querySelectorAll('.brainstorm-option').forEach(function(b) {
-        b.disabled = true;
-        b.style.opacity = '0.4';
-        b.style.cursor = 'default';
-      });
-      btn.style.opacity = '1';
-      btn.style.borderColor = 'var(--party-coral)';
-      btn.style.background = 'rgba(233,69,96,0.08)';
-
-      addChatBubble(label, 'user');
-
-      brainstormStep = qIdx + 1;
-      setTimeout(function() { showBrainstormQuestion(qIdx + 1); }, 400);
-    }
-
-    // Photo recommendations by event type
     // Photo recommendations by event type
     var photoRecommendations = {
       kidsBirthday: { emoji: '📸', strength: 'Strongly recommended', text: 'Upload 1-6 close-up photos of the birthday child. Natural light, face fills most of the frame. These become the hero of the page with fun birthday hat overlays!' },
@@ -2229,82 +1913,6 @@
       bridalShower: { emoji: '📸', strength: 'Optional', text: 'An engagement photo or candid of the bride, or skip for a purely illustrated floral treatment.' }
     };
 
-    async function finishBrainstorm() {
-      // Build the design prompt from brainstorm answers
-      var parts = [];
-      Object.keys(brainstormAnswers).forEach(function(key) {
-        var val = brainstormAnswers[key];
-        if (val && val !== 'Let AI decide' && val !== 'Surprise me!') {
-          if (key === 'vibe') parts.push(val + ' vibe');
-          else if (key === 'colors') parts.push(val + ' color palette');
-          else if (key === 'theme') parts.push(val + ' theme');
-          else if (key === 'holiday') parts.push(val + ' holiday');
-          else if (key === 'style') parts.push(val + ' style');
-          else parts.push(val);
-        }
-      });
-
-      designPrompt = parts.join(', ') + '. Make it feel unique, unforgettable, and custom-designed for this event.';
-      if (brainstormAnswers.colors === 'Let AI decide') designPrompt += ' Choose the most impactful colors for this event.';
-
-      // Show photo rec + inspiration upload
-      var eventType = extractedData.eventType || 'other';
-      var photoRec = photoRecommendations[eventType];
-      var photoRecHtml = '';
-      if (photoRec) {
-        photoRecHtml = '<div style="background:rgba(233,69,96,0.06);padding:10px 14px;border-radius:8px;margin-bottom:12px;border-left:3px solid var(--party-coral);">'
-          + '<div style="font-size:13px;font-weight:600;color:var(--midnight);margin-bottom:4px;">' + photoRec.emoji + ' Photos — ' + photoRec.strength + '</div>'
-          + '<div style="font-size:12px;color:#555;">' + photoRec.text + '</div>'
-          + '</div>';
-      }
-
-      var card = document.createElement('div');
-      card.className = 'chat-bubble assistant';
-      card.id = 'brainstormFinish';
-      card.innerHTML = '<div style="margin-bottom:10px;">Love it! Here\'s what I\'m going with:</div>'
-        + '<div style="background:rgba(0,0,0,0.03);padding:10px 14px;border-radius:8px;font-size:13px;font-style:italic;margin-bottom:12px;color:var(--midnight);">' + escapeHtml(designPrompt) + '</div>'
-        + '<div style="margin-bottom:14px;">'
-        + '<div style="font-size:13px;font-weight:600;color:var(--midnight);margin-bottom:6px;">🎨 Inspiration Images <span style="font-weight:400;color:#999;">(optional)</span></div>'
-        + '<div style="font-size:12px;color:#666;margin-bottom:8px;">Upload images that capture the vibe, colors, or style you want. The AI will use these as visual references.</div>'
-        + '<div class="image-upload-area" id="brainstormInspoDropZone" onclick="document.getElementById(\'brainstormInspoInput\').click()" style="padding:14px;border-radius:8px;">'
-        + '<p style="font-size:13px;">Upload inspiration images</p>'
-        + '<p style="font-size:11px;color:#999;margin-top:2px;">JPG, PNG, HEIC, WebP (max 6 images)</p>'
-        + '</div>'
-        + '<input type="file" id="brainstormInspoInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleInspirationUpload(event)">'
-        + '<div id="inspirationPreviews" class="image-previews"></div>'
-        + '</div>'
-        + photoRecHtml
-        + '<div style="margin-bottom:14px;">'
-        + '<div class="image-upload-area" id="brainstormPersonDropZone" onclick="document.getElementById(\'brainstormPersonInput\').click()" style="padding:14px;border-radius:8px;">'
-        + '<p style="font-size:13px;">Upload photos of the person</p>'
-        + '<p style="font-size:11px;color:#999;margin-top:2px;">JPG, PNG, HEIC, WebP (max 6 images)</p>'
-        + '</div>'
-        + '<input type="file" id="brainstormPersonInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handlePersonUpload(event)">'
-        + '<div id="personPreviews" class="image-previews"></div>'
-        + '</div>'
-        + '<button class="btn btn-primary" onclick="submitBrainstorm()" style="width:100%;padding:12px;font-size:14px;">Generate My Invite</button>';
-      document.getElementById('chatMessages').appendChild(card);
-      scrollChat();
-
-      setupDropZone('brainstormInspoDropZone', 'inspiration');
-      setupDropZone('brainstormPersonDropZone', 'person');
-    }
-
-    async function submitBrainstorm() {
-      var card = document.getElementById('brainstormFinish');
-      if (card) card.remove();
-      addChatBubble('Let\'s go!', 'user');
-
-      addChatBubble('Creating your invite now...', 'assistant');
-      var saveResult = await saveEventToDB();
-      if (saveResult && saveResult.limitReached) {
-        goToStep(2);
-        showCreatePaymentGate();
-        return;
-      }
-      if (saveResult !== true) return;
-      goToStep(2);
-    }
 
     function setupDropZone(zoneId, photoType) {
       var zone = document.getElementById(zoneId);
@@ -2322,9 +1930,9 @@
     function goToStep(step) {
       document.querySelector('.chat-container').style.display = step === 1 ? 'flex' : 'none';
 
-      // Lock body scroll on chat/summary steps (prevents iOS keyboard body-scroll);
-      // unlock on design step so user can scroll past preview to edit/regenerate buttons
-      if (step === 2) {
+      // Lock body scroll on chat steps (prevents iOS keyboard body-scroll);
+      // unlock on design step and invite step so user can scroll
+      if (step === 2 || step === 3) {
         document.documentElement.classList.remove('no-scroll');
         document.body.classList.remove('no-scroll');
       } else {
@@ -2345,6 +1953,10 @@
       });
 
       currentStep = step;
+      if (step === 3) {
+        initMobileAccordions();
+        window.scrollTo(0, 0);
+      }
       if (step === 2 && !themeVersions.length && !window._templateSource && document.getElementById('generatingPaywall').style.display === 'none') generateTheme();
       else if (step === 2 && themeVersions.length) {
         // Returning to step 2 with existing themes — show preview
@@ -2433,6 +2045,21 @@
       requestAnimationFrame(apply);
       // Fallback: re-sync after fonts/images load
       setTimeout(apply, 300);
+    }
+
+    // Accordion toggle for invite sections (mobile)
+    function toggleInviteSection(h3El) {
+      if (window.innerWidth > 600) return; // Only accordion on mobile
+      var section = h3El.closest('.invite-section');
+      section.classList.toggle('collapsed');
+    }
+
+    // Collapse "Add from Contacts" by default on mobile
+    function initMobileAccordions() {
+      if (window.innerWidth <= 600) {
+        var contactsSection = document.getElementById('sectionContacts');
+        if (contactsSection) contactsSection.classList.add('collapsed');
+      }
     }
 
     function nextStep() { if (currentStep < totalSteps) goToStep(currentStep + 1); }
@@ -3846,7 +3473,15 @@
       } else {
         document.querySelector('.panel-tab:nth-child(1)').classList.add('active');
         document.getElementById('tabDesign').classList.add('active');
-        if (designChatHistory.length === 0) initDesignChat();
+        if (designChatHistory.length === 0) {
+          var savedChat = currentEvent && currentEvent.id ? loadDesignChatHistory(currentEvent.id) : null;
+          if (savedChat && savedChat.length > 0) {
+            designChatHistory = savedChat;
+            renderDesignChat();
+          } else {
+            initDesignChat();
+          }
+        }
       }
     }
 
@@ -3905,7 +3540,18 @@
 
     function initDesignChatIfNeeded(showLoader) {
       if (designChatHistory.length === 0) {
-        initDesignChat(showLoader);
+        // Try restoring persisted design chat history first
+        var savedChat = currentEvent && currentEvent.id ? loadDesignChatHistory(currentEvent.id) : null;
+        if (savedChat && savedChat.length > 0) {
+          designChatHistory = savedChat;
+          if (pendingRatingThemeId) {
+            showThemeRating(pendingRatingThemeId);
+            pendingRatingThemeId = null;
+          }
+          renderDesignChat();
+        } else {
+          initDesignChat(showLoader);
+        }
       } else if (pendingRatingThemeId) {
         // Chat already initialized (regeneration/resume) — show rating directly
         showThemeRating(pendingRatingThemeId);
@@ -3955,17 +3601,31 @@
 
     function finishDesignChatInit() {
       var title = extractedData.title || 'your event';
-      var welcomeMsg = "Hey! I'm your design assistant for " + title + ". I'm here to help with the finishing touches.\n\n"
-        + "Here are some things I can do:\n"
-        + "- \u{1F3A8} Change colors, fonts, or overall vibe\n"
-        + "- \u{1F4F7} Add your photos — upload a pic to use directly in the invite, not just for inspiration\n"
-        + "- \u{2728} Adjust animations, layout, or spacing\n"
-        + "- \u{1F58C}\uFE0F Swap the style entirely (minimalist, maximalist, editorial, etc.)\n"
-        + "- \u{1F4DD} Tweak wording on the invite\n\n"
-        + "Try something like:\n"
-        + "\"Make the background darker and the fonts more elegant\"\n"
-        + "\"Add my photo as the hero image\" (upload below)\n"
-        + "\"Switch to a gold and black color scheme\"";
+      var isUnpaid = currentEvent && currentEvent.paymentStatus === 'unpaid';
+      var welcomeMsg;
+
+      if (isUnpaid) {
+        welcomeMsg = "Your invite for " + title + " is ready! Here's what you can do for free:\n\n"
+          + "- \u{1F4DD} **Update text** \u2014 \"change the date to April 20th\" or \"change the title to ...\"\n"
+          + "- \u{2795} **Add RSVP fields** \u2014 \"add a dietary restrictions field\"\n"
+          + "- \u{2796} **Remove RSVP fields** \u2014 \"remove the plus-one field\"\n"
+          + "- \u{1F4E7} **Send email invites** to your guests\n"
+          + "- \u{1F517} **Publish & share** your invite link\n\n"
+          + "Happy with the design? Tap **Next** to add guests and publish!\n\n"
+          + "Want AI redesigns or SMS delivery? Upgrade anytime for $4.99.";
+      } else {
+        welcomeMsg = "Hey! I'm your design assistant for " + title + ". I'm here to help with the finishing touches.\n\n"
+          + "Here are some things I can do:\n"
+          + "- \u{1F3A8} Change colors, fonts, or overall vibe\n"
+          + "- \u{1F4F7} Add your photos — upload a pic to use directly in the invite, not just for inspiration\n"
+          + "- \u{2728} Adjust animations, layout, or spacing\n"
+          + "- \u{1F58C}\uFE0F Swap the style entirely (minimalist, maximalist, editorial, etc.)\n"
+          + "- \u{1F4DD} Tweak wording on the invite\n\n"
+          + "Try something like:\n"
+          + "\"Make the background darker and the fonts more elegant\"\n"
+          + "\"Add my photo as the hero image\" (upload below)\n"
+          + "\"Switch to a gold and black color scheme\"";
+      }
 
       designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
       // If a generation just completed, show its rating prompt
@@ -4223,7 +3883,25 @@
       return null;
     }
 
+    function saveDesignChatHistory() {
+      if (!currentEvent || !currentEvent.id) return;
+      try {
+        // Save only persistent messages (skip system/loading messages)
+        var persistable = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+        sessionStorage.setItem('ryvite_designchat_' + currentEvent.id, JSON.stringify(persistable));
+      } catch(e) {}
+    }
+
+    function loadDesignChatHistory(eventId) {
+      try {
+        var raw = sessionStorage.getItem('ryvite_designchat_' + eventId);
+        if (raw) return JSON.parse(raw);
+      } catch(e) {}
+      return null;
+    }
+
     function renderDesignChat() {
+      saveDesignChatHistory();
       var container = document.getElementById('designChatMessages');
       container.innerHTML = designChatHistory.map(function(msg) {
         if (msg.role === 'system') {
@@ -4253,9 +3931,20 @@
             + '<li>Custom RSVP fields</li>'
             + '<li>Calendar links (ICS, Google, Outlook)</li>'
             + '</ul>'
-            + '<div style="display:flex;gap:10px;align-items:center;">'
+            + '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;">'
             + '<button onclick="handleDesignChatUpgrade()" style="padding:10px 24px;border:none;border-radius:50px;background:#E94560;color:#fff;cursor:pointer;font-size:14px;font-weight:600;font-family:Inter,sans-serif;">Upgrade &mdash; $4.99</button>'
             + '<span style="color:#9CA3AF;font-size:12px;">One-time payment &middot; Powered by Stripe</span>'
+            + '</div>'
+            + '<div style="border-top:1px solid #FED7AA;padding-top:12px;color:#4B5563;font-size:13px;line-height:1.6;">'
+            + '<div style="font-weight:600;color:#1A1A2E;margin-bottom:6px;">What you can do for free</div>'
+            + '&#x1F4DD; Update any text &mdash; &ldquo;change the date to April 20th&rdquo;<br>'
+            + '&#x2795; Add RSVP fields &mdash; &ldquo;add a dietary restrictions field&rdquo;<br>'
+            + '&#x2796; Remove RSVP fields &mdash; &ldquo;remove the plus-one field&rdquo;<br>'
+            + '&#x1F4E7; Send email invites to your guests<br>'
+            + '&#x1F517; Publish &amp; share your invite link'
+            + '</div>'
+            + '<div style="margin-top:10px;text-align:center;">'
+            + '<span onclick="goToStep(3)" style="color:var(--party-coral);font-weight:600;font-size:13px;cursor:pointer;text-decoration:underline;">Happy with the design? Publish &amp; invite your guests &rarr;</span>'
             + '</div>'
             + '</div></div>';
         }
@@ -5642,8 +5331,8 @@
       }
       var container = document.getElementById(previewContainerId);
       if (!container) {
-        // Fallback for legacy flows
-        container = document.getElementById('imagePreviews');
+        // Fallback: use chat photo preview area, then legacy
+        container = document.getElementById('chatPhotoPreview') || document.getElementById('imagePreviews');
       }
       for (var i = 0; i < files.length; i++) {
         if (base64Arr.length >= 6) break;
@@ -5725,17 +5414,11 @@
       var onlyBtn = document.getElementById('onlyPublishBtn');
       var mainBtn = document.getElementById('publishBtn');
       var ps = currentEvent ? currentEvent.paymentStatus : 'unpaid';
-      if (ps === 'free') {
-        onlyBtn.textContent = 'Publish for Free';
-        onlyBtn.style.background = 'var(--mint-fizz)';
-        onlyBtn.style.color = 'white';
+      if (ps === 'free' || ps === 'unpaid') {
+        onlyBtn.textContent = 'Just Publish';
+        onlyBtn.style.background = '#f0f0f0';
+        onlyBtn.style.color = 'var(--midnight)';
         mainBtn.textContent = 'Publish & Send Invites';
-      } else if (ps === 'unpaid') {
-        onlyBtn.textContent = 'Publish for $4.99';
-        onlyBtn.style.background = 'var(--party-coral)';
-        onlyBtn.style.color = 'white';
-        mainBtn.textContent = 'Publish & Send — $4.99';
-        mainBtn.style.background = 'var(--party-coral)';
       } else {
         // paid
         onlyBtn.textContent = 'Publish';
@@ -5746,13 +5429,6 @@
     }
 
     function handlePublishClick(withInvites) {
-      var ps = currentEvent ? currentEvent.paymentStatus : 'unpaid';
-      if (ps === 'unpaid') {
-        // Trigger Stripe checkout
-        initiateEventPayment();
-        return;
-      }
-      // free or paid — proceed directly
       if (withInvites) {
         showSendOptions();
       } else {
@@ -6093,9 +5769,6 @@
         if (result.success) {
           clearDraft();
           window.location.href = '/v2/dashboard/?published=' + currentEvent.id;
-        } else if (result.requiresPayment) {
-          // Server rejected publish — payment required
-          initiateEventPayment();
         } else { showMessage(result.error || 'Failed to publish', 'error'); }
       } catch (err) { showMessage('Error publishing event', 'error'); }
       finally {
@@ -6124,13 +5797,26 @@
       // Configure SMS option
       var smsOpt = document.getElementById('sendOptSms');
       var smsCheck = document.getElementById('sendViaSms');
-      if (smsCount === 0) {
+      var ps = currentEvent ? currentEvent.paymentStatus : 'unpaid';
+      var smsLocked = (ps === 'unpaid' || ps === 'free');
+      // Remove any previous upgrade badge
+      var oldBadge = smsOpt.querySelector('.sms-upgrade-badge');
+      if (oldBadge) oldBadge.remove();
+
+      if (smsLocked || smsCount === 0) {
         smsCheck.checked = false;
         smsCheck.disabled = true;
         smsOpt.style.opacity = '0.5';
         smsOpt.style.cursor = 'not-allowed';
         smsOpt.style.borderColor = '#e0e0e0';
         smsOpt.style.background = 'transparent';
+        if (smsLocked && smsCount > 0) {
+          var badge = document.createElement('div');
+          badge.className = 'sms-upgrade-badge';
+          badge.innerHTML = '<span style="font-size:11px;color:var(--party-coral);font-weight:600;cursor:pointer;" onclick="event.preventDefault();event.stopPropagation();handleDesignChatUpgrade();">Upgrade to unlock SMS &rarr;</span>';
+          badge.style.marginTop = '4px';
+          smsOpt.querySelector('div').appendChild(badge);
+        }
       } else {
         smsCheck.checked = true;
         smsCheck.disabled = false;
@@ -6191,15 +5877,19 @@
         emailOpt.style.background = emailChecked ? 'rgba(233,69,96,0.04)' : 'transparent';
       }
 
-      // Cost estimate (only SMS has a cost)
+      // Delivery summary
+      var channels = [];
       if (smsChecked) {
         var smsCount = addedGuests.filter(function(g) { return g.phone; }).length;
-        var cost = (smsCount * 0.10).toFixed(2);
+        channels.push(smsCount + ' SMS');
+      }
+      if (emailChecked) {
+        var emCount = addedGuests.filter(function(g) { return g.email; }).length;
+        channels.push(emCount + ' email' + (emCount !== 1 ? 's' : ''));
+      }
+      if (channels.length > 0) {
         costEl.style.display = 'block';
-        costEl.textContent = 'SMS cost: $' + cost + ' (' + smsCount + ' message' + (smsCount !== 1 ? 's' : '') + ' x $0.10)' + (emailChecked ? ' · Email is free' : '');
-      } else if (emailChecked) {
-        costEl.style.display = 'block';
-        costEl.textContent = 'Email invites are free';
+        costEl.textContent = channels.join(' + ') + ' will be sent';
       } else {
         costEl.style.display = 'none';
       }
@@ -6227,6 +5917,24 @@
       btn.textContent = 'Publishing...';
 
       try {
+        // Step 0: Save event details + theme before publishing
+        await saveEventToDB();
+        await saveCustomFields();
+        var activeTheme = themeVersions[activeVersionIndex >= 0 ? activeVersionIndex : 0];
+        if (activeTheme && activeTheme.html) {
+          await authFetch('/api/v2/events?action=saveTheme', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventId: currentEvent.id,
+              html: activeTheme.html,
+              css: activeTheme.css || '',
+              config: activeTheme.config || {},
+              basedOnThemeId: window._templateSource ? (window._templateSource.id || '') : undefined
+            })
+          });
+        }
+
         // Step 1: Publish the event
         var pubRes = await authFetch('/api/v2/events?action=update', {
           method: 'POST',
@@ -6273,7 +5981,11 @@
               body: JSON.stringify({ eventId: currentEvent.id, allGuests: true })
             });
             var emailResult = await emailRes.json();
-            if (!emailResult.success) errors.push('Email: ' + (emailResult.error || 'failed'));
+            if (!emailResult.success) {
+              errors.push('Email: ' + (emailResult.error || 'failed to send'));
+            } else if (emailResult.failed > 0) {
+              errors.push('Email: ' + emailResult.failed + ' of ' + emailResult.total + ' emails failed');
+            }
           } catch (e) { errors.push('Email: network error'); }
         }
 
@@ -6484,6 +6196,35 @@
       document.getElementById('createPaymentGate').style.display = 'flex';
     }
 
+    function dismissPaymentGate() {
+      document.getElementById('createPaymentGate').style.display = 'none';
+      // If we have existing themes, show the preview and design chat
+      if (themeVersions.length > 0) {
+        document.getElementById('generatingView').style.display = 'none';
+        document.getElementById('generatedView').style.display = 'block';
+        renderPreview(themeVersions[activeVersionIndex >= 0 ? activeVersionIndex : 0]);
+        renderVersionGallery();
+        // Add a message about free-tier capabilities
+        designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+        designChatHistory.push({ role: 'assistant', content: "No worries! Here's what you can still do for free:\n\n"
+          + "- \u{1F4DD} **Update text** \u2014 \"change Saturday to Sunday\" or \"change the title to ...\"\n"
+          + "- \u{2795} **Add RSVP fields** \u2014 \"add a plus-one count field\"\n"
+          + "- \u{2796} **Remove RSVP fields** \u2014 \"remove the dietary restrictions field\"\n"
+          + "- \u{1F4E7} **Send email invites** to your guests\n"
+          + "- \u{1F517} **Publish & share** your invite link\n\n"
+          + "Happy with the design? Tap **Next** to add guests and publish!\n\n"
+          + "For AI redesigns or SMS delivery \u2014 upgrade anytime for $4.99." });
+        renderDesignChat();
+        initCostTracker();
+        updateMobileLayout();
+      } else {
+        // No themes yet — generate the free first design
+        // All events (including unpaid) get 1 free AI generation
+        document.getElementById('generatingLoadingState').style.display = '';
+        generateTheme();
+      }
+    }
+
     var embeddedCheckoutInstance = null;
     var checkoutSessionId = null;
 
@@ -6631,7 +6372,7 @@
   </script>
 
   <!-- Payment Gate Modal -->
-  <div id="createPaymentGate" onclick="if(event.target===this){if(embeddedCheckoutInstance){embeddedCheckoutInstance.destroy();embeddedCheckoutInstance=null;}document.getElementById('paymentGateInfo').style.display='';document.getElementById('paymentGateCheckout').style.display='none';document.getElementById('paymentGateCheckout').innerHTML='';var b=document.getElementById('createPayBtn');if(b){b.textContent='Upgrade \u2014 $4.99';b.disabled=false;}this.style.display='none';}" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+  <div id="createPaymentGate" onclick="if(event.target===this){if(embeddedCheckoutInstance){embeddedCheckoutInstance.destroy();embeddedCheckoutInstance=null;}document.getElementById('paymentGateInfo').style.display='';document.getElementById('paymentGateCheckout').style.display='none';document.getElementById('paymentGateCheckout').innerHTML='';var b=document.getElementById('createPayBtn');if(b){b.textContent='Upgrade \u2014 $4.99';b.disabled=false;}dismissPaymentGate();}" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
     <div style="background:#fff;border-radius:20px;max-width:520px;width:95%;max-height:90vh;overflow-y:auto;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;">
       <div id="paymentGateInfo">
         <h3 style="margin:0 0 12px; font-family: 'Playfair Display', serif; font-size:22px; color:var(--midnight);">Unlock Full Features</h3>
@@ -6642,7 +6383,7 @@
           <li>Full RSVP tracking &amp; guest management</li>
         </ul>
         <div style="display: flex; gap: 12px; justify-content: center;">
-          <button onclick="document.getElementById('createPaymentGate').style.display='none';" style="padding: 10px 24px; border: 1px solid #ddd; border-radius: 50px; background: white; cursor: pointer; font-size: 14px; font-family: Inter, sans-serif;">Maybe Later</button>
+          <button onclick="dismissPaymentGate();" style="padding: 10px 24px; border: 1px solid #ddd; border-radius: 50px; background: white; cursor: pointer; font-size: 14px; font-family: Inter, sans-serif;">Maybe Later</button>
           <button id="createPayBtn" onclick="handleCreatePayment()" style="padding: 10px 24px; border: none; border-radius: 50px; background: #E94560; color: white; cursor: pointer; font-size: 14px; font-weight: 600; font-family: Inter, sans-serif;">Upgrade &#8212; $4.99</button>
         </div>
         <p style="color: #D1D5DB; font-size: 12px; margin: 16px 0 0;">Powered by Stripe</p>

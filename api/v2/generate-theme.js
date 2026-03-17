@@ -1030,8 +1030,37 @@ export default async function handler(req, res) {
         .single();
 
       if (eventForLimit && eventForLimit.user_id === user.id) {
-        // Unpaid or refunded events must pay before generating
-        if (eventForLimit.payment_status === 'unpaid' || eventForLimit.payment_status === 'refunded') {
+        // Unpaid events — check if user has credits to unlock before blocking
+        if (eventForLimit.payment_status === 'unpaid') {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('purchased_event_credits, free_event_credits')
+            .eq('id', user.id)
+            .single();
+
+          let newStatus = null;
+          if (profileData && (profileData.purchased_event_credits || 0) > 0) {
+            newStatus = 'paid';
+            await supabase.from('profiles').update({ purchased_event_credits: (profileData.purchased_event_credits || 0) - 1 }).eq('id', user.id);
+          } else if (profileData && (profileData.free_event_credits || 0) > 0) {
+            // Admin-granted free credits give full paid access (not limited free-tier)
+            newStatus = 'paid';
+            await supabase.from('profiles').update({ free_event_credits: (profileData.free_event_credits || 0) - 1 }).eq('id', user.id);
+          } else {
+            // Check if this is the user's ONLY event (first event is free)
+            // Count all events to prevent loopholes from refunded/archived events
+            const { count: totalEventCount } = await supabase.from('events').select('id', { count: 'exact', head: true }).eq('user_id', user.id);
+            if ((totalEventCount || 0) <= 1) newStatus = 'free';
+          }
+
+          if (newStatus) {
+            await supabase.from('events').update({ payment_status: newStatus }).eq('id', eventIdForCheck);
+            eventForLimit.payment_status = newStatus;
+          }
+        }
+
+        // Refunded events must pay before generating
+        if (eventForLimit.payment_status === 'refunded') {
           return res.status(403).json({
             error: 'This event requires payment before generating designs. Upgrade for $4.99.',
             limitReached: true,
@@ -1042,7 +1071,8 @@ export default async function handler(req, res) {
           });
         }
 
-        if (eventForLimit.payment_status === 'free') {
+        // Unpaid and free events both get 1 free generation + 1 redo
+        if (eventForLimit.payment_status === 'free' || eventForLimit.payment_status === 'unpaid') {
           const freeGenUsed = eventForLimit.free_generation_used;
           const freeRedoUsed = eventForLimit.free_redo_used;
           const isFreeRedo = req.body?.freeRedo === true;
@@ -1805,7 +1835,8 @@ Return ONLY a valid JSON object with these keys:
       if (req._isFreeRedo) {
         await supabase.from('events')
           .update({ free_redo_used: true })
-          .eq('id', eventId).eq('payment_status', 'free');
+          .eq('id', eventId)
+          .in('payment_status', ['free', 'unpaid']);
       }
 
       // Send result to client with real DB ID
@@ -2160,7 +2191,8 @@ This is the most common failure mode. Double-check it.`;
     if (req._isFreeRedo) freeUpdate.free_redo_used = true;
     await supabase.from('events')
       .update(freeUpdate)
-      .eq('id', eventId).eq('payment_status', 'free');
+      .eq('id', eventId)
+      .in('payment_status', ['free', 'unpaid']);
 
     // Send theme to client and close connection.
     // res.text() on client buffers until res.end(), so remaining DB saves happen after.
