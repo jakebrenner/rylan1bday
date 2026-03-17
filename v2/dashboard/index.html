@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://js.stripe.com/v3/"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
@@ -538,21 +539,24 @@
   </div>
 
   <!-- Payment Gate Modal -->
-  <div class="confirm-overlay" id="paymentGateOverlay" style="display:none">
-    <div class="confirm-box" style="max-width: 440px;">
-      <h3 style="margin:0 0 12px; font-family: 'Playfair Display', serif;">Unlock Full Features</h3>
-      <p style="color: #6B7280; margin: 0 0 20px; line-height: 1.6;">Your first event was free. Additional events are <strong>$4.99 each</strong> — everything included, no hidden fees.</p>
-      <ul style="text-align: left; margin: 0 0 24px; padding-left: 20px; color: #1A1A2E; line-height: 1.8;">
-        <li>Unlimited AI-designed invitations</li>
-        <li>SMS + email delivery</li>
-        <li>Full RSVP tracking & guest management</li>
-        <li>Custom RSVP fields</li>
-      </ul>
-      <div style="display: flex; gap: 12px; justify-content: center;">
-        <button onclick="dismissPaymentGate()" style="padding: 10px 24px; border: 1px solid #ddd; border-radius: 50px; background: white; cursor: pointer; font-size: 14px;">Maybe Later</button>
-        <button onclick="proceedToPayment()" style="padding: 10px 24px; border: none; border-radius: 50px; background: #E94560; color: white; cursor: pointer; font-size: 14px; font-weight: 600;">Continue to Payment — $4.99</button>
+  <div class="confirm-overlay" id="paymentGateOverlay" onclick="if(event.target===this)dismissPaymentGate()" style="display:none">
+    <div class="confirm-box" style="max-width: 520px; width: 95%; max-height: 90vh; overflow-y: auto;">
+      <div id="paymentGateInfo">
+        <h3 style="margin:0 0 12px; font-family: 'Playfair Display', serif;">Unlock Full Features</h3>
+        <p style="color: #6B7280; margin: 0 0 20px; line-height: 1.6;">Your first event was free. Additional events are <strong>$4.99 each</strong> — everything included, no hidden fees.</p>
+        <ul style="text-align: left; margin: 0 0 24px; padding-left: 20px; color: #1A1A2E; line-height: 1.8;">
+          <li>Unlimited AI-designed invitations</li>
+          <li>SMS + email delivery</li>
+          <li>Full RSVP tracking & guest management</li>
+          <li>Custom RSVP fields</li>
+        </ul>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button onclick="dismissPaymentGate()" style="padding: 10px 24px; border: 1px solid #ddd; border-radius: 50px; background: white; cursor: pointer; font-size: 14px; font-family: Inter, sans-serif;">Maybe Later</button>
+          <button id="dashPayBtn" onclick="proceedToPayment()" style="padding: 10px 24px; border: none; border-radius: 50px; background: #E94560; color: white; cursor: pointer; font-size: 14px; font-weight: 600; font-family: Inter, sans-serif;">Upgrade — $4.99</button>
+        </div>
+        <p style="color: #D1D5DB; font-size: 12px; margin: 16px 0 0;">Powered by Stripe</p>
       </div>
-      <p style="color: #D1D5DB; font-size: 12px; margin: 16px 0 0;">Powered by Stripe</p>
+      <div id="paymentGateCheckout" style="display:none;"></div>
     </div>
   </div>
 
@@ -734,7 +738,7 @@
           + buildRsvpMiniStats(event.rsvpCounts)
           + '<div class="event-actions">'
           + '<a href="/v2/event/' + encodeURIComponent(event.slug) + '" target="_blank">View</a>'
-          + '<button onclick="openManageModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\')">Manage</button>'
+          + '<button onclick="openManageModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\', null, \'' + (event.paymentStatus || '') + '\')">Manage</button>'
           + '</div></div></div>';
       }).join('');
 
@@ -808,8 +812,9 @@
             + '<input class="invite-link-input" value="' + escapeHtml(inviteUrl) + '" readonly onclick="this.select()">'
             + '<button class="copy-btn" onclick="copyLink(this, \'' + escapeHtml(inviteUrl) + '\')">Copy</button>'
             + '</div>'
-            + '<div class="share-buttons">'
-            + '<button class="share-btn" onclick="openManageModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\', \'messages\')">Send SMS</button>'
+            + '<div class="share-buttons">';
+        var smsPaid = (event.paymentStatus || '').toLowerCase() === 'paid';
+        shareHtml += '<button class="share-btn" onclick="openManageModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\', \'messages\', \'' + (event.paymentStatus || '') + '\')">' + (smsPaid ? 'Send SMS' : 'Send SMS &#x1F512;') + '</button>'
             + '<a class="share-btn" href="mailto:?subject=' + encodeURIComponent(event.title + ' - You\'re Invited!') + '&body=' + encodeURIComponent("You're invited to " + event.title + "!\n\nRSVP here: " + inviteUrl) + '">Email</a>'
             + '</div></div>';
         }
@@ -820,7 +825,7 @@
         } else if (!isArchived) {
           actionsHtml += '<a href="/v2/event/' + encodeURIComponent(event.slug) + '" target="_blank">View</a>';
           actionsHtml += '<a href="/v2/create/?eventId=' + encodeURIComponent(event.id) + '">Edit</a>';
-          actionsHtml += '<button onclick="openManageModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\')">Manage</button>';
+          actionsHtml += '<button onclick="openManageModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\', null, \'' + (event.paymentStatus || '') + '\')">Manage</button>';
         } else {
           actionsHtml += '<a href="/v2/event/' + encodeURIComponent(event.slug) + '" target="_blank">View</a>';
         }
@@ -910,6 +915,7 @@
     var manageDate = null;
     var manageSlug = null;
     var manageRsvps = null;
+    var managePaymentStatus = null;
     var manageCurrentTab = 'guests';
     var manageMsgType = 'invite';
     var manageHistoryOpen = false;
@@ -918,8 +924,9 @@
     // ============================================================
     // Manage Modal — Lifecycle
     // ============================================================
-    async function openManageModal(eventId, title, eventDate, slug, initialTab) {
+    async function openManageModal(eventId, title, eventDate, slug, initialTab, paymentStatus) {
       manageEventId = eventId;
+      managePaymentStatus = paymentStatus || null;
       manageTitle = decodeURIComponent(title || '');
       manageDate = eventDate || '';
       manageSlug = decodeURIComponent(slug || '');
@@ -1111,6 +1118,33 @@
       var inviteUrl = getInviteUrl();
       var defaultInviteMsg = 'Hi {name}, you\'re invited to ' + manageTitle + '! RSVP here: {link}';
 
+      // Gate SMS for free/unpaid events
+      var ps = (managePaymentStatus || '').toLowerCase();
+      if (ps === 'free' || ps === 'unpaid') {
+        content.innerHTML = '<div style="text-align:center;padding:40px 20px;">'
+          + '<div style="font-size:32px;margin-bottom:12px;">&#x1F4F1;</div>'
+          + '<h3 style="font-family:Playfair Display,serif;font-size:20px;margin:0 0 8px;color:var(--midnight);">SMS Delivery</h3>'
+          + '<p style="color:#6B7280;font-size:14px;line-height:1.6;margin:0 0 20px;max-width:320px;display:inline-block;">Send text message invites and updates directly to your guests\' phones.</p>'
+          + '<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:12px;padding:16px 20px;margin:0 auto 20px;max-width:340px;text-align:left;">'
+          + '<p style="font-size:13px;color:#92400E;margin:0 0 8px;font-weight:600;">Included with the $4.99 event upgrade:</p>'
+          + '<ul style="margin:0;padding:0 0 0 18px;font-size:13px;color:#78350F;line-height:1.7;">'
+          + '<li>Unlimited AI-designed invitations</li>'
+          + '<li>SMS + email delivery</li>'
+          + '<li>Full RSVP tracking</li>'
+          + '</ul>'
+          + '</div>'
+          + '<button onclick="showPaymentGate(\'' + manageEventId + '\')" style="padding:12px 32px;border:none;border-radius:50px;background:var(--party-coral);color:white;cursor:pointer;font-size:15px;font-weight:600;font-family:Inter,sans-serif;margin-bottom:20px;">Upgrade — $4.99</button>'
+          + '<div style="border-top:1px solid #f0f0f0;padding-top:16px;margin-top:4px;">'
+          + '<p style="font-size:12px;color:#9CA3AF;margin:0 0 10px;font-weight:600;">FREE ALTERNATIVES</p>'
+          + '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">'
+          + '<button onclick="sendEmailFromManage()" style="padding:8px 16px;border:1px solid #ddd;border-radius:8px;background:white;cursor:pointer;font-size:13px;font-family:Inter,sans-serif;color:var(--midnight);">&#x1F4E7; Send email invites</button>'
+          + '<button onclick="navigator.clipboard.writeText(\'' + inviteUrl.replace(/'/g, "\\'") + '\');showToast(\'Link copied!\')" style="padding:8px 16px;border:1px solid #ddd;border-radius:8px;background:white;cursor:pointer;font-size:13px;font-family:Inter,sans-serif;color:var(--midnight);">&#x1F517; Copy invite link</button>'
+          + '</div>'
+          + '</div>'
+          + '</div>';
+        return;
+      }
+
       var html = '';
 
       // Message type pills
@@ -1197,7 +1231,7 @@
       var counts = getGuestCountsWithPhone(manageRsvps);
       var guestCount = counts[filter] || counts.all;
 
-      costEstimate.textContent = guestCount > 0 ? '$0.10 × ' + guestCount + ' = ' + formatSmsCost(guestCount) : '';
+      costEstimate.textContent = guestCount > 0 ? guestCount + ' text message' + (guestCount !== 1 ? 's' : '') + ' will be sent' : '';
 
       sendBtn.disabled = !text.trim() || guestCount === 0;
       sendBtn.textContent = 'Send to ' + guestCount + ' guest' + (guestCount !== 1 ? 's' : '');
@@ -1211,8 +1245,7 @@
 
       if (!text || guestCount === 0) return;
 
-      var cost = formatSmsCost(guestCount);
-      showConfirm('Send SMS', 'This will send ' + guestCount + ' text message' + (guestCount !== 1 ? 's' : '') + ' at $0.10 each (total: ' + cost + '). This cannot be undone.', 'var(--party-coral)', async function() {
+      showConfirm('Send SMS', 'This will send ' + guestCount + ' text message' + (guestCount !== 1 ? 's' : '') + '. This cannot be undone.', 'var(--party-coral)', async function() {
         var sendBtn = document.getElementById('smsSendBtn');
         sendBtn.disabled = true;
         sendBtn.textContent = 'Sending...';
@@ -1754,48 +1787,134 @@
     // Payment Gate
     // ============================================================
     let paymentGateEventId = null;
+    let dashEmbeddedCheckout = null;
+    let dashCheckoutSessionId = null;
 
     function showPaymentGate(eventId) {
       paymentGateEventId = eventId;
+      // Reset to info view
+      document.getElementById('paymentGateInfo').style.display = '';
+      document.getElementById('paymentGateCheckout').style.display = 'none';
+      document.getElementById('paymentGateCheckout').innerHTML = '';
+      var btn = document.getElementById('dashPayBtn');
+      if (btn) { btn.textContent = 'Upgrade \u2014 $4.99'; btn.disabled = false; }
       document.getElementById('paymentGateOverlay').style.display = 'flex';
     }
 
     function dismissPaymentGate() {
+      if (dashEmbeddedCheckout) {
+        dashEmbeddedCheckout.destroy();
+        dashEmbeddedCheckout = null;
+      }
+      document.getElementById('paymentGateInfo').style.display = '';
+      document.getElementById('paymentGateCheckout').style.display = 'none';
+      document.getElementById('paymentGateCheckout').innerHTML = '';
+      var btn = document.getElementById('dashPayBtn');
+      if (btn) { btn.textContent = 'Upgrade \u2014 $4.99'; btn.disabled = false; }
       document.getElementById('paymentGateOverlay').style.display = 'none';
       paymentGateEventId = null;
     }
 
     async function proceedToPayment() {
       if (!paymentGateEventId) return;
-      const btn = document.querySelector('#paymentGateOverlay button:last-child');
-      btn.textContent = 'Redirecting...';
+      var btn = document.getElementById('dashPayBtn');
+      btn.textContent = 'Loading...';
       btn.disabled = true;
       try {
-        const resp = await authFetch('/api/v2/billing?action=checkout', {
+        // Get Stripe publishable key
+        var configRes = await authFetch('/api/v2/billing?action=config');
+        var configData = await configRes.json();
+        if (!configData.publishableKey) {
+          showToast('Payment configuration error');
+          btn.textContent = 'Upgrade \u2014 $4.99';
+          btn.disabled = false;
+          return;
+        }
+
+        // Create embedded checkout session
+        var resp = await authFetch('/api/v2/billing?action=checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventId: paymentGateEventId })
+          body: JSON.stringify({ eventId: paymentGateEventId, embedded: true, returnUrl: '/v2/dashboard/' })
         });
-        const data = await resp.json();
-        if (data.checkoutUrl || data.url) {
-          window.location.href = data.checkoutUrl || data.url;
-        } else if (data.alreadyPaid) {
-          showToast('Event already paid!');
-          dismissPaymentGate();
-          loadDashboard();
-        } else {
-          showToast('Error: ' + (data.error || 'Could not create checkout'));
-          btn.textContent = 'Continue to Payment — $4.99';
-          btn.disabled = false;
+        var data = await resp.json();
+        dashCheckoutSessionId = data.sessionId || null;
+
+        if (data.alreadyPaid) {
+          handleDashPaymentComplete();
+          return;
         }
+
+        if (!data.clientSecret) {
+          showToast(data.error || 'Error creating checkout session');
+          btn.textContent = 'Upgrade \u2014 $4.99';
+          btn.disabled = false;
+          return;
+        }
+
+        // Switch to checkout view
+        document.getElementById('paymentGateInfo').style.display = 'none';
+        var checkoutContainer = document.getElementById('paymentGateCheckout');
+        checkoutContainer.style.display = 'block';
+        checkoutContainer.innerHTML = '<div id="dashStripeEmbeddedCheckout"></div>';
+
+        // Mount Stripe Embedded Checkout
+        var stripe = Stripe(configData.publishableKey);
+        dashEmbeddedCheckout = await stripe.initEmbeddedCheckout({
+          clientSecret: data.clientSecret,
+          onComplete: function() { handleDashPaymentComplete(); }
+        });
+        dashEmbeddedCheckout.mount('#dashStripeEmbeddedCheckout');
       } catch (e) {
-        showToast('Error creating checkout session');
-        btn.textContent = 'Continue to Payment — $4.99';
+        showToast('Payment error: ' + e.message);
+        btn.textContent = 'Upgrade \u2014 $4.99';
         btn.disabled = false;
       }
     }
 
+    async function handleDashPaymentComplete() {
+      dismissPaymentGate();
+      showToast('Event upgraded! SMS is now available.');
+      // Verify payment in background
+      if (dashCheckoutSessionId) {
+        try {
+          await authFetch('/api/v2/billing?action=verify-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: dashCheckoutSessionId })
+          });
+        } catch (e) { /* webhook will handle it */ }
+        dashCheckoutSessionId = null;
+      }
+      // Reload dashboard to reflect new payment status
+      loadDashboard();
+      // If manage modal is open, reload its data
+      if (manageEventId) {
+        managePaymentStatus = 'paid';
+        switchTab(manageCurrentTab);
+      }
+    }
+
     // ============================================================
+    async function sendEmailFromManage() {
+      if (!manageEventId) return;
+      try {
+        var res = await authFetch('/api/v2/sms?action=sendEmailInvites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: manageEventId, allGuests: true })
+        });
+        var result = await res.json();
+        if (result.success) {
+          showToast('Email invites sent to ' + (result.sent || 0) + ' guest' + ((result.sent || 0) !== 1 ? 's' : '') + '!');
+        } else {
+          showToast('Error: ' + (result.error || 'Failed to send emails'));
+        }
+      } catch (e) {
+        showToast('Error sending emails');
+      }
+    }
+
     // SMS Limit Modal
     // ============================================================
     let smsLimitEventId = null;
