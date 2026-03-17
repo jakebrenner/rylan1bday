@@ -6108,6 +6108,33 @@
       document.getElementById('createPaymentGate').style.display = 'flex';
     }
 
+    function dismissPaymentGate() {
+      document.getElementById('createPaymentGate').style.display = 'none';
+      // If we have existing themes, show the preview and design chat
+      if (themeVersions.length > 0) {
+        document.getElementById('generatingView').style.display = 'none';
+        document.getElementById('generatedView').style.display = 'block';
+        renderPreview(themeVersions[activeVersionIndex >= 0 ? activeVersionIndex : 0]);
+        renderVersionGallery();
+        // Add a message about free-tier capabilities
+        designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+        designChatHistory.push({ role: 'assistant', content: "No worries! You can still make changes that don't require a full redesign:\n\n"
+          + "- \u{1F4DD} **Swap text** \u2014 \"change Saturday to Sunday\" or \"change the title to ...\"\n"
+          + "- \u{1F3A8} **Tweak colors** \u2014 \"make the background darker\" or \"change the accent to blue\"\n"
+          + "- \u{2795} **Add RSVP fields** \u2014 \"add a plus-one count field\"\n"
+          + "- \u{2796} **Remove RSVP fields** \u2014 \"remove the dietary restrictions field\"\n\n"
+          + "For full redesigns and unlimited AI changes, you can upgrade anytime for $4.99." });
+        renderDesignChat();
+        initCostTracker();
+        updateMobileLayout();
+      } else {
+        // No themes at all — go back to step 1 chat
+        var hideStyle = document.getElementById('resumeHideChat');
+        if (hideStyle) hideStyle.remove();
+        goToStep(1);
+      }
+    }
+
     var embeddedCheckoutInstance = null;
     var checkoutSessionId = null;
 
@@ -6255,7 +6282,7 @@
   </script>
 
   <!-- Payment Gate Modal -->
-  <div id="createPaymentGate" onclick="if(event.target===this){if(embeddedCheckoutInstance){embeddedCheckoutInstance.destroy();embeddedCheckoutInstance=null;}document.getElementById('paymentGateInfo').style.display='';document.getElementById('paymentGateCheckout').style.display='none';document.getElementById('paymentGateCheckout').innerHTML='';var b=document.getElementById('createPayBtn');if(b){b.textContent='Upgrade \u2014 $4.99';b.disabled=false;}this.style.display='none';}" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+  <div id="createPaymentGate" onclick="if(event.target===this){if(embeddedCheckoutInstance){embeddedCheckoutInstance.destroy();embeddedCheckoutInstance=null;}document.getElementById('paymentGateInfo').style.display='';document.getElementById('paymentGateCheckout').style.display='none';document.getElementById('paymentGateCheckout').innerHTML='';var b=document.getElementById('createPayBtn');if(b){b.textContent='Upgrade \u2014 $4.99';b.disabled=false;}dismissPaymentGate();}" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
     <div style="background:#fff;border-radius:20px;max-width:520px;width:95%;max-height:90vh;overflow-y:auto;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;">
       <div id="paymentGateInfo">
         <h3 style="margin:0 0 12px; font-family: 'Playfair Display', serif; font-size:22px; color:var(--midnight);">Unlock Full Features</h3>
@@ -6266,7 +6293,7 @@
           <li>Full RSVP tracking &amp; guest management</li>
         </ul>
         <div style="display: flex; gap: 12px; justify-content: center;">
-          <button onclick="document.getElementById('createPaymentGate').style.display='none';" style="padding: 10px 24px; border: 1px solid #ddd; border-radius: 50px; background: white; cursor: pointer; font-size: 14px; font-family: Inter, sans-serif;">Maybe Later</button>
+          <button onclick="dismissPaymentGate();" style="padding: 10px 24px; border: 1px solid #ddd; border-radius: 50px; background: white; cursor: pointer; font-size: 14px; font-family: Inter, sans-serif;">Maybe Later</button>
           <button id="createPayBtn" onclick="handleCreatePayment()" style="padding: 10px 24px; border: none; border-radius: 50px; background: #E94560; color: white; cursor: pointer; font-size: 14px; font-weight: 600; font-family: Inter, sans-serif;">Upgrade &#8212; $4.99</button>
         </div>
         <p style="color: #D1D5DB; font-size: 12px; margin: 16px 0 0;">Powered by Stripe</p>
