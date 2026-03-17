@@ -2724,6 +2724,180 @@ ${cssSnippet}`
       }
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    // HEALTH DASHBOARD — Error tracking & self-healing admin endpoints
+    // ═══════════════════════════════════════════════════════════════════
+
+    // ── ERROR DASHBOARD: aggregated error stats ──
+    if (action === 'errorDashboard') {
+      // Summary stats
+      const { data: summary } = await supabaseAdmin
+        .from('error_dashboard_summary')
+        .select('*')
+        .gte('day', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+        .order('day', { ascending: false });
+
+      // Self-heal effectiveness
+      const { data: healStats } = await supabaseAdmin
+        .from('self_heal_effectiveness')
+        .select('*')
+        .order('week', { ascending: false })
+        .limit(12);
+
+      // Recent escalated issues
+      const { data: escalated } = await supabaseAdmin
+        .from('escalated_issues')
+        .select('*')
+        .limit(20);
+
+      // Total counts
+      const { count: totalErrors } = await supabaseAdmin
+        .from('theme_error_reports')
+        .select('id', { count: 'exact', head: true });
+
+      const { count: totalHeals } = await supabaseAdmin
+        .from('self_heal_log')
+        .select('id', { count: 'exact', head: true });
+
+      const { count: successHeals } = await supabaseAdmin
+        .from('self_heal_log')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'success');
+
+      return res.status(200).json({
+        success: true,
+        dashboard: {
+          errorSummary: summary || [],
+          healEffectiveness: healStats || [],
+          escalatedIssues: escalated || [],
+          totals: {
+            errors: totalErrors || 0,
+            healAttempts: totalHeals || 0,
+            healSuccesses: successHeals || 0,
+            healRate: totalHeals > 0 ? Math.round(100 * successHeals / totalHeals) : 0
+          }
+        }
+      });
+    }
+
+    // ── THEME ERRORS: all error reports for a specific theme ──
+    if (action === 'themeErrors') {
+      const eventThemeId = req.query.eventThemeId;
+      if (!eventThemeId) return res.status(400).json({ error: 'eventThemeId required' });
+
+      const { data: errors } = await supabaseAdmin
+        .from('theme_error_reports')
+        .select('*')
+        .eq('event_theme_id', eventThemeId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      // Also get chat log if we can find the event
+      const { data: theme } = await supabaseAdmin
+        .from('event_themes')
+        .select('event_id')
+        .eq('id', eventThemeId)
+        .single();
+
+      let chatLog = [];
+      if (theme?.event_id) {
+        const { data } = await supabaseAdmin
+          .from('design_chat_logs')
+          .select('*')
+          .eq('event_id', theme.event_id)
+          .order('message_index', { ascending: true });
+        chatLog = data || [];
+      }
+
+      return res.status(200).json({
+        success: true,
+        errors: errors || [],
+        chatLog
+      });
+    }
+
+    // ── HEAL HISTORY: recent self-heal attempts ──
+    if (action === 'healHistory') {
+      const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+      const { data: history } = await supabaseAdmin
+        .from('self_heal_log')
+        .select(`
+          *,
+          events:event_id (title, slug),
+          original_theme:original_theme_id (html, css),
+          new_theme:new_theme_id (html, css)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      return res.status(200).json({ success: true, history: history || [] });
+    }
+
+    // ── RETRY HEAL: manually trigger self-heal for a theme ──
+    if (action === 'retryHeal' && req.method === 'POST') {
+      const { eventThemeId } = req.body;
+      if (!eventThemeId) return res.status(400).json({ error: 'eventThemeId required' });
+
+      // Get the theme's event_id
+      const { data: theme } = await supabaseAdmin
+        .from('event_themes')
+        .select('event_id')
+        .eq('id', eventThemeId)
+        .single();
+
+      if (!theme) return res.status(404).json({ error: 'Theme not found' });
+
+      // Create heal log entry
+      const { data: healLog } = await supabaseAdmin
+        .from('self_heal_log')
+        .insert({
+          event_id: theme.event_id,
+          original_theme_id: eventThemeId,
+          trigger_type: 'admin_manual',
+          trigger_details: { triggered_by: admin.email },
+          status: 'pending'
+        })
+        .select('id')
+        .single();
+
+      // Call self-heal synchronously
+      const baseUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'https://www.ryvite.com';
+
+      try {
+        const healRes = await fetch(`${baseUrl}/api/v2/self-heal`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            healLogId: healLog.id,
+            eventThemeId,
+            eventId: theme.event_id,
+            triggerType: 'admin_manual',
+            sync: true
+          })
+        });
+        const healData = await healRes.json();
+        return res.status(200).json({ success: true, healResult: healData });
+      } catch (healErr) {
+        return res.status(500).json({ success: false, error: 'Self-heal request failed: ' + healErr.message });
+      }
+    }
+
+    // ── EVENT CHAT LOG: get full design chat history for an event ──
+    if (action === 'eventChatLog') {
+      const eventId = req.query.eventId;
+      if (!eventId) return res.status(400).json({ error: 'eventId required' });
+
+      const { data: messages } = await supabaseAdmin
+        .from('design_chat_logs')
+        .select('*')
+        .eq('event_id', eventId)
+        .order('message_index', { ascending: true });
+
+      return res.status(200).json({ success: true, messages: messages || [] });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Admin API error:', err);

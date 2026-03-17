@@ -564,6 +564,10 @@
         <button class="sidebar-item" data-tab="stylelibrary" onclick="switchTab('stylelibrary')">Generations</button>
       </div>
       <div class="sidebar-group">
+        <div class="sidebar-group-label">Quality</div>
+        <button class="sidebar-item" data-tab="health" onclick="switchTab('health');loadHealthDashboard();">Health</button>
+      </div>
+      <div class="sidebar-group">
         <div class="sidebar-group-label">Blog</div>
         <button class="sidebar-item" data-tab="blogposts" onclick="switchTab('blogposts');loadBlogPosts();">Posts</button>
         <button class="sidebar-item" data-tab="blogcategories" onclick="switchTab('blogcategories');loadBlogCategories();">Categories</button>
@@ -2208,6 +2212,100 @@
         <div class="config-actions">
           <button class="btn btn-secondary" id="testNotifBtn" onclick="sendTestNotification()">Send Test SMS</button>
           <span id="testNotifStatus" style="font-size:13px;margin-left:12px;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- HEALTH TAB — Error tracking, self-healing, escalated issues -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="tab-content" id="tab-health">
+      <div class="config-section">
+        <h3>System Health</h3>
+        <p style="font-size:13px;color:#888;margin-bottom:20px;">Error tracking, self-healing pipeline, and issues requiring manual attention.</p>
+
+        <!-- Summary stats cards -->
+        <div id="healthSummaryCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px;">
+          <div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:16px;text-align:center;">
+            <div style="font-size:28px;font-weight:700;color:var(--midnight);" id="healthTotalErrors">—</div>
+            <div style="font-size:12px;color:#888;">Total Errors</div>
+          </div>
+          <div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:16px;text-align:center;">
+            <div style="font-size:28px;font-weight:700;color:#4CAF50;" id="healthHealRate">—</div>
+            <div style="font-size:12px;color:#888;">Auto-Heal Rate</div>
+          </div>
+          <div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:16px;text-align:center;">
+            <div style="font-size:28px;font-weight:700;color:#2196F3;" id="healthHealAttempts">—</div>
+            <div style="font-size:12px;color:#888;">Heal Attempts</div>
+          </div>
+          <div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:16px;text-align:center;">
+            <div style="font-size:28px;font-weight:700;color:#FF9800;" id="healthEscalated">—</div>
+            <div style="font-size:12px;color:#888;">Escalated</div>
+          </div>
+        </div>
+
+        <!-- Escalated issues table -->
+        <div class="table-container" style="margin-bottom:24px;">
+          <div class="table-header">
+            <h3>Escalated Issues</h3>
+            <span class="count" id="escalatedCount">0</span>
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th style="padding:12px 16px;text-align:left;font-size:12px;font-weight:600;color:#888;border-bottom:1px solid #eee;">Event</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:12px;font-weight:600;color:#888;border-bottom:1px solid #eee;">Trigger</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:12px;font-weight:600;color:#888;border-bottom:1px solid #eee;">Error Types</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:12px;font-weight:600;color:#888;border-bottom:1px solid #eee;">Diagnosis</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:12px;font-weight:600;color:#888;border-bottom:1px solid #eee;">Rating</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:12px;font-weight:600;color:#888;border-bottom:1px solid #eee;">When</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:12px;font-weight:600;color:#888;border-bottom:1px solid #eee;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="escalatedTableBody">
+                <tr><td colspan="7" style="padding:24px;text-align:center;color:#888;">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Recent heal history -->
+        <div class="table-container">
+          <div class="table-header">
+            <h3>Heal History</h3>
+            <button class="btn btn-secondary" onclick="loadHealthDashboard()" style="font-size:12px;padding:6px 12px;">Refresh</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th style="padding:12px 16px;text-align:left;font-size:12px;font-weight:600;color:#888;border-bottom:1px solid #eee;">Event</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:12px;font-weight:600;color:#888;border-bottom:1px solid #eee;">Trigger</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:12px;font-weight:600;color:#888;border-bottom:1px solid #eee;">Fix Tier</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:12px;font-weight:600;color:#888;border-bottom:1px solid #eee;">Status</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:12px;font-weight:600;color:#888;border-bottom:1px solid #eee;">Diagnosis</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:12px;font-weight:600;color:#888;border-bottom:1px solid #eee;">Latency</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:12px;font-weight:600;color:#888;border-bottom:1px solid #eee;">Cost</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:12px;font-weight:600;color:#888;border-bottom:1px solid #eee;">When</th>
+                </tr>
+              </thead>
+              <tbody id="healHistoryTableBody">
+                <tr><td colspan="8" style="padding:24px;text-align:center;color:#888;">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Chat log modal -->
+        <div id="chatLogModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+          <div style="background:#fff;border-radius:12px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;padding:24px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+              <h3 id="chatLogModalTitle">Design Chat Log</h3>
+              <button onclick="document.getElementById('chatLogModal').style.display='none'" style="background:none;border:none;font-size:24px;cursor:pointer;">&times;</button>
+            </div>
+            <div id="chatLogModalContent" style="font-size:13px;line-height:1.6;"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -7611,6 +7709,151 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
       btn.disabled = false;
       btn.textContent = 'Send Test SMS';
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // HEALTH DASHBOARD
+    // ═══════════════════════════════════════════════════════════════════
+    async function loadHealthDashboard() {
+      try {
+        var [dashData, historyData] = await Promise.all([
+          adminFetch('errorDashboard'),
+          adminFetch('healHistory', { params: { limit: 50 } })
+        ]);
+
+        if (dashData && dashData.success) {
+          renderHealthSummary(dashData.dashboard);
+          renderEscalatedIssues(dashData.dashboard.escalatedIssues || []);
+        }
+
+        if (historyData && historyData.success) {
+          renderHealHistory(historyData.history || []);
+        }
+      } catch (err) {
+        console.error('Failed to load health dashboard:', err);
+      }
+    }
+
+    function renderHealthSummary(dashboard) {
+      var t = dashboard.totals || {};
+      document.getElementById('healthTotalErrors').textContent = t.errors || 0;
+      document.getElementById('healthHealRate').textContent = (t.healRate || 0) + '%';
+      document.getElementById('healthHealAttempts').textContent = t.healAttempts || 0;
+      var escalatedCount = (dashboard.escalatedIssues || []).length;
+      document.getElementById('healthEscalated').textContent = escalatedCount;
+      document.getElementById('escalatedCount').textContent = escalatedCount;
+    }
+
+    function renderEscalatedIssues(issues) {
+      var tbody = document.getElementById('escalatedTableBody');
+      if (!issues.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;color:#888;">No escalated issues</td></tr>';
+        return;
+      }
+      tbody.innerHTML = issues.map(function(issue) {
+        var errorTypes = (issue.error_types || []).join(', ') || '—';
+        var rating = issue.latest_rating ? (issue.latest_rating.rating + '/5' + (issue.latest_rating.feedback ? ': "' + escapeHtml(issue.latest_rating.feedback).substring(0, 40) + '"' : '')) : '—';
+        var ago = timeAgo(issue.created_at);
+        return '<tr>'
+          + '<td style="padding:10px 16px;font-size:13px;border-bottom:1px solid #f0f0f0;">' + escapeHtml(issue.event_title || '—') + '</td>'
+          + '<td style="padding:10px 16px;font-size:13px;border-bottom:1px solid #f0f0f0;"><span style="background:#FFF3CD;color:#856404;padding:2px 8px;border-radius:4px;font-size:11px;">' + escapeHtml(issue.trigger_type) + '</span></td>'
+          + '<td style="padding:10px 16px;font-size:12px;border-bottom:1px solid #f0f0f0;color:#666;">' + escapeHtml(errorTypes) + '</td>'
+          + '<td style="padding:10px 16px;font-size:12px;border-bottom:1px solid #f0f0f0;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(issue.diagnosis || issue.error_message || '—') + '</td>'
+          + '<td style="padding:10px 16px;font-size:12px;border-bottom:1px solid #f0f0f0;">' + rating + '</td>'
+          + '<td style="padding:10px 16px;font-size:12px;border-bottom:1px solid #f0f0f0;color:#888;">' + ago + '</td>'
+          + '<td style="padding:10px 16px;font-size:12px;border-bottom:1px solid #f0f0f0;">'
+          + '<button onclick="retryHeal(\'' + issue.original_theme_id + '\')" style="padding:4px 10px;border:1px solid #E94560;color:#E94560;background:none;border-radius:4px;font-size:11px;cursor:pointer;margin-right:4px;">Fix Now</button>'
+          + '<button onclick="viewChatLog(\'' + issue.event_id + '\')" style="padding:4px 10px;border:1px solid #ddd;color:#666;background:none;border-radius:4px;font-size:11px;cursor:pointer;">Chat Log</button>'
+          + '</td></tr>';
+      }).join('');
+    }
+
+    function renderHealHistory(history) {
+      var tbody = document.getElementById('healHistoryTableBody');
+      if (!history.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="padding:24px;text-align:center;color:#888;">No heal attempts yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = history.map(function(h) {
+        var statusColor = h.status === 'success' ? '#4CAF50' : (h.status === 'escalated' ? '#FF9800' : '#E94560');
+        var eventTitle = h.events ? h.events.title : '—';
+        return '<tr>'
+          + '<td style="padding:10px 16px;font-size:13px;border-bottom:1px solid #f0f0f0;">' + escapeHtml(eventTitle) + '</td>'
+          + '<td style="padding:10px 16px;font-size:12px;border-bottom:1px solid #f0f0f0;"><span style="background:#f0f0f0;padding:2px 8px;border-radius:4px;font-size:11px;">' + escapeHtml(h.trigger_type || '—') + '</span></td>'
+          + '<td style="padding:10px 16px;font-size:12px;border-bottom:1px solid #f0f0f0;">' + escapeHtml(h.fix_tier || '—') + '</td>'
+          + '<td style="padding:10px 16px;font-size:12px;border-bottom:1px solid #f0f0f0;"><span style="color:' + statusColor + ';font-weight:600;">' + escapeHtml(h.status) + '</span></td>'
+          + '<td style="padding:10px 16px;font-size:12px;border-bottom:1px solid #f0f0f0;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(h.diagnosis || h.fix_description || '—') + '</td>'
+          + '<td style="padding:10px 16px;font-size:12px;border-bottom:1px solid #f0f0f0;">' + (h.latency_ms ? (h.latency_ms / 1000).toFixed(1) + 's' : '—') + '</td>'
+          + '<td style="padding:10px 16px;font-size:12px;border-bottom:1px solid #f0f0f0;">' + (h.cost_cents ? '$' + (h.cost_cents / 100).toFixed(3) : '—') + '</td>'
+          + '<td style="padding:10px 16px;font-size:12px;border-bottom:1px solid #f0f0f0;color:#888;">' + timeAgo(h.created_at) + '</td>'
+          + '</tr>';
+      }).join('');
+    }
+
+    async function retryHeal(themeId) {
+      if (!confirm('Trigger manual self-heal for this theme?')) return;
+      try {
+        var data = await adminFetch('retryHeal', {
+          method: 'POST',
+          body: { eventThemeId: themeId }
+        });
+        if (data.success && data.healResult && data.healResult.success) {
+          alert('Theme healed successfully! Fix tier: ' + (data.healResult.fixTier || 'unknown'));
+        } else {
+          alert('Heal attempt ' + (data.healResult ? data.healResult.status : 'failed') + '. ' + (data.healResult && data.healResult.diagnosis ? data.healResult.diagnosis : ''));
+        }
+        loadHealthDashboard();
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    async function viewChatLog(eventId) {
+      var modal = document.getElementById('chatLogModal');
+      var content = document.getElementById('chatLogModalContent');
+      modal.style.display = 'flex';
+      content.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">Loading chat log...</div>';
+
+      try {
+        var data = await adminFetch('eventChatLog', { params: { eventId: eventId } });
+        if (data.success && data.messages && data.messages.length > 0) {
+          content.innerHTML = data.messages.map(function(msg) {
+            var bgColor = msg.role === 'user' ? '#E94560' : '#f0f0f0';
+            var textColor = msg.role === 'user' ? '#fff' : '#333';
+            var align = msg.role === 'user' ? 'flex-end' : 'flex-start';
+            var tierBadge = msg.tier_used ? '<span style="font-size:10px;background:#e0e0e0;padding:1px 6px;border-radius:8px;margin-left:6px;">T' + msg.tier_used + '</span>' : '';
+            var metaInfo = '';
+            if (msg.metadata && Object.keys(msg.metadata).length > 0) {
+              var m = msg.metadata;
+              var parts = [];
+              if (m.model) parts.push(m.model.replace('claude-', ''));
+              if (m.latencyMs) parts.push((m.latencyMs / 1000).toFixed(1) + 's');
+              if (m.inputTokens || m.outputTokens) parts.push((m.inputTokens || 0) + '/' + (m.outputTokens || 0) + ' tok');
+              if (parts.length) metaInfo = '<div style="font-size:10px;color:#999;margin-top:4px;">' + parts.join(' · ') + '</div>';
+            }
+            return '<div style="display:flex;justify-content:' + align + ';margin-bottom:8px;">'
+              + '<div style="max-width:85%;padding:10px 14px;border-radius:12px;background:' + bgColor + ';color:' + textColor + ';font-size:13px;line-height:1.5;">'
+              + escapeHtml(msg.content).replace(/\n/g, '<br>') + tierBadge + metaInfo
+              + '</div></div>';
+          }).join('');
+        } else {
+          content.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">No chat log available for this event.</div>';
+        }
+      } catch (err) {
+        content.innerHTML = '<div style="color:#E94560;padding:20px;">Error loading chat log: ' + escapeHtml(err.message) + '</div>';
+      }
+    }
+
+    function timeAgo(dateStr) {
+      if (!dateStr) return '—';
+      var seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+      if (seconds < 60) return seconds + 's ago';
+      var minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return minutes + 'm ago';
+      var hours = Math.floor(minutes / 60);
+      if (hours < 24) return hours + 'h ago';
+      var days = Math.floor(hours / 24);
+      return days + 'd ago';
     }
 
   </script>

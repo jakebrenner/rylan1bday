@@ -169,6 +169,8 @@
               if (detailsSlot) {
                 detailsSlot.innerHTML = buildEventDetailsHtml(result.event);
               }
+              // Run health check after a short delay to let rendering settle
+              setTimeout(function() { runThemeHealthCheck(iframe, result.event); }, 1500);
             } catch(e) {}
           };
         }
@@ -524,6 +526,105 @@
     function fmtDate(d) { return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; }
     function showError(msg) { document.getElementById('error').textContent = msg; document.getElementById('error').style.display = 'block'; document.getElementById('loading').style.display = 'none'; }
     function escapeHtml(str) { var div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML; }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // THEME HEALTH CHECK — detects rendering issues and reports them
+    // ═══════════════════════════════════════════════════════════════════
+    function runThemeHealthCheck(iframe, event) {
+      try {
+        var doc = iframe.contentDocument;
+        if (!doc || !doc.body) return;
+        var issues = [];
+
+        // 1. Missing critical elements
+        if (!doc.querySelector('.rsvp-slot')) {
+          issues.push({ type: 'missing_element', detail: '.rsvp-slot' });
+        }
+        if (!doc.querySelector('.details-slot')) {
+          issues.push({ type: 'missing_element', detail: '.details-slot' });
+        }
+
+        // 2. Layout overflow (content wider than viewport — breaks mobile)
+        var body = doc.body;
+        if (body.scrollWidth > body.clientWidth + 10) {
+          issues.push({ type: 'layout_overflow', detail: {
+            scrollWidth: body.scrollWidth, clientWidth: body.clientWidth,
+            overflow: body.scrollWidth - body.clientWidth
+          }});
+        }
+
+        // 3. Zero-height body (theme didn't render at all)
+        if (body.scrollHeight < 100) {
+          issues.push({ type: 'render_error', detail: { bodyHeight: body.scrollHeight } });
+        }
+
+        // 4. Font loading failures
+        if (doc.fonts && doc.fonts.ready) {
+          doc.fonts.ready.then(function() {
+            var fontIssues = [];
+            doc.fonts.forEach(function(f) {
+              if (f.status === 'error') fontIssues.push(f.family);
+            });
+            if (fontIssues.length > 0) {
+              reportThemeErrors(event, [{ type: 'font_load', detail: { failedFonts: fontIssues } }], 'invite_page');
+            }
+          });
+        }
+
+        // 5. Check for oversized images that might break layout
+        var images = doc.querySelectorAll('img');
+        images.forEach(function(img) {
+          if (img.naturalWidth > 0 && img.offsetWidth > body.clientWidth) {
+            issues.push({ type: 'layout_overflow', detail: { element: 'img', src: img.src.substring(0, 100), width: img.offsetWidth } });
+          }
+        });
+
+        if (issues.length > 0) {
+          reportThemeErrors(event, issues, 'invite_page');
+        }
+      } catch (e) {
+        // Cross-origin iframe or other security restriction — can't check
+        console.warn('Health check failed:', e.message);
+      }
+    }
+
+    function reportThemeErrors(event, issues, pageContext) {
+      var themeHtml = (event.themeHtml || '') + (event.themeCss || '');
+      // Simple hash for dedup
+      var hash = 0;
+      for (var i = 0; i < themeHtml.length; i++) {
+        hash = ((hash << 5) - hash) + themeHtml.charCodeAt(i);
+        hash |= 0;
+      }
+      var themeHash = 'h' + Math.abs(hash).toString(36);
+
+      var deviceInfo = {
+        viewport: { w: window.innerWidth, h: window.innerHeight },
+        ua: navigator.userAgent.substring(0, 200),
+        platform: navigator.platform,
+        pixelRatio: window.devicePixelRatio || 1
+      };
+      if (navigator.connection) {
+        deviceInfo.connectionType = navigator.connection.effectiveType;
+      }
+
+      // Generate a simple fingerprint for dedup
+      var fp = deviceInfo.ua + '|' + deviceInfo.viewport.w + 'x' + deviceInfo.viewport.h;
+
+      fetch('/api/v2/error-report?action=report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId: event.id,
+          eventThemeId: event.activeThemeId || event.themeId,
+          errors: issues,
+          pageContext: pageContext,
+          deviceInfo: deviceInfo,
+          themeHtmlHash: themeHash,
+          fingerprint: fp
+        })
+      }).catch(function() { /* silent — error reporting should never break the page */ });
+    }
 
     loadEvent();
   </script>

@@ -68,7 +68,12 @@ export default async function handler(req, res) {
       // Handle 1-star credit-back for the fallback insert path too
       if (Math.round(rating) === 1 && (raterType === 'host' || !raterType)) {
         const creditResult = await handleOneStarCredit(eventId, eventThemeId);
-        return res.status(200).json({ success: true, rating: inserted, ...creditResult });
+        const healResult = await triggerSyncSelfHeal(eventId, eventThemeId, rating, feedback);
+        return res.status(200).json({ success: true, rating: inserted, ...creditResult, healResult });
+      }
+      if (Math.round(rating) <= 2 && (raterType === 'host' || !raterType)) {
+        const healResult = await triggerSyncSelfHeal(eventId, eventThemeId, rating, feedback);
+        return res.status(200).json({ success: true, rating: inserted, healResult });
       }
       return res.status(200).json({ success: true, rating: inserted });
     }
@@ -76,7 +81,15 @@ export default async function handler(req, res) {
     // Handle 1-star credit-back: waive generation cost for up to MAX_ONE_STAR_CREDITS per event
     if (Math.round(rating) === 1 && (raterType === 'host' || !raterType)) {
       const creditResult = await handleOneStarCredit(eventId, eventThemeId);
-      return res.status(200).json({ success: true, rating: data, ...creditResult });
+      // Trigger synchronous self-heal for 1-2 star ratings
+      const healResult = await triggerSyncSelfHeal(eventId, eventThemeId, rating, feedback);
+      return res.status(200).json({ success: true, rating: data, ...creditResult, healResult });
+    }
+
+    // Trigger self-heal for 2-star ratings too (no credit-back, but still worth fixing)
+    if (Math.round(rating) <= 2 && (raterType === 'host' || !raterType)) {
+      const healResult = await triggerSyncSelfHeal(eventId, eventThemeId, rating, feedback);
+      return res.status(200).json({ success: true, rating: data, healResult });
     }
 
     return res.status(200).json({ success: true, rating: data });
@@ -131,6 +144,72 @@ export default async function handler(req, res) {
   }
 
   return res.status(400).json({ success: false, error: 'Unknown action: ' + action });
+}
+
+// ── SYNCHRONOUS SELF-HEAL TRIGGER ──
+// Called inline during rating submission so the user can see the fix in real-time
+async function triggerSyncSelfHeal(eventId, eventThemeId, rating, feedback) {
+  try {
+    // Check cooldown: max 1 heal attempt per theme per 24 hours
+    const { count } = await supabase
+      .from('self_heal_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('original_theme_id', eventThemeId)
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+    if (count > 0) return null; // cooldown active
+
+    // Create heal log entry
+    const { data: healLog } = await supabase
+      .from('self_heal_log')
+      .insert({
+        event_id: eventId,
+        original_theme_id: eventThemeId,
+        trigger_type: 'low_rating',
+        trigger_details: { rating, feedback: (feedback || '').substring(0, 500) },
+        status: 'pending'
+      })
+      .select('id')
+      .single();
+
+    if (!healLog) return null;
+
+    // Call self-heal synchronously
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : 'https://www.ryvite.com';
+
+    const healRes = await fetch(`${baseUrl}/api/v2/self-heal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        healLogId: healLog.id,
+        eventThemeId,
+        eventId,
+        triggerType: 'low_rating',
+        triggerDetails: { rating, feedback },
+        feedback,
+        sync: true
+      })
+    });
+
+    const healData = await healRes.json();
+    if (healData.success) {
+      return {
+        healed: true,
+        newThemeId: healData.newThemeId,
+        newHtml: healData.newHtml,
+        newCss: healData.newCss,
+        newConfig: healData.newConfig,
+        diagnosis: healData.diagnosis,
+        fixTier: healData.fixTier
+      };
+    }
+    return { healed: false, reason: healData.reason || healData.status || 'fix_failed' };
+  } catch (err) {
+    console.error('[ratings] Self-heal trigger error:', err);
+    return null;
+  }
 }
 
 // ── 1-STAR CREDIT-BACK LOGIC ──

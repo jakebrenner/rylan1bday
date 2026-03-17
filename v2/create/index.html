@@ -3395,6 +3395,9 @@
 
         // Reset retry counter on successful render
         if (!isUnstyled) _cssCheckRetries = 0;
+
+        // Run health check and report any rendering issues to the server
+        setTimeout(runPreviewHealthCheck, 1000);
       } catch (e) {
         // Cross-origin iframe or other error — can't check, skip silently
       }
@@ -3818,6 +3821,88 @@
 
     // ---- Tab switching & edit panel ----
     var designChatHistory = [];
+    var _lastPersistedIndex = -1; // Track which messages have been saved to the server
+
+    // ═══════════════════════════════════════════════════════════════════
+    // DESIGN CHAT PERSISTENCE — saves conversation to server for debugging
+    // ═══════════════════════════════════════════════════════════════════
+    function persistNewChatMessages() {
+      if (!currentEvent || !currentEvent.id) return;
+      var newMsgs = [];
+      for (var i = _lastPersistedIndex + 1; i < designChatHistory.length; i++) {
+        var msg = designChatHistory[i];
+        // Skip system/loading messages and upgrade prompts
+        if (msg.role === 'system' || msg.role === 'rating' || msg.role === 'upgrade') continue;
+        newMsgs.push({
+          role: msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.content || '',
+          tierUsed: msg.tierUsed || null,
+          metadata: msg.metadata || {}
+        });
+      }
+      if (newMsgs.length === 0) return;
+      _lastPersistedIndex = designChatHistory.length - 1;
+
+      // Fire-and-forget POST
+      fetch('/api/v2/error-report?action=saveChatMessages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId: currentEvent.id,
+          eventThemeId: (themeVersions && themeVersions[activeVersionIndex]) ? themeVersions[activeVersionIndex].id : null,
+          messages: newMsgs
+        })
+      }).catch(function() { /* silent — persistence should never break the UX */ });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // PREVIEW HEALTH CHECK — detects rendering issues in the create preview
+    // ═══════════════════════════════════════════════════════════════════
+    function runPreviewHealthCheck() {
+      var iframe = document.getElementById('previewFrame');
+      if (!iframe || !currentEvent) return;
+      try {
+        var doc = iframe.contentDocument;
+        if (!doc || !doc.body) return;
+        var issues = [];
+
+        // Missing .rsvp-slot
+        if (!doc.querySelector('.rsvp-slot')) {
+          issues.push({ type: 'missing_element', detail: '.rsvp-slot' });
+        }
+        // Layout overflow
+        if (doc.body.scrollWidth > doc.body.clientWidth + 10) {
+          issues.push({ type: 'layout_overflow', detail: {
+            scrollWidth: doc.body.scrollWidth, clientWidth: doc.body.clientWidth
+          }});
+        }
+        // Zero-height
+        if (doc.body.scrollHeight < 100) {
+          issues.push({ type: 'render_error', detail: { bodyHeight: doc.body.scrollHeight } });
+        }
+
+        if (issues.length > 0) {
+          var themeId = (themeVersions && themeVersions[activeVersionIndex]) ? themeVersions[activeVersionIndex].id : null;
+          var deviceInfo = {
+            viewport: { w: window.innerWidth, h: window.innerHeight },
+            ua: navigator.userAgent.substring(0, 200),
+            platform: navigator.platform,
+            pixelRatio: window.devicePixelRatio || 1
+          };
+          fetch('/api/v2/error-report?action=report', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventId: currentEvent.id,
+              eventThemeId: themeId,
+              errors: issues,
+              pageContext: 'create_preview',
+              deviceInfo: deviceInfo
+            })
+          }).catch(function() {});
+        }
+      } catch (e) { /* silent */ }
+    }
     var pendingRatingThemeId = null;
     var justUpgraded = false; // Set when returning from Stripe payment
     var verifyPaymentPromise = null; // Stored verify-session promise for redirect flow
@@ -4275,6 +4360,9 @@
         return html;
       }).join('');
       container.scrollTop = container.scrollHeight;
+      // Persist new messages to server (debounced — fire-and-forget)
+      clearTimeout(renderDesignChat._persistTimer);
+      renderDesignChat._persistTimer = setTimeout(persistNewChatMessages, 2000);
     }
 
     function scrollDesignChat() {
