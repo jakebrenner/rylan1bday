@@ -553,11 +553,14 @@
       <div class="sidebar-group">
         <div class="sidebar-group-label">Users &amp; Revenue</div>
         <button class="sidebar-item" data-tab="users" onclick="switchTab('users')">Users</button>
+        <button class="sidebar-item" data-tab="team" onclick="switchTab('team');loadAdmins();">Admin Team</button>
+        <button class="sidebar-item" data-tab="subscriptions" onclick="switchTab('subscriptions');loadBillingTab();">Billing</button>
         <button class="sidebar-item" data-tab="coupons" onclick="switchTab('coupons');loadCoupons();">Coupons</button>
         <button class="sidebar-item" data-tab="notifications" onclick="switchTab('notifications');loadAdminNotifPrefs();">Notifications</button>
       </div>
       <div class="sidebar-group">
         <div class="sidebar-group-label">AI &amp; Prompts</div>
+        <button class="sidebar-item" data-tab="settings" onclick="switchTab('settings')">AI Models</button>
         <button class="sidebar-item" data-tab="promptversions" onclick="switchTab('promptversions')">Prompt Versions</button>
         <button class="sidebar-item" data-tab="promptlab" onclick="switchTab('promptlab')">Prompt Lab</button>
         <button class="sidebar-item" data-tab="stylelibrary" onclick="switchTab('stylelibrary')">Generations</button>
@@ -566,11 +569,6 @@
       <div class="sidebar-group">
         <div class="sidebar-group-label">Marketing</div>
         <button class="sidebar-item" data-tab="marketing" onclick="switchTab('marketing');loadMarketingTab();">Ad Dashboard</button>
-      </div>
-      <div class="sidebar-group">
-        <div class="sidebar-group-label">Settings</div>
-        <button class="sidebar-item" data-tab="settings" onclick="switchTab('settings')">AI Models</button>
-        <button class="sidebar-item" data-tab="team" onclick="switchTab('team');loadAdmins();">Team</button>
       </div>
       <div class="sidebar-group">
         <div class="sidebar-group-label">Blog</div>
