@@ -3992,6 +3992,14 @@
       renderPreview(ver);
     }
 
+    // Extract user-uploaded photo URLs already embedded in the current theme HTML
+    // User photos live in Supabase's event-photos/ bucket, distinguishing them from SVG/other assets
+    function getExistingPhotoUrls(ver) {
+      if (!ver || !ver.html) return [];
+      var matches = ver.html.match(/src=["'](https:\/\/[^"']*event-photos\/[^"']+)["']/gi) || [];
+      return matches.map(function(m) { return m.replace(/^src=["']|["']$/g, ''); });
+    }
+
     // Build guaranteed thank you page structure
     // AI provides: .thankyou-page background/decorative styling, .thankyou-hero heading + subtitle, and CSS
     // We guarantee: calendar buttons, footer, layout structure
@@ -4931,6 +4939,19 @@
         }
       }
       event.target.value = '';
+      // Show creative photo usage suggestions after successful upload
+      if (designChatPhotoUrls.length > 0) {
+        var photoCount = designChatPhotoUrls.length;
+        var suggestion = (photoCount === 1 ? 'Nice photo!' : 'Nice photos!') + ' Here are some fun ideas \u2014 just describe what you\'d like:\n\n'
+          + '\ud83d\ude81 Animated \u2014 faces flying from helicopters, popping out of presents, orbiting the title\n'
+          + '\ud83d\uddbc\ufe0f Themed frames \u2014 birthday balloons, wedding flowers, patriotic borders\n'
+          + '\ud83c\udfad Collage \u2014 scattered polaroids with fun tilts and washi tape\n'
+          + '\ud83c\udf1f Cutout \u2014 face cutouts placed onto illustrated characters or scenes\n'
+          + '\u2728 Interactive \u2014 photos that spin, bounce, or wave with CSS animation\n\n'
+          + 'Or just send your message and I\'ll find a creative way to feature ' + (photoCount === 1 ? 'your photo' : 'your photos') + '!';
+        pushDesignChat({ role: 'assistant', content: suggestion });
+        renderDesignChat();
+      }
     }
 
     function removeDesignChatPhoto(btn, idx) {
@@ -5233,16 +5254,20 @@
       }
 
       // Detect if user mentions wanting a photo but didn't attach one
+      // Skip this check if the current design already has user-uploaded photos
       if (text && !hasPhotos) {
-        var photoKeywords = /\b(photo|picture|image|pic|selfie|headshot|portrait|snapshot|upload.*(photo|image|pic)|include.*(photo|image|pic)|(add|use|put|include|attach|insert).*(photo|picture|image|pic))\b/i;
-        if (photoKeywords.test(text)) {
-          pushDesignChat({ role: 'user', content: text });
-          pushDesignChat({ role: 'assistant', content: "It looks like you want to include a photo, but I don't see one attached! Tap the photo icon (bottom left) to upload your image(s), then send your message again. You can upload up to 6 photos!" });
-          renderDesignChat();
-          input.value = '';
-          input.style.height = 'auto';
-          if (window.innerWidth <= 900) input.focus();
-          return;
+        var existingPhotosInDesign = getExistingPhotoUrls(themeVersions[activeVersionIndex]);
+        if (existingPhotosInDesign.length === 0) {
+          var photoKeywords = /\b(photo|picture|image|pic|selfie|headshot|portrait|snapshot|upload.*(photo|image|pic)|include.*(photo|image|pic)|(add|use|put|include|attach|insert).*(photo|picture|image|pic))\b/i;
+          if (photoKeywords.test(text)) {
+            pushDesignChat({ role: 'user', content: text });
+            pushDesignChat({ role: 'assistant', content: "It looks like you want to include a photo, but I don't see one attached! Tap the photo icon (bottom left) to upload your image(s), then send your message again. You can upload up to 6 photos!" });
+            renderDesignChat();
+            input.value = '';
+            input.style.height = 'auto';
+            if (window.innerWidth <= 900) input.focus();
+            return;
+          }
         }
       }
 
@@ -5736,6 +5761,8 @@
           instructions += '\n\nThe user has uploaded ' + designChatPhotoUrls.length + ' photo(s). Embed them in the design.';
         }
         var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+        var existingPhotoUrls = getExistingPhotoUrls(ver);
+        var tweakPhotoUrls = hasPhotos ? designChatPhotoUrls : (existingPhotoUrls.length > 0 ? existingPhotoUrls : undefined);
         var payload = {
           action: 'tweak',
           eventId: currentEvent.id,
@@ -5745,8 +5772,9 @@
           currentCss: ver.css,
           currentConfig: ver.config,
           currentEmailHtml: currentPreviewMode === 'email' ? buildEmailSrcdoc(ver) : undefined,
-          photoUrls: hasPhotos ? designChatPhotoUrls : undefined,
-          photoUrl: hasPhotos ? designChatPhotoUrls[0] : undefined,
+          photoUrls: tweakPhotoUrls,
+          photoUrl: tweakPhotoUrls ? tweakPhotoUrls[0] : undefined,
+          existingPhotos: !hasPhotos && existingPhotoUrls.length > 0,
           eventDetails: {
             title: extractedData.title || '',
             eventDate: extractedData.startDate || '',
