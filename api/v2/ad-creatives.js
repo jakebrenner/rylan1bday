@@ -1,19 +1,44 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
+const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Helper: verify admin auth
+// Founder — always has admin access
+const FOUNDER_EMAIL = 'jake@getmrkt.com';
+
+// Helper: verify admin auth (matches admin.js pattern)
 async function verifyAdmin(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) return null;
-  const { data: { user }, error } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+
+  const token = authHeader.slice(7);
+  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${token}` } }
+  });
+
+  const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
-  const { data: profile } = await supabase.from('profiles').select('is_global_admin').eq('id', user.id).single();
-  if (!profile?.is_global_admin) return null;
-  return user;
+
+  const email = (user.email || '').toLowerCase();
+
+  // Founder always passes
+  if (email === FOUNDER_EMAIL) return user;
+
+  // Check DB admin list
+  const { data } = await supabaseAdmin
+    .from('app_config')
+    .select('value')
+    .eq('key', 'admin_emails')
+    .single();
+
+  if (data?.value) {
+    const adminList = data.value.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    if (adminList.includes(email)) return user;
+  }
+
+  return null;
 }
 
 // Generate a short unique creative ID
@@ -77,7 +102,7 @@ export default async function handler(req, res) {
     };
     if (campaignLabel) row.campaign_label = campaignLabel;
 
-    let { data, error } = await supabase
+    let { data, error } = await supabaseAdmin
       .from('ad_creatives')
       .insert(row)
       .select()
@@ -86,7 +111,7 @@ export default async function handler(req, res) {
     // If campaign_label column doesn't exist yet, retry without it
     if (error && error.message && error.message.includes('campaign_label')) {
       delete row.campaign_label;
-      ({ data, error } = await supabase
+      ({ data, error } = await supabaseAdmin
         .from('ad_creatives')
         .insert(row)
         .select()
@@ -104,7 +129,7 @@ export default async function handler(req, res) {
     const limit = Math.min(parseInt(rawLimit) || 50, 200);
     const offset = ((parseInt(page) || 1) - 1) * limit;
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('ad_creatives')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
@@ -123,14 +148,14 @@ export default async function handler(req, res) {
   // ── STATS: Get performance stats (uses the ad_creative_performance view) ──
   if (action === 'stats' && req.method === 'GET') {
     // Try to use the view; fall back to basic data if view doesn't exist
-    const { data: creativeStats, error: viewError } = await supabase
+    const { data: creativeStats, error: viewError } = await supabaseAdmin
       .from('ad_creative_performance')
       .select('*')
       .order('created_at', { ascending: false });
 
     if (viewError) {
       // View may not exist yet — return basic creative data
-      const { data: basics } = await supabase
+      const { data: basics } = await supabaseAdmin
         .from('ad_creatives')
         .select('*')
         .order('created_at', { ascending: false });
@@ -138,7 +163,7 @@ export default async function handler(req, res) {
     }
 
     // Also fetch campaign-level stats
-    const { data: campaignStats } = await supabase
+    const { data: campaignStats } = await supabaseAdmin
       .from('campaign_performance')
       .select('*');
 
@@ -152,7 +177,7 @@ export default async function handler(req, res) {
 
   // ── CAMPAIGNS: List distinct campaign names ──
   if (action === 'campaigns' && req.method === 'GET') {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('ad_creatives')
       .select('campaign_name')
       .order('campaign_name');
@@ -168,7 +193,7 @@ export default async function handler(req, res) {
     const { creativeId } = req.body || {};
     if (!creativeId) return res.status(400).json({ success: false, error: 'creativeId required' });
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('ad_creatives')
       .delete()
       .eq('creative_id', creativeId);
