@@ -2183,7 +2183,7 @@
             </select>
             <select id="mktFilterFormat" onchange="loadAdCreatives()" style="padding:6px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
               <option value="">All Formats</option>
-              <option value="reels_9x16">Reels (9:16)</option>
+              <option value="mobile_4x5">Mobile (4:5)</option>
               <option value="feed_1x1">Feed (1:1)</option>
             </select>
           </div>
@@ -7971,7 +7971,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     var _adVideoData = {}; // holds current invite data for video generation
     var _adVideoBlob = null;
-    var _adVideoFormat = 'reels_9x16';
+    var _adVideoFormat = 'mobile_4x5';
     var _adVideoTheme = 'dark_gradient';
     var _adCreativeResult = null;
     var _mktCreatives = [];
@@ -8020,7 +8020,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       modal.style.display = 'flex';
     }
 
-    var _adVideoBlobs = {}; // { reels_9x16: Blob, feed_1x1: Blob }
+    var _adVideoBlobs = {}; // { mobile_4x5: Blob, feed_1x1: Blob }
 
     async function generateAiAdPrompt() {
       var btn = document.getElementById('adVideoAiPromptBtn');
@@ -8058,7 +8058,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     function getSelectedFormats() {
       var formats = [];
-      if (document.getElementById('adFmtReels').checked) formats.push('reels_9x16');
+      if (document.getElementById('adFmtReels').checked) formats.push('mobile_4x5');
       if (document.getElementById('adFmtFeed').checked) formats.push('feed_1x1');
       return formats;
     }
@@ -8110,7 +8110,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         // Generate each format sequentially
         for (var fi = 0; fi < formats.length; fi++) {
           var fmt = formats[fi];
-          var fmtLabel = fmt === 'reels_9x16' ? 'Reels (9:16)' : 'Feed (1:1)';
+          var fmtLabel = fmt === 'mobile_4x5' ? 'Mobile (4:5)' : 'Feed (1:1)';
           var baseProgress = (fi / formats.length) * 100;
           var progressRange = 100 / formats.length;
 
@@ -8180,7 +8180,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           var blob = _adVideoBlobs[fmt];
           var url = URL.createObjectURL(blob);
           blob._url = url;
-          var label = fmt === 'reels_9x16' ? 'Reels (9:16)' : 'Feed (1:1)';
+          var label = fmt === 'mobile_4x5' ? 'Mobile (4:5)' : 'Feed (1:1)';
           var maxH = fmtKeys.length > 1 ? '300px' : '400px';
 
           videosContainer.innerHTML += '<div style="text-align:center;">'
@@ -8206,7 +8206,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var blob = _adVideoBlobs[fmt];
       if (!blob) return;
       var campaign = (document.getElementById('adVideoCampaignLabel').value.trim() || 'ryvite-ad').replace(/[^a-z0-9_-]/gi, '-');
-      var filename = 'ryvite-ad-' + campaign + '-' + fmt + '.webm';
+      var ext = (blob.type && blob.type.includes('mp4')) ? '.mp4' : '.webm';
+      var filename = 'ryvite-ad-' + campaign + '-' + fmt + ext;
       window.AdVideoGenerator.download(blob, filename);
     }
 
@@ -8375,8 +8376,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       empty.style.display = 'none';
 
       tbody.innerHTML = _mktCreatives.map(function(c) {
-        var formatBadge = c.format === 'reels_9x16'
-          ? '<span style="background:#E94560;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;">Reels</span>'
+        var formatBadge = c.format === 'mobile_4x5'
+          ? '<span style="background:#E94560;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;">Mobile 4:5</span>'
           : '<span style="background:#3b82f6;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;">Feed</span>';
         var themeName = (window.AdVideoGenerator && window.AdVideoGenerator.themes[c.video_theme])
           ? window.AdVideoGenerator.themes[c.video_theme].name : (c.video_theme || '—');
@@ -8410,7 +8411,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('cdCampaign').textContent = c.campaign_name || '—';
       document.getElementById('cdLabel').textContent = c.campaign_label || '—';
       document.getElementById('cdCreativeId').textContent = c.creative_id;
-      document.getElementById('cdFormat').textContent = c.format === 'reels_9x16' ? 'Reels (9:16)' : 'Feed (1:1)';
+      document.getElementById('cdFormat').textContent = c.format === 'mobile_4x5' ? 'Mobile (4:5)' : 'Feed (1:1)';
       var themeName = (window.AdVideoGenerator && window.AdVideoGenerator.themes[c.video_theme])
         ? window.AdVideoGenerator.themes[c.video_theme].name : (c.video_theme || '—');
       document.getElementById('cdTheme').textContent = themeName;
@@ -8647,7 +8648,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       list.innerHTML = sorted.map(function(c, i) {
         var rank = i + 1;
         var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
-        var formatLabel = c.format === 'reels_9x16' ? 'Reels' : 'Feed';
+        var formatLabel = c.format === 'mobile_4x5' ? 'Mobile' : 'Feed';
         var cpa = c.cost_per_signup ? '$' + c.cost_per_signup : '--';
         var hasPreview = !!(c.invite_html);
         var isExpanded = _leaderboardExpanded[c.creative_id];
@@ -9011,7 +9012,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Formats (select one or both)</label>
           <div style="display:flex;gap:12px;" id="adVideoFormatBtns">
             <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 14px;border:2px solid #E94560;border-radius:8px;cursor:pointer;font-size:14px;background:#fef2f4;">
-              <input type="checkbox" id="adFmtReels" checked style="accent-color:#E94560;width:18px;height:18px;"> Reels (9:16)
+              <input type="checkbox" id="adFmtReels" checked style="accent-color:#E94560;width:18px;height:18px;"> Mobile (4:5)
             </label>
             <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 14px;border:2px solid #E94560;border-radius:8px;cursor:pointer;font-size:14px;background:#fef2f4;">
               <input type="checkbox" id="adFmtFeed" checked style="accent-color:#E94560;width:18px;height:18px;"> Feed (1:1)

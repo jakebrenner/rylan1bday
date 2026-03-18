@@ -91,47 +91,47 @@ const PHONE_SHADOW_BLUR = 64;
 const PHONE_SHADOW_OFFSET_Y = 24;
 const PHONE_SHADOW_ALPHA = 0.35;
 
-// ── Format Configs ──
+// ── Format Configs (Facebook-compliant: MP4/H.264, 1440px base) ──
 const FORMAT_CONFIGS = {
-  reels_9x16: {
-    width: 1080,
-    height: 1920,
-    logoY: 110,
-    logoSize: 56,
-    promptAreaY: 240,
-    promptAreaHeight: 340,
-    promptFontSize: 42,
-    promptMaxWidth: 920,
-    promptLineHeight: 60,
-    phoneY: 680,
-    phoneWidth: 480,
-    phoneHeight: 980,
-    ctaY: 1760,
-    ctaFontSize: 32,
-    labelFontSize: 26,
-    labelY: 190,
+  mobile_4x5: {
+    width: 1440,
+    height: 1800,
+    logoY: 140,
+    logoSize: 72,
+    promptAreaY: 310,
+    promptAreaHeight: 440,
+    promptFontSize: 54,
+    promptMaxWidth: 1220,
+    promptLineHeight: 78,
+    phoneY: 880,
+    phoneWidth: 640,
+    phoneHeight: 1306,
+    ctaY: 1640,
+    ctaFontSize: 42,
+    labelFontSize: 34,
+    labelY: 245,
     particleCount: 40
   },
   feed_1x1: {
-    width: 1080,
-    height: 1080,
+    width: 1440,
+    height: 1440,
     // Side-by-side layout: logo + prompt on left, phone on right
     layout: 'side_by_side',
-    logoSize: 44,
+    logoSize: 58,
     // Left column: logo + subtitle + prompt card, vertically centered with phone
-    promptAreaX: 30,
-    promptAreaHeight: 380,
-    promptFontSize: 30,
-    promptMaxWidth: 480,
-    promptLineHeight: 44,
+    promptAreaX: 40,
+    promptAreaHeight: 500,
+    promptFontSize: 40,
+    promptMaxWidth: 640,
+    promptLineHeight: 58,
     // Phone on right side (proper iPhone proportions ~393:852)
-    phoneX: 560,
-    phoneY: 50,
-    phoneWidth: 460,
-    phoneHeight: 960,
-    ctaY: 970,
-    ctaFontSize: 24,
-    labelFontSize: 20,
+    phoneX: 746,
+    phoneY: 66,
+    phoneWidth: 614,
+    phoneHeight: 1280,
+    ctaY: 1290,
+    ctaFontSize: 32,
+    labelFontSize: 26,
     particleCount: 25
   }
 };
@@ -173,7 +173,7 @@ function createParticles(count, canvasW, canvasH) {
  */
 async function generateAdVideo({ html, css, config, promptText, format, theme, onProgress }) {
   onProgress = onProgress || function() {};
-  const fmt = FORMAT_CONFIGS[format] || FORMAT_CONFIGS.reels_9x16;
+  const fmt = FORMAT_CONFIGS[format] || FORMAT_CONFIGS.mobile_4x5;
   const thm = VIDEO_THEMES[theme] || VIDEO_THEMES.dark_gradient;
 
   onProgress(0, 'Preparing invite...');
@@ -522,16 +522,25 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
     // Create particles
     const particles = createParticles(fmt.particleCount || 30, fmt.width, fmt.height);
 
-    // MediaRecorder
+    // MediaRecorder — prefer MP4/H.264 for Facebook compatibility, fall back to WebM
     const stream = canvas.captureStream(FPS);
+    const mp4Types = ['video/mp4;codecs=avc1', 'video/mp4;codecs=avc1.42E01E', 'video/mp4'];
+    const webmTypes = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    let chosenMime = '';
+    for (const t of mp4Types.concat(webmTypes)) {
+      if (MediaRecorder.isTypeSupported(t)) { chosenMime = t; break; }
+    }
+    if (!chosenMime) chosenMime = 'video/webm';
+    const isMP4 = chosenMime.startsWith('video/mp4');
+    const blobType = isMP4 ? 'video/mp4' : 'video/webm';
     const recorder = new MediaRecorder(stream, {
-      mimeType: 'video/webm;codecs=vp9',
-      videoBitsPerSecond: 8000000
+      mimeType: chosenMime,
+      videoBitsPerSecond: 10000000
     });
     const chunks = [];
 
     recorder.ondataavailable = function(e) { if (e.data.size > 0) chunks.push(e.data); };
-    recorder.onstop = function() { resolve(new Blob(chunks, { type: 'video/webm' })); };
+    recorder.onstop = function() { resolve(new Blob(chunks, { type: blobType })); };
     recorder.onerror = function(e) { reject(new Error('MediaRecorder error: ' + (e.error || e.message || 'unknown'))); };
 
     let startTime = null;
