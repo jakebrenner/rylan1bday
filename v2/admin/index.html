@@ -7882,9 +7882,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     function openAdVideoModal(data) {
       // data: { html, css, config, promptText, eventType, sourceType, sourceId }
       _adVideoData = data;
-      _adVideoBlob = null;
+      _adVideoBlobs = {};
       _adCreativeResult = null;
-      _adVideoFormat = 'reels_9x16';
       _adVideoTheme = 'dark_gradient';
 
       document.getElementById('adVideoConfig').style.display = '';
@@ -7892,22 +7891,26 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('adVideoResult').style.display = 'none';
       document.getElementById('adVideoPromptText').value = data.promptText || '';
       document.getElementById('adVideoCampaign').value = '';
-      selectAdFormat('reels_9x16');
+      document.getElementById('adFmtReels').checked = true;
+      document.getElementById('adFmtFeed').checked = true;
       selectAdTheme('dark_gradient');
 
       var modal = document.getElementById('adVideoModal');
       modal.style.display = 'flex';
     }
 
+    var _adVideoBlobs = {}; // { reels_9x16: Blob, feed_1x1: Blob }
+
     function closeAdVideoModal() {
       document.getElementById('adVideoModal').style.display = 'none';
-      if (_adVideoBlob) { URL.revokeObjectURL(document.getElementById('adVideoPreview').src); }
+      Object.values(_adVideoBlobs).forEach(function(b) { if (b._url) URL.revokeObjectURL(b._url); });
     }
 
-    function selectAdFormat(fmt) {
-      _adVideoFormat = fmt;
-      document.getElementById('adFmtReels').className = fmt === 'reels_9x16' ? 'btn btn-primary' : 'btn btn-secondary';
-      document.getElementById('adFmtFeed').className = fmt === 'feed_1x1' ? 'btn btn-primary' : 'btn btn-secondary';
+    function getSelectedFormats() {
+      var formats = [];
+      if (document.getElementById('adFmtReels').checked) formats.push('reels_9x16');
+      if (document.getElementById('adFmtFeed').checked) formats.push('feed_1x1');
+      return formats;
     }
 
     function selectAdTheme(theme) {
@@ -7924,52 +7927,93 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var promptText = document.getElementById('adVideoPromptText').value.trim();
       if (!promptText) { alert('Please enter prompt text for the typing animation'); return; }
 
+      var formats = getSelectedFormats();
+      if (formats.length === 0) { alert('Please select at least one format'); return; }
+
       document.getElementById('adVideoConfig').style.display = 'none';
       document.getElementById('adVideoProgress').style.display = '';
       document.getElementById('adVideoResult').style.display = 'none';
 
-      try {
-        _adVideoBlob = await window.AdVideoGenerator.generate({
-          html: _adVideoData.html,
-          css: _adVideoData.css,
-          config: _adVideoData.config,
-          promptText: promptText,
-          format: _adVideoFormat,
-          theme: _adVideoTheme,
-          onProgress: function(pct, phase) {
-            document.getElementById('adVideoProgressBar').style.width = pct + '%';
-            document.getElementById('adVideoProgressPct').textContent = Math.round(pct) + '%';
-            document.getElementById('adVideoPhase').textContent = phase || 'Processing...';
-          }
-        });
+      _adVideoBlobs = {};
 
-        // Register the creative via API
-        var res = await authFetch('/api/v2/ad-creatives?action=create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            campaignName: campaign,
-            sourceType: _adVideoData.sourceType || 'showcase',
-            sourceId: _adVideoData.sourceId || '00000000-0000-0000-0000-000000000000',
-            eventType: _adVideoData.eventType || null,
-            format: _adVideoFormat,
-            videoTheme: _adVideoTheme,
+      try {
+        // Generate each format sequentially
+        for (var fi = 0; fi < formats.length; fi++) {
+          var fmt = formats[fi];
+          var fmtLabel = fmt === 'reels_9x16' ? 'Reels (9:16)' : 'Feed (1:1)';
+          var baseProgress = (fi / formats.length) * 100;
+          var progressRange = 100 / formats.length;
+
+          document.getElementById('adVideoPhase').textContent = (formats.length > 1 ? (fi + 1) + '/' + formats.length + ' — ' : '') + 'Preparing ' + fmtLabel + '...';
+
+          var blob = await window.AdVideoGenerator.generate({
+            html: _adVideoData.html,
+            css: _adVideoData.css,
+            config: _adVideoData.config,
             promptText: promptText,
-            inviteHtml: _adVideoData.html,
-            inviteCss: _adVideoData.css,
-            inviteConfig: _adVideoData.config
-          })
-        });
-        var result = await res.json();
-        if (result.success) {
-          _adCreativeResult = result.creative;
-          document.getElementById('adVideoUtmLink').value = result.creative.utm_url;
+            format: fmt,
+            theme: _adVideoTheme,
+            onProgress: function(pct, phase) {
+              var overall = baseProgress + (pct / 100) * progressRange;
+              document.getElementById('adVideoProgressBar').style.width = overall + '%';
+              document.getElementById('adVideoProgressPct').textContent = Math.round(overall) + '%';
+              document.getElementById('adVideoPhase').textContent = (formats.length > 1 ? (fi + 1) + '/' + formats.length + ' — ' : '') + fmtLabel + ': ' + (phase || 'Processing...');
+            }
+          });
+
+          _adVideoBlobs[fmt] = blob;
+
+          // Register each creative via API
+          try {
+            var res = await authFetch('/api/v2/ad-creatives?action=create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                campaignName: campaign,
+                sourceType: _adVideoData.sourceType || 'showcase',
+                sourceId: _adVideoData.sourceId || '00000000-0000-0000-0000-000000000000',
+                eventType: _adVideoData.eventType || null,
+                format: fmt,
+                videoTheme: _adVideoTheme,
+                promptText: promptText,
+                inviteHtml: _adVideoData.html,
+                inviteCss: _adVideoData.css,
+                inviteConfig: _adVideoData.config
+              })
+            });
+            var result = await res.json();
+            if (result.success && result.creative) {
+              _adCreativeResult = result.creative;
+              document.getElementById('adVideoUtmLink').value = result.creative.utm_url;
+            }
+          } catch (apiErr) {
+            console.warn('Failed to register creative for ' + fmt, apiErr);
+          }
         }
 
-        // Show result
-        var videoUrl = URL.createObjectURL(_adVideoBlob);
-        var videoEl = document.getElementById('adVideoPreview');
-        videoEl.src = videoUrl;
+        // Build result UI with all generated videos
+        var videosContainer = document.getElementById('adVideoResultVideos');
+        var downloadBtns = document.getElementById('adVideoDownloadBtns');
+        videosContainer.innerHTML = '';
+        downloadBtns.innerHTML = '';
+
+        var fmtKeys = Object.keys(_adVideoBlobs);
+        fmtKeys.forEach(function(fmt) {
+          var blob = _adVideoBlobs[fmt];
+          var url = URL.createObjectURL(blob);
+          blob._url = url;
+          var label = fmt === 'reels_9x16' ? 'Reels (9:16)' : 'Feed (1:1)';
+          var maxH = fmtKeys.length > 1 ? '300px' : '400px';
+
+          videosContainer.innerHTML += '<div style="text-align:center;">'
+            + '<div style="font-size:12px;font-weight:600;color:#888;margin-bottom:6px;">' + label + '</div>'
+            + '<video controls src="' + url + '" style="max-width:100%;max-height:' + maxH + ';border-radius:8px;background:#000;"></video>'
+            + '</div>';
+
+          downloadBtns.innerHTML += '<button class="btn btn-primary" onclick="downloadAdVideoFmt(\'' + fmt + '\')" style="flex:1;">Download ' + label + '</button>';
+        });
+
+        downloadBtns.innerHTML += '<button class="btn btn-secondary" onclick="closeAdVideoModal()" style="flex:1;">Close</button>';
 
         document.getElementById('adVideoProgress').style.display = 'none';
         document.getElementById('adVideoResult').style.display = '';
@@ -7980,11 +8024,17 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       }
     }
 
-    function downloadAdVideo() {
-      if (!_adVideoBlob) return;
+    function downloadAdVideoFmt(fmt) {
+      var blob = _adVideoBlobs[fmt];
+      if (!blob) return;
       var campaign = document.getElementById('adVideoCampaign').value.trim().replace(/[^a-z0-9_-]/gi, '-');
-      var filename = 'ryvite-ad-' + campaign + '-' + _adVideoFormat + '.webm';
-      window.AdVideoGenerator.download(_adVideoBlob, filename);
+      var filename = 'ryvite-ad-' + campaign + '-' + fmt + '.webm';
+      window.AdVideoGenerator.download(blob, filename);
+    }
+
+    function downloadAdVideo() {
+      // Legacy fallback — download all
+      Object.keys(_adVideoBlobs).forEach(function(fmt) { downloadAdVideoFmt(fmt); });
     }
 
     function copyUtmLink() {
@@ -8603,10 +8653,14 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         </div>
 
         <div style="margin-bottom:16px;">
-          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Format</label>
-          <div style="display:flex;gap:8px;" id="adVideoFormatBtns">
-            <button class="btn btn-primary" onclick="selectAdFormat('reels_9x16')" id="adFmtReels" style="flex:1;">Reels (9:16)</button>
-            <button class="btn btn-secondary" onclick="selectAdFormat('feed_1x1')" id="adFmtFeed" style="flex:1;">Feed (1:1)</button>
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Formats (select one or both)</label>
+          <div style="display:flex;gap:12px;" id="adVideoFormatBtns">
+            <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 14px;border:2px solid #E94560;border-radius:8px;cursor:pointer;font-size:14px;background:#fef2f4;">
+              <input type="checkbox" id="adFmtReels" checked style="accent-color:#E94560;width:18px;height:18px;"> Reels (9:16)
+            </label>
+            <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 14px;border:2px solid #E94560;border-radius:8px;cursor:pointer;font-size:14px;background:#fef2f4;">
+              <input type="checkbox" id="adFmtFeed" checked style="accent-color:#E94560;width:18px;height:18px;"> Feed (1:1)
+            </label>
           </div>
         </div>
 
@@ -8649,9 +8703,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
       <!-- Step 3: Result -->
       <div id="adVideoResult" style="display:none;">
-        <div style="text-align:center;margin-bottom:16px;">
-          <video id="adVideoPreview" controls style="max-width:100%;max-height:400px;border-radius:8px;background:#000;"></video>
-        </div>
+        <div id="adVideoResultVideos" style="display:flex;gap:16px;margin-bottom:16px;justify-content:center;flex-wrap:wrap;"></div>
         <div style="background:#f5f5fa;border-radius:8px;padding:12px;margin-bottom:16px;">
           <label style="display:block;font-size:11px;font-weight:600;color:#888;margin-bottom:4px;">UTM Link</label>
           <div style="display:flex;gap:8px;align-items:center;">
@@ -8659,10 +8711,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             <button class="btn btn-secondary" onclick="copyUtmLink()" style="white-space:nowrap;font-size:12px;">Copy</button>
           </div>
         </div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-primary" onclick="downloadAdVideo()" style="flex:1;">Download Video</button>
-          <button class="btn btn-secondary" onclick="closeAdVideoModal()" style="flex:1;">Close</button>
-        </div>
+        <div id="adVideoDownloadBtns" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
       </div>
     </div>
   </div>

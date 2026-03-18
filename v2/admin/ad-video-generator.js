@@ -1,8 +1,9 @@
 /**
  * Ad Video Generator — Canvas + MediaRecorder engine for Facebook ad videos
  *
- * Renders a typing animation + invite reveal video, downloadable as WebM.
+ * Renders a typing animation + invite reveal + slow scroll video, downloadable as WebM.
  * Supports two formats: Reels (9:16, 1080x1920) and Feed (1:1, 1080x1080).
+ * Can generate both formats at once.
  *
  * Usage:
  *   const blob = await generateAdVideo({
@@ -116,8 +117,9 @@ const CHAR_MS = 35;        // ms per character typed (matches homepage)
 const INTRO_MS = 500;      // logo fade-in
 const POST_TYPE_PAUSE = 500;
 const SHIMMER_MS = 1000;   // "generating" shimmer
-const REVEAL_MS = 1000;    // invite slide-up
-const HOLD_MS = 2000;      // hold on final invite
+const REVEAL_MS = 1000;    // invite slide-up reveal
+const SCROLL_PX_PER_SEC = 40; // very slow scroll speed (pixels per second)
+const MIN_HOLD_MS = 3000;  // minimum hold time if no scrolling needed
 const CTA_MS = 1500;       // CTA fade-in
 const FPS = 30;
 const FRAME_MS = 1000 / FPS;
@@ -130,10 +132,11 @@ async function generateAdVideo({ html, css, config, promptText, format, theme, o
   const fmt = FORMAT_CONFIGS[format] || FORMAT_CONFIGS.reels_9x16;
   const thm = VIDEO_THEMES[theme] || VIDEO_THEMES.dark_gradient;
 
-  onProgress(0, 'Preparing invite image...');
+  onProgress(0, 'Preparing invite...');
 
-  // Step 1: Render invite HTML to an image
-  const inviteImg = await renderInviteToImage(html, css, config, fmt.phoneWidth - 20, fmt.phoneHeight - 80);
+  // Step 1: Render invite HTML to a full-height image (no cropping)
+  const contentW = fmt.phoneWidth - 20;
+  const inviteImg = await renderInviteToImage(html, css, config, contentW);
   onProgress(20, 'Starting animation...');
 
   // Step 2: Animate and record
@@ -144,16 +147,30 @@ async function generateAdVideo({ html, css, config, promptText, format, theme, o
 }
 
 /**
- * Render HTML invite into an image using html2canvas
+ * Render HTML invite into a full-height image using html2canvas.
+ * Captures the ENTIRE invite (not cropped) so we can scroll through it in the video.
  */
-async function renderInviteToImage(html, css, config, targetWidth, targetHeight) {
+async function renderInviteToImage(html, css, config, targetWidth) {
   // Create a hidden container
   const container = document.createElement('div');
   container.style.cssText = 'position:fixed;left:-9999px;top:0;width:' + targetWidth + 'px;overflow:hidden;z-index:-1;';
   document.body.appendChild(container);
 
-  // Build the invite content
-  const fontsImport = (config && config.googleFontsImport) || '';
+  // Parse config if needed
+  var configObj = config;
+  if (typeof config === 'string') {
+    try { configObj = JSON.parse(config); } catch(e) { configObj = {}; }
+  }
+  configObj = configObj || {};
+
+  // Build the invite content — use the invite's own styles exactly as-is
+  var fontsImport = '';
+  if (configObj.fontUrl) {
+    fontsImport = '@import url("' + configObj.fontUrl + '");';
+  } else if (configObj.googleFontsImport) {
+    fontsImport = configObj.googleFontsImport;
+  }
+
   container.innerHTML = '<div id="__adgen_invite" style="width:' + targetWidth + 'px;overflow:hidden;">'
     + '<style>' + fontsImport + '</style>'
     + '<style>' + (css || '') + '</style>'
@@ -167,11 +184,12 @@ async function renderInviteToImage(html, css, config, targetWidth, targetHeight)
     await document.fonts.ready;
   }
 
-  // Capture with html2canvas
+  // Capture with html2canvas — full natural height, no cropping
   const inviteEl = container.querySelector('#__adgen_invite');
+  const naturalHeight = inviteEl.scrollHeight;
   const canvas = await html2canvas(inviteEl, {
     width: targetWidth,
-    height: targetHeight,
+    height: naturalHeight,
     scale: 2,
     useCORS: true,
     allowTaint: true,
@@ -190,7 +208,8 @@ async function renderInviteToImage(html, css, config, targetWidth, targetHeight)
 }
 
 /**
- * Run the animation on canvas and record to WebM
+ * Run the animation on canvas and record to WebM.
+ * After reveal, slowly scrolls through the full invite.
  */
 function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
   return new Promise(function(resolve, reject) {
@@ -199,9 +218,25 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
     canvas.height = fmt.height;
     const ctx = canvas.getContext('2d');
 
+    // Calculate phone content area
+    const contentW = fmt.phoneWidth - 20;
+    const contentH = fmt.phoneHeight - 50;
+
+    // The invite image is rendered at 2x scale for the contentW width
+    // So the actual content it represents = inviteImg.naturalHeight / 2 in CSS pixels
+    // But we draw it scaled to fit contentW, so the visible height at contentW scale:
+    const inviteDrawHeight = (inviteImg.naturalHeight / inviteImg.naturalWidth) * contentW;
+
+    // Calculate scroll distance — how much we need to scroll to see the whole invite
+    const scrollDistance = Math.max(0, inviteDrawHeight - contentH);
+
+    // Calculate scroll duration: very slow, proportional to content
+    const scrollMs = scrollDistance > 0 ? (scrollDistance / SCROLL_PX_PER_SEC) * 1000 : MIN_HOLD_MS;
+    const holdMs = scrollDistance > 0 ? MIN_HOLD_MS : MIN_HOLD_MS; // hold at top before scrolling
+
     // Calculate total duration
     const typingMs = promptText.length * CHAR_MS;
-    const totalMs = INTRO_MS + typingMs + POST_TYPE_PAUSE + SHIMMER_MS + REVEAL_MS + HOLD_MS + CTA_MS;
+    const totalMs = INTRO_MS + typingMs + POST_TYPE_PAUSE + SHIMMER_MS + REVEAL_MS + holdMs + scrollMs + MIN_HOLD_MS + CTA_MS;
 
     // Set up MediaRecorder
     const stream = canvas.captureStream(FPS);
@@ -224,10 +259,7 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
       reject(new Error('MediaRecorder error: ' + (e.error || e.message || 'unknown')));
     };
 
-    // Preload Ryvite logo text (we'll draw it as text since we can't load SVG easily)
     const logoText = 'Ryvite';
-
-    // Animation state
     let startTime = null;
     let animFrameId = null;
 
@@ -254,7 +286,9 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
       const pauseEnd = typeEnd + POST_TYPE_PAUSE;
       const shimmerEnd = pauseEnd + SHIMMER_MS;
       const revealEnd = shimmerEnd + REVEAL_MS;
-      const holdEnd = revealEnd + HOLD_MS;
+      const holdEnd = revealEnd + holdMs;
+      const scrollEnd = holdEnd + scrollMs;
+      const finalHoldEnd = scrollEnd + MIN_HOLD_MS;
 
       // ── Logo (fades in during intro) ──
       const logoAlpha = Math.min(1, elapsed / INTRO_MS);
@@ -277,14 +311,14 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
         const charCount = Math.min(promptText.length, Math.floor(typeElapsed / CHAR_MS));
         const displayText = promptText.substring(0, charCount);
 
-        // Prompt label
+        // Opening quote
         ctx.save();
         ctx.font = 'italic ' + (fmt.promptFontSize * 0.6) + 'px "Inter", Arial, sans-serif';
         ctx.fillStyle = thm.subtextColor;
         ctx.globalAlpha = Math.min(1, (elapsed - INTRO_MS * 0.5) / 300);
         ctx.textAlign = 'left';
         const promptX = (fmt.width - fmt.promptMaxWidth) / 2;
-        ctx.fillText('"', promptX, fmt.promptAreaY);
+        ctx.fillText('\u201c', promptX, fmt.promptAreaY);
         ctx.restore();
 
         // Typed text with word wrapping
@@ -316,7 +350,7 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
             const quoteY = fmt.promptAreaY + 10 + lines.length * fmt.promptLineHeight;
             ctx.font = 'italic ' + (fmt.promptFontSize * 0.6) + 'px "Inter", Arial, sans-serif';
             ctx.fillStyle = thm.subtextColor;
-            ctx.fillText('"', quoteX, quoteY);
+            ctx.fillText('\u201d', quoteX, quoteY);
           }
           ctx.restore();
         }
@@ -326,11 +360,13 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
       const phoneX = (fmt.width - fmt.phoneWidth) / 2;
       const phoneY = fmt.phoneY;
 
-      // Phone frame
+      // Phone frame (outer border)
       ctx.save();
       roundRect(ctx, phoneX, phoneY, fmt.phoneWidth, fmt.phoneHeight, fmt.phoneRadius);
       ctx.fillStyle = thm.phoneBorder;
       ctx.fill();
+
+      // Phone inner background — only visible before invite loads
       roundRect(ctx, phoneX + 4, phoneY + 4, fmt.phoneWidth - 8, fmt.phoneHeight - 8, fmt.phoneRadius - 2);
       ctx.fillStyle = thm.phoneInner;
       ctx.fill();
@@ -343,36 +379,54 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
       ctx.fillStyle = thm.phoneBorder;
       ctx.fill();
 
-      // ── Phone content (shimmer → invite) ──
+      // ── Phone content area ──
       const contentX = phoneX + 10;
       const contentY = phoneY + 40;
-      const contentW = fmt.phoneWidth - 20;
-      const contentH = fmt.phoneHeight - 50;
 
       if (elapsed >= shimmerEnd) {
-        // Invite reveal: slide up
+        // ── Invite is visible: reveal + scroll ──
         const revealProgress = Math.min(1, (elapsed - shimmerEnd) / REVEAL_MS);
         const eased = easeOutCubic(revealProgress);
+
+        // Calculate scroll offset
+        let scrollOffset = 0;
+        if (elapsed >= holdEnd && scrollDistance > 0) {
+          if (elapsed < scrollEnd) {
+            // Scrolling phase — ease in-out for smooth motion
+            const scrollProgress = (elapsed - holdEnd) / scrollMs;
+            scrollOffset = easeInOutCubic(scrollProgress) * scrollDistance;
+          } else {
+            // Past scroll, hold at bottom
+            scrollOffset = scrollDistance;
+          }
+        }
+
+        // Reveal animation: slide up from below
         const slideOffset = (1 - eased) * contentH * 0.3;
         const revealAlpha = eased;
 
         ctx.save();
+        // Clip to phone content area
         ctx.beginPath();
-        ctx.rect(contentX, contentY, contentW, contentH);
+        roundRect(ctx, phoneX + 4, contentY, fmt.phoneWidth - 8, contentH, 0);
         ctx.clip();
+
         ctx.globalAlpha = revealAlpha;
-        ctx.drawImage(inviteImg, contentX, contentY + slideOffset, contentW, contentH);
+
+        // Draw the invite at full width, offset by scroll position
+        // The invite image fills the phone width exactly, maintaining aspect ratio
+        ctx.drawImage(
+          inviteImg,
+          contentX, contentY + slideOffset - scrollOffset,
+          contentW, inviteDrawHeight
+        );
         ctx.restore();
       } else if (elapsed >= pauseEnd) {
         // Shimmer effect
         const shimmerProgress = (elapsed - pauseEnd) / SHIMMER_MS;
         drawShimmer(ctx, contentX, contentY, contentW, contentH, shimmerProgress, thm);
       } else {
-        // Empty phone (or subtle placeholder)
-        ctx.fillStyle = thm.phoneInner;
-        ctx.fillRect(contentX, contentY, contentW, contentH);
-
-        // Subtle placeholder dots
+        // Empty phone placeholder
         if (elapsed > introEnd) {
           const dotAlpha = 0.3 + 0.2 * Math.sin(elapsed / 500 * Math.PI);
           ctx.globalAlpha = dotAlpha;
@@ -388,8 +442,8 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
       ctx.restore();
 
       // ── CTA ──
-      if (elapsed >= holdEnd) {
-        const ctaProgress = Math.min(1, (elapsed - holdEnd) / CTA_MS);
+      if (elapsed >= finalHoldEnd) {
+        const ctaProgress = Math.min(1, (elapsed - finalHoldEnd) / CTA_MS);
         const ctaEased = easeOutCubic(ctaProgress);
 
         ctx.save();
@@ -419,13 +473,19 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
 
       // Update progress
       const progress = 20 + Math.min(75, (elapsed / totalMs) * 75);
-      onProgress(progress, elapsed < typeEnd ? 'Typing...' : elapsed < shimmerEnd ? 'Generating...' : 'Rendering...');
+      var phase = 'Processing...';
+      if (elapsed < typeEnd) phase = 'Typing...';
+      else if (elapsed < shimmerEnd) phase = 'Generating...';
+      else if (elapsed < revealEnd) phase = 'Revealing...';
+      else if (elapsed < scrollEnd && scrollDistance > 0) phase = 'Scrolling invite...';
+      else if (elapsed < finalHoldEnd) phase = 'Finishing...';
+      else phase = 'Rendering CTA...';
+      onProgress(progress, phase);
 
       // Continue or stop
       if (elapsed < totalMs) {
         animFrameId = requestAnimationFrame(drawFrame);
       } else {
-        // Draw a few more frames to ensure last frame is recorded
         setTimeout(function() {
           recorder.stop();
           cancelAnimationFrame(animFrameId);
@@ -510,6 +570,10 @@ function drawShimmer(ctx, x, y, w, h, progress, thm) {
 // ── Helper: Easing ──
 function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
+}
+
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
 /**
