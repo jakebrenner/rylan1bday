@@ -1,7 +1,9 @@
+import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { sendCapiEvent, extractMetaContext } from './lib/meta-capi.js';
 
+const anthropic = new Anthropic();
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -390,6 +392,47 @@ export default async function handler(req, res) {
         } catch {} // Don't block publish if tracking fails
       }
 
+      // ── Publish-time theme validation gate ──
+      // Last safety check before guests can see the invite
+      if (dbUpdates.status === 'published') {
+        try {
+          const { data: activeTheme } = await supabaseAdmin
+            .from('event_themes')
+            .select('id, html, css, config')
+            .eq('event_id', eventId)
+            .eq('is_active', true)
+            .single();
+
+          if (activeTheme) {
+            const validation = validateThemeForPublish(activeTheme);
+            if (validation.critical.length > 0) {
+              // Block publish — critical issues found
+              return res.status(400).json({
+                success: false,
+                error: 'Your invite has rendering issues that need to be fixed before publishing.',
+                validationIssues: validation.critical,
+                issueDetails: validation.critical.map(i => ISSUE_LABELS[i] || i).join(', ')
+              });
+            }
+            if (validation.warnings.length > 0) {
+              // Publish but log a warning incident
+              supabaseAdmin.from('quality_incidents').insert({
+                event_id: eventId,
+                event_theme_id: activeTheme.id,
+                user_id: user.id,
+                trigger_type: 'content_warning',
+                trigger_data: { warnings: validation.warnings, source: 'publish_gate' },
+                validation_results: { server: validation.warnings },
+                resolution_type: 'unresolved'
+              }).catch(e => console.error('[publish-gate] Warning incident failed:', e.message));
+            }
+          }
+        } catch (e) {
+          console.warn('[publish-gate] Validation check failed, proceeding:', e.message);
+          // Don't block publish if validation itself errors
+        }
+      }
+
       const { data, error } = await supabaseAdmin
         .from('events')
         .update(dbUpdates)
@@ -436,6 +479,13 @@ export default async function handler(req, res) {
         .eq('event_id', eventId)
         .eq('is_active', true)
         .single();
+
+      // ── Post-publish verification (async, fire-and-forget) ──
+      if (dbUpdates.status === 'published' && data?.slug) {
+        verifyPublishedInvite(eventId, data.slug, user.id).catch(e =>
+          console.warn('[publish-verify] Background verification failed:', e.message)
+        );
+      }
 
       return res.status(200).json({ success: true, event: formatEvent(data, theme) });
     }
@@ -1264,4 +1314,170 @@ function formatEvent(row, theme, customFields) {
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PUBLISH-TIME THEME VALIDATION
+// Lightweight structural checks before allowing publish.
+// Duplicated from generate-theme.js — Vercel isolates serverless functions.
+// ═══════════════════════════════════════════════════════════════════
+
+const ISSUE_LABELS = {
+  css_empty: 'No CSS styling found',
+  css_too_short: 'CSS is too short to be functional',
+  html_empty: 'No HTML content found',
+  html_no_structure: 'HTML has no structural elements',
+  css_unclosed_braces: 'CSS has unclosed braces',
+  missing_details_slot: 'Missing event details section',
+  missing_rsvp_slot: 'Missing RSVP section',
+  missing_title_field: 'Missing event title',
+  content_too_sparse: 'Very little visible text content'
+};
+
+function validateThemeForPublish(theme) {
+  const critical = [];
+  const warnings = [];
+  const html = theme.html || '';
+  const css = theme.css || '';
+
+  // Critical: must have HTML and CSS
+  if (!html.trim()) { critical.push('html_empty'); return { critical, warnings }; }
+  if (!css.trim()) critical.push('css_empty');
+  else if (css.trim().length < 100) critical.push('css_too_short');
+
+  // Critical: CSS braces must be balanced
+  if (css) {
+    const opens = (css.match(/\{/g) || []).length;
+    const closes = (css.match(/\}/g) || []).length;
+    if (Math.abs(opens - closes) > 2) critical.push('css_unclosed_braces');
+  }
+
+  // Warning: platform contract elements
+  if (html) {
+    const hasDetailsSlot = /class\s*=\s*["'][^"']*\bdetails-slot\b/.test(html);
+    const hasLegacyDetails = /data-field\s*=\s*["'](datetime|location)["']/.test(html);
+    if (!hasDetailsSlot && !hasLegacyDetails) warnings.push('missing_details_slot');
+
+    const hasRsvpSlot = /class\s*=\s*["'][^"']*\brsvp-slot\b/.test(html) || /class\s*=\s*["'][^"']*\brsvp-button\b/.test(html);
+    if (!hasRsvpSlot) warnings.push('missing_rsvp_slot');
+
+    const hasTitleField = /data-field\s*=\s*["']title["']/.test(html);
+    if (!hasTitleField) warnings.push('missing_title_field');
+
+    const textOnly = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (textOnly.length < 20) warnings.push('content_too_sparse');
+  }
+
+  return { critical, warnings };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// POST-PUBLISH VERIFICATION
+// Async health check + optional screenshot verification
+// ═══════════════════════════════════════════════════════════════════
+
+async function verifyPublishedInvite(eventId, slug, userId) {
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : 'https://ryvite.com';
+  const inviteUrl = `${baseUrl}/v2/event/${slug}`;
+
+  // 1. HTTP health check — does the page load?
+  try {
+    const res = await fetch(inviteUrl);
+    if (!res.ok) {
+      await supabaseAdmin.from('quality_incidents').insert({
+        event_id: eventId,
+        user_id: userId,
+        trigger_type: 'content_warning',
+        trigger_data: { source: 'publish_http_check', status: res.status, slug },
+        resolution_type: 'unresolved'
+      });
+      console.error('[publish-verify] Guest page returned', res.status, 'for slug:', slug);
+      return;
+    }
+  } catch (e) {
+    await supabaseAdmin.from('quality_incidents').insert({
+      event_id: eventId,
+      user_id: userId,
+      trigger_type: 'content_warning',
+      trigger_data: { source: 'publish_http_check', error: e.message, slug },
+      resolution_type: 'unresolved'
+    }).catch(() => {});
+    return;
+  }
+
+  // 2. Screenshot smoke test (if SCREENSHOT_API_KEY is configured)
+  if (!process.env.SCREENSHOT_API_KEY) return;
+
+  try {
+    const screenshotUrl = `https://api.screenshotone.com/take?access_key=${process.env.SCREENSHOT_API_KEY}`
+      + `&url=${encodeURIComponent(inviteUrl)}`
+      + `&viewport_width=393&viewport_height=852`
+      + `&device_scale_factor=2`
+      + `&format=png&image_quality=80`
+      + `&delay=3`
+      + `&block_ads=true`;
+
+    const imgRes = await fetch(screenshotUrl);
+    if (!imgRes.ok) {
+      console.warn('[publish-verify] Screenshot API returned', imgRes.status);
+      return;
+    }
+
+    const imgBuffer = await imgRes.arrayBuffer();
+    const base64 = Buffer.from(imgBuffer).toString('base64');
+
+    // Use Haiku vision to check if the screenshot looks broken
+    const analysis = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 200,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/png', data: base64 } },
+          { type: 'text', text: 'This is a screenshot of a mobile event invitation page. Does it look correctly rendered? Check for: completely unstyled plain text, all-white/blank page, broken layout with overlapping text, invisible text (same color as background), missing sections. Return ONLY JSON: { "looksGood": true/false, "issues": ["issue description"] }' }
+        ]
+      }]
+    });
+
+    const responseText = (analysis.content[0]?.text || '').trim();
+    // Log publish-verify vision call to generation_log for cost tracking
+    await supabaseAdmin.from('generation_log').insert({
+      event_id: eventId, user_id: userId,
+      prompt: 'publish-verify: screenshot vision check for ' + slug,
+      model: 'claude-haiku-4-5-20251001',
+      input_tokens: analysis.usage?.input_tokens || 0,
+      output_tokens: analysis.usage?.output_tokens || 0,
+      latency_ms: 0, status: 'success', is_tweak: false
+    }).catch(e => console.error('[publish-verify] generation_log insert failed:', e.message));
+    const cleaned = responseText.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
+    let result;
+    try {
+      result = JSON.parse(cleaned);
+    } catch {
+      console.warn('[publish-verify] Failed to parse Haiku response:', responseText.substring(0, 200));
+      return;
+    }
+
+    if (!result.looksGood) {
+      await supabaseAdmin.from('quality_incidents').insert({
+        event_id: eventId,
+        user_id: userId,
+        trigger_type: 'content_warning',
+        trigger_data: {
+          source: 'publish_screenshot_check',
+          issues: result.issues || [],
+          slug,
+          screenshotMethod: 'screenshotone_haiku_vision'
+        },
+        resolution_type: 'unresolved'
+      });
+      console.warn('[publish-verify] Visual check FAILED for', slug, ':', result.issues);
+    } else {
+      console.log('[publish-verify] Visual check PASSED for', slug);
+    }
+  } catch (e) {
+    console.warn('[publish-verify] Screenshot check failed:', e.message);
+  }
 }

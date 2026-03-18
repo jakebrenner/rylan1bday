@@ -71,6 +71,8 @@
 
   <script>
     let currentEventData = null;
+    var _guestCssRetries = 0;
+    var _MAX_GUEST_CSS_RETRIES = 2;
 
     // Fix double-escaped whitespace from AI model output (pre-fix DB themes)
     function sanitizeThemeText(str) {
@@ -78,6 +80,215 @@
       if (str.indexOf('\\n') !== -1) str = str.replace(/\\n/g, '\n');
       if (str.indexOf('\\t') !== -1) str = str.replace(/\\t/g, '\t');
       return str;
+    }
+
+    // ── Client device info for quality incident reports ──
+    function getClientDeviceInfo() {
+      return {
+        screen_width: window.screen.width,
+        screen_height: window.screen.height,
+        viewport_width: window.innerWidth,
+        viewport_height: window.innerHeight,
+        device_pixel_ratio: window.devicePixelRatio || 1,
+        platform: navigator.platform,
+        user_agent: navigator.userAgent,
+        touch: 'ontouchstart' in window,
+        connection: navigator.connection ? {
+          type: navigator.connection.effectiveType,
+          downlink: navigator.connection.downlink
+        } : null
+      };
+    }
+
+    // ── Guest page CSS rendering check ──
+    // Detects unstyled invites and attempts recovery (retry + fallback CSS injection)
+    function checkGuestCssRendered(iframe, themeData) {
+      try {
+        var doc = iframe.contentDocument;
+        if (!doc || !doc.body) return;
+        var win = doc.defaultView;
+        var bodyStyle = win.getComputedStyle(doc.body);
+        var bodyBg = bodyStyle.backgroundColor;
+
+        var isUnstyled = (!bodyBg || bodyBg === 'rgba(0, 0, 0, 0)' || bodyBg === 'rgb(255, 255, 255)');
+
+        // Check deeper — child elements may be styled even if body is transparent
+        if (isUnstyled) {
+          var firstDiv = doc.querySelector('div, section, main, header');
+          if (firstDiv) {
+            var divBg = win.getComputedStyle(firstDiv).backgroundColor;
+            if (divBg && divBg !== 'rgba(0, 0, 0, 0)' && divBg !== 'rgb(255, 255, 255)') {
+              isUnstyled = false;
+            }
+          }
+        }
+
+        if (isUnstyled && themeData.css && themeData.css.trim().length > 100 && _guestCssRetries < _MAX_GUEST_CSS_RETRIES) {
+          _guestCssRetries++;
+          console.warn('[guest-css-check] Invite appears unstyled. Re-render attempt ' + _guestCssRetries + '/' + _MAX_GUEST_CSS_RETRIES);
+          setTimeout(function() {
+            iframe.srcdoc = buildGuestSrcdoc(themeData);
+          }, 150);
+          return;
+        }
+
+        // Last resort: inject fallback CSS directly
+        if (isUnstyled && _guestCssRetries >= _MAX_GUEST_CSS_RETRIES) {
+          console.error('[guest-css-check] All retries exhausted. Injecting fallback CSS.');
+          try {
+            var config = themeData.config || {};
+            var fbBg = config.backgroundColor || '#FFFAF5';
+            var fbText = config.textColor || '#1A1A2E';
+            var fbFont = config.fontBody || 'Inter';
+            var fallbackStyle = doc.createElement('style');
+            fallbackStyle.textContent = 'html, body { background:' + fbBg + ' !important; color:' + fbText + ' !important; font-family:\'' + fbFont + '\',sans-serif !important; }';
+            doc.head.appendChild(fallbackStyle);
+          } catch (e) {
+            console.warn('[guest-css-check] Fallback inject failed:', e.message);
+          }
+        }
+
+        // If no CSS at all, try extracting from HTML <style> blocks
+        if (isUnstyled && (!themeData.css || !themeData.css.trim())) {
+          var styleBlocks = (themeData.html || '').match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+          if (styleBlocks) {
+            themeData.css = styleBlocks.map(function(s) {
+              return s.replace(/<style[^>]*>/gi, '').replace(/<\/style\s*>/gi, '');
+            }).join('\n');
+            console.log('[guest-css-check] Recovered ' + themeData.css.length + ' chars of CSS from HTML. Re-rendering...');
+            _guestCssRetries = 0;
+            iframe.srcdoc = buildGuestSrcdoc(themeData);
+          }
+        }
+
+        if (!isUnstyled) _guestCssRetries = 0;
+      } catch (e) { /* cross-origin or other error — skip silently */ }
+    }
+
+    // ── Guest page content completeness validation ──
+    function validateGuestContentCompleteness(iframe) {
+      try {
+        var doc = iframe.contentDocument;
+        if (!doc || !doc.body) return { valid: true, missing: [], cssIssues: [] };
+
+        var missing = [];
+        var cssIssues = [];
+        var win = doc.defaultView;
+
+        // 1. Details slot or legacy data-fields
+        var detailsSlot = doc.querySelector('.details-slot');
+        if (!detailsSlot || detailsSlot.children.length === 0) {
+          var legacyDate = doc.querySelector('[data-field="datetime"]');
+          var legacyLoc = doc.querySelector('[data-field="location"]');
+          if (!legacyDate && !legacyLoc) missing.push('details');
+        }
+
+        // 2. Title
+        var titleEl = doc.querySelector('[data-field="title"]');
+        if (!titleEl || !titleEl.textContent.trim()) missing.push('title');
+
+        // 3. Visible text content (>30 chars)
+        var bodyText = doc.body.textContent || '';
+        if (bodyText.replace(/\s+/g, ' ').trim().length < 30) missing.push('text');
+
+        // 4. Key element visibility checks
+        if (titleEl) {
+          var titleStyle = win.getComputedStyle(titleEl);
+          if (parseFloat(titleStyle.opacity) < 0.1) cssIssues.push('invisible_title');
+          if (titleStyle.display === 'none') cssIssues.push('hidden_title');
+          if (titleStyle.visibility === 'hidden') cssIssues.push('hidden_title');
+        }
+        if (detailsSlot) {
+          var detailsStyle = win.getComputedStyle(detailsSlot);
+          if (detailsSlot.offsetHeight === 0 && detailsSlot.children.length > 0) cssIssues.push('tiny_details');
+          if (detailsStyle.display === 'none') cssIssues.push('hidden_details');
+        }
+
+        var valid = missing.length === 0 && cssIssues.length === 0;
+        if (!valid) {
+          console.warn('[guest-content-check] Issues found — missing:', missing.join(', '), 'css:', cssIssues.join(', '));
+        }
+        return { valid: valid, missing: missing, cssIssues: cssIssues };
+      } catch (e) {
+        return { valid: true, missing: [], cssIssues: [] }; // Fail open
+      }
+    }
+
+    // ── Report guest-side quality incident (no auth required, fire-and-forget) ──
+    function reportGuestIncident(eventId, slug, missing, cssIssues, themeData) {
+      try {
+        fetch('/api/v2/quality-monitor?action=reportGuestIncident', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId: eventId,
+            slug: slug || '',
+            triggerType: 'guest_broken_render',
+            triggerData: { missing: missing, cssIssues: cssIssues },
+            themeSnapshot: themeData ? {
+              htmlLength: (themeData.html || '').length,
+              cssLength: (themeData.css || '').length,
+              hasConfig: !!themeData.config
+            } : null,
+            clientDeviceInfo: getClientDeviceInfo()
+          })
+        }).catch(function() {});
+      } catch (e) { /* silent */ }
+    }
+
+    // ── Build guest srcdoc with proper CSS ordering ──
+    function buildGuestSrcdoc(themeData) {
+      var config = themeData.config || {};
+      var css = themeData.css || '';
+      var html = themeData.html || '';
+
+      // CSS failsafe: extract from HTML if missing
+      if (!css.trim() && html) {
+        var styleBlocks = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+        if (styleBlocks) {
+          css = styleBlocks.map(function(s) {
+            return s.replace(/<style[^>]*>/gi, '').replace(/<\/style\s*>/gi, '');
+          }).join('\n');
+        }
+      }
+
+      var fontsImport = config.googleFontsImport || '';
+      if (fontsImport && !fontsImport.startsWith('@import')) {
+        fontsImport = "@import url('" + fontsImport + "');";
+      }
+      var fontsStyle = fontsImport ? '<style>' + fontsImport + '</style>' : '';
+
+      // Strip stray @import from CSS body
+      var cleanedCss = sanitizeThemeText(css);
+      var strayImports = cleanedCss.match(/@import\s+url\([^)]+\);?\s*/g);
+      if (strayImports) {
+        strayImports.forEach(function(imp) { cleanedCss = cleanedCss.replace(imp, ''); });
+        if (!fontsImport) {
+          var importUrl = strayImports[0].match(/url\(['"]?([^'"\)]+)['"]?\)/);
+          if (importUrl) fontsStyle = '<style>@import url(\'' + importUrl[1] + '\');</style>';
+        }
+      }
+
+      // Fallback CSS from config colors
+      var fallbackBg = config.backgroundColor || '#FFFAF5';
+      var fallbackText = config.textColor || '#1A1A2E';
+      var fallbackFont = config.fontBody || 'Inter';
+      var fallbackCSS = 'html, body { background:' + fallbackBg + '; color:' + fallbackText + '; font-family:\'' + fallbackFont + '\',sans-serif; }';
+
+      // Strip document-level tags
+      var themeHtml = sanitizeThemeText(html)
+        .replace(/<!DOCTYPE[^>]*>/gi, '')
+        .replace(/<html\b[^>]*>/gi, '').replace(/<\/html\s*>/gi, '')
+        .replace(/<head(?:\s[^>]*)?>[\s\S]*?<\/head\s*>/gi, '')
+        .replace(/<body\b[^>]*>/gi, '').replace(/<\/body\s*>/gi, '')
+        .replace(/<script\b[\s\S]*?<\/script\s*>/gi, '');
+
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+        + '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+        + fontsStyle
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { padding: 20px; background: #f9f9f9; } ' + fallbackCSS + '</style>'
+        + '<style>' + cleanedCss.replace(/<\/style/gi, '<\\/style') + '</style>'
+        + '</head><body>' + themeHtml + '</body></html>';
     }
 
     function buildEventDetailsHtml(event) {
@@ -165,23 +376,58 @@
         }
 
         if (result.event.themeHtml && result.event.themeCss) {
-          var config = result.event.themeConfig || {};
-          var fontsImport = config.googleFontsImport || '';
-          var fontsTag = fontsImport ? '<style>' + fontsImport + '</style>' : '';
+          var themeData = {
+            html: result.event.themeHtml,
+            css: result.event.themeCss,
+            config: result.event.themeConfig || {}
+          };
           var iframe = document.getElementById('themeFrame');
-          iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">' + fontsTag + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { padding: 20px; background: #f9f9f9; }</style><style>' + sanitizeThemeText(result.event.themeCss) + '</style></head><body>' + sanitizeThemeText(result.event.themeHtml) + '</body></html>';
+          iframe.srcdoc = buildGuestSrcdoc(themeData);
           iframe.style.display = 'block';
           iframe.onload = function() {
             try {
-              iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 40, 600) + 'px';
-              // Inject event details into .details-slot for new themes
-              var doc = iframe.contentDocument;
-              var detailsSlot = doc.querySelector('.details-slot');
-              if (detailsSlot) {
-                detailsSlot.innerHTML = buildEventDetailsHtml(result.event);
+              var win = iframe.contentWindow;
+              // Delay one frame so styles are fully resolved before checking
+              var runChecks = function() {
+                try {
+                  iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 40, 600) + 'px';
+                  // Inject event details into .details-slot for new themes
+                  var doc = iframe.contentDocument;
+                  var detailsSlot = doc.querySelector('.details-slot');
+                  if (detailsSlot) {
+                    detailsSlot.innerHTML = buildEventDetailsHtml(result.event);
+                  }
+
+                  // ── CSS rendering check (retry on failure) ──
+                  checkGuestCssRendered(iframe, themeData);
+
+                  // ── Content completeness check (after details injection) ──
+                  setTimeout(function() {
+                    var validation = validateGuestContentCompleteness(iframe);
+                    if (!validation.valid) {
+                      // Silently report incident — don't break guest experience
+                      var eventSlug = result.event.slug || slug || '';
+                      reportGuestIncident(result.event.id, eventSlug, validation.missing, validation.cssIssues, themeData);
+
+                      // If theme is completely empty, show fallback event card
+                      if (validation.missing.indexOf('text') !== -1 && !iframe.contentDocument.body.textContent.trim()) {
+                        showFallbackEventCard(result.event);
+                      }
+                    }
+                  }, 300);
+                } catch(e) {}
+              };
+
+              if (win && win.requestAnimationFrame) {
+                win.requestAnimationFrame(runChecks);
+              } else {
+                setTimeout(runChecks, 50);
               }
             } catch(e) {}
           };
+        } else if (result.event.title) {
+          // No theme at all — show fallback event card
+          showFallbackEventCard(result.event);
         }
 
         renderRSVPForm(result.event);
@@ -552,6 +798,33 @@
     }
 
     function fmtDate(d) { return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; }
+    // Fallback event card when theme is completely broken or missing
+    function showFallbackEventCard(event) {
+      var iframe = document.getElementById('themeFrame');
+      var detailsHtml = buildEventDetailsHtml(event);
+      var fallbackHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
+        + '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; }'
+        + 'html, body { font-family: "Inter", sans-serif; background: #FFFAF5; color: #1A1A2E; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 24px; }'
+        + '.card { max-width: 393px; width: 100%; text-align: center; }'
+        + '.title { font-size: 32px; font-weight: 700; margin-bottom: 32px; line-height: 1.2; }'
+        + '.details { text-align: left; margin: 0 auto; max-width: 320px; }'
+        + '.detail-item { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-start; }'
+        + '.detail-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }'
+        + '.detail-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.6; margin-bottom: 4px; }'
+        + '.detail-value { font-size: 15px; line-height: 1.4; }'
+        + '</style></head><body>'
+        + '<div class="card">'
+        + '<h1 class="title">' + (event.title || 'Event').replace(/</g, '&lt;') + '</h1>'
+        + '<div class="details">' + detailsHtml + '</div>'
+        + '</div></body></html>';
+      iframe.srcdoc = fallbackHtml;
+      iframe.style.display = 'block';
+      iframe.onload = function() {
+        try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 40, 400) + 'px'; } catch(e) {}
+      };
+    }
+
     function showError(msg) { document.getElementById('error').textContent = msg; document.getElementById('error').style.display = 'block'; document.getElementById('loading').style.display = 'none'; }
     function escapeHtml(str) { var div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML; }
 

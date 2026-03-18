@@ -563,6 +563,7 @@
         <button class="sidebar-item" data-tab="promptversions" onclick="switchTab('promptversions')">Prompt Versions</button>
         <button class="sidebar-item" data-tab="promptlab" onclick="switchTab('promptlab')">Prompt Lab</button>
         <button class="sidebar-item" data-tab="stylelibrary" onclick="switchTab('stylelibrary')">Generations</button>
+        <button class="sidebar-item" data-tab="quality" onclick="switchTab('quality');loadQualityDashboard();">Quality</button>
       </div>
       <div class="sidebar-group">
         <div class="sidebar-group-label">Blog</div>
@@ -682,7 +683,7 @@
             <div class="stat-label">Generations 7d vs Prior 7d</div>
           </div>
         </div>
-        <div id="costBreakdownGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px;">
+        <div id="costBreakdownGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px;">
           <div style="background:#f9f9f9;border-radius:8px;padding:16px;">
             <div style="font-size:12px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Chat (Event Planning)</div>
             <div style="font-size:20px;font-weight:700;" id="costChat">—</div>
@@ -697,6 +698,11 @@
             <div style="font-size:12px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Prompt Lab Tests</div>
             <div style="font-size:20px;font-weight:700;" id="costTest">—</div>
             <div style="font-size:12px;color:#888;margin-top:2px;" id="costTestCount">0 tests</div>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:16px;">
+            <div style="font-size:12px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Internal / System</div>
+            <div style="font-size:20px;font-weight:700;" id="costInternal">—</div>
+            <div style="font-size:12px;color:#888;margin-top:2px;" id="costInternalCount">0 calls</div>
           </div>
         </div>
         <div style="font-size:12px;color:#888;line-height:1.6;">
@@ -2213,6 +2219,74 @@
       </div>
     </div>
 
+    <!-- Quality Tab -->
+    <div class="tab-content" id="tab-quality">
+      <h2 style="margin-bottom:20px;">Quality Monitor</h2>
+
+      <!-- Summary Cards -->
+      <div id="qualityCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:28px;">
+        <div class="stat-card"><div class="stat-value" id="qTotal">—</div><div class="stat-label">Total Incidents</div></div>
+        <div class="stat-card"><div class="stat-value" id="qAutoHealed">—</div><div class="stat-label">Auto-Healed</div></div>
+        <div class="stat-card"><div class="stat-value" id="qUnresolved">—</div><div class="stat-label">Unresolved</div></div>
+        <div class="stat-card"><div class="stat-value" id="qHealRate">—</div><div class="stat-label">Heal Rate</div></div>
+      </div>
+
+      <!-- Trigger Breakdown -->
+      <div id="qualityByTrigger" style="margin-bottom:24px;"></div>
+
+      <!-- Browser/Device Breakdown -->
+      <div id="qualityBrowserSection" style="margin-bottom:28px;">
+        <h3 style="font-size:16px;margin-bottom:12px;">Incidents by Browser &amp; Device</h3>
+        <div id="qualityBrowserBreakdown" style="font-size:13px;">Loading...</div>
+      </div>
+
+      <!-- Recurring Patterns & Suggested Rules -->
+      <div id="qualityPatternsSection" style="margin-bottom:28px;">
+        <h3 style="font-size:16px;margin-bottom:12px;">Recurring Patterns</h3>
+        <div id="qualityPatterns" style="font-size:13px;">Loading...</div>
+      </div>
+
+      <div id="qualitySuggestedRulesSection" style="margin-bottom:28px;">
+        <h3 style="font-size:16px;margin-bottom:12px;">Suggested Rules <span style="font-size:12px;color:#888;">(AI-generated from incident patterns)</span></h3>
+        <div id="qualitySuggestedRules" style="font-size:13px;">Loading...</div>
+      </div>
+
+      <!-- Filters -->
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;align-items:center;">
+        <select id="qFilterTrigger" onchange="loadQualityIncidents()" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
+          <option value="">All Triggers</option>
+          <option value="low_rating">Low Rating</option>
+          <option value="broken_render">Broken Render</option>
+          <option value="high_gtp">High GTP</option>
+          <option value="content_warning">Content Warning</option>
+          <option value="user_complaint">User Complaint</option>
+          <option value="guest_broken_render">Guest Broken Render</option>
+        </select>
+        <select id="qFilterResolution" onchange="loadQualityIncidents()" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
+          <option value="">All Resolutions</option>
+          <option value="unresolved">Unresolved</option>
+          <option value="auto_healed">Auto-Healed</option>
+          <option value="escalated">Escalated</option>
+          <option value="admin_reviewed">Admin Reviewed</option>
+        </select>
+        <button class="btn btn-secondary" onclick="loadQualityDashboard()" style="font-size:12px;padding:6px 12px;">Refresh</button>
+      </div>
+
+      <!-- Incident List -->
+      <div id="qualityIncidentList" style="font-size:13px;">Loading...</div>
+
+      <!-- Pagination -->
+      <div id="qualityPagination" style="display:flex;gap:8px;margin-top:16px;align-items:center;font-size:13px;"></div>
+
+      <!-- Incident Detail Modal -->
+      <div id="qualityDetailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;overflow-y:auto;">
+        <div style="max-width:900px;margin:40px auto;background:#fff;border-radius:12px;padding:28px;position:relative;">
+          <button onclick="document.getElementById('qualityDetailModal').style.display='none'" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:24px;cursor:pointer;">&times;</button>
+          <div id="qualityDetailContent">Loading...</div>
+        </div>
+      </div>
+    </div>
+
     </div><!-- end admin-main -->
   </div><!-- end admin-layout -->
 
@@ -2496,9 +2570,11 @@
       document.getElementById('costChat').textContent = fmtCost(c.apiCostChat || 0);
       document.getElementById('costTheme').textContent = fmtCost(c.apiCostTheme || 0);
       document.getElementById('costTest').textContent = fmtCost(c.apiCostTest || 0);
+      document.getElementById('costInternal').textContent = fmtCost(c.apiCostInternal || 0);
       document.getElementById('costChatCount').textContent = (c.chatCount || 0) + ' calls';
       document.getElementById('costThemeCount').textContent = (c.themeCount || 0) + ' generations';
       document.getElementById('costTestCount').textContent = (c.testCount || 0) + ' tests';
+      document.getElementById('costInternalCount').textContent = (c.internalCount || 0) + ' calls';
       var markup = (1 + (c.markupPct || 100) / 100);
       document.getElementById('markupDisplay').textContent = markup.toFixed(1);
 
@@ -2573,6 +2649,7 @@
         var chatAvgCost = c2.chatCount > 0 ? c2.apiCostChat / c2.chatCount : 0;
         var themeAvgCost = c2.themeCount > 0 ? c2.apiCostTheme / c2.themeCount : 0;
         var testAvgCost = c2.testCount > 0 ? c2.apiCostTest / c2.testCount : 0;
+        var internalAvgCost = c2.internalCount > 0 ? c2.apiCostInternal / c2.internalCount : 0;
         var totalOps = (c2.chatCount || 0) + (c2.themeCount || 0) + (c2.testCount || 0);
         var themeLatStr = lat.themeAvgMs ? fmtLatency(lat.themeAvgMs) : '—';
         var overallLatStr = lat.avgMs ? fmtLatency(lat.avgMs) : '—';
@@ -2582,6 +2659,7 @@
           + '<tr><td>Chat (Event Planning)</td><td>' + (c2.chatCount || 0) + '</td><td>' + fmtCost(c2.apiCostChat || 0) + '</td><td>' + fmtCost(chatAvgCost) + '</td><td>—</td></tr>'
           + '<tr><td>Theme Generation</td><td>' + (c2.themeCount || 0) + '</td><td>' + fmtCost(c2.apiCostTheme || 0) + '</td><td>' + fmtCost(themeAvgCost) + '</td><td>' + themeLatStr + '</td></tr>'
           + '<tr><td>Prompt Lab Tests</td><td>' + (c2.testCount || 0) + '</td><td>' + fmtCost(c2.apiCostTest || 0) + '</td><td>' + fmtCost(testAvgCost) + '</td><td>—</td></tr>'
+          + '<tr><td>Internal / System</td><td>' + (c2.internalCount || 0) + '</td><td>' + fmtCost(c2.apiCostInternal || 0) + '</td><td>' + fmtCost(internalAvgCost) + '</td><td>—</td></tr>'
           + '<tr style="font-weight:700;border-top:2px solid #ddd;"><td>Total</td><td>' + totalOps + '</td><td>' + fmtCost(c2.apiCostTotal || 0) + '</td><td>' + fmtCost(totalOps > 0 ? c2.apiCostTotal / totalOps : 0) + '</td><td>' + overallLatStr + '</td></tr>'
           + '</tbody></table>';
       }
@@ -7612,6 +7690,348 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
       btn.disabled = false;
       btn.textContent = 'Send Test SMS';
+    }
+
+    // ---- Quality Monitor ----
+    var qualityPage = 1;
+
+    async function loadQualityDashboard() {
+      try {
+        var resp = await fetch('/api/v2/admin?action=qualityDashboard&days=30', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        var json = await resp.json();
+        if (!json.success) throw new Error(json.error);
+        var d = json.dashboard;
+        document.getElementById('qTotal').textContent = d.totalIncidents;
+        document.getElementById('qAutoHealed').textContent = d.autoHealed;
+        document.getElementById('qUnresolved').textContent = d.unresolved;
+        document.getElementById('qHealRate').textContent = d.autoHealRate + '%';
+
+        // Trigger breakdown
+        var triggerHtml = '<div style="display:flex;flex-wrap:wrap;gap:10px;">';
+        var triggerLabels = { low_rating: 'Low Rating', broken_render: 'Broken Render', high_gtp: 'High GTP', content_warning: 'Content Warning', user_complaint: 'User Complaint', auto_heal_failure: 'Heal Failure' };
+        var triggerColors = { low_rating: '#ef4444', broken_render: '#f59e0b', high_gtp: '#8b5cf6', content_warning: '#f97316', user_complaint: '#ec4899', auto_heal_failure: '#dc2626' };
+        Object.keys(d.byTrigger).forEach(function(t) {
+          triggerHtml += '<div style="background:' + (triggerColors[t] || '#6b7280') + '15;border:1px solid ' + (triggerColors[t] || '#6b7280') + '40;border-radius:8px;padding:8px 14px;font-size:13px;">';
+          triggerHtml += '<strong>' + (triggerLabels[t] || t) + '</strong>: ' + d.byTrigger[t];
+          triggerHtml += '</div>';
+        });
+        triggerHtml += '</div>';
+        if (Object.keys(d.byTrigger).length === 0) triggerHtml = '<p style="color:#888;font-size:13px;">No incidents in the last 30 days.</p>';
+        document.getElementById('qualityByTrigger').innerHTML = triggerHtml;
+
+      } catch (e) {
+        document.getElementById('qualityByTrigger').innerHTML = '<p style="color:#ef4444;">Failed to load dashboard: ' + e.message + '</p>';
+      }
+      loadQualityIncidents();
+      loadQualityBrowserBreakdown();
+      loadQualityPatterns();
+      loadSuggestedRules();
+    }
+
+    async function loadQualityIncidents() {
+      var trigger = document.getElementById('qFilterTrigger').value;
+      var resolution = document.getElementById('qFilterResolution').value;
+      var url = '/api/v2/admin?action=listQualityIncidents&page=' + qualityPage + '&limit=20';
+      if (trigger) url += '&triggerType=' + trigger;
+      if (resolution) url += '&resolutionType=' + resolution;
+
+      try {
+        var resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+        var json = await resp.json();
+        if (!json.success) throw new Error(json.error);
+
+        var incidents = json.incidents || [];
+        if (incidents.length === 0) {
+          document.getElementById('qualityIncidentList').innerHTML = '<p style="color:#888;">No incidents found.</p>';
+          document.getElementById('qualityPagination').innerHTML = '';
+          return;
+        }
+
+        var triggerBadge = { low_rating: '#ef4444', broken_render: '#f59e0b', high_gtp: '#8b5cf6', content_warning: '#f97316', user_complaint: '#ec4899' };
+        var resBadge = { auto_healed: '#22c55e', unresolved: '#ef4444', escalated: '#f59e0b', admin_reviewed: '#3b82f6' };
+
+        var html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+        html += '<thead><tr style="border-bottom:2px solid #eee;text-align:left;">';
+        html += '<th style="padding:8px;">Time</th><th style="padding:8px;">Trigger</th><th style="padding:8px;">Status</th><th style="padding:8px;">Event</th><th style="padding:8px;">User</th><th style="padding:8px;">Diagnosis</th><th style="padding:8px;"></th>';
+        html += '</tr></thead><tbody>';
+
+        incidents.forEach(function(inc) {
+          var time = new Date(inc.created_at).toLocaleString();
+          var tc = triggerBadge[inc.trigger_type] || '#6b7280';
+          var rc = resBadge[inc.resolution_type] || '#6b7280';
+          html += '<tr style="border-bottom:1px solid #f0f0f0;">';
+          html += '<td style="padding:8px;white-space:nowrap;">' + time + '</td>';
+          html += '<td style="padding:8px;"><span style="background:' + tc + '20;color:' + tc + ';padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">' + inc.trigger_type.replace(/_/g, ' ') + '</span></td>';
+          html += '<td style="padding:8px;"><span style="background:' + rc + '20;color:' + rc + ';padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">' + (inc.resolution_type || 'unknown').replace(/_/g, ' ') + '</span></td>';
+          html += '<td style="padding:8px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (inc.eventTitle || '') + '">' + (inc.eventTitle || '—') + '</td>';
+          html += '<td style="padding:8px;">' + (inc.userEmail || '—') + '</td>';
+          html += '<td style="padding:8px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (inc.ai_diagnosis ? inc.ai_diagnosis.substring(0, 80) + '...' : '—') + '</td>';
+          html += '<td style="padding:8px;"><button class="btn btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="viewIncidentDetail(\'' + inc.id + '\')">View</button></td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table>';
+        document.getElementById('qualityIncidentList').innerHTML = html;
+
+        // Pagination
+        var totalPages = json.totalPages || 1;
+        var pagHtml = '';
+        if (qualityPage > 1) pagHtml += '<button class="btn btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="qualityPage--;loadQualityIncidents()">Prev</button>';
+        pagHtml += '<span>Page ' + qualityPage + ' of ' + totalPages + ' (' + json.total + ' total)</span>';
+        if (qualityPage < totalPages) pagHtml += '<button class="btn btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="qualityPage++;loadQualityIncidents()">Next</button>';
+        document.getElementById('qualityPagination').innerHTML = pagHtml;
+
+      } catch (e) {
+        document.getElementById('qualityIncidentList').innerHTML = '<p style="color:#ef4444;">Failed to load incidents: ' + e.message + '</p>';
+      }
+    }
+
+    async function viewIncidentDetail(incidentId) {
+      var modal = document.getElementById('qualityDetailModal');
+      var content = document.getElementById('qualityDetailContent');
+      modal.style.display = 'block';
+      content.innerHTML = '<p>Loading...</p>';
+
+      try {
+        var resp = await fetch('/api/v2/admin?action=getIncidentDetail&incidentId=' + incidentId, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        var json = await resp.json();
+        if (!json.success) throw new Error(json.error);
+        var inc = json.incident;
+
+        var html = '<h3 style="margin-bottom:16px;">Incident Detail</h3>';
+
+        // Meta info
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;font-size:13px;">';
+        html += '<div><strong>Trigger:</strong> ' + inc.trigger_type.replace(/_/g, ' ') + '</div>';
+        html += '<div><strong>Status:</strong> ' + (inc.resolution_type || 'unknown').replace(/_/g, ' ') + '</div>';
+        html += '<div><strong>Created:</strong> ' + new Date(inc.created_at).toLocaleString() + '</div>';
+        if (inc.resolved_at) html += '<div><strong>Resolved:</strong> ' + new Date(inc.resolved_at).toLocaleString() + '</div>';
+        if (inc.userInfo) html += '<div><strong>User:</strong> ' + (inc.userInfo.email || '—') + ' (' + (inc.userInfo.tier || 'free') + ')</div>';
+        if (inc.eventInfo) html += '<div><strong>Event:</strong> ' + (inc.eventInfo.title || '—') + ' [' + (inc.eventInfo.event_type || '') + ']</div>';
+        html += '</div>';
+
+        // Trigger data
+        if (inc.trigger_data) {
+          html += '<details style="margin-bottom:16px;"><summary style="cursor:pointer;font-weight:600;font-size:13px;">Trigger Data</summary>';
+          html += '<pre style="background:#f9f9f9;padding:12px;border-radius:6px;font-size:12px;overflow-x:auto;margin-top:8px;">' + JSON.stringify(inc.trigger_data, null, 2) + '</pre></details>';
+        }
+
+        // AI Diagnosis
+        if (inc.ai_diagnosis) {
+          html += '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin-bottom:16px;">';
+          html += '<strong style="font-size:13px;">AI Diagnosis</strong>';
+          if (inc.ai_diagnosis_model) html += ' <span style="font-size:11px;color:#888;">(' + inc.ai_diagnosis_model + ')</span>';
+          html += '<p style="font-size:13px;margin-top:8px;white-space:pre-wrap;">' + inc.ai_diagnosis + '</p>';
+          html += '</div>';
+        }
+
+        // Resolution data
+        if (inc.resolution_data) {
+          html += '<details style="margin-bottom:16px;"><summary style="cursor:pointer;font-weight:600;font-size:13px;">Resolution Data</summary>';
+          html += '<pre style="background:#f9f9f9;padding:12px;border-radius:6px;font-size:12px;overflow-x:auto;margin-top:8px;">' + JSON.stringify(inc.resolution_data, null, 2) + '</pre></details>';
+        }
+
+        // Validation results
+        if (inc.validation_results) {
+          html += '<details style="margin-bottom:16px;"><summary style="cursor:pointer;font-weight:600;font-size:13px;">Validation Results</summary>';
+          html += '<pre style="background:#f9f9f9;padding:12px;border-radius:6px;font-size:12px;overflow-x:auto;margin-top:8px;">' + JSON.stringify(inc.validation_results, null, 2) + '</pre></details>';
+        }
+
+        // Chat snapshot
+        if (inc.design_chat_snapshot && inc.design_chat_snapshot.length > 0) {
+          html += '<details style="margin-bottom:16px;"><summary style="cursor:pointer;font-weight:600;font-size:13px;">Design Chat (' + inc.design_chat_snapshot.length + ' messages)</summary>';
+          html += '<div style="max-height:400px;overflow-y:auto;margin-top:8px;border:1px solid #eee;border-radius:8px;padding:12px;">';
+          inc.design_chat_snapshot.forEach(function(msg) {
+            var isUser = msg.role === 'user';
+            html += '<div style="margin-bottom:8px;text-align:' + (isUser ? 'right' : 'left') + ';">';
+            html += '<span style="display:inline-block;max-width:80%;padding:8px 12px;border-radius:12px;font-size:12px;background:' + (isUser ? '#3b82f6;color:#fff' : '#f0f0f0;color:#333') + ';">';
+            html += (msg.content || '').substring(0, 500);
+            html += '</span></div>';
+          });
+          html += '</div></details>';
+        }
+
+        // Theme preview
+        if (inc.theme_snapshot && inc.theme_snapshot.html) {
+          html += '<details style="margin-bottom:16px;"><summary style="cursor:pointer;font-weight:600;font-size:13px;">Theme Preview</summary>';
+          html += '<div style="margin-top:8px;border:1px solid #eee;border-radius:8px;overflow:hidden;">';
+          html += '<iframe id="qualityThemePreview" sandbox="allow-scripts" style="width:100%;height:500px;border:none;"></iframe>';
+          html += '</div></details>';
+        }
+
+        content.innerHTML = html;
+
+        // Inject theme into iframe if present
+        if (inc.theme_snapshot && inc.theme_snapshot.html) {
+          var frame = document.getElementById('qualityThemePreview');
+          if (frame) {
+            var doc = frame.contentDocument || frame.contentWindow.document;
+            doc.open();
+            doc.write(inc.theme_snapshot.html);
+            doc.close();
+          }
+        }
+
+      } catch (e) {
+        content.innerHTML = '<p style="color:#ef4444;">Failed to load incident: ' + e.message + '</p>';
+      }
+    }
+
+    // ---- Quality: Browser/Device Breakdown ----
+    async function loadQualityBrowserBreakdown() {
+      var el = document.getElementById('qualityBrowserBreakdown');
+      try {
+        var resp = await fetch('/api/v2/admin?action=qualityByBrowser', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        var json = await resp.json();
+        if (!json.success) throw new Error(json.error);
+        var data = json.browserBreakdown || [];
+        if (data.length === 0) {
+          el.innerHTML = '<p style="color:#888;">No browser data yet. Incidents will be tagged with device info as they occur.</p>';
+          return;
+        }
+        var html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+        html += '<thead><tr style="border-bottom:2px solid #eee;text-align:left;">';
+        html += '<th style="padding:6px 8px;">Browser</th><th style="padding:6px 8px;">Device</th><th style="padding:6px 8px;">Incidents</th><th style="padding:6px 8px;">Healed</th><th style="padding:6px 8px;">Unresolved</th><th style="padding:6px 8px;">Top Trigger</th>';
+        html += '</tr></thead><tbody>';
+        data.forEach(function(row) {
+          var topTrigger = '';
+          var maxCount = 0;
+          Object.keys(row.byTrigger || {}).forEach(function(t) {
+            if (row.byTrigger[t] > maxCount) { maxCount = row.byTrigger[t]; topTrigger = t; }
+          });
+          var deviceIcon = row.device === 'Mobile' ? '📱' : (row.device === 'Tablet' ? '📋' : '🖥️');
+          html += '<tr style="border-bottom:1px solid #f0f0f0;">';
+          html += '<td style="padding:6px 8px;font-weight:600;">' + row.browser + '</td>';
+          html += '<td style="padding:6px 8px;">' + deviceIcon + ' ' + row.device + '</td>';
+          html += '<td style="padding:6px 8px;">' + row.total + '</td>';
+          html += '<td style="padding:6px 8px;color:#22c55e;">' + row.healed + '</td>';
+          html += '<td style="padding:6px 8px;color:' + (row.unresolved > 0 ? '#ef4444' : '#888') + ';">' + row.unresolved + '</td>';
+          html += '<td style="padding:6px 8px;font-size:11px;">' + (topTrigger ? topTrigger.replace(/_/g, ' ') : '—') + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table>';
+        el.innerHTML = html;
+      } catch (e) {
+        el.innerHTML = '<p style="color:#ef4444;font-size:13px;">Failed to load: ' + e.message + '</p>';
+      }
+    }
+
+    // ---- Quality: Recurring Patterns ----
+    async function loadQualityPatterns() {
+      var el = document.getElementById('qualityPatterns');
+      try {
+        var resp = await fetch('/api/v2/admin?action=qualityPatterns', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        var json = await resp.json();
+        if (!json.success) throw new Error(json.error);
+        var patterns = json.patterns || [];
+        if (patterns.length === 0) {
+          el.innerHTML = '<p style="color:#888;">No recurring patterns detected in the last 30 days.</p>';
+          return;
+        }
+        var html = '<div style="display:grid;gap:12px;">';
+        var triggerColors = { low_rating: '#ef4444', broken_render: '#f59e0b', high_gtp: '#8b5cf6', content_warning: '#f97316', user_complaint: '#ec4899', guest_broken_render: '#dc2626' };
+        patterns.forEach(function(p) {
+          var color = triggerColors[p.trigger_type] || '#6b7280';
+          var urgency = p.last_24h >= 5 ? 'border-left:4px solid #ef4444;' : (p.last_7d >= 10 ? 'border-left:4px solid #f59e0b;' : 'border-left:4px solid #e5e7eb;');
+          html += '<div style="background:#fafafa;border-radius:8px;padding:12px 16px;' + urgency + '">';
+          html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
+          html += '<span style="font-weight:600;font-size:14px;">' + p.trigger_type.replace(/_/g, ' ') + '</span>';
+          html += '<span style="background:' + color + '15;color:' + color + ';padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;">' + p.count + ' incidents</span>';
+          html += '</div>';
+          html += '<div style="display:flex;gap:16px;font-size:12px;color:#666;">';
+          html += '<span>Last 24h: <strong style="color:' + (p.last_24h >= 5 ? '#ef4444' : '#333') + ';">' + p.last_24h + '</strong></span>';
+          html += '<span>Last 7d: <strong>' + p.last_7d + '</strong></span>';
+          html += '<span>Events: <strong>' + p.events + '</strong></span>';
+          if (p.browsers && p.browsers.length > 0) {
+            html += '<span>Browsers: ' + p.browsers.join(', ') + '</span>';
+          }
+          html += '</div>';
+          html += '</div>';
+        });
+        html += '</div>';
+        el.innerHTML = html;
+      } catch (e) {
+        el.innerHTML = '<p style="color:#ef4444;font-size:13px;">Failed to load: ' + e.message + '</p>';
+      }
+    }
+
+    // ---- Quality: Suggested Rules ----
+    async function loadSuggestedRules() {
+      var el = document.getElementById('qualitySuggestedRules');
+      try {
+        var resp = await fetch('/api/v2/admin?action=listSuggestedRules&status=pending', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        var json = await resp.json();
+        if (!json.success) throw new Error(json.error);
+        var rules = json.rules || [];
+        if (rules.length === 0) {
+          el.innerHTML = '<p style="color:#888;">No pending suggested rules. Rules are generated when 5+ incidents share the same root cause in 24 hours.</p>';
+          return;
+        }
+        var html = '<div style="display:grid;gap:12px;">';
+        rules.forEach(function(rule) {
+          html += '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;">';
+          html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">';
+          html += '<div>';
+          html += '<span style="font-weight:600;font-size:13px;">Root cause: ' + (rule.root_cause || '—') + '</span>';
+          html += '<span style="font-size:11px;color:#888;margin-left:8px;">' + (rule.trigger_pattern || '') + '</span>';
+          html += '</div>';
+          html += '<span style="font-size:11px;color:#888;white-space:nowrap;">' + new Date(rule.created_at).toLocaleDateString() + '</span>';
+          html += '</div>';
+          html += '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;font-size:13px;line-height:1.5;margin-bottom:10px;">';
+          html += '<strong>Suggested rule:</strong> ' + (rule.suggested_text || '').replace(/</g, '&lt;');
+          html += '</div>';
+          html += '<div style="display:flex;gap:8px;align-items:center;font-size:12px;color:#666;flex-wrap:wrap;">';
+          html += '<span>' + (rule.incident_count || 0) + ' incidents</span>';
+          html += '<span>' + (rule.affected_events || 0) + ' events</span>';
+          if (rule.affected_browsers && rule.affected_browsers.length > 0) {
+            html += '<span>' + rule.affected_browsers.join(', ') + '</span>';
+          }
+          html += '<div style="margin-left:auto;display:flex;gap:6px;">';
+          html += '<button class="btn" style="font-size:11px;padding:4px 12px;background:#22c55e;color:#fff;border:none;border-radius:4px;cursor:pointer;" onclick="reviewSuggestedRule(\'' + rule.id + '\', \'applied\')">Apply to Prompt</button>';
+          html += '<button class="btn btn-secondary" style="font-size:11px;padding:4px 12px;" onclick="reviewSuggestedRule(\'' + rule.id + '\', \'dismissed\')">Dismiss</button>';
+          html += '<button class="btn btn-secondary" style="font-size:11px;padding:4px 12px;" onclick="reviewSuggestedRule(\'' + rule.id + '\', \'needs_deploy\')">Needs Deploy</button>';
+          html += '</div>';
+          html += '</div>';
+          html += '</div>';
+        });
+        html += '</div>';
+        el.innerHTML = html;
+      } catch (e) {
+        el.innerHTML = '<p style="color:#ef4444;font-size:13px;">Failed to load: ' + e.message + '</p>';
+      }
+    }
+
+    async function reviewSuggestedRule(ruleId, status) {
+      var reason = '';
+      if (status === 'dismissed') {
+        reason = prompt('Why are you dismissing this rule? (optional)') || '';
+      }
+      try {
+        var resp = await fetch('/api/v2/admin?action=reviewSuggestedRule', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ruleId: ruleId, status: status, dismissReason: reason })
+        });
+        var json = await resp.json();
+        if (json.success) {
+          var actionLabel = status === 'applied' ? 'Applied to active prompt version' : (status === 'dismissed' ? 'Dismissed' : 'Flagged for deploy');
+          alert(actionLabel + ' successfully.');
+          loadSuggestedRules();
+        } else {
+          alert('Failed: ' + (json.error || 'Unknown error'));
+        }
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
     }
 
   </script>

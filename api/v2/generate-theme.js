@@ -418,7 +418,8 @@ Rules:
 ### CONCRETE CONTRAST RULES FOR EACH SECTION:
 - **Details slot** (\`.details-slot\`): If background is dark, \`.detail-label\` and \`.detail-value\` MUST be white (#FFFFFF/#FAFAFA). If light, use dark text (#1A1A1A). NEVER use accent colors as text on dark backgrounds.
 - **Hero section**: If the background is dark or uses a dark gradient, title and subtitle text MUST be white/cream/very light.
-- **RSVP section**: Button text must be white on dark buttons or dark on light buttons. No exceptions.
+- **RSVP section** (\`.rsvp-slot\`): The platform injects form labels, inputs, selects, and a submit button into \`.rsvp-slot\` at runtime. You MUST style \`.rsvp-slot\` with an explicit \`color\` that contrasts against its background. If the RSVP area has a dark/colored background, set \`.rsvp-slot { color: #FFFFFF; }\` or \`.rsvp-slot { color: #FAFAFA; }\`. If light background, set \`.rsvp-slot { color: #1A1A1A; }\`. The injected form elements use \`color: inherit\`, so whatever color you set on \`.rsvp-slot\` cascades to ALL labels, inputs, and text. Button text must be white on dark buttons or dark on light buttons. No exceptions.
+- **RSVP form inputs**: Style \`.rsvp-slot input\`, \`.rsvp-slot select\`, \`.rsvp-slot textarea\` with readable text color. On dark backgrounds use \`color: #FFFFFF\` and \`background: rgba(255,255,255,0.15)\`. On light backgrounds use \`color: #1A1A1A\` and \`background: rgba(0,0,0,0.05)\`. NEVER leave input text color as a dark color on a dark RSVP background.
 - **SIMPLE RULE**: For ANY section with a colored/dark background, set the text color to #FFFFFF or #FAFAFA. For any section with a light/white background, set text to #1A1A1A or darker. Do NOT try to match text color to theme accent colors on dark backgrounds — it almost always fails contrast.`;
 
 // ═══════════════════════════════════════════════════════════════════
@@ -707,6 +708,131 @@ function validateThemeIntegrity(theme) {
     }
   }
 
+  // 9. Content completeness — required platform elements
+  if (html) {
+    const hasDetailsSlot = /class\s*=\s*["'][^"']*\bdetails-slot\b/.test(html);
+    const hasLegacyDetails = /data-field\s*=\s*["'](datetime|location)["']/.test(html);
+    if (!hasDetailsSlot && !hasLegacyDetails) issues.push('missing_details_slot');
+
+    const hasRsvpSlot = /class\s*=\s*["'][^"']*\brsvp-slot\b/.test(html) || /class\s*=\s*["'][^"']*\brsvp-button\b/.test(html);
+    if (!hasRsvpSlot) issues.push('missing_rsvp_slot');
+
+    const hasTitleField = /data-field\s*=\s*["']title["']/.test(html);
+    if (!hasTitleField) issues.push('missing_title_field');
+
+    // Check for meaningful text content (strip tags, check remaining text length)
+    const textOnly = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (textOnly.length < 20) issues.push('content_too_sparse');
+  }
+
+  // ── 10. CSS Visual Rendering Analysis ──
+  // Catch CSS patterns that produce invisible/broken output the AI commonly generates.
+  // These are auto-repaired by repairTheme() before the client ever sees them.
+  if (css && html) {
+    // 10a. Invisible text — color matching background-color on same selector
+    const ruleBlocks = css.match(/[^{}]+\{[^}]+\}/g) || [];
+    for (const rule of ruleBlocks) {
+      const colorMatch = rule.match(/(?:^|;\s*)color\s*:\s*([^;!}]+)/i);
+      const bgMatch = rule.match(/background(?:-color)?\s*:\s*([^;!}]+)/i);
+      if (colorMatch && bgMatch) {
+        const c = colorMatch[1].trim().toLowerCase().replace(/\s+/g, '');
+        const bg = bgMatch[1].trim().toLowerCase().replace(/\s+/g, '');
+        // Exact match (white on white, #fff on #fff, etc.) — not gradient backgrounds
+        if (c === bg && !bg.includes('gradient') && !bg.includes('url(')) {
+          issues.push('css_invisible_text');
+          break;
+        }
+      }
+    }
+
+    // 10b. Offscreen positioning — elements pushed way off viewport
+    if (/(?:left|right|top|margin-left|margin-right|transform)\s*:\s*-(?:9{3,}|[5-9]\d{3,})px/i.test(css)) {
+      issues.push('css_offscreen_content');
+    }
+    // translateX/Y with large negative values
+    if (/translate[XY]?\s*\(\s*-(?:9{3,}|[1-9]\d{3,})px/i.test(css)) {
+      issues.push('css_offscreen_content');
+    }
+
+    // 10c. Zero-dimension key containers
+    const keySelectors = ['rsvp-slot', 'details-slot', 'rsvp-button'];
+    for (const sel of keySelectors) {
+      // Find rule blocks that target this selector
+      const selRegex = new RegExp('\\.' + sel.replace('-', '[-]?') + '\\s*\\{([^}]+)\\}', 'i');
+      const selMatch = css.match(selRegex);
+      if (selMatch) {
+        const rules = selMatch[1];
+        if (/(?:^|;\s*)(?:width|height)\s*:\s*0(?:px)?\s*(?:[;!}]|$)/i.test(rules) &&
+            !/overflow/.test(rules)) {
+          issues.push('css_zero_dimension_' + sel.replace('-', '_'));
+        }
+      }
+    }
+
+    // 10d. Permanent opacity:0 without animation (elements invisible forever)
+    // Check if any key element has opacity:0 but no animation that restores it
+    for (const sel of keySelectors) {
+      const selRegex = new RegExp('\\.' + sel.replace('-', '[-]?') + '\\s*\\{([^}]+)\\}', 'i');
+      const selMatch = css.match(selRegex);
+      if (selMatch) {
+        const rules = selMatch[1];
+        if (/opacity\s*:\s*0\s*[;!}]/i.test(rules)) {
+          // Check if there's an animation that would restore it
+          const animName = rules.match(/animation(?:-name)?\s*:\s*([\w-]+)/i);
+          if (animName) {
+            // Check if the @keyframes ends at opacity > 0
+            const kfRegex = new RegExp('@keyframes\\s+' + animName[1] + '\\s*\\{([\\s\\S]*?)\\}\\s*\\}', 'i');
+            const kfMatch = css.match(kfRegex);
+            if (kfMatch && /(?:to|100%)\s*\{[^}]*opacity\s*:\s*(?:0(?:\.0+)?)\s*[;!}]/i.test(kfMatch[1])) {
+              issues.push('css_animation_hides_' + sel.replace('-', '_'));
+            } else if (!kfMatch) {
+              // opacity:0 with animation referencing nonexistent keyframes
+              issues.push('css_opacity_zero_' + sel.replace('-', '_'));
+            }
+          } else {
+            // opacity:0 with no animation at all — permanently invisible
+            issues.push('css_opacity_zero_' + sel.replace('-', '_'));
+          }
+        }
+      }
+    }
+
+    // 10e. Overflow clipping on containers with very small fixed heights
+    for (const sel of ['rsvp-slot', 'details-slot']) {
+      const selRegex = new RegExp('\\.' + sel.replace('-', '[-]?') + '\\s*\\{([^}]+)\\}', 'i');
+      const selMatch = css.match(selRegex);
+      if (selMatch) {
+        const rules = selMatch[1];
+        const hasOverflowHidden = /overflow\s*:\s*hidden/i.test(rules);
+        const heightMatch = rules.match(/(?:max-)?height\s*:\s*(\d+)px/i);
+        if (hasOverflowHidden && heightMatch && parseInt(heightMatch[1]) < 30) {
+          issues.push('css_clipped_' + sel.replace('-', '_'));
+        }
+      }
+    }
+
+    // 10f. display:none on key elements (outside @media queries)
+    // Strip @media blocks first, then check for display:none on key selectors
+    const cssNoMedia = css.replace(/@media[^{]*\{(?:[^{}]*\{[^}]*\})*[^}]*\}/g, '');
+    for (const sel of keySelectors) {
+      const selRegex = new RegExp('\\.' + sel.replace('-', '[-]?') + '\\s*\\{([^}]+)\\}', 'i');
+      const selMatch = cssNoMedia.match(selRegex);
+      if (selMatch && /display\s*:\s*none/i.test(selMatch[1])) {
+        issues.push('css_display_none_' + sel.replace('-', '_'));
+      }
+    }
+
+    // 10g. visibility:hidden on key elements (outside @media and @keyframes)
+    const cssNoMediaKf = cssNoMedia.replace(/@keyframes[^{]*\{(?:[^{}]*\{[^}]*\})*[^}]*\}/g, '');
+    for (const sel of keySelectors) {
+      const selRegex = new RegExp('\\.' + sel.replace('-', '[-]?') + '\\s*\\{([^}]+)\\}', 'i');
+      const selMatch = cssNoMediaKf.match(selRegex);
+      if (selMatch && /visibility\s*:\s*hidden/i.test(selMatch[1])) {
+        issues.push('css_visibility_hidden_' + sel.replace('-', '_'));
+      }
+    }
+  }
+
   return { valid: issues.length === 0, issues };
 }
 
@@ -767,6 +893,112 @@ function repairTheme(theme, issues) {
   if (issues.includes('css_malformed_keyframes')) {
     theme.theme_css = theme.theme_css.replace(/@keyframes\s+[\w-]+\s*\{[^}]*$/gm, '');
     console.log('[repairTheme] Stripped malformed @keyframes block(s)');
+  }
+
+  // Inject missing platform elements so the client can still inject content
+  if (issues.includes('missing_title_field')) {
+    // Try to add data-field="title" to the first prominent heading
+    const headingMatch = (theme.theme_html || '').match(/<(h[12])\b([^>]*)>/i);
+    if (headingMatch) {
+      const tag = headingMatch[0];
+      if (!tag.includes('data-field')) {
+        theme.theme_html = theme.theme_html.replace(tag, tag.replace('>', ' data-field="title">'));
+        console.log('[repairTheme] Added data-field="title" to existing heading');
+      }
+    }
+  }
+
+  if (issues.includes('missing_rsvp_slot')) {
+    // Inject minimal RSVP slot at end of HTML
+    theme.theme_html = (theme.theme_html || '') + '\n<div class="rsvp-slot"><button class="rsvp-button">RSVP</button></div>';
+    console.log('[repairTheme] Injected missing .rsvp-slot');
+  }
+
+  if (issues.includes('missing_details_slot')) {
+    // Inject details slot before RSVP slot if possible, otherwise at end
+    const rsvpIdx = (theme.theme_html || '').indexOf('rsvp-slot');
+    if (rsvpIdx > 0) {
+      // Find the opening tag of the rsvp-slot container
+      const beforeRsvp = theme.theme_html.lastIndexOf('<', rsvpIdx);
+      if (beforeRsvp >= 0) {
+        theme.theme_html = theme.theme_html.slice(0, beforeRsvp) + '<div class="details-slot"></div>\n' + theme.theme_html.slice(beforeRsvp);
+        console.log('[repairTheme] Injected missing .details-slot before rsvp-slot');
+      }
+    } else {
+      theme.theme_html = (theme.theme_html || '') + '\n<div class="details-slot"></div>';
+      console.log('[repairTheme] Injected missing .details-slot at end');
+    }
+  }
+
+  // ── CSS Visual Rendering Repairs ──
+  // Fix CSS patterns that produce invisible/broken output.
+  // These repairs are surgical — they target only the specific broken property
+  // without regenerating the entire theme.
+
+  // Helper: replace a CSS property within a specific selector's rule block
+  function replaceCssProperty(css, selectorPart, propRegex, replacement) {
+    const selRegex = new RegExp('(\\.' + selectorPart.replace('-', '[-]?') + '\\s*\\{)([^}]+)(\\})', 'i');
+    return css.replace(selRegex, (match, open, rules, close) => {
+      return open + rules.replace(propRegex, replacement) + close;
+    });
+  }
+
+  // 10a. Invisible text (color same as background) — set text to contrasting color
+  if (issues.includes('css_invisible_text')) {
+    const ruleBlocks = (theme.theme_css || '').match(/([^{}]+)\{([^}]+)\}/g) || [];
+    for (const rule of ruleBlocks) {
+      const colorMatch = rule.match(/(?:^|;\s*)color\s*:\s*([^;!}]+)/i);
+      const bgMatch = rule.match(/background(?:-color)?\s*:\s*([^;!}]+)/i);
+      if (colorMatch && bgMatch) {
+        const c = colorMatch[1].trim().toLowerCase().replace(/\s+/g, '');
+        const bg = bgMatch[1].trim().toLowerCase().replace(/\s+/g, '');
+        if (c === bg && !bg.includes('gradient') && !bg.includes('url(')) {
+          // Flip text to contrasting color: light bg → dark text, dark bg → light text
+          const isLightBg = /(?:white|#f|#e|rgb\s*\(\s*2[0-5]\d|rgba?\s*\(\s*2[0-5]\d)/i.test(bg);
+          const contrastColor = isLightBg ? '#1a1a1a' : '#ffffff';
+          theme.theme_css = theme.theme_css.replace(
+            new RegExp('(color\\s*:\\s*)' + c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
+            '$1' + contrastColor
+          );
+          console.log('[repairTheme] Fixed invisible text: set color to', contrastColor);
+          break; // Fix first occurrence
+        }
+      }
+    }
+  }
+
+  // 10b. Offscreen content — remove offscreen positioning
+  if (issues.includes('css_offscreen_content')) {
+    theme.theme_css = theme.theme_css
+      .replace(/(?:left|right|margin-left|margin-right)\s*:\s*-(?:9{3,}|[5-9]\d{3,})px[^;]*;?/gi, '')
+      .replace(/transform\s*:\s*translate[XY]?\s*\(\s*-(?:9{3,}|[1-9]\d{3,})px[^;)]*\)[^;]*;?/gi, '');
+    console.log('[repairTheme] Removed offscreen positioning rules');
+  }
+
+  // 10c/10d/10f/10g. Fix display:none, visibility:hidden, opacity:0, zero dimensions on key elements
+  const keySels = ['rsvp-slot', 'details-slot', 'rsvp-button'];
+  for (const sel of keySels) {
+    const selKey = sel.replace('-', '_');
+    if (issues.some(i => i === 'css_display_none_' + selKey)) {
+      theme.theme_css = replaceCssProperty(theme.theme_css, sel, /display\s*:\s*none\s*;?/gi, 'display: block;');
+      console.log('[repairTheme] Fixed display:none on .' + sel);
+    }
+    if (issues.some(i => i === 'css_visibility_hidden_' + selKey)) {
+      theme.theme_css = replaceCssProperty(theme.theme_css, sel, /visibility\s*:\s*hidden\s*;?/gi, 'visibility: visible;');
+      console.log('[repairTheme] Fixed visibility:hidden on .' + sel);
+    }
+    if (issues.some(i => i === 'css_opacity_zero_' + selKey || i === 'css_animation_hides_' + selKey)) {
+      theme.theme_css = replaceCssProperty(theme.theme_css, sel, /opacity\s*:\s*0\s*;?/gi, 'opacity: 1;');
+      console.log('[repairTheme] Fixed opacity:0 on .' + sel);
+    }
+    if (issues.some(i => i === 'css_zero_dimension_' + selKey)) {
+      theme.theme_css = replaceCssProperty(theme.theme_css, sel, /(?:width|height)\s*:\s*0(?:px)?\s*;?/gi, '');
+      console.log('[repairTheme] Removed zero width/height on .' + sel);
+    }
+    if (issues.some(i => i === 'css_clipped_' + selKey)) {
+      theme.theme_css = replaceCssProperty(theme.theme_css, sel, /overflow\s*:\s*hidden\s*;?/gi, 'overflow: visible;');
+      console.log('[repairTheme] Fixed overflow clipping on .' + sel);
+    }
   }
 }
 
@@ -1217,6 +1449,7 @@ try {
     if (!userMessage) return res.status(400).json({ error: 'Missing userMessage' });
 
     try {
+      const classifyStartTime = Date.now();
       const fieldList = (currentFields || []).map(f => `"${f.label}" (${f.field_type})`).join(', ');
       const resp = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
@@ -1229,7 +1462,7 @@ Current RSVP fields: ${fieldList || 'none'}
 
 Classify this request. Return JSON:
 {
-  "intent": "add_field|remove_field|modify_field|design_change|text_change|add_photo|question|unclear",
+  "intent": "add_field|remove_field|modify_field|design_change|text_change|add_photo|question|broken_render|unclear",
   "confidence": 0.0 to 1.0,
   "summary": "One sentence: what the user wants",
   "clarification": "A friendly question to ask if you're not confident (null if confident)",
@@ -1241,6 +1474,7 @@ Rules:
 - "design_change": visual changes (colors, fonts, layout, style, animations, spacing)
 - "text_change": change specific text/wording in the invite
 - "question": user is asking a question, not requesting a change
+- "broken_render": user is reporting the invite looks broken, is missing content/text/fields, appears blank, cut off, or didn't render correctly (e.g. "it's missing all the text", "nothing is showing", "where are the fields", "the invite is blank")
 - "unclear": you genuinely can't determine what they want
 - confidence 0.9+: crystal clear request. confidence 0.5-0.8: probably understand but should confirm. confidence <0.5: genuinely unclear
 - For add_field with confidence >= 0.8, include "field_details": {"label": "...", "field_type": "..."} so we can skip a second AI call
@@ -1249,7 +1483,10 @@ Rules:
       });
 
       const text = resp.content[0]?.text?.trim() || '';
-      const classifyCost = calcGenerationCost('claude-haiku-4-5-20251001', resp.usage?.input_tokens || 0, resp.usage?.output_tokens || 0);
+      const classifyInputTokens = resp.usage?.input_tokens || 0;
+      const classifyOutputTokens = resp.usage?.output_tokens || 0;
+      const classifyLatency = Date.now() - classifyStartTime;
+      const classifyCost = calcGenerationCost('claude-haiku-4-5-20251001', classifyInputTokens, classifyOutputTokens);
       let classification;
       try {
         const cleaned = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
@@ -1257,6 +1494,19 @@ Rules:
       } catch {
         // If parsing fails, return a conservative "unclear" classification
         classification = { intent: 'unclear', confidence: 0.3, summary: 'Could not classify', clarification: "I want to make sure I get this right — could you tell me a bit more about what you'd like to change?", suggested_options: null };
+      }
+      // Log classifyIntent to generation_log — these add up
+      const classifyMeta = getClientMeta(req);
+      await supabase.from('generation_log').insert({
+        user_id: user.id, event_id: eventId || null,
+        prompt: 'classifyIntent: ' + userMessage.substring(0, 200),
+        model: 'claude-haiku-4-5-20251001', input_tokens: classifyInputTokens,
+        output_tokens: classifyOutputTokens, latency_ms: classifyLatency, status: 'success',
+        is_tweak: true, event_type: eventType || '',
+        client_ip: classifyMeta.ip, client_geo: classifyMeta.geo, user_agent: classifyMeta.userAgent
+      }).catch(e => console.error('classifyIntent generation_log insert failed:', e.message));
+      if (eventId) {
+        await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: classifyCost.totalCostCents }).catch(() => {});
       }
       // AI generation included in $4.99 event price — no per-generation billing
       return res.json({ success: true, ...classification, metadata: { cost: classifyCost } });
@@ -1783,6 +2033,19 @@ Return ONLY a valid JSON object with these keys:
         tweakConfig.emailHtml = currentConfig.emailHtml;
       }
 
+      // ── SERVER-SIDE THEME VALIDATION for tweaks (same as generation path) ──
+      const tweakValidation = validateThemeIntegrity(theme);
+      if (!tweakValidation.valid) {
+        console.warn('[tweak] Theme validation failed:', tweakValidation.issues.join(', '), '— attempting auto-repair');
+        repairTheme(theme, tweakValidation.issues);
+        const tweakRecheck = validateThemeIntegrity(theme);
+        if (!tweakRecheck.valid) {
+          console.error('[tweak] Theme still has issues after repair:', tweakRecheck.issues.join(', '));
+        } else {
+          console.log('[tweak] Theme auto-repair succeeded');
+        }
+      }
+
       // Save tweak theme to DB BEFORE closing SSE so it's reliable
       const tweakCost = calcGenerationCost(tweakModel, tweakInputTokens, tweakOutputTokens);
       let savedTweakThemeId = 'pending';
@@ -1839,10 +2102,27 @@ Return ONLY a valid JSON object with these keys:
           .in('payment_status', ['free', 'unpaid']);
       }
 
+      // Collect content warnings for the client (post-repair)
+      const tweakFinalCheck = validateThemeIntegrity(theme);
+      const tweakContentWarnings = tweakFinalCheck.issues.filter(i => i.startsWith('missing_') || i === 'content_too_sparse');
+
+      // ── Quality signal: Content warnings persist after tweak repair ──
+      if (tweakContentWarnings.length > 0) {
+        supabase.from('quality_incidents').insert({
+          event_id: eventId, user_id: user.id,
+          trigger_type: 'content_warning',
+          trigger_data: { contentWarnings: tweakContentWarnings, htmlLength: theme.theme_html.length, isTweak: true },
+          theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
+          validation_results: { server: tweakContentWarnings },
+          resolution_type: 'unresolved'
+        }).catch(e => console.error('[quality] Tweak content warning incident failed:', e.message));
+      }
+
       // Send result to client with real DB ID
       sendSSE('done', {
         success: true,
         softCapReached: !!res.softCapReached,
+        contentWarnings: tweakContentWarnings.length > 0 ? tweakContentWarnings : undefined,
         theme: { id: savedTweakThemeId, version: savedTweakVersion, html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
         chatResponse: theme.chat_response || null,
         rsvpFieldChanges: theme.rsvp_field_changes || null,
@@ -1941,6 +2221,63 @@ Return ONLY a valid JSON object with these keys:
   const themeModel = await getThemeModel();
   const activePrompt = await getActivePrompt();
   const startTime = Date.now();
+
+  // ── Incident pattern awareness: avoid known-bad patterns in generation ──
+  let incidentAvoidanceNote = '';
+  try {
+    const { data: recentPatterns } = await supabase
+      .rpc('get_quality_root_cause_patterns_simple')
+      .catch(() => ({ data: null }));
+
+    // Fallback: direct query if the RPC doesn't exist
+    if (!recentPatterns) {
+      const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentIncidents } = await supabase
+        .from('quality_incidents')
+        .select('trigger_type, trigger_data')
+        .gte('created_at', since7d)
+        .eq('trigger_type', 'broken_render')
+        .limit(50);
+
+      if (recentIncidents && recentIncidents.length >= 5) {
+        // Aggregate common missing elements
+        const missingCounts = {};
+        const cssCounts = {};
+        recentIncidents.forEach(i => {
+          const td = i.trigger_data || {};
+          (td.missing || []).forEach(m => { missingCounts[m] = (missingCounts[m] || 0) + 1; });
+          (td.cssIssues || []).forEach(c => { cssCounts[c] = (cssCounts[c] || 0) + 1; });
+        });
+        const topMissing = Object.entries(missingCounts).sort((a,b) => b[1]-a[1]).slice(0, 3);
+        const topCss = Object.entries(cssCounts).sort((a,b) => b[1]-a[1]).slice(0, 3);
+
+        if (topMissing.length > 0 || topCss.length > 0) {
+          incidentAvoidanceNote = '\n\nKNOWN ISSUES TO AVOID (based on recent quality incidents):\n';
+          topMissing.forEach(([el, count]) => {
+            incidentAvoidanceNote += `- "${el}" element has been missing in ${count} recent generations. ENSURE it is present.\n`;
+          });
+          topCss.forEach(([issue, count]) => {
+            const issueMap = {
+              invisible_title: 'Title text is invisible (opacity:0 or same color as background). ENSURE title has visible, contrasting color.',
+              low_contrast_title: 'Title has poor contrast ratio. ENSURE text color contrasts with background.',
+              offscreen_rsvp: 'RSVP section is positioned offscreen. ENSURE rsvp-slot is within viewport.',
+              hidden_details: 'Details section has display:none. ENSURE details-slot is visible.',
+              tiny_details: 'Details section has zero/tiny height. ENSURE it has adequate min-height.'
+            };
+            incidentAvoidanceNote += `- ${issueMap[issue] || issue} (${count} incidents)\n`;
+          });
+        }
+      }
+    }
+  } catch (e) {
+    // Don't block generation if pattern query fails
+    console.warn('[generate] Incident pattern query failed:', e.message);
+  }
+
+  // Append incident avoidance note to system prompt if patterns found
+  if (incidentAvoidanceNote) {
+    activePrompt.systemPrompt += incidentAvoidanceNote;
+  }
 
   // Set up SSE headers to avoid Vercel timeout
   res.setHeader('Content-Type', 'text/event-stream');
@@ -2198,9 +2535,26 @@ This is the most common failure mode. Double-check it.`;
     // res.text() on client buffers until res.end(), so remaining DB saves happen after.
     const genCost = calcGenerationCost(themeModel, genInputTokens, genOutputTokens);
     console.log('[cost] Sending to client:', { genCost, model: themeModel, inputTokens: genInputTokens, outputTokens: genOutputTokens });
+    // Collect content warnings for the client (post-repair)
+    const finalCheck = validateThemeIntegrity(theme);
+    const contentWarnings = finalCheck.issues.filter(i => i.startsWith('missing_') || i === 'content_too_sparse');
+
+    // ── Quality signal: Content warnings persist after repair ──
+    if (contentWarnings.length > 0) {
+      supabase.from('quality_incidents').insert({
+        event_id: eventId, user_id: user.id,
+        trigger_type: 'content_warning',
+        trigger_data: { contentWarnings, htmlLength: theme.theme_html.length },
+        theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: theme.theme_config },
+        validation_results: { server: contentWarnings },
+        resolution_type: 'unresolved'
+      }).catch(e => console.error('[quality] Content warning incident failed:', e.message));
+    }
+
     sendSSE('done', {
       success: true,
       softCapReached: !!res.softCapReached,
+      contentWarnings: contentWarnings.length > 0 ? contentWarnings : undefined,
       theme: {
         id: 'pending',
         version: 1,
@@ -2290,6 +2644,26 @@ This is the most common failure mode. Double-check it.`;
       await supabase.from('events')
         .update({ first_generation_at: new Date().toISOString() })
         .eq('id', eventId).is('first_generation_at', null);
+
+      // ── Quality signal: High GTP (3+ generations without publish) ──
+      try {
+        const { count: themeCount } = await supabase
+          .from('event_themes').select('id', { count: 'exact', head: true })
+          .eq('event_id', eventId);
+        if (themeCount >= 3) {
+          const { data: evt } = await supabase.from('events').select('status').eq('id', eventId).single();
+          if (evt && evt.status !== 'published') {
+            await supabase.from('quality_incidents').insert({
+              event_id: eventId, user_id: user.id,
+              event_theme_id: newTheme?.id || null,
+              trigger_type: 'high_gtp',
+              trigger_data: { generationCount: themeCount },
+              theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: theme.theme_config },
+              resolution_type: 'unresolved'
+            });
+          }
+        }
+      } catch (e) { /* non-critical quality monitoring */ }
 
       // Now wait for accurate token usage (up to 5s) for cost logging
       try {
