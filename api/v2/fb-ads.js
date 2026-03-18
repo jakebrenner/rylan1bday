@@ -22,7 +22,10 @@ async function verifyAdmin(req) {
   });
 
   const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return null;
+  if (error || !user) {
+    console.error('[fb-ads] verifyAdmin getUser failed:', error?.message || 'no user');
+    return null;
+  }
 
   const email = (user.email || '').toLowerCase();
 
@@ -37,10 +40,12 @@ async function verifyAdmin(req) {
     .single();
 
   if (data?.value) {
-    const adminList = data.value.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    const adminEmails = typeof data.value === 'string' ? data.value : JSON.stringify(data.value);
+    const adminList = adminEmails.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
     if (adminList.includes(email)) return user;
   }
 
+  console.error('[fb-ads] verifyAdmin: email not in admin list:', email);
   return null;
 }
 
@@ -73,8 +78,9 @@ export default async function handler(req, res) {
 
   const action = req.query?.action || '';
 
-  const user = await verifyAdmin(req);
-  if (!user) return res.status(401).json({ success: false, error: 'Admin access required' });
+  try {
+    const user = await verifyAdmin(req);
+    if (!user) return res.status(401).json({ success: false, error: 'Admin access required' });
 
   // ── SAVE CONFIG: Store FB Ad Account ID + Access Token ──
   if (action === 'saveConfig' && req.method === 'POST') {
@@ -397,4 +403,9 @@ Return ONLY the JSON array, no other text.`;
   }
 
   return res.status(400).json({ success: false, error: 'Unknown action: ' + action });
+
+  } catch (err) {
+    console.error('[fb-ads] Handler error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Internal server error' });
+  }
 }
