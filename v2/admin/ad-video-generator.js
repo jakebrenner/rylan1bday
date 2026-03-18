@@ -96,45 +96,42 @@ const FORMAT_CONFIGS = {
   reels_9x16: {
     width: 1080,
     height: 1920,
-    logoY: 120,
-    logoSize: 48,
-    promptAreaY: 230,
-    promptAreaHeight: 280,
-    promptFontSize: 34,
-    promptMaxWidth: 900,
-    promptLineHeight: 50,
-    phoneY: 620,
+    logoY: 110,
+    logoSize: 56,
+    promptAreaY: 240,
+    promptAreaHeight: 340,
+    promptFontSize: 42,
+    promptMaxWidth: 920,
+    promptLineHeight: 60,
+    phoneY: 680,
     phoneWidth: 480,
     phoneHeight: 980,
-    ctaY: 1720,
+    ctaY: 1760,
     ctaFontSize: 32,
-    labelFontSize: 20,
-    labelY: 185,
+    labelFontSize: 26,
+    labelY: 190,
     particleCount: 40
   },
   feed_1x1: {
     width: 1080,
     height: 1080,
-    // Side-by-side layout: prompt left, phone right
+    // Side-by-side layout: logo + prompt on left, phone on right
     layout: 'side_by_side',
-    logoY: 60,
-    logoSize: 36,
-    // Prompt on left side
-    promptAreaX: 40,
-    promptAreaY: 170,
-    promptAreaHeight: 350,
-    promptFontSize: 26,
-    promptMaxWidth: 470,
-    promptLineHeight: 40,
-    // Taller phone on right side (proper iPhone proportions ~393:852)
-    phoneX: 590,
-    phoneY: 60,
-    phoneWidth: 400,
-    phoneHeight: 870,
+    logoSize: 44,
+    // Left column: logo + subtitle + prompt card, vertically centered with phone
+    promptAreaX: 30,
+    promptAreaHeight: 380,
+    promptFontSize: 30,
+    promptMaxWidth: 480,
+    promptLineHeight: 44,
+    // Phone on right side (proper iPhone proportions ~393:852)
+    phoneX: 560,
+    phoneY: 50,
+    phoneWidth: 460,
+    phoneHeight: 960,
     ctaY: 970,
     ctaFontSize: 24,
-    labelFontSize: 15,
-    labelY: 105,
+    labelFontSize: 20,
     particleCount: 25
   }
 };
@@ -383,11 +380,11 @@ function drawPhoneFrame(ctx, phoneX, phoneY, phoneW, phoneH, elapsed) {
   const screenW = phoneW - bw * 2;
   const screenH = phoneH - bw * 2 - 12; // leave room for home bar area
 
-  // Screen background — only visible before invite loads (during shimmer/empty phases)
-  // Use a very dark color that won't tint the invite when it's drawn at full opacity
+  // Screen background — visible before invite loads (during shimmer/empty phases)
+  // Use white so the invite reveal doesn't show a dark tint underneath
   ctx.save();
   roundRect(ctx, screenX, screenY, screenW, screenH, sr);
-  ctx.fillStyle = '#0a0a12';
+  ctx.fillStyle = '#f5f5f5';
   ctx.fill();
   ctx.restore();
 
@@ -561,7 +558,27 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
 
       // ── Layout mode ──
       const isSideBySide = fmt.layout === 'side_by_side';
-      const logoX = isSideBySide ? fmt.promptAreaX + fmt.promptMaxWidth / 2 : fmt.width / 2;
+
+      // For side-by-side: vertically center the logo + prompt block with the phone
+      // Pre-measure the prompt card height to compute the total left-column height
+      var _preCardH = 0;
+      if (isSideBySide) {
+        ctx.save();
+        ctx.font = fmt.promptFontSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
+        var _preLines = wrapText(ctx, promptText, fmt.promptMaxWidth - 72 - 20);
+        _preCardH = Math.max(50 + _preLines.length * fmt.promptLineHeight + 40 + 20, fmt.promptAreaHeight || 200);
+        ctx.restore();
+      }
+
+      // Left-column content block: logo (~logoSize) + gap + subtitle (~labelFontSize) + gap + card
+      var logoBlockH = isSideBySide ? (fmt.logoSize + 20 + fmt.labelFontSize + 30 + _preCardH) : 0;
+      var phoneCenterY = isSideBySide ? (fmt.phoneY + fmt.phoneHeight / 2) : 0;
+      var leftBlockStartY = isSideBySide ? (phoneCenterY - logoBlockH / 2) : 0;
+
+      var logoX = isSideBySide ? fmt.promptAreaX + fmt.promptMaxWidth / 2 : fmt.width / 2;
+      var logoYPos = isSideBySide ? leftBlockStartY : fmt.logoY;
+      var labelYPos = isSideBySide ? (leftBlockStartY + fmt.logoSize + 20) : fmt.labelY;
+      var promptCardYPos = isSideBySide ? (labelYPos + fmt.labelFontSize + 30) : (fmt.promptAreaY - 10);
 
       // ── Ryvite Logo (SVG icon + text, fades in + slides down) ──
       const logoProgress = Math.min(1, elapsed / INTRO_MS);
@@ -580,7 +597,7 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
 
       // ── Envelope icon (circle + checkmark + line) ──
       var iconCx = logoStartX + iconSize / 2;
-      var iconCy = fmt.logoY + logoSlide - textSize * 0.25;
+      var iconCy = logoYPos + logoSlide - textSize * 0.25;
       var iconR = iconSize / 2;
 
       // Circle
@@ -614,13 +631,13 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
       ctx.font = '600 ' + textSize + 'px "Playfair Display", "Georgia", serif';
       ctx.fillStyle = thm.logoColor;
       ctx.textAlign = 'left';
-      ctx.fillText('Ryvite', logoStartX + iconW, fmt.logoY + logoSlide);
+      ctx.fillText('Ryvite', logoStartX + iconW, logoYPos + logoSlide);
 
       // Subtitle
       ctx.font = fmt.labelFontSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
       ctx.fillStyle = thm.subtextColor;
       ctx.textAlign = 'center';
-      ctx.fillText('AI-Powered Event Invitations', logoX, fmt.labelY - 15 + logoEased * 15);
+      ctx.fillText('AI-Powered Event Invitations', logoX, labelYPos - 15 + logoEased * 15);
       ctx.restore();
 
       // ── Prompt Card (white rounded card matching homepage .demo-chat-bubble) ──
@@ -630,7 +647,7 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
         const displayText = promptText.substring(0, charCount);
 
         // Prompt card position
-        const cardX = isSideBySide ? (fmt.promptAreaX || 40) : (fmt.width - fmt.promptMaxWidth) / 2;
+        const cardX = isSideBySide ? (fmt.promptAreaX || 30) : (fmt.width - fmt.promptMaxWidth) / 2;
         const cardW = fmt.promptMaxWidth;
         const cardPadX = 36;
         const cardPadTop = 50;
@@ -645,7 +662,7 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
         ctx.restore();
 
         const cardH = Math.max(cardPadTop + textBlockH + cardPadBottom + 20, fmt.promptAreaHeight || 200);
-        const cardY = fmt.promptAreaY - 10;
+        const cardY = promptCardYPos;
 
         // Card fade-in
         const cardAlpha = Math.min(1, (elapsed - INTRO_MS * 0.5) / 400);
@@ -787,7 +804,7 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
           for (var i = 0; i < 3; i++) {
             ctx.beginPath();
             ctx.arc(screen.x + screen.w / 2 - 30 + i * 30, screen.y + screen.h / 2, 5, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.fillStyle = 'rgba(200,200,210,0.7)';
             ctx.fill();
           }
         }
@@ -888,17 +905,17 @@ function wrapText(ctx, text, maxWidth) {
 }
 
 function drawShimmer(ctx, x, y, w, h, progress, thm) {
-  // Dark screen background
-  ctx.fillStyle = '#0a0a14';
+  // Light screen background for shimmer phase
+  ctx.fillStyle = '#f0f0f0';
   ctx.fillRect(x, y, w, h);
 
-  // Animated shimmer sweep
+  // Animated shimmer sweep (light-on-light, subtle highlight)
   var shimmerX = x - w + progress * (w * 3);
   var grad = ctx.createLinearGradient(shimmerX, y, shimmerX + w * 0.6, y);
   grad.addColorStop(0, 'rgba(255,255,255,0)');
-  grad.addColorStop(0.4, 'rgba(255,255,255,0.06)');
-  grad.addColorStop(0.5, 'rgba(255,255,255,0.12)');
-  grad.addColorStop(0.6, 'rgba(255,255,255,0.06)');
+  grad.addColorStop(0.4, 'rgba(255,255,255,0.5)');
+  grad.addColorStop(0.5, 'rgba(255,255,255,0.8)');
+  grad.addColorStop(0.6, 'rgba(255,255,255,0.5)');
   grad.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = grad;
   ctx.fillRect(x, y, w, h);
