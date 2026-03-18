@@ -450,6 +450,7 @@
       .rsvp-mini-stat .num { font-size: 15px; }
     }
   </style>
+<script src="/js/meta-pixel.js"></script>
 </head>
 <body>
   <div class="header">
@@ -2121,6 +2122,14 @@
     // Refresh dashboard when user returns to the tab (e.g. after regenerating a theme)
     document.addEventListener('visibilitychange', function() {
       if (!document.hidden) loadDashboard();
+    });
+
+    // Track AddToCart when user clicks "New Event" links
+    document.addEventListener('click', function(e) {
+      var link = e.target.closest('a[href*="/v2/create/?new=1"]');
+      if (link && window.RyvitePixel) {
+        RyvitePixel.trackEvent('AddToCart', { content_name: 'New Event', content_type: 'event_creation' });
+      }
     });
   </script>
 </body>

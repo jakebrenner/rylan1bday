@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { sendCapiEvent } from './lib/meta-capi.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -1112,6 +1113,27 @@ async function processEventPayment(session) {
     .from('profiles')
     .update({ stripe_customer_id: session.customer })
     .eq('id', userId);
+
+  // Track Purchase via Meta CAPI (fire-and-forget)
+  supabaseAdmin.from('profiles').select('email, phone, display_name').eq('id', userId).single()
+    .then(({ data: profile }) => {
+      sendCapiEvent({
+        eventName: 'Purchase',
+        eventSourceUrl: metadata.origin || '',
+        userData: {
+          email: profile?.email || session.customer_email || '',
+          phone: profile?.phone || '',
+          name: profile?.display_name || ''
+        },
+        customData: {
+          content_name: metadata.event_title || 'Event',
+          content_category: 'event_payment',
+          content_ids: [eventId],
+          currency: 'usd',
+          value: (session.amount_total || EVENT_PRICE_CENTS) / 100
+        }
+      }).catch(() => {});
+    }).catch(() => {});
 
   // Handle coupon redemption
   if (couponId) {

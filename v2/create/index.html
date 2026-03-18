@@ -389,6 +389,7 @@
     .empty-contacts { text-align: center; padding: 32px 16px; color: #999; font-size: 14px; }
     .empty-contacts svg { margin-bottom: 8px; }
   </style>
+<script src="/js/meta-pixel.js"></script>
 </head>
 <body class="no-scroll">
   <div class="header">
@@ -1927,6 +1928,14 @@
             currentEvent.slug = updateResult.event.slug;
           }
           await saveCustomFields();
+          // Track Lead when event details are saved (not just draft creation)
+          if (window.RyvitePixel && extractedData.title && extractedData.title !== 'Untitled Event' && !currentEvent._leadTracked) {
+            RyvitePixel.trackEvent('Lead', {
+              content_name: extractedData.title,
+              content_category: extractedData.eventType || 'other'
+            });
+            currentEvent._leadTracked = true;
+          }
           return true;
         } catch (err) {
           showMessage('Error updating event. Please try again.', 'error');
@@ -2480,6 +2489,14 @@
             currentEvent.themeHtml = ver.html;
             currentEvent.themeCss = ver.css;
             currentEvent.themeConfig = ver.config;
+            // Track ThemeGenerated custom event
+            if (window.RyvitePixel) {
+              RyvitePixel.trackCustom('ThemeGenerated', {
+                content_name: extractedData.title || '',
+                content_category: extractedData.eventType || 'other',
+                content_ids: [currentEvent.id]
+              });
+            }
             stopGeneratingPuns();
             document.getElementById('generatingView').style.display = 'none';
             document.getElementById('generatedView').style.display = 'block';
@@ -5607,6 +5624,16 @@
       // Save event details first
       await saveEventToDB();
       await saveCustomFields();
+      // Track InitiateCheckout with Meta Pixel
+      if (window.RyvitePixel) {
+        RyvitePixel.trackEvent('InitiateCheckout', {
+          content_name: extractedData.title || 'Event',
+          content_category: extractedData.eventType || 'event',
+          content_ids: [currentEvent.id],
+          currency: 'USD',
+          value: 4.99
+        });
+      }
       // Redirect to Stripe checkout
       var btn = document.getElementById('onlyPublishBtn');
       var mainBtn = document.getElementById('publishBtn');
@@ -5926,13 +5953,34 @@
           });
         }
 
+        // Generate Meta event ID for Purchase dedup
+        var metaEventId = window.RyvitePixel ? RyvitePixel.generateEventId() : '';
+        var metaCtx = window.RyvitePixel ? RyvitePixel.getMetaContext() : {};
+
         var res = await authFetch('/api/v2/events?action=update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventId: currentEvent.id, status: 'Published' })
+          body: JSON.stringify({
+            eventId: currentEvent.id,
+            status: 'Published',
+            metaEventId: metaEventId,
+            fbp: metaCtx.fbp || '',
+            fbc: metaCtx.fbc || ''
+          })
         });
         var result = await res.json();
         if (result.success) {
+          // Track Purchase (event published) with Meta Pixel
+          if (window.RyvitePixel) {
+            var isPaid = currentEvent.paymentStatus === 'paid';
+            RyvitePixel.trackEvent('Purchase', {
+              content_name: extractedData.title || currentEvent.title || 'Event',
+              content_category: extractedData.eventType || 'event',
+              content_ids: [currentEvent.id],
+              currency: 'USD',
+              value: isPaid ? 4.99 : 0.00
+            }, null, metaEventId);
+          }
           clearDraft();
           window.location.href = '/v2/dashboard/?published=' + currentEvent.id;
         } else { showMessage(result.error || 'Failed to publish', 'error'); }

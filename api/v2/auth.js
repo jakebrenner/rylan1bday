@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
+import { sendCapiEvent } from './lib/meta-capi.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -152,7 +154,18 @@ export default async function handler(req, res) {
       // Notify subscribed admins about the new signup (fire-and-forget)
       sendAdminSignupNotifications(email, displayName, phone).catch(() => {});
 
-      return res.status(200).json({ success: true, message: 'Check your email for login link' });
+      // Track CompleteRegistration via Meta CAPI (fire-and-forget)
+      const metaEventId = crypto.randomUUID();
+      sendCapiEvent({
+        eventName: 'CompleteRegistration',
+        eventId: metaEventId,
+        eventSourceUrl: req.headers.referer || req.headers.origin || '',
+        userData: { email, phone, name: displayName },
+        customData: { content_name: 'Ryvite Account', status: 'true' },
+        req
+      }).catch(() => {});
+
+      return res.status(200).json({ success: true, message: 'Check your email for login link', metaEventId });
     }
 
     if (action === 'login') {
