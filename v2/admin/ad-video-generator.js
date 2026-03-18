@@ -1,128 +1,169 @@
 /**
- * Ad Video Generator — Canvas + MediaRecorder engine for Facebook ad videos
+ * Ad Video Generator — Premium Canvas + MediaRecorder engine for Facebook ad videos
  *
- * Renders a typing animation + invite reveal + slow scroll video, downloadable as WebM.
- * Supports two formats: Reels (9:16, 1080x1920) and Feed (1:1, 1080x1080).
- * Can generate both formats at once.
- *
- * Usage:
- *   const blob = await generateAdVideo({
- *     html, css, config, promptText,
- *     format: 'reels_9x16',     // or 'feed_1x1'
- *     theme: 'dark_gradient',   // or 'light_clean', 'ryvite_brand', 'warm_sunset'
- *     onProgress: (pct, phase) => { ... }
- *   });
+ * Features:
+ * - Realistic iPhone mockup matching homepage design (metallic bezel, shadow, notch, home bar)
+ * - Floating sparkle particles in the background
+ * - Animated gradient background with slow color shift
+ * - Glowing cursor effect during typing
+ * - Scale + fade invite reveal with phone glow pulse
+ * - Slow scroll through full invite content
+ * - Supports Reels (9:16) and Feed (1:1) simultaneously
  */
 
 // ── Video Themes ──
+// Phone bezel is always realistic dark metallic — only background/text/CTA colors change
 const VIDEO_THEMES = {
   dark_gradient: {
     name: 'Dark Gradient',
     bgGradient: ['#1a0a2e', '#16213e', '#0f3460'],
+    bgGradientAlt: ['#0f3460', '#1a0a2e', '#16213e'], // shifted version for animation
     textColor: '#ffffff',
     subtextColor: '#b8b8d0',
     accentColor: '#E94560',
     cursorColor: '#E94560',
-    phoneBorder: '#333355',
-    phoneInner: '#111122',
     ctaBg: '#E94560',
     ctaText: '#ffffff',
-    logoColor: '#ffffff'
+    logoColor: '#ffffff',
+    particleColor: 'rgba(233,69,96,0.6)',
+    particleColor2: 'rgba(184,184,208,0.4)',
+    glowColor: 'rgba(233,69,96,0.3)'
   },
   light_clean: {
     name: 'Light Clean',
-    bgGradient: ['#f8f9fa', '#ffffff', '#f0f2f5'],
+    bgGradient: ['#f0f2f5', '#ffffff', '#e8eaf0'],
+    bgGradientAlt: ['#e8eaf0', '#f0f2f5', '#ffffff'],
     textColor: '#1a1a2e',
     subtextColor: '#666680',
     accentColor: '#E94560',
     cursorColor: '#E94560',
-    phoneBorder: '#d0d0dd',
-    phoneInner: '#f5f5fa',
     ctaBg: '#E94560',
     ctaText: '#ffffff',
-    logoColor: '#1a1a2e'
+    logoColor: '#1a1a2e',
+    particleColor: 'rgba(233,69,96,0.35)',
+    particleColor2: 'rgba(100,100,140,0.2)',
+    glowColor: 'rgba(233,69,96,0.15)'
   },
   ryvite_brand: {
     name: 'Ryvite Brand',
     bgGradient: ['#0a0a1a', '#111133', '#1a1a3e'],
+    bgGradientAlt: ['#1a1a3e', '#0a0a1a', '#111133'],
     textColor: '#ffffff',
     subtextColor: '#a8a8c0',
     accentColor: '#E94560',
     cursorColor: '#E94560',
-    phoneBorder: '#E94560',
-    phoneInner: '#0d0d20',
     ctaBg: '#E94560',
     ctaText: '#ffffff',
-    logoColor: '#E94560'
+    logoColor: '#E94560',
+    particleColor: 'rgba(233,69,96,0.7)',
+    particleColor2: 'rgba(168,168,192,0.4)',
+    glowColor: 'rgba(233,69,96,0.4)'
   },
   warm_sunset: {
     name: 'Warm Sunset',
     bgGradient: ['#ffecd2', '#fcb69f', '#ff9a9e'],
+    bgGradientAlt: ['#ff9a9e', '#ffecd2', '#fcb69f'],
     textColor: '#3d1f00',
     subtextColor: '#6b4226',
     accentColor: '#E94560',
     cursorColor: '#E94560',
-    phoneBorder: '#d4856a',
-    phoneInner: '#fff5ef',
     ctaBg: '#E94560',
     ctaText: '#ffffff',
-    logoColor: '#3d1f00'
+    logoColor: '#3d1f00',
+    particleColor: 'rgba(233,69,96,0.5)',
+    particleColor2: 'rgba(255,154,158,0.4)',
+    glowColor: 'rgba(233,69,96,0.2)'
   }
 };
+
+// ── Phone Design Constants (matches homepage CSS) ──
+const PHONE_BEZEL_GRADIENT = ['#2a2a2e', '#1a1a1e']; // metallic dark gradient
+const PHONE_BEZEL_ANGLE = 145; // degrees
+const PHONE_FRAME_RADIUS = 40;
+const PHONE_SCREEN_RADIUS = 34;
+const PHONE_BEZEL_WIDTH = 8;
+const PHONE_NOTCH_WIDTH_RATIO = 0.14; // 80/580 roughly
+const PHONE_NOTCH_HEIGHT = 20;
+const PHONE_NOTCH_RADIUS = 14;
+const PHONE_HOME_BAR_WIDTH = 90;
+const PHONE_HOME_BAR_HEIGHT = 4;
+const PHONE_SHADOW_BLUR = 64;
+const PHONE_SHADOW_OFFSET_Y = 24;
+const PHONE_SHADOW_ALPHA = 0.35;
 
 // ── Format Configs ──
 const FORMAT_CONFIGS = {
   reels_9x16: {
     width: 1080,
     height: 1920,
-    logoY: 80,
-    logoSize: 42,
-    promptAreaY: 200,
+    logoY: 120,
+    logoSize: 48,
+    promptAreaY: 230,
     promptAreaHeight: 300,
     promptFontSize: 36,
     promptMaxWidth: 920,
     promptLineHeight: 52,
-    phoneY: 550,
-    phoneWidth: 580,
-    phoneHeight: 1050,
-    phoneRadius: 44,
+    phoneY: 560,
+    phoneWidth: 560,
+    phoneHeight: 1020,
     ctaY: 1700,
     ctaFontSize: 32,
-    labelFontSize: 18,
-    labelY: 170
+    labelFontSize: 20,
+    labelY: 185,
+    particleCount: 40
   },
   feed_1x1: {
     width: 1080,
     height: 1080,
-    logoY: 50,
-    logoSize: 36,
-    promptAreaY: 130,
+    logoY: 55,
+    logoSize: 38,
+    promptAreaY: 135,
     promptAreaHeight: 200,
     promptFontSize: 30,
     promptMaxWidth: 800,
     promptLineHeight: 44,
-    phoneY: 360,
-    phoneWidth: 400,
-    phoneHeight: 520,
-    phoneRadius: 32,
+    phoneY: 370,
+    phoneWidth: 380,
+    phoneHeight: 500,
     ctaY: 950,
     ctaFontSize: 28,
     labelFontSize: 16,
-    labelY: 108
+    labelY: 110,
+    particleCount: 25
   }
 };
 
 // ── Animation Timing ──
-const CHAR_MS = 35;        // ms per character typed (matches homepage)
-const INTRO_MS = 500;      // logo fade-in
-const POST_TYPE_PAUSE = 500;
-const SHIMMER_MS = 1000;   // "generating" shimmer
-const REVEAL_MS = 1000;    // invite slide-up reveal
-const SCROLL_PX_PER_SEC = 40; // very slow scroll speed (pixels per second)
-const MIN_HOLD_MS = 3000;  // minimum hold time if no scrolling needed
-const CTA_MS = 1500;       // CTA fade-in
+const CHAR_MS = 35;
+const INTRO_MS = 800;      // longer intro for premium feel
+const POST_TYPE_PAUSE = 600;
+const SHIMMER_MS = 1200;
+const REVEAL_MS = 1200;    // scale + fade reveal
+const SCROLL_PX_PER_SEC = 40;
+const MIN_HOLD_MS = 3000;
+const CTA_MS = 1500;
 const FPS = 30;
-const FRAME_MS = 1000 / FPS;
+const BG_CYCLE_MS = 12000; // slow background color cycle duration
+
+/**
+ * Generate sparkle particle positions (randomized once, animated per-frame)
+ */
+function createParticles(count, canvasW, canvasH) {
+  var particles = [];
+  for (var i = 0; i < count; i++) {
+    particles.push({
+      x: Math.random() * canvasW,
+      y: Math.random() * canvasH,
+      size: 1.5 + Math.random() * 3,
+      speed: 0.15 + Math.random() * 0.4, // drift speed
+      phase: Math.random() * Math.PI * 2, // twinkle phase offset
+      twinkleSpeed: 1.5 + Math.random() * 3, // how fast it twinkles
+      drift: (Math.random() - 0.5) * 0.3, // horizontal drift
+      type: Math.random() > 0.6 ? 'star' : 'dot' // some are star-shaped
+    });
+  }
+  return particles;
+}
 
 /**
  * Main entry: generate an ad video and return a Blob
@@ -134,37 +175,30 @@ async function generateAdVideo({ html, css, config, promptText, format, theme, o
 
   onProgress(0, 'Preparing invite...');
 
-  // Step 1: Render invite HTML to a full-height image (no cropping)
-  // Use full inner phone width (flush with phone bezel, no padding)
-  const contentW = fmt.phoneWidth - 8;
-  const inviteImg = await renderInviteToImage(html, css, config, contentW);
+  // Render invite at the screen width (inside bezel)
+  const screenW = fmt.phoneWidth - (PHONE_BEZEL_WIDTH * 2);
+  const inviteImg = await renderInviteToImage(html, css, config, screenW);
   onProgress(20, 'Starting animation...');
 
-  // Step 2: Animate and record
   const blob = await animateAndRecord(inviteImg, promptText, fmt, thm, onProgress);
   onProgress(100, 'Done!');
-
   return blob;
 }
 
 /**
  * Render HTML invite into a full-height image using html2canvas.
- * Captures the ENTIRE invite (not cropped) so we can scroll through it in the video.
  */
 async function renderInviteToImage(html, css, config, targetWidth) {
-  // Create a hidden container
   const container = document.createElement('div');
   container.style.cssText = 'position:fixed;left:-9999px;top:0;width:' + targetWidth + 'px;overflow:hidden;z-index:-1;';
   document.body.appendChild(container);
 
-  // Parse config if needed
   var configObj = config;
   if (typeof config === 'string') {
     try { configObj = JSON.parse(config); } catch(e) { configObj = {}; }
   }
   configObj = configObj || {};
 
-  // Build the invite content — use the invite's own styles exactly as-is
   var fontsImport = '';
   if (configObj.fontUrl) {
     fontsImport = '@import url("' + configObj.fontUrl + '");';
@@ -179,13 +213,11 @@ async function renderInviteToImage(html, css, config, targetWidth) {
     + (html || '')
     + '</div>';
 
-  // Wait for fonts to load
   await new Promise(function(resolve) { setTimeout(resolve, 1500); });
   if (document.fonts && document.fonts.ready) {
     await document.fonts.ready;
   }
 
-  // Capture with html2canvas — full natural height, no cropping
   const inviteEl = container.querySelector('#__adgen_invite');
   const naturalHeight = inviteEl.scrollHeight;
   const canvas = await html2canvas(inviteEl, {
@@ -200,7 +232,6 @@ async function renderInviteToImage(html, css, config, targetWidth) {
 
   document.body.removeChild(container);
 
-  // Convert to image
   return new Promise(function(resolve) {
     const img = new Image();
     img.onload = function() { resolve(img); };
@@ -209,8 +240,185 @@ async function renderInviteToImage(html, css, config, targetWidth) {
 }
 
 /**
+ * Draw a premium iPhone-style phone frame on canvas
+ * Matches the homepage CSS: metallic gradient bezel, drop shadow, rim light, notch, home bar
+ */
+function drawPhoneFrame(ctx, phoneX, phoneY, phoneW, phoneH, elapsed) {
+  const bw = PHONE_BEZEL_WIDTH;
+  const fr = PHONE_FRAME_RADIUS;
+  const sr = PHONE_SCREEN_RADIUS;
+
+  // ── Drop shadow ──
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,' + PHONE_SHADOW_ALPHA + ')';
+  ctx.shadowBlur = PHONE_SHADOW_BLUR;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = PHONE_SHADOW_OFFSET_Y;
+  roundRect(ctx, phoneX, phoneY, phoneW, phoneH, fr);
+  ctx.fillStyle = '#1a1a1e';
+  ctx.fill();
+  ctx.restore();
+
+  // ── Metallic bezel gradient (145deg angle) ──
+  // Convert 145deg to canvas gradient coords
+  const rad = (PHONE_BEZEL_ANGLE * Math.PI) / 180;
+  const cx = phoneX + phoneW / 2;
+  const cy = phoneY + phoneH / 2;
+  const halfDiag = Math.sqrt(phoneW * phoneW + phoneH * phoneH) / 2;
+  const gx1 = cx - Math.cos(rad) * halfDiag;
+  const gy1 = cy - Math.sin(rad) * halfDiag;
+  const gx2 = cx + Math.cos(rad) * halfDiag;
+  const gy2 = cy + Math.sin(rad) * halfDiag;
+
+  ctx.save();
+  roundRect(ctx, phoneX, phoneY, phoneW, phoneH, fr);
+  const bezelGrad = ctx.createLinearGradient(gx1, gy1, gx2, gy2);
+  bezelGrad.addColorStop(0, PHONE_BEZEL_GRADIENT[0]);
+  bezelGrad.addColorStop(1, PHONE_BEZEL_GRADIENT[1]);
+  ctx.fillStyle = bezelGrad;
+  ctx.fill();
+
+  // ── Inset rim highlight (1px white border) ──
+  roundRect(ctx, phoneX + 0.5, phoneY + 0.5, phoneW - 1, phoneH - 1, fr);
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // ── Subtle edge highlight on top-left (light reflection) ──
+  const reflGrad = ctx.createLinearGradient(phoneX, phoneY, phoneX + phoneW * 0.3, phoneY + phoneH * 0.2);
+  reflGrad.addColorStop(0, 'rgba(255,255,255,0.06)');
+  reflGrad.addColorStop(1, 'rgba(255,255,255,0)');
+  roundRect(ctx, phoneX, phoneY, phoneW, phoneH, fr);
+  ctx.fillStyle = reflGrad;
+  ctx.fill();
+  ctx.restore();
+
+  // ── Screen area (white/dark background) ──
+  const screenX = phoneX + bw;
+  const screenY = phoneY + bw;
+  const screenW = phoneW - bw * 2;
+  const screenH = phoneH - bw * 2 - 12; // leave room for home bar area
+
+  ctx.save();
+  roundRect(ctx, screenX, screenY, screenW, screenH, sr);
+  ctx.fillStyle = '#000000';
+  ctx.fill();
+  ctx.restore();
+
+  // ── Notch (centered at top of screen) ──
+  const notchW = Math.round(phoneW * PHONE_NOTCH_WIDTH_RATIO);
+  const notchH = PHONE_NOTCH_HEIGHT;
+  const notchX = phoneX + (phoneW - notchW) / 2;
+  const notchY = phoneY + bw + 2;
+
+  ctx.save();
+  roundRect(ctx, notchX, notchY - 2, notchW, notchH, PHONE_NOTCH_RADIUS);
+  ctx.fillStyle = '#000000';
+  ctx.fill();
+
+  // Tiny camera dot in notch
+  ctx.beginPath();
+  ctx.arc(notchX + notchW / 2 + 12, notchY + notchH / 2 - 1, 3.5, 0, Math.PI * 2);
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(notchX + notchW / 2 + 12, notchY + notchH / 2 - 1, 2, 0, Math.PI * 2);
+  ctx.fillStyle = '#0a0a15';
+  ctx.fill();
+  ctx.restore();
+
+  // ── Home bar indicator at bottom ──
+  const homeBarY = phoneY + phoneH - bw - 8;
+  const homeBarX = phoneX + (phoneW - PHONE_HOME_BAR_WIDTH) / 2;
+
+  ctx.save();
+  roundRect(ctx, homeBarX, homeBarY, PHONE_HOME_BAR_WIDTH, PHONE_HOME_BAR_HEIGHT, 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fill();
+  ctx.restore();
+
+  // Return screen content area coordinates
+  return {
+    x: screenX,
+    y: screenY + notchH + 2, // below notch
+    w: screenW,
+    h: screenH - notchH - 4, // minus notch and bottom margin
+    screenX: screenX,
+    screenY: screenY,
+    screenW: screenW,
+    screenH: screenH,
+    screenRadius: sr
+  };
+}
+
+/**
+ * Draw floating sparkle particles
+ */
+function drawParticles(ctx, particles, elapsed, thm) {
+  particles.forEach(function(p) {
+    var twinkle = 0.3 + 0.7 * Math.abs(Math.sin((elapsed / 1000) * p.twinkleSpeed + p.phase));
+    var y = (p.y - (elapsed / 1000) * p.speed * 30) % (ctx.canvas.height + 40);
+    if (y < -20) y += ctx.canvas.height + 40;
+    var x = p.x + Math.sin((elapsed / 1000) * 0.5 + p.phase) * 20 * p.drift;
+
+    ctx.save();
+    ctx.globalAlpha = twinkle * 0.7;
+
+    if (p.type === 'star') {
+      // Draw a 4-point star sparkle
+      drawStar(ctx, x, y, p.size * 1.5, p.size * 0.4, 4);
+      ctx.fillStyle = thm.particleColor;
+      ctx.fill();
+    } else {
+      // Simple glowing dot
+      ctx.beginPath();
+      ctx.arc(x, y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = thm.particleColor2;
+      ctx.fill();
+    }
+    ctx.restore();
+  });
+}
+
+/**
+ * Draw a multi-pointed star shape
+ */
+function drawStar(ctx, cx, cy, outerR, innerR, points) {
+  ctx.beginPath();
+  for (var i = 0; i < points * 2; i++) {
+    var angle = (i * Math.PI) / points - Math.PI / 2;
+    var r = i % 2 === 0 ? outerR : innerR;
+    var x = cx + Math.cos(angle) * r;
+    var y = cy + Math.sin(angle) * r;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+/**
+ * Draw animated gradient background with slow color shifting
+ */
+function drawAnimatedBackground(ctx, w, h, elapsed, thm) {
+  var cycle = (elapsed % BG_CYCLE_MS) / BG_CYCLE_MS;
+  var blend = (Math.sin(cycle * Math.PI * 2) + 1) / 2; // 0-1 smooth oscillation
+
+  var bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+  for (var i = 0; i < thm.bgGradient.length; i++) {
+    var stop = i / (thm.bgGradient.length - 1);
+    var c1 = hexToRgb(thm.bgGradient[i]);
+    var c2 = hexToRgb(thm.bgGradientAlt[i]);
+    var r = Math.round(c1.r + (c2.r - c1.r) * blend);
+    var g = Math.round(c1.g + (c2.g - c1.g) * blend);
+    var b = Math.round(c1.b + (c2.b - c1.b) * blend);
+    bgGrad.addColorStop(stop, 'rgb(' + r + ',' + g + ',' + b + ')');
+  }
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, w, h);
+}
+
+/**
  * Run the animation on canvas and record to WebM.
- * After reveal, slowly scrolls through the full invite.
  */
 function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
   return new Promise(function(resolve, reject) {
@@ -219,27 +427,24 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
     canvas.height = fmt.height;
     const ctx = canvas.getContext('2d');
 
-    // Calculate phone content area — flush with inner bezel edge
-    const contentW = fmt.phoneWidth - 8;
-    const contentH = fmt.phoneHeight - 36; // 4px top bezel + 28px notch + 4px bottom bezel
+    // Phone screen dimensions
+    const screenW = fmt.phoneWidth - (PHONE_BEZEL_WIDTH * 2);
+    const screenContentH = fmt.phoneHeight - (PHONE_BEZEL_WIDTH * 2) - 12 - PHONE_NOTCH_HEIGHT - 4;
 
-    // The invite image is rendered at 2x scale for the contentW width
-    // So the actual content it represents = inviteImg.naturalHeight / 2 in CSS pixels
-    // But we draw it scaled to fit contentW, so the visible height at contentW scale:
-    const inviteDrawHeight = (inviteImg.naturalHeight / inviteImg.naturalWidth) * contentW;
-
-    // Calculate scroll distance — how much we need to scroll to see the whole invite
-    const scrollDistance = Math.max(0, inviteDrawHeight - contentH);
-
-    // Calculate scroll duration: very slow, proportional to content
+    // Invite draw dimensions
+    const inviteDrawHeight = (inviteImg.naturalHeight / inviteImg.naturalWidth) * screenW;
+    const scrollDistance = Math.max(0, inviteDrawHeight - screenContentH);
     const scrollMs = scrollDistance > 0 ? (scrollDistance / SCROLL_PX_PER_SEC) * 1000 : MIN_HOLD_MS;
-    const holdMs = scrollDistance > 0 ? MIN_HOLD_MS : MIN_HOLD_MS; // hold at top before scrolling
+    const holdMs = MIN_HOLD_MS;
 
-    // Calculate total duration
+    // Total duration
     const typingMs = promptText.length * CHAR_MS;
     const totalMs = INTRO_MS + typingMs + POST_TYPE_PAUSE + SHIMMER_MS + REVEAL_MS + holdMs + scrollMs + MIN_HOLD_MS + CTA_MS;
 
-    // Set up MediaRecorder
+    // Create particles
+    const particles = createParticles(fmt.particleCount || 30, fmt.width, fmt.height);
+
+    // MediaRecorder
     const stream = canvas.captureStream(FPS);
     const recorder = new MediaRecorder(stream, {
       mimeType: 'video/webm;codecs=vp9',
@@ -247,18 +452,9 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
     });
     const chunks = [];
 
-    recorder.ondataavailable = function(e) {
-      if (e.data.size > 0) chunks.push(e.data);
-    };
-
-    recorder.onstop = function() {
-      const blob = new Blob(chunks, { type: 'video/webm' });
-      resolve(blob);
-    };
-
-    recorder.onerror = function(e) {
-      reject(new Error('MediaRecorder error: ' + (e.error || e.message || 'unknown')));
-    };
+    recorder.ondataavailable = function(e) { if (e.data.size > 0) chunks.push(e.data); };
+    recorder.onstop = function() { resolve(new Blob(chunks, { type: 'video/webm' })); };
+    recorder.onerror = function(e) { reject(new Error('MediaRecorder error: ' + (e.error || e.message || 'unknown'))); };
 
     const logoText = 'Ryvite';
     let startTime = null;
@@ -270,16 +466,13 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
       if (!startTime) startTime = timestamp;
       const elapsed = timestamp - startTime;
 
-      // Clear canvas
       ctx.clearRect(0, 0, fmt.width, fmt.height);
 
-      // ── Background gradient ──
-      const bgGrad = ctx.createLinearGradient(0, 0, 0, fmt.height);
-      thm.bgGradient.forEach(function(color, i) {
-        bgGrad.addColorStop(i / (thm.bgGradient.length - 1), color);
-      });
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, fmt.width, fmt.height);
+      // ── Animated background gradient ──
+      drawAnimatedBackground(ctx, fmt.width, fmt.height, elapsed, thm);
+
+      // ── Floating particles ──
+      drawParticles(ctx, particles, elapsed, thm);
 
       // ── Phase calculations ──
       const introEnd = INTRO_MS;
@@ -291,22 +484,23 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
       const scrollEnd = holdEnd + scrollMs;
       const finalHoldEnd = scrollEnd + MIN_HOLD_MS;
 
-      // ── Logo (fades in during intro) ──
-      const logoAlpha = Math.min(1, elapsed / INTRO_MS);
+      // ── Logo (fades in + slides down during intro) ──
+      const logoProgress = Math.min(1, elapsed / INTRO_MS);
+      const logoEased = easeOutCubic(logoProgress);
       ctx.save();
-      ctx.globalAlpha = logoAlpha;
+      ctx.globalAlpha = logoEased;
       ctx.font = 'bold ' + fmt.logoSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
       ctx.fillStyle = thm.logoColor;
       ctx.textAlign = 'center';
-      ctx.fillText(logoText, fmt.width / 2, fmt.logoY);
+      ctx.fillText(logoText, fmt.width / 2, fmt.logoY - 20 + logoEased * 20);
 
       // Subtitle
       ctx.font = fmt.labelFontSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
       ctx.fillStyle = thm.subtextColor;
-      ctx.fillText('AI-Powered Event Invitations', fmt.width / 2, fmt.labelY);
+      ctx.fillText('AI-Powered Event Invitations', fmt.width / 2, fmt.labelY - 15 + logoEased * 15);
       ctx.restore();
 
-      // ── Typing animation ──
+      // ── Typing animation with cursor glow ──
       if (elapsed > INTRO_MS * 0.5) {
         const typeElapsed = Math.max(0, elapsed - introEnd);
         const charCount = Math.min(promptText.length, Math.floor(typeElapsed / CHAR_MS));
@@ -314,7 +508,7 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
 
         // Opening quote
         ctx.save();
-        ctx.font = 'italic ' + (fmt.promptFontSize * 0.6) + 'px "Inter", Arial, sans-serif';
+        ctx.font = 'italic ' + (fmt.promptFontSize * 0.7) + 'px "Inter", Arial, sans-serif';
         ctx.fillStyle = thm.subtextColor;
         ctx.globalAlpha = Math.min(1, (elapsed - INTRO_MS * 0.5) / 300);
         ctx.textAlign = 'left';
@@ -322,7 +516,6 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
         ctx.fillText('\u201c', promptX, fmt.promptAreaY);
         ctx.restore();
 
-        // Typed text with word wrapping
         if (displayText.length > 0) {
           ctx.save();
           ctx.font = fmt.promptFontSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
@@ -334,12 +527,21 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
             ctx.fillText(line, promptX + 20, fmt.promptAreaY + 10 + (i + 1) * fmt.promptLineHeight);
           });
 
-          // Blinking cursor
+          // Cursor with glow effect
           const cursorBlink = Math.sin(elapsed / 300 * Math.PI) > 0;
           if (charCount < promptText.length || (elapsed < pauseEnd && cursorBlink)) {
             const lastLine = lines[lines.length - 1] || '';
             const cursorX = promptX + 20 + ctx.measureText(lastLine).width + 4;
             const cursorY = fmt.promptAreaY + 10 + lines.length * fmt.promptLineHeight;
+
+            // Glow behind cursor
+            var glowGrad = ctx.createRadialGradient(cursorX + 1.5, cursorY - fmt.promptFontSize / 2 + 4, 0, cursorX + 1.5, cursorY - fmt.promptFontSize / 2 + 4, 20);
+            glowGrad.addColorStop(0, thm.glowColor);
+            glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = glowGrad;
+            ctx.fillRect(cursorX - 20, cursorY - fmt.promptFontSize - 16, 43, fmt.promptFontSize + 36);
+
+            // Cursor bar
             ctx.fillStyle = thm.cursorColor;
             ctx.fillRect(cursorX, cursorY - fmt.promptFontSize + 4, 3, fmt.promptFontSize);
           }
@@ -349,7 +551,7 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
             const lastLine = lines[lines.length - 1] || '';
             const quoteX = promptX + 20 + ctx.measureText(lastLine).width + 14;
             const quoteY = fmt.promptAreaY + 10 + lines.length * fmt.promptLineHeight;
-            ctx.font = 'italic ' + (fmt.promptFontSize * 0.6) + 'px "Inter", Arial, sans-serif';
+            ctx.font = 'italic ' + (fmt.promptFontSize * 0.7) + 'px "Inter", Arial, sans-serif';
             ctx.fillStyle = thm.subtextColor;
             ctx.fillText('\u201d', quoteX, quoteY);
           }
@@ -357,105 +559,116 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
         }
       }
 
-      // ── Phone mockup ──
+      // ── Premium Phone Mockup ──
       const phoneX = (fmt.width - fmt.phoneWidth) / 2;
       const phoneY = fmt.phoneY;
 
-      // Phone frame (outer border)
-      ctx.save();
-      roundRect(ctx, phoneX, phoneY, fmt.phoneWidth, fmt.phoneHeight, fmt.phoneRadius);
-      ctx.fillStyle = thm.phoneBorder;
-      ctx.fill();
-
-      // Phone inner background — only visible before invite loads
-      roundRect(ctx, phoneX + 4, phoneY + 4, fmt.phoneWidth - 8, fmt.phoneHeight - 8, fmt.phoneRadius - 2);
-      ctx.fillStyle = thm.phoneInner;
-      ctx.fill();
-
-      // Phone notch
-      const notchW = 120;
-      const notchH = 28;
-      const notchX = phoneX + (fmt.phoneWidth - notchW) / 2;
-      roundRect(ctx, notchX, phoneY, notchW, notchH, 14);
-      ctx.fillStyle = thm.phoneBorder;
-      ctx.fill();
-
-      // ── Phone content area — flush with inner bezel, no padding ──
-      const contentX = phoneX + 4;
-      const contentY = phoneY + 32; // just below notch
-
+      // Phone glow effect during/after reveal
       if (elapsed >= shimmerEnd) {
-        // ── Invite is visible: reveal + scroll ──
+        var glowIntensity = 0;
+        if (elapsed < revealEnd) {
+          glowIntensity = easeOutCubic((elapsed - shimmerEnd) / REVEAL_MS) * 0.6;
+        } else {
+          // Subtle pulsing glow after reveal
+          glowIntensity = 0.15 + 0.1 * Math.sin(elapsed / 2000 * Math.PI);
+        }
+        ctx.save();
+        ctx.shadowColor = thm.accentColor;
+        ctx.shadowBlur = 60;
+        ctx.globalAlpha = glowIntensity;
+        roundRect(ctx, phoneX + 4, phoneY + 4, fmt.phoneWidth - 8, fmt.phoneHeight - 8, PHONE_FRAME_RADIUS - 2);
+        ctx.fillStyle = thm.accentColor;
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Draw the phone frame (always realistic metallic look)
+      var screen = drawPhoneFrame(ctx, phoneX, phoneY, fmt.phoneWidth, fmt.phoneHeight, elapsed);
+
+      // ── Phone screen content ──
+      if (elapsed >= shimmerEnd) {
+        // ── Invite reveal with scale + fade ──
         const revealProgress = Math.min(1, (elapsed - shimmerEnd) / REVEAL_MS);
         const eased = easeOutCubic(revealProgress);
 
-        // Calculate scroll offset
+        // Scroll offset
         let scrollOffset = 0;
         if (elapsed >= holdEnd && scrollDistance > 0) {
           if (elapsed < scrollEnd) {
-            // Scrolling phase — ease in-out for smooth motion
-            const scrollProgress = (elapsed - holdEnd) / scrollMs;
-            scrollOffset = easeInOutCubic(scrollProgress) * scrollDistance;
+            scrollOffset = easeInOutCubic((elapsed - holdEnd) / scrollMs) * scrollDistance;
           } else {
-            // Past scroll, hold at bottom
             scrollOffset = scrollDistance;
           }
         }
 
-        // Reveal animation: slide up from below
-        const slideOffset = (1 - eased) * contentH * 0.3;
+        // Scale from 0.92 to 1.0 during reveal
+        const scale = 0.92 + eased * 0.08;
         const revealAlpha = eased;
 
         ctx.save();
-        // Clip to phone inner area (rounded corners at bottom)
-        ctx.beginPath();
-        roundRect(ctx, contentX, contentY, contentW, contentH, fmt.phoneRadius - 6);
+        // Clip to screen area
+        roundRect(ctx, screen.screenX, screen.screenY, screen.screenW, screen.screenH, screen.screenRadius);
         ctx.clip();
 
         ctx.globalAlpha = revealAlpha;
 
-        // Draw the invite filling the entire phone screen, offset by scroll
-        ctx.drawImage(
-          inviteImg,
-          contentX, contentY + slideOffset - scrollOffset,
-          contentW, inviteDrawHeight
-        );
+        // Apply scale from center of screen
+        var scaleCenterX = screen.x + screen.w / 2;
+        var scaleCenterY = screen.y + screen.h / 2;
+        ctx.translate(scaleCenterX, scaleCenterY);
+        ctx.scale(scale, scale);
+        ctx.translate(-scaleCenterX, -scaleCenterY);
+
+        // Draw invite
+        ctx.drawImage(inviteImg, screen.x, screen.y - scrollOffset, screen.w, inviteDrawHeight);
         ctx.restore();
       } else if (elapsed >= pauseEnd) {
-        // Shimmer effect
-        const shimmerProgress = (elapsed - pauseEnd) / SHIMMER_MS;
-        drawShimmer(ctx, contentX, contentY, contentW, contentH, shimmerProgress, thm);
+        // Shimmer loading effect
+        ctx.save();
+        roundRect(ctx, screen.screenX, screen.screenY, screen.screenW, screen.screenH, screen.screenRadius);
+        ctx.clip();
+        var shimmerProgress = (elapsed - pauseEnd) / SHIMMER_MS;
+        drawShimmer(ctx, screen.x, screen.y, screen.w, screen.h, shimmerProgress, thm);
+        ctx.restore();
       } else {
-        // Empty phone placeholder
+        // Empty screen with loading dots
+        ctx.save();
+        roundRect(ctx, screen.screenX, screen.screenY, screen.screenW, screen.screenH, screen.screenRadius);
+        ctx.clip();
         if (elapsed > introEnd) {
-          const dotAlpha = 0.3 + 0.2 * Math.sin(elapsed / 500 * Math.PI);
+          var dotAlpha = 0.3 + 0.2 * Math.sin(elapsed / 500 * Math.PI);
           ctx.globalAlpha = dotAlpha;
-          for (let i = 0; i < 3; i++) {
+          for (var i = 0; i < 3; i++) {
             ctx.beginPath();
-            ctx.arc(contentX + contentW / 2 - 30 + i * 30, contentY + contentH / 2, 6, 0, Math.PI * 2);
-            ctx.fillStyle = thm.subtextColor;
+            ctx.arc(screen.x + screen.w / 2 - 30 + i * 30, screen.y + screen.h / 2, 5, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
             ctx.fill();
           }
-          ctx.globalAlpha = 1;
         }
+        ctx.restore();
       }
-      ctx.restore();
 
       // ── CTA ──
       if (elapsed >= finalHoldEnd) {
-        const ctaProgress = Math.min(1, (elapsed - finalHoldEnd) / CTA_MS);
-        const ctaEased = easeOutCubic(ctaProgress);
+        var ctaProgress = Math.min(1, (elapsed - finalHoldEnd) / CTA_MS);
+        var ctaEased = easeOutCubic(ctaProgress);
 
         ctx.save();
         ctx.globalAlpha = ctaEased;
 
-        // CTA button
-        const ctaW = 460;
-        const ctaH = 64;
-        const ctaX = (fmt.width - ctaW) / 2;
+        // CTA button with subtle shadow
+        var ctaW = Math.min(460, fmt.width * 0.44);
+        var ctaH = 64;
+        var ctaX = (fmt.width - ctaW) / 2;
+
+        // Button shadow
+        ctx.shadowColor = 'rgba(233,69,96,0.4)';
+        ctx.shadowBlur = 20;
+        ctx.shadowOffsetY = 6;
         roundRect(ctx, ctaX, fmt.ctaY, ctaW, ctaH, 32);
         ctx.fillStyle = thm.ctaBg;
         ctx.fill();
+        ctx.shadowColor = 'transparent';
 
         ctx.font = 'bold ' + fmt.ctaFontSize + 'px "Inter", Arial, sans-serif';
         ctx.fillStyle = thm.ctaText;
@@ -463,7 +676,6 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
         ctx.textBaseline = 'middle';
         ctx.fillText('Create Yours Free', fmt.width / 2, fmt.ctaY + ctaH / 2);
 
-        // URL below button
         ctx.font = (fmt.ctaFontSize * 0.65) + 'px "Inter", Arial, sans-serif';
         ctx.fillStyle = thm.subtextColor;
         ctx.fillText('ryvite.com', fmt.width / 2, fmt.ctaY + ctaH + 30);
@@ -471,8 +683,8 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
         ctx.restore();
       }
 
-      // Update progress
-      const progress = 20 + Math.min(75, (elapsed / totalMs) * 75);
+      // Progress reporting
+      var progress = 20 + Math.min(75, (elapsed / totalMs) * 75);
       var phase = 'Processing...';
       if (elapsed < typeEnd) phase = 'Typing...';
       else if (elapsed < shimmerEnd) phase = 'Generating...';
@@ -482,7 +694,6 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
       else phase = 'Rendering CTA...';
       onProgress(progress, phase);
 
-      // Continue or stop
       if (elapsed < totalMs) {
         animFrameId = requestAnimationFrame(drawFrame);
       } else {
@@ -497,7 +708,8 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
   });
 }
 
-// ── Helper: Draw rounded rectangle ──
+// ── Helpers ──
+
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -512,7 +724,6 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-// ── Helper: Word wrap text ──
 function wrapText(ctx, text, maxWidth) {
   var words = text.split(' ');
   var lines = [];
@@ -530,44 +741,37 @@ function wrapText(ctx, text, maxWidth) {
   return lines;
 }
 
-// ── Helper: Shimmer effect ──
 function drawShimmer(ctx, x, y, w, h, progress, thm) {
-  // Background
-  ctx.fillStyle = thm.phoneInner;
+  ctx.fillStyle = '#0a0a14';
   ctx.fillRect(x, y, w, h);
 
-  // Shimmer sweep
-  const shimmerX = x - w + progress * (w * 3);
-  const grad = ctx.createLinearGradient(shimmerX, y, shimmerX + w * 0.6, y);
+  var shimmerX = x - w + progress * (w * 3);
+  var grad = ctx.createLinearGradient(shimmerX, y, shimmerX + w * 0.6, y);
   grad.addColorStop(0, 'rgba(255,255,255,0)');
-  grad.addColorStop(0.4, 'rgba(255,255,255,0.08)');
-  grad.addColorStop(0.5, 'rgba(255,255,255,0.15)');
-  grad.addColorStop(0.6, 'rgba(255,255,255,0.08)');
+  grad.addColorStop(0.4, 'rgba(255,255,255,0.06)');
+  grad.addColorStop(0.5, 'rgba(255,255,255,0.12)');
+  grad.addColorStop(0.6, 'rgba(255,255,255,0.06)');
   grad.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = grad;
   ctx.fillRect(x, y, w, h);
 
-  // Placeholder bars
-  const barColor = thm.textColor === '#ffffff' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
-  ctx.fillStyle = barColor;
-  const barY = y + h * 0.15;
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  var barY = y + h * 0.15;
   roundRect(ctx, x + 40, barY, w * 0.6, 20, 10); ctx.fill();
   roundRect(ctx, x + 60, barY + 40, w * 0.4, 16, 8); ctx.fill();
   roundRect(ctx, x + 30, barY + 100, w * 0.8, 120, 12); ctx.fill();
   roundRect(ctx, x + 50, barY + 250, w * 0.5, 16, 8); ctx.fill();
 
-  // "Generating..." text
-  const genAlpha = 0.5 + 0.3 * Math.sin(progress * Math.PI * 4);
+  var genAlpha = 0.4 + 0.3 * Math.sin(progress * Math.PI * 4);
   ctx.save();
   ctx.globalAlpha = genAlpha;
   ctx.font = '22px "Inter", Arial, sans-serif';
-  ctx.fillStyle = thm.subtextColor;
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
   ctx.textAlign = 'center';
   ctx.fillText('Generating your invite...', x + w / 2, y + h / 2 + 60);
   ctx.restore();
 }
 
-// ── Helper: Easing ──
 function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
@@ -576,12 +780,18 @@ function easeInOutCubic(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-/**
- * Trigger download of a Blob as a file
- */
+function hexToRgb(hex) {
+  var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 0, g: 0, b: 0 };
+}
+
 function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
   a.href = url;
   a.download = filename;
   document.body.appendChild(a);
@@ -590,7 +800,7 @@ function downloadBlob(blob, filename) {
   setTimeout(function() { URL.revokeObjectURL(url); }, 5000);
 }
 
-// Export for use in admin panel
+// Export
 window.AdVideoGenerator = {
   generate: generateAdVideo,
   download: downloadBlob,
