@@ -1374,7 +1374,7 @@
                 <div class="phone-frame">
                   <div class="phone-notch"></div>
                   <div class="phone-screen">
-                    <iframe id="testPreviewFrame" sandbox="allow-scripts"></iframe>
+                    <iframe id="testPreviewFrame" sandbox="allow-scripts allow-same-origin"></iframe>
                   </div>
                   <div class="phone-home-bar"></div>
                 </div>
@@ -1674,7 +1674,7 @@
         <textarea id="styleHtml" rows="15" placeholder="Paste complete HTML of an invite sample here..." style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:monospace;font-size:12px;line-height:1.5;resize:vertical;"></textarea>
         <div id="stylePreviewContainer" style="display:none;margin-top:8px;">
           <div class="preview-frame">
-            <iframe id="stylePreviewFrame" sandbox="allow-scripts" style="width:393px;height:700px;border:none;display:block;margin:0 auto;"></iframe>
+            <iframe id="stylePreviewFrame" sandbox="allow-scripts allow-same-origin" style="width:393px;height:700px;border:none;display:block;margin:0 auto;"></iframe>
           </div>
         </div>
       </div>
@@ -2214,7 +2214,7 @@
             <div style="flex:0 0 200px;">
               <div style="background:linear-gradient(145deg,#2a2a2e,#1a1a1e);border-radius:20px;padding:4px;box-shadow:0 12px 32px rgba(0,0,0,0.2);">
                 <div style="background:#fff;border-radius:17px;overflow:hidden;aspect-ratio:393/852;">
-                  <iframe id="creativeDetailPreview" sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:17px;transform-origin:top left;pointer-events:none;"></iframe>
+                  <iframe id="creativeDetailPreview" sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:17px;transform-origin:top left;pointer-events:none;"></iframe>
                 </div>
               </div>
             </div>
@@ -4416,7 +4416,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var card = document.getElementById('matrixCard' + idx);
       card.innerHTML = '<div class="matrix-card-header"><h4>' + escapeHtml(combo.modelLabel) + '</h4><span class="model-badge ' + combo.modelBadge + '">' + combo.modelBadge + '</span></div>'
         + '<div class="matrix-card-preview">'
-        + '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>'
+        + '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>'
         + '</div>'
         + '<div class="matrix-card-rating">'
         + '<div class="star-rating" data-idx="' + idx + '">'
@@ -4804,7 +4804,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var previewDiv = document.createElement('div');
         previewDiv.className = 'style-card-preview';
         previewDiv.appendChild(detailsBtn);
-        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
+        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
         var phoneWrapper = document.createElement('div');
         phoneWrapper.innerHTML = phoneHtml;
         previewDiv.appendChild(phoneWrapper.firstChild);
@@ -5948,7 +5948,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         // Phone preview
         var previewDiv = document.createElement('div');
         previewDiv.className = 'style-card-preview';
-        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
+        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
         var phoneWrapper = document.createElement('div');
         phoneWrapper.innerHTML = phoneHtml;
         previewDiv.appendChild(phoneWrapper.firstChild);
@@ -6144,7 +6144,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var previewDiv = document.createElement('div');
         previewDiv.className = 'style-card-preview';
         previewDiv.appendChild(detailsBtn);
-        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
+        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
         var phoneWrapper = document.createElement('div');
         phoneWrapper.innerHTML = phoneHtml;
         previewDiv.appendChild(phoneWrapper.firstChild);
@@ -6290,7 +6290,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var previewDiv = document.createElement('div');
         previewDiv.className = 'style-card-preview';
         previewDiv.appendChild(detailsBtn);
-        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
+        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
         var phoneWrapper = document.createElement('div');
         phoneWrapper.innerHTML = phoneHtml;
         previewDiv.appendChild(phoneWrapper.firstChild);
@@ -8187,7 +8187,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         grid.innerHTML = showcases.map(function(s, i) {
           return '<div class="ad-picker-card" style="border:1px solid #e5e7eb;border-radius:12px;cursor:pointer;overflow:hidden;transition:all 0.2s;background:#fff;" onmouseover="this.style.borderColor=\'#E94560\';this.style.boxShadow=\'0 4px 12px rgba(233,69,96,0.15)\'" onmouseout="this.style.borderColor=\'#e5e7eb\';this.style.boxShadow=\'none\'" onclick="selectAdPickerItem(' + i + ')">'
             + '<div style="position:relative;width:100%;height:220px;overflow:hidden;background:#f9fafb;border-bottom:1px solid #f0f0f0;">'
-            + '<iframe id="adPickerFrame' + i + '" style="position:absolute;top:0;left:0;width:375px;height:667px;border:none;pointer-events:none;transform-origin:top left;" sandbox="allow-same-origin"></iframe>'
+            + '<iframe id="adPickerFrame' + i + '" style="position:absolute;top:0;left:0;width:375px;height:667px;border:none;pointer-events:none;transform-origin:top left;" sandbox="allow-scripts allow-same-origin"></iframe>'
             + '</div>'
             + '<div style="padding:10px 12px;">'
             + '<div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(s.event_title || s.event_type || 'Invite') + '</div>'
@@ -8705,7 +8705,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           <div class="phone-frame">
             <div class="phone-notch"></div>
             <div class="phone-screen">
-              <iframe id="styleDetailPreviewFrame" sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
+              <iframe id="styleDetailPreviewFrame" sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
             </div>
             <div class="phone-home-bar"></div>
           </div>
@@ -8800,7 +8800,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           <div class="phone-frame">
             <div class="phone-notch"></div>
             <div class="phone-screen">
-              <iframe id="genDetailPreviewFrame" sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
+              <iframe id="genDetailPreviewFrame" sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
             </div>
             <div class="phone-home-bar"></div>
           </div>
