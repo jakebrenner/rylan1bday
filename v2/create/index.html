@@ -3992,12 +3992,31 @@
       renderPreview(ver);
     }
 
-    // Extract user-uploaded photo URLs already embedded in the current theme HTML
-    // User photos live in Supabase's event-photos/ bucket, distinguishing them from SVG/other assets
+    // Detect whether the current theme HTML contains user-uploaded photos
+    // Checks for: Supabase event-photos/ URLs, base64 data URIs, and general <img> tags
+    // that aren't SVGs (which are AI-generated illustrations)
     function getExistingPhotoUrls(ver) {
       if (!ver || !ver.html) return [];
-      var matches = ver.html.match(/src=["'](https:\/\/[^"']*event-photos\/[^"']+)["']/gi) || [];
-      return matches.map(function(m) { return m.replace(/^src=["']|["']$/g, ''); });
+      var urls = [];
+      // Match Supabase storage URLs (event-photos bucket)
+      var supabaseMatches = ver.html.match(/src\s*=\s*["'](https:\/\/[^"']*event-photos\/[^"']+)["']/gi) || [];
+      supabaseMatches.forEach(function(m) {
+        var url = m.replace(/^src\s*=\s*["']|["']$/g, '');
+        if (urls.indexOf(url) === -1) urls.push(url);
+      });
+      // Match base64 data URI images (JPEG/PNG — not SVG)
+      var base64Matches = ver.html.match(/src\s*=\s*["'](data:image\/(?:jpeg|png|webp)[^"']+)["']/gi) || [];
+      base64Matches.forEach(function(m) {
+        var url = m.replace(/^src\s*=\s*["']|["']$/g, '');
+        if (urls.indexOf(url) === -1) urls.push(url);
+      });
+      // Match any <img> with .jpg/.jpeg/.png/.webp URLs (user photos from any source)
+      var jpgMatches = ver.html.match(/src\s*=\s*["'](https:\/\/[^"']+\.(?:jpg|jpeg|png|webp)[^"']*)["']/gi) || [];
+      jpgMatches.forEach(function(m) {
+        var url = m.replace(/^src\s*=\s*["']|["']$/g, '');
+        if (urls.indexOf(url) === -1) urls.push(url);
+      });
+      return urls;
     }
 
     // Build guaranteed thank you page structure
@@ -5254,9 +5273,12 @@
       }
 
       // Detect if user mentions wanting a photo but didn't attach one
-      // Skip this check if the current design already has user-uploaded photos
+      // Skip this check if: (a) current design already has user-uploaded photos,
+      // or (b) user is referencing an existing photo ("the photo", "my photo", etc.)
       if (text && !hasPhotos) {
-        var existingPhotosInDesign = getExistingPhotoUrls(themeVersions[activeVersionIndex]);
+        // If user says "the photo/image/pic" or "my photo" they're referring to one already in the design
+        var referringToExisting = /\b(the|my|this|that|its|current)\s+(photo|picture|image|pic)\b/i.test(text);
+        var existingPhotosInDesign = referringToExisting ? [true] : getExistingPhotoUrls(themeVersions[activeVersionIndex]);
         if (existingPhotosInDesign.length === 0) {
           var photoKeywords = /\b(photo|picture|image|pic|selfie|headshot|portrait|snapshot|upload.*(photo|image|pic)|include.*(photo|image|pic)|(add|use|put|include|attach|insert).*(photo|picture|image|pic))\b/i;
           if (photoKeywords.test(text)) {
