@@ -1442,6 +1442,15 @@ async function verifyPublishedInvite(eventId, slug, userId) {
     });
 
     const responseText = (analysis.content[0]?.text || '').trim();
+    // Log publish-verify vision call to generation_log for cost tracking
+    await supabaseAdmin.from('generation_log').insert({
+      event_id: eventId, user_id: userId,
+      prompt: 'publish-verify: screenshot vision check for ' + slug,
+      model: 'claude-haiku-4-5-20251001',
+      input_tokens: analysis.usage?.input_tokens || 0,
+      output_tokens: analysis.usage?.output_tokens || 0,
+      latency_ms: 0, status: 'success', is_tweak: false
+    }).catch(e => console.error('[publish-verify] generation_log insert failed:', e.message));
     const cleaned = responseText.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
     let result;
     try {

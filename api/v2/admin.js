@@ -256,7 +256,9 @@ export default async function handler(req, res) {
           model: g.model,
           inputTokens: g.input_tokens,
           outputTokens: g.output_tokens,
-          promptType: g.event_id ? 'theme' : 'chat',
+          promptType: g.prompt?.startsWith('prompt_test') ? 'test'
+            : (g.prompt?.startsWith('QM ') || g.prompt?.startsWith('admin:') || g.prompt?.startsWith('blog:') || g.prompt?.startsWith('publish-verify:')) ? 'internal'
+            : g.event_id ? 'theme' : 'chat',
           cost,
           latencyMs: g.latency_ms,
           createdAt: g.created_at
@@ -566,9 +568,11 @@ export default async function handler(req, res) {
       let chatApiCost = 0;
       let themeApiCost = 0;
       let testApiCost = 0;
+      let internalApiCost = 0; // admin/system AI calls (QM diagnosis, blog SEO, style auto-prompt, publish-verify, etc.)
       let chatCount = 0;
       let themeCount = 0;
       let testCount = 0;
+      let internalCount = 0;
 
       // Cost by time period (last 7 days, last 30 days, prior 7 days for comparison)
       const now = Date.now();
@@ -609,10 +613,12 @@ export default async function handler(req, res) {
         tokensByModel[model].cost += cost;
         totalApiCost += cost;
 
-        // Categorize: prompt_test (admin lab), chat (event planning), or theme (generation/tweak)
+        // Categorize: prompt_test (admin lab), internal (admin/system), chat (event planning), or theme (generation/tweak)
         const isTest = l.prompt && l.prompt.startsWith('prompt_test');
-        const isChat = !l.event_id && !isTest;
+        const isInternal = l.prompt && (l.prompt.startsWith('QM ') || l.prompt.startsWith('admin:') || l.prompt.startsWith('blog:') || l.prompt.startsWith('publish-verify:'));
+        const isChat = !l.event_id && !isTest && !isInternal;
         if (isTest) { testApiCost += cost; testCount++; tokensByModel[model].testCount++; }
+        else if (isInternal) { internalApiCost += cost; internalCount++; }
         else if (isChat) { chatApiCost += cost; chatCount++; tokensByModel[model].chatCount++; }
         else { themeApiCost += cost; themeCount++; tokensByModel[model].themeCount++; }
 
@@ -701,11 +707,13 @@ export default async function handler(req, res) {
             apiCostChat: chatApiCost,
             apiCostTheme: themeApiCost,
             apiCostTest: testApiCost,
+            apiCostInternal: internalApiCost,
             apiCost7d: cost7d,
             apiCost30d: cost30d,
             chatCount,
             themeCount,
             testCount,
+            internalCount,
             markupPct,
             revenueTotal: totalApiCost * markupMultiplier,
             revenue7d: cost7d * markupMultiplier,
@@ -2489,6 +2497,15 @@ ${cssSnippet}`
           });
 
           finalPromptText = (aiResponse.content[0]?.text || '').trim();
+          // Log style auto-prompt AI call to generation_log for cost tracking
+          await supabaseAdmin.from('generation_log').insert({
+            event_id: null, user_id: admin.id,
+            prompt: 'admin: style auto-prompt for ' + (eventType || 'unknown'),
+            model: 'claude-haiku-4-5-20251001',
+            input_tokens: aiResponse.usage?.input_tokens || 0,
+            output_tokens: aiResponse.usage?.output_tokens || 0,
+            latency_ms: 0, status: 'success', is_tweak: false
+          }).catch(e => console.error('Style auto-prompt generation_log insert failed:', e.message));
         } catch (aiErr) {
           console.error('Auto-prompt generation failed, using fallback:', aiErr.message);
           finalPromptText = eventTitle || 'A beautiful custom invitation';

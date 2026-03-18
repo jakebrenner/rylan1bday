@@ -651,6 +651,8 @@ All names and details must be entirely fictional. Make the design prompt vivid, 
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('No JSON found in response');
       const eventDetails = JSON.parse(jsonMatch[0]);
+      // Log dummyData AI call to generation_log for cost tracking
+      logTestGeneration(admin.id, 'claude-haiku-4-5-20251001', response.usage?.input_tokens || 0, response.usage?.output_tokens || 0, 0, null);
       return res.status(200).json({ success: true, eventDetails });
     } catch (err) {
       console.error('Dummy data generation error:', err);

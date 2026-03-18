@@ -344,6 +344,15 @@ Return ONLY the rule text, no explanation or formatting.`
     });
 
     const ruleText = (suggestion.content[0]?.text || '').trim();
+    // Log suggestRule AI call to generation_log for cost tracking
+    await supabase.from('generation_log').insert({
+      event_id: null, user_id: null,
+      prompt: 'QM suggestRule: ' + rootCause,
+      model: 'claude-haiku-4-5-20251001',
+      input_tokens: suggestion.usage?.input_tokens || 0,
+      output_tokens: suggestion.usage?.output_tokens || 0,
+      latency_ms: 0, status: 'success', is_tweak: false
+    }).catch(e => console.error('[quality-monitor] suggestRule generation_log failed:', e.message));
     if (!ruleText || ruleText.length > 500) return;
 
     // Collect affected browsers from recent incidents
@@ -470,6 +479,24 @@ Return JSON:
     ai_diagnosis_model: diagnosisModel,
     diagnosis_tokens: diagnosisTokens
   }).eq('id', incidentId);
+
+  // Log diagnosis AI call to generation_log for cost tracking
+  await supabase.from('generation_log').insert({
+    event_id: ctx.eventId || null,
+    user_id: ctx.userId || null,
+    prompt: 'QM diagnosis (' + ctx.triggerType + '): ' + (diagnosis.rootCause || 'unknown'),
+    model: diagnosisModel,
+    input_tokens: diagnosisTokens.input,
+    output_tokens: diagnosisTokens.output,
+    latency_ms: Date.now() - startTime,
+    status: 'success',
+    is_tweak: true,
+    event_type: ''
+  }).catch(e => console.error('[quality-monitor] Diagnosis generation_log failed:', e.message));
+  if (ctx.eventId) {
+    const diagCostCents = calcCost(diagnosisModel, diagnosisTokens.input, diagnosisTokens.output);
+    await supabase.rpc('increment_event_cost', { p_event_id: ctx.eventId, p_cost_cents: diagCostCents }).catch(() => {});
+  }
 
   console.log('[quality-monitor] Diagnosis complete:', {
     incidentId,
@@ -750,8 +777,13 @@ Return JSON:
     event_type: ''
   }).catch(e => console.error('[quality-monitor] Generation log failed:', e.message));
 
-  // Update incident as resolved
+  // Increment event cost for the auto-heal generation
   const healCostCents = calcCost(healModel, healTokens.input, healTokens.output);
+  if (ctx.eventId) {
+    await supabase.rpc('increment_event_cost', { p_event_id: ctx.eventId, p_cost_cents: healCostCents }).catch(() => {});
+  }
+
+  // Update incident as resolved
   await supabase.from('quality_incidents').update({
     resolution_type: 'auto_healed',
     resolution_data: {

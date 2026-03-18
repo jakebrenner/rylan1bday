@@ -613,6 +613,16 @@ Content (first 2000 chars): ${contentSnippet}`
       }]
     });
 
+    // Log blog SEO generation to generation_log for cost tracking
+    await supabaseAdmin.from('generation_log').insert({
+      event_id: null, user_id: admin.id,
+      prompt: 'blog: generateSeoTags for "' + (title || '').substring(0, 100) + '"',
+      model: 'claude-sonnet-4-20250514',
+      input_tokens: response.usage?.input_tokens || 0,
+      output_tokens: response.usage?.output_tokens || 0,
+      latency_ms: 0, status: 'success', is_tweak: false
+    }).catch(e => console.error('Blog SEO generation_log insert failed:', e.message));
+
     try {
       const text = response.content[0].text.trim();
       // Strip markdown fences if present
@@ -840,6 +850,16 @@ Content (first 2000 chars): ${contentSnippet}`
                 .from('blog_posts')
                 .update({ seo: seoJson })
                 .eq('id', created.id);
+
+              // Log bulk blog SEO call to generation_log
+              await supabaseAdmin.from('generation_log').insert({
+                event_id: null, user_id: admin.id,
+                prompt: 'blog: bulk SEO for "' + (post.title || '').substring(0, 100) + '"',
+                model: 'claude-sonnet-4-20250514',
+                input_tokens: seoResponse.usage?.input_tokens || 0,
+                output_tokens: seoResponse.usage?.output_tokens || 0,
+                latency_ms: 0, status: 'success', is_tweak: false
+              }).catch(() => {});
 
               results.seoGenerated++;
             } catch (seoErr) {

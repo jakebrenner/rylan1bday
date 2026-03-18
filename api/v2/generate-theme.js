@@ -1449,6 +1449,7 @@ try {
     if (!userMessage) return res.status(400).json({ error: 'Missing userMessage' });
 
     try {
+      const classifyStartTime = Date.now();
       const fieldList = (currentFields || []).map(f => `"${f.label}" (${f.field_type})`).join(', ');
       const resp = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
@@ -1482,7 +1483,10 @@ Rules:
       });
 
       const text = resp.content[0]?.text?.trim() || '';
-      const classifyCost = calcGenerationCost('claude-haiku-4-5-20251001', resp.usage?.input_tokens || 0, resp.usage?.output_tokens || 0);
+      const classifyInputTokens = resp.usage?.input_tokens || 0;
+      const classifyOutputTokens = resp.usage?.output_tokens || 0;
+      const classifyLatency = Date.now() - classifyStartTime;
+      const classifyCost = calcGenerationCost('claude-haiku-4-5-20251001', classifyInputTokens, classifyOutputTokens);
       let classification;
       try {
         const cleaned = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
@@ -1490,6 +1494,19 @@ Rules:
       } catch {
         // If parsing fails, return a conservative "unclear" classification
         classification = { intent: 'unclear', confidence: 0.3, summary: 'Could not classify', clarification: "I want to make sure I get this right — could you tell me a bit more about what you'd like to change?", suggested_options: null };
+      }
+      // Log classifyIntent to generation_log — these add up
+      const classifyMeta = getClientMeta(req);
+      await supabase.from('generation_log').insert({
+        user_id: user.id, event_id: eventId || null,
+        prompt: 'classifyIntent: ' + userMessage.substring(0, 200),
+        model: 'claude-haiku-4-5-20251001', input_tokens: classifyInputTokens,
+        output_tokens: classifyOutputTokens, latency_ms: classifyLatency, status: 'success',
+        is_tweak: true, event_type: eventType || '',
+        client_ip: classifyMeta.ip, client_geo: classifyMeta.geo, user_agent: classifyMeta.userAgent
+      }).catch(e => console.error('classifyIntent generation_log insert failed:', e.message));
+      if (eventId) {
+        await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: classifyCost.totalCostCents }).catch(() => {});
       }
       // AI generation included in $4.99 event price — no per-generation billing
       return res.json({ success: true, ...classification, metadata: { cost: classifyCost } });

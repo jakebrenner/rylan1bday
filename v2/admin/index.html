@@ -683,7 +683,7 @@
             <div class="stat-label">Generations 7d vs Prior 7d</div>
           </div>
         </div>
-        <div id="costBreakdownGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px;">
+        <div id="costBreakdownGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px;">
           <div style="background:#f9f9f9;border-radius:8px;padding:16px;">
             <div style="font-size:12px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Chat (Event Planning)</div>
             <div style="font-size:20px;font-weight:700;" id="costChat">—</div>
@@ -698,6 +698,11 @@
             <div style="font-size:12px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Prompt Lab Tests</div>
             <div style="font-size:20px;font-weight:700;" id="costTest">—</div>
             <div style="font-size:12px;color:#888;margin-top:2px;" id="costTestCount">0 tests</div>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:16px;">
+            <div style="font-size:12px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Internal / System</div>
+            <div style="font-size:20px;font-weight:700;" id="costInternal">—</div>
+            <div style="font-size:12px;color:#888;margin-top:2px;" id="costInternalCount">0 calls</div>
           </div>
         </div>
         <div style="font-size:12px;color:#888;line-height:1.6;">
@@ -2565,9 +2570,11 @@
       document.getElementById('costChat').textContent = fmtCost(c.apiCostChat || 0);
       document.getElementById('costTheme').textContent = fmtCost(c.apiCostTheme || 0);
       document.getElementById('costTest').textContent = fmtCost(c.apiCostTest || 0);
+      document.getElementById('costInternal').textContent = fmtCost(c.apiCostInternal || 0);
       document.getElementById('costChatCount').textContent = (c.chatCount || 0) + ' calls';
       document.getElementById('costThemeCount').textContent = (c.themeCount || 0) + ' generations';
       document.getElementById('costTestCount').textContent = (c.testCount || 0) + ' tests';
+      document.getElementById('costInternalCount').textContent = (c.internalCount || 0) + ' calls';
       var markup = (1 + (c.markupPct || 100) / 100);
       document.getElementById('markupDisplay').textContent = markup.toFixed(1);
 
@@ -2642,6 +2649,7 @@
         var chatAvgCost = c2.chatCount > 0 ? c2.apiCostChat / c2.chatCount : 0;
         var themeAvgCost = c2.themeCount > 0 ? c2.apiCostTheme / c2.themeCount : 0;
         var testAvgCost = c2.testCount > 0 ? c2.apiCostTest / c2.testCount : 0;
+        var internalAvgCost = c2.internalCount > 0 ? c2.apiCostInternal / c2.internalCount : 0;
         var totalOps = (c2.chatCount || 0) + (c2.themeCount || 0) + (c2.testCount || 0);
         var themeLatStr = lat.themeAvgMs ? fmtLatency(lat.themeAvgMs) : '—';
         var overallLatStr = lat.avgMs ? fmtLatency(lat.avgMs) : '—';
@@ -2651,6 +2659,7 @@
           + '<tr><td>Chat (Event Planning)</td><td>' + (c2.chatCount || 0) + '</td><td>' + fmtCost(c2.apiCostChat || 0) + '</td><td>' + fmtCost(chatAvgCost) + '</td><td>—</td></tr>'
           + '<tr><td>Theme Generation</td><td>' + (c2.themeCount || 0) + '</td><td>' + fmtCost(c2.apiCostTheme || 0) + '</td><td>' + fmtCost(themeAvgCost) + '</td><td>' + themeLatStr + '</td></tr>'
           + '<tr><td>Prompt Lab Tests</td><td>' + (c2.testCount || 0) + '</td><td>' + fmtCost(c2.apiCostTest || 0) + '</td><td>' + fmtCost(testAvgCost) + '</td><td>—</td></tr>'
+          + '<tr><td>Internal / System</td><td>' + (c2.internalCount || 0) + '</td><td>' + fmtCost(c2.apiCostInternal || 0) + '</td><td>' + fmtCost(internalAvgCost) + '</td><td>—</td></tr>'
           + '<tr style="font-weight:700;border-top:2px solid #ddd;"><td>Total</td><td>' + totalOps + '</td><td>' + fmtCost(c2.apiCostTotal || 0) + '</td><td>' + fmtCost(totalOps > 0 ? c2.apiCostTotal / totalOps : 0) + '</td><td>' + overallLatStr + '</td></tr>'
           + '</tbody></table>';
       }
