@@ -114,7 +114,7 @@ export default async function handler(req, res) {
 
   try {
     if (action === 'signup') {
-      const { email, displayName, phone } = req.body || {};
+      const { email, displayName, phone, utm } = req.body || {};
       if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
 
       const { data, error } = await supabase.auth.admin.createUser({
@@ -143,12 +143,14 @@ export default async function handler(req, res) {
       });
       if (otpError) return res.status(400).json({ success: false, error: otpError.message });
 
-      // Update profile with phone if provided
-      if (phone && data.user) {
-        await supabase
-          .from('profiles')
-          .update({ phone, display_name: displayName || '' })
-          .eq('id', data.user.id);
+      // Update profile with phone and UTM attribution if provided
+      if (data.user) {
+        const profileUpdate = {};
+        if (phone) { profileUpdate.phone = phone; profileUpdate.display_name = displayName || ''; }
+        if (utm && typeof utm === 'object') { profileUpdate.signup_utm = utm; }
+        if (Object.keys(profileUpdate).length > 0) {
+          await supabase.from('profiles').update(profileUpdate).eq('id', data.user.id);
+        }
       }
 
       // Notify subscribed admins about the new signup (fire-and-forget)

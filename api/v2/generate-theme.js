@@ -1370,7 +1370,7 @@ export default async function handler(req, res) {
   }
 
   const action = req.query?.action || req.body?.action || 'generate';
-  const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages, inspirationImageUrls, tweakInstructions, currentHtml, currentCss, currentConfig, photoBase64, photoUrl, photoUrls, basedOnThemeId, previewMode, currentEmailHtml } = req.body;
+  const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages, inspirationImageUrls, tweakInstructions, currentHtml, currentCss, currentConfig, photoBase64, photoUrl, photoUrls, existingPhotos, basedOnThemeId, previewMode, currentEmailHtml } = req.body;
 
   // --- INTERPRET FIELD: quick Haiku call to parse natural language into field definition ---
   if (action === 'interpretField') {
@@ -1664,10 +1664,13 @@ IMPORTANT: The .rsvp-slot div must contain ONLY a <button class="rsvp-button"> �
 
         // Handle multiple photos (new) or single photo (legacy)
         const allPhotoUrls = photoUrls?.length > 0 ? photoUrls : (photoUrl ? [photoUrl] : []);
-        if (allPhotoUrls.length > 0) {
-          tweakMessage += `\n\nThe user has uploaded ${allPhotoUrls.length} photo(s) they want incorporated into the design. Use these EXACT URLs in <img> tags:\n${allPhotoUrls.map((url, i) => `Photo ${i + 1}: ${url}`).join('\n')}\nPlace the photos prominently in the design where they make sense. Style with appropriate sizing (max-width: 100%), border-radius, and any CSS that fits the theme. For multiple photos, consider a creative layout (row, grid, overlapping, staggered).`;
+        if (existingPhotos && allPhotoUrls.length > 0) {
+          // Photos already in the design — user is asking to modify how they appear
+          tweakMessage += `\n\nThe design already contains ${allPhotoUrls.length} user-uploaded photo(s) at these URLs:\n${allPhotoUrls.map((url, i) => `Photo ${i + 1}: ${url}`).join('\n')}\nThe user is asking to modify how these photos appear in the design. Keep these EXACT URLs but apply the changes requested. Make the photo treatment creative and eye-catching — consider animated frames, fun CSS effects, themed borders, creative cropping with object-fit/object-position, or playful layouts that match the event theme.`;
+        } else if (allPhotoUrls.length > 0) {
+          tweakMessage += `\n\nThe user has uploaded ${allPhotoUrls.length} photo(s) they want incorporated into the design. Use these EXACT URLs in <img> tags:\n${allPhotoUrls.map((url, i) => `Photo ${i + 1}: ${url}`).join('\n')}\nIncorporate the photos in a creative, eye-catching way that makes the invite feel special and unique. Consider: animated photo frames with CSS keyframes, themed decorative borders matching the event type (birthday balloons, wedding flowers, etc.), polaroid-style scattered layouts with fun tilts, photos with creative CSS shapes (circle, hexagon, star clip-paths), floating/bouncing animation effects, or face cutouts placed into illustrated scenes. Don't just drop photos in a basic rectangle — make them a showpiece. Style with appropriate sizing (max-width: 100%), border-radius, CSS animations, and creative framing that fits the theme. For multiple photos, use an engaging layout (staggered grid, overlapping with rotation, cascading polaroids).`;
         } else if (photoBase64) {
-          tweakMessage += `\n\nThe user has also provided a photo they want incorporated into the design. Use this image as an inline base64 data URI in an <img> tag where it makes sense for the design.`;
+          tweakMessage += `\n\nThe user has also provided a photo they want incorporated into the design. Use this image as an inline base64 data URI in an <img> tag where it makes sense for the design. Make the photo treatment creative and eye-catching — consider animated frames, themed borders, or playful CSS effects.`;
         }
 
         const existingThankyou = currentConfig?.thankyouHtml || '';
@@ -1825,7 +1828,7 @@ Return ONLY a valid JSON object with these keys:
 - Preserve and enhance CSS animations — every invite should feel alive with entrance animations, ambient motion, and hover effects
 - Thank you page: Provide .thankyou-page container with a REQUIRED decorative SVG illustration (in .thankyou-decoration div) + empty .thankyou-hero div. The platform injects "Thank You!" title, subtitle, calendar buttons, and footer. NO text, NO emojis, NO calendar buttons, NO footer in your output. MUST include a theme-matching SVG illustration with CSS animation. Match invite's background/fonts. Style .thankyou-page, .thankyou-decoration, .thankyou-hero, .thankyou-title, .thankyou-subtitle in CSS.
 - TEXT CONTRAST: EVERY text element must be clearly readable against its background. Never light-on-light or dark-on-dark. Buttons must have contrasting text. This is non-negotiable. CONCRETE RULE: on any dark/colored background section, text MUST be #FFFFFF or #FAFAFA. On light backgrounds, text MUST be #1A1A1A or darker. Do NOT use theme accent colors (coral, salmon, rose, etc.) as text on dark backgrounds.
-- For photo additions: use the EXACT URL(s) provided in <img> tags. Style with creative framing per the event type.`;
+- For photo additions: use the EXACT URL(s) provided in <img> tags. Make the photo treatment creative and eye-catching — animated frames, themed borders, CSS clip-paths, polaroid layouts, floating effects. Don't just drop photos in a basic rectangle.`;
 
       const stream = client.messages.stream({
         model: tweakModel,
@@ -2347,7 +2350,7 @@ ${rsvpFieldsDesc}`;
 
     // Add photo URLs if user uploaded photos
     if (allPhotoUrls.length > 0) {
-      userMessage += `\n\n══════════════════════\nPHOTOS\n══════════════════════\n${allPhotoUrls.length} photo(s) provided. Use these EXACT URLs in <img> tags:\n${allPhotoUrls.map((url, i) => `Photo ${i + 1}: ${url}`).join('\n')}\n\nApply the photo treatment described in the design DNA above. Style with appropriate sizing, border-radius, box-shadow, and creative framing.`;
+      userMessage += `\n\n══════════════════════\nPHOTOS\n══════════════════════\n${allPhotoUrls.length} photo(s) provided. Use these EXACT URLs in <img> tags:\n${allPhotoUrls.map((url, i) => `Photo ${i + 1}: ${url}`).join('\n')}\n\nIncorporate the photos in a creative, eye-catching way that makes the invite feel special and unique. Consider: animated photo frames with CSS keyframes, themed decorative borders matching the event type, polaroid-style layouts with fun tilts, creative CSS shapes (circle, hexagon, star clip-paths), floating/bouncing animation effects, or face cutouts placed into illustrated scenes. Don't just drop photos in a basic rectangle — make them a showpiece. Style with appropriate sizing, border-radius, box-shadow, CSS animations, and creative framing that fits the theme.`;
     }
 
     if (feedback) {

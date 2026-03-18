@@ -807,6 +807,8 @@
 
     // Cost tracking state — tracks cumulative cost for this event (persisted across sessions)
     var eventCostCents = 0;
+    var _dbDesignChatHistory = null; // DB-loaded chat history (fallback when sessionStorage is empty)
+    var _chatSaveTimer = null; // Debounce timer for saving chat to DB
     var _genRetried = false; // prevents infinite retry on mobile "Load failed"
     var eventGenCount = 0;
     var usagePlanUser = false;
@@ -842,7 +844,12 @@
     var _loginRedirect = '/v2/create/' + window.location.search;
     var _pendingTemplateId = new URLSearchParams(window.location.search).get('templateId');
     if (_pendingTemplateId) localStorage.setItem('pending_templateId', _pendingTemplateId);
-    if (!token || !user) { window.location.href = '/v2/login/?redirect=' + encodeURIComponent(_loginRedirect); }
+    // Preserve UTM params through login redirect for viral attribution
+    var _createParams = new URLSearchParams(window.location.search);
+    var _utmParts = [];
+    ['utm_source', 'utm_medium', 'utm_campaign'].forEach(function(k) { var v = _createParams.get(k); if (v) _utmParts.push(k + '=' + encodeURIComponent(v)); });
+    var _loginUrl = '/v2/login/?redirect=' + encodeURIComponent(_loginRedirect) + (_utmParts.length ? '&' + _utmParts.join('&') : '');
+    if (!token || !user) { window.location.href = _loginUrl; }
     else {
       var pn = document.getElementById('profileName');
       var pe = document.getElementById('profileEmail');
@@ -1017,8 +1024,11 @@
                 title: ev.title || '', eventType: ev.eventType || 'other',
                 startDate: ev.eventDate || '', endDate: ev.endDate || '',
                 locationName: ev.locationName || '', locationAddress: ev.locationAddress || '',
-                dressCode: ev.dressCode || '', description: ev.description || '', prompt: ''
+                dressCode: ev.dressCode || '', description: ev.description || '',
+                prompt: (ev.settings && ev.settings.design_prompt) || ''
               };
+              // Store DB chat history for loadDesignChatHistory fallback
+              _dbDesignChatHistory = (ev.settings && ev.settings.design_chat_history) || null;
               if (ev.customFields && ev.customFields.length > 0) {
                 rsvpFields = ev.customFields
                   .filter(function(f) { return f.key !== 'email' && f.key !== 'phone'; })
@@ -1035,17 +1045,28 @@
                 renderVersionGallery();
                 sessionStorage.setItem('ryvite_theme_' + ev.id, JSON.stringify(themeVersions));
               }
-              // Restore design chat phase for "Start from Design" flow
-              var chatPhase = ev.settings && ev.settings.design_chat_phase;
-              if (chatPhase === 'collecting_details' || chatPhase === 'rsvp_fields') {
-                designChatPhase = chatPhase;
-                var welcomeMsg = chatPhase === 'collecting_details'
-                  ? "Welcome back! Let's continue personalizing your design.\n\nTell me about your event — what's the occasion, when and where is it, and who's hosting?"
-                  : "Welcome back! Let's finalize your RSVP fields.\n\nYou can say things like \"remove email\", \"add plus-one count\", or \"make dietary restrictions required\".\nWhen you're happy, just say \"looks good\"!";
-                designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
-                renderDesignChat();
-              } else {
-                initDesignChatIfNeeded(false);
+              // Only restore chat from background fetch if user hasn't already interacted
+              // (sessionStorage chat was already loaded via goToStep(2) → initDesignChatIfNeeded at line 1014)
+              if (designChatHistory.length <= 1) {
+                var chatPhase = ev.settings && ev.settings.design_chat_phase;
+                var dbChat = _dbDesignChatHistory;
+                if (chatPhase === 'collecting_details' || chatPhase === 'rsvp_fields') {
+                  designChatPhase = chatPhase;
+                  if (dbChat && dbChat.length > 0) {
+                    designChatHistory = dbChat;
+                  } else {
+                    var welcomeMsg = chatPhase === 'collecting_details'
+                      ? "Welcome back! Let's continue personalizing your design.\n\nTell me about your event — what's the occasion, when and where is it, and who's hosting?"
+                      : "Welcome back! Let's finalize your RSVP fields.\n\nYou can say things like \"remove email\", \"add plus-one count\", or \"make dietary restrictions required\".\nWhen you're happy, just say \"looks good\"!";
+                    designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
+                  }
+                  renderDesignChat();
+                } else if (dbChat && dbChat.length > 0 && designChatHistory.length === 0) {
+                  designChatHistory = dbChat;
+                  renderDesignChat();
+                } else if (designChatHistory.length === 0) {
+                  initDesignChatIfNeeded(false);
+                }
               }
             }
           }).catch(function(e) { console.warn('Background refresh failed:', e); });
@@ -1085,8 +1106,10 @@
               locationAddress: ev.locationAddress || '',
               dressCode: ev.dressCode || '',
               description: ev.description || '',
-              prompt: ''
+              prompt: (ev.settings && ev.settings.design_prompt) || ''
             };
+            // Store DB chat history for loadDesignChatHistory fallback
+            _dbDesignChatHistory = (ev.settings && ev.settings.design_chat_history) || null;
             // Restore RSVP fields (filter out email/phone since they are now built-in)
             if (ev.customFields && ev.customFields.length > 0) {
               rsvpFields = ev.customFields
@@ -1132,17 +1155,26 @@
               document.getElementById('generatedView').style.display = 'block';
               renderPreview(themeVersions[activeVersionIndex >= 0 ? activeVersionIndex : 0]);
               renderVersionGallery();
-              // Restore "Start from Design" collecting-details phase if applicable
+              // Restore design chat — prefer DB-saved history over generic welcome
+              var dbChat = _dbDesignChatHistory;
               var chatPhase = ev.settings && ev.settings.design_chat_phase;
               if (chatPhase === 'collecting_details' || chatPhase === 'rsvp_fields') {
                 designChatPhase = chatPhase;
-                var welcomeMsg = chatPhase === 'collecting_details'
-                  ? "Welcome back! Let's continue personalizing your design.\n\nTell me about your event — what's the occasion, when and where is it, and who's hosting?"
-                  : "Welcome back! Let's finalize your RSVP fields.\n\nYou can say things like \"remove email\", \"add plus-one count\", or \"make dietary restrictions required\".\nWhen you're happy, just say \"looks good\"!";
-                designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
+                if (dbChat && dbChat.length > 0) {
+                  designChatHistory = dbChat;
+                } else {
+                  var welcomeMsg = chatPhase === 'collecting_details'
+                    ? "Welcome back! Let's continue personalizing your design.\n\nTell me about your event — what's the occasion, when and where is it, and who's hosting?"
+                    : "Welcome back! Let's finalize your RSVP fields.\n\nYou can say things like \"remove email\", \"add plus-one count\", or \"make dietary restrictions required\".\nWhen you're happy, just say \"looks good\"!";
+                  designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
+                }
+                renderDesignChat();
+              } else if (dbChat && dbChat.length > 0) {
+                // Normal tweaking phase — restore full chat from DB
+                designChatHistory = dbChat;
                 renderDesignChat();
               } else {
-                // Set pending rating so it shows when design chat initializes
+                // No saved chat — show fresh welcome
                 var activeTheme2 = themeVersions[activeVersionIndex >= 0 ? activeVersionIndex : 0];
                 if (activeTheme2 && activeTheme2.id) pendingRatingThemeId = activeTheme2.id;
                 initDesignChatIfNeeded(false);
@@ -1920,7 +1952,7 @@
               locationAddress: extractedData.locationAddress || '',
               dressCode: extractedData.dressCode || '',
               eventType: extractedData.eventType || 'other',
-              settings: { creation_step: 1 }
+              settings: { creation_step: 1, design_prompt: extractedData.prompt || '' }
             })
           });
           var updateResult = await updateRes.json();
@@ -3987,6 +4019,33 @@
       renderPreview(ver);
     }
 
+    // Detect whether the current theme HTML contains user-uploaded photos
+    // Checks for: Supabase event-photos/ URLs, base64 data URIs, and general <img> tags
+    // that aren't SVGs (which are AI-generated illustrations)
+    function getExistingPhotoUrls(ver) {
+      if (!ver || !ver.html) return [];
+      var urls = [];
+      // Match Supabase storage URLs (event-photos bucket)
+      var supabaseMatches = ver.html.match(/src\s*=\s*["'](https:\/\/[^"']*event-photos\/[^"']+)["']/gi) || [];
+      supabaseMatches.forEach(function(m) {
+        var url = m.replace(/^src\s*=\s*["']|["']$/g, '');
+        if (urls.indexOf(url) === -1) urls.push(url);
+      });
+      // Match base64 data URI images (JPEG/PNG — not SVG)
+      var base64Matches = ver.html.match(/src\s*=\s*["'](data:image\/(?:jpeg|png|webp)[^"']+)["']/gi) || [];
+      base64Matches.forEach(function(m) {
+        var url = m.replace(/^src\s*=\s*["']|["']$/g, '');
+        if (urls.indexOf(url) === -1) urls.push(url);
+      });
+      // Match any <img> with .jpg/.jpeg/.png/.webp URLs (user photos from any source)
+      var jpgMatches = ver.html.match(/src\s*=\s*["'](https:\/\/[^"']+\.(?:jpg|jpeg|png|webp)[^"']*)["']/gi) || [];
+      jpgMatches.forEach(function(m) {
+        var url = m.replace(/^src\s*=\s*["']|["']$/g, '');
+        if (urls.indexOf(url) === -1) urls.push(url);
+      });
+      return urls;
+    }
+
     // Build guaranteed thank you page structure
     // AI provides: .thankyou-page background/decorative styling, .thankyou-hero heading + subtitle, and CSS
     // We guarantee: calendar buttons, footer, layout structure
@@ -4023,7 +4082,21 @@
         + '.cal-apple { background:' + pc + '; color:#fff; }'
         + '.cal-google { background:' + sc + '; color:#fff; }'
         + '.cal-outlook { background:' + ac + '; color:#fff; }'
-        + '.thankyou-footer { font-size:15px; opacity:0.6; margin-top:40px; text-align:center; }'
+        // Event detail recap
+        + '.thankyou-event-recap { width:100%; max-width:320px; margin:28px 0 0; padding:20px; border-radius:12px; background:rgba(0,0,0,0.04); text-align:left; }'
+        + '.thankyou-event-recap .recap-item { display:flex; gap:10px; margin-bottom:12px; align-items:flex-start; }'
+        + '.thankyou-event-recap .recap-item:last-child { margin-bottom:0; }'
+        + '.thankyou-event-recap .recap-icon { font-size:18px; flex-shrink:0; margin-top:1px; }'
+        + '.thankyou-event-recap .recap-label { font-size:11px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.5; margin-bottom:2px; }'
+        + '.thankyou-event-recap .recap-value { font-size:14px; line-height:1.4; }'
+        // CTA section
+        + '.thankyou-cta-section { width:100%; max-width:320px; margin-top:36px; padding-top:28px; border-top:1px solid rgba(0,0,0,0.08); text-align:center; }'
+        + '.thankyou-cta-section .ryvite-logo { width:80px; height:32px; margin-bottom:12px; }'
+        + '.thankyou-cta-text { font-size:14px; line-height:1.5; opacity:0.7; margin-bottom:16px; }'
+        + '.thankyou-cta-btn { display:inline-block; padding:12px 28px; border-radius:10px; background:' + pc + '; color:#fff; font-family:inherit; font-size:14px; font-weight:600; text-decoration:none; transition:transform 0.15s,box-shadow 0.15s; border:none; cursor:pointer; }'
+        + '.thankyou-cta-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.15); }'
+        // Footer
+        + '.thankyou-footer { font-size:13px; opacity:0.4; margin-top:32px; text-align:center; font-style:italic; }'
         + '.thankyou-footer a { color:inherit; text-decoration:none; }';
 
       // Guaranteed calendar + footer HTML — never left to the AI
@@ -4034,7 +4107,38 @@
         + '<button class="cal-btn cal-google" data-cal="google">Google Calendar</button>'
         + '<button class="cal-btn cal-outlook" data-cal="outlook">Outlook Web</button>'
         + '</div></div>';
-      var guaranteedFooterHTML = '<p class="thankyou-footer">Made with &#10084; by <a href="https://www.ryvite.com">Ryvite</a></p>';
+      // Build event detail recap from extractedData
+      var recapItems = [];
+      var _recapDate = extractedData && (extractedData.startDate || extractedData.eventDate);
+      if (_recapDate) {
+        var _sd = new Date(_recapDate);
+        var _dateFormatted = _sd.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        var _timeStr = _sd.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        var _endDate = extractedData.endDate;
+        if (_endDate) { _timeStr += ' – ' + new Date(_endDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
+        recapItems.push('<div class="recap-item"><div class="recap-icon">&#128197;</div><div><div class="recap-label">Date &amp; Time</div><div class="recap-value">' + _dateFormatted + '<br>' + _timeStr + '</div></div></div>');
+      }
+      var _locName = extractedData && (extractedData.locationName || '');
+      var _locAddr = extractedData && (extractedData.locationAddress || '');
+      if (_locName || _locAddr) {
+        recapItems.push('<div class="recap-item"><div class="recap-icon">&#128205;</div><div><div class="recap-label">Location</div><div class="recap-value">' + [_locName, _locAddr].filter(Boolean).join('<br>') + '</div></div></div>');
+      }
+      var guaranteedEventRecapHTML = recapItems.length > 0 ? '<div class="thankyou-event-recap">' + recapItems.join('') + '</div>' : '';
+
+      // Ryvite logo SVG (from brand guidelines)
+      var ryviteLogoSvg = '<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" class="ryvite-logo">'
+        + '<circle cx="30" cy="40" r="20" fill="none" stroke="#E94560" stroke-width="2"/>'
+        + '<path d="M15 30 L30 42 L45 30 M15 50 L45 50" fill="none" stroke="#E94560" stroke-width="2" stroke-linecap="round"/>'
+        + '<text x="65" y="50" font-family="Playfair Display, serif" font-size="32" font-weight="600" fill="' + textColor + '">Ryvite</text>'
+        + '</svg>';
+
+      var guaranteedCtaHTML = '<div class="thankyou-cta-section">'
+        + ryviteLogoSvg
+        + '<p class="thankyou-cta-text">Love this invite? Make one for your next event — your first one\'s free.</p>'
+        + '<a class="thankyou-cta-btn" href="https://www.ryvite.com/v2/create?utm_source=invite&utm_medium=rsvp_confirm&utm_campaign=viral" target="_blank" rel="noopener">Create Your Invite</a>'
+        + '</div>';
+
+      var guaranteedFooterHTML = '<p class="thankyou-footer">Create yours free at <a href="https://www.ryvite.com/?utm_source=invite&utm_medium=footer&utm_campaign=viral" target="_blank" rel="noopener">Ryvite.com</a></p>';
 
       // Calendar button click handling is wired via iframe.onload in renderPreview
       // (see injectCalendarHandlers) — no script injection in srcdoc.
@@ -4076,12 +4180,14 @@
         tyHtml = tyHtml.replace(/<span class="thankyou-guest">[^<]*<\/span>/g, '<span class="thankyou-guest">' + escapeHtml(guestName) + '</span>');
         tyHtml = tyHtml.replace(/<span class="thankyou-event">[^<]*<\/span>/g, '<span class="thankyou-event">' + escapeHtml(title) + '</span>');
 
-        // Strip out AI-generated calendar section and footer — we inject our own
+        // Strip out AI-generated calendar section, footer, CTA, and recap — we inject our own
         tyHtml = tyHtml.replace(/<div class="thankyou-calendar-section">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/g, '');
         tyHtml = tyHtml.replace(/<div class="calendar-buttons">[\s\S]*?<\/div>/g, '');
         tyHtml = tyHtml.replace(/<button[^>]*class="cal-btn[^>]*>[\s\S]*?<\/button>/g, '');
         tyHtml = tyHtml.replace(/<p[^>]*class="calendar-label"[^>]*>[\s\S]*?<\/p>/g, '');
         tyHtml = tyHtml.replace(/<p[^>]*class="thankyou-footer"[^>]*>[\s\S]*?<\/p>/g, '');
+        tyHtml = tyHtml.replace(/<div[^>]*class="[^"]*thankyou-cta-section[^"]*"[^>]*>[\s\S]*?<\/div>/g, '');
+        tyHtml = tyHtml.replace(/<div[^>]*class="[^"]*thankyou-event-recap[^"]*"[^>]*>[\s\S]*?<\/div>/g, '');
         // Also catch any footer the AI invented with different text
         tyHtml = tyHtml.replace(/<p[^>]*>[\s\S]*?Made with[\s\S]*?<\/p>/g, '');
 
@@ -4089,14 +4195,15 @@
         if (tyHtml.indexOf('</div>') !== -1) {
           // Find the last </div> (closing .thankyou-page) and inject before it
           var lastDivIdx = tyHtml.lastIndexOf('</div>');
-          tyHtml = tyHtml.substring(0, lastDivIdx) + guaranteedCalendarHTML + guaranteedFooterHTML + '</div>';
+          tyHtml = tyHtml.substring(0, lastDivIdx) + guaranteedCalendarHTML + guaranteedEventRecapHTML + guaranteedCtaHTML + guaranteedFooterHTML + '</div>';
         } else {
-          tyHtml += guaranteedCalendarHTML + guaranteedFooterHTML;
+          tyHtml += guaranteedCalendarHTML + guaranteedEventRecapHTML + guaranteedCtaHTML + guaranteedFooterHTML;
         }
 
         var fontsStyle2 = fontsImport ? '<style>' + fontsImport + '</style>' : '';
         return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
           + fontsStyle2
+          + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet">'
           + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; }</style>'
           + '<style>' + guaranteedCSS + '</style>'
           + '<style>' + sanitizeThemeText(ver.css || '') + '</style>'
@@ -4123,12 +4230,15 @@
         + '<p class="thankyou-subtitle">Thanks for RSVPing, <span class="thankyou-guest">' + escapeHtml(guestName) + '</span>! We can\'t wait to see you at <span class="thankyou-event">' + escapeHtml(title) + '</span>.</p>'
         + '</div>'
         + guaranteedCalendarHTML
+        + guaranteedEventRecapHTML
+        + guaranteedCtaHTML
         + guaranteedFooterHTML
         + '</div>';
 
       var fontsStyle3 = fontsImport ? '<style>' + fontsImport + '</style>' : '';
       return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
         + fontsStyle3
+        + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet">'
         + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; background:' + bgColor + '; }</style>'
         + '<style>' + guaranteedCSS + '</style>'
         + '<style>' + sanitizeThemeText(ver.css || '').replace(/<\/style/gi, '<\\/style') + '</style>'
@@ -4663,15 +4773,35 @@
       try {
         // Save only persistent messages (skip system/loading messages)
         var persistable = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+        // SessionStorage — instant, for same-tab reload
         sessionStorage.setItem('ryvite_designchat_' + currentEvent.id, JSON.stringify(persistable));
+        // DB save — debounced 2s, for cross-session persistence (survives browser close)
+        clearTimeout(_chatSaveTimer);
+        _chatSaveTimer = setTimeout(function() {
+          // Cap at last 50 messages to keep JSONB size reasonable
+          var toSave = persistable.slice(-50);
+          authFetch('/api/v2/events?action=update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventId: currentEvent.id,
+              settings: { design_chat_history: toSave }
+            })
+          }).catch(function() {});
+        }, 2000);
       } catch(e) {}
     }
 
     function loadDesignChatHistory(eventId) {
+      // Try sessionStorage first (fast, same-tab)
       try {
         var raw = sessionStorage.getItem('ryvite_designchat_' + eventId);
         if (raw) return JSON.parse(raw);
       } catch(e) {}
+      // Fall back to DB-loaded chat (set during event fetch)
+      if (_dbDesignChatHistory && _dbDesignChatHistory.length > 0) {
+        return _dbDesignChatHistory;
+      }
       return null;
     }
 
@@ -4875,6 +5005,19 @@
         }
       }
       event.target.value = '';
+      // Show creative photo usage suggestions after successful upload
+      if (designChatPhotoUrls.length > 0) {
+        var photoCount = designChatPhotoUrls.length;
+        var suggestion = (photoCount === 1 ? 'Nice photo!' : 'Nice photos!') + ' Here are some fun ideas \u2014 just describe what you\'d like:\n\n'
+          + '\ud83d\ude81 Animated \u2014 faces flying from helicopters, popping out of presents, orbiting the title\n'
+          + '\ud83d\uddbc\ufe0f Themed frames \u2014 birthday balloons, wedding flowers, patriotic borders\n'
+          + '\ud83c\udfad Collage \u2014 scattered polaroids with fun tilts and washi tape\n'
+          + '\ud83c\udf1f Cutout \u2014 face cutouts placed onto illustrated characters or scenes\n'
+          + '\u2728 Interactive \u2014 photos that spin, bounce, or wave with CSS animation\n\n'
+          + 'Or just send your message and I\'ll find a creative way to feature ' + (photoCount === 1 ? 'your photo' : 'your photos') + '!';
+        pushDesignChat({ role: 'assistant', content: suggestion });
+        renderDesignChat();
+      }
     }
 
     function removeDesignChatPhoto(btn, idx) {
@@ -5177,16 +5320,23 @@
       }
 
       // Detect if user mentions wanting a photo but didn't attach one
+      // Skip this check if: (a) current design already has user-uploaded photos,
+      // or (b) user is referencing an existing photo ("the photo", "my photo", etc.)
       if (text && !hasPhotos) {
-        var photoKeywords = /\b(photo|picture|image|pic|selfie|headshot|portrait|snapshot|upload.*(photo|image|pic)|include.*(photo|image|pic)|(add|use|put|include|attach|insert).*(photo|picture|image|pic))\b/i;
-        if (photoKeywords.test(text)) {
-          pushDesignChat({ role: 'user', content: text });
-          pushDesignChat({ role: 'assistant', content: "It looks like you want to include a photo, but I don't see one attached! Tap the photo icon (bottom left) to upload your image(s), then send your message again. You can upload up to 6 photos!" });
-          renderDesignChat();
-          input.value = '';
-          input.style.height = 'auto';
-          if (window.innerWidth <= 900) input.focus();
-          return;
+        // If user says "the photo/image/pic" or "my photo" they're referring to one already in the design
+        var referringToExisting = /\b(the|my|this|that|its|current)\s+(photo|picture|image|pic)\b/i.test(text);
+        var existingPhotosInDesign = referringToExisting ? [true] : getExistingPhotoUrls(themeVersions[activeVersionIndex]);
+        if (existingPhotosInDesign.length === 0) {
+          var photoKeywords = /\b(photo|picture|image|pic|selfie|headshot|portrait|snapshot|upload.*(photo|image|pic)|include.*(photo|image|pic)|(add|use|put|include|attach|insert).*(photo|picture|image|pic))\b/i;
+          if (photoKeywords.test(text)) {
+            pushDesignChat({ role: 'user', content: text });
+            pushDesignChat({ role: 'assistant', content: "It looks like you want to include a photo, but I don't see one attached! Tap the photo icon (bottom left) to upload your image(s), then send your message again. You can upload up to 6 photos!" });
+            renderDesignChat();
+            input.value = '';
+            input.style.height = 'auto';
+            if (window.innerWidth <= 900) input.focus();
+            return;
+          }
         }
       }
 
@@ -5367,7 +5517,7 @@
         console.log('[tweak] INSTANT field change:', rsvpFieldResult.action);
         applyRsvpFieldChanges(rsvpFieldResult.changes);
         renderPreview(themeVersions[activeVersionIndex]);
-        pushDesignChat({ role: 'assistant', content: rsvpFieldResult.chatResponse + '\n\nWant to make any more changes?' });
+        pushDesignChat({ role: 'assistant', content: rsvpFieldResult.chatResponse + '\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
         clearDesignChatPhoto();
         sendBtn.disabled = false;
         renderDesignChat();
@@ -5415,7 +5565,7 @@
               renderPreview(themeVersions[activeVersionIndex]);
               if (addedLabels.length > 0) {
                 var fieldListStr = addedLabels.map(function(l) { return '"' + l + '"'; }).join(' and ');
-                pushDesignChat({ role: 'assistant', content: 'Done! ' + syncNote + 'Added ' + fieldListStr + ' to your RSVP form.\n\nWant to make any more changes?' });
+                pushDesignChat({ role: 'assistant', content: 'Done! ' + syncNote + 'Added ' + fieldListStr + ' to your RSVP form.\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
               } else {
                 pushDesignChat({ role: 'assistant', content: syncNote + 'Those fields already exist in your RSVP form!\n\nWant to make any other changes?' });
               }
@@ -5460,7 +5610,7 @@
             ver.config.emailHtml = ver.config.emailHtml.substring(0, idx) + textSwap.newText + ver.config.emailHtml.substring(idx + originalSubstr.length);
             themeVersions[activeVersionIndex] = ver;
             renderPreview(ver);
-            pushDesignChat({ role: 'assistant', content: 'Done! Changed "' + originalSubstr + '" to "' + textSwap.newText + '" in the email.\n\nWant to make any more changes?' });
+            pushDesignChat({ role: 'assistant', content: 'Done! Changed "' + originalSubstr + '" to "' + textSwap.newText + '" in the email.\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
             clearDesignChatPhoto();
             sendBtn.disabled = false;
             renderDesignChat();
@@ -5477,7 +5627,7 @@
             ver.html = ver.html.substring(0, idx) + textSwap.newText + ver.html.substring(idx + originalSubstr.length);
             themeVersions[activeVersionIndex] = ver;
             renderPreview(ver);
-            pushDesignChat({ role: 'assistant', content: 'Done! Changed "' + originalSubstr + '" to "' + textSwap.newText + '".\n\nWant to make any more changes?' });
+            pushDesignChat({ role: 'assistant', content: 'Done! Changed "' + originalSubstr + '" to "' + textSwap.newText + '".\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
             clearDesignChatPhoto();
             sendBtn.disabled = false;
             renderDesignChat();
@@ -5522,7 +5672,7 @@
               if (!exists) {
                 applyRsvpFieldChanges([{ action: 'add', field_key: fieldKey, label: fd.label, field_type: fd.field_type || 'text', is_required: fd.is_required || false, placeholder: fd.placeholder || null }]);
                 renderPreview(themeVersions[activeVersionIndex]);
-                pushDesignChat({ role: 'assistant', content: 'Done! Added a "' + fd.label + '" field to your RSVP form.\n\nWant to make any more changes?' });
+                pushDesignChat({ role: 'assistant', content: 'Done! Added a "' + fd.label + '" field to your RSVP form.\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
               } else {
                 pushDesignChat({ role: 'assistant', content: 'That field already exists in your RSVP form!\n\nWant to make any other changes?' });
               }
@@ -5680,6 +5830,8 @@
           instructions += '\n\nThe user has uploaded ' + designChatPhotoUrls.length + ' photo(s). Embed them in the design.';
         }
         var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+        var existingPhotoUrls = getExistingPhotoUrls(ver);
+        var tweakPhotoUrls = hasPhotos ? designChatPhotoUrls : (existingPhotoUrls.length > 0 ? existingPhotoUrls : undefined);
         var payload = {
           action: 'tweak',
           eventId: currentEvent.id,
@@ -5689,8 +5841,9 @@
           currentCss: ver.css,
           currentConfig: ver.config,
           currentEmailHtml: currentPreviewMode === 'email' ? buildEmailSrcdoc(ver) : undefined,
-          photoUrls: hasPhotos ? designChatPhotoUrls : undefined,
-          photoUrl: hasPhotos ? designChatPhotoUrls[0] : undefined,
+          photoUrls: tweakPhotoUrls,
+          photoUrl: tweakPhotoUrls ? tweakPhotoUrls[0] : undefined,
+          existingPhotos: !hasPhotos && existingPhotoUrls.length > 0,
           eventDetails: {
             title: extractedData.title || '',
             eventDate: extractedData.startDate || '',
@@ -5806,7 +5959,7 @@
             renderVersionGallery();
             // Update sessionStorage cache
             try { if (currentEvent) sessionStorage.setItem('ryvite_theme_' + currentEvent.id, JSON.stringify(themeVersions)); } catch(e) {}
-            var chatMsg = (tweakResult.chatResponse || tweakResult.chat_response || 'Done! I\'ve updated the design. Take a look at the preview.') + '\n\nWant to make any more changes?';
+            var chatMsg = (tweakResult.chatResponse || tweakResult.chat_response || 'Done! I\'ve updated the design. Take a look at the preview.') + '\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.';
             // Track tweak cost — show estimate immediately, then refresh from DB
             if (tweakResult.metadata) updateCostFromGeneration(tweakResult.metadata);
             setTimeout(function() { initCostTracker(); }, 6000);
