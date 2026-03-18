@@ -391,6 +391,25 @@
     .notify-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .notify-success { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: #d4edda; border-radius: 8px; font-size: 13px; font-weight: 500; color: #155724; margin-top: 12px; }
 
+    /* Co-Hosts tab */
+    .cohost-invite-form { background: #f8f6ff; border-radius: 12px; padding: 16px; }
+    .cohost-email-input { flex: 1; min-width: 180px; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; color: var(--midnight); min-height: 44px; }
+    .cohost-email-input:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+    .cohost-role-select { padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--midnight); background: white; min-height: 44px; cursor: pointer; appearance: auto; }
+    .cohost-role-select:focus { outline: none; border-color: var(--party-coral); }
+    .cohost-invite-btn { padding: 10px 20px; border: none; border-radius: 8px; background: var(--party-coral); color: white; font-size: 14px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; white-space: nowrap; min-height: 44px; transition: all 0.15s; }
+    .cohost-invite-btn:hover:not(:disabled) { background: var(--blush-pop); transform: translateY(-1px); }
+    .cohost-invite-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .cohost-list { list-style: none; padding: 0; margin: 0; }
+    .cohost-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+    .cohost-item:last-child { border-bottom: none; }
+    .cohost-item-info { flex: 1; min-width: 0; }
+    .cohost-item-name { font-size: 14px; font-weight: 600; color: var(--midnight); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .cohost-item-detail { font-size: 12px; color: #888; margin-top: 2px; }
+    .cohost-remove-btn { width: 32px; height: 32px; border: 1px solid #eee; border-radius: 8px; background: white; font-size: 18px; color: #ccc; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+    .cohost-remove-btn:hover { border-color: var(--party-coral); color: var(--party-coral); background: rgba(233,69,96,0.04); }
+    .cohost-pending-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: #fff3cd; color: #856404; }
+
     /* Contacts summary card */
     .contacts-card { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; }
     .contacts-card-left { display: flex; align-items: center; gap: 16px; }
@@ -625,6 +644,7 @@
         <button class="manage-tab" onclick="switchTab('messages')">Messages</button>
         <button class="manage-tab" onclick="switchTab('reminders')">Reminders</button>
         <button class="manage-tab" onclick="switchTab('notifications')">Alerts</button>
+        <button class="manage-tab" onclick="switchTab('cohosts')">Co-Hosts</button>
       </div>
       <div class="manage-tab-content" id="manageContent">
         <div class="loading">Loading...</div>
@@ -782,7 +802,7 @@
           + buildRsvpMiniStats(event.rsvpCounts)
           + '<div class="event-actions">'
           + '<a href="/v2/event/' + encodeURIComponent(event.slug) + '" target="_blank">View</a>'
-          + '<button onclick="openManageModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\', null, \'' + (event.paymentStatus || '') + '\')">Manage</button>'
+          + '<button onclick="openManageModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\', null, \'' + (event.paymentStatus || '') + '\', false)">Manage</button>'
           + '</div></div></div>';
       }).join('');
 
@@ -961,6 +981,7 @@
     var manageRsvps = null;
     var managePaymentStatus = null;
     var manageCurrentTab = 'guests';
+    var manageIsOwner = true;
     var manageMsgType = 'invite';
     var manageHistoryOpen = false;
     var manageReminderFormOpen = false;
@@ -968,9 +989,10 @@
     // ============================================================
     // Manage Modal — Lifecycle
     // ============================================================
-    async function openManageModal(eventId, title, eventDate, slug, initialTab, paymentStatus) {
+    async function openManageModal(eventId, title, eventDate, slug, initialTab, paymentStatus, isOwner) {
       manageEventId = eventId;
       managePaymentStatus = paymentStatus || null;
+      manageIsOwner = isOwner !== false;
       manageTitle = decodeURIComponent(title || '');
       manageDate = eventDate || '';
       manageSlug = decodeURIComponent(slug || '');
@@ -996,17 +1018,19 @@
       manageCurrentTab = tabName;
       var tabs = document.querySelectorAll('.manage-tab');
       tabs.forEach(function(t) {
-        t.classList.toggle('active', t.textContent.toLowerCase().replace(/\s/g,'') === tabName ||
+        t.classList.toggle('active', t.textContent.toLowerCase().replace(/[\s-]/g,'') === tabName ||
           (tabName === 'guests' && t.textContent === 'Guests') ||
           (tabName === 'messages' && t.textContent === 'Messages') ||
           (tabName === 'reminders' && t.textContent === 'Reminders') ||
-          (tabName === 'notifications' && t.textContent === 'Alerts'));
+          (tabName === 'notifications' && t.textContent === 'Alerts') ||
+          (tabName === 'cohosts' && t.textContent === 'Co-Hosts'));
       });
 
       if (tabName === 'guests') loadGuestsTab();
       else if (tabName === 'messages') loadMessagesTab();
       else if (tabName === 'reminders') loadRemindersTab();
       else if (tabName === 'notifications') loadNotificationsTab();
+      else if (tabName === 'cohosts') loadCohostsTab();
     }
 
     // ============================================================
@@ -1786,6 +1810,176 @@
         saveBtn.textContent = 'Save Preferences';
         saveBtn.disabled = false;
       }
+    }
+
+    // ============================================================
+    // Co-Hosts Tab
+    // ============================================================
+    var manageCohosts = null;
+    var managePendingInvites = null;
+
+    async function loadCohostsTab() {
+      var content = document.getElementById('manageContent');
+      content.innerHTML = '<div class="loading" style="padding:30px;">Loading co-hosts...</div>';
+      try {
+        var res = await authFetch('/api/v2/cohost?action=list&eventId=' + encodeURIComponent(manageEventId));
+        var result = await res.json();
+        if (result.success) {
+          manageCohosts = result.cohosts || [];
+          managePendingInvites = result.pendingInvitations || [];
+          renderCohostsTab();
+        } else {
+          content.innerHTML = '<div class="rsvp-empty">Error loading co-hosts</div>';
+        }
+      } catch (err) {
+        content.innerHTML = '<div class="rsvp-empty">Error loading co-hosts</div>';
+      }
+    }
+
+    function renderCohostsTab() {
+      var content = document.getElementById('manageContent');
+      var cohosts = manageCohosts || [];
+      var pending = managePendingInvites || [];
+      var html = '';
+
+      // Invite form (owners only)
+      if (manageIsOwner) {
+        html += '<div class="cohost-invite-form">'
+          + '<div style="font-size:14px;font-weight:600;color:var(--midnight);margin-bottom:10px;">Invite a co-host</div>'
+          + '<div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">'
+          + '<input type="email" id="cohostEmail" class="cohost-email-input" placeholder="Email address" autocomplete="email">'
+          + '<select id="cohostRole" class="cohost-role-select">'
+          + '<option value="editor">Co-Host</option>'
+          + '<option value="viewer">Viewer</option>'
+          + '</select>'
+          + '<button class="cohost-invite-btn" onclick="inviteCohost()">Send Invite</button>'
+          + '</div>'
+          + '<div style="font-size:12px;color:#999;margin-top:6px;">Co-Hosts can manage guests and send messages. Viewers can only see RSVPs.</div>'
+          + '</div>';
+      }
+
+      // Active co-hosts
+      if (cohosts.length > 0) {
+        html += '<div style="font-size:13px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:0.03em;margin-bottom:10px;margin-top:' + (manageIsOwner ? '20px' : '0') + ';">Active Co-Hosts</div>';
+        html += '<ul class="cohost-list">';
+        cohosts.forEach(function(c) {
+          var roleBadge = c.role === 'editor'
+            ? '<span class="collab-badge collab-editor">Co-Host</span>'
+            : '<span class="collab-badge collab-viewer">Viewer</span>';
+          var acceptedDate = c.acceptedAt ? new Date(c.acceptedAt).toLocaleDateString() : '';
+          var removeBtn = manageIsOwner && c.role !== 'owner'
+            ? '<button class="cohost-remove-btn" onclick="removeCohost(\'' + c.id + '\', null)" title="Remove">&times;</button>'
+            : '';
+          html += '<li class="cohost-item">'
+            + '<div class="cohost-item-info">'
+            + '<div class="cohost-item-name">' + escapeHtml(c.name || c.email || 'Unknown') + ' ' + roleBadge + '</div>'
+            + '<div class="cohost-item-detail">' + escapeHtml(c.email || '') + (acceptedDate ? ' &middot; Joined ' + acceptedDate : '') + '</div>'
+            + '</div>'
+            + removeBtn
+            + '</li>';
+        });
+        html += '</ul>';
+      }
+
+      // Pending invitations
+      if (pending.length > 0) {
+        html += '<div style="font-size:13px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:0.03em;margin-bottom:10px;margin-top:20px;">Pending Invitations</div>';
+        html += '<ul class="cohost-list">';
+        pending.forEach(function(p) {
+          var roleBadge = p.role === 'editor'
+            ? '<span class="collab-badge collab-editor">Co-Host</span>'
+            : '<span class="collab-badge collab-viewer">Viewer</span>';
+          var expiresAt = p.expiresAt ? new Date(p.expiresAt) : null;
+          var now = new Date();
+          var expired = expiresAt && expiresAt < now;
+          var expiresLabel = '';
+          if (expired) {
+            expiresLabel = '<span style="color:var(--party-coral);font-weight:600;">Expired</span>';
+          } else if (expiresAt) {
+            var daysLeft = Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24));
+            expiresLabel = 'Expires in ' + daysLeft + 'd';
+          }
+          var cancelBtn = manageIsOwner
+            ? '<button class="cohost-remove-btn" onclick="removeCohost(null, \'' + p.id + '\')" title="Cancel invitation">&times;</button>'
+            : '';
+          html += '<li class="cohost-item">'
+            + '<div class="cohost-item-info">'
+            + '<div class="cohost-item-name">' + escapeHtml(p.email) + ' ' + roleBadge + ' <span class="cohost-pending-badge">Pending</span></div>'
+            + '<div class="cohost-item-detail">Invited ' + new Date(p.createdAt).toLocaleDateString() + (expiresLabel ? ' &middot; ' + expiresLabel : '') + '</div>'
+            + '</div>'
+            + cancelBtn
+            + '</li>';
+        });
+        html += '</ul>';
+      }
+
+      // Empty state
+      if (cohosts.length === 0 && pending.length === 0) {
+        html += '<div class="rsvp-empty" style="margin-top:' + (manageIsOwner ? '20px' : '0') + ';">No co-hosts yet.' + (manageIsOwner ? ' Invite someone to help manage this event!' : '') + '</div>';
+      }
+
+      content.innerHTML = html;
+    }
+
+    async function inviteCohost() {
+      var emailInput = document.getElementById('cohostEmail');
+      var roleSelect = document.getElementById('cohostRole');
+      var email = emailInput.value.trim();
+      var role = roleSelect.value;
+
+      if (!email) { showToast('Enter an email address'); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Enter a valid email address'); return; }
+
+      var btn = document.querySelector('.cohost-invite-btn');
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+
+      try {
+        var res = await authFetch('/api/v2/cohost?action=invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: manageEventId, email: email, role: role })
+        });
+        var result = await res.json();
+        if (result.success) {
+          showToast('Invitation sent to ' + email);
+          emailInput.value = '';
+          loadCohostsTab();
+        } else {
+          showToast(result.error || 'Failed to send invitation');
+          btn.disabled = false;
+          btn.textContent = 'Send Invite';
+        }
+      } catch (err) {
+        showToast('Error sending invitation');
+        btn.disabled = false;
+        btn.textContent = 'Send Invite';
+      }
+    }
+
+    function removeCohost(collaboratorId, invitationId) {
+      var label = invitationId ? 'cancel this invitation' : 'remove this co-host';
+      showConfirm('Remove', 'Are you sure you want to ' + label + '?', 'var(--party-coral)', async function() {
+        try {
+          var body = { eventId: manageEventId };
+          if (collaboratorId) body.collaboratorId = collaboratorId;
+          if (invitationId) body.invitationId = invitationId;
+          var res = await authFetch('/api/v2/cohost?action=remove', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          var result = await res.json();
+          if (result.success) {
+            showToast(invitationId ? 'Invitation cancelled' : 'Co-host removed');
+            loadCohostsTab();
+          } else {
+            showToast(result.error || 'Failed to remove');
+          }
+        } catch (err) {
+          showToast('Error removing co-host');
+        }
+      });
     }
 
     function showConfirm(title, msg, color, onConfirm) {

@@ -168,18 +168,40 @@ export default async function handler(req, res) {
       const validRole = (role === 'editor' || role === 'viewer') ? role : 'editor';
 
       // Create or update invitation
-      const { data: invite, error } = await supabaseAdmin
+      const { data: existingInvite } = await supabaseAdmin
         .from('cohost_invitations')
-        .upsert({
-          event_id: eventId,
-          email: email.toLowerCase(),
-          role: validRole,
-          invited_by: user.id,
-          status: 'pending',
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-        }, { onConflict: 'event_id,email' })
-        .select()
+        .select('id')
+        .eq('event_id', eventId)
+        .ilike('email', email)
         .single();
+
+      let invite, error;
+      if (existingInvite) {
+        ({ data: invite, error } = await supabaseAdmin
+          .from('cohost_invitations')
+          .update({
+            role: validRole,
+            invited_by: user.id,
+            status: 'pending',
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+          })
+          .eq('id', existingInvite.id)
+          .select()
+          .single());
+      } else {
+        ({ data: invite, error } = await supabaseAdmin
+          .from('cohost_invitations')
+          .insert({
+            event_id: eventId,
+            email: email.toLowerCase(),
+            role: validRole,
+            invited_by: user.id,
+            status: 'pending',
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+          })
+          .select()
+          .single());
+      }
 
       if (error) return res.status(400).json({ success: false, error: error.message });
 
