@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import Anthropic from '@anthropic-ai/sdk';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -204,6 +205,43 @@ export default async function handler(req, res) {
     if (error) return res.status(500).json({ success: false, error: error.message });
 
     return res.status(200).json({ success: true });
+  }
+
+  // ── GENERATE AI PROMPT TEXT for ad video typing animation ──
+  if (action === 'generatePrompt' && req.method === 'POST') {
+    const { html, eventTitle, eventType, config } = req.body || {};
+
+    // Extract text content from HTML to understand the invite
+    const textContent = (html || '').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500);
+
+    const etLabel = eventType || 'event';
+    const mood = config?.mood || '';
+    const colors = [config?.primaryColor, config?.secondaryColor].filter(Boolean).join(', ');
+
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    try {
+      const msg = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 100,
+        messages: [{
+          role: 'user',
+          content: `You write ultra-concise ad copy for Ryvite, an AI invitation platform. Generate a short, punchy prompt text (10-20 words max) that would look great as a "typing animation" in a Facebook/Instagram ad video showcasing this invite design.
+
+The text should feel like a real user typing a request to create this invite — casual, specific, and exciting. NOT generic. Reference the actual event details.
+
+Event: ${eventTitle || 'Unknown'}
+Type: ${etLabel}
+Mood: ${mood}
+Invite text: ${textContent.slice(0, 300)}
+
+Reply with ONLY the prompt text, nothing else. No quotes.`
+        }]
+      });
+      const promptText = msg.content[0]?.text?.trim() || '';
+      return res.status(200).json({ success: true, promptText });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: 'AI generation failed: ' + err.message });
+    }
   }
 
   return res.status(400).json({ success: false, error: 'Unknown action: ' + action });

@@ -6428,7 +6428,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         // Generate Ad section
         html += '<div class="detail-section"><h4>Facebook Ad</h4>'
           + '<p style="font-size:12px;color:#888;margin-bottom:8px;">Generate a video ad from this invite for Facebook/Instagram.</p>'
-          + '<button class="btn btn-primary btn-sm" style="background:#E94560;" onclick="openAdVideoModal({html:userGenMap[\'' + item.id + '\'].html,css:userGenMap[\'' + item.id + '\'].css,config:userGenMap[\'' + item.id + '\'].config,promptText:userGenMap[\'' + item.id + '\'].prompt||\'Create a beautiful invitation\',eventType:\'' + escapeHtml(item.eventType || '') + '\',sourceType:\'user_theme\',sourceId:\'' + item.id + '\'})">Generate Ad Video</button>'
+          + '<button class="btn btn-primary btn-sm" style="background:#E94560;" onclick="openAdVideoModal({html:userGenMap[\'' + item.id + '\'].html,css:userGenMap[\'' + item.id + '\'].css,config:userGenMap[\'' + item.id + '\'].config,promptText:userGenMap[\'' + item.id + '\'].prompt||\'Create a beautiful invitation\',eventTitle:\'' + escapeHtml((item.eventTitle || '').replace(/'/g, "\\'")) + '\',eventType:\'' + escapeHtml(item.eventType || '') + '\',sourceType:\'user_theme\',sourceId:\'' + item.id + '\'})">Generate Ad Video</button>'
           + '</div>';
 
         // Event info
@@ -7958,7 +7958,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     // ── Open video generation modal from any invite ──
     function openAdVideoModal(data) {
-      // data: { html, css, config, promptText, eventType, sourceType, sourceId }
+      // data: { html, css, config, promptText, eventTitle, eventType, sourceType, sourceId }
       _adVideoData = data;
       _adVideoBlobs = {};
       _adCreativeResult = null;
@@ -7967,11 +7967,27 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('adVideoConfig').style.display = '';
       document.getElementById('adVideoProgress').style.display = 'none';
       document.getElementById('adVideoResult').style.display = 'none';
-      document.getElementById('adVideoPromptText').value = data.promptText || '';
       document.getElementById('adVideoCampaignLabel').value = '';
       document.getElementById('adFmtReels').checked = true;
       document.getElementById('adFmtFeed').checked = true;
       selectAdTheme('dark_gradient');
+
+      // Build a better default prompt from available context
+      var prompt = data.promptText || '';
+      if (!prompt || prompt === 'Create a beautiful invitation') {
+        var parts = [];
+        if (data.eventTitle) parts.push(data.eventTitle);
+        var etObj = ALL_EVENT_TYPES.find(function(x) { return x.value === data.eventType; });
+        if (etObj) parts.push(etObj.label + ' invite');
+        var mood = data.config && data.config.mood;
+        if (mood) parts.push(mood + ' design');
+        prompt = parts.length > 0 ? parts.join(' — ') : 'Create a beautiful invitation';
+      }
+      document.getElementById('adVideoPromptText').value = prompt;
+
+      // Reset AI prompt button state
+      document.getElementById('adVideoAiPromptBtn').disabled = false;
+      document.getElementById('adVideoAiPromptLabel').textContent = 'Generate AI Prompt';
 
       // Show auto-generated UTM campaign preview
       var eventType = data.eventType || 'general';
@@ -7984,6 +8000,35 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     var _adVideoBlobs = {}; // { reels_9x16: Blob, feed_1x1: Blob }
+
+    async function generateAiAdPrompt() {
+      var btn = document.getElementById('adVideoAiPromptBtn');
+      var label = document.getElementById('adVideoAiPromptLabel');
+      btn.disabled = true;
+      label.textContent = 'Generating...';
+      try {
+        var res = await authFetch('/api/v2/ad-creatives?action=generatePrompt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            html: _adVideoData.html,
+            eventTitle: _adVideoData.eventTitle || '',
+            eventType: _adVideoData.eventType || '',
+            config: _adVideoData.config || {}
+          })
+        });
+        var result = await res.json();
+        if (result.success && result.promptText) {
+          document.getElementById('adVideoPromptText').value = result.promptText;
+        } else {
+          alert('Failed to generate prompt: ' + (result.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Failed to generate prompt: ' + err.message);
+      }
+      btn.disabled = false;
+      label.textContent = 'Generate AI Prompt';
+    }
 
     function closeAdVideoModal() {
       document.getElementById('adVideoModal').style.display = 'none';
@@ -8890,7 +8935,12 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         </div>
 
         <div style="margin-bottom:16px;">
-          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Prompt Text (shown in typing animation)</label>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <label style="font-size:13px;font-weight:600;">Prompt Text (shown in typing animation)</label>
+            <button id="adVideoAiPromptBtn" class="btn btn-secondary btn-sm" onclick="generateAiAdPrompt()" style="font-size:11px;padding:4px 10px;">
+              <span id="adVideoAiPromptLabel">Generate AI Prompt</span>
+            </button>
+          </div>
           <textarea id="adVideoPromptText" rows="3" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;resize:vertical;box-sizing:border-box;"></textarea>
         </div>
 
