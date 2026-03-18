@@ -8243,13 +8243,30 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
       try {
         var res = await authFetch(url);
+        if (!res.ok) {
+          var errText = '';
+          try { errText = (await res.json()).error || res.statusText; } catch(_) { errText = res.statusText; }
+          console.error('Ad creatives API error:', res.status, errText);
+          var empty = document.getElementById('mktCreativeEmpty');
+          if (empty) empty.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#ef4444;">'
+            + '<p style="font-size:15px;font-weight:600;">Failed to load creatives</p>'
+            + '<p style="font-size:13px;color:#888;margin-top:4px;">HTTP ' + res.status + ': ' + escapeHtml(errText) + '</p></div>';
+          return;
+        }
         var data = await res.json();
+        if (!data.success && data.error) {
+          console.error('Ad creatives error:', data.error);
+        }
         _mktCreatives = data.creatives || [];
         renderAdCreatives();
         // Also populate campaign filter
         loadCampaignFilter();
       } catch (e) {
         console.error('Failed to load ad creatives:', e);
+        var empty = document.getElementById('mktCreativeEmpty');
+        if (empty) empty.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#ef4444;">'
+          + '<p style="font-size:15px;font-weight:600;">Failed to load creatives</p>'
+          + '<p style="font-size:13px;color:#888;margin-top:4px;">' + escapeHtml(e.message) + '</p></div>';
       }
     }
 
