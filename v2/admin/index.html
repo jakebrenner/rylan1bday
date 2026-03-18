@@ -558,7 +558,6 @@
       </div>
       <div class="sidebar-group">
         <div class="sidebar-group-label">AI &amp; Prompts</div>
-        <button class="sidebar-item" data-tab="settings" onclick="switchTab('settings')">AI Models</button>
         <button class="sidebar-item" data-tab="promptversions" onclick="switchTab('promptversions')">Prompt Versions</button>
         <button class="sidebar-item" data-tab="promptlab" onclick="switchTab('promptlab')">Prompt Lab</button>
         <button class="sidebar-item" data-tab="stylelibrary" onclick="switchTab('stylelibrary')">Generations</button>
@@ -567,6 +566,11 @@
       <div class="sidebar-group">
         <div class="sidebar-group-label">Marketing</div>
         <button class="sidebar-item" data-tab="marketing" onclick="switchTab('marketing');loadMarketingTab();">Ad Dashboard</button>
+      </div>
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">Settings</div>
+        <button class="sidebar-item" data-tab="settings" onclick="switchTab('settings')">AI Models</button>
+        <button class="sidebar-item" data-tab="team" onclick="switchTab('team');loadAdmins();">Team</button>
       </div>
       <div class="sidebar-group">
         <div class="sidebar-group-label">Blog</div>
@@ -1074,13 +1078,21 @@
         <div id="costEstimationTable" style="font-size:13px;color:#888;">Loading...</div>
       </div>
 
+    </div>
+
+    <!-- Team Tab -->
+    <div class="tab-content" id="tab-team">
       <div class="config-section">
-        <h3>Admin Access</h3>
-        <p style="font-size:13px;color:#888;margin-bottom:16px;">Manage who can access this admin dashboard. The founder always has access.</p>
-        <div id="adminList" style="margin-bottom:16px;"></div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input type="email" id="newAdminEmail" placeholder="email@example.com" style="flex:1;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
-          <button class="btn btn-primary" onclick="addAdmin()">Add Admin</button>
+        <h3>Admin Team</h3>
+        <p style="font-size:13px;color:#888;margin-bottom:20px;">Manage who can access this admin dashboard. Admins have full access to all features. The founder always has access and cannot be removed.</p>
+        <div id="adminList" style="margin-bottom:20px;"></div>
+        <div style="background:#f9f9f9;border-radius:8px;padding:16px;">
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px;">Add New Admin</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="email" id="newAdminEmail" placeholder="email@example.com" style="flex:1;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;background:white;">
+            <button class="btn btn-primary" onclick="addAdmin()">Send Invite</button>
+          </div>
+          <p style="font-size:12px;color:#aaa;margin-top:8px;margin-bottom:0;">They'll receive a branded email with a link to create their account and access the admin dashboard.</p>
         </div>
       </div>
     </div>
