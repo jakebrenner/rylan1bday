@@ -2304,8 +2304,6 @@
         loadConfig();
         loadAdmins();
         loadStyleLibrary();
-        // Preload plans for tier dropdowns
-        adminFetch('listPlans').then(function(r) { allPlans = (r && r.plans) || []; }).catch(function() {});
         // Preload showcases for featured badge in detail views
         loadShowcases();
       } catch (err) {
