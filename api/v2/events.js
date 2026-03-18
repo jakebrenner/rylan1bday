@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
+import { sendCapiEvent, extractMetaContext } from './lib/meta-capi.js';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -95,7 +97,7 @@ export default async function handler(req, res) {
     if (action === 'rsvp') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
-      const { eventId, guestId, name, status, email, phone, responseData, plusOnes, notes } = req.body || {};
+      const { eventId, guestId, name, status, email, phone, responseData, plusOnes, notes, metaEventId, fbp, fbc } = req.body || {};
 
       if (!eventId || !name || !status) {
         return res.status(400).json({ success: false, error: 'eventId, name, and status are required' });
@@ -200,6 +202,16 @@ export default async function handler(req, res) {
       if (event?.user_id) {
         sendRsvpNotification(event.user_id, eventId, event.title, name, guestStatus).catch(() => {});
       }
+
+      // Track RSVP as Schedule via Meta CAPI (fire-and-forget, dedup with client pixel)
+      sendCapiEvent({
+        eventName: 'Schedule',
+        eventId: metaEventId || crypto.randomUUID(),
+        eventSourceUrl: req.headers.referer || '',
+        userData: { email, phone, name, fbp, fbc },
+        customData: { content_name: event?.title || '', content_category: 'rsvp', status: guestStatus },
+        req
+      }).catch(() => {});
 
       return res.status(200).json({ success: true, guestId: data.id });
     }
@@ -387,6 +399,35 @@ export default async function handler(req, res) {
         .single();
 
       if (error) return res.status(400).json({ success: false, error: error.message });
+
+      // Track Purchase via Meta CAPI when event is published (fire-and-forget)
+      if (dbUpdates.status === 'published') {
+        const metaEventId = updates.metaEventId || crypto.randomUUID();
+        // Look up host email for CAPI matching
+        supabaseAdmin.from('profiles').select('email, phone, display_name').eq('id', user.id).single()
+          .then(({ data: profile }) => {
+            sendCapiEvent({
+              eventName: 'Purchase',
+              eventId: metaEventId,
+              eventSourceUrl: req.headers.referer || '',
+              userData: {
+                email: profile?.email || user.email,
+                phone: profile?.phone || '',
+                name: profile?.display_name || '',
+                fbp: updates.fbp || '',
+                fbc: updates.fbc || ''
+              },
+              customData: {
+                content_name: data.title || '',
+                content_category: data.event_type || 'event',
+                content_ids: [eventId],
+                currency: 'USD',
+                value: data.payment_status === 'paid' ? 4.99 : 0.00
+              },
+              req
+            }).catch(() => {});
+          }).catch(() => {});
+      }
 
       // Fetch active theme for the response
       const { data: theme } = await supabaseAdmin

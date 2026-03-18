@@ -75,6 +75,7 @@
     .back-link a { color: #999; text-decoration: none; }
     .back-link a:hover { color: var(--party-coral); }
   </style>
+<script src="/js/meta-pixel.js"></script>
 </head>
 <body>
   <div class="login-container">
@@ -323,6 +324,15 @@
         });
         const result = await res.json();
         if (result.success) {
+          // Track CompleteRegistration with Meta Pixel (dedup with server CAPI via metaEventId)
+          if (window.RyvitePixel) {
+            var nameParts = displayName.split(' ');
+            RyvitePixel.reinitWithUserData({ em: email, ph: phone, fn: nameParts[0], ln: nameParts.slice(1).join(' ') });
+            RyvitePixel.trackEvent('CompleteRegistration', {
+              content_name: 'Ryvite Account',
+              status: true
+            }, null, result.metaEventId);
+          }
           document.getElementById('checkEmailAddress').textContent = email;
           toggleMode('checkEmail');
           return;

@@ -58,6 +58,7 @@
       .calendar-btn { width: 100%; }
     }
   </style>
+<script src="/js/meta-pixel.js"></script>
 </head>
 <body>
   <div class="event-container">
@@ -141,6 +142,16 @@
 
         currentEventData = result.event;
         document.title = result.event.title + ' — Ryvite';
+
+        // Track ViewContent with Meta Pixel
+        if (window.RyvitePixel) {
+          RyvitePixel.trackEvent('ViewContent', {
+            content_type: 'event_invite',
+            content_name: result.event.title,
+            content_ids: [result.event.id],
+            content_category: result.event.eventType || 'event'
+          });
+        }
 
         // If guest arrived via personalized invite link, look up their info
         if (guestId) {
@@ -337,6 +348,10 @@
       }
 
       try {
+        // Generate Meta event ID for dedup between pixel and CAPI
+        var metaEventId = window.RyvitePixel ? RyvitePixel.generateEventId() : '';
+        var metaCtx = window.RyvitePixel ? RyvitePixel.getFbCookies() : {};
+
         var rsvpBody = {
             eventId: currentEventData.id,
             name: name,
@@ -344,7 +359,10 @@
             phone: phone,
             status: status,
             plusOnes: plusOnes,
-            responseData: responseData
+            responseData: responseData,
+            metaEventId: metaEventId,
+            fbp: metaCtx.fbp || '',
+            fbc: metaCtx.fbc || ''
         };
         // Include guestId for invited guests — triggers UPDATE instead of INSERT
         if (guestId && invitedGuest) rsvpBody.guestId = guestId;
@@ -356,6 +374,18 @@
         });
         var result = await res.json();
         if (result.success) {
+          // Track RSVP as Schedule + Lead with Meta Pixel
+          if (window.RyvitePixel) {
+            RyvitePixel.trackEvent('Schedule', {
+              content_name: currentEventData.title,
+              content_ids: [currentEventData.id],
+              content_category: currentEventData.eventType || 'event'
+            }, { em: email, ph: phone, fn: name }, metaEventId);
+            RyvitePixel.trackEvent('Lead', {
+              content_name: currentEventData.title,
+              content_category: 'rsvp'
+            });
+          }
           showThankYouPage(name, status);
           triggerConfetti();
         } else { alert(result.error || 'Error submitting RSVP. Please try again.'); }
