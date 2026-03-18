@@ -56,7 +56,11 @@ async function getFbConfig() {
     .select('value')
     .eq('key', 'fb_ads_config')
     .single();
-  const config = data?.value || {};
+  let config = data?.value || {};
+  // app_config.value may be stored as a JSON string — parse it
+  if (typeof config === 'string') {
+    try { config = JSON.parse(config); } catch { config = {}; }
+  }
 
   // Fall back to env vars if not configured in DB
   if (!config.accessToken && process.env.META_ACCESS_TOKEN) {

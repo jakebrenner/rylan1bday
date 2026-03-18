@@ -464,11 +464,11 @@
       <input type="file" id="chatInspoInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleInspirationUpload(event)">
       <input type="file" id="chatPersonInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handlePersonUpload(event)">
       <div class="chat-photo-menu" id="chatPhotoMenu">
-        <button onclick="document.getElementById('chatInspoInput').click(); toggleChatPhotoMenu();">
+        <button onclick="pickChatPhoto('chatInspoInput')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
           Inspiration images
         </button>
-        <button onclick="document.getElementById('chatPersonInput').click(); toggleChatPhotoMenu();">
+        <button onclick="pickChatPhoto('chatPersonInput')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
           Photos of the person
         </button>
@@ -1417,6 +1417,22 @@
     function toggleChatPhotoMenu() {
       var menu = document.getElementById('chatPhotoMenu');
       menu.classList.toggle('open');
+    }
+
+    // Reliably trigger file picker from photo menu
+    // Close menu first, then trigger file input after a tick so the file picker
+    // isn't blocked by the menu DOM update (fixes Safari/mobile issues)
+    function pickChatPhoto(inputId) {
+      var menu = document.getElementById('chatPhotoMenu');
+      menu.classList.remove('open');
+      // Short delay so menu close completes before file picker opens
+      setTimeout(function() {
+        var input = document.getElementById(inputId);
+        if (input) {
+          console.log('[Photos] Opening file picker for:', inputId);
+          input.click();
+        }
+      }, 100);
     }
 
     // Close photo menu when clicking elsewhere
@@ -6395,12 +6411,16 @@
 
     async function handleInspirationUpload(event) {
       var files = Array.from(event.target.files);
+      if (!files.length) { console.log('[Photos] No files selected for inspiration'); return; }
+      console.log('[Photos] Inspiration upload:', files.length, 'files');
       await addFiles(files, 'inspiration');
       event.target.value = '';
     }
 
     async function handlePersonUpload(event) {
       var files = Array.from(event.target.files);
+      if (!files.length) { console.log('[Photos] No files selected for person'); return; }
+      console.log('[Photos] Person upload:', files.length, 'files');
       await addFiles(files, 'person');
       event.target.value = '';
     }
@@ -6455,10 +6475,13 @@
             var uploadResult = await uploadRes.json();
             if (uploadResult.success && uploadResult.url) {
               urlArr.push(uploadResult.url);
+              console.log('[Photos] Uploaded:', file.name);
             } else {
+              console.error('[Photos] Upload failed:', uploadResult.error || 'unknown error');
               urlArr.push(null);
             }
           } catch (e) {
+            console.error('[Photos] Upload error:', e.message);
             urlArr.push(null);
           }
         } else {
