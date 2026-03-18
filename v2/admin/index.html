@@ -8068,11 +8068,18 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             if (result.success && result.creative) {
               _adCreativeResult = result.creative;
               document.getElementById('adVideoUtmLink').value = result.creative.utm_url;
+            } else {
+              console.error('Save failed for ' + fmt + ':', result.error);
             }
           } catch (apiErr) {
-            console.warn('Failed to register creative for ' + fmt, apiErr);
+            console.error('Failed to register creative for ' + fmt, apiErr);
+            alert('Warning: Video generated but failed to save to database. Error: ' + (apiErr.message || 'Unknown'));
           }
         }
+
+        // Refresh the creatives list so new entries show immediately
+        _mktLoaded = false;
+        loadAdCreatives().catch(function() {});
 
         // Build result UI with all generated videos
         var videosContainer = document.getElementById('adVideoResultVideos');
@@ -8222,9 +8229,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     var _mktLoaded = false;
     async function loadMarketingTab() {
-      if (_mktLoaded) return;
+      // Always reload creatives (they may have been added since last visit)
+      await Promise.all([loadAdCreatives(), !_mktLoaded ? loadCampaignData() : Promise.resolve(), !_mktLoaded ? loadFbConfig() : Promise.resolve()]);
       _mktLoaded = true;
-      await Promise.all([loadAdCreatives(), loadCampaignData(), loadFbConfig()]);
     }
 
     async function loadAdCreatives() {
