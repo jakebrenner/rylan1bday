@@ -60,26 +60,38 @@ export default async function handler(req, res) {
     const campaign = campaignName || generateCampaignName(eventType);
     const utmUrl = `https://ryvite.com/v2/create/?utm_source=facebook&utm_medium=paid&utm_campaign=${encodeURIComponent(campaign)}&utm_content=${creativeId}&utm_term=${encodeURIComponent(eventType || '')}`;
 
-    const { data, error } = await supabase
+    const row = {
+      creative_id: creativeId,
+      campaign_name: campaign,
+      source_type: sourceType,
+      source_id: sourceId,
+      event_type: eventType || null,
+      format,
+      video_theme: videoTheme || 'dark_gradient',
+      prompt_text: promptText || null,
+      utm_url: utmUrl,
+      invite_html: inviteHtml || null,
+      invite_css: inviteCss || null,
+      invite_config: inviteConfig || null,
+      created_by: user.id
+    };
+    if (campaignLabel) row.campaign_label = campaignLabel;
+
+    let { data, error } = await supabase
       .from('ad_creatives')
-      .insert({
-        creative_id: creativeId,
-        campaign_name: campaign,
-        campaign_label: campaignLabel || null,
-        source_type: sourceType,
-        source_id: sourceId,
-        event_type: eventType || null,
-        format,
-        video_theme: videoTheme || 'dark_gradient',
-        prompt_text: promptText || null,
-        utm_url: utmUrl,
-        invite_html: inviteHtml || null,
-        invite_css: inviteCss || null,
-        invite_config: inviteConfig || null,
-        created_by: user.id
-      })
+      .insert(row)
       .select()
       .single();
+
+    // If campaign_label column doesn't exist yet, retry without it
+    if (error && error.message && error.message.includes('campaign_label')) {
+      delete row.campaign_label;
+      ({ data, error } = await supabase
+        .from('ad_creatives')
+        .insert(row)
+        .select()
+        .single());
+    }
 
     if (error) return res.status(500).json({ success: false, error: error.message });
 

@@ -219,17 +219,36 @@ async function renderInviteToImage(html, css, config, targetWidth) {
     .replace(/\bbody\s*\{/g, '#__adgen_invite {')
     .replace(/\bhtml\s*\{/g, '#__adgen_invite {');
 
+  // html2canvas workarounds: disable animations (they freeze mid-frame),
+  // ensure all text is visible (some CSS animations hide text initially)
+  var h2cFixes = '*, *::before, *::after { '
+    + 'animation: none !important; '
+    + 'transition: none !important; '
+    + 'opacity: 1 !important; '
+    + 'visibility: visible !important; '
+    + 'transform: none !important; '
+    + '} '
+    + '@keyframes none {} '
+    // Ensure marquee/ticker elements are visible
+    + '[class*="marquee"], [class*="ticker"], [class*="scroll"] { '
+    + 'overflow: visible !important; '
+    + '} ';
+
   container.innerHTML = '<div id="__adgen_invite" style="width:' + targetWidth + 'px;overflow:hidden;">'
     + '<style>' + fontsImport + '</style>'
     + '<style>' + adjustedCss + '</style>'
+    + '<style>' + h2cFixes + '</style>'
     + '<style>.rsvp-slot,.details-slot{display:none !important}</style>'
     + (html || '')
     + '</div>';
 
-  await new Promise(function(resolve) { setTimeout(resolve, 1500); });
+  // Wait for fonts and rendering to stabilize
+  await new Promise(function(resolve) { setTimeout(resolve, 2000); });
   if (document.fonts && document.fonts.ready) {
     await document.fonts.ready;
   }
+  // Extra settle time for complex layouts
+  await new Promise(function(resolve) { setTimeout(resolve, 500); });
 
   const inviteEl = container.querySelector('#__adgen_invite');
   const naturalHeight = inviteEl.scrollHeight;
@@ -240,7 +259,16 @@ async function renderInviteToImage(html, css, config, targetWidth) {
     useCORS: true,
     allowTaint: true,
     backgroundColor: null,
-    logging: false
+    logging: false,
+    // Ensure foreign fonts render
+    onclone: function(clonedDoc) {
+      var clonedEl = clonedDoc.querySelector('#__adgen_invite');
+      if (clonedEl) {
+        // Force all text to be painted
+        clonedEl.style.visibility = 'visible';
+        clonedEl.style.opacity = '1';
+      }
+    }
   });
 
   document.body.removeChild(container);
