@@ -8004,6 +8004,27 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       });
     }
 
+    function updateUtmDestPreview() {
+      var sel = document.getElementById('adVideoDestination');
+      var customInput = document.getElementById('adVideoCustomUrl');
+      var preview = document.getElementById('adVideoDestPreview');
+      customInput.style.display = sel.value === 'custom' ? '' : 'none';
+      var baseUrls = { landing: '/lp/', create: '/v2/create/', homepage: '/' };
+      var base = sel.value === 'custom' ? (customInput.value || 'https://...') : ('https://ryvite.com' + (baseUrls[sel.value] || '/lp/'));
+      preview.textContent = base + '?utm_source=facebook&utm_medium=paid&...';
+    }
+
+    function getUtmBaseUrl() {
+      var sel = document.getElementById('adVideoDestination');
+      if (!sel) return 'https://ryvite.com/lp/';
+      var baseUrls = { landing: 'https://ryvite.com/lp/', create: 'https://ryvite.com/v2/create/', homepage: 'https://ryvite.com/' };
+      if (sel.value === 'custom') {
+        var custom = document.getElementById('adVideoCustomUrl').value.trim();
+        return custom || 'https://ryvite.com/lp/';
+      }
+      return baseUrls[sel.value] || 'https://ryvite.com/lp/';
+    }
+
     async function startAdVideoGeneration() {
       var campaignLabel = document.getElementById('adVideoCampaignLabel').value.trim();
 
@@ -8059,6 +8080,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
                 format: fmt,
                 videoTheme: _adVideoTheme,
                 promptText: promptText,
+                destinationUrl: getUtmBaseUrl(),
                 inviteHtml: _adVideoData.html,
                 inviteCss: _adVideoData.css,
                 inviteConfig: _adVideoData.config
@@ -8823,6 +8845,18 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Label <span style="font-weight:400;color:#999;">(optional — for your reference)</span></label>
           <input type="text" id="adVideoCampaignLabel" placeholder="e.g., Emma's unicorn birthday" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;box-sizing:border-box;">
           <div id="adVideoUtmPreview" style="margin-top:6px;font-size:11px;color:#888;font-family:monospace;"></div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">UTM Destination</label>
+          <select id="adVideoDestination" onchange="updateUtmDestPreview()" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;box-sizing:border-box;background:#fff;">
+            <option value="landing">Landing Page — /lp/ (Recommended for ads)</option>
+            <option value="create">Create Page — /v2/create/</option>
+            <option value="homepage">Homepage — /</option>
+            <option value="custom">Custom URL</option>
+          </select>
+          <input type="text" id="adVideoCustomUrl" placeholder="https://ryvite.com/..." style="display:none;width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;box-sizing:border-box;margin-top:8px;">
+          <div id="adVideoDestPreview" style="margin-top:6px;font-size:11px;color:#888;font-family:monospace;"></div>
         </div>
 
         <div style="margin-bottom:16px;">

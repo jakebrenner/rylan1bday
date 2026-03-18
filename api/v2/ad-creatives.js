@@ -74,7 +74,7 @@ export default async function handler(req, res) {
   // ── CREATE: Register a new ad creative with auto-generated UTM link ──
   if (action === 'create' && req.method === 'POST') {
     const { campaignName, campaignLabel, sourceType, sourceId, eventType, format, videoTheme, promptText,
-            inviteHtml, inviteCss, inviteConfig } = req.body || {};
+            destinationUrl, inviteHtml, inviteCss, inviteConfig } = req.body || {};
 
     if (!sourceType || !sourceId || !format) {
       return res.status(400).json({ success: false, error: 'sourceType, sourceId, and format are required' });
@@ -83,7 +83,10 @@ export default async function handler(req, res) {
     const creativeId = generateCreativeId();
     // Auto-generate campaign name if not provided (legacy support)
     const campaign = campaignName || generateCampaignName(eventType);
-    const utmUrl = `https://ryvite.com/v2/create/?utm_source=facebook&utm_medium=paid&utm_campaign=${encodeURIComponent(campaign)}&utm_content=${creativeId}&utm_term=${encodeURIComponent(eventType || '')}`;
+    // Use provided destination URL or default to landing page
+    const baseUrl = destinationUrl || 'https://ryvite.com/lp/';
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    const utmUrl = `${baseUrl}${separator}utm_source=facebook&utm_medium=paid&utm_campaign=${encodeURIComponent(campaign)}&utm_content=${creativeId}&utm_term=${encodeURIComponent(eventType || '')}`;
 
     const row = {
       creative_id: creativeId,

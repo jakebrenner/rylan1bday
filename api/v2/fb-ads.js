@@ -1,27 +1,52 @@
 import { createClient } from '@supabase/supabase-js';
 import Anthropic from '@anthropic-ai/sdk';
 
-const supabase = createClient(
+const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 const FB_GRAPH_URL = 'https://graph.facebook.com/v19.0';
 
-// Helper: verify admin auth
+// Founder — always has admin access
+const FOUNDER_EMAIL = 'jake@getmrkt.com';
+
+// Helper: verify admin auth (matches admin.js pattern)
 async function verifyAdmin(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) return null;
-  const { data: { user }, error } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+
+  const token = authHeader.slice(7);
+  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${token}` } }
+  });
+
+  const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
-  const { data: profile } = await supabase.from('profiles').select('is_global_admin').eq('id', user.id).single();
-  if (!profile?.is_global_admin) return null;
-  return user;
+
+  const email = (user.email || '').toLowerCase();
+
+  // Founder always passes
+  if (email === FOUNDER_EMAIL) return user;
+
+  // Check DB admin list
+  const { data } = await supabaseAdmin
+    .from('app_config')
+    .select('value')
+    .eq('key', 'admin_emails')
+    .single();
+
+  if (data?.value) {
+    const adminList = data.value.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    if (adminList.includes(email)) return user;
+  }
+
+  return null;
 }
 
 // Get FB credentials from app_config, falling back to env vars
 async function getFbConfig() {
-  const { data } = await supabase
+  const { data } = await supabaseAdmin
     .from('app_config')
     .select('value')
     .eq('key', 'fb_ads_config')
@@ -58,7 +83,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, error: 'adAccountId and accessToken required' });
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('app_config')
       .upsert({
         key: 'fb_ads_config',
@@ -143,7 +168,7 @@ export default async function handler(req, res) {
       let matched = 0;
 
       // Get all our creative IDs for matching
-      const { data: ourCreatives } = await supabase
+      const { data: ourCreatives } = await supabaseAdmin
         .from('ad_creatives')
         .select('creative_id');
       const creativeIds = new Set((ourCreatives || []).map(c => c.creative_id));
@@ -188,7 +213,7 @@ export default async function handler(req, res) {
           synced_at: new Date().toISOString()
         };
 
-        const { error: upsertErr } = await supabase
+        const { error: upsertErr } = await supabaseAdmin
           .from('fb_ad_metrics')
           .upsert(row, { onConflict: 'fb_ad_id,date' });
 
@@ -212,7 +237,7 @@ export default async function handler(req, res) {
   if (action === 'metrics' && req.method === 'GET') {
     const { creativeId, since, until } = req.query;
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('fb_ad_metrics')
       .select('*')
       .order('date', { ascending: false });
@@ -231,13 +256,13 @@ export default async function handler(req, res) {
   if (action === 'suggestions' && req.method === 'POST') {
     try {
       // Gather performance data
-      const { data: perfData } = await supabase
+      const { data: perfData } = await supabaseAdmin
         .from('ad_creative_performance')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(50);
 
-      const { data: campaignData } = await supabase
+      const { data: campaignData } = await supabaseAdmin
         .from('campaign_performance')
         .select('*');
 
@@ -318,7 +343,7 @@ Return ONLY the JSON array, no other text.`;
 
       // Store suggestions in database
       for (const s of suggestions) {
-        await supabase.from('ad_suggestions').insert({
+        await supabaseAdmin.from('ad_suggestions').insert({
           suggestion_type: s.suggestion_type || 'general',
           title: s.title,
           description: s.description,
@@ -337,7 +362,7 @@ Return ONLY the JSON array, no other text.`;
   // ── LIST SUGGESTIONS: Get stored suggestions ──
   if (action === 'listSuggestions' && req.method === 'GET') {
     const { status } = req.query;
-    let query = supabase
+    let query = supabaseAdmin
       .from('ad_suggestions')
       .select('*')
       .order('created_at', { ascending: false })
@@ -361,7 +386,7 @@ Return ONLY the JSON array, no other text.`;
     const updates = { status };
     if (appliedCreativeId) updates.applied_creative_id = appliedCreativeId;
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('ad_suggestions')
       .update(updates)
       .eq('id', suggestionId);

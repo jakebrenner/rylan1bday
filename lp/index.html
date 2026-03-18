@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ryvite — Beautiful AI-Powered Event Invitations</title>
+<meta name="description" content="Create stunning, personalized event invitations in seconds using AI. Free to start. Perfect for birthdays, weddings, baby showers, and more.">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --coral:#E94560;--blush:#FF6B6B;--midnight:#1A1A2E;--cream:#FFFAF5;
+  --gold:#FFB74D;--slate:#6B7280;--mint:#4ECDC4;
+}
+body{font-family:'Inter',sans-serif;color:var(--midnight);background:var(--cream);-webkit-font-smoothing:antialiased}
+a{text-decoration:none;color:inherit}
+
+/* ── Hero ── */
+.hero{background:linear-gradient(135deg,#1A1A2E 0%,#0f3460 100%);color:#fff;padding:4rem 2rem 5rem;text-align:center;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-40%;right:-20%;width:600px;height:600px;background:radial-gradient(circle,rgba(233,69,96,0.12),transparent 70%);pointer-events:none}
+.hero::after{content:'';position:absolute;bottom:-30%;left:-10%;width:500px;height:500px;background:radial-gradient(circle,rgba(255,183,77,0.1),transparent 70%);pointer-events:none}
+.hero-inner{max-width:800px;margin:0 auto;position:relative;z-index:1}
+.hero-badge{display:inline-block;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--gold);margin-bottom:1.2rem;padding:6px 16px;border:1px solid rgba(255,183,77,0.3);border-radius:50px}
+.hero h1{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,5vw,3.5rem);font-weight:700;line-height:1.15;margin-bottom:1.2rem}
+.hero h1 span{color:var(--coral)}
+.hero p{font-size:1.15rem;color:rgba(255,255,255,0.8);max-width:560px;margin:0 auto 2rem;line-height:1.6}
+.cta-btn{display:inline-block;background:linear-gradient(135deg,var(--coral),var(--blush));color:#fff;font-weight:600;font-size:1.05rem;padding:1rem 2.5rem;border-radius:50px;border:none;cursor:pointer;transition:all 0.3s ease;box-shadow:0 4px 20px rgba(233,69,96,0.35)}
+.cta-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(233,69,96,0.45)}
+.hero-sub{font-size:0.85rem;color:rgba(255,255,255,0.5);margin-top:1rem}
+
+/* ── Social Proof ── */
+.proof{background:#fff;padding:2.5rem 2rem;text-align:center;border-bottom:1px solid rgba(0,0,0,0.04)}
+.proof-inner{max-width:700px;margin:0 auto;display:flex;justify-content:center;gap:3rem;flex-wrap:wrap}
+.proof-stat{text-align:center}
+.proof-stat .num{font-size:1.8rem;font-weight:700;color:var(--midnight);font-family:'Playfair Display',serif}
+.proof-stat .label{font-size:0.8rem;color:var(--slate);margin-top:2px}
+
+/* ── Showcase Gallery ── */
+.gallery{padding:4rem 2rem;text-align:center}
+.gallery-inner{max-width:1100px;margin:0 auto}
+.section-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:2px;font-weight:700;color:var(--coral);margin-bottom:0.8rem}
+.section-title{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weight:600;margin-bottom:0.8rem}
+.section-sub{font-size:1rem;color:var(--slate);max-width:500px;margin:0 auto 2.5rem;line-height:1.6}
+.showcase-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:2.5rem}
+.showcase-card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.04);border:1px solid rgba(0,0,0,0.04);transition:all 0.3s ease;cursor:pointer;position:relative}
+.showcase-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,0.1)}
+.showcase-frame{width:100%;aspect-ratio:393/600;border:none;pointer-events:none;display:block}
+.showcase-label{padding:12px 16px;font-size:0.85rem;font-weight:600;color:var(--midnight);background:#fff;border-top:1px solid rgba(0,0,0,0.04)}
+
+/* ── How It Works ── */
+.how{background:#fff;padding:4rem 2rem}
+.how-inner{max-width:900px;margin:0 auto;text-align:center}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:2rem;margin-top:2.5rem}
+.step{padding:2rem 1.5rem;border-radius:16px;background:var(--cream);border:1px solid rgba(0,0,0,0.04)}
+.step-num{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--coral),var(--blush));color:#fff;font-weight:700;font-size:1.1rem;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem}
+.step h3{font-size:1.05rem;font-weight:600;margin-bottom:0.5rem}
+.step p{font-size:0.9rem;color:var(--slate);line-height:1.5}
+
+/* ── Event Types ── */
+.types{padding:4rem 2rem;text-align:center}
+.types-inner{max-width:800px;margin:0 auto}
+.type-pills{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:1.5rem}
+.type-pill{display:inline-block;padding:8px 18px;border-radius:50px;background:#fff;border:1px solid rgba(0,0,0,0.08);font-size:0.85rem;font-weight:500;color:var(--midnight);transition:all 0.2s ease}
+.type-pill:hover{border-color:var(--coral);color:var(--coral);transform:translateY(-1px)}
+
+/* ── Bottom CTA ── */
+.bottom-cta{background:linear-gradient(135deg,#1A1A2E 0%,#0f3460 100%);color:#fff;padding:4rem 2rem;text-align:center}
+.bottom-cta-inner{max-width:600px;margin:0 auto}
+.bottom-cta h2{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weight:600;margin-bottom:1rem}
+.bottom-cta p{color:rgba(255,255,255,0.7);margin-bottom:2rem;line-height:1.6}
+
+/* ── Footer ── */
+.footer{padding:2rem;text-align:center;font-size:0.8rem;color:var(--slate)}
+
+/* ── Responsive ── */
+@media(max-width:640px){
+  .hero{padding:3rem 1.5rem 4rem}
+  .proof-inner{gap:2rem}
+  .showcase-grid{grid-template-columns:1fr 1fr}
+  .steps{grid-template-columns:1fr}
+}
+@media(max-width:420px){
+  .showcase-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Hero ── -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge">Free to Create</div>
+    <h1>Beautiful Invitations,<br><span>Powered by AI</span></h1>
+    <p>Describe your event in plain English. Our AI designs a stunning, personalized invitation in seconds — no design skills needed.</p>
+    <a href="/v2/create/" class="cta-btn" id="heroCta">Create Your Invite Free</a>
+    <div class="hero-sub">No credit card required</div>
+  </div>
+</section>
+
+<!-- ── Social Proof ── -->
+<section class="proof">
+  <div class="proof-inner">
+    <div class="proof-stat"><div class="num">10s</div><div class="label">Average creation time</div></div>
+    <div class="proof-stat"><div class="num">14+</div><div class="label">Event types supported</div></div>
+    <div class="proof-stat"><div class="num">100%</div><div class="label">Free to start</div></div>
+  </div>
+</section>
+
+<!-- ── Showcase Gallery ── -->
+<section class="gallery">
+  <div class="gallery-inner">
+    <div class="section-label">See What AI Creates</div>
+    <div class="section-title">Real Invitations, Made in Seconds</div>
+    <div class="section-sub">Every design is unique — generated from a simple text prompt.</div>
+    <div class="showcase-grid" id="showcaseGrid">
+      <!-- Filled by JS -->
+    </div>
+    <a href="/v2/create/" class="cta-btn" id="galleryCta">Try It Yourself</a>
+  </div>
+</section>
+
+<!-- ── How It Works ── -->
+<section class="how">
+  <div class="how-inner">
+    <div class="section-label">How It Works</div>
+    <div class="section-title">Three Steps to a Perfect Invite</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Describe Your Event</h3>
+        <p>Tell us what you're celebrating — a birthday, wedding, baby shower, or anything else.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>AI Designs It</h3>
+        <p>Our AI creates a beautiful, fully custom invitation with illustrations, typography, and animations.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Share & Track RSVPs</h3>
+        <p>Send your invite link. Guests RSVP instantly — you see responses in real time.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Event Types ── -->
+<section class="types">
+  <div class="types-inner">
+    <div class="section-label">Works For Any Occasion</div>
+    <div class="section-title">From Birthdays to Business Events</div>
+    <div class="type-pills">
+      <span class="type-pill">Kids Birthday</span>
+      <span class="type-pill">Wedding</span>
+      <span class="type-pill">Baby Shower</span>
+      <span class="type-pill">Anniversary</span>
+      <span class="type-pill">Graduation</span>
+      <span class="type-pill">Corporate Event</span>
+      <span class="type-pill">Dinner Party</span>
+      <span class="type-pill">Holiday Party</span>
+      <span class="type-pill">Retirement</span>
+      <span class="type-pill">Housewarming</span>
+      <span class="type-pill">Engagement</span>
+      <span class="type-pill">Reunion</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Bottom CTA ── -->
+<section class="bottom-cta">
+  <div class="bottom-cta-inner">
+    <h2>Ready to Create Something Beautiful?</h2>
+    <p>Join thousands of hosts who've ditched boring templates for AI-powered invitations that wow their guests.</p>
+    <a href="/v2/create/" class="cta-btn" id="bottomCta">Create Your Invite Free</a>
+    <div class="hero-sub" style="margin-top:1rem;">Takes less than 30 seconds</div>
+  </div>
+</section>
+
+<footer class="footer">
+  <a href="/" style="color:var(--coral);font-weight:600;">Ryvite</a> &mdash; AI-Powered Event Invitations
+</footer>
+
+<script>
+// ── Preserve UTM params on CTA links ──
+(function() {
+  var params = window.location.search;
+  if (!params) return;
+  document.querySelectorAll('#heroCta, #galleryCta, #bottomCta').forEach(function(a) {
+    var href = a.getAttribute('href');
+    a.setAttribute('href', href + (href.includes('?') ? '&' : '?') + params.substring(1));
+  });
+})();
+
+// ── Load showcases ──
+(function() {
+  fetch('/api/v2/showcases')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var showcases = (data.showcases || []).slice(0, 6);
+      if (!showcases.length) return;
+      var grid = document.getElementById('showcaseGrid');
+      grid.innerHTML = showcases.map(function(s) {
+        var fontsImport = '';
+        if (s.config) {
+          var cfg = typeof s.config === 'string' ? JSON.parse(s.config) : s.config;
+          fontsImport = cfg.googleFontsImport || '';
+          if (fontsImport && !fontsImport.startsWith('@import')) {
+            fontsImport = "@import url('" + fontsImport + "');";
+          }
+        }
+        var css = s.css || '';
+        var html = s.html || '';
+        // Extract embedded styles from HTML
+        var styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+        if (styleMatches && !css.trim()) {
+          css = styleMatches.map(function(m) { return m.replace(/<\/?style[^>]*>/gi, ''); }).join('\n');
+          html = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+        }
+        // Strip document wrapper
+        if (html.match(/^<!DOCTYPE/i) || html.match(/^<html/i)) {
+          var bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+          if (bodyMatch) html = bodyMatch[1].trim();
+          html = html.replace(/<!DOCTYPE[^>]*>/gi,'').replace(/<html[^>]*>/gi,'').replace(/<\/html>/gi,'')
+            .replace(/<head[\s\S]*?<\/head>/gi,'').replace(/<body[^>]*>/gi,'').replace(/<\/body>/gi,'');
+        }
+        html = html.replace(/<script[\s\S]*?<\/script>/gi, '');
+
+        var srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393,initial-scale=1">'
+          + (fontsImport ? '<style>' + fontsImport + '<\/style>' : '')
+          + '<style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:393px;min-height:100%;overflow:hidden}'
+          + '*,*::before,*::after{animation-delay:-9999s!important;animation-fill-mode:forwards!important;animation-play-state:paused!important;transition:none!important}'
+          + '.rsvp-slot,.details-slot{display:none!important}<\/style>'
+          + '<style>' + css.replace(/<\/style/gi,'<\\/style') + '<\/style>'
+          + '</head><body>' + html + '</body></html>';
+
+        var title = s.event_title || s.prompt_text || 'AI-Generated Invite';
+        return '<div class="showcase-card">'
+          + '<iframe class="showcase-frame" sandbox="allow-same-origin" srcdoc="' + srcdoc.replace(/"/g, '&quot;') + '"></iframe>'
+          + '<div class="showcase-label">' + title.replace(/</g, '&lt;') + '</div></div>';
+      }).join('');
+    })
+    .catch(function(e) { console.error('Showcases error:', e); });
+})();
+</script>
+</body>
+</html>
