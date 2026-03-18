@@ -1396,6 +1396,20 @@
           }
         }
       }
+
+      // Auto-submit prompt from landing page hero chat
+      var landingPrompt = localStorage.getItem('ryvite_landing_prompt');
+      if (landingPrompt && chatHistory.length === 0) {
+        localStorage.removeItem('ryvite_landing_prompt');
+        // Small delay to ensure page is fully ready
+        setTimeout(function() {
+          var input = document.getElementById('chatInput');
+          if (input) {
+            input.value = landingPrompt;
+            sendMessage();
+          }
+        }, 300);
+      }
     })();
 
     // ---- Chat Functions ----
