@@ -135,7 +135,8 @@ async function generateAdVideo({ html, css, config, promptText, format, theme, o
   onProgress(0, 'Preparing invite...');
 
   // Step 1: Render invite HTML to a full-height image (no cropping)
-  const contentW = fmt.phoneWidth - 20;
+  // Use full inner phone width (flush with phone bezel, no padding)
+  const contentW = fmt.phoneWidth - 8;
   const inviteImg = await renderInviteToImage(html, css, config, contentW);
   onProgress(20, 'Starting animation...');
 
@@ -218,9 +219,9 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
     canvas.height = fmt.height;
     const ctx = canvas.getContext('2d');
 
-    // Calculate phone content area
-    const contentW = fmt.phoneWidth - 20;
-    const contentH = fmt.phoneHeight - 50;
+    // Calculate phone content area — flush with inner bezel edge
+    const contentW = fmt.phoneWidth - 8;
+    const contentH = fmt.phoneHeight - 36; // 4px top bezel + 28px notch + 4px bottom bezel
 
     // The invite image is rendered at 2x scale for the contentW width
     // So the actual content it represents = inviteImg.naturalHeight / 2 in CSS pixels
@@ -379,9 +380,9 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
       ctx.fillStyle = thm.phoneBorder;
       ctx.fill();
 
-      // ── Phone content area ──
-      const contentX = phoneX + 10;
-      const contentY = phoneY + 40;
+      // ── Phone content area — flush with inner bezel, no padding ──
+      const contentX = phoneX + 4;
+      const contentY = phoneY + 32; // just below notch
 
       if (elapsed >= shimmerEnd) {
         // ── Invite is visible: reveal + scroll ──
@@ -406,15 +407,14 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
         const revealAlpha = eased;
 
         ctx.save();
-        // Clip to phone content area
+        // Clip to phone inner area (rounded corners at bottom)
         ctx.beginPath();
-        roundRect(ctx, phoneX + 4, contentY, fmt.phoneWidth - 8, contentH, 0);
+        roundRect(ctx, contentX, contentY, contentW, contentH, fmt.phoneRadius - 6);
         ctx.clip();
 
         ctx.globalAlpha = revealAlpha;
 
-        // Draw the invite at full width, offset by scroll position
-        // The invite image fills the phone width exactly, maintaining aspect ratio
+        // Draw the invite filling the entire phone screen, offset by scroll
         ctx.drawImage(
           inviteImg,
           contentX, contentY + slideOffset - scrollOffset,
