@@ -807,6 +807,8 @@
 
     // Cost tracking state — tracks cumulative cost for this event (persisted across sessions)
     var eventCostCents = 0;
+    var _dbDesignChatHistory = null; // DB-loaded chat history (fallback when sessionStorage is empty)
+    var _chatSaveTimer = null; // Debounce timer for saving chat to DB
     var _genRetried = false; // prevents infinite retry on mobile "Load failed"
     var eventGenCount = 0;
     var usagePlanUser = false;
@@ -1022,8 +1024,11 @@
                 title: ev.title || '', eventType: ev.eventType || 'other',
                 startDate: ev.eventDate || '', endDate: ev.endDate || '',
                 locationName: ev.locationName || '', locationAddress: ev.locationAddress || '',
-                dressCode: ev.dressCode || '', description: ev.description || '', prompt: ''
+                dressCode: ev.dressCode || '', description: ev.description || '',
+                prompt: (ev.settings && ev.settings.design_prompt) || ''
               };
+              // Store DB chat history for loadDesignChatHistory fallback
+              _dbDesignChatHistory = (ev.settings && ev.settings.design_chat_history) || null;
               if (ev.customFields && ev.customFields.length > 0) {
                 rsvpFields = ev.customFields
                   .filter(function(f) { return f.key !== 'email' && f.key !== 'phone'; })
@@ -1040,17 +1045,28 @@
                 renderVersionGallery();
                 sessionStorage.setItem('ryvite_theme_' + ev.id, JSON.stringify(themeVersions));
               }
-              // Restore design chat phase for "Start from Design" flow
-              var chatPhase = ev.settings && ev.settings.design_chat_phase;
-              if (chatPhase === 'collecting_details' || chatPhase === 'rsvp_fields') {
-                designChatPhase = chatPhase;
-                var welcomeMsg = chatPhase === 'collecting_details'
-                  ? "Welcome back! Let's continue personalizing your design.\n\nTell me about your event — what's the occasion, when and where is it, and who's hosting?"
-                  : "Welcome back! Let's finalize your RSVP fields.\n\nYou can say things like \"remove email\", \"add plus-one count\", or \"make dietary restrictions required\".\nWhen you're happy, just say \"looks good\"!";
-                designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
-                renderDesignChat();
-              } else {
-                initDesignChatIfNeeded(false);
+              // Only restore chat from background fetch if user hasn't already interacted
+              // (sessionStorage chat was already loaded via goToStep(2) → initDesignChatIfNeeded at line 1014)
+              if (designChatHistory.length <= 1) {
+                var chatPhase = ev.settings && ev.settings.design_chat_phase;
+                var dbChat = _dbDesignChatHistory;
+                if (chatPhase === 'collecting_details' || chatPhase === 'rsvp_fields') {
+                  designChatPhase = chatPhase;
+                  if (dbChat && dbChat.length > 0) {
+                    designChatHistory = dbChat;
+                  } else {
+                    var welcomeMsg = chatPhase === 'collecting_details'
+                      ? "Welcome back! Let's continue personalizing your design.\n\nTell me about your event — what's the occasion, when and where is it, and who's hosting?"
+                      : "Welcome back! Let's finalize your RSVP fields.\n\nYou can say things like \"remove email\", \"add plus-one count\", or \"make dietary restrictions required\".\nWhen you're happy, just say \"looks good\"!";
+                    designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
+                  }
+                  renderDesignChat();
+                } else if (dbChat && dbChat.length > 0 && designChatHistory.length === 0) {
+                  designChatHistory = dbChat;
+                  renderDesignChat();
+                } else if (designChatHistory.length === 0) {
+                  initDesignChatIfNeeded(false);
+                }
               }
             }
           }).catch(function(e) { console.warn('Background refresh failed:', e); });
@@ -1090,8 +1106,10 @@
               locationAddress: ev.locationAddress || '',
               dressCode: ev.dressCode || '',
               description: ev.description || '',
-              prompt: ''
+              prompt: (ev.settings && ev.settings.design_prompt) || ''
             };
+            // Store DB chat history for loadDesignChatHistory fallback
+            _dbDesignChatHistory = (ev.settings && ev.settings.design_chat_history) || null;
             // Restore RSVP fields (filter out email/phone since they are now built-in)
             if (ev.customFields && ev.customFields.length > 0) {
               rsvpFields = ev.customFields
@@ -1137,17 +1155,26 @@
               document.getElementById('generatedView').style.display = 'block';
               renderPreview(themeVersions[activeVersionIndex >= 0 ? activeVersionIndex : 0]);
               renderVersionGallery();
-              // Restore "Start from Design" collecting-details phase if applicable
+              // Restore design chat — prefer DB-saved history over generic welcome
+              var dbChat = _dbDesignChatHistory;
               var chatPhase = ev.settings && ev.settings.design_chat_phase;
               if (chatPhase === 'collecting_details' || chatPhase === 'rsvp_fields') {
                 designChatPhase = chatPhase;
-                var welcomeMsg = chatPhase === 'collecting_details'
-                  ? "Welcome back! Let's continue personalizing your design.\n\nTell me about your event — what's the occasion, when and where is it, and who's hosting?"
-                  : "Welcome back! Let's finalize your RSVP fields.\n\nYou can say things like \"remove email\", \"add plus-one count\", or \"make dietary restrictions required\".\nWhen you're happy, just say \"looks good\"!";
-                designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
+                if (dbChat && dbChat.length > 0) {
+                  designChatHistory = dbChat;
+                } else {
+                  var welcomeMsg = chatPhase === 'collecting_details'
+                    ? "Welcome back! Let's continue personalizing your design.\n\nTell me about your event — what's the occasion, when and where is it, and who's hosting?"
+                    : "Welcome back! Let's finalize your RSVP fields.\n\nYou can say things like \"remove email\", \"add plus-one count\", or \"make dietary restrictions required\".\nWhen you're happy, just say \"looks good\"!";
+                  designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
+                }
+                renderDesignChat();
+              } else if (dbChat && dbChat.length > 0) {
+                // Normal tweaking phase — restore full chat from DB
+                designChatHistory = dbChat;
                 renderDesignChat();
               } else {
-                // Set pending rating so it shows when design chat initializes
+                // No saved chat — show fresh welcome
                 var activeTheme2 = themeVersions[activeVersionIndex >= 0 ? activeVersionIndex : 0];
                 if (activeTheme2 && activeTheme2.id) pendingRatingThemeId = activeTheme2.id;
                 initDesignChatIfNeeded(false);
@@ -1925,7 +1952,7 @@
               locationAddress: extractedData.locationAddress || '',
               dressCode: extractedData.dressCode || '',
               eventType: extractedData.eventType || 'other',
-              settings: { creation_step: 1 }
+              settings: { creation_step: 1, design_prompt: extractedData.prompt || '' }
             })
           });
           var updateResult = await updateRes.json();
@@ -4746,15 +4773,35 @@
       try {
         // Save only persistent messages (skip system/loading messages)
         var persistable = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+        // SessionStorage — instant, for same-tab reload
         sessionStorage.setItem('ryvite_designchat_' + currentEvent.id, JSON.stringify(persistable));
+        // DB save — debounced 2s, for cross-session persistence (survives browser close)
+        clearTimeout(_chatSaveTimer);
+        _chatSaveTimer = setTimeout(function() {
+          // Cap at last 50 messages to keep JSONB size reasonable
+          var toSave = persistable.slice(-50);
+          authFetch('/api/v2/events?action=update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventId: currentEvent.id,
+              settings: { design_chat_history: toSave }
+            })
+          }).catch(function() {});
+        }, 2000);
       } catch(e) {}
     }
 
     function loadDesignChatHistory(eventId) {
+      // Try sessionStorage first (fast, same-tab)
       try {
         var raw = sessionStorage.getItem('ryvite_designchat_' + eventId);
         if (raw) return JSON.parse(raw);
       } catch(e) {}
+      // Fall back to DB-loaded chat (set during event fetch)
+      if (_dbDesignChatHistory && _dbDesignChatHistory.length > 0) {
+        return _dbDesignChatHistory;
+      }
       return null;
     }
 
