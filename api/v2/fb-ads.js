@@ -19,14 +19,24 @@ async function verifyAdmin(req) {
   return user;
 }
 
-// Get FB credentials from app_config
+// Get FB credentials from app_config, falling back to env vars
 async function getFbConfig() {
   const { data } = await supabase
     .from('app_config')
     .select('value')
     .eq('key', 'fb_ads_config')
     .single();
-  return data?.value || null;
+  const config = data?.value || {};
+
+  // Fall back to env vars if not configured in DB
+  if (!config.accessToken && process.env.META_ACCESS_TOKEN) {
+    config.accessToken = process.env.META_ACCESS_TOKEN;
+  }
+  if (!config.adAccountId && process.env.FB_AD_ACCOUNT_ID) {
+    config.adAccountId = process.env.FB_AD_ACCOUNT_ID;
+  }
+
+  return (config.accessToken || config.adAccountId) ? config : null;
 }
 
 export default async function handler(req, res) {
