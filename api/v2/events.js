@@ -1514,14 +1514,25 @@ async function verifyPublishedInvite(eventId, slug, userId) {
 
     const responseText = (analysis.content[0]?.text || '').trim();
     // Log publish-verify vision call to generation_log for cost tracking
-    await supabaseAdmin.from('generation_log').insert({
+    const pvInputTokens = analysis.usage?.input_tokens || 0;
+    const pvOutputTokens = analysis.usage?.output_tokens || 0;
+    const pvLogResult = await supabaseAdmin.from('generation_log').insert({
       event_id: eventId, user_id: userId,
       prompt: 'publish-verify: screenshot vision check for ' + slug,
       model: 'claude-haiku-4-5-20251001',
-      input_tokens: analysis.usage?.input_tokens || 0,
-      output_tokens: analysis.usage?.output_tokens || 0,
+      input_tokens: pvInputTokens,
+      output_tokens: pvOutputTokens,
       latency_ms: 0, status: 'success', is_tweak: false
-    }).catch(e => console.error('[publish-verify] generation_log insert failed:', e.message));
+    });
+    if (pvLogResult.error) console.error('[publish-verify] generation_log insert failed:', pvLogResult.error.message);
+    // Increment event cost for vision call
+    const pvPricing = { input: 1.00, output: 5.00 }; // Haiku pricing per 1M tokens
+    const pvRawCost = (pvInputTokens * pvPricing.input + pvOutputTokens * pvPricing.output) / 1_000_000;
+    const pvCostCents = Math.round(pvRawCost * 150); // 50% markup, convert to cents
+    if (pvCostCents > 0) {
+      await supabaseAdmin.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: pvCostCents })
+        .catch(e => console.error('[publish-verify] cost increment failed:', e.message));
+    }
     const cleaned = responseText.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
     let result;
     try {

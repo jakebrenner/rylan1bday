@@ -240,7 +240,7 @@ export default async function handler(req, res) {
     const { error: genLogError } = await supabase.from('generation_log').insert({
       user_id: user.id,
       event_id: eventId || null,
-      prompt: messages[messages.length - 1]?.content || '',
+      prompt: 'chat: ' + (messages[messages.length - 1]?.content || '').substring(0, 200),
       model: chatModel,
       input_tokens: chatInputTokens,
       output_tokens: chatOutputTokens,

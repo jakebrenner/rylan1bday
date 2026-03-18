@@ -241,7 +241,7 @@ export default async function handler(req, res) {
         const pricing = MODEL_PRICING[g.model] || { input: 3.00, output: 15.00 };
         const cost = ((g.input_tokens || 0) * pricing.input + (g.output_tokens || 0) * pricing.output) / 1_000_000;
         totalAiCost += cost;
-        const isChat = !g.event_id;
+        const isChat = (g.prompt && g.prompt.startsWith('chat:')) || !g.event_id;
         if (isChat) {
           chatAiCost += cost;
           chatGenerations.push(g);
@@ -617,7 +617,7 @@ export default async function handler(req, res) {
         // Categorize: prompt_test (admin lab), internal (admin/system), chat (event planning), or theme (generation/tweak)
         const isTest = l.prompt && l.prompt.startsWith('prompt_test');
         const isInternal = l.prompt && (l.prompt.startsWith('QM ') || l.prompt.startsWith('admin:') || l.prompt.startsWith('blog:') || l.prompt.startsWith('publish-verify:'));
-        const isChat = !l.event_id && !isTest && !isInternal;
+        const isChat = (l.prompt && l.prompt.startsWith('chat:')) || (!l.event_id && !isTest && !isInternal);
         if (isTest) { testApiCost += cost; testCount++; tokensByModel[model].testCount++; }
         else if (isInternal) { internalApiCost += cost; internalCount++; }
         else if (isChat) { chatApiCost += cost; chatCount++; tokensByModel[model].chatCount++; }
