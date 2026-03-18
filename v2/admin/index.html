@@ -3611,6 +3611,12 @@
         if (res.error) { alert(res.error); return; }
         input.value = '';
         loadAdmins();
+        // Show success toast
+        var toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1A1A2E;color:white;padding:14px 20px;border-radius:8px;font-size:13px;z-index:10001;box-shadow:0 4px 12px rgba(0,0,0,0.2);';
+        toast.textContent = 'Invitation email sent to ' + email;
+        document.body.appendChild(toast);
+        setTimeout(function() { toast.remove(); }, 4000);
       } catch (err) { alert('Failed to add admin'); }
     }
 
