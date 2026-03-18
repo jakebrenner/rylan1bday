@@ -79,14 +79,14 @@ const VIDEO_THEMES = {
 // ── Phone Design Constants (matches homepage CSS) ──
 const PHONE_BEZEL_GRADIENT = ['#2a2a2e', '#1a1a1e']; // metallic dark gradient
 const PHONE_BEZEL_ANGLE = 145; // degrees
-const PHONE_FRAME_RADIUS = 40;
-const PHONE_SCREEN_RADIUS = 34;
-const PHONE_BEZEL_WIDTH = 8;
-const PHONE_NOTCH_WIDTH_RATIO = 0.14; // 80/580 roughly
-const PHONE_NOTCH_HEIGHT = 20;
-const PHONE_NOTCH_RADIUS = 14;
-const PHONE_HOME_BAR_WIDTH = 90;
-const PHONE_HOME_BAR_HEIGHT = 4;
+const PHONE_FRAME_RADIUS = 52; // generous rounding for modern iPhone look
+const PHONE_SCREEN_RADIUS = 44; // inner screen corner radius
+const PHONE_BEZEL_WIDTH = 12; // visible bezel width
+const PHONE_NOTCH_WIDTH_RATIO = 0.30; // dynamic island style (wider)
+const PHONE_NOTCH_HEIGHT = 24;
+const PHONE_NOTCH_RADIUS = 12;
+const PHONE_HOME_BAR_WIDTH = 100;
+const PHONE_HOME_BAR_HEIGHT = 5;
 const PHONE_SHADOW_BLUR = 64;
 const PHONE_SHADOW_OFFSET_Y = 24;
 const PHONE_SHADOW_ALPHA = 0.35;
@@ -99,14 +99,14 @@ const FORMAT_CONFIGS = {
     logoY: 120,
     logoSize: 48,
     promptAreaY: 230,
-    promptAreaHeight: 300,
-    promptFontSize: 36,
-    promptMaxWidth: 920,
-    promptLineHeight: 52,
-    phoneY: 560,
-    phoneWidth: 560,
-    phoneHeight: 1020,
-    ctaY: 1700,
+    promptAreaHeight: 280,
+    promptFontSize: 34,
+    promptMaxWidth: 900,
+    promptLineHeight: 50,
+    phoneY: 620,
+    phoneWidth: 480,
+    phoneHeight: 980,
+    ctaY: 1720,
     ctaFontSize: 32,
     labelFontSize: 20,
     labelY: 185,
@@ -117,24 +117,24 @@ const FORMAT_CONFIGS = {
     height: 1080,
     // Side-by-side layout: prompt left, phone right
     layout: 'side_by_side',
-    logoY: 55,
-    logoSize: 38,
+    logoY: 60,
+    logoSize: 36,
     // Prompt on left side
     promptAreaX: 40,
-    promptAreaY: 160,
-    promptAreaHeight: 400,
-    promptFontSize: 28,
-    promptMaxWidth: 440,
-    promptLineHeight: 42,
-    // Taller phone on right side (proper iPhone proportions)
-    phoneX: 580,
-    phoneY: 100,
-    phoneWidth: 420,
-    phoneHeight: 860,
-    ctaY: 980,
-    ctaFontSize: 26,
-    labelFontSize: 16,
-    labelY: 100,
+    promptAreaY: 170,
+    promptAreaHeight: 350,
+    promptFontSize: 26,
+    promptMaxWidth: 470,
+    promptLineHeight: 40,
+    // Taller phone on right side (proper iPhone proportions ~393:852)
+    phoneX: 590,
+    phoneY: 60,
+    phoneWidth: 400,
+    phoneHeight: 870,
+    ctaY: 970,
+    ctaFontSize: 24,
+    labelFontSize: 15,
+    labelY: 105,
     particleCount: 25
   }
 };
@@ -313,25 +313,15 @@ function drawPhoneFrame(ctx, phoneX, phoneY, phoneW, phoneH, elapsed) {
   ctx.fill();
   ctx.restore();
 
-  // ── Notch (centered at top of screen) ──
+  // ── Dynamic Island (pill shape centered at top of screen) ──
   const notchW = Math.round(phoneW * PHONE_NOTCH_WIDTH_RATIO);
   const notchH = PHONE_NOTCH_HEIGHT;
   const notchX = phoneX + (phoneW - notchW) / 2;
-  const notchY = phoneY + bw + 2;
+  const notchY = phoneY + bw + 6;
 
   ctx.save();
-  roundRect(ctx, notchX, notchY - 2, notchW, notchH, PHONE_NOTCH_RADIUS);
+  roundRect(ctx, notchX, notchY, notchW, notchH, notchH / 2); // pill shape
   ctx.fillStyle = '#000000';
-  ctx.fill();
-
-  // Tiny camera dot in notch
-  ctx.beginPath();
-  ctx.arc(notchX + notchW / 2 + 12, notchY + notchH / 2 - 1, 3.5, 0, Math.PI * 2);
-  ctx.fillStyle = '#1a1a2e';
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(notchX + notchW / 2 + 12, notchY + notchH / 2 - 1, 2, 0, Math.PI * 2);
-  ctx.fillStyle = '#0a0a15';
   ctx.fill();
   ctx.restore();
 
@@ -512,65 +502,85 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
       ctx.fillText('AI-Powered Event Invitations', logoX, fmt.labelY - 15 + logoEased * 15);
       ctx.restore();
 
-      // ── Typing animation with cursor glow ──
+      // ── Prompt Card (white rounded card matching homepage .demo-chat-bubble) ──
       if (elapsed > INTRO_MS * 0.5) {
         const typeElapsed = Math.max(0, elapsed - introEnd);
         const charCount = Math.min(promptText.length, Math.floor(typeElapsed / CHAR_MS));
         const displayText = promptText.substring(0, charCount);
 
-        // Prompt X position: centered for vertical, left-aligned for side-by-side
-        const promptX = isSideBySide ? (fmt.promptAreaX || 40) : (fmt.width - fmt.promptMaxWidth) / 2;
+        // Prompt card position
+        const cardX = isSideBySide ? (fmt.promptAreaX || 40) : (fmt.width - fmt.promptMaxWidth) / 2;
+        const cardW = fmt.promptMaxWidth;
+        const cardPadX = 36;
+        const cardPadTop = 50;
+        const cardPadBottom = 40;
+        const cardRadius = 24;
 
-        // Opening quote
+        // Measure text height for card sizing
         ctx.save();
-        ctx.font = 'italic ' + (fmt.promptFontSize * 0.7) + 'px "Inter", Arial, sans-serif';
-        ctx.fillStyle = thm.subtextColor;
-        ctx.globalAlpha = Math.min(1, (elapsed - INTRO_MS * 0.5) / 300);
-        ctx.textAlign = 'left';
-        ctx.fillText('\u201c', promptX, fmt.promptAreaY);
+        ctx.font = fmt.promptFontSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
+        const allLines = wrapText(ctx, promptText, cardW - cardPadX * 2 - 20);
+        const textBlockH = allLines.length * fmt.promptLineHeight;
         ctx.restore();
 
-        if (displayText.length > 0) {
-          ctx.save();
-          ctx.font = fmt.promptFontSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
-          ctx.fillStyle = thm.textColor;
-          ctx.textAlign = 'left';
+        const cardH = Math.max(cardPadTop + textBlockH + cardPadBottom + 20, fmt.promptAreaHeight || 200);
+        const cardY = fmt.promptAreaY - 10;
 
-          const lines = wrapText(ctx, displayText, fmt.promptMaxWidth - 40);
+        // Card fade-in
+        const cardAlpha = Math.min(1, (elapsed - INTRO_MS * 0.5) / 400);
+
+        ctx.save();
+        ctx.globalAlpha = cardAlpha;
+
+        // Card shadow
+        ctx.shadowColor = 'rgba(0,0,0,0.08)';
+        ctx.shadowBlur = 24;
+        ctx.shadowOffsetY = 4;
+        roundRect(ctx, cardX, cardY, cardW, cardH, cardRadius);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.shadowColor = 'transparent';
+
+        // Subtle border
+        roundRect(ctx, cardX, cardY, cardW, cardH, cardRadius);
+        ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // "YOUR PROMPT" header label
+        ctx.font = '700 ' + Math.round(fmt.promptFontSize * 0.42) + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
+        ctx.fillStyle = '#E94560';
+        ctx.textAlign = 'center';
+        ctx.letterSpacing = '1.5px';
+        ctx.fillText('YOUR PROMPT', cardX + cardW / 2, cardY + 36);
+        ctx.letterSpacing = '0px';
+
+        // Prompt text (centered, dark color)
+        if (displayText.length > 0) {
+          ctx.font = fmt.promptFontSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
+          ctx.fillStyle = '#1a1a2e';
+          ctx.textAlign = 'center';
+
+          const lines = wrapText(ctx, displayText, cardW - cardPadX * 2);
+          const textStartY = cardY + cardPadTop + 16;
           lines.forEach(function(line, i) {
-            ctx.fillText(line, promptX + 20, fmt.promptAreaY + 10 + (i + 1) * fmt.promptLineHeight);
+            ctx.fillText(line, cardX + cardW / 2, textStartY + i * fmt.promptLineHeight);
           });
 
-          // Cursor with glow effect
-          const cursorBlink = Math.sin(elapsed / 300 * Math.PI) > 0;
+          // Blinking cursor (coral colored, matching homepage)
+          const cursorBlink = Math.sin(elapsed / 400 * Math.PI) > 0;
           if (charCount < promptText.length || (elapsed < pauseEnd && cursorBlink)) {
             const lastLine = lines[lines.length - 1] || '';
-            const cursorX = promptX + 20 + ctx.measureText(lastLine).width + 4;
-            const cursorY = fmt.promptAreaY + 10 + lines.length * fmt.promptLineHeight;
+            const lastLineW = ctx.measureText(lastLine).width;
+            const cursorX = cardX + cardW / 2 + lastLineW / 2 + 4;
+            const cursorY = textStartY + (lines.length - 1) * fmt.promptLineHeight;
 
-            // Glow behind cursor
-            var glowGrad = ctx.createRadialGradient(cursorX + 1.5, cursorY - fmt.promptFontSize / 2 + 4, 0, cursorX + 1.5, cursorY - fmt.promptFontSize / 2 + 4, 20);
-            glowGrad.addColorStop(0, thm.glowColor);
-            glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = glowGrad;
-            ctx.fillRect(cursorX - 20, cursorY - fmt.promptFontSize - 16, 43, fmt.promptFontSize + 36);
-
-            // Cursor bar
-            ctx.fillStyle = thm.cursorColor;
-            ctx.fillRect(cursorX, cursorY - fmt.promptFontSize + 4, 3, fmt.promptFontSize);
+            ctx.fillStyle = '#E94560';
+            ctx.fillRect(cursorX, cursorY - fmt.promptFontSize + 6, 2.5, fmt.promptFontSize - 2);
           }
-
-          // Closing quote
-          if (charCount >= promptText.length) {
-            const lastLine = lines[lines.length - 1] || '';
-            const quoteX = promptX + 20 + ctx.measureText(lastLine).width + 14;
-            const quoteY = fmt.promptAreaY + 10 + lines.length * fmt.promptLineHeight;
-            ctx.font = 'italic ' + (fmt.promptFontSize * 0.7) + 'px "Inter", Arial, sans-serif';
-            ctx.fillStyle = thm.subtextColor;
-            ctx.fillText('\u201d', quoteX, quoteY);
-          }
-          ctx.restore();
         }
+
+        ctx.restore();
       }
 
       // ── Premium Phone Mockup ──
