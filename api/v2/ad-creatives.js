@@ -24,6 +24,15 @@ function generateCreativeId() {
   return id;
 }
 
+// Auto-generate a consistent campaign name from event type + current month
+function generateCampaignName(eventType) {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = now.getFullYear();
+  const type = eventType || 'general';
+  return `ryvite_${type}_${year}-${month}`;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -39,21 +48,24 @@ export default async function handler(req, res) {
 
   // ── CREATE: Register a new ad creative with auto-generated UTM link ──
   if (action === 'create' && req.method === 'POST') {
-    const { campaignName, sourceType, sourceId, eventType, format, videoTheme, promptText,
+    const { campaignName, campaignLabel, sourceType, sourceId, eventType, format, videoTheme, promptText,
             inviteHtml, inviteCss, inviteConfig } = req.body || {};
 
-    if (!campaignName || !sourceType || !sourceId || !format) {
-      return res.status(400).json({ success: false, error: 'campaignName, sourceType, sourceId, and format are required' });
+    if (!sourceType || !sourceId || !format) {
+      return res.status(400).json({ success: false, error: 'sourceType, sourceId, and format are required' });
     }
 
     const creativeId = generateCreativeId();
-    const utmUrl = `https://ryvite.com/v2/create/?utm_source=facebook&utm_medium=paid&utm_campaign=${encodeURIComponent(campaignName)}&utm_content=${creativeId}&utm_term=${encodeURIComponent(eventType || '')}`;
+    // Auto-generate campaign name if not provided (legacy support)
+    const campaign = campaignName || generateCampaignName(eventType);
+    const utmUrl = `https://ryvite.com/v2/create/?utm_source=facebook&utm_medium=paid&utm_campaign=${encodeURIComponent(campaign)}&utm_content=${creativeId}&utm_term=${encodeURIComponent(eventType || '')}`;
 
     const { data, error } = await supabase
       .from('ad_creatives')
       .insert({
         creative_id: creativeId,
-        campaign_name: campaignName,
+        campaign_name: campaign,
+        campaign_label: campaignLabel || null,
         source_type: sourceType,
         source_id: sourceId,
         event_type: eventType || null,

@@ -2178,11 +2178,89 @@
             </select>
           </div>
         </div>
-        <div id="mktCreativeGrid" class="style-grid" style="min-height:200px;"></div>
+        <div style="overflow-x:auto;">
+          <table id="mktCreativeTable" style="width:100%;font-size:13px;border-collapse:collapse;">
+            <thead>
+              <tr style="border-bottom:2px solid #eee;text-align:left;">
+                <th style="padding:8px 12px;">Date</th>
+                <th style="padding:8px 12px;">Campaign</th>
+                <th style="padding:8px 12px;">Label</th>
+                <th style="padding:8px 12px;">Format</th>
+                <th style="padding:8px 12px;">Theme</th>
+                <th style="padding:8px 12px;">Event Type</th>
+                <th style="padding:8px 12px;">Prompt</th>
+                <th style="padding:8px 12px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="mktCreativeBody"></tbody>
+          </table>
+        </div>
         <div id="mktCreativeEmpty" style="display:none;text-align:center;padding:60px 20px;color:#888;">
           <div style="font-size:48px;margin-bottom:16px;">🎬</div>
           <h3 style="color:#555;margin-bottom:8px;">No ad creatives yet</h3>
           <p style="font-size:14px;">Generate your first ad video from the Generations tab — click the "Generate Ad" button on any invite.</p>
+        </div>
+      </div>
+
+      <!-- Creative Detail Modal -->
+      <div id="creativeDetailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10001;display:none;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:16px;max-width:800px;width:95%;max-height:90vh;overflow-y:auto;padding:28px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="margin:0;">Creative Detail</h3>
+            <button onclick="closeCreativeDetail()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">&times;</button>
+          </div>
+          <div style="display:flex;gap:24px;flex-wrap:wrap;">
+            <!-- Invite Preview -->
+            <div style="flex:0 0 200px;">
+              <div style="background:linear-gradient(145deg,#2a2a2e,#1a1a1e);border-radius:20px;padding:4px;box-shadow:0 12px 32px rgba(0,0,0,0.2);">
+                <div style="background:#fff;border-radius:17px;overflow:hidden;aspect-ratio:393/852;">
+                  <iframe id="creativeDetailPreview" sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:17px;transform-origin:top left;pointer-events:none;"></iframe>
+                </div>
+              </div>
+            </div>
+            <!-- Metadata -->
+            <div style="flex:1;min-width:280px;">
+              <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:16px;">
+                <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 0;color:#888;width:100px;">Campaign</td><td style="padding:8px 0;font-weight:600;" id="cdCampaign"></td></tr>
+                <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 0;color:#888;">Label</td><td style="padding:8px 0;" id="cdLabel"></td></tr>
+                <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 0;color:#888;">Creative ID</td><td style="padding:8px 0;font-family:monospace;font-size:12px;" id="cdCreativeId"></td></tr>
+                <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 0;color:#888;">Format</td><td style="padding:8px 0;" id="cdFormat"></td></tr>
+                <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 0;color:#888;">Theme</td><td style="padding:8px 0;" id="cdTheme"></td></tr>
+                <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 0;color:#888;">Event Type</td><td style="padding:8px 0;" id="cdEventType"></td></tr>
+                <tr><td style="padding:8px 0;color:#888;">Created</td><td style="padding:8px 0;" id="cdCreatedAt"></td></tr>
+              </table>
+
+              <div style="margin-bottom:16px;">
+                <label style="display:block;font-size:11px;font-weight:600;color:#888;margin-bottom:4px;">Prompt Text</label>
+                <div id="cdPromptText" style="background:#f8f8fc;border-radius:8px;padding:12px;font-size:13px;max-height:80px;overflow-y:auto;"></div>
+                <button class="btn btn-secondary" onclick="copyToClipboard(document.getElementById('cdPromptText').textContent)" style="margin-top:6px;font-size:11px;padding:4px 10px;">Copy Prompt</button>
+              </div>
+
+              <div style="margin-bottom:16px;">
+                <label style="display:block;font-size:11px;font-weight:600;color:#888;margin-bottom:4px;">UTM Link</label>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <input type="text" id="cdUtmLink" readonly style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:11px;font-family:monospace;background:#f8f8fc;">
+                  <button class="btn btn-secondary" onclick="copyToClipboard(document.getElementById('cdUtmLink').value)" style="font-size:11px;padding:4px 10px;white-space:nowrap;">Copy</button>
+                </div>
+              </div>
+
+              <div style="margin-bottom:16px;">
+                <label style="display:block;font-size:11px;font-weight:600;color:#888;margin-bottom:6px;">UTM Parameters</label>
+                <table style="width:100%;font-size:11px;border-collapse:collapse;">
+                  <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:4px 0;color:#888;font-family:monospace;">utm_source</td><td style="padding:4px 0;" id="cdUtmSource"></td></tr>
+                  <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:4px 0;color:#888;font-family:monospace;">utm_medium</td><td style="padding:4px 0;" id="cdUtmMedium"></td></tr>
+                  <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:4px 0;color:#888;font-family:monospace;">utm_campaign</td><td style="padding:4px 0;" id="cdUtmCampaign"></td></tr>
+                  <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:4px 0;color:#888;font-family:monospace;">utm_content</td><td style="padding:4px 0;" id="cdUtmContent"></td></tr>
+                  <tr><td style="padding:4px 0;color:#888;font-family:monospace;">utm_term</td><td style="padding:4px 0;" id="cdUtmTerm"></td></tr>
+                </table>
+              </div>
+
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn btn-primary" onclick="regenFromDetail()" style="font-size:13px;">Re-generate Video</button>
+                <button class="btn btn-secondary" onclick="deleteFromDetail()" style="font-size:13px;color:#ef4444;">Delete</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -7890,10 +7968,16 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('adVideoProgress').style.display = 'none';
       document.getElementById('adVideoResult').style.display = 'none';
       document.getElementById('adVideoPromptText').value = data.promptText || '';
-      document.getElementById('adVideoCampaign').value = '';
+      document.getElementById('adVideoCampaignLabel').value = '';
       document.getElementById('adFmtReels').checked = true;
       document.getElementById('adFmtFeed').checked = true;
       selectAdTheme('dark_gradient');
+
+      // Show auto-generated UTM campaign preview
+      var eventType = data.eventType || 'general';
+      var now = new Date();
+      var autoUtm = 'ryvite_' + eventType + '_' + now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+      document.getElementById('adVideoUtmPreview').textContent = 'UTM campaign: ' + autoUtm;
 
       var modal = document.getElementById('adVideoModal');
       modal.style.display = 'flex';
@@ -7921,8 +8005,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     async function startAdVideoGeneration() {
-      var campaign = document.getElementById('adVideoCampaign').value.trim();
-      if (!campaign) { alert('Please enter a campaign name'); return; }
+      var campaignLabel = document.getElementById('adVideoCampaignLabel').value.trim();
 
       var promptText = document.getElementById('adVideoPromptText').value.trim();
       if (!promptText) { alert('Please enter prompt text for the typing animation'); return; }
@@ -7969,7 +8052,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                campaignName: campaign,
+                campaignLabel: campaignLabel || null,
                 sourceType: _adVideoData.sourceType || 'showcase',
                 sourceId: _adVideoData.sourceId || '00000000-0000-0000-0000-000000000000',
                 eventType: _adVideoData.eventType || null,
@@ -8027,7 +8110,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     function downloadAdVideoFmt(fmt) {
       var blob = _adVideoBlobs[fmt];
       if (!blob) return;
-      var campaign = document.getElementById('adVideoCampaign').value.trim().replace(/[^a-z0-9_-]/gi, '-');
+      var campaign = (document.getElementById('adVideoCampaignLabel').value.trim() || 'ryvite-ad').replace(/[^a-z0-9_-]/gi, '-');
       var filename = 'ryvite-ad-' + campaign + '-' + fmt + '.webm';
       window.AdVideoGenerator.download(blob, filename);
     }
@@ -8164,55 +8247,114 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     function renderAdCreatives() {
-      var grid = document.getElementById('mktCreativeGrid');
+      var tbody = document.getElementById('mktCreativeBody');
       var empty = document.getElementById('mktCreativeEmpty');
       if (_mktCreatives.length === 0) {
-        grid.innerHTML = '';
+        tbody.innerHTML = '';
         empty.style.display = '';
         return;
       }
       empty.style.display = 'none';
 
-      grid.innerHTML = _mktCreatives.map(function(c) {
-        var formatBadge = c.format === 'reels_9x16' ? 'Reels' : 'Feed';
+      tbody.innerHTML = _mktCreatives.map(function(c) {
+        var formatBadge = c.format === 'reels_9x16'
+          ? '<span style="background:#E94560;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;">Reels</span>'
+          : '<span style="background:#3b82f6;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;">Feed</span>';
         var themeName = (window.AdVideoGenerator && window.AdVideoGenerator.themes[c.video_theme])
-          ? window.AdVideoGenerator.themes[c.video_theme].name : c.video_theme;
+          ? window.AdVideoGenerator.themes[c.video_theme].name : (c.video_theme || '—');
         var date = new Date(c.created_at).toLocaleDateString();
-        return '<div class="style-card" style="cursor:pointer;" onclick="showCreativeDetail(\'' + c.creative_id + '\')">'
-          + '<div style="padding:12px;background:linear-gradient(135deg,#1a0a2e,#16213e);border-radius:8px 8px 0 0;min-height:80px;display:flex;align-items:center;justify-content:center;">'
-          + '<div style="color:#fff;font-size:11px;text-align:center;opacity:0.7;">🎬 ' + formatBadge + '</div>'
-          + '</div>'
-          + '<div style="padding:10px 12px;">'
-          + '<div style="font-size:13px;font-weight:600;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.campaign_name) + '</div>'
-          + '<div style="font-size:11px;color:#888;display:flex;gap:8px;">'
-          + '<span>' + formatBadge + '</span>'
-          + '<span>' + escapeHtml(themeName) + '</span>'
-          + '<span>' + date + '</span>'
-          + '</div>'
-          + (c.event_type ? '<div style="font-size:11px;color:#aaa;margin-top:2px;">' + escapeHtml(c.event_type) + '</div>' : '')
-          + '<div style="margin-top:6px;display:flex;gap:6px;">'
-          + '<button class="btn btn-secondary" style="font-size:10px;padding:3px 8px;" onclick="event.stopPropagation();copyToClipboard(\'' + escapeHtml(c.utm_url) + '\')">Copy UTM</button>'
+        var prompt = c.prompt_text ? escapeHtml(c.prompt_text.substring(0, 50)) + (c.prompt_text.length > 50 ? '...' : '') : '—';
+        var label = c.campaign_label ? escapeHtml(c.campaign_label.substring(0, 30)) + (c.campaign_label.length > 30 ? '...' : '') : '—';
+
+        return '<tr style="border-bottom:1px solid #f0f0f5;cursor:pointer;" onclick="showCreativeDetail(\'' + c.creative_id + '\')">'
+          + '<td style="padding:10px 12px;white-space:nowrap;">' + date + '</td>'
+          + '<td style="padding:10px 12px;font-family:monospace;font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(c.campaign_name) + '</td>'
+          + '<td style="padding:10px 12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + label + '</td>'
+          + '<td style="padding:10px 12px;">' + formatBadge + '</td>'
+          + '<td style="padding:10px 12px;font-size:12px;">' + escapeHtml(themeName) + '</td>'
+          + '<td style="padding:10px 12px;font-size:12px;">' + escapeHtml(c.event_type || '—') + '</td>'
+          + '<td style="padding:10px 12px;font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666;">' + prompt + '</td>'
+          + '<td style="padding:10px 12px;white-space:nowrap;">'
+          + '<button class="btn btn-secondary" style="font-size:10px;padding:3px 8px;margin-right:4px;" onclick="event.stopPropagation();copyToClipboard(\'' + escapeHtml(c.utm_url) + '\')">Copy UTM</button>'
           + '<button class="btn btn-secondary" style="font-size:10px;padding:3px 8px;color:#ef4444;" onclick="event.stopPropagation();deleteCreative(\'' + c.creative_id + '\')">Delete</button>'
-          + '</div>'
-          + '</div></div>';
+          + '</td></tr>';
       }).join('');
     }
+
+    var _currentDetailCreativeId = null;
 
     function showCreativeDetail(creativeId) {
       var c = _mktCreatives.find(function(x) { return x.creative_id === creativeId; });
       if (!c) return;
-      // If the creative has stored HTML, offer to re-generate video
+      _currentDetailCreativeId = creativeId;
+
+      // Metadata
+      document.getElementById('cdCampaign').textContent = c.campaign_name || '—';
+      document.getElementById('cdLabel').textContent = c.campaign_label || '—';
+      document.getElementById('cdCreativeId').textContent = c.creative_id;
+      document.getElementById('cdFormat').textContent = c.format === 'reels_9x16' ? 'Reels (9:16)' : 'Feed (1:1)';
+      var themeName = (window.AdVideoGenerator && window.AdVideoGenerator.themes[c.video_theme])
+        ? window.AdVideoGenerator.themes[c.video_theme].name : (c.video_theme || '—');
+      document.getElementById('cdTheme').textContent = themeName;
+      document.getElementById('cdEventType').textContent = c.event_type || '—';
+      document.getElementById('cdCreatedAt').textContent = new Date(c.created_at).toLocaleString();
+      document.getElementById('cdPromptText').textContent = c.prompt_text || '(no prompt)';
+      document.getElementById('cdUtmLink').value = c.utm_url || '';
+
+      // Parse UTM params from URL
+      try {
+        var url = new URL(c.utm_url);
+        document.getElementById('cdUtmSource').textContent = url.searchParams.get('utm_source') || '';
+        document.getElementById('cdUtmMedium').textContent = url.searchParams.get('utm_medium') || '';
+        document.getElementById('cdUtmCampaign').textContent = url.searchParams.get('utm_campaign') || '';
+        document.getElementById('cdUtmContent').textContent = url.searchParams.get('utm_content') || '';
+        document.getElementById('cdUtmTerm').textContent = url.searchParams.get('utm_term') || '';
+      } catch (e) {}
+
+      // Invite preview in iframe
       if (c.invite_html) {
-        openAdVideoModal({
-          html: c.invite_html,
-          css: c.invite_css || '',
-          config: c.invite_config || {},
-          promptText: c.prompt_text || '',
-          eventType: c.event_type,
-          sourceType: c.source_type,
-          sourceId: c.source_id
-        });
-        document.getElementById('adVideoCampaign').value = c.campaign_name;
+        var configObj = c.invite_config || {};
+        if (typeof configObj === 'string') { try { configObj = JSON.parse(configObj); } catch(e) { configObj = {}; } }
+        var fontsImport = '';
+        if (configObj.fontUrl) fontsImport = '@import url("' + configObj.fontUrl + '");';
+        else if (configObj.googleFontsImport) fontsImport = configObj.googleFontsImport;
+        var srcdoc = '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>'
+          + fontsImport + '\n' + (c.invite_css || '') + '\nbody{margin:0;overflow:hidden;}</style></head><body>'
+          + c.invite_html + '</body></html>';
+        var iframe = document.getElementById('creativeDetailPreview');
+        iframe.srcdoc = srcdoc;
+        var screen = iframe.parentElement;
+        var scale = screen.offsetWidth / 393;
+        iframe.style.transform = 'scale(' + scale + ')';
+      }
+
+      document.getElementById('creativeDetailModal').style.display = 'flex';
+    }
+
+    function closeCreativeDetail() {
+      document.getElementById('creativeDetailModal').style.display = 'none';
+      _currentDetailCreativeId = null;
+    }
+
+    function regenFromDetail() {
+      var c = _mktCreatives.find(function(x) { return x.creative_id === _currentDetailCreativeId; });
+      if (!c || !c.invite_html) return;
+      closeCreativeDetail();
+      openAdVideoModal({
+        html: c.invite_html,
+        css: c.invite_css || '',
+        config: c.invite_config || {},
+        promptText: c.prompt_text || '',
+        eventType: c.event_type,
+        sourceType: c.source_type,
+        sourceId: c.source_id
+      });
+    }
+
+    function deleteFromDetail() {
+      if (_currentDetailCreativeId) {
+        deleteCreative(_currentDetailCreativeId);
+        closeCreativeDetail();
       }
     }
 
@@ -8648,8 +8790,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       <!-- Step 1: Configure -->
       <div id="adVideoConfig">
         <div style="margin-bottom:16px;">
-          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Campaign Name</label>
-          <input type="text" id="adVideoCampaign" placeholder="e.g., spring-weddings-2026" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;box-sizing:border-box;">
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Label <span style="font-weight:400;color:#999;">(optional — for your reference)</span></label>
+          <input type="text" id="adVideoCampaignLabel" placeholder="e.g., Emma's unicorn birthday" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;box-sizing:border-box;">
+          <div id="adVideoUtmPreview" style="margin-top:6px;font-size:11px;color:#888;font-family:monospace;"></div>
         </div>
 
         <div style="margin-bottom:16px;">

@@ -115,20 +115,26 @@ const FORMAT_CONFIGS = {
   feed_1x1: {
     width: 1080,
     height: 1080,
+    // Side-by-side layout: prompt left, phone right
+    layout: 'side_by_side',
     logoY: 55,
     logoSize: 38,
-    promptAreaY: 135,
-    promptAreaHeight: 200,
-    promptFontSize: 30,
-    promptMaxWidth: 800,
-    promptLineHeight: 44,
-    phoneY: 370,
-    phoneWidth: 380,
-    phoneHeight: 500,
-    ctaY: 950,
-    ctaFontSize: 28,
+    // Prompt on left side
+    promptAreaX: 40,
+    promptAreaY: 160,
+    promptAreaHeight: 400,
+    promptFontSize: 28,
+    promptMaxWidth: 440,
+    promptLineHeight: 42,
+    // Taller phone on right side (proper iPhone proportions)
+    phoneX: 580,
+    phoneY: 100,
+    phoneWidth: 420,
+    phoneHeight: 860,
+    ctaY: 980,
+    ctaFontSize: 26,
     labelFontSize: 16,
-    labelY: 110,
+    labelY: 100,
     particleCount: 25
   }
 };
@@ -293,15 +299,17 @@ function drawPhoneFrame(ctx, phoneX, phoneY, phoneW, phoneH, elapsed) {
   ctx.fill();
   ctx.restore();
 
-  // ── Screen area (white/dark background) ──
+  // ── Screen area ──
   const screenX = phoneX + bw;
   const screenY = phoneY + bw;
   const screenW = phoneW - bw * 2;
   const screenH = phoneH - bw * 2 - 12; // leave room for home bar area
 
+  // Screen background — only visible before invite loads (during shimmer/empty phases)
+  // Use a very dark color that won't tint the invite when it's drawn at full opacity
   ctx.save();
   roundRect(ctx, screenX, screenY, screenW, screenH, sr);
-  ctx.fillStyle = '#000000';
+  ctx.fillStyle = '#0a0a12';
   ctx.fill();
   ctx.restore();
 
@@ -484,6 +492,10 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
       const scrollEnd = holdEnd + scrollMs;
       const finalHoldEnd = scrollEnd + MIN_HOLD_MS;
 
+      // ── Layout mode ──
+      const isSideBySide = fmt.layout === 'side_by_side';
+      const logoX = isSideBySide ? fmt.promptAreaX + fmt.promptMaxWidth / 2 : fmt.width / 2;
+
       // ── Logo (fades in + slides down during intro) ──
       const logoProgress = Math.min(1, elapsed / INTRO_MS);
       const logoEased = easeOutCubic(logoProgress);
@@ -492,12 +504,12 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
       ctx.font = 'bold ' + fmt.logoSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
       ctx.fillStyle = thm.logoColor;
       ctx.textAlign = 'center';
-      ctx.fillText(logoText, fmt.width / 2, fmt.logoY - 20 + logoEased * 20);
+      ctx.fillText(logoText, logoX, fmt.logoY - 20 + logoEased * 20);
 
       // Subtitle
       ctx.font = fmt.labelFontSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
       ctx.fillStyle = thm.subtextColor;
-      ctx.fillText('AI-Powered Event Invitations', fmt.width / 2, fmt.labelY - 15 + logoEased * 15);
+      ctx.fillText('AI-Powered Event Invitations', logoX, fmt.labelY - 15 + logoEased * 15);
       ctx.restore();
 
       // ── Typing animation with cursor glow ──
@@ -506,13 +518,15 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
         const charCount = Math.min(promptText.length, Math.floor(typeElapsed / CHAR_MS));
         const displayText = promptText.substring(0, charCount);
 
+        // Prompt X position: centered for vertical, left-aligned for side-by-side
+        const promptX = isSideBySide ? (fmt.promptAreaX || 40) : (fmt.width - fmt.promptMaxWidth) / 2;
+
         // Opening quote
         ctx.save();
         ctx.font = 'italic ' + (fmt.promptFontSize * 0.7) + 'px "Inter", Arial, sans-serif';
         ctx.fillStyle = thm.subtextColor;
         ctx.globalAlpha = Math.min(1, (elapsed - INTRO_MS * 0.5) / 300);
         ctx.textAlign = 'left';
-        const promptX = (fmt.width - fmt.promptMaxWidth) / 2;
         ctx.fillText('\u201c', promptX, fmt.promptAreaY);
         ctx.restore();
 
@@ -560,7 +574,8 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
       }
 
       // ── Premium Phone Mockup ──
-      const phoneX = (fmt.width - fmt.phoneWidth) / 2;
+      // For side-by-side layout, phone is positioned on the right; for vertical, centered
+      const phoneX = isSideBySide ? (fmt.phoneX || 580) : (fmt.width - fmt.phoneWidth) / 2;
       const phoneY = fmt.phoneY;
 
       // Phone glow effect during/after reveal
@@ -742,9 +757,11 @@ function wrapText(ctx, text, maxWidth) {
 }
 
 function drawShimmer(ctx, x, y, w, h, progress, thm) {
+  // Dark screen background
   ctx.fillStyle = '#0a0a14';
   ctx.fillRect(x, y, w, h);
 
+  // Animated shimmer sweep
   var shimmerX = x - w + progress * (w * 3);
   var grad = ctx.createLinearGradient(shimmerX, y, shimmerX + w * 0.6, y);
   grad.addColorStop(0, 'rgba(255,255,255,0)');
@@ -755,20 +772,68 @@ function drawShimmer(ctx, x, y, w, h, progress, thm) {
   ctx.fillStyle = grad;
   ctx.fillRect(x, y, w, h);
 
-  ctx.fillStyle = 'rgba(255,255,255,0.06)';
-  var barY = y + h * 0.15;
-  roundRect(ctx, x + 40, barY, w * 0.6, 20, 10); ctx.fill();
-  roundRect(ctx, x + 60, barY + 40, w * 0.4, 16, 8); ctx.fill();
-  roundRect(ctx, x + 30, barY + 100, w * 0.8, 120, 12); ctx.fill();
-  roundRect(ctx, x + 50, barY + 250, w * 0.5, 16, 8); ctx.fill();
+  // Animated sparkle dots orbiting in a circle
+  var centerX = x + w / 2;
+  var centerY = y + h * 0.4;
+  var orbitR = Math.min(w, h) * 0.15;
+  var numDots = 8;
+  for (var i = 0; i < numDots; i++) {
+    var angle = (i / numDots) * Math.PI * 2 + progress * Math.PI * 6;
+    var dotX = centerX + Math.cos(angle) * orbitR;
+    var dotY = centerY + Math.sin(angle) * orbitR * 0.6; // slight ellipse
+    var dotAlpha = 0.3 + 0.7 * Math.abs(Math.sin(angle + progress * Math.PI * 2));
+    var dotSize = 3 + 2 * Math.abs(Math.sin(angle));
 
-  var genAlpha = 0.4 + 0.3 * Math.sin(progress * Math.PI * 4);
+    ctx.save();
+    ctx.globalAlpha = dotAlpha;
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, dotSize, 0, Math.PI * 2);
+    var dotGrad = ctx.createRadialGradient(dotX, dotY, 0, dotX, dotY, dotSize * 2);
+    dotGrad.addColorStop(0, 'rgba(233,69,96,0.8)');
+    dotGrad.addColorStop(1, 'rgba(233,69,96,0)');
+    ctx.fillStyle = dotGrad;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, dotSize * 0.6, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Central pulsing icon (sparkle)
   ctx.save();
-  ctx.globalAlpha = genAlpha;
-  ctx.font = '22px "Inter", Arial, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  var pulseScale = 0.8 + 0.2 * Math.sin(progress * Math.PI * 8);
+  ctx.globalAlpha = 0.6 + 0.3 * Math.sin(progress * Math.PI * 4);
+  ctx.translate(centerX, centerY);
+  ctx.scale(pulseScale, pulseScale);
+  drawStar(ctx, 0, 0, 16, 6, 4);
+  ctx.fillStyle = 'rgba(233,69,96,0.7)';
+  ctx.fill();
+  drawStar(ctx, 0, 0, 10, 4, 4);
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fill();
+  ctx.restore();
+
+  // "Generating..." text with bounce
+  var textBounce = Math.sin(progress * Math.PI * 6) * 3;
+  ctx.save();
+  ctx.globalAlpha = 0.6 + 0.2 * Math.sin(progress * Math.PI * 4);
+  ctx.font = '20px "Inter", Arial, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
   ctx.textAlign = 'center';
-  ctx.fillText('Generating your invite...', x + w / 2, y + h / 2 + 60);
+  ctx.fillText('Creating your invite...', centerX, centerY + orbitR + 40 + textBounce);
+  ctx.restore();
+
+  // Animated dots after text (...)
+  var dotCount = Math.floor(progress * 12) % 4;
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  for (var d = 0; d < dotCount; d++) {
+    ctx.beginPath();
+    ctx.arc(centerX + 75 + d * 10, centerY + orbitR + 36 + textBounce, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fill();
+  }
   ctx.restore();
 }
 
