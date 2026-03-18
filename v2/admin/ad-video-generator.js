@@ -181,9 +181,9 @@ async function generateAdVideo({ html, css, config, promptText, format, theme, o
 
   onProgress(0, 'Preparing invite...');
 
-  // Render invite at the screen width (inside bezel)
-  const screenW = fmt.phoneWidth - (PHONE_BEZEL_WIDTH * 2);
-  const inviteImg = await renderInviteToImage(html, css, config, screenW);
+  // Render invite at 393px (the design width all invites are built for).
+  // The image will be scaled to fit the phone screen when drawn on canvas.
+  const inviteImg = await renderInviteToImage(html, css, config, 393);
   onProgress(20, 'Starting animation...');
 
   const blob = await animateAndRecord(inviteImg, promptText, fmt, thm, onProgress);
@@ -194,9 +194,31 @@ async function generateAdVideo({ html, css, config, promptText, format, theme, o
 /**
  * Render HTML invite into a full-height image using html2canvas.
  */
+/**
+ * Remap body/html CSS selectors to a target selector.
+ * Theme CSS uses `body { background: ... }` which won't match inside a div.
+ */
+function remapBodySelectors(cssText, targetSel) {
+  return (cssText || '')
+    .replace(/\bhtml\s*,\s*body\s*\{/g, targetSel + ' {')
+    .replace(/\bbody\s*,\s*html\s*\{/g, targetSel + ' {')
+    .replace(/\bbody\s*\{/g, targetSel + ' {')
+    .replace(/\bhtml\s*\{/g, targetSel + ' {');
+}
+
+/**
+ * Render HTML invite into a full-height image using html2canvas.
+ * Matches the rendering context of buildSrcdoc / buildTestSrcdoc:
+ * - 393px design width, reset CSS, proper font loading
+ * - Extracts embedded <style> from HTML, strips document wrappers
+ * - Jumps animations to end state (not disabled — preserves final opacity/transform)
+ */
 async function renderInviteToImage(html, css, config, targetWidth) {
+  var DESIGN_WIDTH = 393; // All invites are designed for this width
+  var renderWidth = targetWidth || DESIGN_WIDTH;
+
   const container = document.createElement('div');
-  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:' + targetWidth + 'px;overflow:hidden;z-index:-1;';
+  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:' + renderWidth + 'px;overflow:hidden;z-index:-1;';
   document.body.appendChild(container);
 
   var configObj = config;
@@ -205,70 +227,91 @@ async function renderInviteToImage(html, css, config, targetWidth) {
   }
   configObj = configObj || {};
 
+  // ── Fonts (must be in first <style> block or @import silently fails) ──
   var fontsImport = '';
   if (configObj.fontUrl) {
     fontsImport = '@import url("' + configObj.fontUrl + '");';
   } else if (configObj.googleFontsImport) {
     fontsImport = configObj.googleFontsImport;
+    if (fontsImport && !fontsImport.startsWith('@import')) {
+      fontsImport = "@import url('" + fontsImport + "');";
+    }
   }
 
-  // Remap body/html CSS selectors to #__adgen_invite so backgrounds render correctly.
-  // Theme CSS often has `body { background: ... }` which won't match since we render in a div.
-  var adjustedCss = (css || '')
-    .replace(/\bhtml\s*,\s*body\b/g, '#__adgen_invite')
-    .replace(/\bbody\s*\{/g, '#__adgen_invite {')
-    .replace(/\bhtml\s*\{/g, '#__adgen_invite {');
+  // ── Prepare HTML: extract embedded <style> tags, strip document wrappers ──
+  var themeHtml = (html || '');
+  var embeddedCss = '';
 
-  // html2canvas workarounds: disable animations (they freeze mid-frame),
-  // ensure all text is visible (some CSS animations hide text initially)
+  // Extract embedded <style> blocks from HTML (matching buildSrcdoc pattern)
+  var styleMatches = themeHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+  if (styleMatches) {
+    embeddedCss = styleMatches.map(function(s) {
+      return s.replace(/<\/?style[^>]*>/gi, '');
+    }).join('\n');
+    themeHtml = themeHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+  }
+
+  // Strip full HTML document wrappers if present
+  if (themeHtml.match(/^<!DOCTYPE/i) || themeHtml.match(/^<html/i)) {
+    var bodyMatch = themeHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    if (bodyMatch) themeHtml = bodyMatch[1].trim();
+    themeHtml = themeHtml
+      .replace(/<!DOCTYPE[^>]*>/gi, '')
+      .replace(/<html\b[^>]*>/gi, '').replace(/<\/html\s*>/gi, '')
+      .replace(/<head(?:\s[^>]*)?>[\s\S]*?<\/head\s*>/gi, '')
+      .replace(/<body\b[^>]*>/gi, '').replace(/<\/body\s*>/gi, '');
+  }
+
+  // Strip scripts
+  themeHtml = themeHtml.replace(/<script\b[\s\S]*?<\/script\s*>/gi, '');
+
+  // ── Merge and remap all CSS ──
+  var allCss = (css || '') + '\n' + embeddedCss;
+  var sel = '#__adgen_invite';
+  var adjustedCss = remapBodySelectors(allCss, sel);
+
+  // ── Reset CSS (matching buildSrcdoc) ──
+  var resetCss = '* { margin:0; padding:0; box-sizing:border-box; } '
+    + sel + ' { width:' + renderWidth + 'px; min-height:100%; overflow-x:hidden; }';
+
+  // ── Jump animations to END STATE (not disabled) ──
+  // Elements with `opacity:0; animation: fadeIn 0.8s forwards;` will resolve to opacity:1
+  // because we force the animation to its final frame. This preserves intended final visuals
+  // unlike `animation:none` which leaves elements at their pre-animation state.
   var h2cFixes = '*, *::before, *::after { '
-    + 'animation: none !important; '
+    + 'animation-delay: -9999s !important; '
+    + 'animation-fill-mode: forwards !important; '
+    + 'animation-play-state: paused !important; '
     + 'transition: none !important; '
-    + 'opacity: 1 !important; '
-    + 'visibility: visible !important; '
-    + 'transform: none !important; '
-    + '} '
-    + '@keyframes none {} '
-    // Ensure marquee/ticker elements are visible
-    + '[class*="marquee"], [class*="ticker"], [class*="scroll"] { '
-    + 'overflow: visible !important; '
     + '} ';
 
-  container.innerHTML = '<div id="__adgen_invite" style="width:' + targetWidth + 'px;overflow:hidden;">'
+  // ── Build container HTML ──
+  container.innerHTML = '<div id="__adgen_invite" style="width:' + renderWidth + 'px;overflow:hidden;">'
     + '<style>' + fontsImport + '</style>'
+    + '<style>' + resetCss + '</style>'
     + '<style>' + adjustedCss + '</style>'
     + '<style>' + h2cFixes + '</style>'
     + '<style>.rsvp-slot,.details-slot{display:none !important}</style>'
-    + (html || '')
+    + themeHtml
     + '</div>';
 
-  // Wait for fonts and rendering to stabilize
+  // ── Wait for fonts and rendering ──
   await new Promise(function(resolve) { setTimeout(resolve, 2000); });
   if (document.fonts && document.fonts.ready) {
     await document.fonts.ready;
   }
-  // Extra settle time for complex layouts
   await new Promise(function(resolve) { setTimeout(resolve, 500); });
 
   const inviteEl = container.querySelector('#__adgen_invite');
   const naturalHeight = inviteEl.scrollHeight;
   const canvas = await html2canvas(inviteEl, {
-    width: targetWidth,
+    width: renderWidth,
     height: naturalHeight,
     scale: 2,
     useCORS: true,
     allowTaint: true,
     backgroundColor: null,
-    logging: false,
-    // Ensure foreign fonts render
-    onclone: function(clonedDoc) {
-      var clonedEl = clonedDoc.querySelector('#__adgen_invite');
-      if (clonedEl) {
-        // Force all text to be painted
-        clonedEl.style.visibility = 'visible';
-        clonedEl.style.opacity = '1';
-      }
-    }
+    logging: false
   });
 
   document.body.removeChild(container);
