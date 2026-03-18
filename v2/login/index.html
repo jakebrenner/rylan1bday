@@ -141,16 +141,19 @@
     if (qsRedirect) localStorage.setItem('post_login_redirect', qsRedirect);
     const redirectTo = localStorage.getItem('post_login_redirect') || '/v2/dashboard/';
 
-    // Capture UTM params from URL and persist through auth flow
-    (function captureUtm() {
+    // ── UTM Parameter Capture (persist through login flow) ──
+    (function captureUtmParams() {
       var params = new URLSearchParams(window.location.search);
-      var utm = {};
-      ['utm_source', 'utm_medium', 'utm_campaign'].forEach(function(k) {
-        var v = params.get(k);
-        if (v) utm[k.replace('utm_', '')] = v;
+      var utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+      utmKeys.forEach(function(key) {
+        var val = params.get(key);
+        if (val) sessionStorage.setItem(key, val);
       });
-      if (Object.keys(utm).length > 0) {
-        localStorage.setItem('ryvite_signup_utm', JSON.stringify(utm));
+      // Store session ID for UTM visit linking
+      if (params.get('utm_source') || params.get('utm_campaign') || params.get('utm_content')) {
+        if (!sessionStorage.getItem('utm_session_id')) {
+          sessionStorage.setItem('utm_session_id', 'utm_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8));
+        }
       }
     })();
 

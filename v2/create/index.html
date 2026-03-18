@@ -836,6 +836,53 @@
     })();
 
     var ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp'];
+
+    // ── UTM Parameter Capture ──
+    // Parse UTM params from URL and persist in sessionStorage for attribution tracking
+    (function captureUtmParams() {
+      var params = new URLSearchParams(window.location.search);
+      var utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+      var hasUtm = false;
+      utmKeys.forEach(function(key) {
+        var val = params.get(key);
+        if (val) {
+          sessionStorage.setItem(key, val);
+          hasUtm = true;
+        }
+      });
+      // If we have UTM params, record the visit
+      if (hasUtm) {
+        var sessionId = sessionStorage.getItem('utm_session_id');
+        if (!sessionId) {
+          sessionId = 'utm_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+          sessionStorage.setItem('utm_session_id', sessionId);
+        }
+        fetch('/api/v2/utm?action=track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            utmSource: params.get('utm_source'),
+            utmMedium: params.get('utm_medium'),
+            utmCampaign: params.get('utm_campaign'),
+            utmContent: params.get('utm_content'),
+            utmTerm: params.get('utm_term'),
+            landingPage: window.location.pathname,
+            sessionId: sessionId
+          })
+        }).catch(function() { /* fire-and-forget */ });
+      }
+    })();
+
+    // Helper to get stored UTM data for API calls
+    function getUtmData() {
+      return {
+        utmSource: sessionStorage.getItem('utm_source') || undefined,
+        utmMedium: sessionStorage.getItem('utm_medium') || undefined,
+        utmCampaign: sessionStorage.getItem('utm_campaign') || undefined,
+        utmContent: sessionStorage.getItem('utm_content') || undefined,
+        utmSessionId: sessionStorage.getItem('utm_session_id') || undefined
+      };
+    }
     var ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.heic', '.heif', '.webp'];
     var FIELD_TYPE_LABELS = { text: 'Text', number: 'Number', select: 'Dropdown', checkbox: 'Checkbox', email: 'Email', phone: 'Phone', textarea: 'Long text' };
 
@@ -2376,13 +2423,30 @@
         var area = document.getElementById('genAttributionArea');
         if (area) area.innerHTML = '<div class="gen-attribution-thanks">Thanks for letting us know!</div>';
       }, 600);
-      // Save to profile
+      // Save to profile (include UTM data for first-touch attribution)
       try {
+        var profileUpdate = { referralSource: source };
+        var utm = getUtmData();
+        if (utm.utmSource) profileUpdate.utmSource = utm.utmSource;
+        if (utm.utmMedium) profileUpdate.utmMedium = utm.utmMedium;
+        if (utm.utmCampaign) profileUpdate.utmCampaign = utm.utmCampaign;
+        if (utm.utmContent) profileUpdate.utmContent = utm.utmContent;
         await authFetch('/api/v2/auth?action=updateProfile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ referralSource: source })
+          body: JSON.stringify(profileUpdate)
         });
+        // Link UTM visit to user
+        if (utm.utmSessionId) {
+          var user0 = JSON.parse(localStorage.getItem('v2_user') || 'null');
+          if (user0 && user0.id) {
+            fetch('/api/v2/utm?action=link', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId: utm.utmSessionId, userId: user0.id })
+            }).catch(function() {});
+          }
+        }
         // Update local storage so we don't ask again
         var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
         if (user) { user.referralSource = source; localStorage.setItem('v2_user', JSON.stringify(user)); }
