@@ -4650,13 +4650,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     // ---- Lazy iframe loader (prevents mobile Safari crash from 100+ iframes) ----
     var iframeLazyObserver = null;
-    function setupLazyIframes(grid) {
-      if (!('IntersectionObserver' in window)) {
-        // Fallback: load all immediately (desktop is fine)
-        grid.querySelectorAll('.style-card').forEach(function(card) { loadCardIframe(card); });
-        return;
-      }
-      if (iframeLazyObserver) iframeLazyObserver.disconnect();
+    function getIframeLazyObserver() {
+      if (iframeLazyObserver) return iframeLazyObserver;
+      if (!('IntersectionObserver' in window)) return null;
       iframeLazyObserver = new IntersectionObserver(function(entries) {
         entries.forEach(function(entry) {
           if (entry.isIntersecting) {
@@ -4665,8 +4661,17 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           }
         });
       }, { rootMargin: '200px' });
+      return iframeLazyObserver;
+    }
+    function setupLazyIframes(grid) {
+      var observer = getIframeLazyObserver();
+      if (!observer) {
+        // Fallback: load all immediately (desktop is fine)
+        grid.querySelectorAll('.style-card').forEach(function(card) { loadCardIframe(card); });
+        return;
+      }
       grid.querySelectorAll('.style-card').forEach(function(card) {
-        if (!card.dataset.iframeLoaded) iframeLazyObserver.observe(card);
+        if (!card.dataset.iframeLoaded) observer.observe(card);
       });
     }
 
@@ -8566,6 +8571,44 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     // ── Leaderboard ──
+    var _leaderboardExpanded = {};
+
+    function toggleLeaderboardRow(creativeId) {
+      _leaderboardExpanded[creativeId] = !_leaderboardExpanded[creativeId];
+      renderLeaderboard();
+      // Load iframe for expanded row after render
+      if (_leaderboardExpanded[creativeId]) {
+        var detail = document.getElementById('lb-detail-' + creativeId);
+        if (detail) {
+          var iframe = detail.querySelector('.phone-screen iframe');
+          var c = _mktCreatives.find(function(x) { return x.creative_id === creativeId; });
+          if (iframe && c && c.invite_html) {
+            var fontsImport = (c.invite_config && c.invite_config.googleFontsImport) || '';
+            iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+              + '<style>' + fontsImport + '</style>'
+              + '<style>' + (c.invite_css || '') + '</style></head><body>' + c.invite_html + '</body></html>';
+            var screen = iframe.closest('.phone-screen');
+            if (screen) iframe.style.transform = 'scale(' + ((screen.offsetWidth || 120) / 393) + ')';
+          }
+        }
+      }
+    }
+
+    function createVersionFromLeaderboard(creativeId) {
+      var c = _mktCreatives.find(function(x) { return x.creative_id === creativeId; });
+      if (!c) return;
+      openAdVideoModal({
+        html: c.invite_html,
+        css: c.invite_css,
+        config: c.invite_config || {},
+        promptText: c.prompt_text || 'Create a beautiful invitation',
+        eventTitle: c.campaign_label || '',
+        eventType: c.event_type || '',
+        sourceType: c.source_type || 'showcase',
+        sourceId: c.source_id || c.id
+      });
+    }
+
     function renderLeaderboard() {
       var list = document.getElementById('mktLeaderboardList');
       var empty = document.getElementById('mktLeaderboardEmpty');
@@ -8590,18 +8633,62 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
         var formatLabel = c.format === 'reels_9x16' ? 'Reels' : 'Feed';
         var cpa = c.cost_per_signup ? '$' + c.cost_per_signup : '--';
-        return '<div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid #eee;border-radius:8px;' + (rank <= 3 ? 'background:#f8fff8;' : '') + '">'
-          + '<div style="font-size:20px;min-width:36px;text-align:center;">' + medal + '</div>'
-          + '<div style="flex:1;">'
-          + '<div style="font-size:13px;font-weight:600;">' + escapeHtml(c.campaign_name || c.creative_id) + '</div>'
-          + '<div style="font-size:11px;color:#888;">' + formatLabel + ' &middot; ' + escapeHtml(c.event_type || 'general') + '</div>'
+        var hasPreview = !!(c.invite_html);
+        var isExpanded = _leaderboardExpanded[c.creative_id];
+        var sourceIdShort = (c.source_id || '').substring(0, 8);
+
+        var row = '<div style="border:1px solid #eee;border-radius:8px;overflow:hidden;' + (rank <= 3 ? 'background:#f8fff8;' : '') + '">'
+          // Main row — clickable
+          + '<div onclick="toggleLeaderboardRow(\'' + escapeHtml(c.creative_id) + '\')" style="display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer;">'
+          + '<div style="font-size:20px;min-width:36px;text-align:center;">' + medal + '</div>';
+
+        // Mini preview thumbnail
+        if (hasPreview) {
+          row += '<div style="width:40px;height:72px;border-radius:6px;overflow:hidden;background:#f5f5f5;flex-shrink:0;border:1px solid #e0e0e0;">'
+            + '<div style="width:40px;height:72px;overflow:hidden;position:relative;">'
+            + '<iframe sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;transform-origin:top left;transform:scale(0.102);pointer-events:none;" srcdoc="<!DOCTYPE html><html><head><meta charset=UTF-8><meta name=viewport content=\'width=393,initial-scale=1.0\'>'
+            + '<style>' + ((c.invite_config && c.invite_config.googleFontsImport) || '').replace(/"/g, '&quot;') + '</style>'
+            + '<style>' + (c.invite_css || '').replace(/"/g, '&quot;') + '</style></head><body>' + (c.invite_html || '').replace(/"/g, '&quot;') + '</body></html>"></iframe>'
+            + '</div></div>';
+        }
+
+        row += '<div style="flex:1;min-width:0;">'
+          + '<div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.campaign_label || c.campaign_name || c.creative_id) + '</div>'
+          + '<div style="font-size:11px;color:#888;">' + formatLabel + ' &middot; ' + escapeHtml(c.event_type || 'general')
+          + ' &middot; <span style="font-family:monospace;font-size:10px;" title="Source ID: ' + escapeHtml(c.source_id || '') + '">' + escapeHtml(sourceIdShort) + '...</span></div>'
           + '</div>'
-          + '<div style="text-align:right;font-size:12px;">'
+          + '<div style="text-align:right;font-size:12px;flex-shrink:0;">'
           + '<div>' + (c.signups || 0) + ' signups</div>'
           + '<div style="color:#888;">CPA: ' + cpa + '</div>'
           + '<div style="color:#888;">CTR: ' + (c.ctr || 0) + '%</div>'
           + '</div>'
+          + '<div style="font-size:14px;color:#aaa;margin-left:4px;">' + (isExpanded ? '&#9650;' : '&#9660;') + '</div>'
           + '</div>';
+
+        // Expanded detail section
+        if (isExpanded) {
+          row += '<div id="lb-detail-' + escapeHtml(c.creative_id) + '" style="padding:12px 16px;border-top:1px solid #eee;display:flex;gap:16px;align-items:flex-start;">'
+            // Phone preview
+            + '<div class="phone-mockup" style="width:120px;flex-shrink:0;"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>'
+            // Details + actions
+            + '<div style="flex:1;min-width:0;">'
+            + '<div style="font-size:12px;margin-bottom:8px;">'
+            + '<div style="margin-bottom:4px;"><strong>Creative ID:</strong> <span style="font-family:monospace;">' + escapeHtml(c.creative_id) + '</span></div>'
+            + '<div style="margin-bottom:4px;"><strong>Source ID:</strong> <span style="font-family:monospace;font-size:11px;">' + escapeHtml(c.source_id || '—') + '</span></div>'
+            + '<div style="margin-bottom:4px;"><strong>Source:</strong> ' + escapeHtml(c.source_type || '—') + '</div>'
+            + '<div style="margin-bottom:4px;"><strong>Theme:</strong> ' + escapeHtml(c.video_theme || '—') + '</div>'
+            + '<div style="margin-bottom:4px;"><strong>Prompt:</strong> ' + escapeHtml(c.prompt_text || '—') + '</div>'
+            + '</div>'
+            + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+            + '<button class="btn btn-primary btn-sm" style="background:#E94560;" onclick="event.stopPropagation();createVersionFromLeaderboard(\'' + escapeHtml(c.creative_id) + '\')">Create New Version</button>'
+            + '<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openCreativeDetail(\'' + escapeHtml(c.creative_id) + '\')">Full Details</button>'
+            + '</div>'
+            + '</div>'
+            + '</div>';
+        }
+
+        row += '</div>';
+        return row;
       }).join('');
     }
 
