@@ -2806,6 +2806,116 @@ ${cssSnippet}`
       return res.status(200).json({ success: true, patterns: patternList });
     }
 
+    // ── Viral Loop / Growth Reporting ──
+    if (action === 'viralStats') {
+      const fromParam = req.query.from || null;
+      const toParam = req.query.to || null;
+      const from = fromParam ? new Date(fromParam).toISOString() : null;
+      const to = toParam ? new Date(toParam).toISOString() : new Date().toISOString();
+
+      // 1. Page views
+      let pageViewQuery = supabaseAdmin.from('viral_events').select('*', { count: 'exact', head: true }).eq('event_type', 'page_view');
+      if (from) pageViewQuery = pageViewQuery.gte('created_at', from);
+      if (to) pageViewQuery = pageViewQuery.lte('created_at', to);
+      const pageViewRes = await pageViewQuery;
+
+      // 2. RSVPs submitted
+      let rsvpQuery = supabaseAdmin.from('guests').select('*', { count: 'exact', head: true }).in('status', ['attending', 'declined', 'maybe']);
+      if (from) rsvpQuery = rsvpQuery.gte('responded_at', from);
+      if (to) rsvpQuery = rsvpQuery.lte('responded_at', to);
+      const rsvpRes = await rsvpQuery;
+
+      // 3. Footer CTA clicks
+      let footerQuery = supabaseAdmin.from('viral_events').select('*', { count: 'exact', head: true }).eq('event_type', 'footer_click');
+      if (from) footerQuery = footerQuery.gte('created_at', from);
+      if (to) footerQuery = footerQuery.lte('created_at', to);
+      const footerRes = await footerQuery;
+
+      // 4. RSVP CTA clicks
+      let rsvpCtaQuery = supabaseAdmin.from('viral_events').select('*', { count: 'exact', head: true }).eq('event_type', 'rsvp_cta_click');
+      if (from) rsvpCtaQuery = rsvpCtaQuery.gte('created_at', from);
+      if (to) rsvpCtaQuery = rsvpCtaQuery.lte('created_at', to);
+      const rsvpCtaRes = await rsvpCtaQuery;
+
+      // 5. New signups from invite pages (UTM source = 'invite')
+      let signupQuery = supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).not('signup_utm', 'is', null).filter('signup_utm->>source', 'eq', 'invite');
+      if (from) signupQuery = signupQuery.gte('created_at', from);
+      if (to) signupQuery = signupQuery.lte('created_at', to);
+      const signupRes = await signupQuery;
+
+      // 6. Total hosts (users with published events) in same period
+      let hostsQuery = supabaseAdmin.from('events').select('user_id', { count: 'exact' }).eq('status', 'published');
+      if (from) hostsQuery = hostsQuery.gte('published_at', from);
+      if (to) hostsQuery = hostsQuery.lte('published_at', to);
+      const hostsRes = await hostsQuery;
+      // Deduplicate host user_ids
+      const uniqueHosts = hostsRes.data ? new Set(hostsRes.data.map(e => e.user_id)).size : 0;
+
+      const inviteSignups = signupRes.count || 0;
+      const kFactor = uniqueHosts > 0 ? Math.round((inviteSignups / uniqueHosts) * 100) / 100 : 0;
+
+      // 7. Top referring events — events with most page views
+      let topEventsQuery = supabaseAdmin.from('viral_events').select('event_id').eq('event_type', 'page_view').not('event_id', 'is', null);
+      if (from) topEventsQuery = topEventsQuery.gte('created_at', from);
+      if (to) topEventsQuery = topEventsQuery.lte('created_at', to);
+      const topEventsRes = await topEventsQuery;
+
+      // Aggregate page views by event_id
+      const eventViewCounts = {};
+      (topEventsRes.data || []).forEach(row => {
+        eventViewCounts[row.event_id] = (eventViewCounts[row.event_id] || 0) + 1;
+      });
+      const topEventIds = Object.entries(eventViewCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([id, views]) => ({ id, views }));
+
+      // Fetch event details for top events
+      let topReferringEvents = [];
+      if (topEventIds.length > 0) {
+        const { data: eventDetails } = await supabaseAdmin
+          .from('events')
+          .select('id, title, user_id, event_type')
+          .in('id', topEventIds.map(e => e.id));
+
+        // Fetch host names
+        const hostIds = [...new Set((eventDetails || []).map(e => e.user_id))];
+        let hostMap = {};
+        if (hostIds.length > 0) {
+          const { data: hosts } = await supabaseAdmin
+            .from('profiles')
+            .select('id, email, display_name')
+            .in('id', hostIds);
+          (hosts || []).forEach(h => { hostMap[h.id] = h.display_name || h.email; });
+        }
+
+        topReferringEvents = topEventIds.map(te => {
+          const ev = (eventDetails || []).find(e => e.id === te.id);
+          return {
+            eventId: te.id,
+            title: ev ? ev.title : 'Unknown',
+            host: ev ? (hostMap[ev.user_id] || 'Unknown') : 'Unknown',
+            eventType: ev ? ev.event_type : null,
+            pageViews: te.views
+          };
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        stats: {
+          pageViews: pageViewRes.count || 0,
+          rsvpsSubmitted: rsvpRes.count || 0,
+          footerClicks: footerRes.count || 0,
+          rsvpCtaClicks: rsvpCtaRes.count || 0,
+          inviteSignups,
+          activeHosts: uniqueHosts,
+          kFactor,
+          topReferringEvents
+        }
+      });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Admin API error:', err);

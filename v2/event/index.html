@@ -49,8 +49,8 @@
     .error-msg { max-width: 480px; margin: 40px auto; padding: 20px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; color: #721c24; text-align: center; }
     .confetti-piece { position: fixed; font-size: 24px; pointer-events: none; animation: confetti-fall linear forwards; z-index: 9999; }
     @keyframes confetti-fall { 0% { opacity: 1; } 100% { transform: translateY(100vh) rotateZ(720deg); opacity: 0; } }
-    .powered-by { clear: both; width: 100%; text-align: center; padding: 20px; font-size: 15px; color: #999; }
-    .powered-by a { color: #999; text-decoration: none; }
+    .powered-by { clear: both; width: 100%; text-align: center; padding: 20px; font-size: 13px; color: #aaa; font-style: italic; }
+    .powered-by a { color: #aaa; text-decoration: none; transition: color 0.2s; }
     .powered-by a:hover { color: var(--party-coral); }
     @media (max-width: 640px) {
       .rsvp-section { margin: 20px 16px; padding: 20px; }
@@ -66,13 +66,59 @@
     <div id="error" class="error-msg" style="display: none;"></div>
     <iframe id="themeFrame" style="display: none;"></iframe>
     <div id="rsvpSection" class="rsvp-section" style="display: none;"></div>
-    <div id="poweredBy" class="powered-by" style="display: none;">Made with Love by <a href="/">Ryvite</a></div>
+    <div id="poweredBy" class="powered-by" style="display: none;">Create yours free at <a href="https://www.ryvite.com/?utm_source=invite&utm_medium=footer&utm_campaign=viral" target="_blank" rel="noopener" onclick="trackViralEvent('footer_click')">Ryvite.com</a></div>
   </div>
 
   <script>
     let currentEventData = null;
     var _guestCssRetries = 0;
     var _MAX_GUEST_CSS_RETRIES = 2;
+
+    // ── Viral loop tracking (fire-and-forget) ──
+    function trackViralEvent(type, eventId) {
+      try {
+        fetch('/api/v2/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: type, eventId: eventId || (currentEventData && currentEventData.id) || null })
+        }).catch(function(){});
+      } catch(e) {}
+    }
+
+    // ── Ryvite SVG logo (from brand guidelines) ──
+    var RYVITE_LOGO_SVG = '<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" class="ryvite-logo">'
+      + '<circle cx="30" cy="40" r="20" fill="none" stroke="#E94560" stroke-width="2"/>'
+      + '<path d="M15 30 L30 42 L45 30 M15 50 L45 50" fill="none" stroke="#E94560" stroke-width="2" stroke-linecap="round"/>'
+      + '<text x="65" y="50" font-family="Playfair Display, serif" font-size="32" font-weight="600" fill="currentColor">Ryvite</text>'
+      + '</svg>';
+
+    // ── Event-type confirmation messages ──
+    var CONFIRMATION_MESSAGES = {
+      birthday: { title: "You're on the list! &#127881;", subtitle: "Get ready to celebrate!" },
+      kidsBirthday: { title: "You're on the list! &#127880;", subtitle: "It's going to be so much fun!" },
+      wedding: { title: "We'll see you there! &#128141;", subtitle: "What a beautiful celebration." },
+      babyShower: { title: "You're all set! &#127868;", subtitle: "Can't wait to celebrate together." },
+      graduation: { title: "You're confirmed! &#127891;", subtitle: "Let's celebrate this milestone!" },
+      corporate: { title: "You're confirmed &#10003;", subtitle: "Looking forward to seeing you." },
+      holiday: { title: "You're on the list! &#127877;", subtitle: "Happy holidays!" },
+      dinner: { title: "See you at the table! &#127860;", subtitle: "It's going to be delicious." },
+      cocktail: { title: "You're on the list! &#127864;", subtitle: "Cheers to a great evening." },
+      housewarming: { title: "You're coming! &#127969;", subtitle: "Can't wait to show you the new place." },
+      reunion: { title: "You're in! &#129303;", subtitle: "It's going to be wonderful seeing everyone." },
+      retirement: { title: "You're confirmed! &#127881;", subtitle: "Let's give them a proper send-off." },
+      engagement: { title: "You're on the list! &#128141;", subtitle: "Love is in the air!" },
+      default: { title: "You're on the list! &#127881;", subtitle: "Thanks for confirming." }
+    };
+
+    function getConfirmationMessage(eventType, rsvpStatus) {
+      if (rsvpStatus === 'no' || rsvpStatus === 'declined') {
+        return { title: "Got it &#128075;", subtitle: "Sorry you can't make it. We'll miss you!" };
+      }
+      if (rsvpStatus === 'maybe') {
+        return { title: "Noted! &#129300;", subtitle: "We hope you can make it." };
+      }
+      return CONFIRMATION_MESSAGES[eventType] || CONFIRMATION_MESSAGES['default'];
+    }
 
     // Fix double-escaped whitespace from AI model output (pre-fix DB themes)
     function sanitizeThemeText(str) {
@@ -364,6 +410,9 @@
           });
         }
 
+        // Track invite page view for viral loop reporting
+        trackViralEvent('page_view', result.event.id);
+
         // If guest arrived via personalized invite link, look up their info
         if (guestId) {
           try {
@@ -650,6 +699,7 @@
       var pc = config.primaryColor || '#333';
       var sc = config.secondaryColor || '#4CAF50';
       var ac = config.accentColor || '#2196F3';
+      var tc = config.textColor || '#1A1A2E';
       return '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }'
         + '.thankyou-hero { margin-bottom:32px; }'
         + '.thankyou-title { font-size:36px; font-weight:700; margin-bottom:12px; }'
@@ -662,8 +712,54 @@
         + '.cal-apple { background:' + pc + '; color:#fff; }'
         + '.cal-google { background:' + sc + '; color:#fff; }'
         + '.cal-outlook { background:' + ac + '; color:#fff; }'
-        + '.thankyou-footer { font-size:15px; opacity:0.6; margin-top:40px; text-align:center; }'
+        // Event detail recap
+        + '.thankyou-event-recap { width:100%; max-width:320px; margin:28px 0 0; padding:20px; border-radius:12px; background:rgba(0,0,0,0.04); text-align:left; }'
+        + '.thankyou-event-recap .detail-item { display:flex; gap:10px; margin-bottom:12px; align-items:flex-start; }'
+        + '.thankyou-event-recap .detail-item:last-child { margin-bottom:0; }'
+        + '.thankyou-event-recap .detail-icon { font-size:18px; flex-shrink:0; margin-top:1px; }'
+        + '.thankyou-event-recap .detail-label { font-size:11px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.5; margin-bottom:2px; }'
+        + '.thankyou-event-recap .detail-value { font-size:14px; line-height:1.4; }'
+        // CTA section
+        + '.thankyou-cta-section { width:100%; max-width:320px; margin-top:36px; padding-top:28px; border-top:1px solid rgba(0,0,0,0.08); text-align:center; }'
+        + '.thankyou-cta-section .ryvite-logo { width:80px; height:32px; margin-bottom:12px; color:' + tc + '; }'
+        + '.thankyou-cta-text { font-size:14px; line-height:1.5; opacity:0.7; margin-bottom:16px; }'
+        + '.thankyou-cta-btn { display:inline-block; padding:12px 28px; border-radius:10px; background:' + pc + '; color:#fff; font-family:inherit; font-size:14px; font-weight:600; text-decoration:none; transition:transform 0.15s,box-shadow 0.15s; border:none; cursor:pointer; }'
+        + '.thankyou-cta-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.15); }'
+        // Footer
+        + '.thankyou-footer { font-size:13px; opacity:0.4; margin-top:32px; text-align:center; font-style:italic; }'
         + '.thankyou-footer a { color:inherit; text-decoration:none; }';
+    }
+
+    function buildEventRecapHtml() {
+      if (!currentEventData) return '';
+      var items = [];
+      var dateStr = currentEventData.eventDate || currentEventData.event_date;
+      if (dateStr) {
+        var startDate = new Date(dateStr);
+        var formatted = startDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        var timeStr = startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        var endDateStr = currentEventData.endDate || currentEventData.end_date;
+        if (endDateStr) {
+          var endDate = new Date(endDateStr);
+          timeStr += ' – ' + endDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        }
+        items.push('<div class="detail-item"><div class="detail-icon">&#128197;</div><div><div class="detail-label">Date &amp; Time</div><div class="detail-value">' + formatted + '<br>' + timeStr + '</div></div></div>');
+      }
+      var locName = currentEventData.locationName || currentEventData.location_name || '';
+      var locAddr = currentEventData.locationAddress || currentEventData.location_address || '';
+      if (locName || locAddr) {
+        items.push('<div class="detail-item"><div class="detail-icon">&#128205;</div><div><div class="detail-label">Location</div><div class="detail-value">' + [locName, locAddr].filter(Boolean).join('<br>') + '</div></div></div>');
+      }
+      if (items.length === 0) return '';
+      return '<div class="thankyou-event-recap">' + items.join('') + '</div>';
+    }
+
+    function buildCtaSectionHtml() {
+      return '<div class="thankyou-cta-section">'
+        + RYVITE_LOGO_SVG
+        + '<p class="thankyou-cta-text">Love this invite? Make one for your next event — your first one\'s free.</p>'
+        + '<a class="thankyou-cta-btn" href="https://www.ryvite.com/v2/create?utm_source=invite&utm_medium=rsvp_confirm&utm_campaign=viral" target="_blank" rel="noopener" onclick="if(window.parent&&window.parent.trackViralEvent)window.parent.trackViralEvent(\'rsvp_cta_click\');">Create Your Invite</a>'
+        + '</div>';
     }
 
     function stripAndInjectGuaranteedElements(tyHtml) {
@@ -674,6 +770,9 @@
       tyHtml = tyHtml.replace(/<p[^>]*class="[^"]*calendar-label[^"]*"[^>]*>[\s\S]*?<\/p>/g, '');
       tyHtml = tyHtml.replace(/<p[^>]*class="[^"]*thankyou-footer[^"]*"[^>]*>[\s\S]*?<\/p>/g, '');
       tyHtml = tyHtml.replace(/<p[^>]*>[\s\S]*?Made with[\s\S]*?<\/p>/g, '');
+      // Strip any existing CTA sections from AI output
+      tyHtml = tyHtml.replace(/<div[^>]*class="[^"]*thankyou-cta-section[^"]*"[^>]*>[\s\S]*?<\/div>/g, '');
+      tyHtml = tyHtml.replace(/<div[^>]*class="[^"]*thankyou-event-recap[^"]*"[^>]*>[\s\S]*?<\/div>/g, '');
 
       // Guaranteed HTML
       var calendarHTML = '<div class="thankyou-calendar-section">'
@@ -683,14 +782,16 @@
         + '<button class="cal-btn cal-google" data-cal="google">Google Calendar</button>'
         + '<button class="cal-btn cal-outlook" data-cal="outlook">Outlook Web</button>'
         + '</div></div>';
-      var footerHTML = '<p class="thankyou-footer">Made with &#10084; by <a href="https://www.ryvite.com">Ryvite</a></p>';
+      var eventRecapHTML = buildEventRecapHtml();
+      var ctaHTML = buildCtaSectionHtml();
+      var footerHTML = '<p class="thankyou-footer">Create yours free at <a href="https://www.ryvite.com/?utm_source=invite&utm_medium=footer&utm_campaign=viral" target="_blank" rel="noopener">Ryvite.com</a></p>';
 
       // Inject before last closing </div> (the .thankyou-page container)
       var lastDivIdx = tyHtml.lastIndexOf('</div>');
       if (lastDivIdx !== -1) {
-        tyHtml = tyHtml.substring(0, lastDivIdx) + calendarHTML + footerHTML + '</div>';
+        tyHtml = tyHtml.substring(0, lastDivIdx) + calendarHTML + eventRecapHTML + ctaHTML + footerHTML + '</div>';
       } else {
-        tyHtml += calendarHTML + footerHTML;
+        tyHtml += calendarHTML + eventRecapHTML + ctaHTML + footerHTML;
       }
       return tyHtml;
     }
@@ -699,6 +800,7 @@
       var config = currentEventData.themeConfig || {};
       var eventTitle = currentEventData.title || 'the event';
       var guaranteedCSS = buildThankyouGuaranteedCSS(config);
+      var confirmMsg = getConfirmationMessage(currentEventData.eventType, rsvpStatus);
 
       // If we have AI-generated thank you HTML, show it in the theme iframe
       if (config.thankyouHtml) {
@@ -710,10 +812,10 @@
         var fontsImport = config.googleFontsImport || '';
         var fontsTag2 = fontsImport ? '<style>' + fontsImport + '</style>' : '';
         var iframe = document.getElementById('themeFrame');
-        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">' + fontsTag2 + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { padding: 0; background: transparent; }</style><style>' + guaranteedCSS + '</style><style>' + (currentEventData.themeCss || '') + '</style></head><body>' + tyHtml + '</body></html>';
+        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">' + fontsTag2 + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet"><style>* { margin:0; padding:0; box-sizing:border-box; } html, body { padding: 0; background: transparent; }</style><style>' + guaranteedCSS + '</style><style>' + (currentEventData.themeCss || '') + '</style></head><body>' + tyHtml + '</body></html>';
         iframe.onload = function() { try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 40, 600) + 'px'; } catch(e) {} };
 
-        // Wire up calendar buttons inside the iframe after load
+        // Wire up calendar buttons and CTA click tracking inside the iframe after load
         iframe.addEventListener('load', function() {
           try {
             var btns = iframe.contentDocument.querySelectorAll('.cal-btn, [data-cal]');
@@ -726,6 +828,11 @@
                 else { downloadICS(); } // apple, ics, or any other
               });
             });
+            // Track CTA clicks inside iframe
+            var ctaBtn = iframe.contentDocument.querySelector('.thankyou-cta-btn');
+            if (ctaBtn) {
+              ctaBtn.addEventListener('click', function() { trackViralEvent('rsvp_cta_click'); });
+            }
           } catch(e) {}
         });
 
@@ -735,9 +842,27 @@
         return;
       }
 
-      // Fallback: show simple success in the form area with calendar buttons
-      var calHtml = buildCalendarButtons();
-      document.getElementById('rsvpForm').innerHTML = '<div class="rsvp-success">RSVP received! Thanks for confirming, ' + escapeHtml(guestName) + '.</div>' + calHtml;
+      // Fallback: branded confirmation with event details, calendar buttons, and CTA
+      var pc = config.primaryColor || '#E94560';
+      var sc = config.secondaryColor || '#4CAF50';
+      var ac = config.accentColor || '#2196F3';
+      var bg = config.backgroundColor || '#FFFAF5';
+      var tc = config.textColor || '#1A1A2E';
+      var eventRecapItems = buildEventRecapHtml();
+
+      var fallbackHtml = '<div style="text-align:center;padding:40px 20px;">'
+        + '<div style="margin-bottom:16px;">' + RYVITE_LOGO_SVG.replace('currentColor', tc).replace('class="ryvite-logo"', 'style="width:100px;height:40px;"') + '</div>'
+        + '<h2 style="font-size:28px;font-weight:700;margin-bottom:8px;color:' + tc + ';">' + confirmMsg.title + '</h2>'
+        + '<p style="font-size:15px;color:' + tc + ';opacity:0.7;margin-bottom:24px;">' + confirmMsg.subtitle + '</p>'
+        + eventRecapItems.replace('thankyou-event-recap', 'thankyou-event-recap" style="text-align:left;background:rgba(0,0,0,0.04);padding:16px;border-radius:10px;margin:0 auto 24px;max-width:320px')
+        + '</div>'
+        + buildCalendarButtons()
+        + '<div style="text-align:center;margin-top:32px;padding-top:24px;border-top:1px solid rgba(0,0,0,0.08);">'
+        + '<p style="font-size:14px;color:' + tc + ';opacity:0.6;margin-bottom:14px;">Love this invite? Make one for your next event — your first one\'s free.</p>'
+        + '<a href="https://www.ryvite.com/v2/create?utm_source=invite&utm_medium=rsvp_confirm&utm_campaign=viral" target="_blank" rel="noopener" onclick="trackViralEvent(\'rsvp_cta_click\')" style="display:inline-block;padding:12px 28px;border-radius:10px;background:' + pc + ';color:#fff;font-size:14px;font-weight:600;text-decoration:none;">Create Your Invite</a>'
+        + '</div>';
+
+      document.getElementById('rsvpForm').innerHTML = fallbackHtml;
     }
 
     function buildCalendarButtons() {

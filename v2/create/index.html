@@ -842,7 +842,12 @@
     var _loginRedirect = '/v2/create/' + window.location.search;
     var _pendingTemplateId = new URLSearchParams(window.location.search).get('templateId');
     if (_pendingTemplateId) localStorage.setItem('pending_templateId', _pendingTemplateId);
-    if (!token || !user) { window.location.href = '/v2/login/?redirect=' + encodeURIComponent(_loginRedirect); }
+    // Preserve UTM params through login redirect for viral attribution
+    var _createParams = new URLSearchParams(window.location.search);
+    var _utmParts = [];
+    ['utm_source', 'utm_medium', 'utm_campaign'].forEach(function(k) { var v = _createParams.get(k); if (v) _utmParts.push(k + '=' + encodeURIComponent(v)); });
+    var _loginUrl = '/v2/login/?redirect=' + encodeURIComponent(_loginRedirect) + (_utmParts.length ? '&' + _utmParts.join('&') : '');
+    if (!token || !user) { window.location.href = _loginUrl; }
     else {
       var pn = document.getElementById('profileName');
       var pe = document.getElementById('profileEmail');

@@ -141,6 +141,19 @@
     if (qsRedirect) localStorage.setItem('post_login_redirect', qsRedirect);
     const redirectTo = localStorage.getItem('post_login_redirect') || '/v2/dashboard/';
 
+    // Capture UTM params from URL and persist through auth flow
+    (function captureUtm() {
+      var params = new URLSearchParams(window.location.search);
+      var utm = {};
+      ['utm_source', 'utm_medium', 'utm_campaign'].forEach(function(k) {
+        var v = params.get(k);
+        if (v) utm[k.replace('utm_', '')] = v;
+      });
+      if (Object.keys(utm).length > 0) {
+        localStorage.setItem('ryvite_signup_utm', JSON.stringify(utm));
+      }
+    })();
+
     // On page load: check for Supabase auth callback (magic link redirect)
     (async function init() {
       const hash = window.location.hash;
@@ -317,11 +330,15 @@
       btn.innerHTML = '<span class="loading-spinner"></span>Creating account...';
 
       try {
+        var signupUtm = null;
+        try { signupUtm = JSON.parse(localStorage.getItem('ryvite_signup_utm')); } catch(e) {}
         const res = await fetch('/api/v2/auth?action=signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ displayName, email, phone, origin: window.location.origin, redirectPath: redirectTo !== '/v2/dashboard/' ? redirectTo : '' })
+          body: JSON.stringify({ displayName, email, phone, utm: signupUtm, origin: window.location.origin, redirectPath: redirectTo !== '/v2/dashboard/' ? redirectTo : '' })
         });
+        // Clear UTM after signup attempt
+        localStorage.removeItem('ryvite_signup_utm');
         const result = await res.json();
         if (result.success) {
           // Track CompleteRegistration with Meta Pixel (dedup with server CAPI via metaEventId)

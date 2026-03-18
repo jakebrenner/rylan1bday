@@ -570,6 +570,10 @@
         <button class="sidebar-item" data-tab="blogcategories" onclick="switchTab('blogcategories');loadBlogCategories();">Categories</button>
         <button class="sidebar-item" data-tab="blogimport" onclick="switchTab('blogimport');">Import</button>
       </div>
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">Growth</div>
+        <button class="sidebar-item" data-tab="viral" onclick="switchTab('viral');loadViralStats();">Viral Loop</button>
+      </div>
     </nav>
 
     <!-- Mobile sidebar overlay + toggle -->
@@ -2143,6 +2147,59 @@
       </div>
     </div>
 
+    <!-- Viral Loop / Growth Tab -->
+    <div class="tab-content" id="tab-viral">
+      <h3 style="margin-bottom:4px;">Viral Loop</h3>
+      <p style="font-size:13px;color:#888;margin-bottom:20px;">Track how invite pages drive new signups. K-Factor measures new users per active host.</p>
+
+      <!-- Time range selector -->
+      <div style="display:flex;gap:8px;margin-bottom:20px;" id="viralRangeSelector">
+        <button class="btn btn-secondary viral-range-btn" data-range="7" onclick="loadViralStats(7)">Last 7 days</button>
+        <button class="btn btn-primary viral-range-btn" data-range="30" onclick="loadViralStats(30)">Last 30 days</button>
+        <button class="btn btn-secondary viral-range-btn" data-range="all" onclick="loadViralStats('all')">All time</button>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="stat-grid" id="viralStatGrid" style="margin-bottom:24px;">
+        <div class="stat-card"><div class="stat-value" id="viralPageViews">—</div><div class="stat-label">Invite Page Views</div></div>
+        <div class="stat-card"><div class="stat-value" id="viralRsvps">—</div><div class="stat-label">RSVPs Submitted</div></div>
+        <div class="stat-card"><div class="stat-value" id="viralFooterClicks">—</div><div class="stat-label">Footer CTA Clicks</div></div>
+        <div class="stat-card"><div class="stat-value" id="viralRsvpCtaClicks">—</div><div class="stat-label">RSVP CTA Clicks</div></div>
+        <div class="stat-card"><div class="stat-value" id="viralSignups">—</div><div class="stat-label">New Signups from Invites</div></div>
+        <div class="stat-card" style="border-left:3px solid var(--party-coral);">
+          <div class="stat-value" id="viralKFactor">—</div>
+          <div class="stat-label">Estimated K-Factor</div>
+          <div style="font-size:11px;color:#aaa;margin-top:4px;">New users from invites ÷ active hosts</div>
+        </div>
+      </div>
+
+      <!-- Funnel visualization -->
+      <div class="table-container" style="margin-bottom:24px;">
+        <div class="table-header"><h3>Conversion Funnel</h3></div>
+        <div id="viralFunnel" style="padding:20px;">
+          <div style="font-size:13px;color:#888;">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Top Referring Events -->
+      <div class="table-container">
+        <div class="table-header"><h3>Top Referring Events</h3><span class="count" id="viralTopCount">0</span></div>
+        <table>
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th>Host</th>
+              <th>Type</th>
+              <th>Page Views</th>
+            </tr>
+          </thead>
+          <tbody id="viralTopEventsBody">
+            <tr><td colspan="4" style="text-align:center;color:#888;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     </div><!-- end admin-main -->
   </div><!-- end admin-layout -->
 
@@ -2357,6 +2414,84 @@
     function closeSidebar() {
       document.getElementById('adminSidebar').classList.remove('open');
       document.getElementById('sidebarOverlay').classList.remove('open');
+    }
+
+    // ---- Viral Loop / Growth ----
+    var _viralCurrentRange = 30;
+
+    async function loadViralStats(range) {
+      if (range === undefined) range = _viralCurrentRange;
+      _viralCurrentRange = range;
+
+      // Update range button styles
+      document.querySelectorAll('.viral-range-btn').forEach(function(btn) {
+        var btnRange = btn.getAttribute('data-range');
+        var isActive = (range === 'all' && btnRange === 'all') || (String(range) === btnRange);
+        btn.className = 'btn ' + (isActive ? 'btn-primary' : 'btn-secondary') + ' viral-range-btn';
+      });
+
+      var params = {};
+      if (range !== 'all') {
+        var from = new Date();
+        from.setDate(from.getDate() - Number(range));
+        params.from = from.toISOString();
+        params.to = new Date().toISOString();
+      }
+
+      try {
+        var result = await adminFetch('viralStats', { params: params });
+        if (!result.success) { console.error('Failed to load viral stats'); return; }
+        var s = result.stats;
+
+        document.getElementById('viralPageViews').textContent = (s.pageViews || 0).toLocaleString();
+        document.getElementById('viralRsvps').textContent = (s.rsvpsSubmitted || 0).toLocaleString();
+        document.getElementById('viralFooterClicks').textContent = (s.footerClicks || 0).toLocaleString();
+        document.getElementById('viralRsvpCtaClicks').textContent = (s.rsvpCtaClicks || 0).toLocaleString();
+        document.getElementById('viralSignups').textContent = (s.inviteSignups || 0).toLocaleString();
+        document.getElementById('viralKFactor').textContent = s.kFactor !== undefined ? s.kFactor.toFixed(2) : '—';
+
+        // Conversion funnel
+        var funnelEl = document.getElementById('viralFunnel');
+        var funnelSteps = [
+          { label: 'Invite Page Views', value: s.pageViews || 0, color: '#4ECDC4' },
+          { label: 'RSVPs Submitted', value: s.rsvpsSubmitted || 0, color: '#A78BFA' },
+          { label: 'CTA Clicks (Footer + RSVP)', value: (s.footerClicks || 0) + (s.rsvpCtaClicks || 0), color: '#FFB74D' },
+          { label: 'New Signups', value: s.inviteSignups || 0, color: '#E94560' }
+        ];
+        var maxVal = Math.max(funnelSteps[0].value, 1);
+        var funnelHtml = funnelSteps.map(function(step) {
+          var pct = Math.max(Math.round(step.value / maxVal * 100), 2);
+          var convRate = step === funnelSteps[0] ? '' : ' (' + (funnelSteps[0].value > 0 ? (step.value / funnelSteps[0].value * 100).toFixed(1) : '0') + '%)';
+          return '<div style="margin-bottom:12px;">'
+            + '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">'
+            + '<span>' + step.label + '</span>'
+            + '<span style="font-weight:600;">' + step.value.toLocaleString() + convRate + '</span>'
+            + '</div>'
+            + '<div style="background:#f0f0f0;border-radius:6px;height:24px;overflow:hidden;">'
+            + '<div style="width:' + pct + '%;height:100%;background:' + step.color + ';border-radius:6px;transition:width 0.5s;"></div>'
+            + '</div></div>';
+        }).join('');
+        funnelEl.innerHTML = funnelHtml;
+
+        // Top referring events table
+        var tbody = document.getElementById('viralTopEventsBody');
+        var topEvents = s.topReferringEvents || [];
+        document.getElementById('viralTopCount').textContent = topEvents.length;
+        if (topEvents.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888;padding:20px;">No data yet</td></tr>';
+        } else {
+          tbody.innerHTML = topEvents.map(function(ev) {
+            return '<tr>'
+              + '<td><span class="user-email">' + escapeHtml(ev.title) + '</span></td>'
+              + '<td>' + escapeHtml(ev.host) + '</td>'
+              + '<td>' + (ev.eventType ? '<span class="badge badge-blue">' + escapeHtml(ev.eventType) + '</span>' : '—') + '</td>'
+              + '<td style="font-weight:600;">' + (ev.pageViews || 0).toLocaleString() + '</td>'
+              + '</tr>';
+          }).join('');
+        }
+      } catch (err) {
+        console.error('Viral stats error:', err);
+      }
     }
 
     // ---- Stats ----
