@@ -271,16 +271,21 @@ async function renderInviteToImage(html, css, config, targetWidth) {
   var resetCss = '* { margin:0; padding:0; box-sizing:border-box; } '
     + sel + ' { width:' + renderWidth + 'px; min-height:100%; overflow-x:hidden; }';
 
-  // ── Jump animations to END STATE (not disabled) ──
-  // Elements with `opacity:0; animation: fadeIn 0.8s forwards;` will resolve to opacity:1
-  // because we force the animation to its final frame. This preserves intended final visuals
-  // unlike `animation:none` which leaves elements at their pre-animation state.
+  // ── Let entrance animations complete naturally, then capture ──
+  // We wait 2.5s before capturing, which is enough for most entrance animations
+  // (fade-in, slide-up, etc.) to complete. animation-fill-mode:forwards ensures
+  // elements stay at their final animated state (opacity:1, translateY:0, etc.)
+  // We only disable transitions to prevent flash-of-unstyled-content issues.
   var h2cFixes = '*, *::before, *::after { '
-    + 'animation-delay: -9999s !important; '
     + 'animation-fill-mode: forwards !important; '
-    + 'animation-play-state: paused !important; '
     + 'transition: none !important; '
-    + '} ';
+    + '} '
+    // Ensure infinite ambient animations (floating, pulsing) are paused at a nice frame
+    + '@media (prefers-reduced-motion: no-preference) { '
+    + '[class*="float"], [class*="pulse"], [class*="bounce"], [class*="shimmer"], '
+    + '[class*="sparkle"], [class*="glow"], [class*="wave"], [class*="drift"] { '
+    + 'animation-play-state: running !important; '
+    + '} } ';
 
   // ── Build container HTML ──
   container.innerHTML = '<div id="__adgen_invite" style="width:' + renderWidth + 'px;overflow:hidden;">'
