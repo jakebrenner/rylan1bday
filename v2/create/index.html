@@ -1053,6 +1053,7 @@
           var genView = document.getElementById('generatingView');
           genView.style.display = 'none';
           document.getElementById('generatedView').style.display = 'block';
+          _resumeDataLoading = true; // Suppress broken render checks until event data loads
           renderPreview(themeVersions[activeVersionIndex]);
           renderVersionGallery();
           // Set pending rating so it shows when design chat initializes
@@ -1074,6 +1075,12 @@
                 dressCode: ev.dressCode || '', description: ev.description || '',
                 prompt: (ev.settings && ev.settings.design_prompt) || ''
               };
+              _resumeDataLoading = false; // Event data loaded — re-enable broken render checks
+              // Re-inject details into current preview now that extractedData is available
+              var previewIframe = document.getElementById('previewFrame');
+              if (previewIframe && previewIframe.contentDocument) {
+                try { injectRsvpForm(previewIframe); } catch(e) {}
+              }
               // Store DB chat history for loadDesignChatHistory fallback
               _dbDesignChatHistory = (ev.settings && ev.settings.design_chat_history) || null;
               if (ev.customFields && ev.customFields.length > 0) {
@@ -3278,7 +3285,7 @@
               // Content completeness check — runs after injection, with delay for paint + CSS animations
               setTimeout(function() {
                 var result = validateContentCompleteness(iframe);
-                if (!result.valid && !autoRetryInProgress) {
+                if (!result.valid && !autoRetryInProgress && !_resumeDataLoading) {
                   // Only trigger broken render for truly missing structural elements,
                   // not CSS visual issues (opacity/size during animations)
                   var structuralMissing = result.missing.filter(function(m) {
@@ -3312,7 +3319,7 @@
               // Content completeness check — with delay for CSS animations
               setTimeout(function() {
                 var result = validateContentCompleteness(iframe);
-                if (!result.valid && !autoRetryInProgress) {
+                if (!result.valid && !autoRetryInProgress && !_resumeDataLoading) {
                   var structuralMissing = result.missing.filter(function(m) {
                     var doc2 = iframe.contentDocument;
                     if (!doc2) return true;
@@ -4398,6 +4405,7 @@
     var lastRenderBroken = false; // Set when content validation detects missing elements
     var brokenRenderCount = 0; // Tracks consecutive broken renders for escalation
     var autoRetryInProgress = false; // Prevents recursive auto-retry loops
+    var _resumeDataLoading = false; // Suppresses broken render checks while event data loads on resume
 
     // ── Client device info for quality incident reports ──
     function getClientDeviceInfo() {
