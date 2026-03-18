@@ -8010,7 +8010,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var grid = document.getElementById('adPickerGrid');
       var empty = document.getElementById('adPickerEmpty');
       modal.style.display = 'flex';
-      grid.innerHTML = '<div style="text-align:center;padding:20px;color:#888;grid-column:1/-1;">Loading showcases...</div>';
+      grid.innerHTML = '<div style="text-align:center;padding:40px;color:#888;grid-column:1/-1;">Loading showcases...</div>';
 
       try {
         var res = await fetch('/api/v2/showcases');
@@ -8023,18 +8023,41 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         }
         empty.style.display = 'none';
         grid.innerHTML = showcases.map(function(s, i) {
-          return '<div style="border:1px solid #eee;border-radius:10px;cursor:pointer;overflow:hidden;transition:border-color 0.2s;" onmouseover="this.style.borderColor=\'#E94560\'" onmouseout="this.style.borderColor=\'#eee\'" onclick="selectAdPickerItem(' + i + ')">'
-            + '<div style="background:#f5f5fa;height:100px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#888;padding:8px;text-align:center;">'
-            + escapeHtml((s.event_title || s.event_type || 'Invite').substring(0, 30))
+          return '<div class="ad-picker-card" style="border:1px solid #e5e7eb;border-radius:12px;cursor:pointer;overflow:hidden;transition:all 0.2s;background:#fff;" onmouseover="this.style.borderColor=\'#E94560\';this.style.boxShadow=\'0 4px 12px rgba(233,69,96,0.15)\'" onmouseout="this.style.borderColor=\'#e5e7eb\';this.style.boxShadow=\'none\'" onclick="selectAdPickerItem(' + i + ')">'
+            + '<div style="position:relative;width:100%;height:220px;overflow:hidden;background:#f9fafb;border-bottom:1px solid #f0f0f0;">'
+            + '<iframe id="adPickerFrame' + i + '" style="position:absolute;top:0;left:0;width:375px;height:667px;border:none;pointer-events:none;transform-origin:top left;" sandbox="allow-same-origin"></iframe>'
             + '</div>'
-            + '<div style="padding:8px;font-size:11px;color:#555;line-height:1.4;">'
-            + escapeHtml((s.prompt_text || '').substring(0, 60)) + (s.prompt_text && s.prompt_text.length > 60 ? '...' : '')
+            + '<div style="padding:10px 12px;">'
+            + '<div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(s.event_title || s.event_type || 'Invite') + '</div>'
+            + '<div style="font-size:11px;color:#888;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">'
+            + escapeHtml((s.prompt_text || '').substring(0, 80))
+            + '</div>'
             + '</div>'
             + '</div>';
         }).join('');
 
-        // Store showcases for selection
+        // Store showcases and render previews in iframes
         window._adPickerShowcases = showcases;
+
+        // Wait for DOM to update, then populate iframes
+        requestAnimationFrame(function() {
+          showcases.forEach(function(s, i) {
+            var iframe = document.getElementById('adPickerFrame' + i);
+            if (!iframe || !s.html) return;
+            var card = iframe.closest('.ad-picker-card');
+            var containerWidth = card ? card.offsetWidth : 180;
+            var scale = containerWidth / 375;
+            iframe.style.transform = 'scale(' + scale + ')';
+            iframe.style.height = Math.round(220 / scale) + 'px';
+            var doc = iframe.contentDocument || iframe.contentWindow.document;
+            var cssText = s.css || '';
+            var configObj = typeof s.config === 'string' ? JSON.parse(s.config || '{}') : (s.config || {});
+            var fontImport = configObj.fontUrl ? '<style>@import url("' + configObj.fontUrl + '");</style>' : '';
+            doc.open();
+            doc.write('<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">' + fontImport + '<style>body{margin:0;overflow:hidden;}' + cssText + '</style></head><body>' + s.html + '</body></html>');
+            doc.close();
+          });
+        });
       } catch (e) {
         grid.innerHTML = '<div style="color:#ef4444;padding:20px;text-align:center;grid-column:1/-1;">Failed to load showcases</div>';
       }
@@ -8544,13 +8567,13 @@ If provided, analyze them for color palette, visual mood, textures, typography s
   </div>
   <!-- Ad Source Picker Modal -->
   <div id="adPickerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:16px;max-width:700px;width:90%;max-height:85vh;overflow-y:auto;padding:28px;">
+    <div style="background:#fff;border-radius:16px;max-width:860px;width:94%;max-height:85vh;overflow-y:auto;padding:28px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <h3 style="margin:0;">Select Invite for Ad</h3>
         <button onclick="document.getElementById('adPickerModal').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">&times;</button>
       </div>
       <p style="font-size:13px;color:#888;margin-bottom:16px;">Choose a featured showcase or go to Generations to pick from all user/lab generations.</p>
-      <div id="adPickerGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:16px;"></div>
+      <div id="adPickerGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:16px;"></div>
       <div id="adPickerEmpty" style="display:none;text-align:center;padding:30px;color:#888;">
         <p>No showcases available. Add featured invites in the Generations tab first, or use the "Generate Ad" button on any invite card.</p>
       </div>
