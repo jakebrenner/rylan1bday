@@ -146,11 +146,14 @@ export default async function handler(req, res) {
         coupon: {
           id: result.coupon.id,
           code: result.coupon.code,
+          couponType: result.coupon.coupon_type || 'discount',
+          eventCredits: result.coupon.event_credits || 0,
           discountType: result.coupon.discount_type,
           discountValue: Number(result.coupon.discount_value),
           description: result.coupon.description
         },
-        discount: result.discount
+        discount: result.discount,
+        eventCredits: result.coupon.event_credits || 0
       });
     }
 
@@ -166,6 +169,85 @@ export default async function handler(req, res) {
     // ---- AUTHENTICATED ENDPOINTS ----
     const user = await getUser(req);
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    // ---- REDEEM COUPON ----
+    if (action === 'redeemCoupon') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { code } = req.body;
+      if (!code) return res.status(400).json({ error: 'Coupon code required' });
+
+      const result = await validateCoupon(code, 'event_499', user.id, user.email);
+      if (!result.valid) {
+        return res.status(400).json({ success: false, error: result.error });
+      }
+
+      const coupon = result.coupon;
+      const eventCredits = coupon.event_credits || 0;
+      const couponType = coupon.coupon_type || 'discount';
+
+      // Event credit coupons must grant credits
+      if ((couponType === 'event_credits' || couponType === 'both') && eventCredits <= 0) {
+        return res.status(400).json({ success: false, error: 'This coupon has no event credits to redeem' });
+      }
+
+      // Discount-only coupons can't be redeemed here (they apply at checkout)
+      if (couponType === 'discount') {
+        return res.status(400).json({ success: false, error: 'This coupon applies a discount at checkout. Use it when purchasing an event.' });
+      }
+
+      // Get current balance
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('free_event_credits, purchased_event_credits')
+        .eq('id', user.id)
+        .single();
+
+      const currentBalance = (profile?.free_event_credits || 0) + (profile?.purchased_event_credits || 0);
+      const newBalance = currentBalance + eventCredits;
+
+      // Add credits to profile
+      await supabaseAdmin
+        .from('profiles')
+        .update({ free_event_credits: (profile?.free_event_credits || 0) + eventCredits })
+        .eq('id', user.id);
+
+      // Record redemption
+      await supabaseAdmin
+        .from('coupon_redemptions')
+        .insert({
+          coupon_id: coupon.id,
+          user_id: user.id,
+          events_granted: eventCredits
+        });
+
+      // Increment usage count
+      await supabaseAdmin
+        .from('coupons')
+        .update({ times_used: (coupon.times_used || 0) + 1 })
+        .eq('id', coupon.id);
+
+      // Write ledger entry
+      await supabaseAdmin
+        .from('credit_ledger')
+        .insert({
+          user_id: user.id,
+          entry_type: 'credit_added',
+          amount: eventCredits,
+          balance_after: newBalance,
+          source: 'coupon',
+          reference_id: coupon.code,
+          reference_label: coupon.description || `Coupon: ${coupon.code}`,
+          notes: `Redeemed coupon ${coupon.code} for ${eventCredits} free event${eventCredits === 1 ? '' : 's'}`
+        });
+
+      return res.status(200).json({
+        success: true,
+        creditsAdded: eventCredits,
+        newBalance,
+        message: `${eventCredits} free event credit${eventCredits === 1 ? '' : 's'} added to your account!`
+      });
+    }
 
     // ---- CHECK EVENT ACCESS ----
     // Determines what a user can do based on payment status
@@ -662,12 +744,13 @@ export default async function handler(req, res) {
 
     // ---- GET USER SUBSCRIPTION / PAYMENT INFO ----
     if (action === 'subscription') {
-      // Count events by payment status and get credit balances in parallel
-      const [eventsRes, genRes, smsRes, profileRes] = await Promise.all([
+      // Count events by payment status, credit balances, and ledger in parallel
+      const [eventsRes, genRes, smsRes, profileRes, ledgerRes] = await Promise.all([
         supabaseAdmin.from('events').select('id, payment_status').eq('user_id', user.id),
         supabaseAdmin.from('generation_log').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'success').not('event_id', 'is', null),
         supabaseAdmin.from('sms_messages').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabaseAdmin.from('profiles').select('purchased_event_credits, free_event_credits').eq('id', user.id).single()
+        supabaseAdmin.from('profiles').select('purchased_event_credits, free_event_credits').eq('id', user.id).single(),
+        supabaseAdmin.from('credit_ledger').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(50)
       ]);
 
       const events = eventsRes.data || [];
@@ -676,6 +759,18 @@ export default async function handler(req, res) {
       const freeEvents = events.filter(e => e.payment_status === 'free').length;
       const purchasedCredits = profileRes.data?.purchased_event_credits || 0;
       const freeCredits = profileRes.data?.free_event_credits || 0;
+
+      const ledger = (ledgerRes.data || []).map(l => ({
+        id: l.id,
+        entryType: l.entry_type,
+        amount: l.amount,
+        balanceAfter: l.balance_after,
+        source: l.source,
+        referenceId: l.reference_id,
+        referenceLabel: l.reference_label,
+        notes: l.notes,
+        createdAt: l.created_at
+      }));
 
       return res.status(200).json({
         success: true,
@@ -694,7 +789,8 @@ export default async function handler(req, res) {
           purchased: purchasedCredits,
           free: freeCredits,
           total: purchasedCredits + freeCredits
-        }
+        },
+        ledger
       });
     }
 
@@ -1261,19 +1357,33 @@ async function validateCoupon(code, planName, userId, userEmail) {
     }
   }
 
-  let discountInfo;
-  if (coupon.discount_type === 'percent') {
+  const couponType = coupon.coupon_type || 'discount';
+  const eventCredits = coupon.event_credits || 0;
+
+  let discountInfo = null;
+  if (couponType === 'discount' || couponType === 'both') {
+    if (coupon.discount_type === 'percent') {
+      discountInfo = {
+        type: 'percent',
+        percent: Number(coupon.discount_value),
+        amountCents: 0,
+        label: `${Number(coupon.discount_value)}% off`
+      };
+    } else {
+      discountInfo = {
+        type: 'fixed',
+        amountCents: Math.round(Number(coupon.discount_value)),
+        label: `$${(Number(coupon.discount_value) / 100).toFixed(2)} off`
+      };
+    }
+  }
+
+  // For event_credits-only coupons, provide a descriptive label
+  if (couponType === 'event_credits' && !discountInfo) {
     discountInfo = {
-      type: 'percent',
-      percent: Number(coupon.discount_value),
+      type: 'event_credits',
       amountCents: 0,
-      label: `${Number(coupon.discount_value)}% off`
-    };
-  } else {
-    discountInfo = {
-      type: 'fixed',
-      amountCents: Math.round(Number(coupon.discount_value)),
-      label: `$${(Number(coupon.discount_value) / 100).toFixed(2)} off`
+      label: `${eventCredits} free event${eventCredits === 1 ? '' : 's'}`
     };
   }
 

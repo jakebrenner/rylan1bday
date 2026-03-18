@@ -1037,6 +1037,8 @@ export default async function handler(req, res) {
           id: c.id,
           code: c.code,
           description: c.description,
+          couponType: c.coupon_type || 'discount',
+          eventCredits: c.event_credits || 0,
           discountType: c.discount_type,
           discountValue: Number(c.discount_value),
           minPurchaseCents: c.min_purchase_cents,
@@ -1073,21 +1075,36 @@ export default async function handler(req, res) {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
       const {
-        code, description, discountType, discountValue,
+        code, description, couponType, eventCredits, discountType, discountValue,
         minPurchaseCents, maxUses, maxUsesPerUser,
         validFrom, validUntil, allowedPlans, allowedEmails, isActive
       } = req.body;
 
-      if (!code || !discountType || discountValue === undefined) {
-        return res.status(400).json({ error: 'code, discountType, and discountValue are required' });
+      const effectiveCouponType = couponType || 'discount';
+      if (!['discount', 'event_credits', 'both'].includes(effectiveCouponType)) {
+        return res.status(400).json({ error: 'couponType must be "discount", "event_credits", or "both"' });
       }
 
-      if (!['percent', 'fixed'].includes(discountType)) {
-        return res.status(400).json({ error: 'discountType must be "percent" or "fixed"' });
+      if (!code) {
+        return res.status(400).json({ error: 'Code is required' });
       }
 
-      if (discountType === 'percent' && (discountValue < 0 || discountValue > 100)) {
-        return res.status(400).json({ error: 'Percent discount must be between 0 and 100' });
+      // Validate discount fields for discount/both types
+      if (effectiveCouponType === 'discount' || effectiveCouponType === 'both') {
+        if (!discountType || discountValue === undefined) {
+          return res.status(400).json({ error: 'discountType and discountValue are required for discount coupons' });
+        }
+        if (!['percent', 'fixed'].includes(discountType)) {
+          return res.status(400).json({ error: 'discountType must be "percent" or "fixed"' });
+        }
+        if (discountType === 'percent' && (discountValue < 0 || discountValue > 100)) {
+          return res.status(400).json({ error: 'Percent discount must be between 0 and 100' });
+        }
+      }
+
+      // Validate event credits for event_credits/both types
+      if ((effectiveCouponType === 'event_credits' || effectiveCouponType === 'both') && (!eventCredits || eventCredits < 1)) {
+        return res.status(400).json({ error: 'eventCredits must be at least 1 for event credit coupons' });
       }
 
       const { data, error } = await supabaseAdmin
@@ -1095,8 +1112,10 @@ export default async function handler(req, res) {
         .insert({
           code: code.toUpperCase().trim(),
           description: description || null,
-          discount_type: discountType,
-          discount_value: discountValue,
+          coupon_type: effectiveCouponType,
+          event_credits: eventCredits || 0,
+          discount_type: effectiveCouponType === 'event_credits' ? 'fixed' : discountType,
+          discount_value: effectiveCouponType === 'event_credits' ? 0 : (discountValue || 0),
           min_purchase_cents: minPurchaseCents || 0,
           max_uses: maxUses || null,
           max_uses_per_user: maxUsesPerUser || 1,
@@ -1141,6 +1160,8 @@ export default async function handler(req, res) {
       const dbUpdates = {};
       if (updates.code !== undefined) dbUpdates.code = updates.code.toUpperCase().trim();
       if (updates.description !== undefined) dbUpdates.description = updates.description;
+      if (updates.couponType !== undefined) dbUpdates.coupon_type = updates.couponType;
+      if (updates.eventCredits !== undefined) dbUpdates.event_credits = updates.eventCredits;
       if (updates.discountType !== undefined) dbUpdates.discount_type = updates.discountType;
       if (updates.discountValue !== undefined) dbUpdates.discount_value = updates.discountValue;
       if (updates.minPurchaseCents !== undefined) dbUpdates.min_purchase_cents = updates.minPurchaseCents;

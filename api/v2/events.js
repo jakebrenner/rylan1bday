@@ -251,6 +251,7 @@ export default async function handler(req, res) {
 
       let isFirstEvent = (totalEventCount || 0) === 0;
       let isPrepaid = false;
+      let creditSource = null; // Track what type of credit was used for ledger
 
       // If not first event, check for purchased or admin-granted credits
       if (!isFirstEvent) {
@@ -263,13 +264,15 @@ export default async function handler(req, res) {
         if (profileData && (profileData.purchased_event_credits || 0) > 0) {
           // Purchased credits → mark as paid (user already paid)
           isPrepaid = true;
+          creditSource = 'purchase';
           await supabaseAdmin
             .from('profiles')
             .update({ purchased_event_credits: (profileData.purchased_event_credits || 0) - 1 })
             .eq('id', user.id);
         } else if (profileData && (profileData.free_event_credits || 0) > 0) {
-          // Admin-granted free credits → full paid access
+          // Admin-granted or coupon free credits → full paid access
           isPrepaid = true;
+          creditSource = 'coupon';
           await supabaseAdmin
             .from('profiles')
             .update({ free_event_credits: (profileData.free_event_credits || 0) - 1 })
@@ -324,6 +327,52 @@ export default async function handler(req, res) {
         .single();
 
       if (error) return res.status(400).json({ success: false, error: error.message });
+
+      // Write credit ledger entries for credit consumption or first-event grant
+      if (isFirstEvent || isPrepaid) {
+        // Get current balance for the ledger
+        const { data: balProfile } = await supabaseAdmin
+          .from('profiles')
+          .select('purchased_event_credits, free_event_credits')
+          .eq('id', user.id)
+          .single();
+        const currentBal = (balProfile?.purchased_event_credits || 0) + (balProfile?.free_event_credits || 0);
+
+        if (isFirstEvent) {
+          // Log the first-event free credit
+          await supabaseAdmin.from('credit_ledger').insert({
+            user_id: user.id,
+            entry_type: 'credit_added',
+            amount: 1,
+            balance_after: currentBal + 1,
+            source: 'first_event',
+            reference_id: data.id,
+            reference_label: 'First event free',
+          });
+          // Immediately log it being used
+          await supabaseAdmin.from('credit_ledger').insert({
+            user_id: user.id,
+            entry_type: 'credit_used',
+            amount: -1,
+            balance_after: currentBal,
+            source: 'event_publish',
+            reference_id: data.id,
+            reference_label: title || 'Untitled event',
+          });
+        } else if (isPrepaid) {
+          // Log the credit consumption
+          await supabaseAdmin.from('credit_ledger').insert({
+            user_id: user.id,
+            entry_type: 'credit_used',
+            amount: -1,
+            balance_after: currentBal,
+            source: 'event_publish',
+            reference_id: data.id,
+            reference_label: title || 'Untitled event',
+            notes: creditSource === 'purchase' ? 'Used purchased credit' : 'Used free credit',
+          });
+        }
+      }
 
       return res.status(200).json({ success: true, eventId: data.id, slug: data.slug, paymentStatus: data.payment_status });
     }
@@ -594,22 +643,24 @@ export default async function handler(req, res) {
 
         if (profileData) {
           let newStatus = null;
+          let creditSrc = null;
           if ((profileData.purchased_event_credits || 0) > 0) {
             newStatus = 'paid';
+            creditSrc = 'purchase';
             await supabaseAdmin
               .from('profiles')
               .update({ purchased_event_credits: (profileData.purchased_event_credits || 0) - 1 })
               .eq('id', user.id);
           } else if ((profileData.free_event_credits || 0) > 0) {
-            // Admin-granted free credits give full paid access (not limited free-tier)
+            // Admin-granted or coupon free credits give full paid access
             newStatus = 'paid';
+            creditSrc = 'coupon';
             await supabaseAdmin
               .from('profiles')
               .update({ free_event_credits: (profileData.free_event_credits || 0) - 1 })
               .eq('id', user.id);
           } else {
             // Check if this is the user's ONLY event (first event is free)
-            // Count all events to prevent loopholes from refunded/archived events
             const { count: totalEventCount } = await supabaseAdmin
               .from('events')
               .select('id', { count: 'exact', head: true })
@@ -625,6 +676,26 @@ export default async function handler(req, res) {
               .update({ payment_status: newStatus })
               .eq('id', eventId);
             data.payment_status = newStatus;
+
+            // Write credit ledger entry
+            if (creditSrc) {
+              const { data: balP } = await supabaseAdmin
+                .from('profiles')
+                .select('purchased_event_credits, free_event_credits')
+                .eq('id', user.id)
+                .single();
+              const bal = (balP?.purchased_event_credits || 0) + (balP?.free_event_credits || 0);
+              await supabaseAdmin.from('credit_ledger').insert({
+                user_id: user.id,
+                entry_type: 'credit_used',
+                amount: -1,
+                balance_after: bal,
+                source: 'event_publish',
+                reference_id: eventId,
+                reference_label: data.title || 'Untitled event',
+                notes: creditSrc === 'purchase' ? 'Used purchased credit' : 'Used free credit',
+              });
+            }
           }
         }
       }

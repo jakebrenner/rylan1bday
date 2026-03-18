@@ -7328,6 +7328,47 @@
         renderDesignChat();
       }
     }
+
+    async function redeemCouponInCreate() {
+      var code = document.getElementById('paymentGateCoupon').value.trim();
+      if (!code) return;
+
+      var btn = document.getElementById('payGateCouponBtn');
+      var resultDiv = document.getElementById('payGateCouponResult');
+      btn.disabled = true;
+      btn.textContent = 'Applying...';
+
+      try {
+        var res = await authFetch('/api/v2/billing?action=redeemCoupon', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code })
+        });
+        var result = await res.json();
+        if (result.success) {
+          resultDiv.innerHTML = '<span style="color:#155724;">' + escapeHtml(result.message) + '</span>';
+          // Credits now available — trigger the event update to apply credits
+          if (currentEvent) {
+            var getRes = await authFetch('/api/v2/events?action=get&eventId=' + currentEvent.id);
+            var getResult = await getRes.json();
+            if (getResult.success && getResult.event) {
+              currentEvent.paymentStatus = getResult.event.paymentStatus || 'unpaid';
+              if (currentEvent.paymentStatus === 'paid') {
+                // Close payment gate and treat as upgraded
+                setTimeout(function() { handlePaymentSuccess(); }, 1000);
+                return;
+              }
+            }
+          }
+        } else {
+          resultDiv.innerHTML = '<span style="color:#dc3545;">' + escapeHtml(result.error || 'Invalid coupon') + '</span>';
+        }
+      } catch (err) {
+        resultDiv.innerHTML = '<span style="color:#dc3545;">Error applying coupon</span>';
+      }
+      btn.disabled = false;
+      btn.textContent = 'Apply';
+    }
   </script>
 
   <!-- Payment Gate Modal -->
@@ -7344,6 +7385,14 @@
         <div style="display: flex; gap: 12px; justify-content: center;">
           <button onclick="dismissPaymentGate();" style="padding: 10px 24px; border: 1px solid #ddd; border-radius: 50px; background: white; cursor: pointer; font-size: 14px; font-family: Inter, sans-serif;">Maybe Later</button>
           <button id="createPayBtn" onclick="handleCreatePayment()" style="padding: 10px 24px; border: none; border-radius: 50px; background: #E94560; color: white; cursor: pointer; font-size: 14px; font-weight: 600; font-family: Inter, sans-serif;">Upgrade &#8212; $4.99</button>
+        </div>
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid #f0f0f0;">
+          <div style="font-size:13px;color:#888;margin-bottom:8px;">Have a coupon code?</div>
+          <div style="display:flex;gap:8px;justify-content:center;">
+            <input type="text" id="paymentGateCoupon" placeholder="Enter code" style="padding:8px 14px;border:1px solid #ddd;border-radius:8px;font-size:14px;text-transform:uppercase;width:180px;font-family:Inter,sans-serif;">
+            <button onclick="redeemCouponInCreate()" id="payGateCouponBtn" style="padding:8px 16px;border:none;border-radius:8px;background:var(--mint-fizz);color:white;cursor:pointer;font-size:13px;font-weight:600;font-family:Inter,sans-serif;">Apply</button>
+          </div>
+          <div id="payGateCouponResult" style="margin-top:8px;font-size:13px;"></div>
         </div>
         <p style="color: #D1D5DB; font-size: 12px; margin: 16px 0 0;">Powered by Stripe</p>
       </div>
