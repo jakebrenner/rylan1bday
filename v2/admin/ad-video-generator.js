@@ -212,9 +212,16 @@ async function renderInviteToImage(html, css, config, targetWidth) {
     fontsImport = configObj.googleFontsImport;
   }
 
+  // Remap body/html CSS selectors to #__adgen_invite so backgrounds render correctly.
+  // Theme CSS often has `body { background: ... }` which won't match since we render in a div.
+  var adjustedCss = (css || '')
+    .replace(/\bhtml\s*,\s*body\b/g, '#__adgen_invite')
+    .replace(/\bbody\s*\{/g, '#__adgen_invite {')
+    .replace(/\bhtml\s*\{/g, '#__adgen_invite {');
+
   container.innerHTML = '<div id="__adgen_invite" style="width:' + targetWidth + 'px;overflow:hidden;">'
     + '<style>' + fontsImport + '</style>'
-    + '<style>' + (css || '') + '</style>'
+    + '<style>' + adjustedCss + '</style>'
     + '<style>.rsvp-slot,.details-slot{display:none !important}</style>'
     + (html || '')
     + '</div>';
@@ -454,7 +461,6 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
     recorder.onstop = function() { resolve(new Blob(chunks, { type: 'video/webm' })); };
     recorder.onerror = function(e) { reject(new Error('MediaRecorder error: ' + (e.error || e.message || 'unknown'))); };
 
-    const logoText = 'Ryvite';
     let startTime = null;
     let animFrameId = null;
 
@@ -486,19 +492,63 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
       const isSideBySide = fmt.layout === 'side_by_side';
       const logoX = isSideBySide ? fmt.promptAreaX + fmt.promptMaxWidth / 2 : fmt.width / 2;
 
-      // ── Logo (fades in + slides down during intro) ──
+      // ── Ryvite Logo (SVG icon + text, fades in + slides down) ──
       const logoProgress = Math.min(1, elapsed / INTRO_MS);
       const logoEased = easeOutCubic(logoProgress);
       ctx.save();
       ctx.globalAlpha = logoEased;
-      ctx.font = 'bold ' + fmt.logoSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
+
+      var logoSlide = -20 + logoEased * 20;
+      var iconSize = fmt.logoSize * 1.1; // icon circle diameter
+      var textSize = fmt.logoSize;
+      ctx.font = '600 ' + textSize + 'px "Playfair Display", "Georgia", serif';
+      var textW = ctx.measureText('Ryvite').width;
+      var iconW = iconSize + 12; // icon width + gap
+      var totalLogoW = iconW + textW;
+      var logoStartX = logoX - totalLogoW / 2;
+
+      // ── Envelope icon (circle + checkmark + line) ──
+      var iconCx = logoStartX + iconSize / 2;
+      var iconCy = fmt.logoY + logoSlide - textSize * 0.25;
+      var iconR = iconSize / 2;
+
+      // Circle
+      ctx.beginPath();
+      ctx.arc(iconCx, iconCy, iconR, 0, Math.PI * 2);
+      ctx.strokeStyle = thm.logoColor;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      // Checkmark/envelope flap (V shape)
+      ctx.beginPath();
+      ctx.moveTo(iconCx - iconR * 0.58, iconCy - iconR * 0.35);
+      ctx.lineTo(iconCx, iconCy + iconR * 0.1);
+      ctx.lineTo(iconCx + iconR * 0.58, iconCy - iconR * 0.35);
+      ctx.strokeStyle = thm.logoColor;
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      // Bottom line
+      ctx.beginPath();
+      ctx.moveTo(iconCx - iconR * 0.58, iconCy + iconR * 0.42);
+      ctx.lineTo(iconCx + iconR * 0.58, iconCy + iconR * 0.42);
+      ctx.strokeStyle = thm.logoColor;
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // ── "Ryvite" text ──
+      ctx.font = '600 ' + textSize + 'px "Playfair Display", "Georgia", serif';
       ctx.fillStyle = thm.logoColor;
-      ctx.textAlign = 'center';
-      ctx.fillText(logoText, logoX, fmt.logoY - 20 + logoEased * 20);
+      ctx.textAlign = 'left';
+      ctx.fillText('Ryvite', logoStartX + iconW, fmt.logoY + logoSlide);
 
       // Subtitle
       ctx.font = fmt.labelFontSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
       ctx.fillStyle = thm.subtextColor;
+      ctx.textAlign = 'center';
       ctx.fillText('AI-Powered Event Invitations', logoX, fmt.labelY - 15 + logoEased * 15);
       ctx.restore();
 
