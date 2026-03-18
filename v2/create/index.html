@@ -4028,7 +4028,21 @@
         + '.cal-apple { background:' + pc + '; color:#fff; }'
         + '.cal-google { background:' + sc + '; color:#fff; }'
         + '.cal-outlook { background:' + ac + '; color:#fff; }'
-        + '.thankyou-footer { font-size:15px; opacity:0.6; margin-top:40px; text-align:center; }'
+        // Event detail recap
+        + '.thankyou-event-recap { width:100%; max-width:320px; margin:28px 0 0; padding:20px; border-radius:12px; background:rgba(0,0,0,0.04); text-align:left; }'
+        + '.thankyou-event-recap .recap-item { display:flex; gap:10px; margin-bottom:12px; align-items:flex-start; }'
+        + '.thankyou-event-recap .recap-item:last-child { margin-bottom:0; }'
+        + '.thankyou-event-recap .recap-icon { font-size:18px; flex-shrink:0; margin-top:1px; }'
+        + '.thankyou-event-recap .recap-label { font-size:11px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.5; margin-bottom:2px; }'
+        + '.thankyou-event-recap .recap-value { font-size:14px; line-height:1.4; }'
+        // CTA section
+        + '.thankyou-cta-section { width:100%; max-width:320px; margin-top:36px; padding-top:28px; border-top:1px solid rgba(0,0,0,0.08); text-align:center; }'
+        + '.thankyou-cta-section .ryvite-logo { width:80px; height:32px; margin-bottom:12px; }'
+        + '.thankyou-cta-text { font-size:14px; line-height:1.5; opacity:0.7; margin-bottom:16px; }'
+        + '.thankyou-cta-btn { display:inline-block; padding:12px 28px; border-radius:10px; background:' + pc + '; color:#fff; font-family:inherit; font-size:14px; font-weight:600; text-decoration:none; transition:transform 0.15s,box-shadow 0.15s; border:none; cursor:pointer; }'
+        + '.thankyou-cta-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.15); }'
+        // Footer
+        + '.thankyou-footer { font-size:13px; opacity:0.4; margin-top:32px; text-align:center; font-style:italic; }'
         + '.thankyou-footer a { color:inherit; text-decoration:none; }';
 
       // Guaranteed calendar + footer HTML — never left to the AI
@@ -4039,7 +4053,38 @@
         + '<button class="cal-btn cal-google" data-cal="google">Google Calendar</button>'
         + '<button class="cal-btn cal-outlook" data-cal="outlook">Outlook Web</button>'
         + '</div></div>';
-      var guaranteedFooterHTML = '<p class="thankyou-footer">Made with &#10084; by <a href="https://www.ryvite.com">Ryvite</a></p>';
+      // Build event detail recap from extractedData
+      var recapItems = [];
+      var _recapDate = extractedData && (extractedData.startDate || extractedData.eventDate);
+      if (_recapDate) {
+        var _sd = new Date(_recapDate);
+        var _dateFormatted = _sd.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        var _timeStr = _sd.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        var _endDate = extractedData.endDate;
+        if (_endDate) { _timeStr += ' – ' + new Date(_endDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
+        recapItems.push('<div class="recap-item"><div class="recap-icon">&#128197;</div><div><div class="recap-label">Date &amp; Time</div><div class="recap-value">' + _dateFormatted + '<br>' + _timeStr + '</div></div></div>');
+      }
+      var _locName = extractedData && (extractedData.locationName || '');
+      var _locAddr = extractedData && (extractedData.locationAddress || '');
+      if (_locName || _locAddr) {
+        recapItems.push('<div class="recap-item"><div class="recap-icon">&#128205;</div><div><div class="recap-label">Location</div><div class="recap-value">' + [_locName, _locAddr].filter(Boolean).join('<br>') + '</div></div></div>');
+      }
+      var guaranteedEventRecapHTML = recapItems.length > 0 ? '<div class="thankyou-event-recap">' + recapItems.join('') + '</div>' : '';
+
+      // Ryvite logo SVG (from brand guidelines)
+      var ryviteLogoSvg = '<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" class="ryvite-logo">'
+        + '<circle cx="30" cy="40" r="20" fill="none" stroke="#E94560" stroke-width="2"/>'
+        + '<path d="M15 30 L30 42 L45 30 M15 50 L45 50" fill="none" stroke="#E94560" stroke-width="2" stroke-linecap="round"/>'
+        + '<text x="65" y="50" font-family="Playfair Display, serif" font-size="32" font-weight="600" fill="' + textColor + '">Ryvite</text>'
+        + '</svg>';
+
+      var guaranteedCtaHTML = '<div class="thankyou-cta-section">'
+        + ryviteLogoSvg
+        + '<p class="thankyou-cta-text">Love this invite? Make one for your next event — your first one\'s free.</p>'
+        + '<a class="thankyou-cta-btn" href="https://www.ryvite.com/v2/create?utm_source=invite&utm_medium=rsvp_confirm&utm_campaign=viral" target="_blank" rel="noopener">Create Your Invite</a>'
+        + '</div>';
+
+      var guaranteedFooterHTML = '<p class="thankyou-footer">Create yours free at <a href="https://www.ryvite.com/?utm_source=invite&utm_medium=footer&utm_campaign=viral" target="_blank" rel="noopener">Ryvite.com</a></p>';
 
       // Calendar button click handling is wired via iframe.onload in renderPreview
       // (see injectCalendarHandlers) — no script injection in srcdoc.
@@ -4081,12 +4126,14 @@
         tyHtml = tyHtml.replace(/<span class="thankyou-guest">[^<]*<\/span>/g, '<span class="thankyou-guest">' + escapeHtml(guestName) + '</span>');
         tyHtml = tyHtml.replace(/<span class="thankyou-event">[^<]*<\/span>/g, '<span class="thankyou-event">' + escapeHtml(title) + '</span>');
 
-        // Strip out AI-generated calendar section and footer — we inject our own
+        // Strip out AI-generated calendar section, footer, CTA, and recap — we inject our own
         tyHtml = tyHtml.replace(/<div class="thankyou-calendar-section">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/g, '');
         tyHtml = tyHtml.replace(/<div class="calendar-buttons">[\s\S]*?<\/div>/g, '');
         tyHtml = tyHtml.replace(/<button[^>]*class="cal-btn[^>]*>[\s\S]*?<\/button>/g, '');
         tyHtml = tyHtml.replace(/<p[^>]*class="calendar-label"[^>]*>[\s\S]*?<\/p>/g, '');
         tyHtml = tyHtml.replace(/<p[^>]*class="thankyou-footer"[^>]*>[\s\S]*?<\/p>/g, '');
+        tyHtml = tyHtml.replace(/<div[^>]*class="[^"]*thankyou-cta-section[^"]*"[^>]*>[\s\S]*?<\/div>/g, '');
+        tyHtml = tyHtml.replace(/<div[^>]*class="[^"]*thankyou-event-recap[^"]*"[^>]*>[\s\S]*?<\/div>/g, '');
         // Also catch any footer the AI invented with different text
         tyHtml = tyHtml.replace(/<p[^>]*>[\s\S]*?Made with[\s\S]*?<\/p>/g, '');
 
@@ -4094,14 +4141,15 @@
         if (tyHtml.indexOf('</div>') !== -1) {
           // Find the last </div> (closing .thankyou-page) and inject before it
           var lastDivIdx = tyHtml.lastIndexOf('</div>');
-          tyHtml = tyHtml.substring(0, lastDivIdx) + guaranteedCalendarHTML + guaranteedFooterHTML + '</div>';
+          tyHtml = tyHtml.substring(0, lastDivIdx) + guaranteedCalendarHTML + guaranteedEventRecapHTML + guaranteedCtaHTML + guaranteedFooterHTML + '</div>';
         } else {
-          tyHtml += guaranteedCalendarHTML + guaranteedFooterHTML;
+          tyHtml += guaranteedCalendarHTML + guaranteedEventRecapHTML + guaranteedCtaHTML + guaranteedFooterHTML;
         }
 
         var fontsStyle2 = fontsImport ? '<style>' + fontsImport + '</style>' : '';
         return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
           + fontsStyle2
+          + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet">'
           + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; }</style>'
           + '<style>' + guaranteedCSS + '</style>'
           + '<style>' + sanitizeThemeText(ver.css || '') + '</style>'
@@ -4128,12 +4176,15 @@
         + '<p class="thankyou-subtitle">Thanks for RSVPing, <span class="thankyou-guest">' + escapeHtml(guestName) + '</span>! We can\'t wait to see you at <span class="thankyou-event">' + escapeHtml(title) + '</span>.</p>'
         + '</div>'
         + guaranteedCalendarHTML
+        + guaranteedEventRecapHTML
+        + guaranteedCtaHTML
         + guaranteedFooterHTML
         + '</div>';
 
       var fontsStyle3 = fontsImport ? '<style>' + fontsImport + '</style>' : '';
       return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
         + fontsStyle3
+        + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet">'
         + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; background:' + bgColor + '; }</style>'
         + '<style>' + guaranteedCSS + '</style>'
         + '<style>' + sanitizeThemeText(ver.css || '').replace(/<\/style/gi, '<\\/style') + '</style>'
