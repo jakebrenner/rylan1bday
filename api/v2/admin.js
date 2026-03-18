@@ -1037,6 +1037,8 @@ export default async function handler(req, res) {
           id: c.id,
           code: c.code,
           description: c.description,
+          couponType: c.coupon_type || 'discount',
+          eventCredits: c.event_credits || 0,
           discountType: c.discount_type,
           discountValue: Number(c.discount_value),
           minPurchaseCents: c.min_purchase_cents,
@@ -1073,21 +1075,36 @@ export default async function handler(req, res) {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
       const {
-        code, description, discountType, discountValue,
+        code, description, couponType, eventCredits, discountType, discountValue,
         minPurchaseCents, maxUses, maxUsesPerUser,
         validFrom, validUntil, allowedPlans, allowedEmails, isActive
       } = req.body;
 
-      if (!code || !discountType || discountValue === undefined) {
-        return res.status(400).json({ error: 'code, discountType, and discountValue are required' });
+      const effectiveCouponType = couponType || 'discount';
+      if (!['discount', 'event_credits', 'both'].includes(effectiveCouponType)) {
+        return res.status(400).json({ error: 'couponType must be "discount", "event_credits", or "both"' });
       }
 
-      if (!['percent', 'fixed'].includes(discountType)) {
-        return res.status(400).json({ error: 'discountType must be "percent" or "fixed"' });
+      if (!code) {
+        return res.status(400).json({ error: 'Code is required' });
       }
 
-      if (discountType === 'percent' && (discountValue < 0 || discountValue > 100)) {
-        return res.status(400).json({ error: 'Percent discount must be between 0 and 100' });
+      // Validate discount fields for discount/both types
+      if (effectiveCouponType === 'discount' || effectiveCouponType === 'both') {
+        if (!discountType || discountValue === undefined) {
+          return res.status(400).json({ error: 'discountType and discountValue are required for discount coupons' });
+        }
+        if (!['percent', 'fixed'].includes(discountType)) {
+          return res.status(400).json({ error: 'discountType must be "percent" or "fixed"' });
+        }
+        if (discountType === 'percent' && (discountValue < 0 || discountValue > 100)) {
+          return res.status(400).json({ error: 'Percent discount must be between 0 and 100' });
+        }
+      }
+
+      // Validate event credits for event_credits/both types
+      if ((effectiveCouponType === 'event_credits' || effectiveCouponType === 'both') && (!eventCredits || eventCredits < 1)) {
+        return res.status(400).json({ error: 'eventCredits must be at least 1 for event credit coupons' });
       }
 
       const { data, error } = await supabaseAdmin
@@ -1095,8 +1112,10 @@ export default async function handler(req, res) {
         .insert({
           code: code.toUpperCase().trim(),
           description: description || null,
-          discount_type: discountType,
-          discount_value: discountValue,
+          coupon_type: effectiveCouponType,
+          event_credits: eventCredits || 0,
+          discount_type: effectiveCouponType === 'event_credits' ? 'fixed' : discountType,
+          discount_value: effectiveCouponType === 'event_credits' ? 0 : (discountValue || 0),
           min_purchase_cents: minPurchaseCents || 0,
           max_uses: maxUses || null,
           max_uses_per_user: maxUsesPerUser || 1,
@@ -1141,6 +1160,8 @@ export default async function handler(req, res) {
       const dbUpdates = {};
       if (updates.code !== undefined) dbUpdates.code = updates.code.toUpperCase().trim();
       if (updates.description !== undefined) dbUpdates.description = updates.description;
+      if (updates.couponType !== undefined) dbUpdates.coupon_type = updates.couponType;
+      if (updates.eventCredits !== undefined) dbUpdates.event_credits = updates.eventCredits;
       if (updates.discountType !== undefined) dbUpdates.discount_type = updates.discountType;
       if (updates.discountValue !== undefined) dbUpdates.discount_value = updates.discountValue;
       if (updates.minPurchaseCents !== undefined) dbUpdates.min_purchase_cents = updates.minPurchaseCents;
@@ -1219,91 +1240,6 @@ export default async function handler(req, res) {
     }
 
     // ---- LIST ALL SUBSCRIPTIONS (admin) ----
-    if (action === 'subscriptions') {
-      const { data: subs, error } = await supabaseAdmin
-        .from('subscriptions')
-        .select(`
-          *,
-          profiles:user_id (email, display_name),
-          plans:plan_id (name, display_name, price_cents)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) return res.status(400).json({ error: error.message });
-
-      // Get SMS counts per user
-      const userIds = [...new Set((subs || []).map(s => s.user_id))];
-      const smsCountsByUser = {};
-      if (userIds.length > 0) {
-        const { data: smsCounts } = await supabaseAdmin
-          .from('sms_messages')
-          .select('user_id, cost_cents');
-        for (const msg of (smsCounts || [])) {
-          if (!smsCountsByUser[msg.user_id]) smsCountsByUser[msg.user_id] = { count: 0, costCents: 0 };
-          smsCountsByUser[msg.user_id].count++;
-          smsCountsByUser[msg.user_id].costCents += msg.cost_cents || 0;
-        }
-      }
-
-      return res.status(200).json({
-        success: true,
-        subscriptions: (subs || []).map(s => ({
-          id: s.id,
-          userId: s.user_id,
-          userEmail: s.profiles?.email,
-          userName: s.profiles?.display_name,
-          planName: s.plans?.display_name,
-          planPriceCents: s.plans?.price_cents,
-          status: s.status,
-          amountPaidCents: s.amount_paid_cents,
-          discountCents: s.discount_cents,
-          eventsUsed: s.events_used,
-          generationsUsed: s.generations_used,
-          smsSent: smsCountsByUser[s.user_id]?.count || 0,
-          smsCostCents: smsCountsByUser[s.user_id]?.costCents || 0,
-          createdAt: s.created_at
-        }))
-      });
-    }
-
-    // ---- UPDATE USER PLAN (admin) ----
-    if (action === 'updateUserPlan') {
-      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
-
-      const { userId, planId, status } = req.body;
-      if (!userId) return res.status(400).json({ error: 'userId required' });
-
-      if (status) {
-        // Update existing subscription status
-        const { error } = await supabaseAdmin
-          .from('subscriptions')
-          .update({ status })
-          .eq('user_id', userId)
-          .eq('status', 'active');
-
-        if (error) return res.status(400).json({ error: error.message });
-      }
-
-      if (planId) {
-        // Create a new complimentary subscription
-        const { error } = await supabaseAdmin
-          .from('subscriptions')
-          .insert({
-            user_id: userId,
-            plan_id: planId,
-            status: 'active',
-            amount_paid_cents: 0,
-            discount_cents: 0,
-            events_used: 0,
-            generations_used: 0
-          });
-
-        if (error) return res.status(400).json({ error: error.message });
-      }
-
-      return res.status(200).json({ success: true });
-    }
-
     // ---- GET ACTIVE PROMPT VERSION ----
     if (action === 'getActivePromptVersion') {
       const { data, error } = await supabaseAdmin
@@ -2070,192 +2006,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // ---- LIST PLANS (admin) ----
-    if (action === 'listPlans') {
-      const { data: plans, error } = await supabaseAdmin
-        .from('plans')
-        .select('*')
-        .order('sort_order', { ascending: true });
-
-      if (error) return res.status(400).json({ error: error.message });
-
-      return res.status(200).json({
-        success: true,
-        plans: (plans || []).map(p => ({
-          id: p.id,
-          name: p.name,
-          displayName: p.display_name,
-          description: p.description,
-          priceCents: p.price_cents,
-          currency: p.currency,
-          stripePriceId: p.stripe_price_id,
-          stripeProductId: p.stripe_product_id,
-          maxEvents: p.max_events,
-          maxGenerations: p.max_generations,
-          maxSmsPerEvent: p.max_sms_per_event,
-          smsPriceCents: p.sms_price_cents,
-          billingType: p.billing_type || 'fixed',
-          aiMarkupPct: p.ai_markup_pct || 50,
-          smsBaseCostCents: p.sms_base_cost_cents || 3,
-          features: p.features,
-          isActive: p.is_active,
-          isHidden: p.is_hidden || false,
-          sortOrder: p.sort_order,
-          createdAt: p.created_at,
-          updatedAt: p.updated_at
-        }))
-      });
-    }
-
-    // ---- CREATE PLAN (admin) ----
-    if (action === 'createPlan') {
-      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
-
-      const { name, displayName, description, priceCents, maxEvents, maxGenerations, maxSmsPerEvent, smsPriceCents, features, sortOrder, createStripeProduct } = req.body;
-
-      if (!name || !displayName || priceCents === undefined) {
-        return res.status(400).json({ error: 'name, displayName, and priceCents are required' });
-      }
-
-      // Validate slug format
-      const slug = name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-
-      let stripeProductId = null;
-      let stripePriceId = null;
-
-      // Optionally create Stripe Product + Price
-      if (createStripeProduct && process.env.STRIPE_SECRET_KEY) {
-        try {
-          const stripeClient = getStripe();
-          const product = await stripeClient.products.create({
-            name: displayName,
-            description: description || undefined,
-            metadata: { ryvite_plan_slug: slug }
-          });
-          stripeProductId = product.id;
-
-          const price = await stripeClient.prices.create({
-            product: product.id,
-            unit_amount: priceCents,
-            currency: 'usd',
-            metadata: { ryvite_plan_slug: slug }
-          });
-          stripePriceId = price.id;
-        } catch (e) {
-          return res.status(400).json({ error: 'Stripe error: ' + e.message });
-        }
-      }
-
-      const { data, error } = await supabaseAdmin
-        .from('plans')
-        .insert({
-          name: slug,
-          display_name: displayName,
-          description: description || null,
-          price_cents: priceCents,
-          max_events: maxEvents || 1,
-          max_generations: maxGenerations || 20,
-          max_sms_per_event: maxSmsPerEvent || null,
-          sms_price_cents: smsPriceCents || 10,
-          billing_type: req.body.billingType || 'fixed',
-          ai_markup_pct: req.body.aiMarkupPct || 50,
-          sms_base_cost_cents: req.body.smsBaseCostCents || 3,
-          features: features || [],
-          sort_order: sortOrder || 0,
-          stripe_product_id: stripeProductId,
-          stripe_price_id: stripePriceId,
-          is_active: true,
-          is_hidden: req.body.isHidden || false
-        })
-        .select()
-        .single();
-
-      if (error) return res.status(400).json({ error: error.message });
-
-      return res.status(200).json({ success: true, plan: data });
-    }
-
-    // ---- UPDATE PLAN (admin) ----
-    if (action === 'updatePlan') {
-      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
-
-      const { planId, ...updates } = req.body;
-      if (!planId) return res.status(400).json({ error: 'planId required' });
-
-      const dbUpdates = {};
-      if (updates.displayName !== undefined) dbUpdates.display_name = updates.displayName;
-      if (updates.description !== undefined) dbUpdates.description = updates.description;
-      if (updates.priceCents !== undefined) dbUpdates.price_cents = updates.priceCents;
-      if (updates.maxEvents !== undefined) dbUpdates.max_events = updates.maxEvents;
-      if (updates.maxGenerations !== undefined) dbUpdates.max_generations = updates.maxGenerations;
-      if (updates.maxSmsPerEvent !== undefined) dbUpdates.max_sms_per_event = updates.maxSmsPerEvent;
-      if (updates.smsPriceCents !== undefined) dbUpdates.sms_price_cents = updates.smsPriceCents;
-      if (updates.features !== undefined) dbUpdates.features = updates.features;
-      if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
-      if (updates.isHidden !== undefined) dbUpdates.is_hidden = updates.isHidden;
-      if (updates.billingType !== undefined) dbUpdates.billing_type = updates.billingType;
-      if (updates.aiMarkupPct !== undefined) dbUpdates.ai_markup_pct = updates.aiMarkupPct;
-      if (updates.smsBaseCostCents !== undefined) dbUpdates.sms_base_cost_cents = updates.smsBaseCostCents;
-      if (updates.sortOrder !== undefined) dbUpdates.sort_order = updates.sortOrder;
-      if (updates.stripePriceId !== undefined) dbUpdates.stripe_price_id = updates.stripePriceId;
-      if (updates.stripeProductId !== undefined) dbUpdates.stripe_product_id = updates.stripeProductId;
-
-      // If price changed and Stripe product exists, create a new Stripe Price
-      if (updates.priceCents !== undefined && updates.syncStripe && process.env.STRIPE_SECRET_KEY) {
-        try {
-          const stripeClient = getStripe();
-          const { data: plan } = await supabaseAdmin.from('plans').select('stripe_product_id, name').eq('id', planId).single();
-          if (plan?.stripe_product_id) {
-            const price = await stripeClient.prices.create({
-              product: plan.stripe_product_id,
-              unit_amount: updates.priceCents,
-              currency: 'usd',
-              metadata: { ryvite_plan_slug: plan.name }
-            });
-            dbUpdates.stripe_price_id = price.id;
-          }
-        } catch (e) {
-          return res.status(400).json({ error: 'Stripe price update error: ' + e.message });
-        }
-      }
-
-      const { error } = await supabaseAdmin
-        .from('plans')
-        .update(dbUpdates)
-        .eq('id', planId);
-
-      if (error) return res.status(400).json({ error: error.message });
-
-      return res.status(200).json({ success: true });
-    }
-
-    // ---- DELETE PLAN (soft delete) ----
-    if (action === 'deletePlan') {
-      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
-
-      const { planId } = req.body;
-      if (!planId) return res.status(400).json({ error: 'planId required' });
-
-      // Check no active subscriptions use this plan
-      const { count } = await supabaseAdmin
-        .from('subscriptions')
-        .select('id', { count: 'exact', head: true })
-        .eq('plan_id', planId)
-        .eq('status', 'active');
-
-      if (count > 0) {
-        return res.status(400).json({ error: `Cannot delete — ${count} active subscription(s) use this plan. Deactivate them first.` });
-      }
-
-      const { error } = await supabaseAdmin
-        .from('plans')
-        .update({ is_active: false })
-        .eq('id', planId);
-
-      if (error) return res.status(400).json({ error: error.message });
-
-      return res.status(200).json({ success: true });
-    }
 
     // ---- UPDATE USER PROFILE (admin) ----
     if (action === 'updateUser') {

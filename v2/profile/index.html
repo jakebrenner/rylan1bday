@@ -116,8 +116,7 @@
     /* Tier badge */
     .tier-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: capitalize; }
     .tier-free { background: #e2e3e5; color: #383d41; }
-    .tier-pro { background: #fff3cd; color: #856404; }
-    .tier-business { background: #d4edda; color: #155724; }
+    .tier-per_event { background: #d4edda; color: #155724; }
 
     /* Plan section */
     .plan-row { display: flex; justify-content: space-between; align-items: center; }
@@ -247,7 +246,7 @@
     <!-- Events & Billing -->
     <div class="settings-card">
       <div class="settings-card-title">Events & Billing</div>
-      <div class="settings-card-desc">Track your event usage and purchase more</div>
+      <div class="settings-card-desc">Your first event is free. Additional events are $4.99 each, or use a coupon for free credits.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
         <div style="background:#f9f9f9;border-radius:8px;padding:14px;text-align:center;">
           <div style="font-size:12px;color:#888;margin-bottom:4px;">Events Created</div>
@@ -264,6 +263,36 @@
       </div>
       <div id="embeddedCheckoutWrap" style="display:none;margin-top:16px;border:1px solid #eee;border-radius:10px;overflow:hidden;">
         <div id="embeddedCheckoutEl"></div>
+      </div>
+    </div>
+
+    <!-- Redeem Coupon -->
+    <div class="settings-card">
+      <div class="settings-card-title">Redeem Coupon</div>
+      <div class="settings-card-desc">Have a coupon code? Enter it below to add free event credits to your account.</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input class="form-input" type="text" id="couponCodeInput" placeholder="Enter coupon code" style="flex:1;text-transform:uppercase;">
+        <button class="btn btn-primary" id="redeemCouponBtn" onclick="redeemCoupon()">Redeem</button>
+      </div>
+      <div id="couponResult" style="margin-top:10px;display:none;"></div>
+    </div>
+
+    <!-- Credit Activity Ledger -->
+    <div class="settings-card" id="creditLedgerCard" style="display:none;">
+      <div class="settings-card-title">Credit Activity</div>
+      <div class="settings-card-desc">A record of all credit additions and usage on your account</div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="border-bottom:2px solid #eee;">
+              <th style="padding:8px 6px;text-align:left;font-size:11px;color:#888;text-transform:uppercase;">Date</th>
+              <th style="padding:8px 6px;text-align:left;font-size:11px;color:#888;text-transform:uppercase;">Description</th>
+              <th style="padding:8px 6px;text-align:right;font-size:11px;color:#888;text-transform:uppercase;">Credits</th>
+              <th style="padding:8px 6px;text-align:right;font-size:11px;color:#888;text-transform:uppercase;">Balance</th>
+            </tr>
+          </thead>
+          <tbody id="creditLedgerBody"></tbody>
+        </table>
       </div>
     </div>
 
@@ -407,7 +436,7 @@
     async function loadBillingData() {
       if (!token) return;
       try {
-        // Load subscription/usage info
+        // Load subscription/usage info + credit ledger
         var subRes = await authFetch('/api/v2/billing?action=subscription');
         var subResult = await subRes.json();
         if (subResult.success) {
@@ -424,6 +453,42 @@
           if (credits.purchased > 0) parts.push(credits.purchased + ' purchased');
           if (credits.free > 0) parts.push(credits.free + ' free');
           document.getElementById('creditsBreakdown').textContent = parts.length > 0 ? parts.join(' + ') : '';
+
+          // Credit Activity Ledger
+          var ledger = subResult.ledger || [];
+          if (ledger.length > 0) {
+            document.getElementById('creditLedgerCard').style.display = 'block';
+            var tbody = document.getElementById('creditLedgerBody');
+            tbody.innerHTML = ledger.map(function(l) {
+              var dateStr = new Date(l.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+              var isCredit = l.amount > 0;
+              var amountColor = isCredit ? '#155724' : '#721c24';
+              var amountBg = isCredit ? '#d4edda' : '#f8d7da';
+              var amountStr = (isCredit ? '+' : '') + l.amount;
+
+              var sourceLabels = {
+                'first_event': 'First event free',
+                'coupon': 'Coupon redeemed',
+                'purchase': 'Credits purchased',
+                'admin_grant': 'Admin grant',
+                'event_publish': 'Event created',
+                'refund': 'Refund'
+              };
+              var desc = l.referenceLabel || sourceLabels[l.source] || l.source;
+
+              return '<tr style="border-bottom:1px solid #f0f0f0;">'
+                + '<td style="padding:10px 6px;color:#666;white-space:nowrap;">' + dateStr + '</td>'
+                + '<td style="padding:10px 6px;">'
+                + '<div style="font-weight:500;">' + escapeHtml(desc) + '</div>'
+                + (l.notes ? '<div style="font-size:11px;color:#999;">' + escapeHtml(l.notes) + '</div>' : '')
+                + '</td>'
+                + '<td style="padding:10px 6px;text-align:right;">'
+                + '<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-weight:600;font-size:13px;background:' + amountBg + ';color:' + amountColor + ';">' + amountStr + '</span>'
+                + '</td>'
+                + '<td style="padding:10px 6px;text-align:right;font-weight:600;color:#666;">' + l.balanceAfter + '</td>'
+                + '</tr>';
+            }).join('');
+          }
         }
 
         // Load billing history
@@ -451,6 +516,43 @@
       } catch (err) {
         // Non-critical — billing data just won't show
       }
+    }
+
+    async function redeemCoupon() {
+      var code = document.getElementById('couponCodeInput').value.trim();
+      if (!code) { showToast('Enter a coupon code'); return; }
+
+      var btn = document.getElementById('redeemCouponBtn');
+      var resultDiv = document.getElementById('couponResult');
+      btn.disabled = true;
+      btn.textContent = 'Redeeming...';
+      resultDiv.style.display = 'none';
+
+      try {
+        var res = await authFetch('/api/v2/billing?action=redeemCoupon', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code })
+        });
+        var result = await res.json();
+        if (result.success) {
+          resultDiv.style.display = 'block';
+          resultDiv.innerHTML = '<div style="background:#d4edda;color:#155724;padding:12px 16px;border-radius:8px;font-size:14px;font-weight:500;">'
+            + escapeHtml(result.message) + '</div>';
+          document.getElementById('couponCodeInput').value = '';
+          // Refresh billing data to update credits and ledger
+          loadBillingData();
+        } else {
+          resultDiv.style.display = 'block';
+          resultDiv.innerHTML = '<div style="background:#f8d7da;color:#721c24;padding:12px 16px;border-radius:8px;font-size:14px;">'
+            + escapeHtml(result.error || 'Failed to redeem coupon') + '</div>';
+        }
+      } catch (err) {
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<div style="background:#f8d7da;color:#721c24;padding:12px 16px;border-radius:8px;font-size:14px;">Error redeeming coupon</div>';
+      }
+      btn.disabled = false;
+      btn.textContent = 'Redeem';
     }
 
     var embeddedCheckoutInstance = null;
