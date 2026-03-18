@@ -5423,7 +5423,7 @@
         console.log('[tweak] INSTANT field change:', rsvpFieldResult.action);
         applyRsvpFieldChanges(rsvpFieldResult.changes);
         renderPreview(themeVersions[activeVersionIndex]);
-        pushDesignChat({ role: 'assistant', content: rsvpFieldResult.chatResponse + '\n\nWant to make any more changes?' });
+        pushDesignChat({ role: 'assistant', content: rsvpFieldResult.chatResponse + '\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
         clearDesignChatPhoto();
         sendBtn.disabled = false;
         renderDesignChat();
@@ -5471,7 +5471,7 @@
               renderPreview(themeVersions[activeVersionIndex]);
               if (addedLabels.length > 0) {
                 var fieldListStr = addedLabels.map(function(l) { return '"' + l + '"'; }).join(' and ');
-                pushDesignChat({ role: 'assistant', content: 'Done! ' + syncNote + 'Added ' + fieldListStr + ' to your RSVP form.\n\nWant to make any more changes?' });
+                pushDesignChat({ role: 'assistant', content: 'Done! ' + syncNote + 'Added ' + fieldListStr + ' to your RSVP form.\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
               } else {
                 pushDesignChat({ role: 'assistant', content: syncNote + 'Those fields already exist in your RSVP form!\n\nWant to make any other changes?' });
               }
@@ -5516,7 +5516,7 @@
             ver.config.emailHtml = ver.config.emailHtml.substring(0, idx) + textSwap.newText + ver.config.emailHtml.substring(idx + originalSubstr.length);
             themeVersions[activeVersionIndex] = ver;
             renderPreview(ver);
-            pushDesignChat({ role: 'assistant', content: 'Done! Changed "' + originalSubstr + '" to "' + textSwap.newText + '" in the email.\n\nWant to make any more changes?' });
+            pushDesignChat({ role: 'assistant', content: 'Done! Changed "' + originalSubstr + '" to "' + textSwap.newText + '" in the email.\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
             clearDesignChatPhoto();
             sendBtn.disabled = false;
             renderDesignChat();
@@ -5533,7 +5533,7 @@
             ver.html = ver.html.substring(0, idx) + textSwap.newText + ver.html.substring(idx + originalSubstr.length);
             themeVersions[activeVersionIndex] = ver;
             renderPreview(ver);
-            pushDesignChat({ role: 'assistant', content: 'Done! Changed "' + originalSubstr + '" to "' + textSwap.newText + '".\n\nWant to make any more changes?' });
+            pushDesignChat({ role: 'assistant', content: 'Done! Changed "' + originalSubstr + '" to "' + textSwap.newText + '".\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
             clearDesignChatPhoto();
             sendBtn.disabled = false;
             renderDesignChat();
@@ -5578,7 +5578,7 @@
               if (!exists) {
                 applyRsvpFieldChanges([{ action: 'add', field_key: fieldKey, label: fd.label, field_type: fd.field_type || 'text', is_required: fd.is_required || false, placeholder: fd.placeholder || null }]);
                 renderPreview(themeVersions[activeVersionIndex]);
-                pushDesignChat({ role: 'assistant', content: 'Done! Added a "' + fd.label + '" field to your RSVP form.\n\nWant to make any more changes?' });
+                pushDesignChat({ role: 'assistant', content: 'Done! Added a "' + fd.label + '" field to your RSVP form.\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
               } else {
                 pushDesignChat({ role: 'assistant', content: 'That field already exists in your RSVP form!\n\nWant to make any other changes?' });
               }
@@ -5862,7 +5862,7 @@
             renderVersionGallery();
             // Update sessionStorage cache
             try { if (currentEvent) sessionStorage.setItem('ryvite_theme_' + currentEvent.id, JSON.stringify(themeVersions)); } catch(e) {}
-            var chatMsg = (tweakResult.chatResponse || tweakResult.chat_response || 'Done! I\'ve updated the design. Take a look at the preview.') + '\n\nWant to make any more changes?';
+            var chatMsg = (tweakResult.chatResponse || tweakResult.chat_response || 'Done! I\'ve updated the design. Take a look at the preview.') + '\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.';
             // Track tweak cost — show estimate immediately, then refresh from DB
             if (tweakResult.metadata) updateCostFromGeneration(tweakResult.metadata);
             setTimeout(function() { initCostTracker(); }, 6000);
