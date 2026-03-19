@@ -2634,7 +2634,12 @@ This is the most common failure mode. Double-check it.`;
         ({ data: newTheme, error: themeError } = await supabase
           .from('event_themes').insert(genInsert).select().single());
       }
-      if (themeError) console.error('Failed to save theme:', themeError.message);
+      if (themeError) {
+        console.error('Failed to save theme:', themeError.message);
+      } else if (newTheme) {
+        savedThemeId = newTheme.id;
+        savedThemeVersion = newTheme.version;
+      }
 
       // New full generation (not based on existing) starts its own design group
       if (newTheme?.id && !themeError && !basedOnThemeId) {
