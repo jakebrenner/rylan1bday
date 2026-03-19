@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import chromium from '@sparticuz/chromium-min';
 import { readFileSync } from 'fs';
+import { dirname } from 'path';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -126,7 +127,13 @@ export default async function handler(req, res) {
 
     // Launch headless Chrome
     chromium.setGraphicsMode = false;
-    const executablePath = await chromium.executablePath();
+    const chromiumUrl = process.env.CHROMIUM_BINARY_URL;
+    if (!chromiumUrl) {
+      return res.status(500).json({ error: 'CHROMIUM_BINARY_URL not configured' });
+    }
+    const executablePath = await chromium.executablePath(chromiumUrl);
+    // Set LD_LIBRARY_PATH so Chromium can find libnss3.so and other shared libs
+    process.env.LD_LIBRARY_PATH = dirname(executablePath);
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: viewport,
