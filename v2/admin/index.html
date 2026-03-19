@@ -618,8 +618,8 @@
       <div id="accuracyCallout" style="background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:none;align-items:center;gap:10px;font-size:13px;color:#92400e;">
         <span style="font-size:18px;">&#9888;</span>
         <div>
-          <strong>Cost data before March 13, 2026 may be inaccurate</strong> due to a tracking bug that has been fixed.
-          Use the "Since Fix (3/13)" preset for reliable totals.
+          <strong>Cost data before March 19, 2026 may be inaccurate</strong> due to a tracking bug that has been fixed.
+          Use the "Since Fix (3/19)" preset for reliable totals.
         </div>
       </div>
 
@@ -632,7 +632,7 @@
             <button class="btn btn-sm date-preset" data-preset="today" onclick="setDatePreset('today')">Today</button>
             <button class="btn btn-sm date-preset" data-preset="7d" onclick="setDatePreset('7d')">Last 7d</button>
             <button class="btn btn-sm date-preset" data-preset="30d" onclick="setDatePreset('30d')">Last 30d</button>
-            <button class="btn btn-sm date-preset" data-preset="accurate" onclick="setDatePreset('accurate')">Since Fix (3/13)</button>
+            <button class="btn btn-sm date-preset" data-preset="accurate" onclick="setDatePreset('accurate')">Since Fix (3/19)</button>
             <button class="btn btn-sm date-preset" data-preset="custom" onclick="setDatePreset('custom')">Custom</button>
           </div>
           <div id="customDateRange" style="display:none;align-items:center;gap:8px;">
@@ -673,7 +673,11 @@
           </div>
           <div class="stat-card" style="background:#fdf2f8;border:1px solid #fbcfe8;">
             <div class="stat-value" style="color:var(--party-coral);font-size:22px;" id="revenueTotal">—</div>
-            <div class="stat-label" id="revenueTotalLabel">Revenue Target</div>
+            <div class="stat-label" id="revenueTotalLabel">Revenue</div>
+          </div>
+          <div class="stat-card" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+            <div class="stat-value" style="font-size:22px;" id="profitTotal">—</div>
+            <div class="stat-label" id="profitTotalLabel">Profit</div>
           </div>
         </div>
         <!-- Latency & Performance Trends (only shown for All Time view) -->
@@ -715,7 +719,7 @@
           </div>
         </div>
         <div style="font-size:12px;color:#888;line-height:1.6;">
-          <strong>Revenue Target</strong> = API Cost &times; <span id="markupDisplay">2.0</span>x (configurable in AI Models tab)
+          <strong>Revenue</strong> = actual payments from billing_history | <strong>Profit</strong> = Revenue &minus; API Cost | <strong>Paid Events</strong>: <span id="paidEventCount">0</span> &times; $4.99
         </div>
       </div>
 
@@ -1049,19 +1053,11 @@
         </div>
         <div class="config-row" style="margin-top:16px;">
           <div class="config-field">
-            <label>Cost Markup (%)</label>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <input type="number" id="markupInput" min="0" max="1000" step="10" value="100" style="width:100px;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
-              <span style="font-size:13px;color:#888;">%</span>
+            <label>Pricing Model</label>
+            <div style="padding:10px 14px;background:#f9f9f9;border-radius:6px;font-size:14px;color:var(--midnight);">
+              Free tier (1 event) + $4.99/event premium
             </div>
-            <div class="hint">Revenue target = API cost + markup. 100% = 2x cost. Use this for pricing estimates.</div>
-          </div>
-          <div class="config-field">
-            <label>Revenue Formula</label>
-            <div style="padding:10px 14px;background:#f9f9f9;border-radius:6px;font-size:14px;color:var(--midnight);font-family:monospace;" id="markupFormula">
-              $1.00 API cost → $2.00 revenue target
-            </div>
-            <div class="hint">Example calculation based on current markup setting.</div>
+            <div class="hint">Revenue is tracked from actual payments. Profitability = Revenue &minus; API costs per event.</div>
           </div>
         </div>
         <div class="config-actions">
@@ -2465,7 +2461,7 @@
     var statsDateFrom = null;
     var statsDateTo = null;
     var activePreset = 'all';
-    var ACCURACY_FIX_DATE = '2026-03-13';
+    var ACCURACY_FIX_DATE = '2026-03-19';
     var PT_TZ = 'America/Los_Angeles';
 
     // Get current date in Pacific time as YYYY-MM-DD
@@ -2763,10 +2759,19 @@
       var c = stats.costs || {};
       document.getElementById('costTotal').textContent = fmtCost(c.apiCostTotal || 0);
       document.getElementById('costTotalLabel').textContent = isFiltered ? 'API Cost (Filtered)' : 'API Cost (All Time)';
-      document.getElementById('revenueTotalLabel').textContent = isFiltered ? 'Revenue (Filtered)' : 'Revenue Target';
+      document.getElementById('revenueTotalLabel').textContent = isFiltered ? 'Revenue (Filtered)' : 'Revenue (All Time)';
       document.getElementById('cost30d').textContent = fmtCost(c.apiCost30d || 0);
       document.getElementById('cost7d').textContent = fmtCost(c.apiCost7d || 0);
-      document.getElementById('revenueTotal').textContent = fmtCost(c.revenueTotal || 0);
+      // Show actual revenue from billing_history
+      var revenue = isFiltered ? (c.revenueFiltered || 0) : (c.revenueTotal || 0);
+      document.getElementById('revenueTotal').textContent = fmtCost(revenue);
+      // Show profit (revenue - cost) with color coding
+      var profit = isFiltered ? (c.profitFiltered || 0) : (c.profitTotal || 0);
+      var profitEl = document.getElementById('profitTotal');
+      profitEl.textContent = fmtCost(profit);
+      profitEl.style.color = profit >= 0 ? '#16a34a' : '#dc2626';
+      document.getElementById('profitTotalLabel').textContent = isFiltered ? 'Profit (Filtered)' : 'Profit (All Time)';
+      document.getElementById('paidEventCount').textContent = c.paidEventCount || 0;
       // Hide 30d/7d cards when date-filtered (they're subsets of an already-filtered range)
       document.getElementById('cost30dCard').style.display = isFiltered ? 'none' : '';
       document.getElementById('cost7dCard').style.display = isFiltered ? 'none' : '';
@@ -2780,8 +2785,6 @@
       document.getElementById('costThemeCount').textContent = (c.themeCount || 0) + ' generations';
       document.getElementById('costTestCount').textContent = (c.testCount || 0) + ' tests';
       document.getElementById('costInternalCount').textContent = (c.internalCount || 0) + ' calls';
-      var markup = (1 + (c.markupPct || 100) / 100);
-      document.getElementById('markupDisplay').textContent = markup.toFixed(1);
 
       // Latency display
       var lat = stats.latency || {};
@@ -3542,28 +3545,17 @@
     function closeModal() { document.getElementById('rsvpModal').style.display = 'none'; }
 
     // ---- Config ----
-    function updateMarkupFormula() {
-      var pct = parseFloat(document.getElementById('markupInput').value) || 0;
-      var mult = (1 + pct / 100).toFixed(1);
-      document.getElementById('markupFormula').textContent = '$1.00 API cost → $' + mult + '0 revenue target';
-    }
-
     async function loadConfig() {
       try {
         var res = await adminFetch('getConfig');
         if (res.config) {
           document.getElementById('chatModelSelect').value = res.config.chatModel;
           document.getElementById('themeModelSelect').value = res.config.themeModel;
-          document.getElementById('markupInput').value = res.config.costMarkupPct || 100;
-          updateMarkupFormula();
         }
       } catch (err) {
         console.error('Failed to load config:', err);
       }
     }
-
-    // Live-update formula as user types
-    document.getElementById('markupInput').addEventListener('input', updateMarkupFormula);
 
 
     async function saveConfig() {
@@ -3575,8 +3567,7 @@
           method: 'POST',
           body: {
             chatModel: document.getElementById('chatModelSelect').value,
-            themeModel: document.getElementById('themeModelSelect').value,
-            costMarkupPct: parseFloat(document.getElementById('markupInput').value) || 100
+            themeModel: document.getElementById('themeModelSelect').value
           }
         });
         var saved = document.getElementById('configSaved');

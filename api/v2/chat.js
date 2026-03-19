@@ -19,11 +19,10 @@ const AI_MODEL_PRICING = {
   'claude-opus-4-6':           { input: 15.00, output: 75.00 },
 };
 
-function calcGenerationCost(model, inputTokens, outputTokens, markupPct = 50) {
+function calcGenerationCost(model, inputTokens, outputTokens) {
   const pricing = AI_MODEL_PRICING[model] || { input: 3.00, output: 15.00 };
   const rawCost = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
-  const withMarkup = rawCost * (1 + markupPct / 100);
-  return { rawCostCents: Math.round(rawCost * 100), totalCostCents: Math.round(withMarkup * 100) };
+  return { rawCostCents: Math.round(rawCost * 100), costCentsExact: Math.round(rawCost * 100 * 10000) / 10000 };
 }
 
 async function getChatModel() {
@@ -240,22 +239,23 @@ export default async function handler(req, res) {
     const { error: genLogError } = await supabase.from('generation_log').insert({
       user_id: user.id,
       event_id: eventId || null,
-      prompt: messages[messages.length - 1]?.content || '',
+      prompt: 'chat: ' + (messages[messages.length - 1]?.content || '').substring(0, 200),
       model: chatModel,
       input_tokens: chatInputTokens,
       output_tokens: chatOutputTokens,
       latency_ms: latency,
-      status: 'success'
+      status: 'success',
+      cost_cents: chatCost.costCentsExact
     });
     if (genLogError) console.error('Chat generation_log insert failed:', genLogError.message);
 
     // Increment persistent event cost if we have an eventId
     if (eventId) {
       try {
-        const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: chatCost.totalCostCents });
+        const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: chatCost.rawCostCents });
         if (rpcErr) {
           const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
-          if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + chatCost.totalCostCents }).eq('id', eventId);
+          if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + chatCost.rawCostCents }).eq('id', eventId);
         }
       } catch (e) { /* non-critical */ }
     }

@@ -214,7 +214,7 @@ export default async function handler(req, res) {
         if (t.is_active) eventThemeMap[t.event_id].hasTheme = true;
       });
 
-      // Cost calculations — must match generate-theme.js, chat.js, billing.js, ratings.js
+      // Cost calculations — raw API cost, no markup
       const MODEL_PRICING = {
         'claude-haiku-4-5-20251001': { input: 1.00, output: 5.00 },
         'claude-sonnet-4-20250514':  { input: 3.00, output: 15.00 },
@@ -222,10 +222,6 @@ export default async function handler(req, res) {
         'claude-opus-4-20250514':    { input: 15.00, output: 75.00 },
         'claude-opus-4-6':           { input: 15.00, output: 75.00 },
       };
-
-      const markupRes = await supabaseAdmin.from('app_config').select('value').eq('key', 'cost_markup_pct').single();
-      const markupPct = parseFloat(markupRes.data?.value) || 100;
-      const markupMultiplier = 1 + markupPct / 100;
 
       let totalAiCost = 0;
       let chatAiCost = 0;
@@ -241,7 +237,7 @@ export default async function handler(req, res) {
         const pricing = MODEL_PRICING[g.model] || { input: 3.00, output: 15.00 };
         const cost = ((g.input_tokens || 0) * pricing.input + (g.output_tokens || 0) * pricing.output) / 1_000_000;
         totalAiCost += cost;
-        const isChat = !g.event_id;
+        const isChat = (g.prompt && g.prompt.startsWith('chat:')) || !g.event_id;
         if (isChat) {
           chatAiCost += cost;
           chatGenerations.push(g);
@@ -297,10 +293,10 @@ export default async function handler(req, res) {
         };
       });
 
-      // Revenue from subscriptions
-      const subscriptions = (subsRes.data || []);
-      const totalRevenue = subscriptions.reduce((sum, s) => sum + (s.amount_paid_cents || 0), 0) / 100;
-      const totalDiscount = subscriptions.reduce((sum, s) => sum + (s.discount_cents || 0), 0) / 100;
+      // Revenue from actual payments (billing_history)
+      const billingData = billingRes.data || [];
+      const succeededPayments = billingData.filter(b => b.status === 'succeeded');
+      const totalRevenue = succeededPayments.reduce((sum, b) => sum + (b.amount_cents || 0), 0) / 100;
 
       // Stripe payment info (PCI compliant - only last4, brand, expiry)
       let stripePayment = null;
@@ -403,7 +399,6 @@ export default async function handler(req, res) {
         },
         financials: {
           totalRevenue,
-          totalDiscount,
           totalPlatformCost,
           totalAiCost,
           chatAiCost,
@@ -413,9 +408,8 @@ export default async function handler(req, res) {
           generationCount: generations.length,
           chatCount: chatGenerations.length,
           themeCount: themeGenerations.length,
-          markupPct,
-          revenueAfterMarkup: totalAiCost * markupMultiplier,
           netMargin: totalRevenue - totalPlatformCost,
+          paidEventCount: succeededPayments.length,
           costByEvent
         },
         events: events.map(e => ({
@@ -534,7 +528,12 @@ export default async function handler(req, res) {
         filteredGuestsQuery = filteredGuestsQuery.lte('created_at', statsTo);
       }
 
-      const [allUsersRes, allEventsRes, allGuestsRes, filteredUsersRes, filteredEventsRes, filteredGuestsRes, logsRes, markupRes] = await Promise.all([
+      // Query actual revenue from billing_history (not markup-based)
+      let revenueQuery = supabaseAdmin.from('billing_history').select('amount_cents, created_at').eq('status', 'succeeded');
+      if (statsFrom) revenueQuery = revenueQuery.gte('created_at', statsFrom);
+      if (statsTo) revenueQuery = revenueQuery.lte('created_at', statsTo);
+
+      const [allUsersRes, allEventsRes, allGuestsRes, filteredUsersRes, filteredEventsRes, filteredGuestsRes, logsRes, revenueRes, allRevenueRes] = await Promise.all([
         // All-time totals (never filtered)
         supabaseAdmin.from('profiles').select('id', { count: 'exact', head: true }),
         supabaseAdmin.from('events').select('id, status', { count: 'exact' }),
@@ -545,14 +544,19 @@ export default async function handler(req, res) {
         filteredGuestsQuery,
         // Already date-filtered
         logsQuery,
-        supabaseAdmin.from('app_config').select('value').eq('key', 'cost_markup_pct').single()
+        // Revenue — filtered and all-time
+        revenueQuery,
+        supabaseAdmin.from('billing_history').select('amount_cents, created_at').eq('status', 'succeeded')
       ]);
 
       const allEvents = allEventsRes.data || [];
       const allPublished = allEvents.filter(e => e.status === 'published').length;
       const filteredEvents = filteredEventsRes.data || [];
       const filteredPublished = filteredEvents.filter(e => e.status === 'published').length;
-      const markupPct = parseFloat(markupRes.data?.value) || 100; // default 100% markup
+
+      // Actual revenue from billing_history
+      const filteredRevenue = (revenueRes.data || []).reduce((sum, p) => sum + (p.amount_cents || 0), 0);
+      const allTimeRevenue = (allRevenueRes.data || []).reduce((sum, p) => sum + (p.amount_cents || 0), 0);
 
       // AI model pricing per 1M tokens — must match generate-theme.js, chat.js, billing.js, ratings.js
       const MODEL_PRICING = {
@@ -617,7 +621,7 @@ export default async function handler(req, res) {
         // Categorize: prompt_test (admin lab), internal (admin/system), chat (event planning), or theme (generation/tweak)
         const isTest = l.prompt && l.prompt.startsWith('prompt_test');
         const isInternal = l.prompt && (l.prompt.startsWith('QM ') || l.prompt.startsWith('admin:') || l.prompt.startsWith('blog:') || l.prompt.startsWith('publish-verify:'));
-        const isChat = !l.event_id && !isTest && !isInternal;
+        const isChat = (l.prompt && l.prompt.startsWith('chat:')) || (!l.event_id && !isTest && !isInternal);
         if (isTest) { testApiCost += cost; testCount++; tokensByModel[model].testCount++; }
         else if (isInternal) { internalApiCost += cost; internalCount++; }
         else if (isChat) { chatApiCost += cost; chatCount++; tokensByModel[model].chatCount++; }
@@ -663,7 +667,14 @@ export default async function handler(req, res) {
         }
       });
 
-      const markupMultiplier = 1 + markupPct / 100;
+      // Revenue by time period
+      const allRevData = allRevenueRes.data || [];
+      let revenue7d = 0, revenue30d = 0;
+      allRevData.forEach(p => {
+        const ts = new Date(p.created_at).getTime();
+        if (ts >= day7) revenue7d += p.amount_cents || 0;
+        if (ts >= day30) revenue30d += p.amount_cents || 0;
+      });
 
       // Compute averages safely
       const avg = (total, count) => count > 0 ? Math.round(total / count) : null;
@@ -715,10 +726,17 @@ export default async function handler(req, res) {
             themeCount,
             testCount,
             internalCount,
-            markupPct,
-            revenueTotal: totalApiCost * markupMultiplier,
-            revenue7d: cost7d * markupMultiplier,
-            revenue30d: cost30d * markupMultiplier
+            // Actual revenue from billing_history (real payments, not markup estimates)
+            revenueTotal: allTimeRevenue / 100, // cents → dollars
+            revenueFiltered: filteredRevenue / 100,
+            revenue7d: revenue7d / 100,
+            revenue30d: revenue30d / 100,
+            // Profitability = actual revenue minus raw API cost
+            profitTotal: (allTimeRevenue / 100) - totalApiCost,
+            profitFiltered: (filteredRevenue / 100) - totalApiCost,
+            profit7d: (revenue7d / 100) - cost7d,
+            profit30d: (revenue30d / 100) - cost30d,
+            paidEventCount: allRevData.length
           },
           latency: {
             avgMs: avg(totalLatencyMs, latencyCount),
