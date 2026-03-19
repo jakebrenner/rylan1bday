@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium-min';
+import chromium from '@sparticuz/chromium';
 import { readFileSync } from 'fs';
 
 const supabaseAdmin = createClient(
@@ -125,17 +125,13 @@ export default async function handler(req, res) {
     const inviteHtml = buildInviteHtml(html, css, config);
 
     // Launch headless Chrome
-    const chromiumUrl = process.env.CHROMIUM_BINARY_URL;
-    if (!chromiumUrl) {
-      return res.status(500).json({ error: 'CHROMIUM_BINARY_URL not configured' });
-    }
-
-    const executablePath = await chromium.executablePath(chromiumUrl);
+    chromium.setGraphicsMode = false;
+    const executablePath = await chromium.executablePath();
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: viewport,
       executablePath,
-      headless: true
+      headless: chromium.headless
     });
 
     const page = await browser.newPage();
