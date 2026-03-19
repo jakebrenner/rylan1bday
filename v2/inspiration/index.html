@@ -77,7 +77,6 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.
 .hero-content { position: relative; z-index: 2; max-width: 700px; margin: 0 auto; }
 .gallery-hero h1 { font-size: 3rem; margin-bottom: 1rem; letter-spacing: -0.5px; }
 .gallery-hero .subtext { font-size: 1.05rem; color: rgba(255,255,255,0.7); max-width: 550px; margin: 0 auto 1.5rem; }
-.gallery-hero .template-count { display: inline-block; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); border-radius: 50px; padding: 0.4rem 1.2rem; font-size: 0.85rem; color: rgba(255,255,255,0.8); }
 
 /* ===== FILTER BAR ===== */
 .filter-bar { background: white; border-bottom: 1px solid rgba(0,0,0,0.06); padding: 1rem 2rem; position: sticky; top: 66px; z-index: 50; }
@@ -205,7 +204,6 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.
   <div class="hero-content">
     <h1 id="heroTitle">Invitation Inspiration</h1>
     <p class="subtext" id="heroSubtext">Browse AI-generated invitation designs. Find one you love and make it yours in minutes.</p>
-    <span class="template-count" id="templateCount" style="display:none;"></span>
   </div>
 </section>
 
@@ -374,12 +372,6 @@ async function loadTemplates() {
     renderTypeLinks();
     renderTemplates();
 
-    // Update template count
-    var countEl = document.getElementById('templateCount');
-    if (totalTemplates > 0) {
-      countEl.textContent = totalTemplates + ' curated design' + (totalTemplates !== 1 ? 's' : '');
-      countEl.style.display = '';
-    }
   } catch (e) {
     console.error('Failed to load designs:', e);
     document.getElementById('loadingState').innerHTML = '<p style="color:var(--slate);">Failed to load designs. Please try again.</p>';
