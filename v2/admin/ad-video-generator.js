@@ -185,10 +185,33 @@ async function generateAdVideo({ html, css, config, promptText, format, theme, o
 
   if (liveAnimation && authFetch) {
     // Server-side: record actual CSS animations via Puppeteer
-    onProgress(5, 'Recording live animations (this takes ~30 seconds)...');
-    inviteSource = await renderInviteVideo(html, css, config, format, authFetch, function(pct) {
-      onProgress(5 + pct * 0.15, 'Recording animations...');
-    });
+    // Smooth progress animation during server wait (advances 2→18% over ~40s)
+    var serverDone = false;
+    var fakeProgress = 2;
+    var progressMessages = [
+      'Launching browser...',
+      'Loading invite...',
+      'Recording animations...',
+      'Capturing frames...',
+      'Processing...'
+    ];
+    var progressInterval = setInterval(function() {
+      if (serverDone) return;
+      fakeProgress += (18 - fakeProgress) * 0.06; // asymptotic approach to 18%
+      var msgIdx = Math.min(Math.floor((fakeProgress - 2) / 3.2), progressMessages.length - 1);
+      onProgress(Math.round(fakeProgress), progressMessages[msgIdx]);
+    }, 800);
+    onProgress(2, 'Launching browser...');
+
+    try {
+      inviteSource = await renderInviteVideo(html, css, config, format, authFetch, function(pct) {
+        // Frame loading progress: 18% → 20%
+        onProgress(18 + pct * 0.02, 'Loading frames...');
+      });
+    } finally {
+      serverDone = true;
+      clearInterval(progressInterval);
+    }
     onProgress(20, 'Compositing ad video...');
   } else {
     // Client-side: static screenshot via html2canvas (original fast path)
