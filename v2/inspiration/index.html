@@ -77,16 +77,16 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.
 .hero-content { position: relative; z-index: 2; max-width: 700px; margin: 0 auto; }
 .gallery-hero h1 { font-size: 3rem; margin-bottom: 1rem; letter-spacing: -0.5px; }
 .gallery-hero .subtext { font-size: 1.05rem; color: rgba(255,255,255,0.7); max-width: 550px; margin: 0 auto 1.5rem; }
-.gallery-hero .template-count { display: inline-block; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); border-radius: 50px; padding: 0.4rem 1.2rem; font-size: 0.85rem; color: rgba(255,255,255,0.8); }
 
 /* ===== FILTER BAR ===== */
 .filter-bar { background: white; border-bottom: 1px solid rgba(0,0,0,0.06); padding: 1rem 2rem; position: sticky; top: 66px; z-index: 50; }
-.filter-scroll { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; max-width: 1200px; margin: 0 auto; padding: 2px 0; }
-.filter-scroll::-webkit-scrollbar { display: none; }
-.filter-chip { display: inline-flex; align-items: center; gap: 6px; padding: 0.5rem 1.1rem; border: 1.5px solid var(--slate-light); border-radius: 50px; font-size: 0.82rem; font-weight: 500; color: var(--slate); background: white; cursor: pointer; transition: var(--transition); white-space: nowrap; flex-shrink: 0; }
-.filter-chip:hover { border-color: var(--party-coral); color: var(--party-coral); }
-.filter-chip.active { background: var(--party-coral); border-color: var(--party-coral); color: white; }
-.filter-chip .chip-count { font-size: 0.72rem; opacity: 0.7; }
+.filter-bar .container { max-width: 1200px; margin: 0 auto; }
+.filter-bar h2 { font-size: 1.1rem; color: var(--midnight); margin-bottom: 0.6rem; font-weight: 600; }
+.type-links { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; padding: 2px 0; flex-wrap: nowrap; }
+.type-links::-webkit-scrollbar { display: none; }
+.type-link { display: inline-flex; align-items: center; gap: 6px; padding: 0.5rem 1.1rem; border: 1.5px solid var(--slate-light); border-radius: 50px; font-size: 0.82rem; font-weight: 500; color: var(--slate); background: white; cursor: pointer; transition: var(--transition); white-space: nowrap; flex-shrink: 0; text-decoration: none; }
+.type-link:hover { border-color: var(--party-coral); color: var(--party-coral); }
+.type-link.active { background: var(--party-coral); border-color: var(--party-coral); color: white; }
 
 /* ===== TEMPLATE GRID ===== */
 .gallery-container { max-width: 1200px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
@@ -138,15 +138,21 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.
 .loading-spinner { width: 40px; height: 40px; border: 3px solid var(--slate-light); border-top-color: var(--party-coral); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ===== SEO SECTION ===== */
-.seo-section { background: white; padding: 3rem 2rem; border-top: 1px solid rgba(0,0,0,0.06); }
-.seo-section .container { max-width: 1200px; margin: 0 auto; }
-.seo-section h2 { font-size: 1.5rem; margin-bottom: 1rem; }
-.seo-section p { color: var(--slate); font-size: 0.95rem; margin-bottom: 1rem; max-width: 700px; }
-.type-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1.5rem; }
-.type-link { padding: 0.5rem 1.1rem; border: 1.5px solid var(--slate-light); border-radius: 50px; font-size: 0.82rem; font-weight: 500; color: var(--slate); text-decoration: none; transition: var(--transition); }
-.type-link:hover { border-color: var(--party-coral); color: var(--party-coral); }
-.type-link.active { background: var(--party-coral); border-color: var(--party-coral); color: white; }
+/* ===== CTA SECTION ===== */
+.cta-section { background: linear-gradient(135deg, var(--midnight) 0%, #0f3460 100%); color: white; padding: 4rem 2rem; text-align: center; position: relative; overflow: hidden; }
+.cta-section::before { content: ''; position: absolute; top: -50%; right: -10%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(233,69,96,0.12) 0%, transparent 70%); border-radius: 50%; }
+.cta-section .container { max-width: 600px; margin: 0 auto; position: relative; z-index: 2; }
+.cta-section h2 { font-size: 2rem; margin-bottom: 0.5rem; }
+.cta-section .cta-subtext { color: rgba(255,255,255,0.7); font-size: 1rem; margin-bottom: 1.5rem; }
+.cta-chat-box { display: flex; align-items: center; background: rgba(255,255,255,0.12); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 50px; padding: 6px 6px 6px 24px; transition: all 0.3s ease; }
+.cta-chat-box:focus-within { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.4); box-shadow: 0 0 0 4px rgba(233,69,96,0.15); }
+.cta-chat-input { flex: 1; background: none; border: none; outline: none; color: white; font-family: var(--font-body); font-size: 0.95rem; padding: 0.6rem 0; }
+.cta-chat-input::placeholder { color: rgba(255,255,255,0.45); }
+.cta-chat-send { padding: 0.65rem 1.6rem; background: linear-gradient(135deg, var(--party-coral), var(--blush-pop)); color: white; border: none; border-radius: 50px; font-family: var(--font-body); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: var(--transition); white-space: nowrap; }
+.cta-chat-send:hover { transform: scale(1.05); box-shadow: 0 4px 15px rgba(233,69,96,0.4); }
+.cta-chat-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 1rem; }
+.cta-pill { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.75); padding: 0.4rem 1rem; border-radius: 50px; font-size: 0.78rem; font-family: var(--font-body); cursor: pointer; transition: var(--transition); }
+.cta-pill:hover { background: rgba(255,255,255,0.2); color: white; }
 
 /* ===== FOOTER ===== */
 .site-footer { background: var(--midnight); color: white; padding: 3rem 2rem; text-align: center; }
@@ -174,6 +180,9 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.
   .gallery-container { padding: 1.5rem 1rem 3rem; }
   .card-phone-frame { width: 240px; height: 480px; }
   .card-phone-frame iframe { transform: scale(0.61); }
+  .cta-section { padding: 3rem 1.5rem; }
+  .cta-section h2 { font-size: 1.5rem; }
+  .cta-chat-pills { gap: 6px; }
 }
 </style>
 <script src="/js/meta-pixel.js"></script>
@@ -195,15 +204,17 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.
   <div class="hero-content">
     <h1 id="heroTitle">Invitation Inspiration</h1>
     <p class="subtext" id="heroSubtext">Browse AI-generated invitation designs. Find one you love and make it yours in minutes.</p>
-    <span class="template-count" id="templateCount" style="display:none;"></span>
   </div>
 </section>
 
 <!-- Filter Bar -->
 <div class="filter-bar">
-  <div class="filter-scroll" id="filterScroll">
-    <button class="filter-chip active" data-type="" onclick="filterByType('')">All</button>
-    <!-- Populated dynamically -->
+  <div class="container">
+    <h2>Browse by Event Type</h2>
+    <div class="type-links" id="typeLinks">
+      <a href="/inspiration" class="type-link active" onclick="event.preventDefault(); filterByType('');">All</a>
+      <!-- Populated dynamically -->
+    </div>
   </div>
 </div>
 
@@ -227,13 +238,19 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.
   </div>
 </div>
 
-<!-- SEO cross-linking section -->
-<section class="seo-section" id="seoSection">
+<!-- CTA Section -->
+<section class="cta-section">
   <div class="container">
-    <h2 id="seoHeading">Browse by Event Type</h2>
-    <p id="seoText">Discover the perfect invitation design for any occasion. Each design is crafted by AI and curated by our team. Pick your favorite, customize the details, and send beautiful invites in minutes.</p>
-    <div class="type-links" id="typeLinks">
-      <!-- Populated dynamically -->
+    <h2>Can't Find the Perfect One?</h2>
+    <p class="cta-subtext">Describe your dream invite below and we'll create it for you.</p>
+    <div class="cta-chat-box">
+      <input type="text" class="cta-chat-input" id="ctaPromptInput" placeholder="Describe your event..." autocomplete="off" onkeydown="if(event.key==='Enter')submitCtaPrompt()">
+      <button class="cta-chat-send" onclick="submitCtaPrompt()">Create</button>
+    </div>
+    <div class="cta-chat-pills">
+      <button class="cta-pill" onclick="fillCtaPrompt(this)">Birthday party for my son turning 5</button>
+      <button class="cta-pill" onclick="fillCtaPrompt(this)">Elegant wedding reception</button>
+      <button class="cta-pill" onclick="fillCtaPrompt(this)">Backyard baby shower</button>
     </div>
   </div>
 </section>
@@ -333,9 +350,6 @@ function updateSEO(typeInfo) {
   sd.url = url;
   document.getElementById('structuredData').textContent = JSON.stringify(sd);
 
-  // Update SEO text section
-  document.getElementById('seoHeading').textContent = 'More ' + typeInfo.label + ' Designs & Other Events';
-  document.getElementById('seoText').textContent = typeInfo.desc + ' Each design is fully customizable — just add your details and send.';
 }
 
 async function loadTemplates() {
@@ -355,32 +369,13 @@ async function loadTemplates() {
     totalTemplates = data.total;
     eventTypesData = data.eventTypes || eventTypesData;
 
-    renderFilterBar();
-    renderTemplates();
     renderTypeLinks();
+    renderTemplates();
 
-    // Update template count
-    var countEl = document.getElementById('templateCount');
-    if (totalTemplates > 0) {
-      countEl.textContent = totalTemplates + ' curated design' + (totalTemplates !== 1 ? 's' : '');
-      countEl.style.display = '';
-    }
   } catch (e) {
     console.error('Failed to load designs:', e);
     document.getElementById('loadingState').innerHTML = '<p style="color:var(--slate);">Failed to load designs. Please try again.</p>';
   }
-}
-
-function renderFilterBar() {
-  var scroll = document.getElementById('filterScroll');
-  var html = '<button class="filter-chip' + (!currentType ? ' active' : '') + '" data-type="" onclick="filterByType(\'\')">All</button>';
-
-  eventTypesData.forEach(function(et) {
-    html += '<button class="filter-chip' + (currentType === et.key ? ' active' : '') + '" data-type="' + et.key + '" onclick="filterByType(\'' + et.key + '\')">'
-      + et.label + ' <span class="chip-count">(' + et.count + ')</span></button>';
-  });
-
-  scroll.innerHTML = html;
 }
 
 function renderTemplates() {
@@ -511,14 +506,7 @@ function filterByType(typeKey) {
     document.getElementById('heroTitle').textContent = 'Invitation Inspiration';
     document.getElementById('heroSubtext').textContent = 'Browse AI-generated invitation designs. Find one you love and make it yours in minutes.';
     document.getElementById('canonicalLink').href = 'https://www.ryvite.com/inspiration/';
-    document.getElementById('seoHeading').textContent = 'Browse by Event Type';
-    document.getElementById('seoText').textContent = 'Discover the perfect invitation design for any occasion. Each design is crafted by AI and curated by our team. Pick your favorite, customize the details, and send beautiful invites in minutes.';
   }
-
-  // Update active chips
-  document.querySelectorAll('.filter-chip').forEach(function(chip) {
-    chip.classList.toggle('active', chip.getAttribute('data-type') === (typeKey || ''));
-  });
 
   // Show loading
   document.getElementById('loadingState').style.display = '';
@@ -540,7 +528,7 @@ function loadMore() {
 
 function renderTypeLinks() {
   var container = document.getElementById('typeLinks');
-  var html = '';
+  var html = '<a href="/inspiration" class="type-link' + (!currentType ? ' active' : '') + '" onclick="event.preventDefault(); filterByType(\'\');">All</a>';
   eventTypesData.forEach(function(et) {
     var slug = et.slug || TYPE_TO_SLUG[et.key] || et.key;
     var isActive = currentType === et.key;
@@ -548,6 +536,20 @@ function renderTypeLinks() {
       + et.label + ' (' + et.count + ')</a>';
   });
   container.innerHTML = html;
+}
+
+function submitCtaPrompt() {
+  var input = document.getElementById('ctaPromptInput');
+  var text = input.value.trim();
+  if (!text) { input.focus(); return; }
+  localStorage.setItem('ryvite_landing_prompt', text);
+  window.location.href = '/v2/create/';
+}
+
+function fillCtaPrompt(btn) {
+  var input = document.getElementById('ctaPromptInput');
+  input.value = btn.textContent;
+  input.focus();
 }
 
 // Handle browser back/forward
