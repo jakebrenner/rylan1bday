@@ -170,22 +170,90 @@ function createParticles(count, canvasW, canvasH) {
 
 /**
  * Main entry: generate an ad video and return a Blob
+ * @param {Object} opts
+ * @param {boolean} opts.liveAnimation - If true, records actual CSS animations via server-side Puppeteer
+ * @param {Function} opts.authFetch - Required for liveAnimation: authenticated fetch function
  */
-async function generateAdVideo({ html, css, config, promptText, format, theme, onProgress }) {
+async function generateAdVideo({ html, css, config, promptText, format, theme, onProgress, liveAnimation, authFetch }) {
   onProgress = onProgress || function() {};
   const fmt = FORMAT_CONFIGS[format] || FORMAT_CONFIGS.mobile_4x5;
   const thm = VIDEO_THEMES[theme] || VIDEO_THEMES.dark_gradient;
 
   onProgress(0, 'Preparing invite...');
 
-  // Render invite at 393px (the design width all invites are built for).
-  // The image will be scaled to fit the phone screen when drawn on canvas.
-  const inviteImg = await renderInviteToImage(html, css, config, 393);
-  onProgress(20, 'Starting animation...');
+  var inviteSource;
 
-  const blob = await animateAndRecord(inviteImg, promptText, fmt, thm, onProgress);
+  if (liveAnimation && authFetch) {
+    // Server-side: record actual CSS animations via Puppeteer
+    onProgress(5, 'Recording live animations (this takes ~30 seconds)...');
+    inviteSource = await renderInviteVideo(html, css, config, format, authFetch, function(pct) {
+      onProgress(5 + pct * 0.15, 'Recording animations...');
+    });
+    onProgress(20, 'Compositing ad video...');
+  } else {
+    // Client-side: static screenshot via html2canvas (original fast path)
+    const inviteImg = await renderInviteToImage(html, css, config, 393);
+    inviteSource = inviteImg;
+    onProgress(20, 'Starting animation...');
+  }
+
+  const blob = await animateAndRecord(inviteSource, promptText, fmt, thm, onProgress);
   onProgress(100, 'Done!');
   return blob;
+}
+
+/**
+ * Record actual CSS animations via server-side Puppeteer.
+ * Returns a loaded <video> element ready for canvas drawing.
+ */
+async function renderInviteVideo(html, css, config, format, authFetch, onProgress) {
+  onProgress = onProgress || function() {};
+
+  // Call the render-video API
+  var res = await authFetch('/api/v2/render-video', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      html: html,
+      css: css,
+      config: config,
+      format: format,
+      duration: 8 // Record 8 seconds of animation
+    })
+  });
+
+  var result = await res.json();
+  if (!result.success || !result.videoUrl) {
+    throw new Error('Video recording failed: ' + (result.error || 'unknown error'));
+  }
+
+  onProgress(80);
+
+  // Load the recorded video as a <video> element
+  return new Promise(function(resolve, reject) {
+    var video = document.createElement('video');
+    video.crossOrigin = 'anonymous';
+    video.muted = true;
+    video.playsInline = true;
+    video.loop = true; // Loop so animation continues during scroll/hold phases
+    video.preload = 'auto';
+
+    video.onloadeddata = function() {
+      video.play().then(function() {
+        onProgress(100);
+        // Mark as video source so animateAndRecord knows to draw video frames
+        video._isVideoSource = true;
+        resolve(video);
+      }).catch(function(e) {
+        reject(new Error('Failed to play video: ' + e.message));
+      });
+    };
+    video.onerror = function() {
+      reject(new Error('Failed to load recorded video'));
+    };
+
+    video.src = result.videoUrl;
+  });
 }
 
 /**
@@ -497,21 +565,27 @@ function drawAnimatedBackground(ctx, w, h, elapsed, thm) {
 
 /**
  * Run the animation on canvas and record to WebM.
+ * inviteSource can be an Image (static) or a Video element (live animation).
  */
-function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
+function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
   return new Promise(function(resolve, reject) {
     const canvas = document.createElement('canvas');
     canvas.width = fmt.width;
     canvas.height = fmt.height;
     const ctx = canvas.getContext('2d');
 
+    const isVideo = !!(inviteSource && inviteSource._isVideoSource);
+
     // Phone screen dimensions
     const screenW = fmt.phoneWidth - (PHONE_BEZEL_WIDTH * 2);
     const screenContentH = fmt.phoneHeight - (PHONE_BEZEL_WIDTH * 2) - 12 - PHONE_NOTCH_HEIGHT - 4;
 
     // Invite draw dimensions
-    const inviteDrawHeight = (inviteImg.naturalHeight / inviteImg.naturalWidth) * screenW;
-    const scrollDistance = Math.max(0, inviteDrawHeight - screenContentH);
+    const inviteNaturalW = isVideo ? inviteSource.videoWidth : inviteSource.naturalWidth;
+    const inviteNaturalH = isVideo ? inviteSource.videoHeight : inviteSource.naturalHeight;
+    const inviteDrawHeight = (inviteNaturalH / inviteNaturalW) * screenW;
+    // For video sources, no scrolling — the animation IS the content
+    const scrollDistance = isVideo ? 0 : Math.max(0, inviteDrawHeight - screenContentH);
     const scrollMs = scrollDistance > 0 ? (scrollDistance / SCROLL_PX_PER_SEC) * 1000 : MIN_HOLD_MS;
     const holdMs = MIN_HOLD_MS;
 
@@ -796,8 +870,8 @@ function animateAndRecord(inviteImg, promptText, fmt, thm, onProgress) {
         ctx.scale(scale, scale);
         ctx.translate(-scaleCenterX, -scaleCenterY);
 
-        // Draw invite
-        ctx.drawImage(inviteImg, screen.x, screen.y - scrollOffset, screen.w, inviteDrawHeight);
+        // Draw invite (video draws current animated frame, image draws static)
+        ctx.drawImage(inviteSource, screen.x, screen.y - scrollOffset, screen.w, inviteDrawHeight);
         ctx.restore();
       } else if (elapsed >= pauseEnd) {
         // Shimmer loading effect
@@ -1030,6 +1104,7 @@ function downloadBlob(blob, filename) {
 // Export
 window.AdVideoGenerator = {
   generate: generateAdVideo,
+  renderVideo: renderInviteVideo,
   download: downloadBlob,
   themes: VIDEO_THEMES,
   formats: FORMAT_CONFIGS

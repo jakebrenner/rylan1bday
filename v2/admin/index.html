@@ -8116,6 +8116,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
           document.getElementById('adVideoPhase').textContent = (formats.length > 1 ? (fi + 1) + '/' + formats.length + ' — ' : '') + 'Preparing ' + fmtLabel + '...';
 
+          var useLiveAnimation = document.getElementById('adVideoLiveAnimation').checked;
           var blob = await window.AdVideoGenerator.generate({
             html: _adVideoData.html,
             css: _adVideoData.css,
@@ -8123,6 +8124,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             promptText: promptText,
             format: fmt,
             theme: _adVideoTheme,
+            liveAnimation: useLiveAnimation,
+            authFetch: authFetch,
             onProgress: function(pct, phase) {
               var overall = baseProgress + (pct / 100) * progressRange;
               document.getElementById('adVideoProgressBar').style.width = overall + '%';
@@ -9046,6 +9049,16 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             </button>
           </div>
           <textarea id="adVideoPromptText" rows="3" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;resize:vertical;box-sizing:border-box;"></textarea>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:2px solid #E94560;border-radius:8px;cursor:pointer;background:#fef2f4;">
+            <input type="checkbox" id="adVideoLiveAnimation" style="accent-color:#E94560;width:18px;height:18px;">
+            <div>
+              <div style="font-size:14px;font-weight:600;color:#1a1a2e;">Capture Live Animations</div>
+              <div style="font-size:12px;color:#888;margin-top:2px;">Records actual CSS animations via server rendering (~30s slower, much higher quality)</div>
+            </div>
+          </label>
         </div>
 
         <button class="btn btn-primary" onclick="startAdVideoGeneration()" style="width:100%;padding:14px;font-size:15px;">
