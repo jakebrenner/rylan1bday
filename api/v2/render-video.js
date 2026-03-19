@@ -85,7 +85,7 @@ function buildInviteHtml(html, css, config) {
 ${fontsStyle}
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-html, body { width: 393px; min-height: 100%; overflow-x: hidden; }
+html, body { width: 393px; min-height: 100vh; overflow-x: hidden; }
 html, body { background:${fallbackBg}; color:${fallbackText}; font-family:'${fallbackFont}',sans-serif; }
 </style>
 ${headStyles}
@@ -110,8 +110,8 @@ export default async function handler(req, res) {
 
   const recordDuration = Math.min(Math.max(duration || 6, 2), 15); // 2-15 seconds
   const viewport = format === 'feed_1x1'
-    ? { width: 393, height: 393 }
-    : { width: 393, height: 852 }; // Default: phone-shaped for 4:5
+    ? { width: 393, height: 393, deviceScaleFactor: 2 }
+    : { width: 393, height: 852, deviceScaleFactor: 2 }; // 2x for crisp rendering
 
   const fps = 8;
   const totalFrames = Math.ceil(recordDuration * fps);

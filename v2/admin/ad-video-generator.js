@@ -745,7 +745,7 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
         const cardX = isSideBySide ? (fmt.promptAreaX || 30) : (fmt.width - fmt.promptMaxWidth) / 2;
         const cardW = fmt.promptMaxWidth;
         const cardPadX = 36;
-        const cardPadTop = 50;
+        const cardPadTop = 80;
         const cardPadBottom = 40;
         const cardRadius = 24;
 
