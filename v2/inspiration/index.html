@@ -82,6 +82,7 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.
 /* ===== FILTER BAR ===== */
 .filter-bar { background: white; border-bottom: 1px solid rgba(0,0,0,0.06); padding: 1rem 2rem; position: sticky; top: 66px; z-index: 50; }
 .filter-bar .container { max-width: 1200px; margin: 0 auto; }
+.filter-bar h2 { font-size: 1.1rem; color: var(--midnight); margin-bottom: 0.6rem; font-weight: 600; }
 .type-links { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; padding: 2px 0; flex-wrap: nowrap; }
 .type-links::-webkit-scrollbar { display: none; }
 .type-link { display: inline-flex; align-items: center; gap: 6px; padding: 0.5rem 1.1rem; border: 1.5px solid var(--slate-light); border-radius: 50px; font-size: 0.82rem; font-weight: 500; color: var(--slate); background: white; cursor: pointer; transition: var(--transition); white-space: nowrap; flex-shrink: 0; text-decoration: none; }
@@ -211,6 +212,7 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.
 <!-- Filter Bar -->
 <div class="filter-bar">
   <div class="container">
+    <h2>Browse by Event Type</h2>
     <div class="type-links" id="typeLinks">
       <a href="/inspiration" class="type-link active" onclick="event.preventDefault(); filterByType('');">All</a>
       <!-- Populated dynamically -->
