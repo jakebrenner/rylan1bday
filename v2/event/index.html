@@ -692,6 +692,18 @@
       }
     }
 
+    // Color helpers for dark/light theme detection
+    function hexToRgb(hex) {
+      hex = hex.replace('#', '');
+      if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+      return [parseInt(hex.substring(0,2),16), parseInt(hex.substring(2,4),16), parseInt(hex.substring(4,6),16)];
+    }
+    function isColorDark(hex) {
+      var rgb = hexToRgb(hex || '#FFFAF5');
+      var luminance = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
+      return luminance < 0.5;
+    }
+
     // Guaranteed CSS + HTML for thank you page structure
     // AI provides: background styling, hero heading/subtitle, decorative elements, CSS
     // We guarantee: calendar buttons, footer text, layout structure
@@ -700,33 +712,46 @@
       var sc = config.secondaryColor || '#4CAF50';
       var ac = config.accentColor || '#2196F3';
       var tc = config.textColor || '#1A1A2E';
-      return '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }'
+      var bgColor = config.backgroundColor || '#FFFAF5';
+      var isDark = isColorDark(bgColor);
+      var tyTextColor = isDark ? '#FFFFFF' : tc;
+
+      // Dark/light adaptive values for platform-injected elements
+      var btnBg = isDark ? 'rgba(255,255,255,0.12)' : pc;
+      var btnBorder = isDark ? ' border:1px solid rgba(255,255,255,0.25); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);' : '';
+      var recapBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)';
+      var separatorColor = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
+      var hoverShadow = isDark ? '0 4px 12px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.15)';
+      var ctaBtnBg = isDark ? 'rgba(255,255,255,0.15)' : pc;
+      var ctaBtnBorder = isDark ? ' border:1px solid rgba(255,255,255,0.3);' : '';
+
+      return '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:' + tyTextColor + '; }'
         + '.thankyou-hero { margin-bottom:32px; }'
-        + '.thankyou-title { font-size:36px; font-weight:700; margin-bottom:12px; }'
-        + '.thankyou-subtitle { font-size:16px; line-height:1.5; opacity:0.8; }'
+        + '.thankyou-title { font-size:36px; font-weight:700; margin-bottom:12px; color:' + tyTextColor + '; }'
+        + '.thankyou-subtitle { font-size:16px; line-height:1.5; opacity:0.85; color:' + tyTextColor + '; }'
         + '.thankyou-calendar-section { width:100%; max-width:320px; padding:0 8px; }'
-        + '.calendar-label { font-size:14px; margin-bottom:16px; opacity:0.7; }'
+        + '.calendar-label { font-size:14px; margin-bottom:16px; opacity:0.7; color:' + tyTextColor + '; }'
         + '.calendar-buttons { display:flex; flex-direction:column; gap:12px; width:100%; }'
-        + '.cal-btn { display:block; width:100%; padding:16px 24px; border-radius:12px; border:none; font-family:inherit; font-size:16px; font-weight:600; cursor:pointer; transition:transform 0.15s,box-shadow 0.15s; text-align:center; color:#fff; }'
-        + '.cal-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.15); }'
-        + '.cal-apple { background:' + pc + '; color:#fff; }'
-        + '.cal-google { background:' + sc + '; color:#fff; }'
-        + '.cal-outlook { background:' + ac + '; color:#fff; }'
+        + '.cal-btn { display:block; width:100%; padding:16px 24px; border-radius:12px; border:none; font-family:inherit; font-size:16px; font-weight:600; cursor:pointer; transition:transform 0.15s,box-shadow 0.15s; text-align:center; color:#fff;' + btnBorder + ' }'
+        + '.cal-btn:hover { transform:translateY(-2px); box-shadow:' + hoverShadow + '; }'
+        + '.cal-apple { background:' + btnBg + '; color:#fff; }'
+        + '.cal-google { background:' + btnBg + '; color:#fff;' + (isDark ? '' : ' opacity:0.85;') + ' }'
+        + '.cal-outlook { background:' + btnBg + '; color:#fff;' + (isDark ? '' : ' opacity:0.7;') + ' }'
         // Event detail recap
-        + '.thankyou-event-recap { width:100%; max-width:320px; margin:28px 0 0; padding:20px; border-radius:12px; background:rgba(0,0,0,0.04); text-align:left; }'
+        + '.thankyou-event-recap { width:100%; max-width:320px; margin:28px 0 0; padding:20px; border-radius:12px; background:' + recapBg + '; text-align:left; color:' + tyTextColor + '; }'
         + '.thankyou-event-recap .detail-item { display:flex; gap:10px; margin-bottom:12px; align-items:flex-start; }'
         + '.thankyou-event-recap .detail-item:last-child { margin-bottom:0; }'
         + '.thankyou-event-recap .detail-icon { font-size:18px; flex-shrink:0; margin-top:1px; }'
         + '.thankyou-event-recap .detail-label { font-size:11px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.5; margin-bottom:2px; }'
         + '.thankyou-event-recap .detail-value { font-size:14px; line-height:1.4; }'
         // CTA section
-        + '.thankyou-cta-section { width:100%; max-width:320px; margin-top:36px; padding-top:28px; border-top:1px solid rgba(0,0,0,0.08); text-align:center; }'
-        + '.thankyou-cta-section .ryvite-logo { width:80px; height:32px; margin-bottom:12px; color:' + tc + '; }'
+        + '.thankyou-cta-section { width:100%; max-width:320px; margin-top:36px; padding-top:28px; border-top:1px solid ' + separatorColor + '; text-align:center; color:' + tyTextColor + '; }'
+        + '.thankyou-cta-section .ryvite-logo { width:80px; height:32px; margin-bottom:12px; color:' + tyTextColor + '; }'
         + '.thankyou-cta-text { font-size:14px; line-height:1.5; opacity:0.7; margin-bottom:16px; }'
-        + '.thankyou-cta-btn { display:inline-block; padding:12px 28px; border-radius:10px; background:' + pc + '; color:#fff; font-family:inherit; font-size:14px; font-weight:600; text-decoration:none; transition:transform 0.15s,box-shadow 0.15s; border:none; cursor:pointer; }'
-        + '.thankyou-cta-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.15); }'
+        + '.thankyou-cta-btn { display:inline-block; padding:12px 28px; border-radius:10px; background:' + ctaBtnBg + '; color:#fff; font-family:inherit; font-size:14px; font-weight:600; text-decoration:none; transition:transform 0.15s,box-shadow 0.15s; border:none; cursor:pointer;' + ctaBtnBorder + ' }'
+        + '.thankyou-cta-btn:hover { transform:translateY(-2px); box-shadow:' + hoverShadow + '; }'
         // Footer
-        + '.thankyou-footer { font-size:13px; opacity:0.4; margin-top:32px; text-align:center; font-style:italic; }'
+        + '.thankyou-footer { font-size:13px; opacity:0.4; margin-top:32px; text-align:center; font-style:italic; color:' + tyTextColor + '; }'
         + '.thankyou-footer a { color:inherit; text-decoration:none; }';
     }
 

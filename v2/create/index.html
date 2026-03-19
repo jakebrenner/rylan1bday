@@ -4027,6 +4027,12 @@
       return rgbToHex(rgb1[0]+(rgb2[0]-rgb1[0])*amount, rgb1[1]+(rgb2[1]-rgb1[1])*amount, rgb1[2]+(rgb2[2]-rgb1[2])*amount);
     }
 
+    function isColorDark(hex) {
+      var rgb = hexToRgb(hex || '#FFFAF5');
+      var luminance = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
+      return luminance < 0.5;
+    }
+
     function buildEmailSrcdoc(ver) {
       var config = ver.config || {};
       var emailHtml = config.emailHtml || '';
@@ -4036,72 +4042,106 @@
         return emailHtml;
       }
 
-      // ── Ryvite-branded email template ──
-      // Matches the auth email style: dark header, cream background, clean card, gradient CTA
+      // ── Ryvite-branded email template (theme-aware) ──
+      // Mirrors the production template in api/v2/sms.js — uses event colors for hero,
+      // button, and accent details so the email preview matches what recipients will see.
       var pc = config.primaryColor || '#E94560';
+      var sc = config.secondaryColor || '#4CAF50';
+      var ac = config.accentColor || '#2196F3';
+      var bgColor = config.backgroundColor || '#FFFAF5';
+      var textColor = config.textColor || '#1A1A2E';
+      var headlineFont = config.fontHeadline || 'Playfair Display';
+      var bodyFont = config.fontBody || 'Inter';
+      var isDark = isColorDark(bgColor);
 
-      // Derive a soft accent tint from the event's primary color
-      var accentTint = mixColor(pc, '#FFFFFF', 0.85);
+      // Email-safe color derivation (matches sms.js production logic)
+      var cardBg = mixColor(pc, '#FFFFFF', 0.92);
       var accentLine = pc;
+      var dividerColor = mixColor(pc, '#FFFFFF', 0.75);
+      // Button: use primary bg, auto-detect text contrast
+      var pcRgb = hexToRgb(pc);
+      var pcLuminance = (0.299 * pcRgb[0] + 0.587 * pcRgb[1] + 0.114 * pcRgb[2]) / 255;
+      var btnTextColor = pcLuminance > 0.55 ? '#1A1A2E' : '#FFFFFF';
+      // Hero: use theme background color for dark themes, primary color for light
+      var heroBg = isDark ? bgColor : pc;
+      var heroText = isDark ? (isColorDark(bgColor) ? '#FFFFFF' : '#1A1A2E') : btnTextColor;
+      var heroSubtext = isDark ? 'rgba(255,255,255,0.7)' : (pcLuminance > 0.55 ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.7)');
 
       var title = extractedData.title || currentEvent?.title || 'Your Event';
+      var hostName = extractedData.hostName || 'Your host';
       var eventDate = extractedData.startDate
         ? new Date(extractedData.startDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
         : '';
       var location = extractedData.locationName || '';
 
-      return '<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">'
-        + '<style>body{margin:0;padding:0;background-color:#FFFAF5;-webkit-text-size-adjust:100%}</style>'
-        + '</head><body style="margin:0;padding:0;background-color:#FFFAF5;">'
+      // Details card row builder
+      var detailRows = '';
+      if (eventDate) {
+        detailRows += '<tr><td style="width:32px;vertical-align:top;padding-right:12px;"><p style="margin:0;font-size:18px;line-height:1;">&#128197;</p></td>'
+          + '<td style="vertical-align:top;"><p style="font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:14px;color:#1A1A2E;margin:0;line-height:1.5;font-weight:600;">' + escapeHtml(eventDate) + '</p></td></tr>';
+      }
+      if (location) {
+        detailRows += '<tr><td style="width:32px;vertical-align:top;padding-right:12px;' + (eventDate ? 'padding-top:10px;' : '') + '"><p style="margin:0;font-size:18px;line-height:1;">&#128205;</p></td>'
+          + '<td style="vertical-align:top;' + (eventDate ? 'padding-top:10px;' : '') + '"><p style="font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:14px;color:#5A5A6E;margin:0;line-height:1.5;">' + escapeHtml(location) + '</p></td></tr>';
+      }
+      var detailsSection = detailRows
+        ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:20px 32px 0;">'
+          + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:' + cardBg + ';border-radius:12px;"><tr><td style="padding:18px 20px;">'
+          + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">' + detailRows + '</table>'
+          + '</td></tr></table></td></tr></table>'
+        : '';
 
-        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#FFFAF5;padding:40px 20px;">'
+      return '<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">'
+        + '<style>body{margin:0;padding:0;background-color:#FFFFFF;-webkit-text-size-adjust:100%}</style>'
+        + '</head><body style="margin:0;padding:0;background-color:#FFFFFF;">'
+
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#FFFFFF;padding:32px 16px;">'
         + '<tr><td align="center">'
         + '<table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;width:100%;">'
 
-        // ── Branded header (dark, with text wordmark) ──
-        + '<tr><td align="center" style="padding-bottom:0;">'
-        + '<div style="background:linear-gradient(135deg, #1A1A2E 0%, #0f3460 100%);border-radius:12px 12px 0 0;padding:24px 40px;text-align:center;">'
-        + '<p style="margin:0;font-size:28px;color:#FFFFFF;font-family:\'Playfair Display\',Georgia,serif;font-weight:700;letter-spacing:0.5px;">Ryvite</p>'
-        + '<p style="margin:4px 0 0;font-size:12px;color:#FFB74D;font-style:italic;font-family:\'Inter\',Arial,sans-serif;">Prompt to Party</p>'
-        + '</div>'
+        // ── Hero section — uses theme color ──
+        + '<tr><td align="center" style="padding:0;">'
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:' + heroBg + ';border-radius:16px 16px 0 0;">'
+        + '<tr><td style="padding:40px 32px 32px;text-align:center;">'
+        + '<p style="margin:0 0 8px;font-size:28px;line-height:1;">&#10024;</p>'
+        + '<p style="margin:0 0 6px;font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:' + heroText + ';opacity:0.7;">YOU\'RE INVITED</p>'
+        + '<h1 style="margin:0;font-family:\'' + headlineFont + '\',Georgia,serif;font-size:28px;font-weight:700;color:' + heroText + ';line-height:1.25;">' + escapeHtml(title) + '</h1>'
+        + '</td></tr></table>'
         + '</td></tr>'
 
-        // ── Accent bar (uses event's primary color) ──
-        + '<tr><td style="height:4px;background-color:' + accentLine + ';font-size:0;line-height:0;" height="4">&nbsp;</td></tr>'
-
         // ── Main card body ──
-        + '<tr><td style="background-color:#FFFFFF;padding:40px 36px 36px;">'
+        + '<tr><td style="background-color:#FFFFFF;padding:0;border-radius:0 0 16px 16px;border:1px solid #f0ebe5;border-top:none;">'
 
-        // "You're Invited" headline
-        + '<h2 style="font-family:\'Playfair Display\',Georgia,\'Times New Roman\',serif;font-size:30px;font-weight:700;color:#1A1A2E;margin:0 0 6px;line-height:1.2;text-align:center;">You\'re Invited</h2>'
+        // Personal greeting
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">'
+        + '<tr><td style="padding:28px 32px 0;">'
+        + '<p style="font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:15px;color:#1A1A2E;margin:0;line-height:1.6;">Hey Sarah,</p>'
+        + '<p style="font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:15px;color:#5A5A6E;margin:6px 0 0;line-height:1.6;">' + escapeHtml(hostName) + ' would love for you to be there! Check out the full invite and let them know if you can make it.</p>'
+        + '</td></tr></table>'
 
-        // Event title
-        + '<p style="font-family:\'Inter\',Arial,Helvetica,sans-serif;font-size:17px;color:#5A5A6E;margin:0 0 20px;line-height:1.4;text-align:center;">' + escapeHtml(title) + '</p>'
-
-        // ── Event details card (tinted with event color) ──
-        + (eventDate || location
-          ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:' + accentTint + ';padding:20px 24px;border-left:3px solid ' + accentLine + ';">'
-            + (eventDate ? '<p style="font-family:\'Inter\',Arial,Helvetica,sans-serif;font-size:14px;color:#1A1A2E;margin:0 0 4px;line-height:1.5;font-weight:600;">' + escapeHtml(eventDate) + '</p>' : '')
-            + (location ? '<p style="font-family:\'Inter\',Arial,Helvetica,sans-serif;font-size:14px;color:#5A5A6E;margin:0;line-height:1.5;">' + escapeHtml(location) + '</p>' : '')
-            + '</td></tr></table>'
-          : '')
+        // Event details
+        + detailsSection
 
         // Spacer
         + '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="height:28px;font-size:0;line-height:0;" height="28">&nbsp;</td></tr></table>'
 
-        // ── CTA button (coral gradient, pill shape) ──
-        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:0 0 8px;">'
-        + '<a href="#" target="_blank" style="display:inline-block;padding:14px 48px;background:linear-gradient(135deg, #E94560, #FF6B6B);color:#FFFFFF;font-size:16px;font-weight:600;text-decoration:none;border-radius:50px;font-family:\'Inter\',Arial,Helvetica,sans-serif;letter-spacing:0.3px;">View Invitation</a>'
+        // ── CTA button (uses primary color) ──
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:0 32px 0;">'
+        + '<a href="#" target="_blank" style="display:inline-block;padding:16px 48px;background-color:' + pc + ';color:' + btnTextColor + ';font-size:16px;font-weight:700;text-decoration:none;border-radius:50px;font-family:\'' + bodyFont + '\',Arial,sans-serif;letter-spacing:0.3px;min-width:200px;text-align:center;">View Invitation &amp; RSVP</a>'
         + '</td></tr></table>'
 
-        // Subtle message
-        + '<p style="font-family:\'Inter\',Arial,Helvetica,sans-serif;font-size:12px;color:#D1D5DB;margin:16px 0 0;line-height:1.5;text-align:center;">Tap the button to see your full invitation and RSVP</p>'
+        // Divider + helper text
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">'
+        + '<tr><td style="padding:24px 32px 24px;">'
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="border-top:1px solid #f0ebe5;height:1px;font-size:0;line-height:0;">&nbsp;</td></tr></table>'
+        + '<p style="font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:12px;color:#B0B0B8;margin:16px 0 0;line-height:1.5;text-align:center;">Tap the button to see your full invitation and RSVP</p>'
+        + '</td></tr></table>'
 
         + '</td></tr>'
 
         // ── Footer ──
-        + '<tr><td align="center" style="padding:20px 0 0;">'
-        + '<p style="margin:0;font-size:12px;color:#D1D5DB;font-family:\'Inter\',Arial,sans-serif;">&copy; 2026 Ryvite &mdash; Beautiful invitations, effortlessly.</p>'
+        + '<tr><td align="center" style="padding:24px 0 0;">'
+        + '<p style="margin:0;font-size:11px;color:#C8C8D0;font-family:\'' + bodyFont + '\',Arial,sans-serif;">Sent via <span style="color:#E94560;font-weight:600;">Ryvite</span> &mdash; Beautiful invitations, effortlessly.</p>'
         + '</td></tr>'
 
         + '</table>'
@@ -4166,38 +4206,51 @@
       var textColor = config.textColor || '#1A1A2E';
       var headlineFont = config.fontHeadline || 'Playfair Display';
       var bodyFont = config.fontBody || 'Inter';
-      // Build a visible gradient fallback from the theme colors (0.4/0.6 = clearly visible, not washed out)
-      var gradientBg = 'linear-gradient(180deg, ' + mixColor(pc, '#FFFFFF', 0.4) + ' 0%, ' + mixColor(ac || sc, '#FFFFFF', 0.6) + ' 100%)';
+      var isDark = isColorDark(bgColor);
+      // Build a visible gradient fallback from the theme colors — adapt to dark/light
+      var mixTarget = isDark ? '#000000' : '#FFFFFF';
+      var gradientBg = 'linear-gradient(180deg, ' + mixColor(pc, mixTarget, 0.4) + ' 0%, ' + mixColor(ac || sc, mixTarget, 0.6) + ' 100%)';
+      var tyTextColor = isDark ? '#FFFFFF' : textColor;
+      var tyTitleColor = isDark ? '#FFFFFF' : pc;
+
+      // Dark/light adaptive values for platform-injected elements
+      var btnBg = isDark ? 'rgba(255,255,255,0.12)' : pc;
+      var btnBorder = isDark ? ' border:1px solid rgba(255,255,255,0.25); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);' : '';
+      var recapBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)';
+      var separatorColor = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
+      var hoverShadow = isDark ? '0 4px 12px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.15)';
+      var ctaBtnBg = isDark ? 'rgba(255,255,255,0.15)' : pc;
+      var ctaBtnBorder = isDark ? ' border:1px solid rgba(255,255,255,0.3);' : '';
 
       var guaranteedCSS = '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;'
-        + ' background:' + gradientBg + '; color:' + textColor + '; font-family:\'' + bodyFont + '\',sans-serif; }'
+        + ' background:' + gradientBg + '; color:' + tyTextColor + '; font-family:\'' + bodyFont + '\',sans-serif; }'
         + '.thankyou-decoration { margin-bottom:24px; }'
         + '.thankyou-hero { margin-bottom:32px; }'
-        + '.thankyou-title { font-family:\'' + headlineFont + '\',serif; font-size:36px; font-weight:700; margin-bottom:12px; color:' + pc + '; }'
-        + '.thankyou-subtitle { font-size:16px; line-height:1.5; opacity:0.8; }'
+        + '.thankyou-title { font-family:\'' + headlineFont + '\',serif; font-size:36px; font-weight:700; margin-bottom:12px; color:' + tyTitleColor + '; }'
+        + '.thankyou-subtitle { font-size:16px; line-height:1.5; opacity:0.85; color:' + tyTextColor + '; }'
         + '.thankyou-calendar-section { width:100%; max-width:320px; padding:0 8px; }'
-        + '.calendar-label { font-size:14px; margin-bottom:16px; opacity:0.7; }'
+        + '.calendar-label { font-size:14px; margin-bottom:16px; opacity:0.7; color:' + tyTextColor + '; }'
         + '.calendar-buttons { display:flex; flex-direction:column; gap:12px; width:100%; }'
-        + '.cal-btn { display:block; width:100%; padding:16px 24px; border-radius:12px; border:none; font-family:inherit; font-size:16px; font-weight:600; cursor:pointer; transition:transform 0.15s,box-shadow 0.15s; text-align:center; color:#fff; }'
-        + '.cal-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.15); }'
-        + '.cal-apple { background:' + pc + '; color:#fff; }'
-        + '.cal-google { background:' + sc + '; color:#fff; }'
-        + '.cal-outlook { background:' + ac + '; color:#fff; }'
+        + '.cal-btn { display:block; width:100%; padding:16px 24px; border-radius:12px; border:none; font-family:inherit; font-size:16px; font-weight:600; cursor:pointer; transition:transform 0.15s,box-shadow 0.15s; text-align:center; color:#fff;' + btnBorder + ' }'
+        + '.cal-btn:hover { transform:translateY(-2px); box-shadow:' + hoverShadow + '; }'
+        + '.cal-apple { background:' + btnBg + '; color:#fff; }'
+        + '.cal-google { background:' + btnBg + '; color:#fff;' + (isDark ? '' : ' opacity:0.85;') + ' }'
+        + '.cal-outlook { background:' + btnBg + '; color:#fff;' + (isDark ? '' : ' opacity:0.7;') + ' }'
         // Event detail recap
-        + '.thankyou-event-recap { width:100%; max-width:320px; margin:28px 0 0; padding:20px; border-radius:12px; background:rgba(0,0,0,0.04); text-align:left; }'
+        + '.thankyou-event-recap { width:100%; max-width:320px; margin:28px 0 0; padding:20px; border-radius:12px; background:' + recapBg + '; text-align:left; color:' + tyTextColor + '; }'
         + '.thankyou-event-recap .recap-item { display:flex; gap:10px; margin-bottom:12px; align-items:flex-start; }'
         + '.thankyou-event-recap .recap-item:last-child { margin-bottom:0; }'
         + '.thankyou-event-recap .recap-icon { font-size:18px; flex-shrink:0; margin-top:1px; }'
         + '.thankyou-event-recap .recap-label { font-size:11px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.5; margin-bottom:2px; }'
         + '.thankyou-event-recap .recap-value { font-size:14px; line-height:1.4; }'
         // CTA section
-        + '.thankyou-cta-section { width:100%; max-width:320px; margin-top:36px; padding-top:28px; border-top:1px solid rgba(0,0,0,0.08); text-align:center; }'
+        + '.thankyou-cta-section { width:100%; max-width:320px; margin-top:36px; padding-top:28px; border-top:1px solid ' + separatorColor + '; text-align:center; color:' + tyTextColor + '; }'
         + '.thankyou-cta-section .ryvite-logo { width:80px; height:32px; margin-bottom:12px; }'
         + '.thankyou-cta-text { font-size:14px; line-height:1.5; opacity:0.7; margin-bottom:16px; }'
-        + '.thankyou-cta-btn { display:inline-block; padding:12px 28px; border-radius:10px; background:' + pc + '; color:#fff; font-family:inherit; font-size:14px; font-weight:600; text-decoration:none; transition:transform 0.15s,box-shadow 0.15s; border:none; cursor:pointer; }'
-        + '.thankyou-cta-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.15); }'
+        + '.thankyou-cta-btn { display:inline-block; padding:12px 28px; border-radius:10px; background:' + ctaBtnBg + '; color:#fff; font-family:inherit; font-size:14px; font-weight:600; text-decoration:none; transition:transform 0.15s,box-shadow 0.15s; border:none; cursor:pointer;' + ctaBtnBorder + ' }'
+        + '.thankyou-cta-btn:hover { transform:translateY(-2px); box-shadow:' + hoverShadow + '; }'
         // Footer
-        + '.thankyou-footer { font-size:13px; opacity:0.4; margin-top:32px; text-align:center; font-style:italic; }'
+        + '.thankyou-footer { font-size:13px; opacity:0.4; margin-top:32px; text-align:center; font-style:italic; color:' + tyTextColor + '; }'
         + '.thankyou-footer a { color:inherit; text-decoration:none; }';
 
       // Guaranteed calendar + footer HTML — never left to the AI
@@ -4230,7 +4283,7 @@
       var ryviteLogoSvg = '<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" class="ryvite-logo">'
         + '<circle cx="30" cy="40" r="20" fill="none" stroke="#E94560" stroke-width="2"/>'
         + '<path d="M15 30 L30 42 L45 30 M15 50 L45 50" fill="none" stroke="#E94560" stroke-width="2" stroke-linecap="round"/>'
-        + '<text x="65" y="50" font-family="Playfair Display, serif" font-size="32" font-weight="600" fill="' + textColor + '">Ryvite</text>'
+        + '<text x="65" y="50" font-family="Playfair Display, serif" font-size="32" font-weight="600" fill="' + tyTextColor + '">Ryvite</text>'
         + '</svg>';
 
       var guaranteedCtaHTML = '<div class="thankyou-cta-section">'

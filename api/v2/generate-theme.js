@@ -407,6 +407,19 @@ Rules:
 .thankyou-hero { margin-bottom: 32px; }
 .thankyou-title { font-size: 36px; font-weight: 700; margin-bottom: 12px; font-family: /* same heading font */; color: /* same accent/heading color */; }
 .thankyou-subtitle { font-size: 16px; line-height: 1.5; opacity: 0.8; }
+
+/* PLATFORM-INJECTED ELEMENTS — style these in theme_css to match the invite */
+/* The platform injects calendar buttons, event recap, CTA, and footer after your HTML. */
+/* You CANNOT generate these elements, but you MUST style them so they look polished. */
+.cal-btn { border-radius: /* match invite button style */; font-family: /* same as invite */; }
+/* Use ONE consistent color for all calendar buttons — NOT 3 different colors */
+.cal-apple, .cal-google, .cal-outlook { background: /* one color from your palette */; color: #fff; }
+/* On dark backgrounds: use rgba(255,255,255,0.12) with border:1px solid rgba(255,255,255,0.25) for a glassmorphic look */
+/* On light backgrounds: use your primary/accent color as solid background */
+.thankyou-event-recap { background: /* rgba overlay matching theme */; color: /* readable text */; border-radius: /* match invite style */; }
+.thankyou-cta-section { border-top-color: /* subtle separator matching theme */; }
+.thankyou-cta-btn { background: /* match invite button style */; color: #fff; border-radius: /* match invite style */; }
+.thankyou-footer { color: /* readable on the thank you background */; }
 \`\`\`
 
 ## TEXT CONTRAST — CRITICAL, NEVER VIOLATE
@@ -420,6 +433,7 @@ Rules:
 - **Hero section**: If the background is dark or uses a dark gradient, title and subtitle text MUST be white/cream/very light.
 - **RSVP section** (\`.rsvp-slot\`): The platform injects form labels, inputs, selects, and a submit button into \`.rsvp-slot\` at runtime. You MUST style \`.rsvp-slot\` with an explicit \`color\` that contrasts against its background. If the RSVP area has a dark/colored background, set \`.rsvp-slot { color: #FFFFFF; }\` or \`.rsvp-slot { color: #FAFAFA; }\`. If light background, set \`.rsvp-slot { color: #1A1A1A; }\`. The injected form elements use \`color: inherit\`, so whatever color you set on \`.rsvp-slot\` cascades to ALL labels, inputs, and text. Button text must be white on dark buttons or dark on light buttons. No exceptions.
 - **RSVP form inputs**: Style \`.rsvp-slot input\`, \`.rsvp-slot select\`, \`.rsvp-slot textarea\` with readable text color. On dark backgrounds use \`color: #FFFFFF\` and \`background: rgba(255,255,255,0.15)\`. On light backgrounds use \`color: #1A1A1A\` and \`background: rgba(0,0,0,0.05)\`. NEVER leave input text color as a dark color on a dark RSVP background.
+- **Thank you page**: The \`.thankyou-page\` background MUST match the invite. If dark, set \`.thankyou-title\`, \`.thankyou-subtitle\` to #FFFFFF. Style \`.cal-btn\`, \`.thankyou-event-recap\`, \`.thankyou-cta-btn\`, \`.thankyou-footer\` with appropriate contrast. On dark backgrounds use glassmorphic buttons (rgba(255,255,255,0.12) + border) and light text. On light backgrounds use your primary color for buttons and dark text.
 - **SIMPLE RULE**: For ANY section with a colored/dark background, set the text color to #FFFFFF or #FAFAFA. For any section with a light/white background, set text to #1A1A1A or darker. Do NOT try to match text color to theme accent colors on dark backgrounds — it almost always fails contrast.`;
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2620,7 +2634,12 @@ This is the most common failure mode. Double-check it.`;
         ({ data: newTheme, error: themeError } = await supabase
           .from('event_themes').insert(genInsert).select().single());
       }
-      if (themeError) console.error('Failed to save theme:', themeError.message);
+      if (themeError) {
+        console.error('Failed to save theme:', themeError.message);
+      } else if (newTheme) {
+        savedThemeId = newTheme.id;
+        savedThemeVersion = newTheme.version;
+      }
 
       // New full generation (not based on existing) starts its own design group
       if (newTheme?.id && !themeError && !basedOnThemeId) {
