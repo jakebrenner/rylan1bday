@@ -204,7 +204,8 @@ async function generateAdVideo({ html, css, config, promptText, format, theme, o
 
 /**
  * Record actual CSS animations via server-side Puppeteer.
- * Returns a loaded <video> element ready for canvas drawing.
+ * Returns a frame player object that animateAndRecord can draw from.
+ * The server captures screenshots at intervals and returns base64 JPEG frames.
  */
 async function renderInviteVideo(html, css, config, format, authFetch, onProgress) {
   onProgress = onProgress || function() {};
@@ -218,42 +219,48 @@ async function renderInviteVideo(html, css, config, format, authFetch, onProgres
       css: css,
       config: config,
       format: format,
-      duration: 8 // Record 8 seconds of animation
+      duration: 8
     })
   });
 
   var result = await res.json();
-  if (!result.success || !result.videoUrl) {
-    throw new Error('Video recording failed: ' + (result.error || 'unknown error'));
+  if (!result.success || !result.frames || !result.frames.length) {
+    throw new Error('Video recording failed: ' + (result.error || 'no frames returned'));
   }
 
-  onProgress(80);
+  onProgress(50);
 
-  // Load the recorded video as a <video> element
-  return new Promise(function(resolve, reject) {
-    var video = document.createElement('video');
-    video.crossOrigin = 'anonymous';
-    video.muted = true;
-    video.playsInline = true;
-    video.loop = true; // Loop so animation continues during scroll/hold phases
-    video.preload = 'auto';
+  // Load all frames as Image objects
+  var images = [];
+  for (var i = 0; i < result.frames.length; i++) {
+    var img = new Image();
+    img.src = 'data:image/jpeg;base64,' + result.frames[i];
+    await new Promise(function(resolve, reject) {
+      img.onload = resolve;
+      img.onerror = function() { reject(new Error('Failed to load frame ' + i)); };
+    });
+    images.push(img);
+    onProgress(50 + (i / result.frames.length) * 50);
+  }
 
-    video.onloadeddata = function() {
-      video.play().then(function() {
-        onProgress(100);
-        // Mark as video source so animateAndRecord knows to draw video frames
-        video._isVideoSource = true;
-        resolve(video);
-      }).catch(function(e) {
-        reject(new Error('Failed to play video: ' + e.message));
-      });
-    };
-    video.onerror = function() {
-      reject(new Error('Failed to load recorded video'));
-    };
+  // Create a frame player that mimics a video source for animateAndRecord
+  var framePlayer = {
+    _isVideoSource: true,
+    _frames: images,
+    _fps: result.fps || 8,
+    _startTime: null,
+    videoWidth: images[0].naturalWidth,
+    videoHeight: images[0].naturalHeight,
+    // Get the current frame based on elapsed wall-clock time (loops)
+    getCurrentFrame: function() {
+      if (!this._startTime) this._startTime = Date.now();
+      var elapsed = Date.now() - this._startTime;
+      var frameIndex = Math.floor((elapsed / 1000) * this._fps) % this._frames.length;
+      return this._frames[frameIndex];
+    }
+  };
 
-    video.src = result.videoUrl;
-  });
+  return framePlayer;
 }
 
 /**
@@ -870,8 +877,9 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
         ctx.scale(scale, scale);
         ctx.translate(-scaleCenterX, -scaleCenterY);
 
-        // Draw invite (video draws current animated frame, image draws static)
-        ctx.drawImage(inviteSource, screen.x, screen.y - scrollOffset, screen.w, inviteDrawHeight);
+        // Draw invite (frame player draws current animated frame, image draws static)
+        var drawSource = inviteSource.getCurrentFrame ? inviteSource.getCurrentFrame() : inviteSource;
+        ctx.drawImage(drawSource, screen.x, screen.y - scrollOffset, screen.w, inviteDrawHeight);
         ctx.restore();
       } else if (elapsed >= pauseEnd) {
         // Shimmer loading effect

@@ -1,12 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
-import { readFileSync } from 'fs';
-
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
 
 async function getUser(req) {
   const authHeader = req.headers.authorization;
@@ -111,13 +105,17 @@ export default async function handler(req, res) {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-  const { html, css, config, format, duration, eventId } = req.body;
+  const { html, css, config, format, duration } = req.body;
   if (!html) return res.status(400).json({ error: 'html is required' });
 
   const recordDuration = Math.min(Math.max(duration || 6, 2), 15); // 2-15 seconds
   const viewport = format === 'feed_1x1'
     ? { width: 393, height: 393 }
     : { width: 393, height: 852 }; // Default: phone-shaped for 4:5
+
+  const fps = 8;
+  const totalFrames = Math.ceil(recordDuration * fps);
+  const frameInterval = 1000 / fps; // ~125ms between frames
 
   let browser = null;
   try {
@@ -143,56 +141,36 @@ export default async function handler(req, res) {
     await page.evaluate(() => document.fonts.ready);
     await new Promise(r => setTimeout(r, 500));
 
-    // Record the CSS animations via screencast
-    const recorder = await page.screencast({
-      path: '/tmp/invite-recording.webm',
-      speed: 1
-    });
+    // Capture animation frames via sequential screenshots
+    // CSS animations run in real-time; each screenshot captures the current state
+    const frames = [];
+    const startTime = Date.now();
 
-    // Let animations play for the specified duration
-    await new Promise(r => setTimeout(r, recordDuration * 1000));
-
-    await recorder.stop();
-    await browser.close();
-    browser = null;
-
-    // Read the recorded file
-    const videoBuffer = readFileSync('/tmp/invite-recording.webm');
-
-    // Upload to Supabase Storage
-    const fileName = `ad-videos/${eventId || 'general'}/${Date.now()}.webm`;
-    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-      .from('ad-videos')
-      .upload(fileName, videoBuffer, {
-        contentType: 'video/webm',
-        upsert: true
+    for (let i = 0; i < totalFrames; i++) {
+      const screenshot = await page.screenshot({
+        type: 'jpeg',
+        quality: 65,
+        encoding: 'base64'
       });
+      frames.push(screenshot);
 
-    if (uploadError) {
-      // If bucket doesn't exist, try to create it
-      if (uploadError.message?.includes('not found') || uploadError.statusCode === '404') {
-        await supabaseAdmin.storage.createBucket('ad-videos', { public: true });
-        const { error: retryErr } = await supabaseAdmin.storage
-          .from('ad-videos')
-          .upload(fileName, videoBuffer, { contentType: 'video/webm', upsert: true });
-        if (retryErr) {
-          console.error('[render-video] Upload retry failed:', retryErr.message);
-          return res.status(500).json({ error: 'Failed to upload video' });
+      // Sleep until the next frame time (accounting for screenshot duration)
+      if (i < totalFrames - 1) {
+        const nextFrameTime = startTime + (i + 1) * frameInterval;
+        const sleepMs = Math.max(0, nextFrameTime - Date.now());
+        if (sleepMs > 0) {
+          await new Promise(r => setTimeout(r, sleepMs));
         }
-      } else {
-        console.error('[render-video] Upload failed:', uploadError.message);
-        return res.status(500).json({ error: 'Failed to upload video' });
       }
     }
 
-    // Get public URL
-    const { data: urlData } = supabaseAdmin.storage
-      .from('ad-videos')
-      .getPublicUrl(fileName);
+    await browser.close();
+    browser = null;
 
     return res.status(200).json({
       success: true,
-      videoUrl: urlData.publicUrl,
+      frames,
+      fps,
       duration: recordDuration,
       format: format || 'mobile_4x5'
     });
