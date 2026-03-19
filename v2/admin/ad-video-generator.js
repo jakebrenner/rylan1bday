@@ -92,58 +92,59 @@ const PHONE_SHADOW_OFFSET_Y = 24;
 const PHONE_SHADOW_ALPHA = 0.35;
 
 // ── Format Configs (Facebook-compliant: MP4/H.264, 1440px base) ──
+// Both formats use centered phone layout with prompt typed on phone screen
 const FORMAT_CONFIGS = {
   mobile_4x5: {
     width: 1440,
     height: 1800,
-    logoY: 140,
-    logoSize: 72,
-    promptAreaY: 310,
-    promptAreaHeight: 440,
-    promptFontSize: 54,
-    promptMaxWidth: 1220,
-    promptLineHeight: 78,
-    phoneY: 880,
-    phoneWidth: 640,
-    phoneHeight: 1306,
+    logoY: 70,
+    logoSize: 56,
+    labelFontSize: 26,
+    labelY: 140,
+    // Centered phone (iPhone 15 proportions 393:852)
+    phoneWidth: 620,
+    phoneHeight: 1344,
+    phoneY: 220,
+    // Prompt card drawn ON phone screen
+    promptFontSize: 34,
+    promptLineHeight: 50,
+    promptLabelSize: 20,
     ctaY: 1640,
-    ctaFontSize: 42,
-    labelFontSize: 34,
-    labelY: 245,
-    particleCount: 40
+    ctaFontSize: 38,
+    particleCount: 35
   },
   feed_1x1: {
     width: 1440,
     height: 1440,
-    // Side-by-side layout: logo + prompt on left, phone on right
-    layout: 'side_by_side',
-    logoSize: 58,
-    // Left column: logo + subtitle + prompt card, vertically centered with phone
-    promptAreaX: 40,
-    promptAreaHeight: 500,
-    promptFontSize: 40,
-    promptMaxWidth: 640,
-    promptLineHeight: 58,
-    // Phone on right side (proper iPhone proportions ~393:852)
-    phoneX: 746,
-    phoneY: 66,
-    phoneWidth: 614,
-    phoneHeight: 1280,
+    logoY: 45,
+    logoSize: 46,
+    labelFontSize: 22,
+    labelY: 105,
+    // Centered phone (iPhone 15 proportions)
+    phoneWidth: 490,
+    phoneHeight: 1062,
+    phoneY: 160,
+    // Prompt card drawn ON phone screen
+    promptFontSize: 28,
+    promptLineHeight: 42,
+    promptLabelSize: 16,
     ctaY: 1290,
     ctaFontSize: 32,
-    labelFontSize: 26,
     particleCount: 25
   }
 };
 
 // ── Animation Timing ──
 const CHAR_MS = 35;
-const INTRO_MS = 800;      // longer intro for premium feel
+const INTRO_MS = 800;      // phone slide-in + logo fade
 const POST_TYPE_PAUSE = 600;
+const DISSOLVE_MS = 500;   // prompt card dissolve before shimmer
 const SHIMMER_MS = 1200;
 const REVEAL_MS = 1200;    // scale + fade reveal
-const SCROLL_PX_PER_SEC = 40;
-const MIN_HOLD_MS = 3000;
+const SCROLL_PX_PER_SEC = 100; // scroll speed through invite
+const MAX_SCROLL_MS = 6000; // cap scroll duration
+const HOLD_MS = 2000;      // hold at top of invite
+const END_HOLD_MS = 1500;  // hold at bottom of invite
 const CTA_MS = 1500;
 const FPS = 30;
 const BG_CYCLE_MS = 12000; // slow background color cycle duration
@@ -616,8 +617,8 @@ function drawAnimatedBackground(ctx, w, h, elapsed, thm) {
 }
 
 /**
- * Run the animation on canvas and record to WebM.
- * inviteSource can be an Image (static) or a Video element (live animation).
+ * Run the animation on canvas and record to WebM/MP4.
+ * New flow: Centered phone → prompt typed on phone screen → dissolve → shimmer → invite reveal + scroll → CTA
  */
 function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
   return new Promise(function(resolve, reject) {
@@ -628,27 +629,33 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
 
     const isVideo = !!(inviteSource && inviteSource._isVideoSource);
 
-    // Phone screen dimensions
+    // Phone screen dimensions (inside bezel)
     const screenW = fmt.phoneWidth - (PHONE_BEZEL_WIDTH * 2);
     const screenContentH = fmt.phoneHeight - (PHONE_BEZEL_WIDTH * 2) - 12 - PHONE_NOTCH_HEIGHT - 4;
 
-    // Invite draw dimensions
+    // Invite draw dimensions — scale invite to fill phone screen width
     const inviteNaturalW = isVideo ? inviteSource.videoWidth : inviteSource.naturalWidth;
     const inviteNaturalH = isVideo ? inviteSource.videoHeight : inviteSource.naturalHeight;
     const inviteDrawHeight = (inviteNaturalH / inviteNaturalW) * screenW;
-    // For video sources, no scrolling — the animation IS the content
-    const scrollDistance = isVideo ? 0 : Math.max(0, inviteDrawHeight - screenContentH);
-    const scrollMs = scrollDistance > 0 ? (scrollDistance / SCROLL_PX_PER_SEC) * 1000 : MIN_HOLD_MS;
-    const holdMs = MIN_HOLD_MS;
+    // Both video and static sources scroll through the full invite
+    const scrollDistance = Math.max(0, inviteDrawHeight - screenContentH);
+    const rawScrollMs = scrollDistance > 0 ? (scrollDistance / SCROLL_PX_PER_SEC) * 1000 : 0;
+    const scrollMs = Math.min(rawScrollMs, MAX_SCROLL_MS);
+    const effectiveScrollSpeed = scrollMs > 0 ? scrollDistance / (scrollMs / 1000) : SCROLL_PX_PER_SEC;
 
-    // Total duration
+    // Timeline
     const typingMs = promptText.length * CHAR_MS;
-    const totalMs = INTRO_MS + typingMs + POST_TYPE_PAUSE + SHIMMER_MS + REVEAL_MS + holdMs + scrollMs + MIN_HOLD_MS + CTA_MS;
+    const displayMs = HOLD_MS + (scrollMs || HOLD_MS) + END_HOLD_MS;
+    const totalMs = INTRO_MS + typingMs + POST_TYPE_PAUSE + DISSOLVE_MS + SHIMMER_MS + REVEAL_MS + displayMs + CTA_MS;
 
     // Create particles
     const particles = createParticles(fmt.particleCount || 30, fmt.width, fmt.height);
 
-    // MediaRecorder — prefer MP4/H.264 for Facebook compatibility, fall back to WebM
+    // Phone position (always centered)
+    const phoneX = (fmt.width - fmt.phoneWidth) / 2;
+    const phoneBaseY = fmt.phoneY;
+
+    // MediaRecorder — prefer MP4/H.264, fall back to WebM
     const stream = canvas.captureStream(FPS);
     const mp4Types = ['video/mp4;codecs=avc1', 'video/mp4;codecs=avc1.42E01E', 'video/mp4'];
     const webmTypes = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
@@ -680,74 +687,48 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
 
       ctx.clearRect(0, 0, fmt.width, fmt.height);
 
-      // ── Animated background gradient ──
+      // ── Background + particles ──
       drawAnimatedBackground(ctx, fmt.width, fmt.height, elapsed, thm);
-
-      // ── Floating particles ──
       drawParticles(ctx, particles, elapsed, thm);
 
-      // ── Phase calculations ──
+      // ── Phase boundaries ──
       const introEnd = INTRO_MS;
       const typeEnd = introEnd + typingMs;
       const pauseEnd = typeEnd + POST_TYPE_PAUSE;
-      const shimmerEnd = pauseEnd + SHIMMER_MS;
+      const dissolveEnd = pauseEnd + DISSOLVE_MS;
+      const shimmerEnd = dissolveEnd + SHIMMER_MS;
       const revealEnd = shimmerEnd + REVEAL_MS;
-      const holdEnd = revealEnd + holdMs;
-      const scrollEnd = holdEnd + scrollMs;
-      const finalHoldEnd = scrollEnd + MIN_HOLD_MS;
+      const holdEnd = revealEnd + HOLD_MS;
+      const scrollEnd = holdEnd + (scrollMs || HOLD_MS);
+      const endHoldEnd = scrollEnd + END_HOLD_MS;
 
-      // ── Layout mode ──
-      const isSideBySide = fmt.layout === 'side_by_side';
+      // ── Intro animation (phone slides up, logo fades in) ──
+      const introProgress = Math.min(1, elapsed / INTRO_MS);
+      const introEased = easeOutCubic(introProgress);
+      const phoneSlideY = phoneBaseY + (1 - introEased) * 80;
 
-      // For side-by-side: vertically center the logo + prompt block with the phone
-      // Pre-measure the prompt card height to compute the total left-column height
-      var _preCardH = 0;
-      if (isSideBySide) {
-        ctx.save();
-        ctx.font = fmt.promptFontSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
-        var _preLines = wrapText(ctx, promptText, fmt.promptMaxWidth - 72 - 20);
-        _preCardH = Math.max(50 + _preLines.length * fmt.promptLineHeight + 40 + 20, fmt.promptAreaHeight || 200);
-        ctx.restore();
-      }
-
-      // Left-column content block: logo (~logoSize) + gap + subtitle (~labelFontSize) + gap + card
-      var logoBlockH = isSideBySide ? (fmt.logoSize + 20 + fmt.labelFontSize + 30 + _preCardH) : 0;
-      var phoneCenterY = isSideBySide ? (fmt.phoneY + fmt.phoneHeight / 2) : 0;
-      var leftBlockStartY = isSideBySide ? (phoneCenterY - logoBlockH / 2) : 0;
-
-      var logoX = isSideBySide ? fmt.promptAreaX + fmt.promptMaxWidth / 2 : fmt.width / 2;
-      var logoYPos = isSideBySide ? leftBlockStartY : fmt.logoY;
-      var labelYPos = isSideBySide ? (leftBlockStartY + fmt.logoSize + 20) : fmt.labelY;
-      var promptCardYPos = isSideBySide ? (labelYPos + fmt.labelFontSize + 30) : (fmt.promptAreaY - 10);
-
-      // ── Ryvite Logo (SVG icon + text, fades in + slides down) ──
-      const logoProgress = Math.min(1, elapsed / INTRO_MS);
-      const logoEased = easeOutCubic(logoProgress);
+      // ── Logo + subtitle (above phone) ──
       ctx.save();
-      ctx.globalAlpha = logoEased;
-
-      var logoSlide = -20 + logoEased * 20;
-      var iconSize = fmt.logoSize * 1.1; // icon circle diameter
+      ctx.globalAlpha = introEased;
+      var logoSlide = -15 + introEased * 15;
+      var logoX = fmt.width / 2;
+      var iconSize = fmt.logoSize * 1.1;
       var textSize = fmt.logoSize;
       ctx.font = '600 ' + textSize + 'px "Playfair Display", "Georgia", serif';
       var textW = ctx.measureText('Ryvite').width;
-      var iconW = iconSize + 12; // icon width + gap
+      var iconW = iconSize + 12;
       var totalLogoW = iconW + textW;
       var logoStartX = logoX - totalLogoW / 2;
 
-      // ── Envelope icon (circle + checkmark + line) ──
+      // Envelope icon
       var iconCx = logoStartX + iconSize / 2;
-      var iconCy = logoYPos + logoSlide - textSize * 0.25;
+      var iconCy = fmt.logoY + logoSlide - textSize * 0.25;
       var iconR = iconSize / 2;
-
-      // Circle
       ctx.beginPath();
       ctx.arc(iconCx, iconCy, iconR, 0, Math.PI * 2);
       ctx.strokeStyle = thm.logoColor;
       ctx.lineWidth = 2.5;
       ctx.stroke();
-
-      // Checkmark/envelope flap (V shape)
       ctx.beginPath();
       ctx.moveTo(iconCx - iconR * 0.58, iconCy - iconR * 0.35);
       ctx.lineTo(iconCx, iconCy + iconR * 0.1);
@@ -757,8 +738,6 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.stroke();
-
-      // Bottom line
       ctx.beginPath();
       ctx.moveTo(iconCx - iconR * 0.58, iconCy + iconR * 0.42);
       ctx.lineTo(iconCx + iconR * 0.58, iconCy + iconR * 0.42);
@@ -767,205 +746,188 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
       ctx.lineCap = 'round';
       ctx.stroke();
 
-      // ── "Ryvite" text ──
       ctx.font = '600 ' + textSize + 'px "Playfair Display", "Georgia", serif';
       ctx.fillStyle = thm.logoColor;
       ctx.textAlign = 'left';
-      ctx.fillText('Ryvite', logoStartX + iconW, logoYPos + logoSlide);
+      ctx.fillText('Ryvite', logoStartX + iconW, fmt.logoY + logoSlide);
 
-      // Subtitle
       ctx.font = fmt.labelFontSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
       ctx.fillStyle = thm.subtextColor;
       ctx.textAlign = 'center';
-      ctx.fillText('AI-Powered Event Invitations', logoX, labelYPos - 15 + logoEased * 15);
+      ctx.fillText('AI-Powered Event Invitations', logoX, fmt.labelY - 10 + introEased * 10);
       ctx.restore();
 
-      // ── Prompt Card (white rounded card matching homepage .demo-chat-bubble) ──
-      if (elapsed > INTRO_MS * 0.5) {
-        const typeElapsed = Math.max(0, elapsed - introEnd);
-        const charCount = Math.min(promptText.length, Math.floor(typeElapsed / CHAR_MS));
-        const displayText = promptText.substring(0, charCount);
-
-        // Prompt card position
-        const cardX = isSideBySide ? (fmt.promptAreaX || 30) : (fmt.width - fmt.promptMaxWidth) / 2;
-        const cardW = fmt.promptMaxWidth;
-        const cardPadX = 36;
-        const cardPadTop = 80;
-        const cardPadBottom = 40;
-        const cardRadius = 24;
-
-        // Measure text height for card sizing
-        ctx.save();
-        ctx.font = fmt.promptFontSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
-        const allLines = wrapText(ctx, promptText, cardW - cardPadX * 2 - 20);
-        const textBlockH = allLines.length * fmt.promptLineHeight;
-        ctx.restore();
-
-        const cardH = Math.max(cardPadTop + textBlockH + cardPadBottom + 20, fmt.promptAreaHeight || 200);
-        const cardY = promptCardYPos;
-
-        // Card fade-in
-        const cardAlpha = Math.min(1, (elapsed - INTRO_MS * 0.5) / 400);
-
-        ctx.save();
-        ctx.globalAlpha = cardAlpha;
-
-        // Card shadow
-        ctx.shadowColor = 'rgba(0,0,0,0.08)';
-        ctx.shadowBlur = 24;
-        ctx.shadowOffsetY = 4;
-        roundRect(ctx, cardX, cardY, cardW, cardH, cardRadius);
-        ctx.fillStyle = '#ffffff';
-        ctx.fill();
-        ctx.shadowColor = 'transparent';
-
-        // Subtle border
-        roundRect(ctx, cardX, cardY, cardW, cardH, cardRadius);
-        ctx.strokeStyle = 'rgba(0,0,0,0.06)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        // "YOUR PROMPT" header label
-        ctx.font = '700 ' + Math.round(fmt.promptFontSize * 0.42) + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
-        ctx.fillStyle = '#E94560';
-        ctx.textAlign = 'center';
-        ctx.letterSpacing = '1.5px';
-        ctx.fillText('YOUR PROMPT', cardX + cardW / 2, cardY + 36);
-        ctx.letterSpacing = '0px';
-
-        // Prompt text (centered, dark color)
-        if (displayText.length > 0) {
-          ctx.font = fmt.promptFontSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
-          ctx.fillStyle = '#1a1a2e';
-          ctx.textAlign = 'center';
-
-          const lines = wrapText(ctx, displayText, cardW - cardPadX * 2);
-          const textStartY = cardY + cardPadTop + 16;
-          lines.forEach(function(line, i) {
-            ctx.fillText(line, cardX + cardW / 2, textStartY + i * fmt.promptLineHeight);
-          });
-
-          // Blinking cursor (coral colored, matching homepage)
-          const cursorBlink = Math.sin(elapsed / 400 * Math.PI) > 0;
-          if (charCount < promptText.length || (elapsed < pauseEnd && cursorBlink)) {
-            const lastLine = lines[lines.length - 1] || '';
-            const lastLineW = ctx.measureText(lastLine).width;
-            const cursorX = cardX + cardW / 2 + lastLineW / 2 + 4;
-            const cursorY = textStartY + (lines.length - 1) * fmt.promptLineHeight;
-
-            ctx.fillStyle = '#E94560';
-            ctx.fillRect(cursorX, cursorY - fmt.promptFontSize + 6, 2.5, fmt.promptFontSize - 2);
-          }
-        }
-
-        ctx.restore();
-      }
-
-      // ── Premium Phone Mockup ──
-      // For side-by-side layout, phone is positioned on the right; for vertical, centered
-      const phoneX = isSideBySide ? (fmt.phoneX || 580) : (fmt.width - fmt.phoneWidth) / 2;
-      const phoneY = fmt.phoneY;
-
-      // Phone glow effect during/after reveal
+      // ── Phone glow (during/after reveal) ──
       if (elapsed >= shimmerEnd) {
         var glowIntensity = 0;
         if (elapsed < revealEnd) {
           glowIntensity = easeOutCubic((elapsed - shimmerEnd) / REVEAL_MS) * 0.6;
         } else {
-          // Subtle pulsing glow after reveal
           glowIntensity = 0.15 + 0.1 * Math.sin(elapsed / 2000 * Math.PI);
         }
         ctx.save();
         ctx.shadowColor = thm.accentColor;
         ctx.shadowBlur = 60;
         ctx.globalAlpha = glowIntensity;
-        roundRect(ctx, phoneX + 4, phoneY + 4, fmt.phoneWidth - 8, fmt.phoneHeight - 8, PHONE_FRAME_RADIUS - 2);
+        roundRect(ctx, phoneX + 4, phoneSlideY + 4, fmt.phoneWidth - 8, fmt.phoneHeight - 8, PHONE_FRAME_RADIUS - 2);
         ctx.fillStyle = thm.accentColor;
         ctx.fill();
         ctx.restore();
       }
 
-      // Draw the phone frame (always realistic metallic look)
-      var screen = drawPhoneFrame(ctx, phoneX, phoneY, fmt.phoneWidth, fmt.phoneHeight, elapsed);
+      // ── Phone frame (always drawn) ──
+      var screen = drawPhoneFrame(ctx, phoneX, phoneSlideY, fmt.phoneWidth, fmt.phoneHeight, elapsed);
 
       // ── Phone screen content ──
-      if (elapsed >= shimmerEnd) {
-        // ── Invite reveal with scale + fade ──
-        const revealProgress = Math.min(1, (elapsed - shimmerEnd) / REVEAL_MS);
-        const eased = easeOutCubic(revealProgress);
+      if (elapsed < dissolveEnd) {
+        // ═══ PROMPT CARD ON PHONE SCREEN ═══
+        var promptAlpha = 1;
+        if (elapsed >= pauseEnd) {
+          // Dissolving out
+          promptAlpha = 1 - easeOutCubic((elapsed - pauseEnd) / DISSOLVE_MS);
+        } else if (elapsed < introEnd) {
+          // Fading in with phone
+          promptAlpha = introEased;
+        }
 
-        // Scroll offset
-        let scrollOffset = 0;
+        if (promptAlpha > 0.01) {
+          ctx.save();
+          roundRect(ctx, screen.screenX, screen.screenY, screen.screenW, screen.screenH, screen.screenRadius);
+          ctx.clip();
+          ctx.globalAlpha = promptAlpha;
+
+          // Subtle app-like background on phone screen
+          var appBg = ctx.createLinearGradient(screen.x, screen.y, screen.x, screen.y + screen.h);
+          appBg.addColorStop(0, '#f8f8fa');
+          appBg.addColorStop(1, '#eeeef2');
+          ctx.fillStyle = appBg;
+          ctx.fillRect(screen.screenX, screen.screenY, screen.screenW, screen.screenH);
+
+          // Prompt card dimensions (centered in phone screen)
+          var cardPadSide = 24;
+          var cardX = screen.x + cardPadSide;
+          var cardW = screen.w - cardPadSide * 2;
+          var cardPadTop = 50;
+          var cardPadBottom = 30;
+          var cardRadius = 18;
+
+          // Measure full text to size the card
+          ctx.font = fmt.promptFontSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
+          var allLines = wrapText(ctx, promptText, cardW - 40);
+          var textBlockH = allLines.length * fmt.promptLineHeight;
+          var cardH = cardPadTop + textBlockH + cardPadBottom;
+
+          // Center card vertically on screen
+          var cardY = screen.y + (screen.h - cardH) / 2 - 20;
+
+          // White card with shadow
+          ctx.shadowColor = 'rgba(0,0,0,0.1)';
+          ctx.shadowBlur = 16;
+          ctx.shadowOffsetY = 4;
+          roundRect(ctx, cardX, cardY, cardW, cardH, cardRadius);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+          ctx.shadowColor = 'transparent';
+
+          // Subtle border
+          roundRect(ctx, cardX, cardY, cardW, cardH, cardRadius);
+          ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          // "YOUR PROMPT" label
+          ctx.font = '700 ' + (fmt.promptLabelSize || 20) + 'px "Inter", sans-serif';
+          ctx.fillStyle = '#E94560';
+          ctx.textAlign = 'center';
+          ctx.fillText('YOUR PROMPT', cardX + cardW / 2, cardY + 32);
+
+          // Typed text
+          var typeElapsed = Math.max(0, elapsed - introEnd);
+          var charCount = Math.min(promptText.length, Math.floor(typeElapsed / CHAR_MS));
+          var displayText = promptText.substring(0, charCount);
+
+          if (displayText.length > 0) {
+            ctx.font = fmt.promptFontSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
+            ctx.fillStyle = '#1a1a2e';
+            ctx.textAlign = 'center';
+
+            var lines = wrapText(ctx, displayText, cardW - 40);
+            var textStartY = cardY + cardPadTop + 10;
+            lines.forEach(function(line, i) {
+              ctx.fillText(line, cardX + cardW / 2, textStartY + i * fmt.promptLineHeight);
+            });
+
+            // Blinking cursor
+            var cursorBlink = Math.sin(elapsed / 400 * Math.PI) > 0;
+            if (charCount < promptText.length || (elapsed < pauseEnd && cursorBlink)) {
+              var lastLine = lines[lines.length - 1] || '';
+              var lastLineW = ctx.measureText(lastLine).width;
+              var cursorX = cardX + cardW / 2 + lastLineW / 2 + 4;
+              var cursorY = textStartY + (lines.length - 1) * fmt.promptLineHeight;
+              ctx.fillStyle = '#E94560';
+              ctx.fillRect(cursorX, cursorY - fmt.promptFontSize + 6, 2, fmt.promptFontSize - 4);
+            }
+          }
+
+          ctx.restore();
+        }
+      } else if (elapsed < shimmerEnd) {
+        // ═══ SHIMMER / AI GENERATION EFFECT ═══
+        ctx.save();
+        roundRect(ctx, screen.screenX, screen.screenY, screen.screenW, screen.screenH, screen.screenRadius);
+        ctx.clip();
+        var shimmerProgress = (elapsed - dissolveEnd) / SHIMMER_MS;
+        drawShimmer(ctx, screen.x, screen.y, screen.w, screen.h, shimmerProgress, thm);
+        ctx.restore();
+      } else {
+        // ═══ INVITE REVEAL + SCROLL ═══
+        var revealProgress = Math.min(1, (elapsed - shimmerEnd) / REVEAL_MS);
+        var eased = easeOutCubic(revealProgress);
+
+        // Scroll offset (works for both video and static sources)
+        var scrollOffset = 0;
         if (elapsed >= holdEnd && scrollDistance > 0) {
           if (elapsed < scrollEnd) {
-            scrollOffset = easeInOutCubic((elapsed - holdEnd) / scrollMs) * scrollDistance;
+            scrollOffset = easeInOutCubic((elapsed - holdEnd) / (scrollMs || 1)) * scrollDistance;
           } else {
             scrollOffset = scrollDistance;
           }
         }
 
-        // Scale from 0.92 to 1.0 during reveal
-        const scale = 0.92 + eased * 0.08;
-        const revealAlpha = eased;
+        // Scale from 0.92 → 1.0 during reveal
+        var scale = 0.92 + eased * 0.08;
+        var revealAlpha = eased;
 
         ctx.save();
-        // Clip to screen area
         roundRect(ctx, screen.screenX, screen.screenY, screen.screenW, screen.screenH, screen.screenRadius);
         ctx.clip();
-
         ctx.globalAlpha = revealAlpha;
 
-        // Apply scale from center of screen
+        // Scale from center of screen
         var scaleCenterX = screen.x + screen.w / 2;
         var scaleCenterY = screen.y + screen.h / 2;
         ctx.translate(scaleCenterX, scaleCenterY);
         ctx.scale(scale, scale);
         ctx.translate(-scaleCenterX, -scaleCenterY);
 
-        // Draw invite (frame player draws current animated frame, image draws static)
+        // Draw invite (video frame or static image)
         var drawSource = inviteSource.getCurrentFrame ? inviteSource.getCurrentFrame() : inviteSource;
         ctx.drawImage(drawSource, screen.x, screen.y - scrollOffset, screen.w, inviteDrawHeight);
-        ctx.restore();
-      } else if (elapsed >= pauseEnd) {
-        // Shimmer loading effect
-        ctx.save();
-        roundRect(ctx, screen.screenX, screen.screenY, screen.screenW, screen.screenH, screen.screenRadius);
-        ctx.clip();
-        var shimmerProgress = (elapsed - pauseEnd) / SHIMMER_MS;
-        drawShimmer(ctx, screen.x, screen.y, screen.w, screen.h, shimmerProgress, thm);
-        ctx.restore();
-      } else {
-        // Empty screen with loading dots
-        ctx.save();
-        roundRect(ctx, screen.screenX, screen.screenY, screen.screenW, screen.screenH, screen.screenRadius);
-        ctx.clip();
-        if (elapsed > introEnd) {
-          var dotAlpha = 0.3 + 0.2 * Math.sin(elapsed / 500 * Math.PI);
-          ctx.globalAlpha = dotAlpha;
-          for (var i = 0; i < 3; i++) {
-            ctx.beginPath();
-            ctx.arc(screen.x + screen.w / 2 - 30 + i * 30, screen.y + screen.h / 2, 5, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(200,200,210,0.7)';
-            ctx.fill();
-          }
-        }
         ctx.restore();
       }
 
       // ── CTA ──
-      if (elapsed >= finalHoldEnd) {
-        var ctaProgress = Math.min(1, (elapsed - finalHoldEnd) / CTA_MS);
+      if (elapsed >= endHoldEnd) {
+        var ctaProgress = Math.min(1, (elapsed - endHoldEnd) / CTA_MS);
         var ctaEased = easeOutCubic(ctaProgress);
 
         ctx.save();
         ctx.globalAlpha = ctaEased;
 
-        // CTA button with subtle shadow
         var ctaW = Math.min(460, fmt.width * 0.44);
         var ctaH = 64;
         var ctaX = (fmt.width - ctaW) / 2;
 
-        // Button shadow
         ctx.shadowColor = 'rgba(233,69,96,0.4)';
         ctx.shadowBlur = 20;
         ctx.shadowOffsetY = 6;
@@ -987,14 +949,15 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
         ctx.restore();
       }
 
-      // Progress reporting
+      // ── Progress ──
       var progress = 20 + Math.min(75, (elapsed / totalMs) * 75);
       var phase = 'Processing...';
-      if (elapsed < typeEnd) phase = 'Typing...';
-      else if (elapsed < shimmerEnd) phase = 'Generating...';
-      else if (elapsed < revealEnd) phase = 'Revealing...';
+      if (elapsed < typeEnd) phase = 'Typing prompt...';
+      else if (elapsed < dissolveEnd) phase = 'Transitioning...';
+      else if (elapsed < shimmerEnd) phase = 'AI generating...';
+      else if (elapsed < revealEnd) phase = 'Revealing invite...';
       else if (elapsed < scrollEnd && scrollDistance > 0) phase = 'Scrolling invite...';
-      else if (elapsed < finalHoldEnd) phase = 'Finishing...';
+      else if (elapsed < endHoldEnd) phase = 'Finishing...';
       else phase = 'Rendering CTA...';
       onProgress(progress, phase);
 

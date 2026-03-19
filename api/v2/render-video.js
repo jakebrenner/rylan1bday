@@ -166,8 +166,9 @@ export default async function handler(req, res) {
     for (let i = 0; i < totalFrames; i++) {
       const screenshot = await page.screenshot({
         type: 'jpeg',
-        quality: 55,
-        encoding: 'base64'
+        quality: 50,
+        encoding: 'base64',
+        fullPage: true
       });
 
       // Stream each frame as it's captured
