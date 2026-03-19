@@ -105,6 +105,10 @@
     },
     "api/v2/user-notification.js": {
       "maxDuration": 30
+    },
+    "api/v2/render-video.js": {
+      "maxDuration": 120,
+      "memory": 1024
     }
   },
   "redirects": [

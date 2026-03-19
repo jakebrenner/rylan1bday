@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import Anthropic from '@anthropic-ai/sdk';
+import { Resend } from 'resend';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -836,6 +837,65 @@ export default async function handler(req, res) {
       await supabaseAdmin
         .from('app_config')
         .upsert({ key: 'admin_emails', value: currentList.join(','), updated_by: admin.id, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+
+      // Send branded invitation email via Resend
+      const origin = req.headers.origin;
+      const baseUrl = origin || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://ryvite.com');
+      const adminUrl = `${baseUrl}/v2/admin/`;
+      const signupUrl = `${baseUrl}/v2/login/?redirect=/v2/admin/`;
+
+      // Get inviter's display name
+      const { data: inviterProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('display_name, email')
+        .eq('id', admin.id)
+        .single();
+      const inviterName = inviterProfile?.display_name || inviterProfile?.email || 'A team member';
+
+      try {
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+          from: 'Ryvite <noreply@ryvite.com>',
+          to: newEmail,
+          subject: `${inviterName} invited you to the Ryvite admin team`,
+          html: `
+            <div style="font-family: 'Inter', Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; background: #FFFAF5; border-radius: 16px;">
+              <div style="text-align: center; margin-bottom: 24px;">
+                <span style="font-family: 'Playfair Display', Georgia, serif; font-size: 28px; font-weight: 700; color: #1A1A2E;">Ryvite</span>
+              </div>
+              <div style="background: white; border-radius: 12px; padding: 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                <h2 style="font-size: 20px; color: #1A1A2E; margin: 0 0 16px;">You've been invited to join the team!</h2>
+                <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 0 0 16px;">
+                  <strong>${inviterName}</strong> has added you as an <strong>Admin</strong> on Ryvite — the AI-powered invitation platform.
+                </p>
+                <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
+                  As an admin, you'll have access to the full dashboard: user management, AI prompt tuning, generation analytics, marketing tools, and more.
+                </p>
+                <div style="background: #f8f4f0; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                  <div style="font-size: 14px; color: #1A1A2E; font-weight: 600; margin-bottom: 8px;">Getting started:</div>
+                  <div style="font-size: 13px; color: #666; line-height: 1.6;">
+                    1. Click the button below to create your account<br>
+                    2. Sign in with <strong>${newEmail}</strong><br>
+                    3. You'll be redirected to the admin dashboard
+                  </div>
+                </div>
+                <div style="text-align: center; margin-bottom: 16px;">
+                  <a href="${signupUrl}" style="display: inline-block; background: #E94560; color: white; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px; text-decoration: none;">Create Your Admin Account</a>
+                </div>
+                <p style="color: #999; font-size: 12px; text-align: center; margin: 0;">
+                  Already have a Ryvite account? <a href="${adminUrl}" style="color: #E94560;">Go to Admin Dashboard</a>
+                </p>
+              </div>
+              <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 20px;">
+                Ryvite &mdash; Prompt to Party
+              </p>
+            </div>
+          `
+        });
+      } catch (emailErr) {
+        console.error('Failed to send admin invitation email:', emailErr);
+        // Don't fail the request — the admin was still added
+      }
 
       return res.status(200).json({ success: true });
     }

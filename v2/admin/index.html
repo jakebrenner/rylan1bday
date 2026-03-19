@@ -553,6 +553,8 @@
       <div class="sidebar-group">
         <div class="sidebar-group-label">Users &amp; Revenue</div>
         <button class="sidebar-item" data-tab="users" onclick="switchTab('users')">Users</button>
+        <button class="sidebar-item" data-tab="team" onclick="switchTab('team');loadAdmins();">Admin Team</button>
+        <button class="sidebar-item" data-tab="subscriptions" onclick="switchTab('subscriptions');loadBillingTab();">Billing</button>
         <button class="sidebar-item" data-tab="coupons" onclick="switchTab('coupons');loadCoupons();">Coupons</button>
         <button class="sidebar-item" data-tab="notifications" onclick="switchTab('notifications');loadAdminNotifPrefs();">Notifications</button>
       </div>
@@ -563,6 +565,10 @@
         <button class="sidebar-item" data-tab="promptlab" onclick="switchTab('promptlab')">Prompt Lab</button>
         <button class="sidebar-item" data-tab="stylelibrary" onclick="switchTab('stylelibrary')">Generations</button>
         <button class="sidebar-item" data-tab="quality" onclick="switchTab('quality');loadQualityDashboard();">Quality</button>
+      </div>
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">Marketing</div>
+        <button class="sidebar-item" data-tab="marketing" onclick="switchTab('marketing');loadMarketingTab();">Ad Dashboard</button>
       </div>
       <div class="sidebar-group">
         <div class="sidebar-group-label">Blog</div>
@@ -1070,13 +1076,21 @@
         <div id="costEstimationTable" style="font-size:13px;color:#888;">Loading...</div>
       </div>
 
+    </div>
+
+    <!-- Team Tab -->
+    <div class="tab-content" id="tab-team">
       <div class="config-section">
-        <h3>Admin Access</h3>
-        <p style="font-size:13px;color:#888;margin-bottom:16px;">Manage who can access this admin dashboard. The founder always has access.</p>
-        <div id="adminList" style="margin-bottom:16px;"></div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input type="email" id="newAdminEmail" placeholder="email@example.com" style="flex:1;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
-          <button class="btn btn-primary" onclick="addAdmin()">Add Admin</button>
+        <h3>Admin Team</h3>
+        <p style="font-size:13px;color:#888;margin-bottom:20px;">Manage who can access this admin dashboard. Admins have full access to all features. The founder always has access and cannot be removed.</p>
+        <div id="adminList" style="margin-bottom:20px;"></div>
+        <div style="background:#f9f9f9;border-radius:8px;padding:16px;">
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px;">Add New Admin</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="email" id="newAdminEmail" placeholder="email@example.com" style="flex:1;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;background:white;">
+            <button class="btn btn-primary" onclick="addAdmin()">Send Invite</button>
+          </div>
+          <p style="font-size:12px;color:#aaa;margin-top:8px;margin-bottom:0;">They'll receive a branded email with a link to create their account and access the admin dashboard.</p>
         </div>
       </div>
     </div>
@@ -1370,7 +1384,7 @@
                 <div class="phone-frame">
                   <div class="phone-notch"></div>
                   <div class="phone-screen">
-                    <iframe id="testPreviewFrame" sandbox="allow-scripts"></iframe>
+                    <iframe id="testPreviewFrame" sandbox="allow-scripts allow-same-origin"></iframe>
                   </div>
                   <div class="phone-home-bar"></div>
                 </div>
@@ -1670,7 +1684,7 @@
         <textarea id="styleHtml" rows="15" placeholder="Paste complete HTML of an invite sample here..." style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:monospace;font-size:12px;line-height:1.5;resize:vertical;"></textarea>
         <div id="stylePreviewContainer" style="display:none;margin-top:8px;">
           <div class="preview-frame">
-            <iframe id="stylePreviewFrame" sandbox="allow-scripts" style="width:393px;height:700px;border:none;display:block;margin:0 auto;"></iframe>
+            <iframe id="stylePreviewFrame" sandbox="allow-scripts allow-same-origin" style="width:393px;height:700px;border:none;display:block;margin:0 auto;"></iframe>
           </div>
         </div>
       </div>
@@ -2143,6 +2157,208 @@
         <div style="max-width:900px;margin:40px auto;background:#fff;border-radius:12px;padding:28px;position:relative;">
           <button onclick="document.getElementById('qualityDetailModal').style.display='none'" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:24px;cursor:pointer;">&times;</button>
           <div id="qualityDetailContent">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================== MARKETING TAB ======================== -->
+    <div class="tab-content" id="tab-marketing">
+      <!-- Sub-navigation -->
+      <div class="archive-nav" id="marketingNav">
+        <button class="archive-nav-btn active" data-view="mktCreatives" onclick="switchMarketingView('mktCreatives')">Ad Creatives</button>
+        <button class="archive-nav-btn" data-view="mktCampaigns" onclick="switchMarketingView('mktCampaigns')">Campaigns</button>
+        <button class="archive-nav-btn" data-view="mktLeaderboard" onclick="switchMarketingView('mktLeaderboard')">Leaderboard</button>
+        <button class="archive-nav-btn" data-view="mktSuggestions" onclick="switchMarketingView('mktSuggestions')">AI Suggestions</button>
+        <button class="archive-nav-btn" data-view="mktSettings" onclick="switchMarketingView('mktSettings')">FB Settings</button>
+      </div>
+
+      <!-- Ad Creatives View -->
+      <div id="mktCreatives" class="mkt-view">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <h3 style="margin:0;">Ad Creatives</h3>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-primary" onclick="openNewAdPicker()" style="font-size:13px;">+ Generate New</button>
+            <select id="mktFilterCampaign" onchange="loadAdCreatives()" style="padding:6px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
+              <option value="">All Campaigns</option>
+            </select>
+            <select id="mktFilterFormat" onchange="loadAdCreatives()" style="padding:6px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
+              <option value="">All Formats</option>
+              <option value="mobile_4x5">Mobile (4:5)</option>
+              <option value="feed_1x1">Feed (1:1)</option>
+            </select>
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table id="mktCreativeTable" style="width:100%;font-size:13px;border-collapse:collapse;">
+            <thead>
+              <tr style="border-bottom:2px solid #eee;text-align:left;">
+                <th style="padding:8px 12px;">Date</th>
+                <th style="padding:8px 12px;">Campaign</th>
+                <th style="padding:8px 12px;">Label</th>
+                <th style="padding:8px 12px;">Format</th>
+                <th style="padding:8px 12px;">Theme</th>
+                <th style="padding:8px 12px;">Event Type</th>
+                <th style="padding:8px 12px;">Prompt</th>
+                <th style="padding:8px 12px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="mktCreativeBody"></tbody>
+          </table>
+        </div>
+        <div id="mktCreativeEmpty" style="display:none;text-align:center;padding:60px 20px;color:#888;">
+          <div style="font-size:48px;margin-bottom:16px;">🎬</div>
+          <h3 style="color:#555;margin-bottom:8px;">No ad creatives yet</h3>
+          <p style="font-size:14px;">Generate your first ad video from the Generations tab — click the "Generate Ad" button on any invite.</p>
+        </div>
+      </div>
+
+      <!-- Creative Detail Modal -->
+      <div id="creativeDetailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10001;display:none;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:16px;max-width:800px;width:95%;max-height:90vh;overflow-y:auto;padding:28px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="margin:0;">Creative Detail</h3>
+            <button onclick="closeCreativeDetail()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">&times;</button>
+          </div>
+          <div style="display:flex;gap:24px;flex-wrap:wrap;">
+            <!-- Invite Preview -->
+            <div style="flex:0 0 200px;">
+              <div style="background:linear-gradient(145deg,#2a2a2e,#1a1a1e);border-radius:20px;padding:4px;box-shadow:0 12px 32px rgba(0,0,0,0.2);">
+                <div style="background:#fff;border-radius:17px;overflow:hidden;aspect-ratio:393/852;">
+                  <iframe id="creativeDetailPreview" sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:17px;transform-origin:top left;pointer-events:none;"></iframe>
+                </div>
+              </div>
+            </div>
+            <!-- Metadata -->
+            <div style="flex:1;min-width:280px;">
+              <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:16px;">
+                <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 0;color:#888;width:100px;">Campaign</td><td style="padding:8px 0;font-weight:600;" id="cdCampaign"></td></tr>
+                <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 0;color:#888;">Label</td><td style="padding:8px 0;" id="cdLabel"></td></tr>
+                <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 0;color:#888;">Creative ID</td><td style="padding:8px 0;font-family:monospace;font-size:12px;" id="cdCreativeId"></td></tr>
+                <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 0;color:#888;">Format</td><td style="padding:8px 0;" id="cdFormat"></td></tr>
+                <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 0;color:#888;">Theme</td><td style="padding:8px 0;" id="cdTheme"></td></tr>
+                <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 0;color:#888;">Event Type</td><td style="padding:8px 0;" id="cdEventType"></td></tr>
+                <tr><td style="padding:8px 0;color:#888;">Created</td><td style="padding:8px 0;" id="cdCreatedAt"></td></tr>
+              </table>
+
+              <div style="margin-bottom:16px;">
+                <label style="display:block;font-size:11px;font-weight:600;color:#888;margin-bottom:4px;">Prompt Text</label>
+                <div id="cdPromptText" style="background:#f8f8fc;border-radius:8px;padding:12px;font-size:13px;max-height:80px;overflow-y:auto;"></div>
+                <button class="btn btn-secondary" onclick="copyToClipboard(document.getElementById('cdPromptText').textContent)" style="margin-top:6px;font-size:11px;padding:4px 10px;">Copy Prompt</button>
+              </div>
+
+              <div style="margin-bottom:16px;">
+                <label style="display:block;font-size:11px;font-weight:600;color:#888;margin-bottom:4px;">UTM Link</label>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <input type="text" id="cdUtmLink" readonly style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:11px;font-family:monospace;background:#f8f8fc;">
+                  <button class="btn btn-secondary" onclick="copyToClipboard(document.getElementById('cdUtmLink').value)" style="font-size:11px;padding:4px 10px;white-space:nowrap;">Copy</button>
+                </div>
+              </div>
+
+              <div style="margin-bottom:16px;">
+                <label style="display:block;font-size:11px;font-weight:600;color:#888;margin-bottom:6px;">UTM Parameters</label>
+                <table style="width:100%;font-size:11px;border-collapse:collapse;">
+                  <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:4px 0;color:#888;font-family:monospace;">utm_source</td><td style="padding:4px 0;" id="cdUtmSource"></td></tr>
+                  <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:4px 0;color:#888;font-family:monospace;">utm_medium</td><td style="padding:4px 0;" id="cdUtmMedium"></td></tr>
+                  <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:4px 0;color:#888;font-family:monospace;">utm_campaign</td><td style="padding:4px 0;" id="cdUtmCampaign"></td></tr>
+                  <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:4px 0;color:#888;font-family:monospace;">utm_content</td><td style="padding:4px 0;" id="cdUtmContent"></td></tr>
+                  <tr><td style="padding:4px 0;color:#888;font-family:monospace;">utm_term</td><td style="padding:4px 0;" id="cdUtmTerm"></td></tr>
+                </table>
+              </div>
+
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn btn-primary" onclick="regenFromDetail()" style="font-size:13px;">Re-generate Video</button>
+                <button class="btn btn-secondary" onclick="deleteFromDetail()" style="font-size:13px;color:#ef4444;">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Campaigns View -->
+      <div id="mktCampaigns" class="mkt-view" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <h3 style="margin:0;">Campaign Performance</h3>
+          <button class="btn btn-secondary" onclick="syncFbData()" id="mktSyncBtn" style="font-size:13px;">
+            Sync Facebook Data
+          </button>
+        </div>
+        <!-- KPI Cards -->
+        <div id="mktKpiCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;"></div>
+        <!-- Campaign Table -->
+        <div style="overflow-x:auto;">
+          <table id="mktCampaignTable" style="width:100%;font-size:13px;border-collapse:collapse;">
+            <thead>
+              <tr style="border-bottom:2px solid #eee;text-align:left;">
+                <th style="padding:8px 12px;">Campaign</th>
+                <th style="padding:8px 12px;">Creatives</th>
+                <th style="padding:8px 12px;">Impressions</th>
+                <th style="padding:8px 12px;">Clicks</th>
+                <th style="padding:8px 12px;">CTR</th>
+                <th style="padding:8px 12px;">Spend</th>
+                <th style="padding:8px 12px;">Signups</th>
+                <th style="padding:8px 12px;">Published</th>
+                <th style="padding:8px 12px;">CPA</th>
+              </tr>
+            </thead>
+            <tbody id="mktCampaignBody"></tbody>
+          </table>
+        </div>
+        <div id="mktCampaignEmpty" style="display:none;text-align:center;padding:40px;color:#888;">No campaign data yet</div>
+      </div>
+
+      <!-- Leaderboard View -->
+      <div id="mktLeaderboard" class="mkt-view" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <h3 style="margin:0;">Creative Leaderboard</h3>
+          <select id="mktLeaderboardSort" onchange="renderLeaderboard()" style="padding:6px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
+            <option value="signups">By Signups</option>
+            <option value="cpa">By CPA (lowest)</option>
+            <option value="ctr">By CTR (highest)</option>
+            <option value="events_published">By Publishes</option>
+          </select>
+        </div>
+        <div id="mktLeaderboardList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div id="mktLeaderboardEmpty" style="display:none;text-align:center;padding:40px;color:#888;">Generate ad creatives and sync Facebook data to see the leaderboard</div>
+      </div>
+
+      <!-- AI Suggestions View -->
+      <div id="mktSuggestions" class="mkt-view" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <h3 style="margin:0;">AI Ad Suggestions</h3>
+          <button class="btn btn-primary" onclick="generateAdSuggestions()" id="mktSuggestBtn">Get AI Suggestions</button>
+        </div>
+        <div id="mktSuggestionsList" style="display:flex;flex-direction:column;gap:12px;"></div>
+        <div id="mktSuggestionsEmpty" style="display:none;text-align:center;padding:60px 20px;color:#888;">
+          <div style="font-size:48px;margin-bottom:16px;">🤖</div>
+          <h3 style="color:#555;margin-bottom:8px;">AI-Powered Ad Recommendations</h3>
+          <p style="font-size:14px;">Click "Get AI Suggestions" to analyze your ad performance and get recommendations for new creatives, copy, and targeting.</p>
+        </div>
+      </div>
+
+      <!-- FB Settings View -->
+      <div id="mktSettings" class="mkt-view" style="display:none;">
+        <h3 style="margin-bottom:16px;">Facebook Ads Integration</h3>
+        <div class="config-section">
+          <h4 style="margin-bottom:12px;">API Credentials</h4>
+          <div class="config-row">
+            <div class="config-field">
+              <label>Facebook Ad Account ID</label>
+              <input type="text" id="fbAdAccountId" placeholder="123456789" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+              <div class="hint">Your ad account ID (without "act_" prefix)</div>
+            </div>
+          </div>
+          <div class="config-row">
+            <div class="config-field">
+              <label>Access Token</label>
+              <input type="password" id="fbAccessToken" placeholder="EAA..." style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+              <div class="hint">Long-lived user access token with ads_read permission</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px;">
+            <button class="btn btn-primary" onclick="saveFbConfig()">Save Credentials</button>
+            <button class="btn btn-secondary" onclick="testFbConnection()">Test Connection</button>
+          </div>
+          <div id="fbConfigStatus" style="margin-top:12px;font-size:13px;"></div>
         </div>
       </div>
     </div>
@@ -3405,6 +3621,12 @@
         if (res.error) { alert(res.error); return; }
         input.value = '';
         loadAdmins();
+        // Show success toast
+        var toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1A1A2E;color:white;padding:14px 20px;border-radius:8px;font-size:13px;z-index:10001;box-shadow:0 4px 12px rgba(0,0,0,0.2);';
+        toast.textContent = 'Invitation email sent to ' + email;
+        document.body.appendChild(toast);
+        setTimeout(function() { toast.remove(); }, 4000);
       } catch (err) { alert('Failed to add admin'); }
     }
 
@@ -4210,7 +4432,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var card = document.getElementById('matrixCard' + idx);
       card.innerHTML = '<div class="matrix-card-header"><h4>' + escapeHtml(combo.modelLabel) + '</h4><span class="model-badge ' + combo.modelBadge + '">' + combo.modelBadge + '</span></div>'
         + '<div class="matrix-card-preview">'
-        + '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>'
+        + '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>'
         + '</div>'
         + '<div class="matrix-card-rating">'
         + '<div class="star-rating" data-idx="' + idx + '">'
@@ -4444,13 +4666,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     // ---- Lazy iframe loader (prevents mobile Safari crash from 100+ iframes) ----
     var iframeLazyObserver = null;
-    function setupLazyIframes(grid) {
-      if (!('IntersectionObserver' in window)) {
-        // Fallback: load all immediately (desktop is fine)
-        grid.querySelectorAll('.style-card').forEach(function(card) { loadCardIframe(card); });
-        return;
-      }
-      if (iframeLazyObserver) iframeLazyObserver.disconnect();
+    function getIframeLazyObserver() {
+      if (iframeLazyObserver) return iframeLazyObserver;
+      if (!('IntersectionObserver' in window)) return null;
       iframeLazyObserver = new IntersectionObserver(function(entries) {
         entries.forEach(function(entry) {
           if (entry.isIntersecting) {
@@ -4459,8 +4677,17 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           }
         });
       }, { rootMargin: '200px' });
+      return iframeLazyObserver;
+    }
+    function setupLazyIframes(grid) {
+      var observer = getIframeLazyObserver();
+      if (!observer) {
+        // Fallback: load all immediately (desktop is fine)
+        grid.querySelectorAll('.style-card').forEach(function(card) { loadCardIframe(card); });
+        return;
+      }
       grid.querySelectorAll('.style-card').forEach(function(card) {
-        if (!card.dataset.iframeLoaded) iframeLazyObserver.observe(card);
+        if (!card.dataset.iframeLoaded) observer.observe(card);
       });
     }
 
@@ -4598,7 +4825,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var previewDiv = document.createElement('div');
         previewDiv.className = 'style-card-preview';
         previewDiv.appendChild(detailsBtn);
-        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
+        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
         var phoneWrapper = document.createElement('div');
         phoneWrapper.innerHTML = phoneHtml;
         previewDiv.appendChild(phoneWrapper.firstChild);
@@ -5742,7 +5969,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         // Phone preview
         var previewDiv = document.createElement('div');
         previewDiv.className = 'style-card-preview';
-        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
+        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
         var phoneWrapper = document.createElement('div');
         phoneWrapper.innerHTML = phoneHtml;
         previewDiv.appendChild(phoneWrapper.firstChild);
@@ -5769,6 +5996,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         actionsDiv.style.cssText = 'display:flex;gap:6px;padding:8px 12px;border-top:1px solid #f0f0f0;';
         actionsDiv.innerHTML = (idx > 0 ? '<button class="btn btn-secondary btn-sm" onclick="reorderShowcase(\'' + s.id + '\', ' + (idx - 1) + ')">Move Up</button>' : '')
           + (idx < featuredShowcases.length - 1 ? '<button class="btn btn-secondary btn-sm" onclick="reorderShowcase(\'' + s.id + '\', ' + (idx + 1) + ')">Move Down</button>' : '')
+          + '<button class="btn btn-secondary btn-sm" style="color:#E94560;" onclick="openAdVideoModal({html:featuredShowcases[' + idx + '].html,css:featuredShowcases[' + idx + '].css,config:featuredShowcases[' + idx + '].config,promptText:featuredShowcases[' + idx + '].prompt_text||\'Create a beautiful invitation\',eventType:featuredShowcases[' + idx + '].event_type,sourceType:\'showcase\',sourceId:featuredShowcases[' + idx + '].id})">Generate Ad</button>'
           + '<button class="btn btn-secondary btn-sm" style="margin-left:auto;color:#dc3545;" onclick="removeFromShowcase(\'' + s.id + '\')">Remove</button>';
         card.appendChild(actionsDiv);
 
@@ -5937,7 +6165,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var previewDiv = document.createElement('div');
         previewDiv.className = 'style-card-preview';
         previewDiv.appendChild(detailsBtn);
-        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
+        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
         var phoneWrapper = document.createElement('div');
         phoneWrapper.innerHTML = phoneHtml;
         previewDiv.appendChild(phoneWrapper.firstChild);
@@ -5973,6 +6201,19 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           pvDiv.innerHTML = '<span style="font-size:10px;">' + escapeHtml(run.promptVersionLabel) + '</span>';
           card.appendChild(pvDiv);
         }
+
+        // Generate Ad button
+        var labAdBtnDiv = document.createElement('div');
+        labAdBtnDiv.style.cssText = 'padding:4px 12px 8px;';
+        var labAdBtn = document.createElement('button');
+        labAdBtn.className = 'btn btn-secondary btn-sm';
+        labAdBtn.style.cssText = 'font-size:11px;color:#E94560;width:100%;';
+        labAdBtn.textContent = 'Generate Ad';
+        labAdBtn.onclick = (function(r) { return function() {
+          openAdVideoModal({ html: r.result_html, css: r.result_css, config: r.result_config, promptText: (r.event_details && r.event_details.description) || 'Create a beautiful invitation', eventType: r.event_type, sourceType: 'lab_theme', sourceId: r.id });
+        }; })(run);
+        labAdBtnDiv.appendChild(labAdBtn);
+        card.appendChild(labAdBtnDiv);
 
         grid.appendChild(card);
       });
@@ -6070,7 +6311,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var previewDiv = document.createElement('div');
         previewDiv.className = 'style-card-preview';
         previewDiv.appendChild(detailsBtn);
-        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
+        var phoneHtml = '<div class="phone-mockup phone-sm"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>';
         var phoneWrapper = document.createElement('div');
         phoneWrapper.innerHTML = phoneHtml;
         previewDiv.appendChild(phoneWrapper.firstChild);
@@ -6114,6 +6355,19 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         userEventDiv.innerHTML = (eventTitle ? '<span class="gen-event" title="' + escapeHtml(eventTitle) + '">' + escapeHtml(eventTitle.length > 20 ? eventTitle.substring(0, 20) + '...' : eventTitle) + '</span>' : '')
           + (userName ? '<span class="gen-user" onclick="switchTab(\'users\');setTimeout(function(){viewUser(\'' + theme.userId + '\');},200);" title="' + escapeHtml(theme.userEmail || '') + '">' + escapeHtml(userName.length > 18 ? userName.substring(0, 18) + '...' : userName) + '</span>' : '');
         card.appendChild(userEventDiv);
+
+        // Generate Ad button
+        var adBtnDiv = document.createElement('div');
+        adBtnDiv.style.cssText = 'padding:4px 12px 8px;';
+        var adBtn = document.createElement('button');
+        adBtn.className = 'btn btn-secondary btn-sm';
+        adBtn.style.cssText = 'font-size:11px;color:#E94560;width:100%;';
+        adBtn.textContent = 'Generate Ad';
+        adBtn.onclick = (function(t) { return function() {
+          openAdVideoModal({ html: t.html, css: t.css, config: t.config, promptText: t.prompt || 'Create a beautiful invitation', eventType: t.eventType, sourceType: 'user_theme', sourceId: t.id });
+        }; })(theme);
+        adBtnDiv.appendChild(adBtn);
+        card.appendChild(adBtnDiv);
 
         grid.appendChild(card);
       });
@@ -6192,6 +6446,12 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         }
         html += '</div>';
 
+        // Generate Ad section
+        html += '<div class="detail-section"><h4>Facebook Ad</h4>'
+          + '<p style="font-size:12px;color:#888;margin-bottom:8px;">Generate a video ad from this invite for Facebook/Instagram.</p>'
+          + '<button class="btn btn-primary btn-sm" style="background:#E94560;" onclick="openAdVideoModal({html:userGenMap[\'' + item.id + '\'].html,css:userGenMap[\'' + item.id + '\'].css,config:userGenMap[\'' + item.id + '\'].config,promptText:userGenMap[\'' + item.id + '\'].prompt||\'Create a beautiful invitation\',eventTitle:\'' + escapeHtml((item.eventTitle || '').replace(/'/g, "\\'")) + '\',eventType:\'' + escapeHtml(item.eventType || '') + '\',sourceType:\'user_theme\',sourceId:\'' + item.id + '\'})">Generate Ad Video</button>'
+          + '</div>';
+
         // Event info
         html += '<div class="detail-section"><h4>Event</h4>';
         html += '<div class="detail-row"><span class="detail-label">Title</span><span class="detail-value">' + escapeHtml(item.eventTitle) + '</span></div>';
@@ -6267,6 +6527,12 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             + '<button class="btn btn-primary btn-sm" id="featureBtn" onclick="featureOnHomepage(\'lab_theme\', null, \'' + item.id + '\', \'' + escapeHtml((labEventTitle || '').replace(/'/g, '')) + '\', \'' + escapeHtml(item.event_type || 'other') + '\')">Feature on Homepage</button>';
         }
         html += '</div>';
+
+        // Generate Ad section (lab)
+        html += '<div class="detail-section"><h4>Facebook Ad</h4>'
+          + '<p style="font-size:12px;color:#888;margin-bottom:8px;">Generate a video ad from this test generation for Facebook/Instagram.</p>'
+          + '<button class="btn btn-primary btn-sm" style="background:#E94560;" onclick="openAdVideoModal({html:labGenMap[\'' + item.id + '\'].result_html,css:labGenMap[\'' + item.id + '\'].result_css,config:labGenMap[\'' + item.id + '\'].result_config,promptText:(labGenMap[\'' + item.id + '\'].event_details&&labGenMap[\'' + item.id + '\'].event_details.description)||\'Create a beautiful invitation\',eventType:\'' + escapeHtml(item.event_type || '') + '\',sourceType:\'lab_theme\',sourceId:\'' + item.id + '\'})">Generate Ad Video</button>'
+          + '</div>';
 
         // Test details
         html += '<div class="detail-section"><h4>Test Configuration</h4>';
@@ -7683,6 +7949,900 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       }
     }
 
+    // ============================================================
+    // AD VIDEO GENERATOR & MARKETING DASHBOARD
+    // ============================================================
+
+    // Authenticated fetch helper for non-admin API endpoints
+    async function authFetch(url, opts) {
+      opts = opts || {};
+      if (!opts.headers) opts.headers = {};
+      opts.headers['Authorization'] = 'Bearer ' + token;
+      var r = await fetch(url, opts);
+      if (r.status === 401) {
+        var refreshed = await refreshToken();
+        if (refreshed) {
+          opts.headers['Authorization'] = 'Bearer ' + token;
+          r = await fetch(url, opts);
+        }
+      }
+      return r;
+    }
+
+    var _adVideoData = {}; // holds current invite data for video generation
+    var _adVideoBlob = null;
+    var _adVideoFormat = 'mobile_4x5';
+    var _adVideoTheme = 'dark_gradient';
+    var _adCreativeResult = null;
+    var _mktCreatives = [];
+    var _mktCampaigns = [];
+
+    // ── Open video generation modal from any invite ──
+    function openAdVideoModal(data) {
+      // data: { html, css, config, promptText, eventTitle, eventType, sourceType, sourceId }
+      _adVideoData = data;
+      _adVideoBlobs = {};
+      _adCreativeResult = null;
+      _adVideoTheme = 'dark_gradient';
+
+      document.getElementById('adVideoConfig').style.display = '';
+      document.getElementById('adVideoProgress').style.display = 'none';
+      document.getElementById('adVideoResult').style.display = 'none';
+      document.getElementById('adVideoCampaignLabel').value = '';
+      document.getElementById('adFmtReels').checked = true;
+      document.getElementById('adFmtFeed').checked = true;
+      selectAdTheme('dark_gradient');
+
+      // Build a better default prompt from available context
+      var prompt = data.promptText || '';
+      if (!prompt || prompt === 'Create a beautiful invitation') {
+        var parts = [];
+        if (data.eventTitle) parts.push(data.eventTitle);
+        var etObj = ALL_EVENT_TYPES.find(function(x) { return x.value === data.eventType; });
+        if (etObj) parts.push(etObj.label + ' invite');
+        var mood = data.config && data.config.mood;
+        if (mood) parts.push(mood + ' design');
+        prompt = parts.length > 0 ? parts.join(' — ') : 'Create a beautiful invitation';
+      }
+      document.getElementById('adVideoPromptText').value = prompt;
+
+      // Reset AI prompt button state
+      document.getElementById('adVideoAiPromptBtn').disabled = false;
+      document.getElementById('adVideoAiPromptLabel').textContent = 'Generate AI Prompt';
+
+      // Show auto-generated UTM campaign preview
+      var eventType = data.eventType || 'general';
+      var now = new Date();
+      var autoUtm = 'ryvite_' + eventType + '_' + now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+      document.getElementById('adVideoUtmPreview').textContent = 'UTM campaign: ' + autoUtm;
+
+      var modal = document.getElementById('adVideoModal');
+      modal.style.display = 'flex';
+    }
+
+    var _adVideoBlobs = {}; // { mobile_4x5: Blob, feed_1x1: Blob }
+
+    async function generateAiAdPrompt() {
+      var btn = document.getElementById('adVideoAiPromptBtn');
+      var label = document.getElementById('adVideoAiPromptLabel');
+      btn.disabled = true;
+      label.textContent = 'Generating...';
+      try {
+        var res = await authFetch('/api/v2/ad-creatives?action=generatePrompt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            html: _adVideoData.html,
+            eventTitle: _adVideoData.eventTitle || '',
+            eventType: _adVideoData.eventType || '',
+            config: _adVideoData.config || {}
+          })
+        });
+        var result = await res.json();
+        if (result.success && result.promptText) {
+          document.getElementById('adVideoPromptText').value = result.promptText;
+        } else {
+          alert('Failed to generate prompt: ' + (result.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Failed to generate prompt: ' + err.message);
+      }
+      btn.disabled = false;
+      label.textContent = 'Generate AI Prompt';
+    }
+
+    function closeAdVideoModal() {
+      document.getElementById('adVideoModal').style.display = 'none';
+      Object.values(_adVideoBlobs).forEach(function(b) { if (b._url) URL.revokeObjectURL(b._url); });
+    }
+
+    function getSelectedFormats() {
+      var formats = [];
+      if (document.getElementById('adFmtReels').checked) formats.push('mobile_4x5');
+      if (document.getElementById('adFmtFeed').checked) formats.push('feed_1x1');
+      return formats;
+    }
+
+    function selectAdTheme(theme) {
+      _adVideoTheme = theme;
+      document.querySelectorAll('.ad-theme-btn').forEach(function(btn) {
+        btn.style.borderColor = btn.getAttribute('data-theme') === theme ? '#E94560' : '#ddd';
+      });
+    }
+
+    function updateUtmDestPreview() {
+      var sel = document.getElementById('adVideoDestination');
+      var customInput = document.getElementById('adVideoCustomUrl');
+      var preview = document.getElementById('adVideoDestPreview');
+      customInput.style.display = sel.value === 'custom' ? '' : 'none';
+      var baseUrls = { landing: '/lp/', create: '/v2/create/', homepage: '/' };
+      var base = sel.value === 'custom' ? (customInput.value || 'https://...') : ('https://ryvite.com' + (baseUrls[sel.value] || '/lp/'));
+      preview.textContent = base + '?utm_source=facebook&utm_medium=paid&...';
+    }
+
+    function getUtmBaseUrl() {
+      var sel = document.getElementById('adVideoDestination');
+      if (!sel) return 'https://ryvite.com/lp/';
+      var baseUrls = { landing: 'https://ryvite.com/lp/', create: 'https://ryvite.com/v2/create/', homepage: 'https://ryvite.com/' };
+      if (sel.value === 'custom') {
+        var custom = document.getElementById('adVideoCustomUrl').value.trim();
+        return custom || 'https://ryvite.com/lp/';
+      }
+      return baseUrls[sel.value] || 'https://ryvite.com/lp/';
+    }
+
+    async function startAdVideoGeneration() {
+      var campaignLabel = document.getElementById('adVideoCampaignLabel').value.trim();
+
+      var promptText = document.getElementById('adVideoPromptText').value.trim();
+      if (!promptText) { alert('Please enter prompt text for the typing animation'); return; }
+
+      var formats = getSelectedFormats();
+      if (formats.length === 0) { alert('Please select at least one format'); return; }
+
+      document.getElementById('adVideoConfig').style.display = 'none';
+      document.getElementById('adVideoProgress').style.display = '';
+      document.getElementById('adVideoResult').style.display = 'none';
+
+      _adVideoBlobs = {};
+
+      try {
+        // Generate each format sequentially
+        for (var fi = 0; fi < formats.length; fi++) {
+          var fmt = formats[fi];
+          var fmtLabel = fmt === 'mobile_4x5' ? 'Mobile (4:5)' : 'Feed (1:1)';
+          var baseProgress = (fi / formats.length) * 100;
+          var progressRange = 100 / formats.length;
+
+          document.getElementById('adVideoPhase').textContent = (formats.length > 1 ? (fi + 1) + '/' + formats.length + ' — ' : '') + 'Preparing ' + fmtLabel + '...';
+
+          var useLiveAnimation = document.getElementById('adVideoLiveAnimation').checked;
+          var blob = await window.AdVideoGenerator.generate({
+            html: _adVideoData.html,
+            css: _adVideoData.css,
+            config: _adVideoData.config,
+            promptText: promptText,
+            format: fmt,
+            theme: _adVideoTheme,
+            liveAnimation: useLiveAnimation,
+            authFetch: authFetch,
+            onProgress: function(pct, phase) {
+              var overall = baseProgress + (pct / 100) * progressRange;
+              document.getElementById('adVideoProgressBar').style.width = overall + '%';
+              document.getElementById('adVideoProgressPct').textContent = Math.round(overall) + '%';
+              document.getElementById('adVideoPhase').textContent = (formats.length > 1 ? (fi + 1) + '/' + formats.length + ' — ' : '') + fmtLabel + ': ' + (phase || 'Processing...');
+            }
+          });
+
+          _adVideoBlobs[fmt] = blob;
+
+          // Register each creative via API
+          try {
+            var res = await authFetch('/api/v2/ad-creatives?action=create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                campaignLabel: campaignLabel || null,
+                sourceType: _adVideoData.sourceType || 'showcase',
+                sourceId: _adVideoData.sourceId || '00000000-0000-0000-0000-000000000000',
+                eventType: _adVideoData.eventType || null,
+                format: fmt,
+                videoTheme: _adVideoTheme,
+                promptText: promptText,
+                destinationUrl: getUtmBaseUrl(),
+                inviteHtml: _adVideoData.html,
+                inviteCss: _adVideoData.css,
+                inviteConfig: _adVideoData.config
+              })
+            });
+            var result = await res.json();
+            if (result.success && result.creative) {
+              _adCreativeResult = result.creative;
+              document.getElementById('adVideoUtmLink').value = result.creative.utm_url;
+            } else {
+              console.error('Save failed for ' + fmt + ':', result.error);
+            }
+          } catch (apiErr) {
+            console.error('Failed to register creative for ' + fmt, apiErr);
+            alert('Warning: Video generated but failed to save to database. Error: ' + (apiErr.message || 'Unknown'));
+          }
+        }
+
+        // Refresh the creatives list so new entries show immediately
+        _mktLoaded = false;
+        loadAdCreatives().catch(function() {});
+
+        // Build result UI with all generated videos
+        var videosContainer = document.getElementById('adVideoResultVideos');
+        var downloadBtns = document.getElementById('adVideoDownloadBtns');
+        videosContainer.innerHTML = '';
+        downloadBtns.innerHTML = '';
+
+        var fmtKeys = Object.keys(_adVideoBlobs);
+        fmtKeys.forEach(function(fmt) {
+          var blob = _adVideoBlobs[fmt];
+          var url = URL.createObjectURL(blob);
+          blob._url = url;
+          var label = fmt === 'mobile_4x5' ? 'Mobile (4:5)' : 'Feed (1:1)';
+          var maxH = fmtKeys.length > 1 ? '300px' : '400px';
+
+          videosContainer.innerHTML += '<div style="text-align:center;">'
+            + '<div style="font-size:12px;font-weight:600;color:#888;margin-bottom:6px;">' + label + '</div>'
+            + '<video controls src="' + url + '" style="max-width:100%;max-height:' + maxH + ';border-radius:8px;background:#000;"></video>'
+            + '</div>';
+
+          downloadBtns.innerHTML += '<button class="btn btn-primary" onclick="downloadAdVideoFmt(\'' + fmt + '\')" style="flex:1;">Download ' + label + '</button>';
+        });
+
+        downloadBtns.innerHTML += '<button class="btn btn-secondary" onclick="closeAdVideoModal()" style="flex:1;">Close</button>';
+
+        document.getElementById('adVideoProgress').style.display = 'none';
+        document.getElementById('adVideoResult').style.display = '';
+      } catch (err) {
+        alert('Video generation failed: ' + err.message);
+        document.getElementById('adVideoProgress').style.display = 'none';
+        document.getElementById('adVideoConfig').style.display = '';
+      }
+    }
+
+    function downloadAdVideoFmt(fmt) {
+      var blob = _adVideoBlobs[fmt];
+      if (!blob) return;
+      var campaign = (document.getElementById('adVideoCampaignLabel').value.trim() || 'ryvite-ad').replace(/[^a-z0-9_-]/gi, '-');
+      var ext = (blob.type && blob.type.includes('mp4')) ? '.mp4' : '.webm';
+      var filename = 'ryvite-ad-' + campaign + '-' + fmt + ext;
+      window.AdVideoGenerator.download(blob, filename);
+    }
+
+    function downloadAdVideo() {
+      // Legacy fallback — download all
+      Object.keys(_adVideoBlobs).forEach(function(fmt) { downloadAdVideoFmt(fmt); });
+    }
+
+    function copyUtmLink() {
+      var input = document.getElementById('adVideoUtmLink');
+      input.select();
+      navigator.clipboard.writeText(input.value).then(function() {
+        var btn = input.nextElementSibling;
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+      });
+    }
+
+    // ── "Generate Ad" button injection for style cards ──
+    function getGenerateAdButtonHtml(data) {
+      // data must be JSON-safe — we encode it
+      var encoded = encodeURIComponent(JSON.stringify(data));
+      return '<button class="btn btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="event.stopPropagation();openAdVideoModal(JSON.parse(decodeURIComponent(\'' + encoded + '\')))">Generate Ad</button>';
+    }
+
+    // ── New Ad Picker (loads showcases for quick selection) ──
+    async function openNewAdPicker() {
+      var modal = document.getElementById('adPickerModal');
+      var grid = document.getElementById('adPickerGrid');
+      var empty = document.getElementById('adPickerEmpty');
+      modal.style.display = 'flex';
+      grid.innerHTML = '<div style="text-align:center;padding:40px;color:#888;grid-column:1/-1;">Loading showcases...</div>';
+
+      try {
+        var res = await fetch('/api/v2/showcases');
+        var data = await res.json();
+        var showcases = data.showcases || [];
+        if (showcases.length === 0) {
+          grid.innerHTML = '';
+          empty.style.display = '';
+          return;
+        }
+        empty.style.display = 'none';
+        grid.innerHTML = showcases.map(function(s, i) {
+          return '<div class="ad-picker-card" style="border:1px solid #e5e7eb;border-radius:12px;cursor:pointer;overflow:hidden;transition:all 0.2s;background:#fff;" onmouseover="this.style.borderColor=\'#E94560\';this.style.boxShadow=\'0 4px 12px rgba(233,69,96,0.15)\'" onmouseout="this.style.borderColor=\'#e5e7eb\';this.style.boxShadow=\'none\'" onclick="selectAdPickerItem(' + i + ')">'
+            + '<div style="position:relative;width:100%;height:220px;overflow:hidden;background:#f9fafb;border-bottom:1px solid #f0f0f0;">'
+            + '<iframe id="adPickerFrame' + i + '" style="position:absolute;top:0;left:0;width:375px;height:667px;border:none;pointer-events:none;transform-origin:top left;" sandbox="allow-scripts allow-same-origin"></iframe>'
+            + '</div>'
+            + '<div style="padding:10px 12px;">'
+            + '<div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(s.event_title || s.event_type || 'Invite') + '</div>'
+            + '<div style="font-size:11px;color:#888;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">'
+            + escapeHtml((s.prompt_text || '').substring(0, 80))
+            + '</div>'
+            + '</div>'
+            + '</div>';
+        }).join('');
+
+        // Store showcases and render previews in iframes
+        window._adPickerShowcases = showcases;
+
+        // Wait for DOM to update, then populate iframes
+        requestAnimationFrame(function() {
+          showcases.forEach(function(s, i) {
+            var iframe = document.getElementById('adPickerFrame' + i);
+            if (!iframe || !s.html) return;
+            var card = iframe.closest('.ad-picker-card');
+            var containerWidth = card ? card.offsetWidth : 180;
+            var scale = containerWidth / 375;
+            iframe.style.transform = 'scale(' + scale + ')';
+            iframe.style.height = Math.round(220 / scale) + 'px';
+            var doc = iframe.contentDocument || iframe.contentWindow.document;
+            var cssText = s.css || '';
+            var configObj = typeof s.config === 'string' ? JSON.parse(s.config || '{}') : (s.config || {});
+            var fontImport = configObj.fontUrl ? '<style>@import url("' + configObj.fontUrl + '");</style>' : '';
+            doc.open();
+            doc.write('<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">' + fontImport + '<style>body{margin:0;overflow:hidden;}' + cssText + '</style></head><body>' + s.html + '</body></html>');
+            doc.close();
+          });
+        });
+      } catch (e) {
+        grid.innerHTML = '<div style="color:#ef4444;padding:20px;text-align:center;grid-column:1/-1;">Failed to load showcases</div>';
+      }
+    }
+
+    function selectAdPickerItem(idx) {
+      var s = window._adPickerShowcases[idx];
+      if (!s) return;
+      document.getElementById('adPickerModal').style.display = 'none';
+      openAdVideoModal({
+        html: s.html,
+        css: s.css,
+        config: s.config,
+        promptText: s.prompt_text || 'Create a beautiful invitation',
+        eventType: s.event_type,
+        sourceType: 'showcase',
+        sourceId: s.id
+      });
+    }
+
+    // ── Marketing Tab Functions ──
+    function switchMarketingView(view) {
+      document.querySelectorAll('.mkt-view').forEach(function(el) { el.style.display = 'none'; });
+      document.getElementById(view).style.display = '';
+      document.querySelectorAll('#marketingNav .archive-nav-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-view') === view);
+      });
+    }
+
+    var _mktLoaded = false;
+    async function loadMarketingTab() {
+      // Always reload creatives (they may have been added since last visit)
+      await Promise.all([loadAdCreatives(), !_mktLoaded ? loadCampaignData() : Promise.resolve(), !_mktLoaded ? loadFbConfig() : Promise.resolve()]);
+      _mktLoaded = true;
+    }
+
+    async function loadAdCreatives() {
+      var campaign = document.getElementById('mktFilterCampaign').value;
+      var format = document.getElementById('mktFilterFormat').value;
+      var url = '/api/v2/ad-creatives?action=list';
+      if (campaign) url += '&campaign=' + encodeURIComponent(campaign);
+      if (format) url += '&format=' + encodeURIComponent(format);
+
+      try {
+        var res = await authFetch(url);
+        if (!res.ok) {
+          var errText = '';
+          try { errText = (await res.json()).error || res.statusText; } catch(_) { errText = res.statusText; }
+          console.error('Ad creatives API error:', res.status, errText);
+          var empty = document.getElementById('mktCreativeEmpty');
+          if (empty) {
+            empty.style.display = '';
+            empty.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#ef4444;">'
+              + '<p style="font-size:15px;font-weight:600;">Failed to load creatives</p>'
+              + '<p style="font-size:13px;color:#888;margin-top:4px;">HTTP ' + res.status + ': ' + escapeHtml(errText) + '</p></div>';
+          }
+          return;
+        }
+        var data = await res.json();
+        if (!data.success && data.error) {
+          console.error('Ad creatives error:', data.error);
+        }
+        _mktCreatives = data.creatives || [];
+        renderAdCreatives();
+        // Also populate campaign filter
+        loadCampaignFilter();
+      } catch (e) {
+        console.error('Failed to load ad creatives:', e);
+        var empty = document.getElementById('mktCreativeEmpty');
+        if (empty) {
+          empty.style.display = '';
+          empty.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#ef4444;">'
+            + '<p style="font-size:15px;font-weight:600;">Failed to load creatives</p>'
+            + '<p style="font-size:13px;color:#888;margin-top:4px;">' + escapeHtml(e.message) + '</p></div>';
+        }
+      }
+    }
+
+    function renderAdCreatives() {
+      var tbody = document.getElementById('mktCreativeBody');
+      var empty = document.getElementById('mktCreativeEmpty');
+      if (_mktCreatives.length === 0) {
+        tbody.innerHTML = '';
+        empty.style.display = '';
+        return;
+      }
+      empty.style.display = 'none';
+
+      tbody.innerHTML = _mktCreatives.map(function(c) {
+        var formatBadge = c.format === 'mobile_4x5'
+          ? '<span style="background:#E94560;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;">Mobile 4:5</span>'
+          : '<span style="background:#3b82f6;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;">Feed</span>';
+        var themeName = (window.AdVideoGenerator && window.AdVideoGenerator.themes[c.video_theme])
+          ? window.AdVideoGenerator.themes[c.video_theme].name : (c.video_theme || '—');
+        var date = new Date(c.created_at).toLocaleDateString();
+        var prompt = c.prompt_text ? escapeHtml(c.prompt_text.substring(0, 50)) + (c.prompt_text.length > 50 ? '...' : '') : '—';
+        var label = c.campaign_label ? escapeHtml(c.campaign_label.substring(0, 30)) + (c.campaign_label.length > 30 ? '...' : '') : '—';
+
+        return '<tr style="border-bottom:1px solid #f0f0f5;cursor:pointer;" onclick="showCreativeDetail(\'' + c.creative_id + '\')">'
+          + '<td style="padding:10px 12px;white-space:nowrap;">' + date + '</td>'
+          + '<td style="padding:10px 12px;font-family:monospace;font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(c.campaign_name) + '</td>'
+          + '<td style="padding:10px 12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + label + '</td>'
+          + '<td style="padding:10px 12px;">' + formatBadge + '</td>'
+          + '<td style="padding:10px 12px;font-size:12px;">' + escapeHtml(themeName) + '</td>'
+          + '<td style="padding:10px 12px;font-size:12px;">' + escapeHtml(c.event_type || '—') + '</td>'
+          + '<td style="padding:10px 12px;font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666;">' + prompt + '</td>'
+          + '<td style="padding:10px 12px;white-space:nowrap;">'
+          + '<button class="btn btn-secondary" style="font-size:10px;padding:3px 8px;margin-right:4px;" onclick="event.stopPropagation();copyToClipboard(\'' + escapeHtml(c.utm_url) + '\')">Copy UTM</button>'
+          + '<button class="btn btn-secondary" style="font-size:10px;padding:3px 8px;color:#ef4444;" onclick="event.stopPropagation();deleteCreative(\'' + c.creative_id + '\')">Delete</button>'
+          + '</td></tr>';
+      }).join('');
+    }
+
+    var _currentDetailCreativeId = null;
+
+    function showCreativeDetail(creativeId) {
+      var c = _mktCreatives.find(function(x) { return x.creative_id === creativeId; });
+      if (!c) return;
+      _currentDetailCreativeId = creativeId;
+
+      // Metadata
+      document.getElementById('cdCampaign').textContent = c.campaign_name || '—';
+      document.getElementById('cdLabel').textContent = c.campaign_label || '—';
+      document.getElementById('cdCreativeId').textContent = c.creative_id;
+      document.getElementById('cdFormat').textContent = c.format === 'mobile_4x5' ? 'Mobile (4:5)' : 'Feed (1:1)';
+      var themeName = (window.AdVideoGenerator && window.AdVideoGenerator.themes[c.video_theme])
+        ? window.AdVideoGenerator.themes[c.video_theme].name : (c.video_theme || '—');
+      document.getElementById('cdTheme').textContent = themeName;
+      document.getElementById('cdEventType').textContent = c.event_type || '—';
+      document.getElementById('cdCreatedAt').textContent = new Date(c.created_at).toLocaleString();
+      document.getElementById('cdPromptText').textContent = c.prompt_text || '(no prompt)';
+      document.getElementById('cdUtmLink').value = c.utm_url || '';
+
+      // Parse UTM params from URL
+      try {
+        var url = new URL(c.utm_url);
+        document.getElementById('cdUtmSource').textContent = url.searchParams.get('utm_source') || '';
+        document.getElementById('cdUtmMedium').textContent = url.searchParams.get('utm_medium') || '';
+        document.getElementById('cdUtmCampaign').textContent = url.searchParams.get('utm_campaign') || '';
+        document.getElementById('cdUtmContent').textContent = url.searchParams.get('utm_content') || '';
+        document.getElementById('cdUtmTerm').textContent = url.searchParams.get('utm_term') || '';
+      } catch (e) {}
+
+      // Invite preview in iframe
+      if (c.invite_html) {
+        var configObj = c.invite_config || {};
+        if (typeof configObj === 'string') { try { configObj = JSON.parse(configObj); } catch(e) { configObj = {}; } }
+        var fontsImport = '';
+        if (configObj.fontUrl) fontsImport = '@import url("' + configObj.fontUrl + '");';
+        else if (configObj.googleFontsImport) fontsImport = configObj.googleFontsImport;
+        var srcdoc = '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>'
+          + fontsImport + '\n' + (c.invite_css || '') + '\nbody{margin:0;overflow:hidden;}</style></head><body>'
+          + c.invite_html + '</body></html>';
+        var iframe = document.getElementById('creativeDetailPreview');
+        iframe.srcdoc = srcdoc;
+        var screen = iframe.parentElement;
+        var scale = screen.offsetWidth / 393;
+        iframe.style.transform = 'scale(' + scale + ')';
+      }
+
+      document.getElementById('creativeDetailModal').style.display = 'flex';
+    }
+
+    function closeCreativeDetail() {
+      document.getElementById('creativeDetailModal').style.display = 'none';
+      _currentDetailCreativeId = null;
+    }
+
+    function regenFromDetail() {
+      var c = _mktCreatives.find(function(x) { return x.creative_id === _currentDetailCreativeId; });
+      if (!c || !c.invite_html) return;
+      closeCreativeDetail();
+      openAdVideoModal({
+        html: c.invite_html,
+        css: c.invite_css || '',
+        config: c.invite_config || {},
+        promptText: c.prompt_text || '',
+        eventType: c.event_type,
+        sourceType: c.source_type,
+        sourceId: c.source_id
+      });
+    }
+
+    function deleteFromDetail() {
+      if (_currentDetailCreativeId) {
+        deleteCreative(_currentDetailCreativeId);
+        closeCreativeDetail();
+      }
+    }
+
+    async function deleteCreative(creativeId) {
+      if (!confirm('Delete this ad creative?')) return;
+      try {
+        await authFetch('/api/v2/ad-creatives?action=delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ creativeId: creativeId })
+        });
+        _mktCreatives = _mktCreatives.filter(function(c) { return c.creative_id !== creativeId; });
+        renderAdCreatives();
+      } catch (e) { alert('Delete failed: ' + e.message); }
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).catch(function() {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      });
+    }
+
+    async function loadCampaignFilter() {
+      try {
+        var res = await authFetch('/api/v2/ad-creatives?action=campaigns');
+        var data = await res.json();
+        var sel = document.getElementById('mktFilterCampaign');
+        var current = sel.value;
+        sel.innerHTML = '<option value="">All Campaigns</option>';
+        (data.campaigns || []).forEach(function(c) {
+          sel.innerHTML += '<option value="' + escapeHtml(c) + '"' + (c === current ? ' selected' : '') + '>' + escapeHtml(c) + '</option>';
+        });
+      } catch (e) {}
+    }
+
+    // ── Campaign Performance ──
+    async function loadCampaignData() {
+      try {
+        var res = await authFetch('/api/v2/ad-creatives?action=stats');
+        var data = await res.json();
+        _mktCampaigns = data.campaigns || [];
+        _mktCreatives = data.creatives || [];
+        renderCampaigns();
+        renderKpiCards();
+        renderLeaderboard();
+      } catch (e) {
+        console.error('Failed to load campaign data:', e);
+      }
+    }
+
+    function renderKpiCards() {
+      var cards = document.getElementById('mktKpiCards');
+      var totalSpend = 0, totalSignups = 0, totalPublishes = 0;
+      var bestCampaign = '';
+      var bestRate = 0;
+      (_mktCampaigns || []).forEach(function(c) {
+        totalSpend += c.total_spend_cents || 0;
+        totalSignups += c.total_signups || 0;
+        totalPublishes += c.total_publishes || 0;
+        if ((c.avg_signup_rate || 0) > bestRate) {
+          bestRate = c.avg_signup_rate;
+          bestCampaign = c.campaign_name;
+        }
+      });
+      var avgCpa = totalSignups > 0 ? (totalSpend / totalSignups / 100).toFixed(2) : '--';
+
+      cards.innerHTML = [
+        { label: 'Total Spend', value: '$' + (totalSpend / 100).toFixed(2) },
+        { label: 'Total Signups', value: totalSignups },
+        { label: 'Avg CPA', value: avgCpa === '--' ? '--' : '$' + avgCpa },
+        { label: 'Best Campaign', value: bestCampaign || '--' }
+      ].map(function(k) {
+        return '<div style="background:#f5f5fa;border-radius:10px;padding:16px;text-align:center;">'
+          + '<div style="font-size:12px;color:#888;margin-bottom:4px;">' + k.label + '</div>'
+          + '<div style="font-size:22px;font-weight:700;color:#1a1a2e;">' + k.value + '</div>'
+          + '</div>';
+      }).join('');
+    }
+
+    function renderCampaigns() {
+      var body = document.getElementById('mktCampaignBody');
+      var empty = document.getElementById('mktCampaignEmpty');
+      if (!_mktCampaigns || _mktCampaigns.length === 0) {
+        body.innerHTML = '';
+        empty.style.display = '';
+        return;
+      }
+      empty.style.display = 'none';
+
+      body.innerHTML = _mktCampaigns.map(function(c) {
+        var ctr = (c.total_impressions || 0) > 0
+          ? ((c.total_clicks || 0) / c.total_impressions * 100).toFixed(2) + '%'
+          : '--';
+        var cpa = c.avg_cost_per_signup ? '$' + c.avg_cost_per_signup : '--';
+        return '<tr style="border-bottom:1px solid #eee;">'
+          + '<td style="padding:8px 12px;font-weight:600;">' + escapeHtml(c.campaign_name) + '</td>'
+          + '<td style="padding:8px 12px;">' + (c.creative_count || 0) + '</td>'
+          + '<td style="padding:8px 12px;">' + (c.total_impressions || 0).toLocaleString() + '</td>'
+          + '<td style="padding:8px 12px;">' + (c.total_clicks || 0).toLocaleString() + '</td>'
+          + '<td style="padding:8px 12px;">' + ctr + '</td>'
+          + '<td style="padding:8px 12px;">$' + ((c.total_spend_cents || 0) / 100).toFixed(2) + '</td>'
+          + '<td style="padding:8px 12px;">' + (c.total_signups || 0) + '</td>'
+          + '<td style="padding:8px 12px;">' + (c.total_publishes || 0) + '</td>'
+          + '<td style="padding:8px 12px;">' + cpa + '</td>'
+          + '</tr>';
+      }).join('');
+    }
+
+    // ── Leaderboard ──
+    var _leaderboardExpanded = {};
+
+    function toggleLeaderboardRow(creativeId) {
+      _leaderboardExpanded[creativeId] = !_leaderboardExpanded[creativeId];
+      renderLeaderboard();
+      // Load iframe for expanded row after render
+      if (_leaderboardExpanded[creativeId]) {
+        var detail = document.getElementById('lb-detail-' + creativeId);
+        if (detail) {
+          var iframe = detail.querySelector('.phone-screen iframe');
+          var c = _mktCreatives.find(function(x) { return x.creative_id === creativeId; });
+          if (iframe && c && c.invite_html) {
+            var fontsImport = (c.invite_config && c.invite_config.googleFontsImport) || '';
+            iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+              + '<style>' + fontsImport + '</style>'
+              + '<style>' + (c.invite_css || '') + '</style></head><body>' + c.invite_html + '</body></html>';
+            var screen = iframe.closest('.phone-screen');
+            if (screen) iframe.style.transform = 'scale(' + ((screen.offsetWidth || 120) / 393) + ')';
+          }
+        }
+      }
+    }
+
+    function createVersionFromLeaderboard(creativeId) {
+      var c = _mktCreatives.find(function(x) { return x.creative_id === creativeId; });
+      if (!c) return;
+      openAdVideoModal({
+        html: c.invite_html,
+        css: c.invite_css,
+        config: c.invite_config || {},
+        promptText: c.prompt_text || 'Create a beautiful invitation',
+        eventTitle: c.campaign_label || '',
+        eventType: c.event_type || '',
+        sourceType: c.source_type || 'showcase',
+        sourceId: c.source_id || c.id
+      });
+    }
+
+    function renderLeaderboard() {
+      var list = document.getElementById('mktLeaderboardList');
+      var empty = document.getElementById('mktLeaderboardEmpty');
+      var perfData = _mktCreatives || [];
+      if (perfData.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = '';
+        return;
+      }
+      empty.style.display = 'none';
+
+      var sortBy = document.getElementById('mktLeaderboardSort').value;
+      var sorted = perfData.slice().sort(function(a, b) {
+        if (sortBy === 'cpa') return (a.cost_per_signup || 9999) - (b.cost_per_signup || 9999);
+        if (sortBy === 'ctr') return (b.ctr || 0) - (a.ctr || 0);
+        if (sortBy === 'events_published') return (b.events_published || 0) - (a.events_published || 0);
+        return (b.signups || 0) - (a.signups || 0);
+      });
+
+      list.innerHTML = sorted.map(function(c, i) {
+        var rank = i + 1;
+        var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+        var formatLabel = c.format === 'mobile_4x5' ? 'Mobile' : 'Feed';
+        var cpa = c.cost_per_signup ? '$' + c.cost_per_signup : '--';
+        var hasPreview = !!(c.invite_html);
+        var isExpanded = _leaderboardExpanded[c.creative_id];
+        var sourceIdShort = (c.source_id || '').substring(0, 8);
+
+        var row = '<div style="border:1px solid #eee;border-radius:8px;overflow:hidden;' + (rank <= 3 ? 'background:#f8fff8;' : '') + '">'
+          // Main row — clickable
+          + '<div onclick="toggleLeaderboardRow(\'' + escapeHtml(c.creative_id) + '\')" style="display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer;">'
+          + '<div style="font-size:20px;min-width:36px;text-align:center;">' + medal + '</div>';
+
+        // Mini preview thumbnail
+        if (hasPreview) {
+          row += '<div style="width:40px;height:72px;border-radius:6px;overflow:hidden;background:#f5f5f5;flex-shrink:0;border:1px solid #e0e0e0;">'
+            + '<div style="width:40px;height:72px;overflow:hidden;position:relative;">'
+            + '<iframe sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;transform-origin:top left;transform:scale(0.102);pointer-events:none;" srcdoc="<!DOCTYPE html><html><head><meta charset=UTF-8><meta name=viewport content=\'width=393,initial-scale=1.0\'>'
+            + '<style>' + ((c.invite_config && c.invite_config.googleFontsImport) || '').replace(/"/g, '&quot;') + '</style>'
+            + '<style>' + (c.invite_css || '').replace(/"/g, '&quot;') + '</style></head><body>' + (c.invite_html || '').replace(/"/g, '&quot;') + '</body></html>"></iframe>'
+            + '</div></div>';
+        }
+
+        row += '<div style="flex:1;min-width:0;">'
+          + '<div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.campaign_label || c.campaign_name || c.creative_id) + '</div>'
+          + '<div style="font-size:11px;color:#888;">' + formatLabel + ' &middot; ' + escapeHtml(c.event_type || 'general')
+          + ' &middot; <span style="font-family:monospace;font-size:10px;" title="Source ID: ' + escapeHtml(c.source_id || '') + '">' + escapeHtml(sourceIdShort) + '...</span></div>'
+          + '</div>'
+          + '<div style="text-align:right;font-size:12px;flex-shrink:0;">'
+          + '<div>' + (c.signups || 0) + ' signups</div>'
+          + '<div style="color:#888;">CPA: ' + cpa + '</div>'
+          + '<div style="color:#888;">CTR: ' + (c.ctr || 0) + '%</div>'
+          + '</div>'
+          + '<div style="font-size:14px;color:#aaa;margin-left:4px;">' + (isExpanded ? '&#9650;' : '&#9660;') + '</div>'
+          + '</div>';
+
+        // Expanded detail section
+        if (isExpanded) {
+          row += '<div id="lb-detail-' + escapeHtml(c.creative_id) + '" style="padding:12px 16px;border-top:1px solid #eee;display:flex;gap:16px;align-items:flex-start;">'
+            // Phone preview
+            + '<div class="phone-mockup" style="width:120px;flex-shrink:0;"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen"><iframe sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe></div><div class="phone-home-bar"></div></div></div>'
+            // Details + actions
+            + '<div style="flex:1;min-width:0;">'
+            + '<div style="font-size:12px;margin-bottom:8px;">'
+            + '<div style="margin-bottom:4px;"><strong>Creative ID:</strong> <span style="font-family:monospace;">' + escapeHtml(c.creative_id) + '</span></div>'
+            + '<div style="margin-bottom:4px;"><strong>Source ID:</strong> <span style="font-family:monospace;font-size:11px;">' + escapeHtml(c.source_id || '—') + '</span></div>'
+            + '<div style="margin-bottom:4px;"><strong>Source:</strong> ' + escapeHtml(c.source_type || '—') + '</div>'
+            + '<div style="margin-bottom:4px;"><strong>Theme:</strong> ' + escapeHtml(c.video_theme || '—') + '</div>'
+            + '<div style="margin-bottom:4px;"><strong>Prompt:</strong> ' + escapeHtml(c.prompt_text || '—') + '</div>'
+            + '</div>'
+            + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+            + '<button class="btn btn-primary btn-sm" style="background:#E94560;" onclick="event.stopPropagation();createVersionFromLeaderboard(\'' + escapeHtml(c.creative_id) + '\')">Create New Version</button>'
+            + '<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openCreativeDetail(\'' + escapeHtml(c.creative_id) + '\')">Full Details</button>'
+            + '</div>'
+            + '</div>'
+            + '</div>';
+        }
+
+        row += '</div>';
+        return row;
+      }).join('');
+    }
+
+    // ── FB Data Sync ──
+    async function syncFbData() {
+      var btn = document.getElementById('mktSyncBtn');
+      btn.disabled = true;
+      btn.textContent = 'Syncing...';
+      try {
+        var res = await authFetch('/api/v2/fb-ads?action=sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        var data = await res.json();
+        if (data.success) {
+          btn.textContent = 'Synced ' + data.synced + ' records (' + data.matched + ' matched)';
+          setTimeout(function() { btn.textContent = 'Sync Facebook Data'; }, 3000);
+          await loadCampaignData();
+        } else {
+          btn.textContent = 'Error: ' + (data.error || 'Sync failed');
+          setTimeout(function() { btn.textContent = 'Sync Facebook Data'; }, 3000);
+        }
+      } catch (e) {
+        btn.textContent = 'Sync failed';
+        setTimeout(function() { btn.textContent = 'Sync Facebook Data'; }, 3000);
+      }
+      btn.disabled = false;
+    }
+
+    // ── AI Suggestions ──
+    async function generateAdSuggestions() {
+      var btn = document.getElementById('mktSuggestBtn');
+      btn.disabled = true;
+      btn.textContent = 'Analyzing...';
+      try {
+        var res = await authFetch('/api/v2/fb-ads?action=suggestions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        var data = await res.json();
+        renderSuggestions(data.suggestions || []);
+      } catch (e) {
+        alert('Failed to generate suggestions: ' + e.message);
+      }
+      btn.disabled = false;
+      btn.textContent = 'Get AI Suggestions';
+    }
+
+    function renderSuggestions(suggestions) {
+      var list = document.getElementById('mktSuggestionsList');
+      var empty = document.getElementById('mktSuggestionsEmpty');
+      if (suggestions.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = '';
+        return;
+      }
+      empty.style.display = 'none';
+
+      var typeIcons = { copy: '✍️', creative: '🎨', targeting: '🎯', general: '💡' };
+      list.innerHTML = suggestions.map(function(s) {
+        var icon = typeIcons[s.suggestion_type] || '💡';
+        var conf = s.confidence ? Math.round(s.confidence * 100) + '% confidence' : '';
+        return '<div style="border:1px solid #eee;border-radius:10px;padding:16px;">'
+          + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
+          + '<span style="font-size:20px;">' + icon + '</span>'
+          + '<span style="font-size:14px;font-weight:600;">' + escapeHtml(s.title) + '</span>'
+          + '<span style="font-size:11px;color:#888;margin-left:auto;">' + escapeHtml(s.suggestion_type) + (conf ? ' &middot; ' + conf : '') + '</span>'
+          + '</div>'
+          + '<div style="font-size:13px;color:#555;line-height:1.5;">' + escapeHtml(s.description || '') + '</div>'
+          + '</div>';
+      }).join('');
+    }
+
+    // ── FB Settings ──
+    async function loadFbConfig() {
+      try {
+        var res = await authFetch('/api/v2/fb-ads?action=getConfig');
+        var data = await res.json();
+        if (data.config) {
+          document.getElementById('fbAdAccountId').value = data.config.adAccountId || '';
+          document.getElementById('fbAccessToken').placeholder = data.config.accessToken || 'EAA...';
+          document.getElementById('fbConfigStatus').innerHTML = '<span style="color:#22c55e;">Connected</span> — Last updated: ' + (data.config.updatedAt ? new Date(data.config.updatedAt).toLocaleDateString() : 'unknown');
+        }
+      } catch (e) {}
+    }
+
+    async function saveFbConfig() {
+      var adAccountId = document.getElementById('fbAdAccountId').value.trim();
+      var accessToken = document.getElementById('fbAccessToken').value.trim();
+      if (!adAccountId || !accessToken) { alert('Both fields required'); return; }
+      var status = document.getElementById('fbConfigStatus');
+      status.innerHTML = 'Saving...';
+
+      try {
+        var res = await authFetch('/api/v2/fb-ads?action=saveConfig', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adAccountId: adAccountId, accessToken: accessToken })
+        });
+        var data = await res.json();
+        if (data.success) {
+          status.innerHTML = '<span style="color:#22c55e;">Saved successfully!</span>';
+          document.getElementById('fbAccessToken').value = '';
+          document.getElementById('fbAccessToken').placeholder = '****' + accessToken.slice(-6);
+        } else {
+          status.innerHTML = '<span style="color:#ef4444;">' + (data.error || 'Save failed') + '</span>';
+        }
+      } catch (e) {
+        status.innerHTML = '<span style="color:#ef4444;">Network error</span>';
+      }
+    }
+
+    async function testFbConnection() {
+      var status = document.getElementById('fbConfigStatus');
+      status.innerHTML = 'Testing connection...';
+      try {
+        var res = await authFetch('/api/v2/fb-ads?action=testConnection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        var data = await res.json();
+        if (data.success) {
+          status.innerHTML = '<span style="color:#22c55e;">Connected! Account: ' + escapeHtml(data.account.name) + '</span>';
+        } else {
+          status.innerHTML = '<span style="color:#ef4444;">' + (data.error || 'Connection failed') + '</span>';
+        }
+      } catch (e) {
+        status.innerHTML = '<span style="color:#ef4444;">Connection failed</span>';
+      }
+    }
+
   </script>
   <div class="bulk-progress" id="bulkProgress" style="display:none;"></div>
   <!-- Style Detail View Overlay -->
@@ -7697,7 +8857,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           <div class="phone-frame">
             <div class="phone-notch"></div>
             <div class="phone-screen">
-              <iframe id="styleDetailPreviewFrame" sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
+              <iframe id="styleDetailPreviewFrame" sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
             </div>
             <div class="phone-home-bar"></div>
           </div>
@@ -7792,13 +8952,141 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           <div class="phone-frame">
             <div class="phone-notch"></div>
             <div class="phone-screen">
-              <iframe id="genDetailPreviewFrame" sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
+              <iframe id="genDetailPreviewFrame" sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
             </div>
             <div class="phone-home-bar"></div>
           </div>
         </div>
       </div>
       <div class="gen-detail-info" id="genDetailInfo"></div>
+    </div>
+  </div>
+  <!-- Ad Source Picker Modal -->
+  <div id="adPickerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;max-width:860px;width:94%;max-height:85vh;overflow-y:auto;padding:28px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="margin:0;">Select Invite for Ad</h3>
+        <button onclick="document.getElementById('adPickerModal').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">&times;</button>
+      </div>
+      <p style="font-size:13px;color:#888;margin-bottom:16px;">Choose a featured showcase or go to Generations to pick from all user/lab generations.</p>
+      <div id="adPickerGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:16px;"></div>
+      <div id="adPickerEmpty" style="display:none;text-align:center;padding:30px;color:#888;">
+        <p>No showcases available. Add featured invites in the Generations tab first, or use the "Generate Ad" button on any invite card.</p>
+      </div>
+      <div style="border-top:1px solid #eee;padding-top:12px;text-align:center;">
+        <button class="btn btn-secondary" onclick="document.getElementById('adPickerModal').style.display='none';switchTab('stylelibrary');" style="font-size:13px;">Browse All Generations</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ad Video Generator Dependencies -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="/v2/admin/ad-video-generator.js"></script>
+
+  <!-- Ad Video Generation Modal -->
+  <div id="adVideoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;display:none;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;max-width:600px;width:90%;max-height:90vh;overflow-y:auto;padding:28px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <h3 style="margin:0;">Generate Ad Video</h3>
+        <button onclick="closeAdVideoModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">&times;</button>
+      </div>
+
+      <!-- Step 1: Configure -->
+      <div id="adVideoConfig">
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Label <span style="font-weight:400;color:#999;">(optional — for your reference)</span></label>
+          <input type="text" id="adVideoCampaignLabel" placeholder="e.g., Emma's unicorn birthday" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;box-sizing:border-box;">
+          <div id="adVideoUtmPreview" style="margin-top:6px;font-size:11px;color:#888;font-family:monospace;"></div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">UTM Destination</label>
+          <select id="adVideoDestination" onchange="updateUtmDestPreview()" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;box-sizing:border-box;background:#fff;">
+            <option value="landing">Landing Page — /lp/ (Recommended for ads)</option>
+            <option value="create">Create Page — /v2/create/</option>
+            <option value="homepage">Homepage — /</option>
+            <option value="custom">Custom URL</option>
+          </select>
+          <input type="text" id="adVideoCustomUrl" placeholder="https://ryvite.com/..." style="display:none;width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;box-sizing:border-box;margin-top:8px;">
+          <div id="adVideoDestPreview" style="margin-top:6px;font-size:11px;color:#888;font-family:monospace;"></div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Formats (select one or both)</label>
+          <div style="display:flex;gap:12px;" id="adVideoFormatBtns">
+            <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 14px;border:2px solid #E94560;border-radius:8px;cursor:pointer;font-size:14px;background:#fef2f4;">
+              <input type="checkbox" id="adFmtReels" checked style="accent-color:#E94560;width:18px;height:18px;"> Mobile (4:5)
+            </label>
+            <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 14px;border:2px solid #E94560;border-radius:8px;cursor:pointer;font-size:14px;background:#fef2f4;">
+              <input type="checkbox" id="adFmtFeed" checked style="accent-color:#E94560;width:18px;height:18px;"> Feed (1:1)
+            </label>
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Visual Theme</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="adVideoThemeBtns">
+            <button class="ad-theme-btn selected" onclick="selectAdTheme('dark_gradient')" data-theme="dark_gradient" style="padding:12px;border:2px solid #E94560;border-radius:8px;cursor:pointer;text-align:center;background:linear-gradient(135deg,#1a0a2e,#16213e);color:#fff;font-size:13px;">
+              Dark Gradient
+            </button>
+            <button class="ad-theme-btn" onclick="selectAdTheme('light_clean')" data-theme="light_clean" style="padding:12px;border:2px solid #ddd;border-radius:8px;cursor:pointer;text-align:center;background:linear-gradient(135deg,#f8f9fa,#fff);color:#1a1a2e;font-size:13px;">
+              Light Clean
+            </button>
+            <button class="ad-theme-btn" onclick="selectAdTheme('ryvite_brand')" data-theme="ryvite_brand" style="padding:12px;border:2px solid #ddd;border-radius:8px;cursor:pointer;text-align:center;background:linear-gradient(135deg,#0a0a1a,#1a1a3e);color:#E94560;font-size:13px;">
+              Ryvite Brand
+            </button>
+            <button class="ad-theme-btn" onclick="selectAdTheme('warm_sunset')" data-theme="warm_sunset" style="padding:12px;border:2px solid #ddd;border-radius:8px;cursor:pointer;text-align:center;background:linear-gradient(135deg,#ffecd2,#ff9a9e);color:#3d1f00;font-size:13px;">
+              Warm Sunset
+            </button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <label style="font-size:13px;font-weight:600;">Prompt Text (shown in typing animation)</label>
+            <button id="adVideoAiPromptBtn" class="btn btn-secondary btn-sm" onclick="generateAiAdPrompt()" style="font-size:11px;padding:4px 10px;">
+              <span id="adVideoAiPromptLabel">Generate AI Prompt</span>
+            </button>
+          </div>
+          <textarea id="adVideoPromptText" rows="3" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;resize:vertical;box-sizing:border-box;"></textarea>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:2px solid #E94560;border-radius:8px;cursor:pointer;background:#fef2f4;">
+            <input type="checkbox" id="adVideoLiveAnimation" style="accent-color:#E94560;width:18px;height:18px;">
+            <div>
+              <div style="font-size:14px;font-weight:600;color:#1a1a2e;">Capture Live Animations</div>
+              <div style="font-size:12px;color:#888;margin-top:2px;">Records actual CSS animations via server rendering (~30s slower, much higher quality)</div>
+            </div>
+          </label>
+        </div>
+
+        <button class="btn btn-primary" onclick="startAdVideoGeneration()" style="width:100%;padding:14px;font-size:15px;">
+          Generate Video
+        </button>
+      </div>
+
+      <!-- Step 2: Progress -->
+      <div id="adVideoProgress" style="display:none;text-align:center;padding:20px 0;">
+        <div style="font-size:15px;font-weight:600;margin-bottom:12px;" id="adVideoPhase">Preparing...</div>
+        <div style="background:#eee;border-radius:8px;height:8px;overflow:hidden;margin-bottom:8px;">
+          <div id="adVideoProgressBar" style="height:100%;background:linear-gradient(90deg,#E94560,#ff6b8a);border-radius:8px;width:0%;transition:width 0.3s;"></div>
+        </div>
+        <div style="font-size:12px;color:#888;" id="adVideoProgressPct">0%</div>
+      </div>
+
+      <!-- Step 3: Result -->
+      <div id="adVideoResult" style="display:none;">
+        <div id="adVideoResultVideos" style="display:flex;gap:16px;margin-bottom:16px;justify-content:center;flex-wrap:wrap;"></div>
+        <div style="background:#f5f5fa;border-radius:8px;padding:12px;margin-bottom:16px;">
+          <label style="display:block;font-size:11px;font-weight:600;color:#888;margin-bottom:4px;">UTM Link</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" id="adVideoUtmLink" readonly style="flex:1;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:monospace;background:#fff;">
+            <button class="btn btn-secondary" onclick="copyUtmLink()" style="white-space:nowrap;font-size:12px;">Copy</button>
+          </div>
+        </div>
+        <div id="adVideoDownloadBtns" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      </div>
     </div>
   </div>
 </body>

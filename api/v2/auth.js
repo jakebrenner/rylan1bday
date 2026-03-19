@@ -237,11 +237,15 @@ export default async function handler(req, res) {
         return res.status(401).json({ success: false, error: 'Invalid session' });
       }
 
-      const { displayName, phone, referralSource } = req.body || {};
+      const { displayName, phone, referralSource, utmSource, utmMedium, utmCampaign, utmContent } = req.body || {};
       const updates = {};
       if (displayName !== undefined) updates.display_name = displayName;
       if (phone !== undefined) updates.phone = phone;
       if (referralSource !== undefined) updates.referral_source = referralSource;
+      if (utmSource !== undefined) updates.utm_source = utmSource;
+      if (utmMedium !== undefined) updates.utm_medium = utmMedium;
+      if (utmCampaign !== undefined) updates.utm_campaign = utmCampaign;
+      if (utmContent !== undefined) updates.utm_content = utmContent;
 
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({ success: false, error: 'No fields to update' });

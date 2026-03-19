@@ -149,22 +149,34 @@ export default async function handler(req, res) {
     }
 
     // Create incident
-    const { data: incident, error: insertErr } = await supabase
+    const row = {
+      event_id: eventId,
+      event_theme_id: eventThemeId || null,
+      user_id: user.id,
+      trigger_type: triggerType,
+      trigger_data: triggerData || null,
+      design_chat_snapshot: chatSnapshot,
+      theme_snapshot: themeSnapshot || null,
+      validation_results: validationResults || null,
+      client_meta: clientMeta,
+      resolution_type: 'unresolved'
+    };
+
+    let { data: incident, error: insertErr } = await supabase
       .from('quality_incidents')
-      .insert({
-        event_id: eventId,
-        event_theme_id: eventThemeId || null,
-        user_id: user.id,
-        trigger_type: triggerType,
-        trigger_data: triggerData || null,
-        design_chat_snapshot: chatSnapshot,
-        theme_snapshot: themeSnapshot || null,
-        validation_results: validationResults || null,
-        client_meta: clientMeta,
-        resolution_type: 'unresolved'
-      })
+      .insert(row)
       .select('id')
       .single();
+
+    // If client_meta column doesn't exist yet, retry without it
+    if (insertErr && insertErr.message && (insertErr.message.includes('client_meta') || insertErr.message.includes('column'))) {
+      delete row.client_meta;
+      ({ data: incident, error: insertErr } = await supabase
+        .from('quality_incidents')
+        .insert(row)
+        .select('id')
+        .single());
+    }
 
     if (insertErr) {
       console.error('[quality-monitor] Incident insert failed:', insertErr.message);

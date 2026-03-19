@@ -464,11 +464,11 @@
       <input type="file" id="chatInspoInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleInspirationUpload(event)">
       <input type="file" id="chatPersonInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handlePersonUpload(event)">
       <div class="chat-photo-menu" id="chatPhotoMenu">
-        <button onclick="document.getElementById('chatInspoInput').click(); toggleChatPhotoMenu();">
+        <button onclick="pickChatPhoto('chatInspoInput')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
           Inspiration images
         </button>
-        <button onclick="document.getElementById('chatPersonInput').click(); toggleChatPhotoMenu();">
+        <button onclick="pickChatPhoto('chatPersonInput')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
           Photos of the person
         </button>
@@ -836,6 +836,53 @@
     })();
 
     var ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp'];
+
+    // ── UTM Parameter Capture ──
+    // Parse UTM params from URL and persist in sessionStorage for attribution tracking
+    (function captureUtmParams() {
+      var params = new URLSearchParams(window.location.search);
+      var utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+      var hasUtm = false;
+      utmKeys.forEach(function(key) {
+        var val = params.get(key);
+        if (val) {
+          sessionStorage.setItem(key, val);
+          hasUtm = true;
+        }
+      });
+      // If we have UTM params, record the visit
+      if (hasUtm) {
+        var sessionId = sessionStorage.getItem('utm_session_id');
+        if (!sessionId) {
+          sessionId = 'utm_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+          sessionStorage.setItem('utm_session_id', sessionId);
+        }
+        fetch('/api/v2/utm?action=track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            utmSource: params.get('utm_source'),
+            utmMedium: params.get('utm_medium'),
+            utmCampaign: params.get('utm_campaign'),
+            utmContent: params.get('utm_content'),
+            utmTerm: params.get('utm_term'),
+            landingPage: window.location.pathname,
+            sessionId: sessionId
+          })
+        }).catch(function() { /* fire-and-forget */ });
+      }
+    })();
+
+    // Helper to get stored UTM data for API calls
+    function getUtmData() {
+      return {
+        utmSource: sessionStorage.getItem('utm_source') || undefined,
+        utmMedium: sessionStorage.getItem('utm_medium') || undefined,
+        utmCampaign: sessionStorage.getItem('utm_campaign') || undefined,
+        utmContent: sessionStorage.getItem('utm_content') || undefined,
+        utmSessionId: sessionStorage.getItem('utm_session_id') || undefined
+      };
+    }
     var ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.heic', '.heif', '.webp'];
     var FIELD_TYPE_LABELS = { text: 'Text', number: 'Number', select: 'Dropdown', checkbox: 'Checkbox', email: 'Email', phone: 'Phone', textarea: 'Long text' };
 
@@ -1006,6 +1053,7 @@
           var genView = document.getElementById('generatingView');
           genView.style.display = 'none';
           document.getElementById('generatedView').style.display = 'block';
+          _resumeDataLoading = true; // Suppress broken render checks until event data loads
           renderPreview(themeVersions[activeVersionIndex]);
           renderVersionGallery();
           // Set pending rating so it shows when design chat initializes
@@ -1027,6 +1075,12 @@
                 dressCode: ev.dressCode || '', description: ev.description || '',
                 prompt: (ev.settings && ev.settings.design_prompt) || ''
               };
+              _resumeDataLoading = false; // Event data loaded — re-enable broken render checks
+              // Re-inject details into current preview now that extractedData is available
+              var previewIframe = document.getElementById('previewFrame');
+              if (previewIframe && previewIframe.contentDocument) {
+                try { injectRsvpForm(previewIframe); } catch(e) {}
+              }
               // Store DB chat history for loadDesignChatHistory fallback
               _dbDesignChatHistory = (ev.settings && ev.settings.design_chat_history) || null;
               if (ev.customFields && ev.customFields.length > 0) {
@@ -1349,6 +1403,20 @@
           }
         }
       }
+
+      // Auto-submit prompt from landing page hero chat
+      var landingPrompt = localStorage.getItem('ryvite_landing_prompt');
+      if (landingPrompt && chatHistory.length === 0) {
+        localStorage.removeItem('ryvite_landing_prompt');
+        // Small delay to ensure page is fully ready
+        setTimeout(function() {
+          var input = document.getElementById('chatInput');
+          if (input) {
+            input.value = landingPrompt;
+            sendMessage();
+          }
+        }, 300);
+      }
     })();
 
     // ---- Chat Functions ----
@@ -1356,6 +1424,22 @@
     function toggleChatPhotoMenu() {
       var menu = document.getElementById('chatPhotoMenu');
       menu.classList.toggle('open');
+    }
+
+    // Reliably trigger file picker from photo menu
+    // Close menu first, then trigger file input after a tick so the file picker
+    // isn't blocked by the menu DOM update (fixes Safari/mobile issues)
+    function pickChatPhoto(inputId) {
+      var menu = document.getElementById('chatPhotoMenu');
+      menu.classList.remove('open');
+      // Short delay so menu close completes before file picker opens
+      setTimeout(function() {
+        var input = document.getElementById(inputId);
+        if (input) {
+          console.log('[Photos] Opening file picker for:', inputId);
+          input.click();
+        }
+      }, 100);
     }
 
     // Close photo menu when clicking elsewhere
@@ -2376,13 +2460,30 @@
         var area = document.getElementById('genAttributionArea');
         if (area) area.innerHTML = '<div class="gen-attribution-thanks">Thanks for letting us know!</div>';
       }, 600);
-      // Save to profile
+      // Save to profile (include UTM data for first-touch attribution)
       try {
+        var profileUpdate = { referralSource: source };
+        var utm = getUtmData();
+        if (utm.utmSource) profileUpdate.utmSource = utm.utmSource;
+        if (utm.utmMedium) profileUpdate.utmMedium = utm.utmMedium;
+        if (utm.utmCampaign) profileUpdate.utmCampaign = utm.utmCampaign;
+        if (utm.utmContent) profileUpdate.utmContent = utm.utmContent;
         await authFetch('/api/v2/auth?action=updateProfile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ referralSource: source })
+          body: JSON.stringify(profileUpdate)
         });
+        // Link UTM visit to user
+        if (utm.utmSessionId) {
+          var user0 = JSON.parse(localStorage.getItem('v2_user') || 'null');
+          if (user0 && user0.id) {
+            fetch('/api/v2/utm?action=link', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId: utm.utmSessionId, userId: user0.id })
+            }).catch(function() {});
+          }
+        }
         // Update local storage so we don't ask again
         var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
         if (user) { user.referralSource = source; localStorage.setItem('v2_user', JSON.stringify(user)); }
@@ -3184,7 +3285,7 @@
               // Content completeness check — runs after injection, with delay for paint + CSS animations
               setTimeout(function() {
                 var result = validateContentCompleteness(iframe);
-                if (!result.valid && !autoRetryInProgress) {
+                if (!result.valid && !autoRetryInProgress && !_resumeDataLoading) {
                   // Only trigger broken render for truly missing structural elements,
                   // not CSS visual issues (opacity/size during animations)
                   var structuralMissing = result.missing.filter(function(m) {
@@ -3218,7 +3319,7 @@
               // Content completeness check — with delay for CSS animations
               setTimeout(function() {
                 var result = validateContentCompleteness(iframe);
-                if (!result.valid && !autoRetryInProgress) {
+                if (!result.valid && !autoRetryInProgress && !_resumeDataLoading) {
                   var structuralMissing = result.missing.filter(function(m) {
                     var doc2 = iframe.contentDocument;
                     if (!doc2) return true;
@@ -4304,6 +4405,7 @@
     var lastRenderBroken = false; // Set when content validation detects missing elements
     var brokenRenderCount = 0; // Tracks consecutive broken renders for escalation
     var autoRetryInProgress = false; // Prevents recursive auto-retry loops
+    var _resumeDataLoading = false; // Suppresses broken render checks while event data loads on resume
 
     // ── Client device info for quality incident reports ──
     function getClientDeviceInfo() {
@@ -6317,12 +6419,16 @@
 
     async function handleInspirationUpload(event) {
       var files = Array.from(event.target.files);
+      if (!files.length) { console.log('[Photos] No files selected for inspiration'); return; }
+      console.log('[Photos] Inspiration upload:', files.length, 'files');
       await addFiles(files, 'inspiration');
       event.target.value = '';
     }
 
     async function handlePersonUpload(event) {
       var files = Array.from(event.target.files);
+      if (!files.length) { console.log('[Photos] No files selected for person'); return; }
+      console.log('[Photos] Person upload:', files.length, 'files');
       await addFiles(files, 'person');
       event.target.value = '';
     }
@@ -6377,10 +6483,13 @@
             var uploadResult = await uploadRes.json();
             if (uploadResult.success && uploadResult.url) {
               urlArr.push(uploadResult.url);
+              console.log('[Photos] Uploaded:', file.name);
             } else {
+              console.error('[Photos] Upload failed:', uploadResult.error || 'unknown error');
               urlArr.push(null);
             }
           } catch (e) {
+            console.error('[Photos] Upload error:', e.message);
             urlArr.push(null);
           }
         } else {
