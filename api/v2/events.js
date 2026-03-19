@@ -1522,13 +1522,15 @@ async function verifyPublishedInvite(eventId, slug, userId) {
       model: 'claude-haiku-4-5-20251001',
       input_tokens: pvInputTokens,
       output_tokens: pvOutputTokens,
-      latency_ms: 0, status: 'success', is_tweak: false
+      latency_ms: 0, status: 'success', is_tweak: false,
+      cost_cents: pvCostCentsExact
     });
     if (pvLogResult.error) console.error('[publish-verify] generation_log insert failed:', pvLogResult.error.message);
-    // Increment event cost for vision call
+    // Increment event cost for vision call — raw API cost, no markup
     const pvPricing = { input: 1.00, output: 5.00 }; // Haiku pricing per 1M tokens
     const pvRawCost = (pvInputTokens * pvPricing.input + pvOutputTokens * pvPricing.output) / 1_000_000;
-    const pvCostCents = Math.round(pvRawCost * 150); // 50% markup, convert to cents
+    const pvCostCentsExact = Math.round(pvRawCost * 100 * 10000) / 10000;
+    const pvCostCents = Math.round(pvRawCost * 100);
     if (pvCostCents > 0) {
       await supabaseAdmin.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: pvCostCents })
         .catch(e => console.error('[publish-verify] cost increment failed:', e.message));

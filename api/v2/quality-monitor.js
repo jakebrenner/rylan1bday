@@ -16,11 +16,10 @@ const AI_MODEL_PRICING = {
   'claude-opus-4-6':           { input: 15.00, output: 75.00 },
 };
 
-function calcCost(model, inputTokens, outputTokens, markupPct = 50) {
+function calcCost(model, inputTokens, outputTokens) {
   const pricing = AI_MODEL_PRICING[model] || { input: 3.00, output: 15.00 };
   const rawCents = ((inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000) * 100;
-  const withMarkup = rawCents * (1 + markupPct / 100);
-  return Math.round(withMarkup * 100) / 100;
+  return Math.round(rawCents * 100) / 100;
 }
 
 // ── Auth helper (same pattern as generate-theme.js) ──

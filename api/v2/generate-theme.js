@@ -23,11 +23,11 @@ const AI_MODEL_PRICING = {
   'claude-opus-4-6':           { input: 15.00, output: 75.00 },
 };
 
-function calcGenerationCost(model, inputTokens, outputTokens, markupPct = 50) {
+function calcGenerationCost(model, inputTokens, outputTokens) {
   const pricing = AI_MODEL_PRICING[model] || { input: 3.00, output: 15.00 };
   const rawCost = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
-  const withMarkup = rawCost * (1 + markupPct / 100);
-  return { rawCostCents: Math.round(rawCost * 100), totalCostCents: Math.round(withMarkup * 100) };
+  // costCentsExact preserves precision for generation_log.cost_cents column
+  return { rawCostCents: Math.round(rawCost * 100), costCentsExact: Math.round(rawCost * 100 * 10000) / 10000 };
 }
 
 // Fetch images from URLs and convert to base64 for Claude vision
@@ -1412,15 +1412,15 @@ Rules:
         prompt: 'interpretField: ' + userMessage.substring(0, 200),
         model: 'claude-haiku-4-5-20251001', input_tokens: fieldInputTokens,
         output_tokens: fieldOutputTokens, latency_ms: fieldLatency, status: 'success',
-        is_tweak: true
+        is_tweak: true, cost_cents: fieldCost.costCentsExact
       });
       if (fieldLogError) console.error('Field generation_log insert failed:', fieldLogError.message);
       if (fieldEventId) {
 try {
-          const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: fieldEventId, p_cost_cents: fieldCost.totalCostCents });
+          const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: fieldEventId, p_cost_cents: fieldCost.rawCostCents });
           if (rpcErr) {
             const { data } = await supabase.from('events').select('total_cost_cents').eq('id', fieldEventId).single();
-            if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + fieldCost.totalCostCents }).eq('id', fieldEventId);
+            if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + fieldCost.rawCostCents }).eq('id', fieldEventId);
           }
         } catch (e) { /* non-critical */ }
       }
@@ -1502,11 +1502,11 @@ Rules:
         prompt: 'classifyIntent: ' + userMessage.substring(0, 200),
         model: 'claude-haiku-4-5-20251001', input_tokens: classifyInputTokens,
         output_tokens: classifyOutputTokens, latency_ms: classifyLatency, status: 'success',
-        is_tweak: true, event_type: eventType || '',
+        is_tweak: true, cost_cents: classifyCost.costCentsExact, event_type: eventType || '',
         client_ip: classifyMeta.ip, client_geo: classifyMeta.geo, user_agent: classifyMeta.userAgent
       }).catch(e => console.error('classifyIntent generation_log insert failed:', e.message));
       if (eventId) {
-        await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: classifyCost.totalCostCents }).catch(() => {});
+        await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: classifyCost.rawCostCents }).catch(() => {});
       }
       // AI generation included in $4.99 event price — no per-generation billing
       return res.json({ success: true, ...classification, metadata: { cost: classifyCost } });
@@ -1926,16 +1926,16 @@ Return ONLY a valid JSON object with these keys:
           event_id: eventId, user_id: user.id, prompt: 'Tweak (chat): ' + tweakInstructions.substring(0, 200),
           model: tweakModel, input_tokens: tweakInputTokens,
           output_tokens: tweakOutputTokens, latency_ms: Date.now() - startTime, status: 'success',
-          is_tweak: true, event_type: eventDetails?.eventType || '',
+          is_tweak: true, cost_cents: chatOnlyCost.costCentsExact, event_type: eventDetails?.eventType || '',
           client_ip: chatOnlyMeta.ip, client_geo: chatOnlyMeta.geo, user_agent: chatOnlyMeta.userAgent
         });
         if (chatOnlyLogResult.error) console.error('Chat-only tweak log failed:', chatOnlyLogResult.error.message);
         if (eventId) {
           try {
-            const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: chatOnlyCost.totalCostCents });
+            const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: chatOnlyCost.rawCostCents });
             if (rpcErr) {
               const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
-              if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + chatOnlyCost.totalCostCents }).eq('id', eventId);
+              if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + chatOnlyCost.rawCostCents }).eq('id', eventId);
             }
           } catch (e) { /* non-critical */ }
         }
@@ -2133,7 +2133,7 @@ Return ONLY a valid JSON object with these keys:
         event_id: eventId, user_id: user.id, prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
         model: tweakModel, input_tokens: tweakInputTokens,
         output_tokens: tweakOutputTokens, latency_ms: latency, status: 'success',
-        is_tweak: true, event_type: eventDetails?.eventType || '',
+        is_tweak: true, cost_cents: tweakCost.costCentsExact, event_type: eventDetails?.eventType || '',
         client_ip: tweakMeta.ip, client_geo: tweakMeta.geo, user_agent: tweakMeta.userAgent
       }).select('id').single();
       if (tweakLogResult.error) console.error('Tweak generation_log insert failed:', tweakLogResult.error.message);
@@ -2141,10 +2141,10 @@ Return ONLY a valid JSON object with these keys:
 
       // ── Increment persistent event cost BEFORE res.end() ──
       try {
-        const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: tweakCost.totalCostCents });
+        const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: tweakCost.rawCostCents });
         if (rpcErr) {
           const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
-          if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + tweakCost.totalCostCents }).eq('id', eventId);
+          if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + tweakCost.rawCostCents }).eq('id', eventId);
         }
       } catch (e) { /* non-critical */ }
 
@@ -2184,7 +2184,7 @@ Return ONLY a valid JSON object with these keys:
               .eq('id', tweakLogId);
           }
           const finalTweakCost = calcGenerationCost(tweakModel, finalTweakInputTokens, finalTweakOutputTokens);
-          const costDelta = finalTweakCost.totalCostCents - tweakCost.totalCostCents;
+          const costDelta = finalTweakCost.rawCostCents - tweakCost.rawCostCents;
           if (costDelta > 0) {
             await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: costDelta }).catch(() => {});
           }
@@ -2643,7 +2643,7 @@ This is the most common failure mode. Double-check it.`;
       event_id: eventId, user_id: user.id, prompt: effectivePrompt,
       model: themeModel, input_tokens: genInputTokens,
       output_tokens: genOutputTokens, latency_ms: latency,
-      status: 'success', event_type: eventType, style_library_ids: usedStyleIds,
+      status: 'success', cost_cents: genCost.costCentsExact, event_type: eventType, style_library_ids: usedStyleIds,
       prompt_version_id: activePrompt.promptVersionId || null,
       client_ip: genMeta.ip, client_geo: genMeta.geo, user_agent: genMeta.userAgent
     }).select('id').single();
@@ -2652,10 +2652,10 @@ This is the most common failure mode. Double-check it.`;
 
     // ── Increment persistent event cost BEFORE res.end() ──
     try {
-      const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: genCost.totalCostCents });
+      const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: genCost.rawCostCents });
       if (rpcErr) {
         const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
-        if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + genCost.totalCostCents }).eq('id', eventId);
+        if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + genCost.rawCostCents }).eq('id', eventId);
       }
     } catch (e) { /* non-critical */ }
 
@@ -2726,7 +2726,7 @@ This is the most common failure mode. Double-check it.`;
             .eq('id', genLogId);
         }
         // Adjust event cost delta if markup changed significantly
-        const costDelta = finalCost.totalCostCents - genCost.totalCostCents;
+        const costDelta = finalCost.rawCostCents - genCost.rawCostCents;
         if (costDelta > 0) {
           await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: costDelta }).catch(() => {});
         }
