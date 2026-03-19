@@ -228,12 +228,12 @@ async function generateAdVideo({ html, css, config, promptText, format, theme, o
 /**
  * Record actual CSS animations via server-side Puppeteer.
  * Returns a frame player object that animateAndRecord can draw from.
- * The server captures screenshots at intervals and returns base64 JPEG frames.
+ * The server streams frames via SSE as they're captured.
  */
 async function renderInviteVideo(html, css, config, format, authFetch, onProgress) {
   onProgress = onProgress || function() {};
 
-  // Call the render-video API
+  // Call the render-video API (returns SSE stream)
   var res = await authFetch('/api/v2/render-video', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -242,35 +242,57 @@ async function renderInviteVideo(html, css, config, format, authFetch, onProgres
       css: css,
       config: config,
       format: format,
-      duration: 8
+      duration: 6
     })
   });
 
-  var result = await res.json();
-  if (!result.success || !result.frames || !result.frames.length) {
-    throw new Error('Video recording failed: ' + (result.error || 'no frames returned'));
+  // Parse the full SSE response (using res.text() for Safari compatibility)
+  var text = await res.text();
+  var lines = text.split('\n');
+  var frames = [];
+  var fps = 4;
+  var totalFrames = 24;
+  var error = null;
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    if (!line.startsWith('data: ')) continue;
+    try {
+      var evt = JSON.parse(line.substring(6));
+      if (evt.type === 'meta') {
+        fps = evt.fps || 4;
+        totalFrames = evt.totalFrames || 24;
+      } else if (evt.type === 'frame') {
+        frames.push(evt.data);
+      } else if (evt.type === 'error') {
+        error = evt.error;
+      }
+    } catch(e) { /* skip unparseable lines */ }
   }
+
+  if (error) throw new Error('Video recording failed: ' + error);
+  if (!frames.length) throw new Error('Video recording failed: no frames captured');
 
   onProgress(50);
 
   // Load all frames as Image objects
   var images = [];
-  for (var i = 0; i < result.frames.length; i++) {
+  for (var j = 0; j < frames.length; j++) {
     var img = new Image();
-    img.src = 'data:image/jpeg;base64,' + result.frames[i];
+    img.src = 'data:image/jpeg;base64,' + frames[j];
     await new Promise(function(resolve, reject) {
       img.onload = resolve;
-      img.onerror = function() { reject(new Error('Failed to load frame ' + i)); };
+      img.onerror = function() { reject(new Error('Failed to load frame ' + j)); };
     });
     images.push(img);
-    onProgress(50 + (i / result.frames.length) * 50);
+    onProgress(50 + (j / frames.length) * 50);
   }
 
   // Create a frame player that mimics a video source for animateAndRecord
   var framePlayer = {
     _isVideoSource: true,
     _frames: images,
-    _fps: result.fps || 8,
+    _fps: fps,
     _startTime: null,
     videoWidth: images[0].naturalWidth,
     videoHeight: images[0].naturalHeight,

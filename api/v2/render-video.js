@@ -108,19 +108,34 @@ export default async function handler(req, res) {
   const { html, css, config, format, duration } = req.body;
   if (!html) return res.status(400).json({ error: 'html is required' });
 
-  const recordDuration = Math.min(Math.max(duration || 6, 2), 15); // 2-15 seconds
+  const recordDuration = Math.min(Math.max(duration || 6, 2), 10); // 2-10 seconds
   const viewport = format === 'feed_1x1'
     ? { width: 393, height: 393, deviceScaleFactor: 2 }
     : { width: 393, height: 852, deviceScaleFactor: 2 }; // 2x for crisp rendering
 
-  const fps = 8;
+  const fps = 4; // 4fps is enough for CSS animation capture
   const totalFrames = Math.ceil(recordDuration * fps);
-  const frameInterval = 1000 / fps; // ~125ms between frames
+  const frameInterval = 1000 / fps; // 250ms between frames
+
+  // Use SSE streaming to prevent gateway timeout and send progress
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive'
+  });
+
+  // Keepalive interval to prevent proxy timeout
+  const keepalive = setInterval(() => { res.write(': keepalive\n\n'); }, 3000);
 
   let browser = null;
   try {
+    // Send metadata
+    res.write(`data: ${JSON.stringify({ type: 'meta', fps, totalFrames, duration: recordDuration })}\n\n`);
+
     // Build the invite HTML document
     const inviteHtml = buildInviteHtml(html, css, config);
+
+    res.write(`data: ${JSON.stringify({ type: 'progress', message: 'Launching browser...' })}\n\n`);
 
     // Launch headless Chrome
     chromium.setGraphicsMode = false;
@@ -134,6 +149,8 @@ export default async function handler(req, res) {
 
     const page = await browser.newPage();
 
+    res.write(`data: ${JSON.stringify({ type: 'progress', message: 'Loading invite...' })}\n\n`);
+
     // Load the invite
     await page.setContent(inviteHtml, { waitUntil: 'networkidle0', timeout: 30000 });
 
@@ -141,18 +158,20 @@ export default async function handler(req, res) {
     await page.evaluate(() => document.fonts.ready);
     await new Promise(r => setTimeout(r, 500));
 
+    res.write(`data: ${JSON.stringify({ type: 'progress', message: 'Recording animations...' })}\n\n`);
+
     // Capture animation frames via sequential screenshots
-    // CSS animations run in real-time; each screenshot captures the current state
-    const frames = [];
     const startTime = Date.now();
 
     for (let i = 0; i < totalFrames; i++) {
       const screenshot = await page.screenshot({
         type: 'jpeg',
-        quality: 65,
+        quality: 55,
         encoding: 'base64'
       });
-      frames.push(screenshot);
+
+      // Stream each frame as it's captured
+      res.write(`data: ${JSON.stringify({ type: 'frame', index: i, data: screenshot })}\n\n`);
 
       // Sleep until the next frame time (accounting for screenshot duration)
       if (i < totalFrames - 1) {
@@ -167,20 +186,16 @@ export default async function handler(req, res) {
     await browser.close();
     browser = null;
 
-    return res.status(200).json({
-      success: true,
-      frames,
-      fps,
-      duration: recordDuration,
-      format: format || 'mobile_4x5'
-    });
+    res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
 
   } catch (err) {
     console.error('[render-video] Error:', err.message);
-    return res.status(500).json({ error: 'Video generation failed: ' + err.message });
+    res.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`);
   } finally {
+    clearInterval(keepalive);
     if (browser) {
       try { await browser.close(); } catch (e) {}
     }
+    res.end();
   }
 }
