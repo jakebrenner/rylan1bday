@@ -312,6 +312,7 @@ export default async function handler(req, res) {
       let created = 0, updated = 0, skipped = 0;
       const newContacts = [];
       const updateOps = [];
+      const matchedIds = []; // IDs of existing contacts that were updated or skipped
 
       for (const input of inputContacts) {
         if (!input.name) { skipped++; continue; }
@@ -331,6 +332,7 @@ export default async function handler(req, res) {
             mergeUpdates.metadata = { ...(match.metadata || {}), ...input.metadata };
           }
 
+          matchedIds.push(match.id);
           if (Object.keys(mergeUpdates).length > 0) {
             updateOps.push({ id: match.id, ...mergeUpdates });
             updated++;
@@ -379,7 +381,8 @@ export default async function handler(req, res) {
           .insert(insertedIds.map(cid => ({ contact_id: cid, tag_id: tagId })));
       }
 
-      return res.status(200).json({ success: true, created, updated, skipped });
+      const allContactIds = [...insertedIds, ...matchedIds];
+      return res.status(200).json({ success: true, created, updated, skipped, contactIds: allContactIds });
     }
 
     // ================================================================
