@@ -764,6 +764,7 @@
           <div class="invite-card">
             <div class="invite-card-header">
               <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Quick Add</h3>
+              <button class="btn btn-sm" id="phonePickerBtn" onclick="importFromPhone()" style="display:none;gap:6px;align-items:center;background:rgba(233,69,96,0.08);color:var(--party-coral);border:1px solid rgba(233,69,96,0.2);border-radius:20px;font-size:12px;padding:5px 12px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg> From Phone</button>
             </div>
             <div class="invite-quick-add">
               <input type="text" id="newGuestName" placeholder="Name *">
@@ -6821,6 +6822,7 @@
       updateSmsCard();
       renderCohosts();
       updatePublishButton();
+      checkContactPickerSupport();
     }
 
     function renderTagFilters() {
@@ -7078,6 +7080,109 @@
         msgEl.textContent = 'Error adding guest';
         msgEl.style.color = '#E94560';
       }
+    }
+
+    // ── Phone Contact Picker ──
+    function isSafariMobile() {
+      var ua = navigator.userAgent;
+      return /iPhone|iPad|iPod/.test(ua) && /WebKit/.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(ua);
+    }
+
+    function checkContactPickerSupport() {
+      var hasAPI = ('contacts' in navigator && 'ContactsManager' in window);
+      var btn = document.getElementById('phonePickerBtn');
+      if (btn && (hasAPI || isSafariMobile())) {
+        btn.style.display = 'inline-flex';
+      }
+    }
+
+    async function importFromPhone() {
+      var hasAPI = ('contacts' in navigator && 'ContactsManager' in window);
+
+      if (!hasAPI) {
+        // Safari fallback — show instructions
+        showMessage('To import contacts on Safari, go to Settings > Safari > Advanced > Enable Contact Picker API', 'error');
+        return;
+      }
+
+      var btn = document.getElementById('phonePickerBtn');
+      try {
+        var props = ['name', 'tel', 'email'];
+        var opts = { multiple: true };
+        var contacts = await navigator.contacts.select(props, opts);
+
+        if (!contacts || contacts.length === 0) return;
+
+        btn.disabled = true;
+        var origHtml = btn.innerHTML;
+        btn.textContent = 'Importing...';
+
+        var mapped = contacts.map(function(c) {
+          var name = (c.name && c.name.length > 0) ? c.name[0] : '';
+          var phone = (c.tel && c.tel.length > 0) ? c.tel[0] : '';
+          var email = (c.email && c.email.length > 0) ? c.email[0] : '';
+          return { name: name, phone: phone, email: email };
+        }).filter(function(c) { return c.name; });
+
+        if (mapped.length === 0) {
+          showMessage('No valid contacts selected', 'error');
+          btn.disabled = false; btn.innerHTML = origHtml;
+          return;
+        }
+
+        // Bulk create contacts
+        var res = await authFetch('/api/v2/contacts?action=bulkCreate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contacts: mapped, source: 'import' })
+        });
+        var result = await res.json();
+
+        if (result.success) {
+          // Now add them as guests to the event
+          var contactIds = (result.contactIds || []);
+          if (contactIds.length > 0 && currentEvent) {
+            var addRes = await authFetch('/api/v2/events?action=addGuests', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ eventId: currentEvent.id, contactIds: contactIds })
+            });
+            var addResult = await addRes.json();
+            if (addResult.success && addResult.guests) {
+              addResult.guests.forEach(function(g) {
+                addedGuests.push({ id: g.id, serverId: g.id, name: g.name, email: g.email, phone: g.phone, contactId: g.contactId });
+              });
+            }
+          }
+
+          // Also refresh the contact list so they show up
+          try {
+            var contactsRes = await authFetch('/api/v2/contacts?action=list');
+            var contactsData = await contactsRes.json();
+            if (contactsData.success) allContacts = contactsData.contacts || [];
+          } catch (e) {}
+
+          var msg = 'Added ' + mapped.length + ' contact' + (mapped.length !== 1 ? 's' : '');
+          if (result.skipped) msg += ' (' + result.skipped + ' already existed)';
+          var msgEl = document.getElementById('newGuestMsg');
+          msgEl.textContent = msg;
+          msgEl.style.color = 'var(--mint-fizz)';
+          msgEl.style.display = 'block';
+          setTimeout(function() { msgEl.style.display = 'none'; }, 3000);
+
+          renderGuestList();
+          filterContacts();
+        } else {
+          showMessage(result.error || 'Import failed', 'error');
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          showMessage("Couldn't access contacts: " + err.message, 'error');
+        }
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg> From Phone';
     }
 
     // ── Avatar helpers ──
