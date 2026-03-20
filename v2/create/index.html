@@ -7172,15 +7172,16 @@
         if (result.success) {
           // Now add them as guests to the event
           var contactIds = (result.contactIds || []);
+          var guestAddResult = null;
           if (contactIds.length > 0 && currentEvent) {
             var addRes = await authFetch('/api/v2/events?action=addGuests', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ eventId: currentEvent.id, contactIds: contactIds })
             });
-            var addResult = await addRes.json();
-            if (addResult.success && addResult.guests) {
-              addResult.guests.forEach(function(g) {
+            guestAddResult = await addRes.json();
+            if (guestAddResult.success && guestAddResult.guests) {
+              guestAddResult.guests.forEach(function(g) {
                 addedGuests.push({ id: g.id, serverId: g.id, name: g.name, email: g.email, phone: g.phone, contactId: g.contactId });
               });
             }
@@ -7193,8 +7194,9 @@
             if (contactsData.success) allContacts = contactsData.contacts || [];
           } catch (e) {}
 
-          var msg = 'Added ' + mapped.length + ' contact' + (mapped.length !== 1 ? 's' : '');
-          if (result.skipped) msg += ' (' + result.skipped + ' already existed)';
+          var guestsAdded = guestAddResult && guestAddResult.added ? guestAddResult.added : contactIds.length;
+          var msg = 'Added ' + guestsAdded + ' guest' + (guestsAdded !== 1 ? 's' : '') + ' to invite list';
+          if (guestAddResult && guestAddResult.skipped) msg += ' (' + guestAddResult.skipped + ' already invited)';
           var msgEl = document.getElementById('newGuestMsg');
           msgEl.textContent = msg;
           msgEl.style.color = 'var(--mint-fizz)';
