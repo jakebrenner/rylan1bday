@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Photos — Ryvite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --party-coral: #E94560; --blush-pop: #FF6B6B; --midnight: #1A1A2E; --cream: #FFFAF5; }
+    html, body { font-family: 'Inter', sans-serif; background: #f9f9f9; color: var(--midnight); min-height: 100vh; }
+
+    .gallery-header { background: var(--midnight); color: var(--cream); padding: 40px 24px 32px; text-align: center; }
+    .gallery-header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    .gallery-header .event-meta { font-size: 14px; opacity: 0.7; }
+    .gallery-header .back-link { display: inline-block; margin-top: 12px; color: var(--party-coral); text-decoration: none; font-size: 14px; }
+    .gallery-header .back-link:hover { text-decoration: underline; }
+
+    .gallery-body { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+
+    .upload-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+    .upload-bar .upload-btn { padding: 10px 20px; background: var(--party-coral); color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; font-family: 'Inter', sans-serif; transition: background 0.2s; }
+    .upload-bar .upload-btn:hover { background: var(--blush-pop); }
+    .upload-bar .share-btn { padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 8px; font-size: 14px; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s; }
+    .upload-bar .share-btn:hover { border-color: var(--party-coral); color: var(--party-coral); }
+    .upload-bar .photo-count { font-size: 14px; color: #888; margin-left: auto; }
+
+    .upload-progress { display: none; margin-bottom: 16px; }
+    .upload-progress .progress-bar { height: 6px; background: #eee; border-radius: 3px; overflow: hidden; }
+    .upload-progress .progress-fill { height: 100%; background: var(--party-coral); border-radius: 3px; transition: width 0.3s; width: 0%; }
+    .upload-progress .progress-text { font-size: 13px; color: #888; margin-top: 6px; text-align: center; }
+
+    .masonry-grid { columns: 3; column-gap: 8px; }
+    .masonry-item { break-inside: avoid; margin-bottom: 8px; border-radius: 8px; overflow: hidden; cursor: pointer; position: relative; }
+    .masonry-item img { width: 100%; display: block; transition: transform 0.2s; }
+    .masonry-item:hover img { transform: scale(1.02); }
+    .masonry-item .photo-info { position: absolute; bottom: 0; left: 0; right: 0; padding: 8px 12px; background: linear-gradient(transparent, rgba(0,0,0,0.6)); color: white; font-size: 12px; opacity: 0; transition: opacity 0.2s; }
+    .masonry-item:hover .photo-info { opacity: 1; }
+
+    .empty-state { text-align: center; padding: 80px 20px; }
+    .empty-state .empty-icon { font-size: 64px; margin-bottom: 16px; }
+    .empty-state h2 { font-size: 22px; margin-bottom: 8px; font-weight: 600; }
+    .empty-state p { font-size: 15px; color: #888; margin-bottom: 24px; }
+
+    .loading { text-align: center; padding: 80px 20px; font-size: 16px; color: #888; }
+    .error-msg { max-width: 480px; margin: 40px auto; padding: 20px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; color: #721c24; text-align: center; }
+
+    .load-more { display: block; margin: 24px auto; padding: 12px 32px; border: 1px solid #ddd; background: white; border-radius: 8px; font-size: 14px; cursor: pointer; font-family: 'Inter', sans-serif; }
+    .load-more:hover { border-color: var(--party-coral); color: var(--party-coral); }
+
+    /* Lightbox */
+    .lightbox { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.92); z-index: 10000; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+    .lightbox img { max-width: 90vw; max-height: 80vh; object-fit: contain; border-radius: 8px; }
+    .lightbox .lb-close { position: absolute; top: 16px; right: 16px; color: white; font-size: 32px; cursor: pointer; background: none; border: none; line-height: 1; z-index: 1; }
+    .lightbox .lb-caption { color: white; margin-top: 12px; font-size: 14px; text-align: center; max-width: 80vw; }
+    .lightbox .lb-nav { position: absolute; top: 50%; transform: translateY(-50%); color: white; font-size: 40px; cursor: pointer; background: none; border: none; padding: 20px; }
+    .lightbox .lb-prev { left: 8px; }
+    .lightbox .lb-next { right: 8px; }
+
+    /* Name prompt */
+    .name-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10001; display: flex; align-items: center; justify-content: center; }
+    .name-modal { background: white; border-radius: 12px; padding: 28px; max-width: 340px; width: 90%; text-align: center; }
+    .name-modal h4 { margin-bottom: 14px; font-size: 18px; }
+    .name-modal input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; margin-bottom: 12px; font-family: 'Inter', sans-serif; }
+    .name-modal input:focus { outline: none; border-color: var(--party-coral); }
+    .name-modal button { width: 100%; padding: 12px; background: var(--party-coral); color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 15px; cursor: pointer; font-family: 'Inter', sans-serif; }
+
+    /* CTA footer */
+    .viral-footer { text-align: center; padding: 40px 20px; margin-top: 40px; border-top: 1px solid #eee; }
+    .viral-footer p { font-size: 15px; color: #888; margin-bottom: 16px; }
+    .viral-footer a { display: inline-block; padding: 12px 28px; background: var(--party-coral); color: white; border-radius: 8px; font-weight: 600; font-size: 15px; text-decoration: none; transition: all 0.2s; }
+    .viral-footer a:hover { background: var(--blush-pop); transform: translateY(-1px); }
+
+    @media (max-width: 640px) {
+      .masonry-grid { columns: 2; column-gap: 6px; }
+      .masonry-item { margin-bottom: 6px; }
+      .gallery-header { padding: 32px 16px 24px; }
+      .gallery-header h1 { font-size: 24px; }
+      .upload-bar { gap: 8px; }
+      .upload-bar .photo-count { margin-left: 0; width: 100%; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading" class="loading">Loading photos...</div>
+  <div id="error" class="error-msg" style="display: none;"></div>
+  <div id="galleryContent" style="display: none;">
+    <div class="gallery-header">
+      <h1 id="eventTitle">Event Photos</h1>
+      <div class="event-meta" id="eventMeta"></div>
+      <a class="back-link" id="backToEvent" href="#">← Back to invite</a>
+    </div>
+    <div class="gallery-body">
+      <div class="upload-bar">
+        <button class="upload-btn" onclick="document.getElementById('galleryFileInput').click()">Add Photos</button>
+        <input type="file" id="galleryFileInput" accept="image/*" multiple style="display:none" onchange="handleGalleryUpload(this.files)">
+        <button class="share-btn" onclick="shareGallery()">Share Gallery</button>
+        <span class="photo-count" id="photoCount"></span>
+      </div>
+      <div class="upload-progress" id="uploadProgress">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text" id="progressText"></div>
+      </div>
+      <div id="emptyState" class="empty-state" style="display:none">
+        <div class="empty-icon">📸</div>
+        <h2>No photos yet</h2>
+        <p>Be the first to share a memory from this event!</p>
+      </div>
+      <div id="masonryGrid" class="masonry-grid"></div>
+      <button id="loadMoreBtn" class="load-more" style="display:none" onclick="loadMore()">Load more photos</button>
+    </div>
+    <div class="viral-footer">
+      <p>Love the memories? Plan your next event for free.</p>
+      <a href="/v2/create?utm_source=gallery&utm_medium=footer&utm_campaign=viral" target="_blank" rel="noopener">Create Your Event</a>
+    </div>
+  </div>
+
+  <script>
+    var eventData = null;
+    var photos = [];
+    var totalPhotos = 0;
+    var lightboxIdx = 0;
+    var uploaderName = localStorage.getItem('ryvite_photo_name') || '';
+
+    function getSlug() {
+      var params = new URLSearchParams(window.location.search);
+      var slug = params.get('slug');
+      if (slug) return slug;
+      // /v2/event/my-slug/photos → extract my-slug
+      var parts = window.location.pathname.split('/').filter(Boolean);
+      if (parts.length >= 3 && parts[0] === 'v2' && parts[1] === 'event') {
+        return decodeURIComponent(parts[2]);
+      }
+      return null;
+    }
+
+    async function init() {
+      var slug = getSlug();
+      if (!slug) { showError('No event specified'); return; }
+
+      try {
+        var res = await fetch('/api/v2/events?action=getPublic&slug=' + encodeURIComponent(slug));
+        var result = await res.json();
+        if (!result.success || !result.event) { showError('Event not found'); return; }
+
+        eventData = result.event;
+
+        if (!eventData.photos_enabled) {
+          showError('Photo sharing is not enabled for this event.');
+          return;
+        }
+
+        document.title = eventData.title + ' Photos — Ryvite';
+        document.getElementById('eventTitle').textContent = eventData.title + ' Photos';
+
+        var meta = [];
+        if (eventData.event_date) {
+          meta.push(new Date(eventData.event_date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }));
+        }
+        if (eventData.location_name) meta.push(eventData.location_name);
+        document.getElementById('eventMeta').textContent = meta.join(' • ');
+        document.getElementById('backToEvent').href = '/v2/event/' + slug;
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('galleryContent').style.display = 'block';
+
+        await loadPhotos();
+      } catch(e) {
+        console.error(e);
+        showError('Error loading event');
+      }
+    }
+
+    async function loadPhotos() {
+      try {
+        var res = await fetch('/api/v2/photos?action=list&eventId=' + encodeURIComponent(eventData.id) + '&limit=50&offset=' + photos.length);
+        var data = await res.json();
+        var newPhotos = data.photos || [];
+        photos = photos.concat(newPhotos);
+        totalPhotos = data.total || 0;
+        renderGallery();
+      } catch(e) { console.error('Failed to load photos:', e); }
+    }
+
+    function renderGallery() {
+      document.getElementById('photoCount').textContent = totalPhotos + ' photo' + (totalPhotos !== 1 ? 's' : '');
+
+      if (!photos.length) {
+        document.getElementById('emptyState').style.display = 'block';
+        document.getElementById('masonryGrid').innerHTML = '';
+        document.getElementById('loadMoreBtn').style.display = 'none';
+        return;
+      }
+
+      document.getElementById('emptyState').style.display = 'none';
+      document.getElementById('masonryGrid').innerHTML = photos.map(function(p, i) {
+        return '<div class="masonry-item" onclick="openLightbox(' + i + ')">'
+          + '<img src="' + esc(p.photo_url) + '" alt="Event photo" loading="lazy">'
+          + '<div class="photo-info">' + esc(p.uploader_name)
+          + (p.caption ? ' — ' + esc(p.caption) : '') + '</div>'
+          + '</div>';
+      }).join('');
+
+      document.getElementById('loadMoreBtn').style.display = photos.length < totalPhotos ? 'block' : 'none';
+    }
+
+    function loadMore() { loadPhotos(); }
+
+    function openLightbox(idx) {
+      lightboxIdx = idx;
+      var p = photos[idx];
+      if (!p) return;
+      var lb = document.createElement('div');
+      lb.className = 'lightbox';
+      lb.id = 'lightbox';
+      lb.innerHTML = '<button class="lb-close" onclick="closeLightbox()">&times;</button>'
+        + (photos.length > 1 ? '<button class="lb-nav lb-prev" onclick="navLB(-1)">‹</button>' : '')
+        + '<img src="' + esc(p.photo_url) + '" id="lbImg">'
+        + '<div class="lb-caption" id="lbCap">' + esc(p.uploader_name) + (p.caption ? ' — ' + esc(p.caption) : '') + '</div>'
+        + (photos.length > 1 ? '<button class="lb-nav lb-next" onclick="navLB(1)">›</button>' : '');
+      lb.addEventListener('click', function(e) { if (e.target === lb) closeLightbox(); });
+      document.body.appendChild(lb);
+      // Keyboard nav
+      document.addEventListener('keydown', lbKeyHandler);
+    }
+
+    function closeLightbox() {
+      var lb = document.getElementById('lightbox');
+      if (lb) lb.remove();
+      document.removeEventListener('keydown', lbKeyHandler);
+    }
+
+    function navLB(dir) {
+      lightboxIdx = (lightboxIdx + dir + photos.length) % photos.length;
+      var p = photos[lightboxIdx];
+      document.getElementById('lbImg').src = p.photo_url;
+      document.getElementById('lbCap').textContent = p.uploader_name + (p.caption ? ' — ' + p.caption : '');
+    }
+
+    function lbKeyHandler(e) {
+      if (e.key === 'Escape') closeLightbox();
+      else if (e.key === 'ArrowLeft') navLB(-1);
+      else if (e.key === 'ArrowRight') navLB(1);
+    }
+
+    function handleGalleryUpload(files) {
+      if (!files || !files.length) return;
+      if (!uploaderName) {
+        showNamePrompt(function() { doUpload(Array.from(files)); });
+        return;
+      }
+      doUpload(Array.from(files));
+    }
+
+    function showNamePrompt(cb) {
+      var ov = document.createElement('div');
+      ov.className = 'name-overlay';
+      ov.id = 'nameOverlay';
+      ov.innerHTML = '<div class="name-modal">'
+        + '<h4>What\'s your name?</h4>'
+        + '<input type="text" id="nameInput" placeholder="Your name" maxlength="100" autofocus>'
+        + '<button id="nameSubmitBtn">Continue</button>'
+        + '</div>';
+      ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
+      document.body.appendChild(ov);
+      window._nameCallback = cb;
+      setTimeout(function() { document.getElementById('nameInput').focus(); }, 100);
+      document.getElementById('nameInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') submitName();
+      });
+      document.getElementById('nameSubmitBtn').addEventListener('click', submitName);
+    }
+
+    function submitName() {
+      var name = (document.getElementById('nameInput').value || '').trim();
+      if (!name) return;
+      uploaderName = name;
+      localStorage.setItem('ryvite_photo_name', name);
+      var ov = document.getElementById('nameOverlay');
+      if (ov) ov.remove();
+      if (window._nameCallback) { window._nameCallback(); window._nameCallback = null; }
+    }
+
+    async function doUpload(files) {
+      var prog = document.getElementById('uploadProgress');
+      var fill = document.getElementById('progressFill');
+      var text = document.getElementById('progressText');
+      prog.style.display = 'block';
+
+      for (var i = 0; i < files.length; i++) {
+        fill.style.width = Math.round((i / files.length) * 100) + '%';
+        text.textContent = 'Uploading ' + (i + 1) + ' of ' + files.length + '...';
+        try {
+          var resized = await resizeImg(files[i], 1600, 0.8);
+          var res = await fetch('/api/v2/photos?action=upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventId: eventData.id,
+              uploaderName: uploaderName,
+              base64: resized.base64,
+              width: resized.width,
+              height: resized.height
+            })
+          });
+          var data = await res.json();
+          if (data.success) {
+            photos.unshift({ id: data.photoId, photo_url: data.url, uploader_name: uploaderName, caption: null, created_at: new Date().toISOString() });
+            totalPhotos++;
+          }
+        } catch(e) { console.error('Upload error:', e); }
+      }
+
+      fill.style.width = '100%';
+      text.textContent = 'Done!';
+      setTimeout(function() { prog.style.display = 'none'; fill.style.width = '0%'; }, 1500);
+      renderGallery();
+      document.getElementById('galleryFileInput').value = '';
+    }
+
+    function resizeImg(file, maxDim, quality) {
+      return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var img = new Image();
+          img.onload = function() {
+            var w = img.width, h = img.height;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+              else { w = Math.round(w * maxDim / h); h = maxDim; }
+            }
+            var c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            c.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve({ base64: c.toDataURL('image/jpeg', quality).split(',')[1], width: w, height: h });
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function shareGallery() {
+      var url = window.location.href;
+      var title = (eventData ? eventData.title : 'Event') + ' Photos';
+      if (navigator.share) {
+        navigator.share({ title: title, url: url }).catch(function(){});
+      } else {
+        navigator.clipboard.writeText(url).then(function() {
+          var btn = document.querySelector('.share-btn');
+          btn.textContent = 'Link copied!';
+          setTimeout(function() { btn.textContent = 'Share Gallery'; }, 2000);
+        }).catch(function(){});
+      }
+    }
+
+    function showError(msg) {
+      document.getElementById('error').textContent = msg;
+      document.getElementById('error').style.display = 'block';
+      document.getElementById('loading').style.display = 'none';
+    }
+
+    function esc(str) {
+      var div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
+    }
+
+    init();
+  </script>
+</body>
+</html>
