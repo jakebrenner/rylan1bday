@@ -3,7 +3,13 @@ import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 
 const client = new Anthropic();
-const openaiClient = process.env.OPENAI_API_KEY ? new OpenAI() : null;
+let _openaiClient = null;
+function getOpenAIClient() {
+  if (!_openaiClient && process.env.OPENAI_API_KEY) {
+    _openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return _openaiClient;
+}
 
 // Helper: detect if a model ID is an OpenAI model
 function isOpenAIModel(model) {
@@ -779,8 +785,9 @@ This is the most common failure mode. Double-check it.`;
     let themeText, inputTokens, outputTokens;
 
     if (isOpenAIModel(modelId)) {
-      if (!openaiClient) throw new Error('OpenAI API key not configured');
-      const response = await openaiClient.chat.completions.create({
+      const oai = getOpenAIClient();
+      if (!oai) throw new Error('OpenAI API key not configured — set OPENAI_API_KEY env var');
+      const response = await oai.chat.completions.create({
         model: modelId,
         max_tokens: 16384,
         messages: [
@@ -876,8 +883,9 @@ Return a JSON object with exactly these keys:
     let themeText, refineInputTokens, refineOutputTokens;
 
     if (isOpenAIModel(refineModelId)) {
-      if (!openaiClient) throw new Error('OpenAI API key not configured');
-      const response = await openaiClient.chat.completions.create({
+      const oai = getOpenAIClient();
+      if (!oai) throw new Error('OpenAI API key not configured — set OPENAI_API_KEY env var');
+      const response = await oai.chat.completions.create({
         model: refineModelId,
         max_tokens: 16384,
         messages: [

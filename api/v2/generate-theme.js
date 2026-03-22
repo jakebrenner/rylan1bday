@@ -4,7 +4,13 @@ import { createClient } from '@supabase/supabase-js';
 // AI generation is included in the $4.99 event price — no per-generation billing
 
 const client = new Anthropic();
-const openaiClient = process.env.OPENAI_API_KEY ? new OpenAI() : null;
+let _openaiClient = null;
+function getOpenAIClient() {
+  if (!_openaiClient && process.env.OPENAI_API_KEY) {
+    _openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return _openaiClient;
+}
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -62,14 +68,15 @@ async function fetchImagesAsBase64(urls) {
 
 // ── OpenAI compatibility: non-streaming call (for interpretField, classifyIntent, etc.) ──
 async function openaiCreate(model, systemPrompt, userContent, maxTokens) {
-  if (!openaiClient) throw new Error('OpenAI API key not configured');
+  const oai = getOpenAIClient();
+  if (!oai) throw new Error('OpenAI API key not configured — set OPENAI_API_KEY env var');
   const messages = [
     { role: 'system', content: systemPrompt },
     ...(typeof userContent === 'string'
       ? [{ role: 'user', content: userContent }]
       : [{ role: 'user', content: userContent }])
   ];
-  const response = await openaiClient.chat.completions.create({
+  const response = await oai.chat.completions.create({
     model,
     max_tokens: maxTokens,
     messages,
@@ -86,7 +93,8 @@ async function openaiCreate(model, systemPrompt, userContent, maxTokens) {
 
 // ── OpenAI compatibility: streaming call (returns async iterable of text chunks + usage) ──
 function openaiStream(model, systemPrompt, userContent, maxTokens) {
-  if (!openaiClient) throw new Error('OpenAI API key not configured');
+  const oai = getOpenAIClient();
+  if (!oai) throw new Error('OpenAI API key not configured — set OPENAI_API_KEY env var');
 
   // Convert Anthropic-style content blocks to OpenAI format
   let userMessage;
@@ -120,7 +128,7 @@ function openaiStream(model, systemPrompt, userContent, maxTokens) {
   // Start streaming in background
   const streamPromise = (async () => {
     try {
-      const stream = await openaiClient.chat.completions.create({
+      const stream = await oai.chat.completions.create({
         model,
         max_tokens: maxTokens,
         messages,
