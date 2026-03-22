@@ -1,8 +1,16 @@
 import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 // AI generation is included in the $4.99 event price — no per-generation billing
 
 const client = new Anthropic();
+let _openaiClient = null;
+function getOpenAIClient() {
+  if (!_openaiClient && process.env.OPENAI_API_KEY) {
+    _openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return _openaiClient;
+}
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -13,14 +21,35 @@ const DEFAULT_THEME_MODEL = process.env.THEME_MODEL || 'claude-sonnet-4-6';
 // Allow up to 300s on Vercel Pro (caps at 60s on Hobby)
 export const config = { maxDuration: 300 };
 
+// Helper: detect if a model ID is an OpenAI model
+function isOpenAIModel(model) {
+  return model.startsWith('gpt-') || model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4');
+}
+
+// Helper: o-series reasoning models use max_completion_tokens instead of max_tokens
+function isOpenAIReasoningModel(model) {
+  return model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4');
+}
+
+// Build OpenAI token limit param — reasoning models need max_completion_tokens
+function openaiTokenParam(model, tokens) {
+  return isOpenAIReasoningModel(model) ? { max_completion_tokens: tokens } : { max_tokens: tokens };
+}
+
 // AI model pricing per 1M tokens — must match billing.js, chat.js, ratings.js, admin.js
 // Source: https://docs.anthropic.com/en/docs/about-claude/models#model-comparison-table
+// Source: https://openai.com/api/pricing/
 const AI_MODEL_PRICING = {
   'claude-haiku-4-5-20251001': { input: 1.00, output: 5.00 },
   'claude-sonnet-4-20250514':  { input: 3.00, output: 15.00 },
   'claude-sonnet-4-6':         { input: 3.00, output: 15.00 },
   'claude-opus-4-20250514':    { input: 15.00, output: 75.00 },
   'claude-opus-4-6':           { input: 15.00, output: 75.00 },
+  'gpt-4.1':                   { input: 2.00, output: 8.00 },
+  'gpt-4.1-mini':              { input: 0.40, output: 1.60 },
+  'gpt-4.1-nano':              { input: 0.10, output: 0.40 },
+  'o3':                        { input: 2.00, output: 8.00 },
+  'o4-mini':                   { input: 1.10, output: 4.40 },
 };
 
 function calcGenerationCost(model, inputTokens, outputTokens) {
@@ -45,6 +74,107 @@ async function fetchImagesAsBase64(urls) {
     }
   }
   return results;
+}
+
+// ── OpenAI compatibility: non-streaming call (for interpretField, classifyIntent, etc.) ──
+async function openaiCreate(model, systemPrompt, userContent, maxTokens) {
+  const oai = getOpenAIClient();
+  if (!oai) throw new Error('OpenAI API key not configured — set OPENAI_API_KEY env var');
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...(typeof userContent === 'string'
+      ? [{ role: 'user', content: userContent }]
+      : [{ role: 'user', content: userContent }])
+  ];
+  const response = await oai.chat.completions.create({
+    model,
+    ...openaiTokenParam(model, maxTokens),
+    messages,
+  });
+  const text = response.choices?.[0]?.message?.content || '';
+  return {
+    content: [{ type: 'text', text }],
+    usage: {
+      input_tokens: response.usage?.prompt_tokens || 0,
+      output_tokens: response.usage?.completion_tokens || 0,
+    }
+  };
+}
+
+// ── OpenAI compatibility: streaming call (returns async iterable of text chunks + usage) ──
+function openaiStream(model, systemPrompt, userContent, maxTokens) {
+  const oai = getOpenAIClient();
+  if (!oai) throw new Error('OpenAI API key not configured — set OPENAI_API_KEY env var');
+
+  // Convert Anthropic-style content blocks to OpenAI format
+  let userMessage;
+  if (Array.isArray(userContent)) {
+    // Convert image blocks from Anthropic format to OpenAI format
+    userMessage = userContent.map(block => {
+      if (block.type === 'text') return { type: 'text', text: block.text };
+      if (block.type === 'image') {
+        return {
+          type: 'image_url',
+          image_url: { url: `data:${block.source.media_type};base64,${block.source.data}` }
+        };
+      }
+      return { type: 'text', text: String(block) };
+    });
+  } else {
+    userMessage = userContent;
+  }
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userMessage },
+  ];
+
+  // Return an object that mimics Anthropic's stream interface
+  const listeners = { text: [], end: [], error: [], finalMessage: [] };
+  const streamObj = {
+    on(event, cb) { listeners[event] = listeners[event] || []; listeners[event].push(cb); return streamObj; },
+  };
+
+  // Start streaming in background
+  const streamPromise = (async () => {
+    try {
+      const stream = await oai.chat.completions.create({
+        model,
+        ...openaiTokenParam(model, maxTokens),
+        messages,
+        stream: true,
+        stream_options: { include_usage: true },
+      });
+
+      let totalText = '';
+      let usage = { input_tokens: 0, output_tokens: 0 };
+
+      for await (const chunk of stream) {
+        const delta = chunk.choices?.[0]?.delta?.content;
+        if (delta) {
+          totalText += delta;
+          for (const cb of listeners.text) cb(delta);
+        }
+        // Final chunk with usage stats
+        if (chunk.usage) {
+          usage = {
+            input_tokens: chunk.usage.prompt_tokens || 0,
+            output_tokens: chunk.usage.completion_tokens || 0,
+          };
+        }
+      }
+
+      const finalMsg = { usage };
+      for (const cb of listeners.finalMessage) cb(finalMsg);
+      for (const cb of listeners.end) cb();
+    } catch (err) {
+      for (const cb of listeners.error) cb(err);
+    }
+  })();
+
+  // Attach the promise so callers can await if needed
+  streamObj._promise = streamPromise;
+  return streamObj;
 }
 
 // Load the active prompt version from DB, falling back to hardcoded defaults
@@ -1844,12 +1974,14 @@ Return ONLY a valid JSON object with these keys:
 - TEXT CONTRAST: EVERY text element must be clearly readable against its background. Never light-on-light or dark-on-dark. Buttons must have contrasting text. This is non-negotiable. CONCRETE RULE: on any dark/colored background section, text MUST be #FFFFFF or #FAFAFA. On light backgrounds, text MUST be #1A1A1A or darker. Do NOT use theme accent colors (coral, salmon, rose, etc.) as text on dark backgrounds.
 - For photo additions: use the EXACT URL(s) provided in <img> tags. Make the photo treatment creative and eye-catching — animated frames, themed borders, CSS clip-paths, polaroid layouts, floating effects. Don't just drop photos in a basic rectangle.`;
 
-      const stream = client.messages.stream({
-        model: tweakModel,
-        max_tokens: tweakMaxTokens,
-        system: tweakSystemPrompt,
-        messages: [{ role: 'user', content: messageContent }]
-      });
+      const stream = isOpenAIModel(tweakModel)
+        ? openaiStream(tweakModel, tweakSystemPrompt, messageContent, tweakMaxTokens)
+        : client.messages.stream({
+            model: tweakModel,
+            max_tokens: tweakMaxTokens,
+            system: tweakSystemPrompt,
+            messages: [{ role: 'user', content: messageContent }]
+          });
 
       // Accumulate the full response while streaming progress
       let fullText = '';
@@ -2414,15 +2546,16 @@ This is the most common failure mode. Double-check it.`;
     sendSSE('status', { phase: 'generating' });
 
     // Stream response to keep connection alive and avoid Vercel timeout
-    // Use client.messages.create({stream:true}) for raw async iterable — NOT
     // Use .on('text') (proven to work) + resolve on 'end' event
     // Do NOT use stream.finalMessage() — it blocks past Vercel's 60s timeout
-    const stream = client.messages.stream({
-      model: themeModel,
-      max_tokens: 12288,
-      system: activePrompt.systemPrompt,
-      messages: [{ role: 'user', content: messageContent }]
-    });
+    const stream = isOpenAIModel(themeModel)
+      ? openaiStream(themeModel, activePrompt.systemPrompt, messageContent, 12288)
+      : client.messages.stream({
+          model: themeModel,
+          max_tokens: 12288,
+          system: activePrompt.systemPrompt,
+          messages: [{ role: 'user', content: messageContent }]
+        });
 
     let fullText = '';
     let chunkCount = 0;

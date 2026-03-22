@@ -1,7 +1,30 @@
 import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 
 const client = new Anthropic();
+let _openaiClient = null;
+function getOpenAIClient() {
+  if (!_openaiClient && process.env.OPENAI_API_KEY) {
+    _openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return _openaiClient;
+}
+
+// Helper: detect if a model ID is an OpenAI model
+function isOpenAIModel(model) {
+  return model.startsWith('gpt-') || model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4');
+}
+
+// Helper: o-series reasoning models use max_completion_tokens instead of max_tokens
+function isOpenAIReasoningModel(model) {
+  return model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4');
+}
+
+// Build OpenAI token limit param — reasoning models need max_completion_tokens
+function openaiTokenParam(model, tokens) {
+  return isOpenAIReasoningModel(model) ? { max_completion_tokens: tokens } : { max_tokens: tokens };
+}
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -768,16 +791,37 @@ This is the most common failure mode. Double-check it.`;
   // ── Shared: generate theme with one model ──
   async function generateWithModel(modelId, userMessage, systemPromptOverride) {
     const startTime = Date.now();
-    const response = await client.messages.create({
-      model: modelId,
-      max_tokens: 16384,
-      system: systemPromptOverride || SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: userMessage }]
-    });
+    const systemPrompt = systemPromptOverride || SYSTEM_PROMPT;
+    let themeText, inputTokens, outputTokens;
+
+    if (isOpenAIModel(modelId)) {
+      const oai = getOpenAIClient();
+      if (!oai) throw new Error('OpenAI API key not configured — set OPENAI_API_KEY env var');
+      const response = await oai.chat.completions.create({
+        model: modelId,
+        ...openaiTokenParam(modelId, 16384),
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+      });
+      themeText = response.choices?.[0]?.message?.content || '';
+      inputTokens = response.usage?.prompt_tokens || 0;
+      outputTokens = response.usage?.completion_tokens || 0;
+    } else {
+      const response = await client.messages.create({
+        model: modelId,
+        max_tokens: 16384,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMessage }]
+      });
+      const contentBlock = response.content[0];
+      themeText = contentBlock.type === 'text' ? contentBlock.text : '';
+      inputTokens = response.usage?.input_tokens || 0;
+      outputTokens = response.usage?.output_tokens || 0;
+    }
 
     const latency = Date.now() - startTime;
-    const contentBlock = response.content[0];
-    let themeText = contentBlock.type === 'text' ? contentBlock.text : '';
 
     // ── Parse AI response into theme object ──
     let theme = parseThemeResponse(themeText);
@@ -793,8 +837,8 @@ This is the most common failure mode. Double-check it.`;
         model: modelId,
         latencyMs: latency,
         tokens: {
-          input: response.usage?.input_tokens || 0,
-          output: response.usage?.output_tokens || 0
+          input: inputTokens,
+          output: outputTokens
         }
       }
     };
@@ -845,16 +889,37 @@ Return a JSON object with exactly these keys:
       theme_config: draftResult.theme.config
     });
 
-    const response = await client.messages.create({
-      model: refineModelId,
-      max_tokens: 16384,
-      system: REFINE_PROMPT,
-      messages: [{ role: 'user', content: `Here is the draft invite to polish:\n\n\`\`\`json\n${draftJson}\n\`\`\`` }]
-    });
+    const userContent = `Here is the draft invite to polish:\n\n\`\`\`json\n${draftJson}\n\`\`\``;
+    let themeText, refineInputTokens, refineOutputTokens;
+
+    if (isOpenAIModel(refineModelId)) {
+      const oai = getOpenAIClient();
+      if (!oai) throw new Error('OpenAI API key not configured — set OPENAI_API_KEY env var');
+      const response = await oai.chat.completions.create({
+        model: refineModelId,
+        ...openaiTokenParam(refineModelId, 16384),
+        messages: [
+          { role: 'system', content: REFINE_PROMPT },
+          { role: 'user', content: userContent },
+        ],
+      });
+      themeText = response.choices?.[0]?.message?.content || '';
+      refineInputTokens = response.usage?.prompt_tokens || 0;
+      refineOutputTokens = response.usage?.completion_tokens || 0;
+    } else {
+      const response = await client.messages.create({
+        model: refineModelId,
+        max_tokens: 16384,
+        system: REFINE_PROMPT,
+        messages: [{ role: 'user', content: userContent }]
+      });
+      const contentBlock = response.content[0];
+      themeText = contentBlock.type === 'text' ? contentBlock.text : '';
+      refineInputTokens = response.usage?.input_tokens || 0;
+      refineOutputTokens = response.usage?.output_tokens || 0;
+    }
 
     const latency = Date.now() - startTime;
-    const contentBlock = response.content[0];
-    let themeText = contentBlock.type === 'text' ? contentBlock.text : '';
 
     let theme = parseThemeResponse(themeText);
 
@@ -869,8 +934,8 @@ Return a JSON object with exactly these keys:
         model: refineModelId,
         latencyMs: latency,
         tokens: {
-          input: response.usage?.input_tokens || 0,
-          output: response.usage?.output_tokens || 0
+          input: refineInputTokens,
+          output: refineOutputTokens
         }
       }
     };
@@ -962,8 +1027,8 @@ Return a JSON object with exactly these keys:
         models.map(m => generateWithModel(m, userMessage, activeSystemPrompt))
       );
 
-      const COST_PER_M_IN = { 'claude-haiku-4-5-20251001': 1.00, 'claude-sonnet-4-20250514': 3.00, 'claude-sonnet-4-6': 3.00, 'claude-opus-4-20250514': 15.00, 'claude-opus-4-6': 15.00 };
-      const COST_PER_M_OUT = { 'claude-haiku-4-5-20251001': 5.00, 'claude-sonnet-4-20250514': 15.00, 'claude-sonnet-4-6': 15.00, 'claude-opus-4-20250514': 75.00, 'claude-opus-4-6': 75.00 };
+      const COST_PER_M_IN = { 'claude-haiku-4-5-20251001': 1.00, 'claude-sonnet-4-20250514': 3.00, 'claude-sonnet-4-6': 3.00, 'claude-opus-4-20250514': 15.00, 'claude-opus-4-6': 15.00, 'gpt-4.1': 2.00, 'gpt-4.1-mini': 0.40, 'gpt-4.1-nano': 0.10, 'o3': 2.00, 'o4-mini': 1.10 };
+      const COST_PER_M_OUT = { 'claude-haiku-4-5-20251001': 5.00, 'claude-sonnet-4-20250514': 15.00, 'claude-sonnet-4-6': 15.00, 'claude-opus-4-20250514': 75.00, 'claude-opus-4-6': 75.00, 'gpt-4.1': 8.00, 'gpt-4.1-mini': 1.60, 'gpt-4.1-nano': 0.40, 'o3': 8.00, 'o4-mini': 4.40 };
 
       const outputs = results.map((r, i) => {
         if (r.status === 'fulfilled') {

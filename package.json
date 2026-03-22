@@ -6,6 +6,7 @@
     "@sparticuz/chromium": "^131.0.0",
     "@supabase/supabase-js": "^2.49.0",
     "@vercel/og": "^0.11.1",
+    "openai": "^6.32.0",
     "puppeteer-core": "^23.0.0",
     "resend": "^4.0.0",
     "stripe": "^17.0.0"

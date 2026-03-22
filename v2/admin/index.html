@@ -167,6 +167,8 @@
     .comparison-card-header .model-badge.haiku { background: #d1ecf1; color: #0c5460; }
     .comparison-card-header .model-badge.sonnet { background: #fff3cd; color: #856404; }
     .comparison-card-header .model-badge.opus { background: #f3e5f5; color: #6a1b9a; }
+    .comparison-card-header .model-badge.gpt41, .comparison-card-header .model-badge.gpt41mini, .comparison-card-header .model-badge.gpt41nano { background: #e8f5e9; color: #1b5e20; }
+    .comparison-card-header .model-badge.o3, .comparison-card-header .model-badge.o4mini { background: #e3f2fd; color: #0d47a1; }
     .comparison-card-header .model-badge.hybrid { background: #e8f5e9; color: #2e7d32; }
     .comparison-card-body { padding: 16px; }
     .comparison-card-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 10px 16px; background: #f9f9f9; border-top: 1px solid #eee; }
@@ -1035,18 +1037,36 @@
           <div class="config-field">
             <label>Chat Model (Event Details Extraction)</label>
             <select id="chatModelSelect">
-              <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fastest, cheapest ($1/1M in, $5/1M out)</option>
-              <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — Balanced ($3/1M in, $15/1M out)</option>
-              <option value="claude-opus-4-6">Claude Opus 4.6 — Most capable ($15/1M in, $75/1M out)</option>
+              <optgroup label="Anthropic Claude">
+                <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fastest, cheapest ($1/1M in, $5/1M out)</option>
+                <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — Balanced ($3/1M in, $15/1M out)</option>
+                <option value="claude-opus-4-6">Claude Opus 4.6 — Most capable ($15/1M in, $75/1M out)</option>
+              </optgroup>
+              <optgroup label="OpenAI">
+                <option value="gpt-4.1">GPT-4.1 — Flagship ($2/1M in, $8/1M out)</option>
+                <option value="gpt-4.1-mini">GPT-4.1 Mini — Fast ($0.40/1M in, $1.60/1M out)</option>
+                <option value="gpt-4.1-nano">GPT-4.1 Nano — Cheapest ($0.10/1M in, $0.40/1M out)</option>
+                <option value="o3">o3 — Reasoning ($2/1M in, $8/1M out)</option>
+                <option value="o4-mini">o4-mini — Fast reasoning ($1.10/1M in, $4.40/1M out)</option>
+              </optgroup>
             </select>
             <div class="hint">Used for the conversational event planning chat. Haiku is recommended — it handles structured extraction well at minimal cost.</div>
           </div>
           <div class="config-field">
             <label>Theme Model (Invite Design Generation)</label>
             <select id="themeModelSelect">
-              <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fastest, cheapest ($1/1M in, $5/1M out)</option>
-              <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — Balanced ($3/1M in, $15/1M out)</option>
-              <option value="claude-opus-4-6">Claude Opus 4.6 — Most capable ($15/1M in, $75/1M out)</option>
+              <optgroup label="Anthropic Claude">
+                <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fastest, cheapest ($1/1M in, $5/1M out)</option>
+                <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — Balanced ($3/1M in, $15/1M out)</option>
+                <option value="claude-opus-4-6">Claude Opus 4.6 — Most capable ($15/1M in, $75/1M out)</option>
+              </optgroup>
+              <optgroup label="OpenAI">
+                <option value="gpt-4.1">GPT-4.1 — Flagship ($2/1M in, $8/1M out)</option>
+                <option value="gpt-4.1-mini">GPT-4.1 Mini — Fast ($0.40/1M in, $1.60/1M out)</option>
+                <option value="gpt-4.1-nano">GPT-4.1 Nano — Cheapest ($0.10/1M in, $0.40/1M out)</option>
+                <option value="o3">o3 — Reasoning ($2/1M in, $8/1M out)</option>
+                <option value="o4-mini">o4-mini — Fast reasoning ($1.10/1M in, $4.40/1M out)</option>
+              </optgroup>
             </select>
             <div class="hint">Used to generate HTML/CSS invite themes. Higher-tier models produce more creative and polished designs.</div>
           </div>
@@ -1331,6 +1351,7 @@
             <div class="config-field" style="margin-bottom:16px;">
               <label>Models</label>
               <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+                <div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Anthropic Claude</div>
                 <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_haiku">
                   <input type="checkbox" name="modelCheck" value="claude-haiku-4-5-20251001"> <span style="font-size:13px;">Haiku 4.5 — Fast ($1/$5)</span>
                 </label>
@@ -1339,6 +1360,19 @@
                 </label>
                 <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_opus">
                   <input type="checkbox" name="modelCheck" value="claude-opus-4-6"> <span style="font-size:13px;">Opus 4.6 — Best ($15/$75)</span>
+                </label>
+                <div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-top:8px;">OpenAI</div>
+                <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_gpt41">
+                  <input type="checkbox" name="modelCheck" value="gpt-4.1"> <span style="font-size:13px;">GPT-4.1 — Flagship ($2/$8)</span>
+                </label>
+                <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_gpt41mini">
+                  <input type="checkbox" name="modelCheck" value="gpt-4.1-mini"> <span style="font-size:13px;">GPT-4.1 Mini — Fast ($0.40/$1.60)</span>
+                </label>
+                <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_o3">
+                  <input type="checkbox" name="modelCheck" value="o3"> <span style="font-size:13px;">o3 — Reasoning ($2/$8)</span>
+                </label>
+                <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_o4mini">
+                  <input type="checkbox" name="modelCheck" value="o4-mini"> <span style="font-size:13px;">o4-mini — Fast reasoning ($1.10/$4.40)</span>
                 </label>
               </div>
             </div>
@@ -1519,9 +1553,17 @@
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
               <select id="labFilterModel" onchange="loadLabGenerations()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
                 <option value="">All Models</option>
-                <option value="claude-haiku-4-5-20251001">Haiku</option>
-                <option value="claude-sonnet-4-6">Sonnet</option>
-                <option value="claude-opus-4-6">Opus</option>
+                <optgroup label="Claude">
+                  <option value="claude-haiku-4-5-20251001">Haiku</option>
+                  <option value="claude-sonnet-4-6">Sonnet</option>
+                  <option value="claude-opus-4-6">Opus</option>
+                </optgroup>
+                <optgroup label="OpenAI">
+                  <option value="gpt-4.1">GPT-4.1</option>
+                  <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
+                  <option value="o3">o3</option>
+                  <option value="o4-mini">o4-mini</option>
+                </optgroup>
               </select>
               <select id="labFilterEventType" onchange="loadLabGenerations()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
                 <option value="">All Event Types</option>
@@ -1579,9 +1621,17 @@
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
               <select id="userGenFilterModel" onchange="loadUserGenerations()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
                 <option value="">All Models</option>
-                <option value="claude-haiku-4-5-20251001">Haiku</option>
-                <option value="claude-sonnet-4-6">Sonnet</option>
-                <option value="claude-opus-4-6">Opus</option>
+                <optgroup label="Claude">
+                  <option value="claude-haiku-4-5-20251001">Haiku</option>
+                  <option value="claude-sonnet-4-6">Sonnet</option>
+                  <option value="claude-opus-4-6">Opus</option>
+                </optgroup>
+                <optgroup label="OpenAI">
+                  <option value="gpt-4.1">GPT-4.1</option>
+                  <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
+                  <option value="o3">o3</option>
+                  <option value="o4-mini">o4-mini</option>
+                </optgroup>
               </select>
               <select id="userGenFilterEventType" onchange="loadUserGenerations()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;">
                 <option value="">All Event Types</option>
@@ -4155,7 +4205,12 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     var MODEL_INFO = {
       'claude-haiku-4-5-20251001': { label: 'Haiku 4.5', badge: 'haiku' },
       'claude-sonnet-4-6': { label: 'Sonnet 4.6', badge: 'sonnet' },
-      'claude-opus-4-6': { label: 'Opus 4.6', badge: 'opus' }
+      'claude-opus-4-6': { label: 'Opus 4.6', badge: 'opus' },
+      'gpt-4.1': { label: 'GPT-4.1', badge: 'gpt41' },
+      'gpt-4.1-mini': { label: 'GPT-4.1 Mini', badge: 'gpt41mini' },
+      'gpt-4.1-nano': { label: 'GPT-4.1 Nano', badge: 'gpt41nano' },
+      'o3': { label: 'o3', badge: 'o3' },
+      'o4-mini': { label: 'o4-mini', badge: 'o4mini' }
     };
 
     function getTestEventDetails() {
@@ -4180,8 +4235,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     // ── Cost calculation helper ──
-    var COST_IN = { 'claude-haiku-4-5-20251001': 1.00, 'claude-sonnet-4-20250514': 3.00, 'claude-sonnet-4-6': 3.00, 'claude-opus-4-20250514': 15.00, 'claude-opus-4-6': 15.00 };
-    var COST_OUT = { 'claude-haiku-4-5-20251001': 5.00, 'claude-sonnet-4-20250514': 15.00, 'claude-sonnet-4-6': 15.00, 'claude-opus-4-20250514': 75.00, 'claude-opus-4-6': 75.00 };
+    var COST_IN = { 'claude-haiku-4-5-20251001': 1.00, 'claude-sonnet-4-20250514': 3.00, 'claude-sonnet-4-6': 3.00, 'claude-opus-4-20250514': 15.00, 'claude-opus-4-6': 15.00, 'gpt-4.1': 2.00, 'gpt-4.1-mini': 0.40, 'gpt-4.1-nano': 0.10, 'o3': 2.00, 'o4-mini': 1.10 };
+    var COST_OUT = { 'claude-haiku-4-5-20251001': 5.00, 'claude-sonnet-4-20250514': 15.00, 'claude-sonnet-4-6': 15.00, 'claude-opus-4-20250514': 75.00, 'claude-opus-4-6': 75.00, 'gpt-4.1': 8.00, 'gpt-4.1-mini': 1.60, 'gpt-4.1-nano': 0.40, 'o3': 8.00, 'o4-mini': 4.40 };
 
     function calcEstCost(meta) {
       if (meta.hybrid) {
@@ -4195,7 +4250,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     function shortModelName(model) {
       if (model && model.indexOf('→') !== -1) return 'Hybrid';
-      var names = { 'claude-haiku-4-5-20251001': 'Haiku 4.5', 'claude-sonnet-4-6': 'Sonnet 4.6', 'claude-opus-4-6': 'Opus 4.6' };
+      var names = { 'claude-haiku-4-5-20251001': 'Haiku 4.5', 'claude-sonnet-4-6': 'Sonnet 4.6', 'claude-opus-4-6': 'Opus 4.6', 'gpt-4.1': 'GPT-4.1', 'gpt-4.1-mini': 'GPT-4.1 Mini', 'gpt-4.1-nano': 'GPT-4.1 Nano', 'o3': 'o3', 'o4-mini': 'o4-mini' };
       return names[model] || model;
     }
 
