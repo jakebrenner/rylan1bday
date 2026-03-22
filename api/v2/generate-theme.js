@@ -26,6 +26,16 @@ function isOpenAIModel(model) {
   return model.startsWith('gpt-') || model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4');
 }
 
+// Helper: o-series reasoning models use max_completion_tokens instead of max_tokens
+function isOpenAIReasoningModel(model) {
+  return model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4');
+}
+
+// Build OpenAI token limit param — reasoning models need max_completion_tokens
+function openaiTokenParam(model, tokens) {
+  return isOpenAIReasoningModel(model) ? { max_completion_tokens: tokens } : { max_tokens: tokens };
+}
+
 // AI model pricing per 1M tokens — must match billing.js, chat.js, ratings.js, admin.js
 // Source: https://docs.anthropic.com/en/docs/about-claude/models#model-comparison-table
 // Source: https://openai.com/api/pricing/
@@ -78,7 +88,7 @@ async function openaiCreate(model, systemPrompt, userContent, maxTokens) {
   ];
   const response = await oai.chat.completions.create({
     model,
-    max_tokens: maxTokens,
+    ...openaiTokenParam(model, maxTokens),
     messages,
   });
   const text = response.choices?.[0]?.message?.content || '';
@@ -130,7 +140,7 @@ function openaiStream(model, systemPrompt, userContent, maxTokens) {
     try {
       const stream = await oai.chat.completions.create({
         model,
-        max_tokens: maxTokens,
+        ...openaiTokenParam(model, maxTokens),
         messages,
         stream: true,
         stream_options: { include_usage: true },

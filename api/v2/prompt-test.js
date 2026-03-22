@@ -15,6 +15,16 @@ function getOpenAIClient() {
 function isOpenAIModel(model) {
   return model.startsWith('gpt-') || model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4');
 }
+
+// Helper: o-series reasoning models use max_completion_tokens instead of max_tokens
+function isOpenAIReasoningModel(model) {
+  return model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4');
+}
+
+// Build OpenAI token limit param — reasoning models need max_completion_tokens
+function openaiTokenParam(model, tokens) {
+  return isOpenAIReasoningModel(model) ? { max_completion_tokens: tokens } : { max_tokens: tokens };
+}
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -789,7 +799,7 @@ This is the most common failure mode. Double-check it.`;
       if (!oai) throw new Error('OpenAI API key not configured — set OPENAI_API_KEY env var');
       const response = await oai.chat.completions.create({
         model: modelId,
-        max_tokens: 16384,
+        ...openaiTokenParam(modelId, 16384),
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage },
@@ -887,7 +897,7 @@ Return a JSON object with exactly these keys:
       if (!oai) throw new Error('OpenAI API key not configured — set OPENAI_API_KEY env var');
       const response = await oai.chat.completions.create({
         model: refineModelId,
-        max_tokens: 16384,
+        ...openaiTokenParam(refineModelId, 16384),
         messages: [
           { role: 'system', content: REFINE_PROMPT },
           { role: 'user', content: userContent },
