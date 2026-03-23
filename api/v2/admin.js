@@ -381,6 +381,11 @@ export default async function handler(req, res) {
 
       const totalPlatformCost = totalAiCost + totalSmsCost;
 
+      // Event-derived revenue: $4.99 per paid event (regardless of payment method — Stripe, credits, or migration)
+      const paidEventCount = events.filter(e => e.payment_status === 'paid').length;
+      const freeEventCount = events.filter(e => e.payment_status === 'free').length;
+      const eventRevenue = paidEventCount * 4.99;
+
       return res.status(200).json({
         success: true,
         user: {
@@ -398,7 +403,8 @@ export default async function handler(req, res) {
           isBanned
         },
         financials: {
-          totalRevenue,
+          eventRevenue,
+          paymentsCollected: totalRevenue,
           totalPlatformCost,
           totalAiCost,
           chatAiCost,
@@ -408,8 +414,9 @@ export default async function handler(req, res) {
           generationCount: generations.length,
           chatCount: chatGenerations.length,
           themeCount: themeGenerations.length,
-          netMargin: totalRevenue - totalPlatformCost,
-          paidEventCount: succeededPayments.length,
+          netMargin: eventRevenue - totalPlatformCost,
+          paidEventCount,
+          freeEventCount,
           costByEvent
         },
         events: events.map(e => ({
@@ -767,7 +774,7 @@ export default async function handler(req, res) {
       const { data } = await supabaseAdmin
         .from('app_config')
         .select('key, value')
-        .in('key', ['chat_model', 'theme_model', 'cost_markup_pct']);
+        .in('key', ['chat_model', 'theme_model', 'cost_markup_pct', 'sms_cost_cents']);
 
       const config = {};
       (data || []).forEach(row => { config[row.key] = row.value; });
@@ -777,7 +784,8 @@ export default async function handler(req, res) {
         config: {
           chatModel: config.chat_model || 'claude-haiku-4-5-20251001',
           themeModel: config.theme_model || 'claude-sonnet-4-6',
-          costMarkupPct: parseFloat(config.cost_markup_pct) || 100
+          costMarkupPct: parseFloat(config.cost_markup_pct) || 100,
+          smsCostCents: parseInt(config.sms_cost_cents) || 3
         }
       });
     }
@@ -786,12 +794,13 @@ export default async function handler(req, res) {
     if (action === 'saveConfig') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
-      const { chatModel, themeModel, costMarkupPct } = req.body;
+      const { chatModel, themeModel, costMarkupPct, smsCostCents } = req.body;
 
       const upserts = [];
       if (chatModel) upserts.push({ key: 'chat_model', value: chatModel, updated_by: admin.id, updated_at: new Date().toISOString() });
       if (themeModel) upserts.push({ key: 'theme_model', value: themeModel, updated_by: admin.id, updated_at: new Date().toISOString() });
       if (costMarkupPct !== undefined) upserts.push({ key: 'cost_markup_pct', value: String(costMarkupPct), updated_by: admin.id, updated_at: new Date().toISOString() });
+      if (smsCostCents !== undefined) upserts.push({ key: 'sms_cost_cents', value: String(smsCostCents), updated_by: admin.id, updated_at: new Date().toISOString() });
 
       if (upserts.length > 0) {
         const { error } = await supabaseAdmin

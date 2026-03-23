@@ -74,8 +74,16 @@ async function sendViaClickSend(messages) {
 /**
  * Record sent SMS messages in the database for billing and audit
  */
+async function getSmsCostCents() {
+  try {
+    const { data } = await supabaseAdmin.from('app_config').select('value').eq('key', 'sms_cost_cents').single();
+    return parseInt(data?.value) || 3;
+  } catch { return 3; }
+}
+
 async function recordSmsMessages(userId, eventId, sentMessages, messageType, clickSendResults) {
   const csMessages = clickSendResults?.messages || [];
+  const smsCostCents = await getSmsCostCents();
 
   const smsRecords = sentMessages.map((msg, i) => ({
     user_id: userId,
@@ -85,7 +93,7 @@ async function recordSmsMessages(userId, eventId, sentMessages, messageType, cli
     message_type: messageType,
     status: csMessages[i]?.status === 'SUCCESS' ? 'sent' : 'queued',
     provider_id: csMessages[i]?.message_id || null,
-    cost_cents: 0, // SMS included in $4.99 event price
+    cost_cents: smsCostCents,
     billed: true
   }));
 

@@ -1085,6 +1085,14 @@
             <div class="hint">Revenue is tracked from actual payments. Profitability = Revenue &minus; API costs per event.</div>
           </div>
         </div>
+        <div class="config-row" style="margin-top:16px;">
+          <div class="config-field">
+            <label for="smsCostCentsInput">SMS Cost Per Message (cents)</label>
+            <input type="number" id="smsCostCentsInput" min="0" max="100" step="1" value="3"
+              style="width:120px;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+            <div class="hint">ClickSend cost per SMS in cents. Used for platform cost tracking on all outgoing SMS (invites, reminders, notifications).</div>
+          </div>
+        </div>
         <div class="config-actions">
           <button class="btn btn-primary" id="saveConfigBtn" onclick="saveConfig()">Save Configuration</button>
           <span class="config-saved" id="configSaved">Saved!</span>
@@ -3323,8 +3331,8 @@
       // ---- Overview KPIs ----
       var netMargin = f.netMargin;
       document.getElementById('udKpiGrid').innerHTML =
-        kpiCard(fmtCost(f.totalRevenue), 'Total Revenue', 'positive')
-        + kpiCard(fmtCost(f.totalPlatformCost), 'Total Platform Cost', '')
+        kpiCard(fmtCost(f.eventRevenue), 'Event Revenue', 'positive')
+        + kpiCard(fmtCost(f.totalPlatformCost), 'Platform Cost', '')
         + kpiCard(fmtCost(netMargin), 'Net Margin', netMargin >= 0 ? 'positive' : 'negative')
         + kpiCard(data.events.length, 'Events', '')
         + kpiCard(f.generationCount, 'AI Generations', '')
@@ -3363,8 +3371,8 @@
       var freeEvents = data.events.filter(function(e) { return e.paymentStatus === 'free'; }).length;
       var unpaidEvents = data.events.length - paidEvents - freeEvents;
       document.getElementById('udFinKpis').innerHTML =
-        kpiCard(fmtCost(f.totalRevenue), 'Total Revenue', 'positive')
-        + kpiCard(fmtCost(f.totalPlatformCost), 'Total Platform Cost', '')
+        kpiCard(fmtCost(f.eventRevenue), 'Event Revenue', 'positive')
+        + kpiCard(fmtCost(f.paymentsCollected), 'Payments Collected', '')
         + kpiCard(fmtCost(f.netMargin), 'Net Margin', f.netMargin >= 0 ? 'positive' : 'negative')
         + kpiCard(fmtCost(f.totalAiCost), 'AI Cost', '')
         + kpiCard(fmtCost(f.chatAiCost), 'Chat AI', '')
@@ -3882,6 +3890,8 @@
         if (res.config) {
           document.getElementById('chatModelSelect').value = res.config.chatModel;
           document.getElementById('themeModelSelect').value = res.config.themeModel;
+          var smsCostInput = document.getElementById('smsCostCentsInput');
+          if (smsCostInput) smsCostInput.value = res.config.smsCostCents || 3;
         }
       } catch (err) {
         console.error('Failed to load config:', err);
@@ -3898,7 +3908,8 @@
           method: 'POST',
           body: {
             chatModel: document.getElementById('chatModelSelect').value,
-            themeModel: document.getElementById('themeModelSelect').value
+            themeModel: document.getElementById('themeModelSelect').value,
+            smsCostCents: parseInt(document.getElementById('smsCostCentsInput').value) || 3
           }
         });
         var saved = document.getElementById('configSaved');
