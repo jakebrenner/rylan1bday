@@ -425,7 +425,7 @@ export default async function handler(req, res) {
           rsvps: rsvpCounts[e.id] || { total: 0, attending: 0, declined: 0, maybe: 0 },
           costs: costByEvent[e.id] || { aiCost: 0, smsCost: 0 }
         })),
-        subscriptions: subscriptions.map(s => ({
+        subscriptions: (subsRes.data || []).map(s => ({
           id: s.id,
           planName: s.plans?.display_name || s.plans?.name,
           planPriceCents: s.plans?.price_cents,
