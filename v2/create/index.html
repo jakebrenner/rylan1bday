@@ -2028,6 +2028,36 @@
       document.getElementById('chatMessages').appendChild(card);
       scrollChat();
 
+      // Re-render any photos already uploaded on Step 1 into the new preview containers
+      if (personPhotoUrls.length > 0) {
+        var personContainer = document.getElementById('personPreviews');
+        if (personContainer) {
+          personPhotoUrls.forEach(function(url, i) {
+            if (!url) return;
+            var div = document.createElement('div');
+            div.className = 'image-preview';
+            div.setAttribute('data-idx', i);
+            div.setAttribute('data-photo-type', 'person');
+            div.innerHTML = '<img src="' + url + '" alt="Preview"><button class="remove" onclick="removeImage(this, \'person\')">&times;</button>';
+            personContainer.appendChild(div);
+          });
+        }
+      }
+      if (inspirationImageUrls.length > 0) {
+        var inspoContainer = document.getElementById('inspirationPreviews');
+        if (inspoContainer) {
+          inspirationImageUrls.forEach(function(url, i) {
+            if (!url) return;
+            var div = document.createElement('div');
+            div.className = 'image-preview';
+            div.setAttribute('data-idx', i);
+            div.setAttribute('data-photo-type', 'inspiration');
+            div.innerHTML = '<img src="' + url + '" alt="Preview"><button class="remove" onclick="removeImage(this, \'inspiration\')">&times;</button>';
+            inspoContainer.appendChild(div);
+          });
+        }
+      }
+
       // Hide chat input — design chat is done
       document.querySelector('.chat-input-area').style.display = 'none';
 
