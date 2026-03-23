@@ -825,11 +825,11 @@
             </div>
           </div>
           <div class="ud-card">
-            <div class="ud-card-header"><h4>Revenue vs. Cost by Event</h4></div>
+            <div class="ud-card-header"><h4>Cost & Revenue by Event</h4></div>
             <div class="ud-card-body no-pad">
               <table style="font-size:13px;">
-                <thead><tr><th>Event</th><th>AI Cost</th><th>SMS Cost</th><th>Total Cost</th><th>Revenue Share</th></tr></thead>
-                <tbody id="udEventCosts"><tr><td colspan="5" class="ud-empty">No events</td></tr></tbody>
+                <thead><tr><th>Event</th><th>AI Cost</th><th>SMS Cost</th><th>Total Cost</th><th>Revenue</th><th>Margin</th></tr></thead>
+                <tbody id="udEventCosts"><tr><td colspan="6" class="ud-empty">No events</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -3017,9 +3017,11 @@
     // ---- Stats ----
     function fmtCost(v) {
       if (v == null || isNaN(v)) return '$0.00';
-      if (v < 0.01) return '$' + v.toFixed(4);
-      if (v < 1) return '$' + v.toFixed(3);
-      return '$' + v.toFixed(2);
+      var abs = Math.abs(v);
+      var sign = v < 0 ? '-' : '';
+      if (abs < 0.01 && abs > 0) return sign + '$' + abs.toFixed(4);
+      if (abs < 1) return sign + '$' + abs.toFixed(3);
+      return sign + '$' + abs.toFixed(2);
     }
 
     function showStats(stats) {
@@ -3357,15 +3359,18 @@
       }
 
       // ---- Financials ----
+      var paidEvents = data.events.filter(function(e) { return e.paymentStatus === 'paid'; }).length;
+      var freeEvents = data.events.filter(function(e) { return e.paymentStatus === 'free'; }).length;
+      var unpaidEvents = data.events.length - paidEvents - freeEvents;
       document.getElementById('udFinKpis').innerHTML =
-        kpiCard(fmtCost(f.totalRevenue), 'Subscription Revenue', 'positive')
-        + kpiCard(fmtCost(f.totalDiscount), 'Discounts Applied', 'gold')
-        + kpiCard(fmtCost(f.totalAiCost), 'AI API Cost', '')
-        + kpiCard(fmtCost(f.chatAiCost), 'Chat Cost', '')
-        + kpiCard(fmtCost(f.themeAiCost), 'Theme Gen Cost', '')
+        kpiCard(fmtCost(f.totalRevenue), 'Total Revenue', 'positive')
+        + kpiCard(fmtCost(f.totalPlatformCost), 'Total Platform Cost', '')
+        + kpiCard(fmtCost(f.netMargin), 'Net Margin', f.netMargin >= 0 ? 'positive' : 'negative')
+        + kpiCard(fmtCost(f.totalAiCost), 'AI Cost', '')
+        + kpiCard(fmtCost(f.chatAiCost), 'Chat AI', '')
+        + kpiCard(fmtCost(f.themeAiCost), 'Theme AI', '')
         + kpiCard(fmtCost(f.totalSmsCost), 'SMS Cost', '')
-        + kpiCard(fmtCost(f.revenueAfterMarkup), 'AI Revenue (w/ markup)', 'positive')
-        + kpiCard((f.markupPct || 0) + '%', 'Cost Markup', '');
+        + kpiCard(paidEvents + ' paid / ' + freeEvents + ' free', 'Events', '');
 
       // Cost breakdown visual
       var totalCost = f.totalAiCost + f.totalSmsCost;
@@ -3393,16 +3398,23 @@
       // Cost by event table
       var ecBody = document.getElementById('udEventCosts');
       if (data.events.length === 0) {
-        ecBody.innerHTML = '<tr><td colspan="5" class="ud-empty">No events</td></tr>';
+        ecBody.innerHTML = '<tr><td colspan="6" class="ud-empty">No events</td></tr>';
       } else {
         ecBody.innerHTML = data.events.map(function(e) {
           var tc = e.costs.aiCost + e.costs.smsCost;
+          var rev = e.revenue || 0;
+          var margin = rev - tc;
+          var marginClass = margin > 0 ? 'color:var(--mint-fizz)' : margin < 0 ? 'color:var(--party-coral)' : '';
+          var payBadge = e.paymentStatus === 'paid' ? '<span class="badge badge-green" style="font-size:9px;margin-left:4px;">paid</span>'
+            : e.paymentStatus === 'free' ? '<span class="badge badge-blue" style="font-size:9px;margin-left:4px;">free</span>'
+            : '<span class="badge badge-gray" style="font-size:9px;margin-left:4px;">unpaid</span>';
           return '<tr>'
-            + '<td><strong>' + escapeHtml(e.title) + '</strong></td>'
+            + '<td><strong>' + escapeHtml(e.title) + '</strong>' + payBadge + '</td>'
             + '<td>' + fmtCost(e.costs.aiCost) + '</td>'
             + '<td>' + fmtCost(e.costs.smsCost) + '</td>'
             + '<td><strong>' + fmtCost(tc) + '</strong></td>'
-            + '<td>' + (totalCost > 0 ? (tc / totalCost * 100).toFixed(1) + '%' : '—') + '</td>'
+            + '<td>' + fmtCost(rev) + '</td>'
+            + '<td style="' + marginClass + ';font-weight:700;">' + (margin >= 0 ? '+' : '') + fmtCost(margin) + '</td>'
             + '</tr>';
         }).join('');
       }

@@ -170,7 +170,7 @@ export default async function handler(req, res) {
       const [profileRes, authUserRes, eventsRes, subsRes, billingRes, generationsRes, smsRes, chatRes] = await Promise.all([
         supabaseAdmin.from('profiles').select('*').eq('id', userId).single(),
         supabaseAdmin.auth.admin.getUserById(userId).catch(() => ({ data: { user: null } })),
-        supabaseAdmin.from('events').select('id, title, event_type, event_date, status, slug, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabaseAdmin.from('events').select('id, title, event_type, event_date, status, slug, payment_status, paid_at, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
         supabaseAdmin.from('subscriptions').select('*, plans:plan_id (name, display_name, price_cents, max_events, max_generations)').eq('user_id', userId).order('created_at', { ascending: false }),
         supabaseAdmin.from('billing_history').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabaseAdmin.from('generation_log').select('id, event_id, model, input_tokens, output_tokens, prompt, status, latency_ms, created_at').eq('user_id', userId).eq('status', 'success').order('created_at', { ascending: false }),
@@ -381,11 +381,6 @@ export default async function handler(req, res) {
 
       const totalPlatformCost = totalAiCost + totalSmsCost;
 
-      // Discount + markup calculations
-      const totalDiscount = (subsRes.data || []).reduce((sum, s) => sum + (s.discount_cents || 0), 0) / 100;
-      const markupPct = 300; // 3x markup on AI costs
-      const revenueAfterMarkup = totalAiCost * (markupPct / 100);
-
       return res.status(200).json({
         success: true,
         user: {
@@ -415,9 +410,6 @@ export default async function handler(req, res) {
           themeCount: themeGenerations.length,
           netMargin: totalRevenue - totalPlatformCost,
           paidEventCount: succeededPayments.length,
-          totalDiscount,
-          revenueAfterMarkup,
-          markupPct,
           costByEvent
         },
         events: events.map(e => ({
@@ -427,6 +419,9 @@ export default async function handler(req, res) {
           eventDate: e.event_date,
           status: e.status,
           slug: e.slug,
+          paymentStatus: e.payment_status || 'unpaid',
+          paidAt: e.paid_at,
+          revenue: e.payment_status === 'paid' ? 4.99 : 0,
           createdAt: e.created_at,
           hasTheme: !!(eventThemeMap[e.id] && eventThemeMap[e.id].hasTheme),
           themeVersions: eventThemeMap[e.id] ? eventThemeMap[e.id].versions : 0,
