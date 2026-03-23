@@ -2994,9 +2994,414 @@ ${cssSnippet}`
       });
     }
 
+    // ── REVIEW MANAGEMENT ──
+
+    // List reviews with filters
+    if (action === 'listReviews') {
+      const page = parseInt(req.query.page) || 1;
+      const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+      const statusFilter = req.query.statusFilter || '';
+      const offset = (page - 1) * limit;
+
+      let query = supabaseAdmin
+        .from('reviews')
+        .select(`
+          id, user_id, event_id, event_theme_id, rating, headline, body,
+          reviewer_name, is_anonymous, status, event_type, admin_notes,
+          moderated_by, moderated_at, created_at, updated_at,
+          profiles(email, first_name, last_name),
+          events(title, event_date, slug),
+          event_themes(html, css, config)
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (statusFilter && ['pending', 'approved', 'featured', 'rejected'].includes(statusFilter)) {
+        query = query.eq('status', statusFilter);
+      }
+
+      const { data, error, count } = await query;
+      if (error) return res.status(500).json({ error: error.message });
+
+      return res.status(200).json({
+        success: true,
+        reviews: data || [],
+        total: count || 0,
+        page,
+        limit
+      });
+    }
+
+    // Moderate a review (change status)
+    if (action === 'moderateReview' && req.method === 'POST') {
+      const { reviewId, status, notes } = req.body;
+      if (!reviewId || !status) return res.status(400).json({ error: 'reviewId and status required' });
+      if (!['pending', 'approved', 'featured', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      const updateData = {
+        status,
+        moderated_by: admin.email,
+        moderated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      if (notes !== undefined) updateData.admin_notes = notes;
+
+      const { data, error } = await supabaseAdmin
+        .from('reviews')
+        .update(updateData)
+        .eq('id', reviewId)
+        .select('id, status')
+        .single();
+
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(200).json({ success: true, review: data });
+    }
+
+    // Delete a review
+    if (action === 'deleteReview' && req.method === 'POST') {
+      const { reviewId } = req.body;
+      if (!reviewId) return res.status(400).json({ error: 'reviewId required' });
+
+      const { error } = await supabaseAdmin.from('reviews').delete().eq('id', reviewId);
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(200).json({ success: true });
+    }
+
+    // Review stats
+    if (action === 'reviewStats') {
+      const { data: reviews } = await supabaseAdmin
+        .from('reviews')
+        .select('rating, status');
+
+      const { data: requests } = await supabaseAdmin
+        .from('review_requests')
+        .select('status');
+
+      const all = reviews || [];
+      const reqs = requests || [];
+      const stats = {
+        totalReviews: all.length,
+        avgRating: all.length > 0 ? Math.round(all.reduce((a, r) => a + r.rating, 0) / all.length * 100) / 100 : 0,
+        pendingCount: all.filter(r => r.status === 'pending').length,
+        approvedCount: all.filter(r => r.status === 'approved').length,
+        featuredCount: all.filter(r => r.status === 'featured').length,
+        rejectedCount: all.filter(r => r.status === 'rejected').length,
+        totalRequests: reqs.length,
+        completedRequests: reqs.filter(r => r.status === 'completed').length,
+        conversionRate: reqs.length > 0
+          ? Math.round(reqs.filter(r => r.status === 'completed').length / reqs.length * 100)
+          : 0
+      };
+
+      return res.status(200).json({ success: true, stats });
+    }
+
+    // Manually send a review request for an event
+    if (action === 'sendReviewRequest' && req.method === 'POST') {
+      const { eventId } = req.body;
+      if (!eventId) return res.status(400).json({ error: 'eventId required' });
+
+      // Check if request already exists
+      const { data: existing } = await supabaseAdmin
+        .from('review_requests')
+        .select('id, status')
+        .eq('event_id', eventId)
+        .single();
+
+      if (existing) {
+        return res.status(400).json({ error: 'Review request already exists for this event', request: existing });
+      }
+
+      // Get event + host info
+      const { data: event, error: evErr } = await supabaseAdmin
+        .from('events')
+        .select('id, title, user_id, event_type')
+        .eq('id', eventId)
+        .single();
+
+      if (evErr || !event) return res.status(404).json({ error: 'Event not found' });
+
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('email, first_name')
+        .eq('id', event.user_id)
+        .single();
+
+      if (!profile?.email) return res.status(400).json({ error: 'No email found for event host' });
+
+      const token = crypto.randomUUID();
+
+      // Create request
+      await supabaseAdmin.from('review_requests').insert({
+        user_id: event.user_id,
+        event_id: eventId,
+        token,
+        status: 'sent',
+        sent_at: new Date().toISOString()
+      });
+
+      // Send email using configurable template
+      const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+      if (resend) {
+        const reviewUrl = `https://www.ryvite.com/v2/review/?token=${token}`;
+        const firstName = profile.first_name || 'there';
+
+        // Load configurable settings
+        const settingKeys = ['review_email_subject', 'review_email_headline', 'review_email_body', 'review_email_cta_text', 'review_email_footer_note'];
+        const { data: configData } = await supabaseAdmin.from('app_config').select('key, value').in('key', settingKeys);
+        const cm = {};
+        (configData || []).forEach(row => { cm[row.key] = row.value; });
+
+        const replaceVars = (str) => str.replace(/\{\{eventTitle\}\}/g, event.title).replace(/\{\{firstName\}\}/g, firstName);
+        const subject = replaceVars(cm.review_email_subject || 'How was {{eventTitle}}? Share your experience!');
+        const headline = replaceVars(cm.review_email_headline || 'How was {{eventTitle}}?');
+        const bodyText = replaceVars(cm.review_email_body || 'We hope your event was amazing! We\'d love to hear about your experience using Ryvite. Your feedback helps other hosts discover what\'s possible.\n\nIt only takes a minute — just tap below to leave a quick review.');
+        const ctaText = replaceVars(cm.review_email_cta_text || 'Leave a Review');
+        const footerNote = replaceVars(cm.review_email_footer_note || 'Your review may be featured on our site to help other event planners.');
+        const bodyHtml = bodyText.split('\n').filter(p => p.trim()).map(p => `<p style="margin:0 0 16px;font-size:15px;color:#555;line-height:1.6;">${p}</p>`).join('\n    ');
+
+        await resend.emails.send({
+          from: 'Ryvite <hello@ryvite.com>',
+          to: profile.email,
+          subject,
+          html: buildReviewEmailFromSettings(firstName, headline, bodyHtml, ctaText, footerNote, reviewUrl)
+        });
+      }
+
+      return res.status(200).json({ success: true, token });
+    }
+
+    // ── REVIEW EMAIL SETTINGS ──
+
+    // Get review email settings from app_config
+    if (action === 'getReviewEmailSettings') {
+      const keys = [
+        'review_email_enabled',
+        'review_email_delay_days',
+        'review_reminder_enabled',
+        'review_reminder_delay_days',
+        'review_email_subject',
+        'review_email_headline',
+        'review_email_body',
+        'review_email_cta_text',
+        'review_email_footer_note',
+        'review_reminder_subject',
+        'review_reminder_headline',
+        'review_reminder_body',
+        'review_reminder_cta_text',
+        'review_reminder_footer_note'
+      ];
+
+      const { data, error } = await supabaseAdmin
+        .from('app_config')
+        .select('key, value')
+        .in('key', keys);
+
+      if (error) return res.status(500).json({ error: error.message });
+
+      // Build settings object with defaults
+      const configMap = {};
+      (data || []).forEach(row => { configMap[row.key] = row.value; });
+
+      const settings = {
+        // Schedule
+        emailEnabled: configMap.review_email_enabled !== 'false',
+        delayDays: parseInt(configMap.review_email_delay_days) || 1,
+        reminderEnabled: configMap.review_reminder_enabled !== 'false',
+        reminderDelayDays: parseInt(configMap.review_reminder_delay_days) || 7,
+        // Initial email
+        emailSubject: configMap.review_email_subject || 'How was {{eventTitle}}? Share your experience!',
+        emailHeadline: configMap.review_email_headline || 'How was {{eventTitle}}?',
+        emailBody: configMap.review_email_body || 'We hope your event was amazing! We\'d love to hear about your experience using Ryvite. Your feedback helps other hosts discover what\'s possible.\n\nIt only takes a minute — just tap below to leave a quick review.',
+        emailCtaText: configMap.review_email_cta_text || 'Tap a star to rate your experience:',
+        emailFooterNote: configMap.review_email_footer_note || 'Your review may be featured on our site to help other event planners.',
+        // Reminder email
+        reminderSubject: configMap.review_reminder_subject || 'We\'d love to hear about {{eventTitle}}!',
+        reminderHeadline: configMap.review_reminder_headline || 'We\'d still love to hear from you!',
+        reminderBody: configMap.review_reminder_body || 'A little while ago you hosted {{eventTitle}} with Ryvite. We\'d really appreciate hearing about your experience — it helps us improve and helps other hosts discover what\'s possible.\n\nIt only takes a minute!',
+        reminderCtaText: configMap.review_reminder_cta_text || 'Tap a star to rate your experience:',
+        reminderFooterNote: configMap.review_reminder_footer_note || 'Your review may be featured on our site to help other event planners.'
+      };
+
+      return res.status(200).json({ success: true, settings });
+    }
+
+    // Save review email settings
+    if (action === 'saveReviewEmailSettings' && req.method === 'POST') {
+      const s = req.body;
+      if (!s) return res.status(400).json({ error: 'Settings body required' });
+
+      const keyMap = {
+        emailEnabled: 'review_email_enabled',
+        delayDays: 'review_email_delay_days',
+        reminderEnabled: 'review_reminder_enabled',
+        reminderDelayDays: 'review_reminder_delay_days',
+        emailSubject: 'review_email_subject',
+        emailHeadline: 'review_email_headline',
+        emailBody: 'review_email_body',
+        emailCtaText: 'review_email_cta_text',
+        emailFooterNote: 'review_email_footer_note',
+        reminderSubject: 'review_reminder_subject',
+        reminderHeadline: 'review_reminder_headline',
+        reminderBody: 'review_reminder_body',
+        reminderCtaText: 'review_reminder_cta_text',
+        reminderFooterNote: 'review_reminder_footer_note'
+      };
+
+      const upserts = [];
+      for (const [field, dbKey] of Object.entries(keyMap)) {
+        if (s[field] !== undefined) {
+          upserts.push({
+            key: dbKey,
+            value: String(s[field]),
+            updated_by: admin.id,
+            updated_at: new Date().toISOString()
+          });
+        }
+      }
+
+      if (upserts.length > 0) {
+        const { error } = await supabaseAdmin
+          .from('app_config')
+          .upsert(upserts, { onConflict: 'key' });
+        if (error) return res.status(500).json({ error: error.message });
+      }
+
+      return res.status(200).json({ success: true });
+    }
+
+    // Preview review email — renders template with sample data
+    if (action === 'previewReviewEmail') {
+      const emailType = req.query.type || 'initial'; // 'initial' or 'reminder'
+
+      // Load settings
+      const keys = emailType === 'reminder'
+        ? ['review_reminder_subject', 'review_reminder_headline', 'review_reminder_body', 'review_reminder_cta_text', 'review_reminder_footer_note']
+        : ['review_email_subject', 'review_email_headline', 'review_email_body', 'review_email_cta_text', 'review_email_footer_note'];
+
+      const { data } = await supabaseAdmin
+        .from('app_config')
+        .select('key, value')
+        .in('key', keys);
+
+      const configMap = {};
+      (data || []).forEach(row => { configMap[row.key] = row.value; });
+
+      let headline, body, ctaText, footerNote;
+      if (emailType === 'reminder') {
+        headline = configMap.review_reminder_headline || 'We\'d still love to hear from you!';
+        body = configMap.review_reminder_body || 'A little while ago you hosted {{eventTitle}} with Ryvite. We\'d really appreciate hearing about your experience — it helps us improve and helps other hosts discover what\'s possible.\n\nIt only takes a minute!';
+        ctaText = configMap.review_reminder_cta_text || 'Tap a star to rate your experience:';
+        footerNote = configMap.review_reminder_footer_note || 'Your review may be featured on our site to help other event planners.';
+      } else {
+        headline = configMap.review_email_headline || 'How was {{eventTitle}}?';
+        body = configMap.review_email_body || 'We hope your event was amazing! We\'d love to hear about your experience using Ryvite. Your feedback helps other hosts discover what\'s possible.\n\nIt only takes a minute — just tap below to leave a quick review.';
+        ctaText = configMap.review_email_cta_text || 'Tap a star to rate your experience:';
+        footerNote = configMap.review_email_footer_note || 'Your review may be featured on our site to help other event planners.';
+      }
+
+      // Replace template vars with sample data
+      const sampleEvent = 'Emma\'s 5th Birthday Party';
+      const sampleFirst = 'Sarah';
+      const sampleUrl = 'https://www.ryvite.com/v2/review/?token=sample-preview';
+
+      const replaceVars = (str) => str
+        .replace(/\{\{eventTitle\}\}/g, sampleEvent)
+        .replace(/\{\{firstName\}\}/g, sampleFirst)
+        .replace(/\{\{reviewUrl\}\}/g, sampleUrl);
+
+      headline = replaceVars(headline);
+      const bodyParagraphs = replaceVars(body).split('\n').filter(p => p.trim()).map(
+        p => `<p style="margin:0 0 16px;font-size:15px;color:#555;line-height:1.6;">${p}</p>`
+      ).join('\n    ');
+      ctaText = replaceVars(ctaText);
+      footerNote = replaceVars(footerNote);
+
+      const html = buildReviewEmailFromSettings(sampleFirst, headline, bodyParagraphs, ctaText, footerNote, sampleUrl);
+      return res.status(200).json({ success: true, html, sampleData: { eventTitle: sampleEvent, firstName: sampleFirst } });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Admin API error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
+}
+
+function buildStarRatingHtml(reviewUrl, promptText) {
+  const prompt = promptText || 'Tap a star to rate your experience:';
+  const starPath = 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z';
+  let html = `<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 4px;">
+      <p style="margin:0 0 12px;font-size:15px;font-weight:600;color:#1A1A2E;">${prompt}</p>
+    </td></tr><tr><td align="center">
+      <table cellpadding="0" cellspacing="0" style="display:inline-table;"><tr>`;
+  for (let i = 1; i <= 5; i++) {
+    const url = reviewUrl + (reviewUrl.includes('?') ? '&' : '?') + 'rating=' + i;
+    html += `<td style="padding:0 4px;" align="center">
+          <a href="${url}" style="text-decoration:none;display:inline-block;" title="${i} star${i > 1 ? 's' : ''}">
+            <svg width="40" height="40" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="${starPath}" fill="#FFB74D" stroke="#E8A33D" stroke-width="0.5"/></svg>
+          </a>
+        </td>`;
+  }
+  html += `</tr><tr>`;
+  for (let i = 1; i <= 5; i++) {
+    html += `<td align="center" style="padding:2px 4px 0;"><span style="font-size:11px;color:#888;">${i}</span></td>`;
+  }
+  html += `</tr></table></td></tr></table>`;
+  return html;
+}
+
+function buildReviewEmailFromSettings(firstName, headline, bodyHtml, ctaText, footerNote, reviewUrl) {
+  const starsHtml = buildStarRatingHtml(reviewUrl, ctaText);
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:40px 20px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+  <tr><td style="background:linear-gradient(135deg,#E94560,#FF6B6B);padding:32px 32px 24px;text-align:center;">
+    <div style="margin-bottom:14px;font-family:Georgia,'Times New Roman',serif;font-size:28px;font-weight:700;color:#fff;letter-spacing:0.5px;">Ryvite</div>
+    <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${headline}</h1>
+  </td></tr>
+  <tr><td style="padding:32px;">
+    <p style="margin:0 0 16px;font-size:16px;color:#1A1A2E;line-height:1.6;">Hey ${firstName},</p>
+    ${bodyHtml}
+    ${starsHtml}
+    <p style="margin:24px 0 0;font-size:13px;color:#999;line-height:1.5;text-align:center;">${footerNote}</p>
+  </td></tr>
+  <tr><td style="padding:20px 32px;background:#fafafa;border-top:1px solid #eee;text-align:center;">
+    <p style="margin:0;font-size:12px;color:#aaa;">Ryvite — AI-Powered Custom Invitations</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+function buildReviewRequestEmail(firstName, eventTitle, reviewUrl) {
+  const starsHtml = buildStarRatingHtml(reviewUrl);
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:40px 20px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+  <tr><td style="background:linear-gradient(135deg,#E94560,#FF6B6B);padding:32px 32px 24px;text-align:center;">
+    <div style="margin-bottom:14px;font-family:Georgia,'Times New Roman',serif;font-size:28px;font-weight:700;color:#fff;letter-spacing:0.5px;">Ryvite</div>
+    <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">How was ${eventTitle}?</h1>
+  </td></tr>
+  <tr><td style="padding:32px;">
+    <p style="margin:0 0 16px;font-size:16px;color:#1A1A2E;line-height:1.6;">Hey ${firstName},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#555;line-height:1.6;">We hope your event was amazing! We'd love to hear about your experience using Ryvite. Your feedback helps other hosts discover what's possible.</p>
+    <p style="margin:0 0 8px;font-size:15px;color:#555;line-height:1.6;">It only takes a minute — tap a star below:</p>
+    ${starsHtml}
+    <p style="margin:24px 0 0;font-size:13px;color:#999;line-height:1.5;text-align:center;">Your review may be featured on our site to help other event planners.</p>
+  </td></tr>
+  <tr><td style="padding:20px 32px;background:#fafafa;border-top:1px solid #eee;text-align:center;">
+    <p style="margin:0;font-size:12px;color:#aaa;">Ryvite — AI-Powered Custom Invitations</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
 }

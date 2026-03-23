@@ -582,6 +582,11 @@
         <div class="sidebar-group-label">Growth</div>
         <button class="sidebar-item" data-tab="viral" onclick="switchTab('viral');loadViralStats();">Viral Loop</button>
       </div>
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">Social Proof</div>
+        <button class="sidebar-item" data-tab="reviews" onclick="switchTab('reviews');loadReviews();">Reviews</button>
+        <button class="sidebar-item" data-tab="reviewemails" onclick="switchTab('reviewemails');loadReviewEmailSettings();">Review Emails</button>
+      </div>
     </nav>
 
     <!-- Mobile sidebar overlay + toggle -->
@@ -2460,6 +2465,173 @@
           </tbody>
         </table>
       </div>
+    </div>
+
+    <!-- Reviews Tab -->
+    <div class="tab-content" id="tab-reviews">
+      <h3 style="margin-bottom:4px;">Reviews &amp; Testimonials</h3>
+      <p style="font-size:13px;color:#888;margin-bottom:20px;">Manage customer reviews. Featured reviews appear on the homepage.</p>
+
+      <!-- Stats -->
+      <div class="stat-grid" id="reviewStatGrid" style="margin-bottom:24px;">
+        <div class="stat-card"><div class="stat-value" id="reviewTotal">—</div><div class="stat-label">Total Reviews</div></div>
+        <div class="stat-card"><div class="stat-value" id="reviewAvg">—</div><div class="stat-label">Avg Rating</div></div>
+        <div class="stat-card" style="border-left:3px solid var(--confetti-gold);"><div class="stat-value" id="reviewPending">—</div><div class="stat-label">Pending</div></div>
+        <div class="stat-card"><div class="stat-value" id="reviewFeatured">—</div><div class="stat-label">Featured</div></div>
+        <div class="stat-card"><div class="stat-value" id="reviewConversion">—</div><div class="stat-label">Request Conversion</div></div>
+      </div>
+
+      <!-- Filter bar -->
+      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-primary review-filter-btn" data-filter="" onclick="filterReviews('')">All</button>
+        <button class="btn btn-secondary review-filter-btn" data-filter="pending" onclick="filterReviews('pending')">Pending</button>
+        <button class="btn btn-secondary review-filter-btn" data-filter="approved" onclick="filterReviews('approved')">Approved</button>
+        <button class="btn btn-secondary review-filter-btn" data-filter="featured" onclick="filterReviews('featured')">Featured</button>
+        <button class="btn btn-secondary review-filter-btn" data-filter="rejected" onclick="filterReviews('rejected')">Rejected</button>
+        <div style="flex:1;"></div>
+        <button class="btn btn-secondary btn-sm" onclick="loadReviewStats()">Refresh</button>
+      </div>
+
+      <!-- Review cards -->
+      <div id="reviewCards" style="display:grid;gap:16px;">
+        <div style="text-align:center;color:#888;padding:40px;">Loading reviews...</div>
+      </div>
+
+      <!-- Pagination -->
+      <div id="reviewPagination" style="display:flex;justify-content:center;gap:8px;margin-top:24px;"></div>
+    </div>
+
+    <!-- Review Emails Tab -->
+    <div class="tab-content" id="tab-reviewemails">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <h3 style="margin:0;">Review Email Settings</h3>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="sendTestReviewEmail()" id="btnSendTest" style="font-size:12px;">Send Test Email</button>
+          <button class="btn btn-primary" onclick="saveReviewEmailSettings()" id="btnSaveEmailSettings">Save Changes</button>
+        </div>
+      </div>
+      <p style="font-size:13px;color:#888;margin-bottom:24px;">Configure the review request emails that go out to hosts after their events. Supports <code style="background:#f0f0f0;padding:2px 6px;border-radius:3px;font-size:12px;">{{eventTitle}}</code> and <code style="background:#f0f0f0;padding:2px 6px;border-radius:3px;font-size:12px;">{{firstName}}</code> placeholders.</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;" id="reviewEmailLayout">
+        <!-- LEFT: Settings -->
+        <div style="display:flex;flex-direction:column;gap:20px;">
+
+          <!-- Schedule Settings -->
+          <div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:24px;">
+            <h4 style="margin:0 0 16px;font-size:14px;font-weight:700;color:var(--midnight);display:flex;align-items:center;gap:8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+              Sending Schedule
+            </h4>
+            <div style="display:flex;flex-direction:column;gap:16px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                  <div style="font-size:14px;font-weight:600;color:var(--midnight);">Initial Request</div>
+                  <div style="font-size:12px;color:#888;">Automatically email hosts after their event</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="reviewEmailEnabled" checked onchange="updateEmailPreview()">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;" id="delayRow">
+                <label style="font-size:13px;color:#555;white-space:nowrap;">Send</label>
+                <input type="number" id="reviewDelayDays" value="1" min="1" max="30" style="width:64px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:14px;text-align:center;" onchange="updateEmailPreview()">
+                <label style="font-size:13px;color:#555;">day(s) after event date</label>
+              </div>
+              <div style="height:1px;background:#eee;"></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                  <div style="font-size:14px;font-weight:600;color:var(--midnight);">Follow-up Reminder</div>
+                  <div style="font-size:12px;color:#888;">Re-send if no review submitted</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="reviewReminderEnabled" checked onchange="updateEmailPreview()">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;" id="reminderDelayRow">
+                <label style="font-size:13px;color:#555;white-space:nowrap;">Send</label>
+                <input type="number" id="reviewReminderDelayDays" value="7" min="1" max="60" style="width:64px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:14px;text-align:center;" onchange="updateEmailPreview()">
+                <label style="font-size:13px;color:#555;">day(s) after initial email</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Email Type Tabs -->
+          <div style="display:flex;gap:4px;background:#f0f0f0;border-radius:8px;padding:3px;">
+            <button class="review-email-type-btn active" data-type="initial" onclick="switchEmailType('initial')" style="flex:1;padding:8px 12px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;background:#fff;color:var(--midnight);box-shadow:0 1px 3px rgba(0,0,0,0.08);">Initial Request</button>
+            <button class="review-email-type-btn" data-type="reminder" onclick="switchEmailType('reminder')" style="flex:1;padding:8px 12px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;background:transparent;color:#888;">Reminder</button>
+          </div>
+
+          <!-- Email Content Fields -->
+          <div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:24px;">
+            <h4 style="margin:0 0 16px;font-size:14px;font-weight:700;color:var(--midnight);display:flex;align-items:center;gap:8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22,4 L12,13 L2,4"/></svg>
+              <span id="emailTypeLabel">Initial Request</span> Content
+            </h4>
+            <div style="display:flex;flex-direction:column;gap:14px;">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px;">Subject Line</label>
+                <input type="text" id="reviewEmailSubject" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box;" oninput="updateEmailPreview()">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px;">Hero Headline</label>
+                <input type="text" id="reviewEmailHeadline" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box;" oninput="updateEmailPreview()">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px;">Body Copy</label>
+                <textarea id="reviewEmailBody" rows="5" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;resize:vertical;box-sizing:border-box;line-height:1.5;" oninput="updateEmailPreview()"></textarea>
+                <div style="font-size:11px;color:#aaa;margin-top:3px;">Separate paragraphs with blank lines</div>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px;">Star Prompt Text</label>
+                <input type="text" id="reviewEmailCta" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box;" oninput="updateEmailPreview()" placeholder="Tap a star to rate your experience:">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px;">Footer Note</label>
+                <input type="text" id="reviewEmailFooter" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box;" oninput="updateEmailPreview()">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Live Preview -->
+        <div style="position:sticky;top:24px;align-self:start;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div style="font-size:13px;font-weight:600;color:var(--midnight);">Live Preview</div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:11px;color:#888;">Subject:</span>
+              <span id="previewSubjectLine" style="font-size:12px;color:var(--midnight);font-weight:500;background:#f5f5f5;padding:3px 8px;border-radius:4px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;"></span>
+            </div>
+          </div>
+          <div style="background:#f5f5f5;border-radius:12px;padding:16px;border:1px solid #eee;overflow:hidden;">
+            <div style="background:#e0e0e0;border-radius:8px 8px 0 0;padding:8px 12px;display:flex;align-items:center;gap:8px;">
+              <div style="display:flex;gap:5px;">
+                <div style="width:10px;height:10px;border-radius:50%;background:#ff5f57;"></div>
+                <div style="width:10px;height:10px;border-radius:50%;background:#ffbd2e;"></div>
+                <div style="width:10px;height:10px;border-radius:50%;background:#28c840;"></div>
+              </div>
+              <div style="flex:1;text-align:center;font-size:11px;color:#666;">Email Preview</div>
+            </div>
+            <iframe id="reviewEmailPreviewFrame" style="width:100%;height:560px;border:none;border-radius:0 0 8px 8px;background:#fff;" sandbox="allow-same-origin"></iframe>
+          </div>
+          <div style="margin-top:12px;font-size:11px;color:#aaa;text-align:center;">Preview uses sample data: "Sarah" hosting "Emma's 5th Birthday Party"</div>
+        </div>
+      </div>
+
+      <style>
+        .toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: #ddd; border-radius: 24px; transition: 0.2s; }
+        .toggle-slider:before { content: ''; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+        .toggle-switch input:checked + .toggle-slider { background: var(--party-coral); }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(20px); }
+        .review-email-type-btn.active { background: #fff !important; color: var(--midnight) !important; box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important; }
+        .review-email-type-btn:not(.active) { background: transparent !important; color: #888 !important; box-shadow: none !important; }
+        @media (max-width: 900px) {
+          #reviewEmailLayout { grid-template-columns: 1fr !important; }
+        }
+      </style>
     </div>
 
     </div><!-- end admin-main -->
@@ -8908,6 +9080,415 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       } catch (e) {
         status.innerHTML = '<span style="color:#ef4444;">Connection failed</span>';
       }
+    }
+
+    // ── REVIEWS TAB ──
+    var reviewCurrentFilter = '';
+    var reviewCurrentPage = 1;
+
+    async function loadReviews() {
+      await Promise.all([loadReviewStats(), loadReviewList()]);
+    }
+
+    async function loadReviewStats() {
+      try {
+        var res = await fetch('/api/v2/admin?action=reviewStats', { headers: { 'Authorization': 'Bearer ' + token } });
+        var data = await res.json();
+        if (!data.success) return;
+        var s = data.stats;
+        document.getElementById('reviewTotal').textContent = s.totalReviews;
+        document.getElementById('reviewAvg').textContent = s.avgRating > 0 ? s.avgRating + ' / 5' : '—';
+        document.getElementById('reviewPending').textContent = s.pendingCount;
+        document.getElementById('reviewFeatured').textContent = s.featuredCount;
+        document.getElementById('reviewConversion').textContent = s.totalRequests > 0 ? s.conversionRate + '%' : '—';
+      } catch (e) { console.error('Error loading review stats:', e); }
+    }
+
+    async function loadReviewList() {
+      var container = document.getElementById('reviewCards');
+      container.innerHTML = '<div style="text-align:center;color:#888;padding:40px;">Loading...</div>';
+
+      try {
+        var url = '/api/v2/admin?action=listReviews&page=' + reviewCurrentPage + '&limit=20';
+        if (reviewCurrentFilter) url += '&statusFilter=' + reviewCurrentFilter;
+        var res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+        var data = await res.json();
+        if (!data.success) { container.innerHTML = '<p style="color:#888;text-align:center;">Error loading reviews</p>'; return; }
+
+        if (!data.reviews || data.reviews.length === 0) {
+          container.innerHTML = '<div style="text-align:center;color:#888;padding:60px 20px;background:#fff;border-radius:8px;border:1px solid #eee;"><p style="font-size:15px;margin-bottom:8px;">No reviews found</p><p style="font-size:13px;">Reviews will appear here as users submit them.</p></div>';
+          document.getElementById('reviewPagination').innerHTML = '';
+          return;
+        }
+
+        container.innerHTML = data.reviews.map(function(r) { return renderReviewCard(r); }).join('');
+        renderReviewPagination(data.total, data.page, data.limit);
+      } catch (e) {
+        container.innerHTML = '<p style="color:red;text-align:center;">Failed to load reviews</p>';
+      }
+    }
+
+    function renderReviewCard(r) {
+      var stars = '';
+      for (var i = 1; i <= 5; i++) {
+        stars += '<svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="' + (i <= r.rating ? '#FFB74D' : '#ddd') + '"/></svg>';
+      }
+
+      var statusColors = { pending: 'badge-yellow', approved: 'badge-green', featured: 'badge-blue', rejected: 'badge-red' };
+      var statusBadge = '<span class="badge ' + (statusColors[r.status] || 'badge-gray') + '">' + r.status + '</span>';
+
+      var eventInfo = r.events ? r.events.title : 'Unknown Event';
+      var eventDate = r.events && r.events.event_date ? new Date(r.events.event_date).toLocaleDateString() : '';
+      var reviewerEmail = r.profiles ? r.profiles.email : '';
+      var reviewerDisplay = r.reviewer_name + (r.is_anonymous ? ' (anonymous)' : '');
+      var eventType = r.event_type ? '<span class="badge badge-gray" style="margin-left:8px;">' + r.event_type + '</span>' : '';
+
+      // Preview iframe (small)
+      var previewHtml = '';
+      if (r.event_themes && r.event_themes.html) {
+        previewHtml = '<div style="width:140px;height:180px;border-radius:8px;overflow:hidden;border:1px solid #eee;flex-shrink:0;background:#fff;"><iframe srcdoc="' + escapeHtml('<!DOCTYPE html><html><head><style>' + (r.event_themes.css || '') + ' body{margin:0;transform:scale(0.25);transform-origin:top left;width:400%;height:400%;overflow:hidden;}</style></head><body>' + r.event_themes.html + '</body></html>') + '" style="width:100%;height:100%;border:none;pointer-events:none;" sandbox="allow-same-origin"></iframe></div>';
+      }
+
+      var actions = '';
+      if (r.status === 'pending') {
+        actions = '<button class="btn btn-success btn-sm" onclick="moderateReview(\'' + r.id + '\',\'approved\')">Approve</button> <button class="btn btn-primary btn-sm" onclick="moderateReview(\'' + r.id + '\',\'featured\')">Feature</button> <button class="btn btn-secondary btn-sm" onclick="moderateReview(\'' + r.id + '\',\'rejected\')">Reject</button>';
+      } else if (r.status === 'approved') {
+        actions = '<button class="btn btn-primary btn-sm" onclick="moderateReview(\'' + r.id + '\',\'featured\')">Feature</button> <button class="btn btn-secondary btn-sm" onclick="moderateReview(\'' + r.id + '\',\'rejected\')">Reject</button>';
+      } else if (r.status === 'featured') {
+        actions = '<button class="btn btn-secondary btn-sm" onclick="moderateReview(\'' + r.id + '\',\'approved\')">Unfeature</button> <button class="btn btn-secondary btn-sm" onclick="moderateReview(\'' + r.id + '\',\'rejected\')">Reject</button>';
+      } else if (r.status === 'rejected') {
+        actions = '<button class="btn btn-success btn-sm" onclick="moderateReview(\'' + r.id + '\',\'approved\')">Approve</button>';
+      }
+      actions += ' <button class="btn btn-danger btn-sm" onclick="deleteReview(\'' + r.id + '\')">Delete</button>';
+
+      var createdAt = new Date(r.created_at).toLocaleDateString();
+
+      return '<div style="background:#fff;border-radius:8px;border:1px solid #eee;padding:20px;display:flex;gap:16px;align-items:flex-start;">' +
+        previewHtml +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">' +
+            '<div>' + stars + '</div>' +
+            statusBadge + eventType +
+            '<span style="font-size:12px;color:#aaa;margin-left:auto;">' + createdAt + '</span>' +
+          '</div>' +
+          (r.headline ? '<div style="font-weight:600;font-size:15px;margin-bottom:6px;">' + escapeHtml(r.headline) + '</div>' : '') +
+          (r.body ? '<div style="font-size:14px;color:#555;line-height:1.5;margin-bottom:10px;">' + escapeHtml(r.body) + '</div>' : '') +
+          '<div style="font-size:13px;color:#888;margin-bottom:12px;">' +
+            '<strong>' + escapeHtml(reviewerDisplay) + '</strong>' +
+            (reviewerEmail ? ' &middot; ' + escapeHtml(reviewerEmail) : '') +
+            ' &middot; ' + escapeHtml(eventInfo) +
+            (eventDate ? ' (' + eventDate + ')' : '') +
+          '</div>' +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap;">' + actions + '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function filterReviews(status) {
+      reviewCurrentFilter = status;
+      reviewCurrentPage = 1;
+      document.querySelectorAll('.review-filter-btn').forEach(function(btn) {
+        btn.classList.toggle('btn-primary', btn.getAttribute('data-filter') === status);
+        btn.classList.toggle('btn-secondary', btn.getAttribute('data-filter') !== status);
+      });
+      loadReviewList();
+    }
+
+    function renderReviewPagination(total, page, limit) {
+      var pages = Math.ceil(total / limit);
+      var container = document.getElementById('reviewPagination');
+      if (pages <= 1) { container.innerHTML = ''; return; }
+      var html = '';
+      for (var i = 1; i <= pages; i++) {
+        html += '<button class="btn ' + (i === page ? 'btn-primary' : 'btn-secondary') + ' btn-sm" onclick="goToReviewPage(' + i + ')">' + i + '</button>';
+      }
+      container.innerHTML = html;
+    }
+
+    function goToReviewPage(page) {
+      reviewCurrentPage = page;
+      loadReviewList();
+    }
+
+    async function moderateReview(reviewId, status) {
+      try {
+        var res = await fetch('/api/v2/admin?action=moderateReview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ reviewId: reviewId, status: status })
+        });
+        var data = await res.json();
+        if (data.success) {
+          loadReviews();
+        } else {
+          alert(data.error || 'Failed to update review');
+        }
+      } catch (e) { alert('Error updating review'); }
+    }
+
+    async function deleteReview(reviewId) {
+      if (!confirm('Permanently delete this review?')) return;
+      try {
+        var res = await fetch('/api/v2/admin?action=deleteReview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ reviewId: reviewId })
+        });
+        var data = await res.json();
+        if (data.success) {
+          loadReviews();
+        } else {
+          alert(data.error || 'Failed to delete review');
+        }
+      } catch (e) { alert('Error deleting review'); }
+    }
+
+    // ── REVIEW EMAIL SETTINGS TAB ──
+
+    var reviewEmailCurrentType = 'initial';
+    var reviewEmailSettingsCache = null;
+
+    // Default values
+    var reviewEmailDefaults = {
+      emailEnabled: true,
+      delayDays: 1,
+      reminderEnabled: true,
+      reminderDelayDays: 7,
+      emailSubject: 'How was {{eventTitle}}? Share your experience!',
+      emailHeadline: 'How was {{eventTitle}}?',
+      emailBody: 'We hope your event was amazing! We\'d love to hear about your experience using Ryvite. Your feedback helps other hosts discover what\'s possible.\n\nIt only takes a minute — just tap below to leave a quick review.',
+      emailCtaText: 'Tap a star to rate your experience:',
+      emailFooterNote: 'Your review may be featured on our site to help other event planners.',
+      reminderSubject: 'We\'d love to hear about {{eventTitle}}!',
+      reminderHeadline: 'We\'d still love to hear from you!',
+      reminderBody: 'A little while ago you hosted {{eventTitle}} with Ryvite. We\'d really appreciate hearing about your experience — it helps us improve and helps other hosts discover what\'s possible.\n\nIt only takes a minute!',
+      reminderCtaText: 'Tap a star to rate your experience:',
+      reminderFooterNote: 'Your review may be featured on our site to help other event planners.'
+    };
+
+    async function loadReviewEmailSettings() {
+      try {
+        var res = await fetch('/api/v2/admin?action=getReviewEmailSettings', { headers: { 'Authorization': 'Bearer ' + token } });
+        var data = await res.json();
+        if (!data.success) return;
+        reviewEmailSettingsCache = data.settings;
+        populateEmailFields(data.settings);
+        updateEmailPreview();
+      } catch (e) {
+        console.error('Error loading review email settings:', e);
+        reviewEmailSettingsCache = reviewEmailDefaults;
+        populateEmailFields(reviewEmailDefaults);
+        updateEmailPreview();
+      }
+    }
+
+    function populateEmailFields(s) {
+      document.getElementById('reviewEmailEnabled').checked = s.emailEnabled;
+      document.getElementById('reviewDelayDays').value = s.delayDays;
+      document.getElementById('reviewReminderEnabled').checked = s.reminderEnabled;
+      document.getElementById('reviewReminderDelayDays').value = s.reminderDelayDays;
+      loadEmailTypeFields(reviewEmailCurrentType, s);
+    }
+
+    function loadEmailTypeFields(type, s) {
+      s = s || reviewEmailSettingsCache || reviewEmailDefaults;
+      if (type === 'reminder') {
+        document.getElementById('reviewEmailSubject').value = s.reminderSubject;
+        document.getElementById('reviewEmailHeadline').value = s.reminderHeadline;
+        document.getElementById('reviewEmailBody').value = s.reminderBody;
+        document.getElementById('reviewEmailCta').value = s.reminderCtaText;
+        document.getElementById('reviewEmailFooter').value = s.reminderFooterNote;
+        document.getElementById('emailTypeLabel').textContent = 'Reminder';
+      } else {
+        document.getElementById('reviewEmailSubject').value = s.emailSubject;
+        document.getElementById('reviewEmailHeadline').value = s.emailHeadline;
+        document.getElementById('reviewEmailBody').value = s.emailBody;
+        document.getElementById('reviewEmailCta').value = s.emailCtaText;
+        document.getElementById('reviewEmailFooter').value = s.emailFooterNote;
+        document.getElementById('emailTypeLabel').textContent = 'Initial Request';
+      }
+    }
+
+    function switchEmailType(type) {
+      // Save current fields back to cache before switching
+      saveFieldsToCache(reviewEmailCurrentType);
+      reviewEmailCurrentType = type;
+      document.querySelectorAll('.review-email-type-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-type') === type);
+      });
+      loadEmailTypeFields(type);
+      updateEmailPreview();
+    }
+
+    function saveFieldsToCache(type) {
+      if (!reviewEmailSettingsCache) reviewEmailSettingsCache = Object.assign({}, reviewEmailDefaults);
+      if (type === 'reminder') {
+        reviewEmailSettingsCache.reminderSubject = document.getElementById('reviewEmailSubject').value;
+        reviewEmailSettingsCache.reminderHeadline = document.getElementById('reviewEmailHeadline').value;
+        reviewEmailSettingsCache.reminderBody = document.getElementById('reviewEmailBody').value;
+        reviewEmailSettingsCache.reminderCtaText = document.getElementById('reviewEmailCta').value;
+        reviewEmailSettingsCache.reminderFooterNote = document.getElementById('reviewEmailFooter').value;
+      } else {
+        reviewEmailSettingsCache.emailSubject = document.getElementById('reviewEmailSubject').value;
+        reviewEmailSettingsCache.emailHeadline = document.getElementById('reviewEmailHeadline').value;
+        reviewEmailSettingsCache.emailBody = document.getElementById('reviewEmailBody').value;
+        reviewEmailSettingsCache.emailCtaText = document.getElementById('reviewEmailCta').value;
+        reviewEmailSettingsCache.emailFooterNote = document.getElementById('reviewEmailFooter').value;
+      }
+    }
+
+    function updateEmailPreview() {
+      var subject = document.getElementById('reviewEmailSubject').value || '';
+      var headline = document.getElementById('reviewEmailHeadline').value || '';
+      var body = document.getElementById('reviewEmailBody').value || '';
+      var ctaText = document.getElementById('reviewEmailCta').value || '';
+      var footerNote = document.getElementById('reviewEmailFooter').value || '';
+
+      // Sample data replacement
+      var sampleEvent = "Emma's 5th Birthday Party";
+      var sampleFirst = 'Sarah';
+      var replaceVars = function(str) {
+        return str.replace(/\{\{eventTitle\}\}/g, sampleEvent).replace(/\{\{firstName\}\}/g, sampleFirst);
+      };
+
+      var subjectRendered = replaceVars(subject);
+      document.getElementById('previewSubjectLine').textContent = subjectRendered;
+      document.getElementById('previewSubjectLine').title = subjectRendered;
+
+      var headlineRendered = replaceVars(headline);
+      var bodyParagraphs = replaceVars(body).split('\n').filter(function(p) { return p.trim(); }).map(function(p) {
+        return '<p style="margin:0 0 16px;font-size:15px;color:#555;line-height:1.6;">' + escapeHtml(p) + '</p>';
+      }).join('\n    ');
+      var ctaRendered = replaceVars(ctaText);
+      var footerRendered = replaceVars(footerNote);
+
+      // Build star rating HTML for preview
+      var starPath = 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z';
+      var starPromptText = ctaRendered || 'Tap a star to rate your experience:';
+      var starsPreviewHtml = '<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 4px;">' +
+        '<p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#1A1A2E;">' + escapeHtml(starPromptText) + '</p>' +
+        '</td></tr><tr><td align="center">' +
+        '<table cellpadding="0" cellspacing="0" style="display:inline-table;"><tr>';
+      for (var si = 1; si <= 5; si++) {
+        starsPreviewHtml += '<td style="padding:0 4px;" align="center">' +
+          '<a href="#" style="text-decoration:none;display:inline-block;">' +
+          '<svg width="36" height="36" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="' + starPath + '" fill="#FFB74D" stroke="#E8A33D" stroke-width="0.5"/></svg>' +
+          '</a></td>';
+      }
+      starsPreviewHtml += '</tr><tr>';
+      for (var si2 = 1; si2 <= 5; si2++) {
+        starsPreviewHtml += '<td align="center" style="padding:2px 4px 0;"><span style="font-size:11px;color:#888;">' + si2 + '</span></td>';
+      }
+      starsPreviewHtml += '</tr></table></td></tr></table>';
+
+      var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>' +
+        '<body style="margin:0;padding:0;background:#f5f5f5;font-family:\'Helvetica Neue\',Helvetica,Arial,sans-serif;">' +
+        '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:24px 12px;">' +
+        '<tr><td align="center">' +
+        '<table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">' +
+        '<tr><td style="background:linear-gradient(135deg,#E94560,#FF6B6B);padding:28px 24px 20px;text-align:center;">' +
+        '<div style="margin-bottom:12px;font-family:Georgia,\'Times New Roman\',serif;font-size:26px;font-weight:700;color:#fff;letter-spacing:0.5px;">Ryvite</div>' +
+        '<h1 style="margin:0;color:#fff;font-size:20px;font-weight:700;">' + escapeHtml(headlineRendered) + '</h1>' +
+        '</td></tr>' +
+        '<tr><td style="padding:28px 24px;">' +
+        '<p style="margin:0 0 16px;font-size:15px;color:#1A1A2E;line-height:1.6;">Hey ' + escapeHtml(sampleFirst) + ',</p>' +
+        bodyParagraphs +
+        starsPreviewHtml +
+        '<p style="margin:20px 0 0;font-size:12px;color:#999;line-height:1.5;text-align:center;">' + escapeHtml(footerRendered) + '</p>' +
+        '</td></tr>' +
+        '<tr><td style="padding:16px 24px;background:#fafafa;border-top:1px solid #eee;text-align:center;">' +
+        '<p style="margin:0;font-size:11px;color:#aaa;">Ryvite — AI-Powered Custom Invitations</p>' +
+        '</td></tr>' +
+        '</table>' +
+        '</td></tr></table>' +
+        '</body></html>';
+
+      var frame = document.getElementById('reviewEmailPreviewFrame');
+      frame.srcdoc = html;
+    }
+
+    async function saveReviewEmailSettings() {
+      // Save current type fields to cache first
+      saveFieldsToCache(reviewEmailCurrentType);
+
+      var btn = document.getElementById('btnSaveEmailSettings');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      try {
+        var body = {
+          emailEnabled: document.getElementById('reviewEmailEnabled').checked,
+          delayDays: parseInt(document.getElementById('reviewDelayDays').value) || 1,
+          reminderEnabled: document.getElementById('reviewReminderEnabled').checked,
+          reminderDelayDays: parseInt(document.getElementById('reviewReminderDelayDays').value) || 7,
+          emailSubject: reviewEmailSettingsCache.emailSubject,
+          emailHeadline: reviewEmailSettingsCache.emailHeadline,
+          emailBody: reviewEmailSettingsCache.emailBody,
+          emailCtaText: reviewEmailSettingsCache.emailCtaText,
+          emailFooterNote: reviewEmailSettingsCache.emailFooterNote,
+          reminderSubject: reviewEmailSettingsCache.reminderSubject,
+          reminderHeadline: reviewEmailSettingsCache.reminderHeadline,
+          reminderBody: reviewEmailSettingsCache.reminderBody,
+          reminderCtaText: reviewEmailSettingsCache.reminderCtaText,
+          reminderFooterNote: reviewEmailSettingsCache.reminderFooterNote
+        };
+
+        var res = await fetch('/api/v2/admin?action=saveReviewEmailSettings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify(body)
+        });
+        var data = await res.json();
+        if (data.success) {
+          btn.textContent = 'Saved!';
+          btn.style.background = '#22c55e';
+          setTimeout(function() {
+            btn.textContent = 'Save Changes';
+            btn.style.background = '';
+            btn.disabled = false;
+          }, 2000);
+        } else {
+          alert(data.error || 'Failed to save settings');
+          btn.textContent = 'Save Changes';
+          btn.disabled = false;
+        }
+      } catch (e) {
+        alert('Error saving settings');
+        btn.textContent = 'Save Changes';
+        btn.disabled = false;
+      }
+    }
+
+    async function sendTestReviewEmail() {
+      var btn = document.getElementById('btnSendTest');
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+
+      try {
+        // First save current settings so the preview endpoint uses them
+        saveFieldsToCache(reviewEmailCurrentType);
+        await saveReviewEmailSettings();
+
+        // Use previewReviewEmail to get the rendered HTML, then show confirmation
+        var emailType = reviewEmailCurrentType;
+        var res = await fetch('/api/v2/admin?action=previewReviewEmail&type=' + emailType, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        var data = await res.json();
+        if (data.success) {
+          btn.textContent = 'Preview Ready!';
+          // Open the rendered email in a new tab for review
+          var w = window.open('', '_blank');
+          w.document.write(data.html);
+          w.document.close();
+        }
+      } catch (e) {
+        alert('Error generating preview');
+      }
+      setTimeout(function() {
+        btn.textContent = 'Send Test Email';
+        btn.disabled = false;
+      }, 2000);
     }
 
   </script>

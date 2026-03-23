@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leave a Review — Ryvite</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --party-coral: #E94560;
+  --blush-pop: #FF6B6B;
+  --midnight: #1A1A2E;
+  --confetti-gold: #FFB74D;
+  --mint-fizz: #4ECDC4;
+  --cream: #FFFAF5;
+  --slate: #6B7280;
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Inter', sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font-body); background: var(--cream); color: var(--midnight); min-height: 100vh; }
+
+/* Nav */
+.nav { background: var(--midnight); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+.nav-logo { display: flex; align-items: center; text-decoration: none; }
+.nav-logo img { height: 40px; }
+.nav-home { color: rgba(255,255,255,0.7); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+.nav-home:hover { color: #fff; }
+
+/* Layout */
+.review-layout { display: flex; max-width: 1100px; margin: 0 auto; padding: 40px 24px; gap: 40px; min-height: calc(100vh - 72px); }
+.preview-side { flex: 1; max-width: 480px; }
+.form-side { flex: 1; max-width: 520px; }
+
+/* Invite preview */
+.preview-card { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+.preview-header { padding: 16px 20px; border-bottom: 1px solid #f0f0f0; }
+.preview-header h3 { font-family: var(--font-display); font-size: 16px; font-weight: 600; color: var(--midnight); }
+.preview-header p { font-size: 13px; color: var(--slate); margin-top: 4px; }
+.preview-frame { width: 100%; height: 500px; border: none; background: #fff; }
+.event-badge { display: inline-block; background: #f0e6ff; color: #7c3aed; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 12px; text-transform: capitalize; margin-top: 8px; }
+
+/* Form */
+.form-card { background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+.form-card h2 { font-family: var(--font-display); font-size: 28px; margin-bottom: 8px; }
+.form-card .subtitle { color: var(--slate); font-size: 15px; margin-bottom: 28px; line-height: 1.5; }
+
+/* Stars */
+.star-rating { display: flex; gap: 6px; margin-bottom: 24px; }
+.star-btn { background: none; border: none; cursor: pointer; padding: 4px; transition: transform 0.15s; }
+.star-btn:hover { transform: scale(1.15); }
+.star-btn svg { width: 36px; height: 36px; }
+.star-btn .star-fill { fill: #ddd; transition: fill 0.2s; }
+.star-btn.active .star-fill { fill: var(--confetti-gold); }
+.star-btn.hover .star-fill { fill: #ffcf70; }
+.star-label { font-size: 14px; font-weight: 600; color: var(--party-coral); margin-bottom: 8px; min-height: 20px; }
+
+/* Fields */
+.field { margin-bottom: 20px; }
+.field label { display: block; font-size: 13px; font-weight: 600; color: var(--slate); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.field input, .field textarea {
+  width: 100%; padding: 12px 16px; border: 1.5px solid #e0e0e0; border-radius: 8px;
+  font-family: var(--font-body); font-size: 15px; color: var(--midnight);
+  transition: border-color 0.2s, box-shadow 0.2s; background: #fff;
+}
+.field input:focus, .field textarea:focus {
+  outline: none; border-color: var(--party-coral);
+  box-shadow: 0 0 0 3px rgba(233,69,96,0.1);
+}
+.field textarea { resize: vertical; min-height: 100px; }
+.char-count { font-size: 12px; color: #aaa; text-align: right; margin-top: 4px; }
+.checkbox-row { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+.checkbox-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--party-coral); cursor: pointer; }
+.checkbox-row label { font-size: 14px; color: var(--slate); cursor: pointer; }
+
+/* Submit */
+.submit-btn {
+  width: 100%; padding: 14px 24px; background: linear-gradient(135deg, var(--party-coral), var(--blush-pop));
+  color: #fff; border: none; border-radius: 50px; font-family: var(--font-body);
+  font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(233,69,96,0.3);
+}
+.submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(233,69,96,0.4); }
+.submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* States */
+.loading-state, .error-state, .success-state { text-align: center; padding: 80px 24px; }
+.loading-state { color: var(--slate); }
+.spinner { width: 40px; height: 40px; border: 3px solid #eee; border-top-color: var(--party-coral); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.error-state h2 { font-family: var(--font-display); font-size: 24px; margin-bottom: 12px; }
+.error-state p { color: var(--slate); margin-bottom: 24px; }
+.error-state a { color: var(--party-coral); font-weight: 600; text-decoration: none; }
+.success-state h2 { font-family: var(--font-display); font-size: 32px; margin-bottom: 12px; color: var(--mint-fizz); }
+.success-state p { color: var(--slate); font-size: 16px; line-height: 1.6; margin-bottom: 24px; }
+.success-state a { display: inline-block; background: var(--midnight); color: #fff; padding: 12px 28px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 14px; transition: all 0.2s; }
+.success-state a:hover { transform: translateY(-2px); }
+.success-stars { display: flex; justify-content: center; gap: 4px; margin-bottom: 16px; }
+.success-stars svg { width: 28px; height: 28px; }
+
+/* Confetti */
+.confetti-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; overflow: hidden; }
+.confetti-piece { position: absolute; top: -10px; width: 10px; height: 10px; opacity: 0; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .review-layout { flex-direction: column; padding: 24px 16px; gap: 24px; }
+  .preview-side, .form-side { max-width: 100%; }
+  .preview-frame { height: 350px; }
+  .form-card { padding: 24px; }
+  .form-card h2 { font-size: 24px; }
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-logo"><svg viewBox="0 0 200 80" width="100" height="40" xmlns="http://www.w3.org/2000/svg"><circle cx="30" cy="40" r="20" fill="none" stroke="#E94560" stroke-width="2"/><path d="M15 30 L30 42 L45 30 M15 50 L45 50" fill="none" stroke="#E94560" stroke-width="2" stroke-linecap="round"/><text x="65" y="50" font-family="Georgia, serif" font-size="32" font-weight="600" fill="#fff">Ryvite</text></svg></a>
+  <a href="/" class="nav-home">Back to Ryvite</a>
+</nav>
+
+<!-- Loading -->
+<div id="loading-state" class="loading-state">
+  <div class="spinner"></div>
+  <p>Loading your review...</p>
+</div>
+
+<!-- Error -->
+<div id="error-state" class="error-state" style="display:none;">
+  <h2>Oops!</h2>
+  <p id="error-message">This review link is invalid or has expired.</p>
+  <a href="/">Back to Ryvite</a>
+</div>
+
+<!-- Success -->
+<div id="success-state" class="success-state" style="display:none;">
+  <div class="success-stars" id="success-stars"></div>
+  <h2>Thank You!</h2>
+  <p>Your review has been submitted. We appreciate you taking the time to share your experience!</p>
+  <a href="/">Back to Ryvite</a>
+</div>
+
+<!-- Review Form -->
+<div id="review-form" class="review-layout" style="display:none;">
+  <div class="preview-side">
+    <div class="preview-card">
+      <div class="preview-header">
+        <h3 id="event-title">Your Event</h3>
+        <p id="event-date"></p>
+        <span class="event-badge" id="event-type-badge" style="display:none;"></span>
+      </div>
+      <iframe id="preview-frame" class="preview-frame" sandbox="allow-same-origin" title="Invite Preview"></iframe>
+    </div>
+  </div>
+  <div class="form-side">
+    <div class="form-card">
+      <h2>How was your experience?</h2>
+      <p class="subtitle">Tell us about using Ryvite for your event. Your review helps other hosts discover what's possible.</p>
+
+      <div class="star-label" id="star-label"></div>
+      <div class="star-rating" id="star-rating"></div>
+
+      <div class="field">
+        <label for="headline">Headline</label>
+        <input type="text" id="headline" placeholder="Sum it up in a few words" maxlength="120">
+        <div class="char-count"><span id="headline-count">0</span>/120</div>
+      </div>
+
+      <div class="field">
+        <label for="review-body">Your Review</label>
+        <textarea id="review-body" placeholder="What did you love about your invite? How did guests react?" maxlength="2000"></textarea>
+        <div class="char-count"><span id="body-count">0</span>/2000</div>
+      </div>
+
+      <div class="field">
+        <label for="reviewer-name">Display Name</label>
+        <input type="text" id="reviewer-name" placeholder="Your name" maxlength="100">
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="anonymous">
+        <label for="anonymous">Keep my name anonymous</label>
+      </div>
+
+      <button class="submit-btn" id="submit-btn" onclick="submitReview()" disabled>Submit Review</button>
+    </div>
+  </div>
+</div>
+
+<div id="confetti-container" class="confetti-container"></div>
+
+<script>
+const API_BASE = '/api/v2/reviews';
+let reviewToken = null;
+let selectedRating = 0;
+let reviewData = null;
+
+const STAR_LABELS = ['', 'Not great', 'Could be better', 'It was okay', 'Really good!', 'Absolutely loved it!'];
+
+// Init
+(function init() {
+  const params = new URLSearchParams(window.location.search);
+  reviewToken = params.get('token');
+  const presetRating = parseInt(params.get('rating'));
+
+  if (!reviewToken) {
+    showError('No review token provided. Please use the link from your email.');
+    return;
+  }
+
+  renderStars();
+
+  // Auto-select rating if provided via email star click
+  if (presetRating >= 1 && presetRating <= 5) {
+    selectRating(presetRating);
+  }
+
+  loadReviewData();
+})();
+
+function renderStars() {
+  const container = document.getElementById('star-rating');
+  container.innerHTML = '';
+  for (let i = 1; i <= 5; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'star-btn';
+    btn.innerHTML = '<svg viewBox="0 0 24 24"><path class="star-fill" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>';
+    btn.onmouseenter = function() { highlightStars(i); };
+    btn.onmouseleave = function() { highlightStars(selectedRating); };
+    btn.onclick = function() { selectRating(i); };
+    container.appendChild(btn);
+  }
+}
+
+function highlightStars(n) {
+  const buttons = document.querySelectorAll('.star-btn');
+  buttons.forEach(function(btn, idx) {
+    btn.classList.toggle('hover', idx < n && n !== selectedRating);
+    btn.classList.toggle('active', idx < (n === selectedRating ? selectedRating : 0));
+    if (idx < selectedRating) btn.classList.add('active');
+  });
+}
+
+function selectRating(n) {
+  selectedRating = n;
+  const buttons = document.querySelectorAll('.star-btn');
+  buttons.forEach(function(btn, idx) {
+    btn.classList.remove('hover');
+    btn.classList.toggle('active', idx < n);
+  });
+  document.getElementById('star-label').textContent = STAR_LABELS[n] || '';
+  document.getElementById('submit-btn').disabled = false;
+}
+
+async function loadReviewData() {
+  try {
+    const resp = await fetch(API_BASE + '?action=get&token=' + encodeURIComponent(reviewToken));
+    const json = await resp.json();
+
+    if (!json.success) {
+      if (json.alreadyCompleted) {
+        showError('You\'ve already submitted a review for this event. Thank you!');
+      } else {
+        showError(json.error || 'Invalid review link.');
+      }
+      return;
+    }
+
+    reviewData = json.reviewData;
+
+    // Populate form
+    document.getElementById('event-title').textContent = reviewData.eventTitle || 'Your Event';
+    if (reviewData.eventDate) {
+      const d = new Date(reviewData.eventDate);
+      document.getElementById('event-date').textContent = d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
+    if (reviewData.eventType) {
+      const badge = document.getElementById('event-type-badge');
+      badge.textContent = reviewData.eventType.replace(/([A-Z])/g, ' $1').trim();
+      badge.style.display = 'inline-block';
+    }
+    if (reviewData.reviewerName) {
+      document.getElementById('reviewer-name').value = reviewData.reviewerName;
+    }
+
+    // Render invite preview
+    if (reviewData.themeHtml) {
+      const iframe = document.getElementById('preview-frame');
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      const cssContent = reviewData.themeCss || '';
+      doc.open();
+      doc.write('<!DOCTYPE html><html><head><style>' + cssContent + ' body{margin:0;overflow:hidden;transform-origin:top left;}</style></head><body>' + reviewData.themeHtml + '</body></html>');
+      doc.close();
+    }
+
+    // Show form
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('review-form').style.display = 'flex';
+  } catch (err) {
+    showError('Something went wrong. Please try again later.');
+  }
+}
+
+async function submitReview() {
+  if (!selectedRating || !reviewToken) return;
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+
+  try {
+    const resp = await fetch(API_BASE + '?action=submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: reviewToken,
+        rating: selectedRating,
+        headline: document.getElementById('headline').value.trim(),
+        body: document.getElementById('review-body').value.trim(),
+        reviewerName: document.getElementById('reviewer-name').value.trim() || 'Anonymous',
+        isAnonymous: document.getElementById('anonymous').checked
+      })
+    });
+
+    const json = await resp.json();
+
+    if (!json.success) {
+      btn.disabled = false;
+      btn.textContent = 'Submit Review';
+      alert(json.error || 'Something went wrong. Please try again.');
+      return;
+    }
+
+    // Show success
+    showSuccess();
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Submit Review';
+    alert('Network error. Please try again.');
+  }
+}
+
+function showSuccess() {
+  document.getElementById('review-form').style.display = 'none';
+
+  // Render submitted stars
+  const starsContainer = document.getElementById('success-stars');
+  starsContainer.innerHTML = '';
+  for (let i = 1; i <= 5; i++) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z');
+    path.setAttribute('fill', i <= selectedRating ? '#FFB74D' : '#ddd');
+    svg.appendChild(path);
+    starsContainer.appendChild(svg);
+  }
+
+  document.getElementById('success-state').style.display = 'block';
+  launchConfetti();
+}
+
+function showError(message) {
+  document.getElementById('loading-state').style.display = 'none';
+  document.getElementById('error-message').textContent = message;
+  document.getElementById('error-state').style.display = 'block';
+}
+
+// Character counters
+document.getElementById('headline').addEventListener('input', function() {
+  document.getElementById('headline-count').textContent = this.value.length;
+});
+document.getElementById('review-body').addEventListener('input', function() {
+  document.getElementById('body-count').textContent = this.value.length;
+});
+
+// Confetti
+function launchConfetti() {
+  const container = document.getElementById('confetti-container');
+  const colors = ['#E94560', '#FFB74D', '#4ECDC4', '#A78BFA', '#FF6B6B', '#FFD93D'];
+  for (let i = 0; i < 60; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.left = Math.random() * 100 + '%';
+    piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.width = (Math.random() * 8 + 5) + 'px';
+    piece.style.height = (Math.random() * 8 + 5) + 'px';
+    piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    piece.style.animation = 'confetti-fall ' + (Math.random() * 2 + 2) + 's ease-out ' + (Math.random() * 0.5) + 's forwards';
+    container.appendChild(piece);
+  }
+  setTimeout(function() { container.innerHTML = ''; }, 5000);
+}
+
+// Add confetti keyframes
+var style = document.createElement('style');
+style.textContent = '@keyframes confetti-fall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(' + (Math.random() > 0.5 ? '' : '-') + '720deg); opacity: 0; } }';
+document.head.appendChild(style);
+</script>
+</body>
+</html>
