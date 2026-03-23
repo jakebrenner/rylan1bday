@@ -1363,6 +1363,7 @@ function formatEvent(row, theme, customFields) {
     slug: row.slug || '',
     status: statusDisplay,
     settings: row.settings || {},
+    photosEnabled: row.photos_enabled || false,
     zapierWebhook: row.zapier_webhook || '',
     // Theme from event_themes table
     themeHtml: theme?.html || '',

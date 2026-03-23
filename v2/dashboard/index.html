@@ -644,6 +644,7 @@
         <button class="manage-tab" onclick="switchTab('messages')">Messages</button>
         <button class="manage-tab" onclick="switchTab('reminders')">Reminders</button>
         <button class="manage-tab" onclick="switchTab('notifications')">Alerts</button>
+        <button class="manage-tab" onclick="switchTab('photos')">Photos</button>
         <button class="manage-tab" onclick="switchTab('cohosts')">Co-Hosts</button>
       </div>
       <div class="manage-tab-content" id="manageContent">
@@ -1023,6 +1024,7 @@
           (tabName === 'messages' && t.textContent === 'Messages') ||
           (tabName === 'reminders' && t.textContent === 'Reminders') ||
           (tabName === 'notifications' && t.textContent === 'Alerts') ||
+          (tabName === 'photos' && t.textContent === 'Photos') ||
           (tabName === 'cohosts' && t.textContent === 'Co-Hosts'));
       });
 
@@ -1030,6 +1032,7 @@
       else if (tabName === 'messages') loadMessagesTab();
       else if (tabName === 'reminders') loadRemindersTab();
       else if (tabName === 'notifications') loadNotificationsTab();
+      else if (tabName === 'photos') loadPhotosTab();
       else if (tabName === 'cohosts') loadCohostsTab();
     }
 
@@ -1993,6 +1996,132 @@
     }
     function closeConfirm() {
       document.getElementById('confirmModal').classList.remove('active');
+    }
+
+    // ============================================================
+    // Photos Tab
+    // ============================================================
+    var managePhotosEnabled = false;
+    var managePhotos = [];
+    var managePhotoTotal = 0;
+
+    async function loadPhotosTab() {
+      var content = document.getElementById('manageContent');
+      content.innerHTML = '<div class="loading">Loading photos...</div>';
+
+      try {
+        // Get current event's photos_enabled status
+        var eventRes = await authFetch('/api/v2/events?action=get&eventId=' + manageEventId);
+        var eventData = await eventRes.json();
+        managePhotosEnabled = eventData.event?.photosEnabled || false;
+
+        // Load photo count
+        var countRes = await authFetch('/api/v2/photos?action=count&eventId=' + manageEventId);
+        var countData = await countRes.json();
+        managePhotoTotal = countData.count || 0;
+
+        // Load photos if enabled
+        if (managePhotosEnabled && managePhotoTotal > 0) {
+          var photosRes = await fetch('/api/v2/photos?action=list&eventId=' + manageEventId + '&limit=50');
+          var photosData = await photosRes.json();
+          managePhotos = photosData.photos || [];
+        } else {
+          managePhotos = [];
+        }
+
+        renderPhotosTab();
+      } catch(err) {
+        console.error('Photos tab error:', err);
+        content.innerHTML = '<div style="text-align:center;padding:40px;color:#888;">Failed to load photos</div>';
+      }
+    }
+
+    function renderPhotosTab() {
+      var content = document.getElementById('manageContent');
+      var galleryUrl = window.location.origin + '/v2/event/' + manageSlug + '/photos';
+
+      var html = '<div style="margin-bottom:20px;">'
+        + '<div class="notify-row">'
+        + '<span class="notify-row-label">Photo Sharing</span>'
+        + '<label class="toggle-switch">'
+        + '<input type="checkbox" id="photosToggle" ' + (managePhotosEnabled ? 'checked' : '') + ' onchange="togglePhotos(this.checked)">'
+        + '<span class="toggle-slider"></span>'
+        + '</label></div>'
+        + '<div style="font-size:13px;color:#888;margin-top:4px;">Let guests upload and share photos from your event.</div>'
+        + '</div>';
+
+      if (managePhotosEnabled) {
+        // Gallery link
+        html += '<div style="background:#f5f5f5;border-radius:8px;padding:12px;margin-bottom:20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+          + '<span style="font-size:13px;color:#888;flex-shrink:0;">Gallery link:</span>'
+          + '<code style="font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(galleryUrl) + '</code>'
+          + '<button onclick="copyGalleryLink()" style="padding:6px 12px;border:1px solid #ddd;background:white;border-radius:6px;font-size:12px;cursor:pointer;font-family:Inter,sans-serif;white-space:nowrap;" id="copyGalleryBtn">Copy</button>'
+          + '</div>';
+
+        // Photo count
+        html += '<div style="font-size:14px;font-weight:600;margin-bottom:12px;">'
+          + managePhotoTotal + ' photo' + (managePhotoTotal !== 1 ? 's' : '') + ' shared'
+          + '</div>';
+
+        // Photo grid
+        if (managePhotos.length > 0) {
+          html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">';
+          managePhotos.forEach(function(p) {
+            html += '<div style="position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;background:#f0f0f0;">'
+              + '<img src="' + escapeHtml(p.photo_url) + '" style="width:100%;height:100%;object-fit:cover;" loading="lazy">'
+              + '<button onclick="deletePhoto(\'' + p.id + '\')" style="position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.6);color:white;border:none;cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;" title="Delete photo">&times;</button>'
+              + '<div style="position:absolute;bottom:0;left:0;right:0;padding:4px 6px;background:linear-gradient(transparent,rgba(0,0,0,0.5));color:white;font-size:10px;">' + escapeHtml(p.uploader_name) + '</div>'
+              + '</div>';
+          });
+          html += '</div>';
+        } else {
+          html += '<div style="text-align:center;padding:32px;color:#aaa;font-size:14px;">No photos yet. Share the gallery link with your guests!</div>';
+        }
+      }
+
+      content.innerHTML = html;
+    }
+
+    async function togglePhotos(enabled) {
+      try {
+        await authFetch('/api/v2/photos?action=toggle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: manageEventId, enabled: enabled })
+        });
+        managePhotosEnabled = enabled;
+        renderPhotosTab();
+        showToast(enabled ? 'Photo sharing enabled' : 'Photo sharing disabled');
+      } catch(err) {
+        console.error('Toggle photos error:', err);
+        document.getElementById('photosToggle').checked = !enabled;
+      }
+    }
+
+    async function deletePhoto(photoId) {
+      if (!confirm('Delete this photo?')) return;
+      try {
+        await authFetch('/api/v2/photos?action=delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ photoId: photoId })
+        });
+        managePhotos = managePhotos.filter(function(p) { return p.id !== photoId; });
+        managePhotoTotal = Math.max(0, managePhotoTotal - 1);
+        renderPhotosTab();
+        showToast('Photo deleted');
+      } catch(err) {
+        console.error('Delete photo error:', err);
+      }
+    }
+
+    function copyGalleryLink() {
+      var url = window.location.origin + '/v2/event/' + manageSlug + '/photos';
+      navigator.clipboard.writeText(url).then(function() {
+        var btn = document.getElementById('copyGalleryBtn');
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+      }).catch(function(){});
     }
 
     async function archiveEvent(eventId, btn) {
