@@ -2584,8 +2584,8 @@
                 <div style="font-size:11px;color:#aaa;margin-top:3px;">Separate paragraphs with blank lines</div>
               </div>
               <div>
-                <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px;">Button Text</label>
-                <input type="text" id="reviewEmailCta" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box;" oninput="updateEmailPreview()">
+                <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px;">Star Prompt Text</label>
+                <input type="text" id="reviewEmailCta" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box;" oninput="updateEmailPreview()" placeholder="Tap a star to rate your experience:">
               </div>
               <div>
                 <label style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px;">Footer Note</label>
@@ -9257,12 +9257,12 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       emailSubject: 'How was {{eventTitle}}? Share your experience!',
       emailHeadline: 'How was {{eventTitle}}?',
       emailBody: 'We hope your event was amazing! We\'d love to hear about your experience using Ryvite. Your feedback helps other hosts discover what\'s possible.\n\nIt only takes a minute — just tap below to leave a quick review.',
-      emailCtaText: 'Leave a Review',
+      emailCtaText: 'Tap a star to rate your experience:',
       emailFooterNote: 'Your review may be featured on our site to help other event planners.',
       reminderSubject: 'We\'d love to hear about {{eventTitle}}!',
       reminderHeadline: 'We\'d still love to hear from you!',
       reminderBody: 'A little while ago you hosted {{eventTitle}} with Ryvite. We\'d really appreciate hearing about your experience — it helps us improve and helps other hosts discover what\'s possible.\n\nIt only takes a minute!',
-      reminderCtaText: 'Share Your Experience',
+      reminderCtaText: 'Tap a star to rate your experience:',
       reminderFooterNote: 'Your review may be featured on our site to help other event planners.'
     };
 
@@ -9362,21 +9362,38 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var ctaRendered = replaceVars(ctaText);
       var footerRendered = replaceVars(footerNote);
 
+      // Build star rating HTML for preview
+      var starPath = 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z';
+      var starPromptText = ctaRendered || 'Tap a star to rate your experience:';
+      var starsPreviewHtml = '<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 4px;">' +
+        '<p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#1A1A2E;">' + escapeHtml(starPromptText) + '</p>' +
+        '</td></tr><tr><td align="center">' +
+        '<table cellpadding="0" cellspacing="0" style="display:inline-table;"><tr>';
+      for (var si = 1; si <= 5; si++) {
+        starsPreviewHtml += '<td style="padding:0 4px;" align="center">' +
+          '<a href="#" style="text-decoration:none;display:inline-block;">' +
+          '<svg width="36" height="36" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="' + starPath + '" fill="#FFB74D" stroke="#E8A33D" stroke-width="0.5"/></svg>' +
+          '</a></td>';
+      }
+      starsPreviewHtml += '</tr><tr>';
+      for (var si2 = 1; si2 <= 5; si2++) {
+        starsPreviewHtml += '<td align="center" style="padding:2px 4px 0;"><span style="font-size:11px;color:#888;">' + si2 + '</span></td>';
+      }
+      starsPreviewHtml += '</tr></table></td></tr></table>';
+
       var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>' +
         '<body style="margin:0;padding:0;background:#f5f5f5;font-family:\'Helvetica Neue\',Helvetica,Arial,sans-serif;">' +
         '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:24px 12px;">' +
         '<tr><td align="center">' +
         '<table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">' +
         '<tr><td style="background:linear-gradient(135deg,#E94560,#FF6B6B);padding:28px 24px 20px;text-align:center;">' +
-        '<img src="https://www.ryvite.com/images/ryvite-logo-white.png" alt="Ryvite" height="32" style="margin-bottom:14px;">' +
+        '<div style="margin-bottom:12px;font-family:Georgia,\'Times New Roman\',serif;font-size:26px;font-weight:700;color:#fff;letter-spacing:0.5px;">Ryvite</div>' +
         '<h1 style="margin:0;color:#fff;font-size:20px;font-weight:700;">' + escapeHtml(headlineRendered) + '</h1>' +
         '</td></tr>' +
         '<tr><td style="padding:28px 24px;">' +
         '<p style="margin:0 0 16px;font-size:15px;color:#1A1A2E;line-height:1.6;">Hey ' + escapeHtml(sampleFirst) + ',</p>' +
         bodyParagraphs +
-        '<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding-top:8px;">' +
-        '<a href="#" style="display:inline-block;background:linear-gradient(135deg,#E94560,#FF6B6B);color:#fff;padding:13px 28px;border-radius:50px;text-decoration:none;font-weight:600;font-size:14px;">' + escapeHtml(ctaRendered) + '</a>' +
-        '</td></tr></table>' +
+        starsPreviewHtml +
         '<p style="margin:20px 0 0;font-size:12px;color:#999;line-height:1.5;text-align:center;">' + escapeHtml(footerRendered) + '</p>' +
         '</td></tr>' +
         '<tr><td style="padding:16px 24px;background:#fafafa;border-top:1px solid #eee;text-align:center;">' +

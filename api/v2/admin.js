@@ -3215,13 +3215,13 @@ ${cssSnippet}`
         emailSubject: configMap.review_email_subject || 'How was {{eventTitle}}? Share your experience!',
         emailHeadline: configMap.review_email_headline || 'How was {{eventTitle}}?',
         emailBody: configMap.review_email_body || 'We hope your event was amazing! We\'d love to hear about your experience using Ryvite. Your feedback helps other hosts discover what\'s possible.\n\nIt only takes a minute — just tap below to leave a quick review.',
-        emailCtaText: configMap.review_email_cta_text || 'Leave a Review',
+        emailCtaText: configMap.review_email_cta_text || 'Tap a star to rate your experience:',
         emailFooterNote: configMap.review_email_footer_note || 'Your review may be featured on our site to help other event planners.',
         // Reminder email
         reminderSubject: configMap.review_reminder_subject || 'We\'d love to hear about {{eventTitle}}!',
         reminderHeadline: configMap.review_reminder_headline || 'We\'d still love to hear from you!',
         reminderBody: configMap.review_reminder_body || 'A little while ago you hosted {{eventTitle}} with Ryvite. We\'d really appreciate hearing about your experience — it helps us improve and helps other hosts discover what\'s possible.\n\nIt only takes a minute!',
-        reminderCtaText: configMap.review_reminder_cta_text || 'Share Your Experience',
+        reminderCtaText: configMap.review_reminder_cta_text || 'Tap a star to rate your experience:',
         reminderFooterNote: configMap.review_reminder_footer_note || 'Your review may be featured on our site to help other event planners.'
       };
 
@@ -3293,12 +3293,12 @@ ${cssSnippet}`
       if (emailType === 'reminder') {
         headline = configMap.review_reminder_headline || 'We\'d still love to hear from you!';
         body = configMap.review_reminder_body || 'A little while ago you hosted {{eventTitle}} with Ryvite. We\'d really appreciate hearing about your experience — it helps us improve and helps other hosts discover what\'s possible.\n\nIt only takes a minute!';
-        ctaText = configMap.review_reminder_cta_text || 'Share Your Experience';
+        ctaText = configMap.review_reminder_cta_text || 'Tap a star to rate your experience:';
         footerNote = configMap.review_reminder_footer_note || 'Your review may be featured on our site to help other event planners.';
       } else {
         headline = configMap.review_email_headline || 'How was {{eventTitle}}?';
         body = configMap.review_email_body || 'We hope your event was amazing! We\'d love to hear about your experience using Ryvite. Your feedback helps other hosts discover what\'s possible.\n\nIt only takes a minute — just tap below to leave a quick review.';
-        ctaText = configMap.review_email_cta_text || 'Leave a Review';
+        ctaText = configMap.review_email_cta_text || 'Tap a star to rate your experience:';
         footerNote = configMap.review_email_footer_note || 'Your review may be featured on our site to help other event planners.';
       }
 
@@ -3330,7 +3330,31 @@ ${cssSnippet}`
   }
 }
 
+function buildStarRatingHtml(reviewUrl, promptText) {
+  const prompt = promptText || 'Tap a star to rate your experience:';
+  const starPath = 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z';
+  let html = `<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 4px;">
+      <p style="margin:0 0 12px;font-size:15px;font-weight:600;color:#1A1A2E;">${prompt}</p>
+    </td></tr><tr><td align="center">
+      <table cellpadding="0" cellspacing="0" style="display:inline-table;"><tr>`;
+  for (let i = 1; i <= 5; i++) {
+    const url = reviewUrl + (reviewUrl.includes('?') ? '&' : '?') + 'rating=' + i;
+    html += `<td style="padding:0 4px;" align="center">
+          <a href="${url}" style="text-decoration:none;display:inline-block;" title="${i} star${i > 1 ? 's' : ''}">
+            <svg width="40" height="40" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="${starPath}" fill="#FFB74D" stroke="#E8A33D" stroke-width="0.5"/></svg>
+          </a>
+        </td>`;
+  }
+  html += `</tr><tr>`;
+  for (let i = 1; i <= 5; i++) {
+    html += `<td align="center" style="padding:2px 4px 0;"><span style="font-size:11px;color:#888;">${i}</span></td>`;
+  }
+  html += `</tr></table></td></tr></table>`;
+  return html;
+}
+
 function buildReviewEmailFromSettings(firstName, headline, bodyHtml, ctaText, footerNote, reviewUrl) {
+  const starsHtml = buildStarRatingHtml(reviewUrl, ctaText);
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background:#f5f5f5;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
@@ -3338,15 +3362,13 @@ function buildReviewEmailFromSettings(firstName, headline, bodyHtml, ctaText, fo
 <tr><td align="center">
 <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
   <tr><td style="background:linear-gradient(135deg,#E94560,#FF6B6B);padding:32px 32px 24px;text-align:center;">
-    <img src="https://www.ryvite.com/images/ryvite-logo-white.png" alt="Ryvite" height="36" style="margin-bottom:16px;">
-    <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">${headline}</h1>
+    <div style="margin-bottom:14px;font-family:Georgia,'Times New Roman',serif;font-size:28px;font-weight:700;color:#fff;letter-spacing:0.5px;">Ryvite</div>
+    <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${headline}</h1>
   </td></tr>
   <tr><td style="padding:32px;">
     <p style="margin:0 0 16px;font-size:16px;color:#1A1A2E;line-height:1.6;">Hey ${firstName},</p>
     ${bodyHtml}
-    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
-      <a href="${reviewUrl}" style="display:inline-block;background:linear-gradient(135deg,#E94560,#FF6B6B);color:#fff;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:600;font-size:15px;">${ctaText}</a>
-    </td></tr></table>
+    ${starsHtml}
     <p style="margin:24px 0 0;font-size:13px;color:#999;line-height:1.5;text-align:center;">${footerNote}</p>
   </td></tr>
   <tr><td style="padding:20px 32px;background:#fafafa;border-top:1px solid #eee;text-align:center;">
@@ -3358,6 +3380,7 @@ function buildReviewEmailFromSettings(firstName, headline, bodyHtml, ctaText, fo
 }
 
 function buildReviewRequestEmail(firstName, eventTitle, reviewUrl) {
+  const starsHtml = buildStarRatingHtml(reviewUrl);
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background:#f5f5f5;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
@@ -3365,16 +3388,14 @@ function buildReviewRequestEmail(firstName, eventTitle, reviewUrl) {
 <tr><td align="center">
 <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
   <tr><td style="background:linear-gradient(135deg,#E94560,#FF6B6B);padding:32px 32px 24px;text-align:center;">
-    <img src="https://www.ryvite.com/images/ryvite-logo-white.png" alt="Ryvite" height="36" style="margin-bottom:16px;">
+    <div style="margin-bottom:14px;font-family:Georgia,'Times New Roman',serif;font-size:28px;font-weight:700;color:#fff;letter-spacing:0.5px;">Ryvite</div>
     <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">How was ${eventTitle}?</h1>
   </td></tr>
   <tr><td style="padding:32px;">
     <p style="margin:0 0 16px;font-size:16px;color:#1A1A2E;line-height:1.6;">Hey ${firstName},</p>
     <p style="margin:0 0 16px;font-size:15px;color:#555;line-height:1.6;">We hope your event was amazing! We'd love to hear about your experience using Ryvite. Your feedback helps other hosts discover what's possible.</p>
-    <p style="margin:0 0 24px;font-size:15px;color:#555;line-height:1.6;">It only takes a minute — just tap below to leave a quick review.</p>
-    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
-      <a href="${reviewUrl}" style="display:inline-block;background:linear-gradient(135deg,#E94560,#FF6B6B);color:#fff;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:600;font-size:15px;">Leave a Review</a>
-    </td></tr></table>
+    <p style="margin:0 0 8px;font-size:15px;color:#555;line-height:1.6;">It only takes a minute — tap a star below:</p>
+    ${starsHtml}
     <p style="margin:24px 0 0;font-size:13px;color:#999;line-height:1.5;text-align:center;">Your review may be featured on our site to help other event planners.</p>
   </td></tr>
   <tr><td style="padding:20px 32px;background:#fafafa;border-top:1px solid #eee;text-align:center;">

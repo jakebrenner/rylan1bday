@@ -118,7 +118,7 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--mid
 <body>
 
 <nav class="nav">
-  <a href="/" class="nav-logo"><img src="/images/ryvite-logo-white.png" alt="Ryvite"></a>
+  <a href="/" class="nav-logo"><svg viewBox="0 0 200 80" width="100" height="40" xmlns="http://www.w3.org/2000/svg"><circle cx="30" cy="40" r="20" fill="none" stroke="#E94560" stroke-width="2"/><path d="M15 30 L30 42 L45 30 M15 50 L45 50" fill="none" stroke="#E94560" stroke-width="2" stroke-linecap="round"/><text x="65" y="50" font-family="Georgia, serif" font-size="32" font-weight="600" fill="#fff">Ryvite</text></svg></a>
   <a href="/" class="nav-home">Back to Ryvite</a>
 </nav>
 
@@ -204,6 +204,7 @@ const STAR_LABELS = ['', 'Not great', 'Could be better', 'It was okay', 'Really 
 (function init() {
   const params = new URLSearchParams(window.location.search);
   reviewToken = params.get('token');
+  const presetRating = parseInt(params.get('rating'));
 
   if (!reviewToken) {
     showError('No review token provided. Please use the link from your email.');
@@ -211,6 +212,12 @@ const STAR_LABELS = ['', 'Not great', 'Could be better', 'It was okay', 'Really 
   }
 
   renderStars();
+
+  // Auto-select rating if provided via email star click
+  if (presetRating >= 1 && presetRating <= 5) {
+    selectRating(presetRating);
+  }
+
   loadReviewData();
 })();
 
