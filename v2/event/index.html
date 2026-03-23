@@ -52,10 +52,48 @@
     .powered-by { clear: both; width: 100%; text-align: center; padding: 20px; font-size: 13px; color: #aaa; font-style: italic; }
     .powered-by a { color: #aaa; text-decoration: none; transition: color 0.2s; }
     .powered-by a:hover { color: var(--party-coral); }
+    /* Photo sharing section */
+    .photo-section { max-width: 480px; margin: 24px auto; padding: 24px; background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+    .photo-section h3 { font-size: 20px; margin-bottom: 16px; text-align: center; font-weight: 600; }
+    .photo-upload-area { border: 2px dashed #ddd; border-radius: 10px; padding: 32px 16px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 16px; }
+    .photo-upload-area:hover { border-color: var(--party-coral); background: rgba(233,69,96,0.03); }
+    .photo-upload-area .upload-icon { font-size: 36px; margin-bottom: 8px; }
+    .photo-upload-area p { font-size: 14px; color: #888; }
+    .photo-upload-area .upload-btn { display: inline-block; margin-top: 12px; padding: 10px 24px; background: var(--party-coral); color: white; border-radius: 8px; font-weight: 600; font-size: 14px; border: none; cursor: pointer; transition: background 0.2s; }
+    .photo-upload-area .upload-btn:hover { background: var(--blush-pop); }
+    .photo-upload-progress { display: none; margin-bottom: 16px; }
+    .photo-upload-progress .progress-bar { height: 6px; background: #eee; border-radius: 3px; overflow: hidden; }
+    .photo-upload-progress .progress-fill { height: 100%; background: var(--party-coral); border-radius: 3px; transition: width 0.3s; width: 0%; }
+    .photo-upload-progress .progress-text { font-size: 13px; color: #888; margin-top: 6px; text-align: center; }
+    .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .photo-grid-item { position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden; cursor: pointer; }
+    .photo-grid-item img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.2s; }
+    .photo-grid-item:hover img { transform: scale(1.05); }
+    .photo-grid-item .photo-uploader { position: absolute; bottom: 0; left: 0; right: 0; padding: 4px 8px; background: linear-gradient(transparent, rgba(0,0,0,0.6)); color: white; font-size: 11px; opacity: 0; transition: opacity 0.2s; }
+    .photo-grid-item:hover .photo-uploader { opacity: 1; }
+    .photo-empty { text-align: center; padding: 20px; color: #aaa; font-size: 14px; }
+    .photo-gallery-link { display: block; text-align: center; margin-top: 12px; font-size: 13px; color: var(--party-coral); text-decoration: none; }
+    .photo-gallery-link:hover { text-decoration: underline; }
+    .photo-lightbox { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 10000; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+    .photo-lightbox img { max-width: 90vw; max-height: 80vh; object-fit: contain; border-radius: 8px; }
+    .photo-lightbox .lb-close { position: absolute; top: 16px; right: 16px; color: white; font-size: 32px; cursor: pointer; background: none; border: none; line-height: 1; }
+    .photo-lightbox .lb-caption { color: white; margin-top: 12px; font-size: 14px; text-align: center; }
+    .photo-lightbox .lb-nav { position: absolute; top: 50%; transform: translateY(-50%); color: white; font-size: 36px; cursor: pointer; background: none; border: none; padding: 16px; }
+    .photo-lightbox .lb-prev { left: 8px; }
+    .photo-lightbox .lb-next { right: 8px; }
+    .name-prompt-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10001; display: flex; align-items: center; justify-content: center; }
+    .name-prompt-modal { background: white; border-radius: 12px; padding: 24px; max-width: 340px; width: 90%; text-align: center; }
+    .name-prompt-modal h4 { margin-bottom: 12px; font-size: 18px; }
+    .name-prompt-modal input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; margin-bottom: 12px; font-family: 'Inter', sans-serif; }
+    .name-prompt-modal input:focus { outline: none; border-color: var(--party-coral); }
+    .name-prompt-modal button { width: 100%; padding: 12px; background: var(--party-coral); color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 15px; cursor: pointer; font-family: 'Inter', sans-serif; }
+    .photo-count-badge { display: inline-block; background: var(--party-coral); color: white; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin-left: 6px; }
     @media (max-width: 640px) {
       .rsvp-section { margin: 20px 16px; padding: 20px; }
+      .photo-section { margin: 16px 16px; padding: 20px; }
       .calendar-buttons { flex-direction: column; }
       .calendar-btn { width: 100%; }
+      .photo-grid { grid-template-columns: repeat(3, 1fr); gap: 4px; }
     }
   </style>
 <script src="/js/meta-pixel.js"></script>
@@ -66,6 +104,7 @@
     <div id="error" class="error-msg" style="display: none;"></div>
     <iframe id="themeFrame" style="display: none;"></iframe>
     <div id="rsvpSection" class="rsvp-section" style="display: none;"></div>
+    <div id="photoSection" class="photo-section" style="display: none;"></div>
     <div id="poweredBy" class="powered-by" style="display: none;">Create yours free at <a href="https://www.ryvite.com/?utm_source=invite&utm_medium=footer&utm_campaign=viral" target="_blank" rel="noopener" onclick="trackViralEvent('footer_click')">Ryvite.com</a></div>
   </div>
 
@@ -420,6 +459,11 @@
             var gData = await gRes.json();
             if (gData.success && gData.guest) {
               invitedGuest = gData.guest;
+              // Pre-fill photo uploader name from invited guest
+              if (gData.guest.name && !photoUploaderName) {
+                photoUploaderName = gData.guest.name;
+                localStorage.setItem('ryvite_photo_name', gData.guest.name);
+              }
             }
           } catch (e) { /* fall back to walk-in mode */ }
         }
@@ -480,6 +524,7 @@
         }
 
         renderRSVPForm(result.event);
+        initPhotoSection();
         document.getElementById('loading').style.display = 'none';
         document.getElementById('poweredBy').style.display = 'block';
       } catch (err) { console.error(err); showError('Error loading event'); }
@@ -977,6 +1022,207 @@
 
     function showError(msg) { document.getElementById('error').textContent = msg; document.getElementById('error').style.display = 'block'; document.getElementById('loading').style.display = 'none'; }
     function escapeHtml(str) { var div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML; }
+
+    // ── Photo sharing ──
+    var photoUploaderName = localStorage.getItem('ryvite_photo_name') || '';
+    var allPhotos = [];
+    var lightboxIndex = 0;
+
+    function initPhotoSection() {
+      if (!currentEventData || !currentEventData.photosEnabled) return;
+      var section = document.getElementById('photoSection');
+      section.innerHTML = '<h3>Event Photos</h3>'
+        + '<div class="photo-upload-area" id="photoDropZone" onclick="document.getElementById(\'photoFileInput\').click()">'
+        + '<div class="upload-icon">📸</div>'
+        + '<p>Share your photos from the event</p>'
+        + '<span class="upload-btn">Add Photos</span>'
+        + '<input type="file" id="photoFileInput" accept="image/*" multiple style="display:none" onchange="handlePhotoSelect(this.files)">'
+        + '</div>'
+        + '<div class="photo-upload-progress" id="photoProgress">'
+        + '<div class="progress-bar"><div class="progress-fill" id="photoProgressFill"></div></div>'
+        + '<div class="progress-text" id="photoProgressText"></div>'
+        + '</div>'
+        + '<div id="photoGrid" class="photo-grid"></div>'
+        + '<div id="photoEmpty" class="photo-empty" style="display:none">No photos yet — be the first to share!</div>'
+        + '<a class="photo-gallery-link" id="photoGalleryLink" href="/v2/event/' + (currentEventData.slug || '') + '/photos" style="display:none">View full gallery →</a>';
+      section.style.display = 'block';
+      loadPhotos();
+    }
+
+    async function loadPhotos() {
+      try {
+        var res = await fetch('/api/v2/photos?action=list&eventId=' + encodeURIComponent(currentEventData.id) + '&limit=12');
+        var data = await res.json();
+        allPhotos = data.photos || [];
+        renderPhotoGrid();
+        if (data.total > 12) {
+          document.getElementById('photoGalleryLink').style.display = 'block';
+        }
+      } catch(e) { console.error('Failed to load photos:', e); }
+    }
+
+    function renderPhotoGrid() {
+      var grid = document.getElementById('photoGrid');
+      var empty = document.getElementById('photoEmpty');
+      if (!allPhotos.length) {
+        grid.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      grid.innerHTML = allPhotos.map(function(p, i) {
+        return '<div class="photo-grid-item" onclick="openLightbox(' + i + ')">'
+          + '<img src="' + escapeHtml(p.photo_url) + '" alt="Event photo" loading="lazy">'
+          + '<div class="photo-uploader">' + escapeHtml(p.uploader_name) + '</div>'
+          + '</div>';
+      }).join('');
+      // Show gallery link if photos exist
+      if (allPhotos.length > 0) {
+        document.getElementById('photoGalleryLink').style.display = 'block';
+      }
+    }
+
+    function openLightbox(index) {
+      lightboxIndex = index;
+      var p = allPhotos[index];
+      if (!p) return;
+      var lb = document.createElement('div');
+      lb.className = 'photo-lightbox';
+      lb.id = 'photoLightbox';
+      lb.innerHTML = '<button class="lb-close" onclick="closeLightbox()">&times;</button>'
+        + (allPhotos.length > 1 ? '<button class="lb-nav lb-prev" onclick="navLightbox(-1)">‹</button>' : '')
+        + '<img src="' + escapeHtml(p.photo_url) + '" id="lbImage">'
+        + '<div class="lb-caption" id="lbCaption">' + escapeHtml(p.uploader_name) + (p.caption ? ' — ' + escapeHtml(p.caption) : '') + '</div>'
+        + (allPhotos.length > 1 ? '<button class="lb-nav lb-next" onclick="navLightbox(1)">›</button>' : '');
+      lb.addEventListener('click', function(e) { if (e.target === lb) closeLightbox(); });
+      document.body.appendChild(lb);
+    }
+
+    function closeLightbox() {
+      var lb = document.getElementById('photoLightbox');
+      if (lb) lb.remove();
+    }
+
+    function navLightbox(dir) {
+      lightboxIndex = (lightboxIndex + dir + allPhotos.length) % allPhotos.length;
+      var p = allPhotos[lightboxIndex];
+      document.getElementById('lbImage').src = p.photo_url;
+      document.getElementById('lbCaption').textContent = p.uploader_name + (p.caption ? ' — ' + p.caption : '');
+    }
+
+    function handlePhotoSelect(files) {
+      if (!files || !files.length) return;
+      if (!photoUploaderName) {
+        promptForName(function() { uploadPhotos(Array.from(files)); });
+        return;
+      }
+      uploadPhotos(Array.from(files));
+    }
+
+    function promptForName(callback) {
+      var overlay = document.createElement('div');
+      overlay.className = 'name-prompt-overlay';
+      overlay.id = 'namePromptOverlay';
+      overlay.innerHTML = '<div class="name-prompt-modal">'
+        + '<h4>What\'s your name?</h4>'
+        + '<input type="text" id="namePromptInput" placeholder="Your name" maxlength="100" autofocus>'
+        + '<button onclick="submitNamePrompt()">Continue</button>'
+        + '</div>';
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+      document.body.appendChild(overlay);
+      // Store callback
+      window._photoNameCallback = callback;
+      setTimeout(function() { document.getElementById('namePromptInput').focus(); }, 100);
+      // Enter key
+      document.getElementById('namePromptInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') submitNamePrompt();
+      });
+    }
+
+    function submitNamePrompt() {
+      var name = (document.getElementById('namePromptInput').value || '').trim();
+      if (!name) return;
+      photoUploaderName = name;
+      localStorage.setItem('ryvite_photo_name', name);
+      var overlay = document.getElementById('namePromptOverlay');
+      if (overlay) overlay.remove();
+      if (window._photoNameCallback) {
+        window._photoNameCallback();
+        window._photoNameCallback = null;
+      }
+    }
+
+    async function uploadPhotos(files) {
+      var progress = document.getElementById('photoProgress');
+      var fill = document.getElementById('photoProgressFill');
+      var text = document.getElementById('photoProgressText');
+      progress.style.display = 'block';
+
+      for (var i = 0; i < files.length; i++) {
+        var pct = Math.round((i / files.length) * 100);
+        fill.style.width = pct + '%';
+        text.textContent = 'Uploading ' + (i + 1) + ' of ' + files.length + '...';
+
+        try {
+          var resized = await resizeImage(files[i], 1600, 0.8);
+          var res = await fetch('/api/v2/photos?action=upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventId: currentEventData.id,
+              uploaderName: photoUploaderName,
+              base64: resized.base64,
+              width: resized.width,
+              height: resized.height
+            })
+          });
+          var data = await res.json();
+          if (data.success) {
+            allPhotos.unshift({
+              id: data.photoId,
+              photo_url: data.url,
+              uploader_name: photoUploaderName,
+              caption: null,
+              created_at: new Date().toISOString()
+            });
+          }
+        } catch(e) { console.error('Upload error:', e); }
+      }
+
+      fill.style.width = '100%';
+      text.textContent = 'Done!';
+      setTimeout(function() { progress.style.display = 'none'; fill.style.width = '0%'; }, 1500);
+      renderPhotoGrid();
+      // Reset file input
+      document.getElementById('photoFileInput').value = '';
+    }
+
+    function resizeImage(file, maxDim, quality) {
+      return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var img = new Image();
+          img.onload = function() {
+            var w = img.width, h = img.height;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+              else { w = Math.round(w * maxDim / h); h = maxDim; }
+            }
+            var canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            var dataUrl = canvas.toDataURL('image/jpeg', quality);
+            var base64 = dataUrl.split(',')[1];
+            resolve({ base64: base64, width: w, height: h });
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
 
     loadEvent();
   </script>

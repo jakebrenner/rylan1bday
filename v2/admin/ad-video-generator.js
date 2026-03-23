@@ -94,24 +94,24 @@ const PHONE_SHADOW_ALPHA = 0.35;
 // ── Format Configs (Facebook-compliant: MP4/H.264, 1440px base) ──
 // Both formats use centered phone layout with prompt typed on phone screen
 const FORMAT_CONFIGS = {
-  mobile_4x5: {
-    width: 1440,
-    height: 1800,
-    logoY: 70,
-    logoSize: 56,
-    labelFontSize: 26,
-    labelY: 140,
+  reels_9x16: {
+    width: 1080,
+    height: 1920,
+    logoY: 60,
+    logoSize: 46,
+    labelFontSize: 22,
+    labelY: 118,
     // Centered phone (iPhone 15 proportions 393:852)
-    phoneWidth: 620,
-    phoneHeight: 1344,
-    phoneY: 220,
+    phoneWidth: 460,
+    phoneHeight: 998,
+    phoneY: 200,
     // Prompt card drawn ON phone screen
-    promptFontSize: 34,
-    promptLineHeight: 50,
-    promptLabelSize: 20,
-    ctaY: 1640,
-    ctaFontSize: 38,
-    particleCount: 35
+    promptFontSize: 28,
+    promptLineHeight: 42,
+    promptLabelSize: 16,
+    ctaY: 1760,
+    ctaFontSize: 32,
+    particleCount: 30
   },
   feed_1x1: {
     width: 1440,
@@ -135,7 +135,7 @@ const FORMAT_CONFIGS = {
 };
 
 // ── Animation Timing ──
-const CHAR_MS = 35;
+const CHAR_MS = 55;
 const INTRO_MS = 800;      // phone slide-in + logo fade
 const POST_TYPE_PAUSE = 600;
 const DISSOLVE_MS = 500;   // prompt card dissolve before shimmer
@@ -177,7 +177,7 @@ function createParticles(count, canvasW, canvasH) {
  */
 async function generateAdVideo({ html, css, config, promptText, format, theme, onProgress, liveAnimation, authFetch }) {
   onProgress = onProgress || function() {};
-  const fmt = FORMAT_CONFIGS[format] || FORMAT_CONFIGS.mobile_4x5;
+  const fmt = FORMAT_CONFIGS[format] || FORMAT_CONFIGS.reels_9x16;
   const thm = VIDEO_THEMES[theme] || VIDEO_THEMES.dark_gradient;
 
   onProgress(0, 'Preparing invite...');

@@ -144,6 +144,10 @@
       "destination": "/api/v2/sms-webhook"
     },
     {
+      "source": "/v2/event/:slug/photos",
+      "destination": "/v2/photos/index.html"
+    },
+    {
       "source": "/v2/event/:slug",
       "destination": "/api/v2/event-page?slug=:slug"
     },
