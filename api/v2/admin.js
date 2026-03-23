@@ -3142,21 +3142,185 @@ ${cssSnippet}`
         sent_at: new Date().toISOString()
       });
 
-      // Send email
+      // Send email using configurable template
       const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
       if (resend) {
         const reviewUrl = `https://www.ryvite.com/v2/review/?token=${token}`;
         const firstName = profile.first_name || 'there';
 
+        // Load configurable settings
+        const settingKeys = ['review_email_subject', 'review_email_headline', 'review_email_body', 'review_email_cta_text', 'review_email_footer_note'];
+        const { data: configData } = await supabaseAdmin.from('app_config').select('key, value').in('key', settingKeys);
+        const cm = {};
+        (configData || []).forEach(row => { cm[row.key] = row.value; });
+
+        const replaceVars = (str) => str.replace(/\{\{eventTitle\}\}/g, event.title).replace(/\{\{firstName\}\}/g, firstName);
+        const subject = replaceVars(cm.review_email_subject || 'How was {{eventTitle}}? Share your experience!');
+        const headline = replaceVars(cm.review_email_headline || 'How was {{eventTitle}}?');
+        const bodyText = replaceVars(cm.review_email_body || 'We hope your event was amazing! We\'d love to hear about your experience using Ryvite. Your feedback helps other hosts discover what\'s possible.\n\nIt only takes a minute — just tap below to leave a quick review.');
+        const ctaText = replaceVars(cm.review_email_cta_text || 'Leave a Review');
+        const footerNote = replaceVars(cm.review_email_footer_note || 'Your review may be featured on our site to help other event planners.');
+        const bodyHtml = bodyText.split('\n').filter(p => p.trim()).map(p => `<p style="margin:0 0 16px;font-size:15px;color:#555;line-height:1.6;">${p}</p>`).join('\n    ');
+
         await resend.emails.send({
           from: 'Ryvite <hello@ryvite.com>',
           to: profile.email,
-          subject: `How was ${event.title}? Share your experience!`,
-          html: buildReviewRequestEmail(firstName, event.title, reviewUrl)
+          subject,
+          html: buildReviewEmailFromSettings(firstName, headline, bodyHtml, ctaText, footerNote, reviewUrl)
         });
       }
 
       return res.status(200).json({ success: true, token });
+    }
+
+    // ── REVIEW EMAIL SETTINGS ──
+
+    // Get review email settings from app_config
+    if (action === 'getReviewEmailSettings') {
+      const keys = [
+        'review_email_enabled',
+        'review_email_delay_days',
+        'review_reminder_enabled',
+        'review_reminder_delay_days',
+        'review_email_subject',
+        'review_email_headline',
+        'review_email_body',
+        'review_email_cta_text',
+        'review_email_footer_note',
+        'review_reminder_subject',
+        'review_reminder_headline',
+        'review_reminder_body',
+        'review_reminder_cta_text',
+        'review_reminder_footer_note'
+      ];
+
+      const { data, error } = await supabaseAdmin
+        .from('app_config')
+        .select('key, value')
+        .in('key', keys);
+
+      if (error) return res.status(500).json({ error: error.message });
+
+      // Build settings object with defaults
+      const configMap = {};
+      (data || []).forEach(row => { configMap[row.key] = row.value; });
+
+      const settings = {
+        // Schedule
+        emailEnabled: configMap.review_email_enabled !== 'false',
+        delayDays: parseInt(configMap.review_email_delay_days) || 1,
+        reminderEnabled: configMap.review_reminder_enabled !== 'false',
+        reminderDelayDays: parseInt(configMap.review_reminder_delay_days) || 7,
+        // Initial email
+        emailSubject: configMap.review_email_subject || 'How was {{eventTitle}}? Share your experience!',
+        emailHeadline: configMap.review_email_headline || 'How was {{eventTitle}}?',
+        emailBody: configMap.review_email_body || 'We hope your event was amazing! We\'d love to hear about your experience using Ryvite. Your feedback helps other hosts discover what\'s possible.\n\nIt only takes a minute — just tap below to leave a quick review.',
+        emailCtaText: configMap.review_email_cta_text || 'Leave a Review',
+        emailFooterNote: configMap.review_email_footer_note || 'Your review may be featured on our site to help other event planners.',
+        // Reminder email
+        reminderSubject: configMap.review_reminder_subject || 'We\'d love to hear about {{eventTitle}}!',
+        reminderHeadline: configMap.review_reminder_headline || 'We\'d still love to hear from you!',
+        reminderBody: configMap.review_reminder_body || 'A little while ago you hosted {{eventTitle}} with Ryvite. We\'d really appreciate hearing about your experience — it helps us improve and helps other hosts discover what\'s possible.\n\nIt only takes a minute!',
+        reminderCtaText: configMap.review_reminder_cta_text || 'Share Your Experience',
+        reminderFooterNote: configMap.review_reminder_footer_note || 'Your review may be featured on our site to help other event planners.'
+      };
+
+      return res.status(200).json({ success: true, settings });
+    }
+
+    // Save review email settings
+    if (action === 'saveReviewEmailSettings' && req.method === 'POST') {
+      const s = req.body;
+      if (!s) return res.status(400).json({ error: 'Settings body required' });
+
+      const keyMap = {
+        emailEnabled: 'review_email_enabled',
+        delayDays: 'review_email_delay_days',
+        reminderEnabled: 'review_reminder_enabled',
+        reminderDelayDays: 'review_reminder_delay_days',
+        emailSubject: 'review_email_subject',
+        emailHeadline: 'review_email_headline',
+        emailBody: 'review_email_body',
+        emailCtaText: 'review_email_cta_text',
+        emailFooterNote: 'review_email_footer_note',
+        reminderSubject: 'review_reminder_subject',
+        reminderHeadline: 'review_reminder_headline',
+        reminderBody: 'review_reminder_body',
+        reminderCtaText: 'review_reminder_cta_text',
+        reminderFooterNote: 'review_reminder_footer_note'
+      };
+
+      const upserts = [];
+      for (const [field, dbKey] of Object.entries(keyMap)) {
+        if (s[field] !== undefined) {
+          upserts.push({
+            key: dbKey,
+            value: String(s[field]),
+            updated_by: admin.id,
+            updated_at: new Date().toISOString()
+          });
+        }
+      }
+
+      if (upserts.length > 0) {
+        const { error } = await supabaseAdmin
+          .from('app_config')
+          .upsert(upserts, { onConflict: 'key' });
+        if (error) return res.status(500).json({ error: error.message });
+      }
+
+      return res.status(200).json({ success: true });
+    }
+
+    // Preview review email — renders template with sample data
+    if (action === 'previewReviewEmail') {
+      const emailType = req.query.type || 'initial'; // 'initial' or 'reminder'
+
+      // Load settings
+      const keys = emailType === 'reminder'
+        ? ['review_reminder_subject', 'review_reminder_headline', 'review_reminder_body', 'review_reminder_cta_text', 'review_reminder_footer_note']
+        : ['review_email_subject', 'review_email_headline', 'review_email_body', 'review_email_cta_text', 'review_email_footer_note'];
+
+      const { data } = await supabaseAdmin
+        .from('app_config')
+        .select('key, value')
+        .in('key', keys);
+
+      const configMap = {};
+      (data || []).forEach(row => { configMap[row.key] = row.value; });
+
+      let headline, body, ctaText, footerNote;
+      if (emailType === 'reminder') {
+        headline = configMap.review_reminder_headline || 'We\'d still love to hear from you!';
+        body = configMap.review_reminder_body || 'A little while ago you hosted {{eventTitle}} with Ryvite. We\'d really appreciate hearing about your experience — it helps us improve and helps other hosts discover what\'s possible.\n\nIt only takes a minute!';
+        ctaText = configMap.review_reminder_cta_text || 'Share Your Experience';
+        footerNote = configMap.review_reminder_footer_note || 'Your review may be featured on our site to help other event planners.';
+      } else {
+        headline = configMap.review_email_headline || 'How was {{eventTitle}}?';
+        body = configMap.review_email_body || 'We hope your event was amazing! We\'d love to hear about your experience using Ryvite. Your feedback helps other hosts discover what\'s possible.\n\nIt only takes a minute — just tap below to leave a quick review.';
+        ctaText = configMap.review_email_cta_text || 'Leave a Review';
+        footerNote = configMap.review_email_footer_note || 'Your review may be featured on our site to help other event planners.';
+      }
+
+      // Replace template vars with sample data
+      const sampleEvent = 'Emma\'s 5th Birthday Party';
+      const sampleFirst = 'Sarah';
+      const sampleUrl = 'https://www.ryvite.com/v2/review/?token=sample-preview';
+
+      const replaceVars = (str) => str
+        .replace(/\{\{eventTitle\}\}/g, sampleEvent)
+        .replace(/\{\{firstName\}\}/g, sampleFirst)
+        .replace(/\{\{reviewUrl\}\}/g, sampleUrl);
+
+      headline = replaceVars(headline);
+      const bodyParagraphs = replaceVars(body).split('\n').filter(p => p.trim()).map(
+        p => `<p style="margin:0 0 16px;font-size:15px;color:#555;line-height:1.6;">${p}</p>`
+      ).join('\n    ');
+      ctaText = replaceVars(ctaText);
+      footerNote = replaceVars(footerNote);
+
+      const html = buildReviewEmailFromSettings(sampleFirst, headline, bodyParagraphs, ctaText, footerNote, sampleUrl);
+      return res.status(200).json({ success: true, html, sampleData: { eventTitle: sampleEvent, firstName: sampleFirst } });
     }
 
     return res.status(400).json({ error: 'Unknown action' });
@@ -3164,6 +3328,33 @@ ${cssSnippet}`
     console.error('Admin API error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
+}
+
+function buildReviewEmailFromSettings(firstName, headline, bodyHtml, ctaText, footerNote, reviewUrl) {
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:40px 20px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+  <tr><td style="background:linear-gradient(135deg,#E94560,#FF6B6B);padding:32px 32px 24px;text-align:center;">
+    <img src="https://www.ryvite.com/images/ryvite-logo-white.png" alt="Ryvite" height="36" style="margin-bottom:16px;">
+    <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">${headline}</h1>
+  </td></tr>
+  <tr><td style="padding:32px;">
+    <p style="margin:0 0 16px;font-size:16px;color:#1A1A2E;line-height:1.6;">Hey ${firstName},</p>
+    ${bodyHtml}
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+      <a href="${reviewUrl}" style="display:inline-block;background:linear-gradient(135deg,#E94560,#FF6B6B);color:#fff;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:600;font-size:15px;">${ctaText}</a>
+    </td></tr></table>
+    <p style="margin:24px 0 0;font-size:13px;color:#999;line-height:1.5;text-align:center;">${footerNote}</p>
+  </td></tr>
+  <tr><td style="padding:20px 32px;background:#fafafa;border-top:1px solid #eee;text-align:center;">
+    <p style="margin:0;font-size:12px;color:#aaa;">Ryvite — AI-Powered Custom Invitations</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
 }
 
 function buildReviewRequestEmail(firstName, eventTitle, reviewUrl) {

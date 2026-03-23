@@ -513,19 +513,87 @@ async function processRsvpDigests() {
 
 // ---- Job C: Process review requests (auto-send after events) ----
 
+async function loadReviewEmailSettings() {
+  const keys = [
+    'review_email_enabled', 'review_email_delay_days',
+    'review_reminder_enabled', 'review_reminder_delay_days',
+    'review_email_subject', 'review_email_headline', 'review_email_body',
+    'review_email_cta_text', 'review_email_footer_note',
+    'review_reminder_subject', 'review_reminder_headline', 'review_reminder_body',
+    'review_reminder_cta_text', 'review_reminder_footer_note'
+  ];
+  const { data } = await supabaseAdmin.from('app_config').select('key, value').in('key', keys);
+  const m = {};
+  (data || []).forEach(r => { m[r.key] = r.value; });
+  return {
+    emailEnabled: m.review_email_enabled !== 'false',
+    delayDays: parseInt(m.review_email_delay_days) || 1,
+    reminderEnabled: m.review_reminder_enabled !== 'false',
+    reminderDelayDays: parseInt(m.review_reminder_delay_days) || 7,
+    emailSubject: m.review_email_subject || 'How was {{eventTitle}}? Share your experience!',
+    emailHeadline: m.review_email_headline || 'How was {{eventTitle}}?',
+    emailBody: m.review_email_body || 'We hope your event was amazing! We\'d love to hear about your experience using Ryvite. Your feedback helps other hosts discover what\'s possible.\n\nIt only takes a minute — just tap below to leave a quick review.',
+    emailCtaText: m.review_email_cta_text || 'Leave a Review',
+    emailFooterNote: m.review_email_footer_note || 'Your review may be featured on our site to help other event planners.',
+    reminderSubject: m.review_reminder_subject || 'We\'d love to hear about {{eventTitle}}!',
+    reminderHeadline: m.review_reminder_headline || 'We\'d still love to hear from you!',
+    reminderBody: m.review_reminder_body || 'A little while ago you hosted {{eventTitle}} with Ryvite. We\'d really appreciate hearing about your experience — it helps us improve and helps other hosts discover what\'s possible.\n\nIt only takes a minute!',
+    reminderCtaText: m.review_reminder_cta_text || 'Share Your Experience',
+    reminderFooterNote: m.review_reminder_footer_note || 'Your review may be featured on our site to help other event planners.'
+  };
+}
+
+function buildConfigurableReviewEmail(firstName, headline, bodyText, ctaText, footerNote, reviewUrl) {
+  const bodyParagraphs = bodyText.split('\n').filter(p => p.trim()).map(
+    p => `<p style="margin:0 0 16px;font-size:15px;color:#555;line-height:1.6;">${p}</p>`
+  ).join('\n    ');
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:40px 20px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+  <tr><td style="background:linear-gradient(135deg,#E94560,#FF6B6B);padding:32px 32px 24px;text-align:center;">
+    <img src="https://www.ryvite.com/images/ryvite-logo-white.png" alt="Ryvite" height="36" style="margin-bottom:16px;">
+    <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">${headline}</h1>
+  </td></tr>
+  <tr><td style="padding:32px;">
+    <p style="margin:0 0 16px;font-size:16px;color:#1A1A2E;line-height:1.6;">Hey ${firstName},</p>
+    ${bodyParagraphs}
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+      <a href="${reviewUrl}" style="display:inline-block;background:linear-gradient(135deg,#E94560,#FF6B6B);color:#fff;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:600;font-size:15px;">${ctaText}</a>
+    </td></tr></table>
+    <p style="margin:24px 0 0;font-size:13px;color:#999;line-height:1.5;text-align:center;">${footerNote}</p>
+  </td></tr>
+  <tr><td style="padding:20px 32px;background:#fafafa;border-top:1px solid #eee;text-align:center;">
+    <p style="margin:0;font-size:12px;color:#aaa;">Ryvite — AI-Powered Custom Invitations</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
 async function processReviewRequests() {
   let sent = 0;
   let reminders = 0;
 
-  // 1. Find eligible events: published, paid, event_date passed 1+ day ago, has attending guests, no existing request
-  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  // Load configurable settings
+  const settings = await loadReviewEmailSettings();
+
+  // Skip entirely if review emails are disabled
+  if (!settings.emailEnabled) return { sent: 0, reminders: 0, skipped: 'disabled' };
+
+  // 1. Find eligible events: published, paid, event_date passed N days ago, has attending guests, no existing request
+  const delayMs = settings.delayDays * 24 * 60 * 60 * 1000;
+  const cutoffDate = new Date(Date.now() - delayMs).toISOString();
 
   const { data: eligibleEvents, error } = await supabaseAdmin
     .from('events')
     .select('id, title, user_id, event_type, event_date')
     .eq('status', 'published')
     .eq('payment_status', 'paid')
-    .lt('event_date', oneDayAgo)
+    .lt('event_date', cutoffDate)
     .limit(20);
 
   if (!error && eligibleEvents && eligibleEvents.length > 0) {
@@ -569,16 +637,17 @@ async function processReviewRequests() {
           sent_at: new Date().toISOString()
         });
 
-        // Send review request email
+        // Send review request email using configurable template
         if (resend) {
           const reviewUrl = `https://www.ryvite.com/v2/review/?token=${token}`;
           const firstName = profile.first_name || 'there';
+          const replaceVars = (str) => str.replace(/\{\{eventTitle\}\}/g, event.title).replace(/\{\{firstName\}\}/g, firstName);
 
           await resend.emails.send({
             from: 'Ryvite <hello@ryvite.com>',
             to: profile.email,
-            subject: `How was ${event.title}? Share your experience!`,
-            html: buildReviewRequestEmailCron(firstName, event.title, reviewUrl)
+            subject: replaceVars(settings.emailSubject),
+            html: buildConfigurableReviewEmail(firstName, replaceVars(settings.emailHeadline), replaceVars(settings.emailBody), replaceVars(settings.emailCtaText), replaceVars(settings.emailFooterNote), reviewUrl)
           });
         }
 
@@ -589,8 +658,11 @@ async function processReviewRequests() {
     }
   }
 
-  // 2. Send reminders: requests sent 7+ days ago with no reminder yet and not completed
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  // 2. Send reminders: requests sent N days ago with no reminder yet and not completed
+  if (!settings.reminderEnabled) return { sent, reminders: 0 };
+
+  const reminderDelayMs = settings.reminderDelayDays * 24 * 60 * 60 * 1000;
+  const reminderCutoff = new Date(Date.now() - reminderDelayMs).toISOString();
 
   const { data: dueReminders } = await supabaseAdmin
     .from('review_requests')
@@ -600,7 +672,7 @@ async function processReviewRequests() {
       profiles!inner(email, first_name)
     `)
     .eq('status', 'sent')
-    .lt('sent_at', sevenDaysAgo)
+    .lt('sent_at', reminderCutoff)
     .is('reminder_sent_at', null)
     .limit(20);
 
@@ -613,12 +685,13 @@ async function processReviewRequests() {
           const reviewUrl = `https://www.ryvite.com/v2/review/?token=${req.token}`;
           const firstName = req.profiles.first_name || 'there';
           const eventTitle = req.events?.title || 'your event';
+          const replaceVars = (str) => str.replace(/\{\{eventTitle\}\}/g, eventTitle).replace(/\{\{firstName\}\}/g, firstName);
 
           await resend.emails.send({
             from: 'Ryvite <hello@ryvite.com>',
             to: req.profiles.email,
-            subject: `We'd love to hear about ${eventTitle}!`,
-            html: buildReviewRequestEmailCron(firstName, eventTitle, reviewUrl)
+            subject: replaceVars(settings.reminderSubject),
+            html: buildConfigurableReviewEmail(firstName, replaceVars(settings.reminderHeadline), replaceVars(settings.reminderBody), replaceVars(settings.reminderCtaText), replaceVars(settings.reminderFooterNote), reviewUrl)
           });
         }
 
