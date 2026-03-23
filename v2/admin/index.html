@@ -2797,6 +2797,10 @@
         loadStyleLibrary();
         // Preload showcases for featured badge in detail views
         loadShowcases();
+        // Handle initial URL hash route (e.g. #users/abc123/billing)
+        if (window.location.hash) {
+          handleHashRoute();
+        }
       } catch (err) {
         var denied = document.getElementById('accessDenied');
         if (err.message && err.message.indexOf('Server error') !== -1) {
@@ -2834,12 +2838,94 @@
       try { return JSON.parse(text); } catch (e) { throw new Error('Server error: ' + r.status); }
     }
 
-    // ---- Tabs ----
-    function switchTab(tab) {
+    // ---- Tabs & Hash Routing ----
+    var _skipHashUpdate = false; // flag to prevent hash loops
+
+    function switchTab(tab, skipHash) {
       document.querySelectorAll('.sidebar-item').forEach(function(t) { t.classList.toggle('active', t.getAttribute('data-tab') === tab); });
       document.querySelectorAll('.tab-content').forEach(function(tc) { tc.classList.toggle('active', tc.id === 'tab-' + tab); });
       closeSidebar();
+      if (!skipHash && !_skipHashUpdate) {
+        history.replaceState(null, '', '#' + tab);
+      }
     }
+
+    // Tab-specific data loaders (called when navigating via URL hash)
+    var _tabLoaders = {
+      team: function() { loadAdmins(); },
+      subscriptions: function() { loadBillingTab(); },
+      coupons: function() { loadCoupons(); },
+      notifications: function() { loadAdminNotifPrefs(); },
+      quality: function() { loadQualityDashboard(); },
+      marketing: function() { loadMarketingTab(); },
+      blogposts: function() { loadBlogPosts(); },
+      blogcategories: function() { loadBlogCategories(); },
+      viral: function() { loadViralStats(); },
+      reviews: function() { loadReviews(); },
+      reviewemails: function() { loadReviewEmailSettings(); }
+    };
+
+    function handleHashRoute() {
+      var hash = window.location.hash.replace('#', '');
+      if (!hash) return;
+
+      var parts = hash.split('/');
+      var tab = parts[0];
+
+      // Validate tab exists
+      var tabEl = document.getElementById('tab-' + tab);
+      if (!tabEl) return;
+
+      _skipHashUpdate = true;
+
+      // Switch to the tab
+      switchTab(tab, true);
+
+      // Run tab-specific data loader
+      if (_tabLoaders[tab]) _tabLoaders[tab]();
+
+      // Handle sub-routes
+      if (tab === 'users' && parts[1]) {
+        // #users/{userId} or #users/{userId}/{section}
+        var userId = parts[1];
+        var section = parts[2] || 'overview';
+        // Wait for users to load, then open user detail
+        _pendingUserRoute = { userId: userId, section: section };
+        tryOpenPendingUser();
+      } else if (tab === 'users') {
+        // Just #users — make sure we're on the list view
+        document.getElementById('userDetailView').style.display = 'none';
+        document.getElementById('usersListView').style.display = 'block';
+      } else if (tab === 'stylelibrary' && parts[1]) {
+        // #stylelibrary/{view}
+        switchArchiveView(parts[1]);
+      } else if (tab === 'marketing' && parts[1]) {
+        // #marketing/{viewId}
+        switchMarketingView(parts[1]);
+      }
+
+      _skipHashUpdate = false;
+    }
+
+    var _pendingUserRoute = null;
+
+    function tryOpenPendingUser() {
+      if (!_pendingUserRoute) return;
+      var userId = _pendingUserRoute.userId;
+      var section = _pendingUserRoute.section;
+      var u = allUsers.find(function(x) { return x.id === userId; });
+      if (u) {
+        _pendingUserRoute = null;
+        viewUser(userId).then(function() {
+          if (section && section !== 'overview') switchUserSection(section);
+        });
+      } else {
+        // Users might still be loading — retry briefly
+        setTimeout(tryOpenPendingUser, 300);
+      }
+    }
+
+    window.addEventListener('hashchange', handleHashRoute);
 
     function toggleSidebar() {
       document.getElementById('adminSidebar').classList.toggle('open');
@@ -3133,6 +3219,10 @@
     function switchUserSection(section) {
       document.querySelectorAll('.ud-nav-btn').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-section') === section); });
       document.querySelectorAll('.ud-section').forEach(function(s) { s.classList.toggle('active', s.id === 'ud-' + section); });
+      // Update hash with user section
+      if (!_skipHashUpdate && currentUserDetail) {
+        history.replaceState(null, '', '#users/' + currentUserDetail.user.id + '/' + section);
+      }
     }
 
     function getInitials(name, email) {
@@ -3168,6 +3258,11 @@
 
       document.getElementById('usersListView').style.display = 'none';
       document.getElementById('userDetailView').style.display = 'block';
+
+      // Update URL hash
+      if (!_skipHashUpdate) {
+        history.replaceState(null, '', '#users/' + userId);
+      }
 
       // Set initial header from cached user list data
       document.getElementById('udAvatar').textContent = getInitials(u.displayName, u.email);
@@ -3731,6 +3826,7 @@
     function backToUsers() {
       document.getElementById('userDetailView').style.display = 'none';
       document.getElementById('usersListView').style.display = 'block';
+      history.replaceState(null, '', '#users');
       currentUserDetail = null;
     }
 
@@ -6150,6 +6246,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         showcaseLoaded = true;
         loadShowcases();
       }
+      if (!_skipHashUpdate) {
+        history.replaceState(null, '', '#stylelibrary/' + view);
+      }
     }
 
     function populateArchivePromptDropdowns() {
@@ -8557,6 +8656,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.querySelectorAll('#marketingNav .archive-nav-btn').forEach(function(btn) {
         btn.classList.toggle('active', btn.getAttribute('data-view') === view);
       });
+      if (!_skipHashUpdate) {
+        history.replaceState(null, '', '#marketing/' + view);
+      }
     }
 
     var _mktLoaded = false;
