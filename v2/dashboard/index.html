@@ -2013,7 +2013,7 @@
         // Get current event's photos_enabled status
         var eventRes = await authFetch('/api/v2/events?action=get&eventId=' + manageEventId);
         var eventData = await eventRes.json();
-        managePhotosEnabled = eventData.event?.photos_enabled || false;
+        managePhotosEnabled = eventData.event?.photosEnabled || false;
 
         // Load photo count
         var countRes = await authFetch('/api/v2/photos?action=count&eventId=' + manageEventId);
