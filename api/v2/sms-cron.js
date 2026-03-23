@@ -511,6 +511,160 @@ async function processRsvpDigests() {
   return { digests: digestsSent };
 }
 
+// ---- Job C: Process review requests (auto-send after events) ----
+
+async function processReviewRequests() {
+  let sent = 0;
+  let reminders = 0;
+
+  // 1. Find eligible events: published, paid, event_date passed 1+ day ago, has attending guests, no existing request
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: eligibleEvents, error } = await supabaseAdmin
+    .from('events')
+    .select('id, title, user_id, event_type, event_date')
+    .eq('status', 'published')
+    .eq('payment_status', 'paid')
+    .lt('event_date', oneDayAgo)
+    .limit(20);
+
+  if (!error && eligibleEvents && eligibleEvents.length > 0) {
+    // Filter out events that already have review requests
+    const eventIds = eligibleEvents.map(e => e.id);
+    const { data: existingRequests } = await supabaseAdmin
+      .from('review_requests')
+      .select('event_id')
+      .in('event_id', eventIds);
+
+    const existingEventIds = new Set((existingRequests || []).map(r => r.event_id));
+    const newEvents = eligibleEvents.filter(e => !existingEventIds.has(e.id));
+
+    for (const event of newEvents) {
+      try {
+        // Check if event has at least 1 attending guest
+        const { count } = await supabaseAdmin
+          .from('guests')
+          .select('id', { count: 'exact', head: true })
+          .eq('event_id', event.id)
+          .eq('status', 'attending');
+
+        if (!count || count === 0) continue;
+
+        // Get host email
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('email, first_name')
+          .eq('id', event.user_id)
+          .single();
+
+        if (!profile?.email) continue;
+
+        const token = crypto.randomUUID();
+
+        await supabaseAdmin.from('review_requests').insert({
+          user_id: event.user_id,
+          event_id: event.id,
+          token,
+          status: 'sent',
+          sent_at: new Date().toISOString()
+        });
+
+        // Send review request email
+        if (resend) {
+          const reviewUrl = `https://www.ryvite.com/v2/review/?token=${token}`;
+          const firstName = profile.first_name || 'there';
+
+          await resend.emails.send({
+            from: 'Ryvite <hello@ryvite.com>',
+            to: profile.email,
+            subject: `How was ${event.title}? Share your experience!`,
+            html: buildReviewRequestEmailCron(firstName, event.title, reviewUrl)
+          });
+        }
+
+        sent++;
+      } catch (err) {
+        console.error(`Error sending review request for event ${event.id}:`, err);
+      }
+    }
+  }
+
+  // 2. Send reminders: requests sent 7+ days ago with no reminder yet and not completed
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: dueReminders } = await supabaseAdmin
+    .from('review_requests')
+    .select(`
+      id, user_id, event_id, token,
+      events!inner(title),
+      profiles!inner(email, first_name)
+    `)
+    .eq('status', 'sent')
+    .lt('sent_at', sevenDaysAgo)
+    .is('reminder_sent_at', null)
+    .limit(20);
+
+  if (dueReminders && dueReminders.length > 0) {
+    for (const req of dueReminders) {
+      try {
+        if (!req.profiles?.email) continue;
+
+        if (resend) {
+          const reviewUrl = `https://www.ryvite.com/v2/review/?token=${req.token}`;
+          const firstName = req.profiles.first_name || 'there';
+          const eventTitle = req.events?.title || 'your event';
+
+          await resend.emails.send({
+            from: 'Ryvite <hello@ryvite.com>',
+            to: req.profiles.email,
+            subject: `We'd love to hear about ${eventTitle}!`,
+            html: buildReviewRequestEmailCron(firstName, eventTitle, reviewUrl)
+          });
+        }
+
+        await supabaseAdmin
+          .from('review_requests')
+          .update({ status: 'reminded', reminder_sent_at: new Date().toISOString() })
+          .eq('id', req.id);
+
+        reminders++;
+      } catch (err) {
+        console.error(`Error sending review reminder ${req.id}:`, err);
+      }
+    }
+  }
+
+  return { sent, reminders };
+}
+
+function buildReviewRequestEmailCron(firstName, eventTitle, reviewUrl) {
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:40px 20px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+  <tr><td style="background:linear-gradient(135deg,#E94560,#FF6B6B);padding:32px 32px 24px;text-align:center;">
+    <img src="https://www.ryvite.com/images/ryvite-logo-white.png" alt="Ryvite" height="36" style="margin-bottom:16px;">
+    <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">How was ${eventTitle}?</h1>
+  </td></tr>
+  <tr><td style="padding:32px;">
+    <p style="margin:0 0 16px;font-size:16px;color:#1A1A2E;line-height:1.6;">Hey ${firstName},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#555;line-height:1.6;">We hope your event was amazing! We'd love to hear about your experience using Ryvite. Your feedback helps other hosts discover what's possible.</p>
+    <p style="margin:0 0 24px;font-size:15px;color:#555;line-height:1.6;">It only takes a minute — just tap below to leave a quick review.</p>
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+      <a href="${reviewUrl}" style="display:inline-block;background:linear-gradient(135deg,#E94560,#FF6B6B);color:#fff;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:600;font-size:15px;">Leave a Review</a>
+    </td></tr></table>
+    <p style="margin:24px 0 0;font-size:13px;color:#999;line-height:1.5;text-align:center;">Your review may be featured on our site to help other event planners.</p>
+  </td></tr>
+  <tr><td style="padding:20px 32px;background:#fafafa;border-top:1px solid #eee;text-align:center;">
+    <p style="margin:0;font-size:12px;color:#aaa;">Ryvite — AI-Powered Custom Invitations</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
 // ---- Main Handler ----
 
 export default async function handler(req, res) {
@@ -523,16 +677,18 @@ export default async function handler(req, res) {
   }
 
   try {
-    const [reminderResults, digestResults] = await Promise.all([
+    const [reminderResults, digestResults, reviewResults] = await Promise.all([
       processDueReminders(),
-      processRsvpDigests()
+      processRsvpDigests(),
+      processReviewRequests()
     ]);
 
     return res.status(200).json({
       success: true,
       timestamp: new Date().toISOString(),
       reminders: reminderResults,
-      digests: digestResults
+      digests: digestResults,
+      reviews: reviewResults
     });
   } catch (err) {
     console.error('SMS cron error:', err);

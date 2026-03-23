@@ -539,6 +539,41 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
   </div>
 </section>
 
+<!-- Testimonials Section -->
+<section class="section" id="testimonials" style="background:var(--midnight); padding:5rem 2rem; overflow:hidden; display:none;">
+  <div class="container" style="max-width:1100px; margin:0 auto;">
+    <p class="section-label scroll-reveal" style="color:var(--confetti-gold); text-align:center;">WHAT HOSTS ARE SAYING</p>
+    <h2 class="section-title scroll-reveal" style="color:white; text-align:center;">Real Events, Real Reviews</h2>
+    <p class="section-subtitle center scroll-reveal" style="color:rgba(255,255,255,0.6); margin-bottom:2.5rem;">See what event hosts are saying about their Ryvite experience.</p>
+
+    <div id="testimonials-track" style="display:flex; gap:24px; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; padding:8px 0 24px; scrollbar-width:none;">
+    </div>
+    <style>
+      #testimonials-track::-webkit-scrollbar { display: none; }
+      .testimonial-card {
+        flex: 0 0 340px; scroll-snap-align: start; background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 0;
+        overflow: hidden; transition: transform 0.3s, border-color 0.3s;
+      }
+      .testimonial-card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.2); }
+      .testimonial-preview { width: 100%; height: 180px; overflow: hidden; border-bottom: 1px solid rgba(255,255,255,0.08); position: relative; }
+      .testimonial-preview iframe { width: 400%; height: 400%; border: none; transform: scale(0.25); transform-origin: top left; pointer-events: none; }
+      .testimonial-body { padding: 20px; }
+      .testimonial-stars { display: flex; gap: 2px; margin-bottom: 10px; }
+      .testimonial-stars svg { width: 16px; height: 16px; }
+      .testimonial-headline { font-family: var(--font-display); font-size: 16px; font-weight: 600; color: white; margin-bottom: 8px; }
+      .testimonial-text { font-size: 14px; color: rgba(255,255,255,0.65); line-height: 1.6; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+      .testimonial-meta { display: flex; align-items: center; gap: 8px; }
+      .testimonial-author { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.85); }
+      .testimonial-type { font-size: 11px; background: rgba(167,139,250,0.2); color: var(--party-purple); padding: 2px 8px; border-radius: 10px; text-transform: capitalize; }
+      @media (max-width: 768px) {
+        .testimonial-card { flex: 0 0 280px; }
+        .testimonial-preview { height: 140px; }
+      }
+    </style>
+  </div>
+</section>
+
 <!-- FAQ Section -->
 <section class="section" id="faq" style="background:var(--cream); padding:5rem 2rem;">
   <div class="container" style="max-width:800px; margin:0 auto;">
@@ -870,6 +905,64 @@ document.querySelectorAll(".scroll-reveal").forEach(function(el) {
     document.addEventListener("DOMContentLoaded", initDemo);
   } else {
     initDemo();
+  }
+})();
+
+// Testimonials loader
+(function() {
+  function loadTestimonials() {
+    fetch('/api/v2/reviews?action=featured')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.success || !data.reviews || data.reviews.length === 0) return;
+
+        var section = document.getElementById('testimonials');
+        section.style.display = 'block';
+
+        var track = document.getElementById('testimonials-track');
+        track.innerHTML = data.reviews.map(function(r) {
+          var stars = '';
+          for (var i = 1; i <= 5; i++) {
+            stars += '<svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="' + (i <= r.rating ? '#FFB74D' : 'rgba(255,255,255,0.15)') + '"/></svg>';
+          }
+
+          var preview = '';
+          if (r.themeHtml) {
+            var cssEsc = (r.themeCss || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+            var htmlEsc = r.themeHtml.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+            preview = '<div class="testimonial-preview"><iframe srcdoc="&lt;!DOCTYPE html&gt;&lt;html&gt;&lt;head&gt;&lt;style&gt;' + cssEsc + ' body{margin:0;overflow:hidden;}&lt;/style&gt;&lt;/head&gt;&lt;body&gt;' + htmlEsc + '&lt;/body&gt;&lt;/html&gt;" sandbox="allow-same-origin" loading="lazy"></iframe></div>';
+          }
+
+          var displayName = r.reviewerName || 'Anonymous';
+          var typeBadge = r.eventType ? '<span class="testimonial-type">' + r.eventType.replace(/([A-Z])/g, ' $1').trim() + '</span>' : '';
+
+          return '<div class="testimonial-card">' +
+            preview +
+            '<div class="testimonial-body">' +
+              '<div class="testimonial-stars">' + stars + '</div>' +
+              (r.headline ? '<div class="testimonial-headline">' + escapeText(r.headline) + '</div>' : '') +
+              (r.body ? '<div class="testimonial-text">' + escapeText(r.body) + '</div>' : '') +
+              '<div class="testimonial-meta">' +
+                '<span class="testimonial-author">' + escapeText(displayName) + '</span>' +
+                typeBadge +
+              '</div>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      })
+      .catch(function() {});
+  }
+
+  function escapeText(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadTestimonials);
+  } else {
+    loadTestimonials();
   }
 })();
 </script>

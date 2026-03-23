@@ -2994,9 +2994,202 @@ ${cssSnippet}`
       });
     }
 
+    // ── REVIEW MANAGEMENT ──
+
+    // List reviews with filters
+    if (action === 'listReviews') {
+      const page = parseInt(req.query.page) || 1;
+      const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+      const statusFilter = req.query.statusFilter || '';
+      const offset = (page - 1) * limit;
+
+      let query = supabaseAdmin
+        .from('reviews')
+        .select(`
+          id, user_id, event_id, event_theme_id, rating, headline, body,
+          reviewer_name, is_anonymous, status, event_type, admin_notes,
+          moderated_by, moderated_at, created_at, updated_at,
+          profiles(email, first_name, last_name),
+          events(title, event_date, slug),
+          event_themes(html, css, config)
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (statusFilter && ['pending', 'approved', 'featured', 'rejected'].includes(statusFilter)) {
+        query = query.eq('status', statusFilter);
+      }
+
+      const { data, error, count } = await query;
+      if (error) return res.status(500).json({ error: error.message });
+
+      return res.status(200).json({
+        success: true,
+        reviews: data || [],
+        total: count || 0,
+        page,
+        limit
+      });
+    }
+
+    // Moderate a review (change status)
+    if (action === 'moderateReview' && req.method === 'POST') {
+      const { reviewId, status, notes } = req.body;
+      if (!reviewId || !status) return res.status(400).json({ error: 'reviewId and status required' });
+      if (!['pending', 'approved', 'featured', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      const updateData = {
+        status,
+        moderated_by: admin.email,
+        moderated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      if (notes !== undefined) updateData.admin_notes = notes;
+
+      const { data, error } = await supabaseAdmin
+        .from('reviews')
+        .update(updateData)
+        .eq('id', reviewId)
+        .select('id, status')
+        .single();
+
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(200).json({ success: true, review: data });
+    }
+
+    // Delete a review
+    if (action === 'deleteReview' && req.method === 'POST') {
+      const { reviewId } = req.body;
+      if (!reviewId) return res.status(400).json({ error: 'reviewId required' });
+
+      const { error } = await supabaseAdmin.from('reviews').delete().eq('id', reviewId);
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(200).json({ success: true });
+    }
+
+    // Review stats
+    if (action === 'reviewStats') {
+      const { data: reviews } = await supabaseAdmin
+        .from('reviews')
+        .select('rating, status');
+
+      const { data: requests } = await supabaseAdmin
+        .from('review_requests')
+        .select('status');
+
+      const all = reviews || [];
+      const reqs = requests || [];
+      const stats = {
+        totalReviews: all.length,
+        avgRating: all.length > 0 ? Math.round(all.reduce((a, r) => a + r.rating, 0) / all.length * 100) / 100 : 0,
+        pendingCount: all.filter(r => r.status === 'pending').length,
+        approvedCount: all.filter(r => r.status === 'approved').length,
+        featuredCount: all.filter(r => r.status === 'featured').length,
+        rejectedCount: all.filter(r => r.status === 'rejected').length,
+        totalRequests: reqs.length,
+        completedRequests: reqs.filter(r => r.status === 'completed').length,
+        conversionRate: reqs.length > 0
+          ? Math.round(reqs.filter(r => r.status === 'completed').length / reqs.length * 100)
+          : 0
+      };
+
+      return res.status(200).json({ success: true, stats });
+    }
+
+    // Manually send a review request for an event
+    if (action === 'sendReviewRequest' && req.method === 'POST') {
+      const { eventId } = req.body;
+      if (!eventId) return res.status(400).json({ error: 'eventId required' });
+
+      // Check if request already exists
+      const { data: existing } = await supabaseAdmin
+        .from('review_requests')
+        .select('id, status')
+        .eq('event_id', eventId)
+        .single();
+
+      if (existing) {
+        return res.status(400).json({ error: 'Review request already exists for this event', request: existing });
+      }
+
+      // Get event + host info
+      const { data: event, error: evErr } = await supabaseAdmin
+        .from('events')
+        .select('id, title, user_id, event_type')
+        .eq('id', eventId)
+        .single();
+
+      if (evErr || !event) return res.status(404).json({ error: 'Event not found' });
+
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('email, first_name')
+        .eq('id', event.user_id)
+        .single();
+
+      if (!profile?.email) return res.status(400).json({ error: 'No email found for event host' });
+
+      const token = crypto.randomUUID();
+
+      // Create request
+      await supabaseAdmin.from('review_requests').insert({
+        user_id: event.user_id,
+        event_id: eventId,
+        token,
+        status: 'sent',
+        sent_at: new Date().toISOString()
+      });
+
+      // Send email
+      const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+      if (resend) {
+        const reviewUrl = `https://www.ryvite.com/v2/review/?token=${token}`;
+        const firstName = profile.first_name || 'there';
+
+        await resend.emails.send({
+          from: 'Ryvite <hello@ryvite.com>',
+          to: profile.email,
+          subject: `How was ${event.title}? Share your experience!`,
+          html: buildReviewRequestEmail(firstName, event.title, reviewUrl)
+        });
+      }
+
+      return res.status(200).json({ success: true, token });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Admin API error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
+}
+
+function buildReviewRequestEmail(firstName, eventTitle, reviewUrl) {
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:40px 20px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+  <tr><td style="background:linear-gradient(135deg,#E94560,#FF6B6B);padding:32px 32px 24px;text-align:center;">
+    <img src="https://www.ryvite.com/images/ryvite-logo-white.png" alt="Ryvite" height="36" style="margin-bottom:16px;">
+    <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">How was ${eventTitle}?</h1>
+  </td></tr>
+  <tr><td style="padding:32px;">
+    <p style="margin:0 0 16px;font-size:16px;color:#1A1A2E;line-height:1.6;">Hey ${firstName},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#555;line-height:1.6;">We hope your event was amazing! We'd love to hear about your experience using Ryvite. Your feedback helps other hosts discover what's possible.</p>
+    <p style="margin:0 0 24px;font-size:15px;color:#555;line-height:1.6;">It only takes a minute — just tap below to leave a quick review.</p>
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+      <a href="${reviewUrl}" style="display:inline-block;background:linear-gradient(135deg,#E94560,#FF6B6B);color:#fff;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:600;font-size:15px;">Leave a Review</a>
+    </td></tr></table>
+    <p style="margin:24px 0 0;font-size:13px;color:#999;line-height:1.5;text-align:center;">Your review may be featured on our site to help other event planners.</p>
+  </td></tr>
+  <tr><td style="padding:20px 32px;background:#fafafa;border-top:1px solid #eee;text-align:center;">
+    <p style="margin:0;font-size:12px;color:#aaa;">Ryvite — AI-Powered Custom Invitations</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
 }
