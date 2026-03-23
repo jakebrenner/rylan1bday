@@ -2930,6 +2930,7 @@
 
     // ---- Stats ----
     function fmtCost(v) {
+      if (v == null || isNaN(v)) return '$0.00';
       if (v < 0.01) return '$' + v.toFixed(4);
       if (v < 1) return '$' + v.toFixed(3);
       return '$' + v.toFixed(2);
@@ -3269,7 +3270,7 @@
         + kpiCard(fmtCost(f.themeAiCost), 'Theme Gen Cost', '')
         + kpiCard(fmtCost(f.totalSmsCost), 'SMS Cost', '')
         + kpiCard(fmtCost(f.revenueAfterMarkup), 'AI Revenue (w/ markup)', 'positive')
-        + kpiCard(f.markupPct + '%', 'Cost Markup', '');
+        + kpiCard((f.markupPct || 0) + '%', 'Cost Markup', '');
 
       // Cost breakdown visual
       var totalCost = f.totalAiCost + f.totalSmsCost;

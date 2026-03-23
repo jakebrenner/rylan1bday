@@ -381,6 +381,11 @@ export default async function handler(req, res) {
 
       const totalPlatformCost = totalAiCost + totalSmsCost;
 
+      // Discount + markup calculations
+      const totalDiscount = (subsRes.data || []).reduce((sum, s) => sum + (s.discount_cents || 0), 0) / 100;
+      const markupPct = 300; // 3x markup on AI costs
+      const revenueAfterMarkup = totalAiCost * (markupPct / 100);
+
       return res.status(200).json({
         success: true,
         user: {
@@ -410,6 +415,9 @@ export default async function handler(req, res) {
           themeCount: themeGenerations.length,
           netMargin: totalRevenue - totalPlatformCost,
           paidEventCount: succeededPayments.length,
+          totalDiscount,
+          revenueAfterMarkup,
+          markupPct,
           costByEvent
         },
         events: events.map(e => ({
