@@ -3331,7 +3331,8 @@
       // ---- Overview KPIs ----
       var netMargin = f.netMargin;
       document.getElementById('udKpiGrid').innerHTML =
-        kpiCard(fmtCost(f.eventRevenue), 'Event Revenue', 'positive')
+        kpiCard(fmtCost(f.stripeRevenue), 'Stripe Revenue', 'positive')
+        + kpiCard(f.creditsUsed, 'Credits Used', '')
         + kpiCard(fmtCost(f.totalPlatformCost), 'Platform Cost', '')
         + kpiCard(fmtCost(netMargin), 'Net Margin', netMargin >= 0 ? 'positive' : 'negative')
         + kpiCard(data.events.length, 'Events', '')
@@ -3371,8 +3372,9 @@
       var freeEvents = data.events.filter(function(e) { return e.paymentStatus === 'free'; }).length;
       var unpaidEvents = data.events.length - paidEvents - freeEvents;
       document.getElementById('udFinKpis').innerHTML =
-        kpiCard(fmtCost(f.eventRevenue), 'Event Revenue', 'positive')
-        + kpiCard(fmtCost(f.paymentsCollected), 'Payments Collected', '')
+        kpiCard(fmtCost(f.stripeRevenue), 'Stripe Revenue', 'positive')
+        + kpiCard(f.creditsUsed, 'Credits Used', '')
+        + kpiCard(fmtCost(f.totalPlatformCost), 'Platform Cost', '')
         + kpiCard(fmtCost(f.netMargin), 'Net Margin', f.netMargin >= 0 ? 'positive' : 'negative')
         + kpiCard(fmtCost(f.totalAiCost), 'AI Cost', '')
         + kpiCard(fmtCost(f.chatAiCost), 'Chat AI', '')
@@ -3413,7 +3415,8 @@
           var rev = e.revenue || 0;
           var margin = rev - tc;
           var marginClass = margin > 0 ? 'color:var(--mint-fizz)' : margin < 0 ? 'color:var(--party-coral)' : '';
-          var payBadge = e.paymentStatus === 'paid' ? '<span class="badge badge-green" style="font-size:9px;margin-left:4px;">paid</span>'
+          var payBadge = e.paidVia === 'stripe' ? '<span class="badge badge-green" style="font-size:9px;margin-left:4px;">stripe</span>'
+            : e.paidVia === 'credit' ? '<span class="badge badge-yellow" style="font-size:9px;margin-left:4px;">credit</span>'
             : e.paymentStatus === 'free' ? '<span class="badge badge-blue" style="font-size:9px;margin-left:4px;">free</span>'
             : '<span class="badge badge-gray" style="font-size:9px;margin-left:4px;">unpaid</span>';
           return '<tr>'
@@ -3544,19 +3547,19 @@
 
       // Event credits display
       var subEl = document.getElementById('udSubscription');
-      var freeCredits = data.profile?.freeEventCredits || 0;
-      var purchasedCredits = data.profile?.purchasedEventCredits || 0;
+      var freeCredits = u.freeEventCredits || 0;
+      var purchasedCredits = u.purchasedEventCredits || 0;
       var totalCredits = freeCredits + purchasedCredits;
-      if (totalCredits > 0) {
-        subEl.innerHTML = '<div class="ud-detail-grid">'
-          + detailItem('Total Credits', '<strong>' + totalCredits + '</strong>')
-          + (purchasedCredits > 0 ? detailItem('Purchased', purchasedCredits) : '')
-          + (freeCredits > 0 ? detailItem('Free / Coupon', freeCredits) : '')
-          + detailItem('Pricing', '$4.99 / event')
-          + '</div>';
-      } else {
-        subEl.innerHTML = '<div class="ud-empty">No credits available</div>';
-      }
+      subEl.innerHTML = '<div class="ud-detail-grid">'
+        + detailItem('Available Credits', '<strong style="font-size:18px;">' + totalCredits + '</strong>')
+        + detailItem('Purchased', purchasedCredits)
+        + detailItem('Free / Coupon', '<span id="udFreeCredits">' + freeCredits + '</span>')
+        + detailItem('Credits Used', '<strong>' + (f.creditsUsed || 0) + '</strong>')
+        + '</div>'
+        + '<div style="margin-top:12px;padding-top:12px;border-top:1px solid #eee;">'
+        + '<button class="btn btn-secondary btn-sm" onclick="showGrantCreditsUI()" style="font-size:12px;">+ Add Free Credits</button>'
+        + '<div id="grantCreditsForm" style="display:none;margin-top:8px;"></div>'
+        + '</div>';
 
       // Billing history
       var bhBody = document.getElementById('udBillingHistory');
@@ -3681,8 +3684,6 @@
       document.getElementById('udAccountInfo').innerHTML =
         detailItem('User ID', '<span style="font-family:monospace;font-size:11px;">' + escapeHtml(u.id) + '</span>')
         + detailItem('Stripe Customer', u.stripeCustomerId ? '<span style="font-family:monospace;font-size:11px;">' + escapeHtml(u.stripeCustomerId) + '</span>' : '—')
-        + detailItem('Purchased Event Credits', '<span>' + (u.purchasedEventCredits || 0) + '</span>')
-        + detailItem('Free Event Credits', '<span id="udFreeCredits">' + (u.freeEventCredits || 0) + '</span> <button class="btn btn-secondary btn-sm" onclick="showGrantCreditsUI()" style="margin-left:8px;font-size:11px;padding:2px 8px;">Add</button><div id="grantCreditsForm" style="display:none;margin-top:8px;"></div>')
         + detailItem('Created', formatDate(u.createdAt))
         + detailItem('Last Updated', u.updatedAt ? formatDate(u.updatedAt) : '—');
 

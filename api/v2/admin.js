@@ -167,7 +167,7 @@ export default async function handler(req, res) {
       if (!userId) return res.status(400).json({ error: 'userId required' });
 
       // Fetch all data in parallel — only use tables/columns that actually exist
-      const [profileRes, authUserRes, eventsRes, subsRes, billingRes, generationsRes, smsRes, chatRes] = await Promise.all([
+      const [profileRes, authUserRes, eventsRes, subsRes, billingRes, generationsRes, smsRes, chatRes, creditLedgerRes] = await Promise.all([
         supabaseAdmin.from('profiles').select('*').eq('id', userId).single(),
         supabaseAdmin.auth.admin.getUserById(userId).catch(() => ({ data: { user: null } })),
         supabaseAdmin.from('events').select('id, title, event_type, event_date, status, slug, payment_status, paid_at, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
@@ -175,7 +175,8 @@ export default async function handler(req, res) {
         supabaseAdmin.from('billing_history').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabaseAdmin.from('generation_log').select('id, event_id, model, input_tokens, output_tokens, prompt, status, latency_ms, created_at').eq('user_id', userId).eq('status', 'success').order('created_at', { ascending: false }),
         supabaseAdmin.from('sms_messages').select('id, event_id, recipient_phone, recipient_name, message_type, status, cost_cents, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabaseAdmin.from('chat_messages').select('id, session_id, role, content, model, input_tokens, output_tokens, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(200)
+        supabaseAdmin.from('chat_messages').select('id, session_id, role, content, model, input_tokens, output_tokens, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(200),
+        supabaseAdmin.from('credit_ledger').select('entry_type, amount, source, notes, reference_id, created_at').eq('user_id', userId).order('created_at', { ascending: false }).catch(() => ({ data: [] }))
       ]);
 
       const profile = profileRes.data;
@@ -381,10 +382,17 @@ export default async function handler(req, res) {
 
       const totalPlatformCost = totalAiCost + totalSmsCost;
 
-      // Event-derived revenue: $4.99 per paid event (regardless of payment method — Stripe, credits, or migration)
+      // Revenue: only actual Stripe payments (billing_history)
+      // Credits used: from credit_ledger (event_publish entries)
+      const creditLedger = creditLedgerRes.data || [];
+      const creditUsedEntries = creditLedger.filter(e => e.entry_type === 'credit_used' && e.source === 'event_publish');
+      const creditsUsed = creditUsedEntries.length;
+      const creditPaidEventIds = new Set(creditUsedEntries.map(e => e.reference_id).filter(Boolean));
       const paidEventCount = events.filter(e => e.payment_status === 'paid').length;
       const freeEventCount = events.filter(e => e.payment_status === 'free').length;
-      const eventRevenue = paidEventCount * 4.99;
+      // Stripe-paid events = paid events minus those paid via credits
+      const stripePaidCount = Math.max(0, paidEventCount - creditsUsed);
+      const stripeRevenue = totalRevenue; // billing_history is the source of truth for real cash
 
       return res.status(200).json({
         success: true,
@@ -403,8 +411,8 @@ export default async function handler(req, res) {
           isBanned
         },
         financials: {
-          eventRevenue,
-          paymentsCollected: totalRevenue,
+          stripeRevenue,
+          creditsUsed,
           totalPlatformCost,
           totalAiCost,
           chatAiCost,
@@ -414,9 +422,10 @@ export default async function handler(req, res) {
           generationCount: generations.length,
           chatCount: chatGenerations.length,
           themeCount: themeGenerations.length,
-          netMargin: eventRevenue - totalPlatformCost,
+          netMargin: stripeRevenue - totalPlatformCost,
           paidEventCount,
           freeEventCount,
+          stripePaidCount,
           costByEvent
         },
         events: events.map(e => ({
@@ -427,8 +436,9 @@ export default async function handler(req, res) {
           status: e.status,
           slug: e.slug,
           paymentStatus: e.payment_status || 'unpaid',
+          paidVia: e.payment_status === 'paid' ? (creditPaidEventIds.has(e.id) ? 'credit' : 'stripe') : (e.payment_status === 'free' ? 'free' : 'unpaid'),
           paidAt: e.paid_at,
-          revenue: e.payment_status === 'paid' ? 4.99 : 0,
+          revenue: (e.payment_status === 'paid' && !creditPaidEventIds.has(e.id)) ? 4.99 : 0,
           createdAt: e.created_at,
           hasTheme: !!(eventThemeMap[e.id] && eventThemeMap[e.id].hasTheme),
           themeVersions: eventThemeMap[e.id] ? eventThemeMap[e.id].versions : 0,
