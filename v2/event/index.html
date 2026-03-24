@@ -538,60 +538,113 @@
     var rsvpFormEvent = null; // Store event data for form use
     var rsvpInjectedInIframe = false;
 
-    function buildRSVPFormHtml(event) {
+    function buildRSVPFormHtml(event, isDarkBg) {
       var customFields = event.customFields || [];
-      var html = '<div id="rsvpForm">';
+      // Explicit colors — NEVER rely on inherit for contrast safety
+      var textColor = isDarkBg ? '#FFFFFF' : '#1A1A1A';
+      var borderColor = isDarkBg ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.15)';
+      var inputBg = isDarkBg ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.04)';
+      var inputStyle = 'width:100%;padding:12px 14px;border:1px solid ' + borderColor + ';border-radius:8px;font-size:16px;font-family:Inter,sans-serif;-webkit-appearance:none;background:' + inputBg + ';color:' + textColor + ';';
+      var labelStyle = 'display:block;margin-bottom:8px;font-weight:600;font-size:14px;color:' + textColor + ';';
 
-      // Welcome note for invited guests
+      var html = '<div id="rsvpForm" style="color:' + textColor + ';">';
+
       if (invitedGuest) {
-        html += '<div class="invite-welcome" style="padding:12px 16px;margin-bottom:16px;background:rgba(0,0,0,0.03);border-radius:8px;font-size:14px;">'
+        html += '<div class="invite-welcome" style="padding:12px 16px;margin-bottom:16px;background:' + (isDarkBg ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)') + ';border-radius:8px;font-size:14px;color:' + textColor + ';">'
           + 'Welcome, <strong>' + escapeHtml(invitedGuest.name) + '</strong>! Just confirm your RSVP below.'
           + '</div>';
       }
 
-      // Name (always required)
-      html += '<div class="rsvp-form-group">'
-        + '<label for="rsvpName">Name <span class="required-star">*</span></label>'
-        + '<input type="text" id="rsvpName" placeholder="Your name" required'
+      html += '<div class="rsvp-form-group" style="margin-bottom:14px;">'
+        + '<label for="rsvpName" style="' + labelStyle + '">Name <span style="color:#E94560;">*</span></label>'
+        + '<input type="text" id="rsvpName" placeholder="Your name" required style="' + inputStyle + '"'
         + (invitedGuest ? ' value="' + escapeHtml(invitedGuest.name) + '"' : '') + '>'
         + '</div>';
 
-      // Email and Phone — only for walk-in visitors
       if (!invitedGuest) {
-        html += '<div class="rsvp-form-group">'
-          + '<label for="rsvpEmail">Email</label>'
-          + '<input type="email" id="rsvpEmail" placeholder="your@email.com">'
+        html += '<div class="rsvp-form-group" style="margin-bottom:14px;">'
+          + '<label for="rsvpEmail" style="' + labelStyle + '">Email</label>'
+          + '<input type="email" id="rsvpEmail" placeholder="your@email.com" style="' + inputStyle + '">'
           + '</div>';
-        html += '<div class="rsvp-form-group">'
-          + '<label for="rsvpPhone">Phone</label>'
-          + '<input type="tel" id="rsvpPhone" placeholder="(555) 123-4567">'
+        html += '<div class="rsvp-form-group" style="margin-bottom:14px;">'
+          + '<label for="rsvpPhone" style="' + labelStyle + '">Phone</label>'
+          + '<input type="tel" id="rsvpPhone" placeholder="(555) 123-4567" style="' + inputStyle + '">'
           + '</div>';
       }
 
-      // RSVP Status
-      html += '<div class="rsvp-form-group">'
-        + '<label for="rsvpStatus">RSVP Status <span class="required-star">*</span></label>'
-        + '<select id="rsvpStatus" required>'
+      html += '<div class="rsvp-form-group" style="margin-bottom:14px;">'
+        + '<label for="rsvpStatus" style="' + labelStyle + '">RSVP Status <span style="color:#E94560;">*</span></label>'
+        + '<select id="rsvpStatus" required style="' + inputStyle + 'cursor:pointer;">'
         + '<option value="">Select...</option>'
         + '<option value="yes">Yes, I\'ll be there!</option>'
         + '<option value="no">No, sorry</option>'
         + '<option value="maybe">Maybe</option>'
         + '</select></div>';
 
-      // Custom fields
       customFields.forEach(function(field) {
         if (field.key === 'email' || field.key === 'phone') return;
-        html += renderField(field);
+        html += renderFieldWithColors(field, labelStyle, inputStyle, textColor);
       });
 
-      html += '<button class="rsvp-submit" id="rsvpSubmitBtn">Submit RSVP</button>';
+      html += '<button class="rsvp-submit" id="rsvpSubmitBtn" style="width:100%;padding:14px 24px;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;background:#E94560;color:#FFFFFF;font-family:Inter,sans-serif;min-height:48px;">Submit RSVP</button>';
       html += '</div>';
       return html;
     }
 
+    // Render a custom field with explicit color styles
+    function renderFieldWithColors(field, labelStyle, inputStyle, textColor) {
+      var id = 'custom_' + field.key;
+      var reqStar = field.required ? ' <span style="color:#E94560;">*</span>' : '';
+      var html = '<div class="rsvp-form-group" style="margin-bottom:14px;">';
+      html += '<label for="' + id + '" style="' + labelStyle + '">' + escapeHtml(field.label) + reqStar + '</label>';
+      if (field.fieldType === 'select' && field.options && field.options.length > 0) {
+        html += '<select id="' + id + '"' + (field.required ? ' required' : '') + ' style="' + inputStyle + 'cursor:pointer;">';
+        html += '<option value="">Select...</option>';
+        field.options.forEach(function(opt) { html += '<option value="' + escapeHtml(opt) + '">' + escapeHtml(opt) + '</option>'; });
+        html += '</select>';
+      } else if (field.fieldType === 'checkbox') {
+        html += '<label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;color:' + textColor + ';">'
+          + '<input type="checkbox" id="' + id + '" style="width:18px;height:18px;accent-color:#E94560;">'
+          + escapeHtml(field.label) + '</label>';
+      } else if (field.fieldType === 'textarea') {
+        html += '<textarea id="' + id + '"' + (field.required ? ' required' : '') + ' placeholder="' + escapeHtml(field.placeholder || '') + '" style="' + inputStyle + 'min-height:80px;resize:vertical;"></textarea>';
+      } else {
+        var inputType = field.fieldType === 'number' ? 'number' : field.fieldType === 'email' ? 'email' : field.fieldType === 'phone' || field.fieldType === 'tel' ? 'tel' : 'text';
+        html += '<input type="' + inputType + '" id="' + id + '"' + (field.required ? ' required' : '') + ' placeholder="' + escapeHtml(field.placeholder || '') + '" style="' + inputStyle + '">';
+      }
+      html += '</div>';
+      return html;
+    }
+
+    // Detect background color by walking up DOM ancestors (handles gradients too)
+    function detectBgColor(el, win) {
+      var node = el;
+      while (node && node.nodeType === 1) {
+        try {
+          var styles = win.getComputedStyle(node);
+          var bg = styles.backgroundColor;
+          if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+            var m = bg.match(/\d+/g);
+            if (m && m.length >= 3) return [+m[0], +m[1], +m[2]];
+          }
+          var bgImg = styles.backgroundImage;
+          if (bgImg && bgImg !== 'none') {
+            var gradColors = bgImg.match(/rgb[a]?\([^)]+\)/g);
+            if (gradColors) { var gm = gradColors[0].match(/\d+/g); if (gm && gm.length >= 3) return [+gm[0], +gm[1], +gm[2]]; }
+          }
+        } catch (e) {}
+        node = node.parentElement;
+      }
+      return [255, 255, 255];
+    }
+
+    function bgIsDark(rgb) {
+      var a = rgb.map(function(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+      return (0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]) < 0.35;
+    }
+
     function renderRSVPForm(event) {
       rsvpFormEvent = event;
-      var formHtml = buildRSVPFormHtml(event);
 
       // Calendar buttons (always in external section)
       var calHtml = '<div class="calendar-buttons">'
@@ -605,6 +658,11 @@
       if (iframe && iframe.contentDocument) {
         var rsvpSlot = iframe.contentDocument.querySelector('.rsvp-slot');
         if (rsvpSlot) {
+          // Detect background BEFORE building form — bake correct colors into HTML
+          var ifrWin = iframe.contentWindow || iframe.contentDocument.defaultView;
+          var bgRgb = detectBgColor(rsvpSlot, ifrWin);
+          var isDark = bgIsDark(bgRgb);
+          var formHtml = buildRSVPFormHtml(event, isDark);
           rsvpSlot.innerHTML = formHtml;
           rsvpInjectedInIframe = true;
           // Attach submit handler inside iframe
@@ -624,7 +682,8 @@
         }
       }
 
-      // Fallback: render in external section (if no .rsvp-slot found)
+      // Fallback: render in external section (white background = light mode)
+      var formHtml = buildRSVPFormHtml(event, false);
       var rsvpSection = document.getElementById('rsvpSection');
       rsvpSection.innerHTML = '<h3>RSVP</h3>' + formHtml + calHtml;
       rsvpSection.style.display = 'block';
