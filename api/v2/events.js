@@ -1242,6 +1242,13 @@ async function sendRsvpNotification(hostUserId, eventId, eventTitle, guestName, 
     const result = await response.json();
     const csMsg = result.data?.messages?.[0];
 
+    // Fetch configurable SMS cost
+    let smsCostCents = 3;
+    try {
+      const { data: smsConfig } = await supabaseAdmin.from('app_config').select('value').eq('key', 'sms_cost_cents').single();
+      smsCostCents = parseInt(smsConfig?.value) || 3;
+    } catch {}
+
     // Record in sms_messages for billing
     await supabaseAdmin.from('sms_messages').insert({
       user_id: hostUserId,
@@ -1251,7 +1258,7 @@ async function sendRsvpNotification(hostUserId, eventId, eventTitle, guestName, 
       message_type: 'update',
       status: csMsg?.status === 'SUCCESS' ? 'sent' : 'queued',
       provider_id: csMsg?.message_id || null,
-      cost_cents: 0, // SMS included in $4.99 event price
+      cost_cents: smsCostCents,
       billed: true
     });
   } catch (err) {

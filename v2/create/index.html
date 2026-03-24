@@ -2028,6 +2028,36 @@
       document.getElementById('chatMessages').appendChild(card);
       scrollChat();
 
+      // Re-render any photos already uploaded on Step 1 into the new preview containers
+      if (personPhotoUrls.length > 0) {
+        var personContainer = document.getElementById('personPreviews');
+        if (personContainer) {
+          personPhotoUrls.forEach(function(url, i) {
+            if (!url) return;
+            var div = document.createElement('div');
+            div.className = 'image-preview';
+            div.setAttribute('data-idx', i);
+            div.setAttribute('data-photo-type', 'person');
+            div.innerHTML = '<img src="' + url + '" alt="Preview"><button class="remove" onclick="removeImage(this, \'person\')">&times;</button>';
+            personContainer.appendChild(div);
+          });
+        }
+      }
+      if (inspirationImageUrls.length > 0) {
+        var inspoContainer = document.getElementById('inspirationPreviews');
+        if (inspoContainer) {
+          inspirationImageUrls.forEach(function(url, i) {
+            if (!url) return;
+            var div = document.createElement('div');
+            div.className = 'image-preview';
+            div.setAttribute('data-idx', i);
+            div.setAttribute('data-photo-type', 'inspiration');
+            div.innerHTML = '<img src="' + url + '" alt="Preview"><button class="remove" onclick="removeImage(this, \'inspiration\')">&times;</button>';
+            inspoContainer.appendChild(div);
+          });
+        }
+      }
+
       // Hide chat input — design chat is done
       document.querySelector('.chat-input-area').style.display = 'none';
 
@@ -2694,7 +2724,7 @@
           },
           inspirationImages: inspirationImageBase64Array,
           inspirationImageUrls: inspirationImageUrls.filter(function(u) { return !!u; }),
-          photoUrls: personPhotoUrls.filter(function(u) { return !!u; })
+          photoUrls: personPhotoUrls.filter(function(u, i, arr) { return !!u && arr.indexOf(u) === i; })
         };
         if (window._templateSource) payload.basedOnThemeId = window._templateSource.id || '';
         var res2 = await authFetch('/api/v2/generate-theme', {
@@ -3320,7 +3350,8 @@
               }
               console.log('[injectRsvpForm] Dark RSVP background detected — forced light text for contrast');
             } else if (rsvpBg) {
-              // Light background — check if text is light (would be invisible)
+              // Non-dark background per isDarkColor (<0.2) — but could still be medium-dark
+              // Check actual contrast and choose the right fix direction
               var rsvpTextColor = ifrWin.getComputedStyle(rsvpSlotForContrast).color;
               if (rsvpTextColor) {
                 var rsvpTextRgb = parseRgb(rsvpTextColor);
@@ -3329,15 +3360,25 @@
                   var l1 = relativeLuminance(rsvpTextRgb), l2 = relativeLuminance(rsvpBgRgb);
                   var contrastRatio = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
                   if (contrastRatio < 2.5) {
-                    // Very low contrast — force dark text on light background
-                    rsvpSlotForContrast.style.setProperty('color', '#1A1A1A', 'important');
+                    // Very low contrast — choose light or dark text based on background luminance
+                    var bgLum = relativeLuminance(rsvpBgRgb);
+                    var fixColor = bgLum < 0.5 ? '#FFFFFF' : '#1A1A1A';
+                    var fixLabel = bgLum < 0.5 ? 'light' : 'dark';
+                    rsvpSlotForContrast.style.setProperty('color', fixColor, 'important');
                     var lightFormEls = rsvpSlotForContrast.querySelectorAll('label, input, select, textarea, span');
                     for (var lfi = 0; lfi < lightFormEls.length; lfi++) {
                       if (!lightFormEls[lfi].classList.contains('rsvp-button')) {
-                        lightFormEls[lfi].style.setProperty('color', '#1A1A1A', 'important');
+                        lightFormEls[lfi].style.setProperty('color', fixColor, 'important');
                       }
                     }
-                    console.log('[injectRsvpForm] Low RSVP contrast detected (' + contrastRatio.toFixed(2) + ':1) — forced dark text');
+                    // Also fix input text color if forcing light text on dark-ish background
+                    if (bgLum < 0.5) {
+                      var contrastInputs = rsvpSlotForContrast.querySelectorAll('input, select, textarea');
+                      for (var cii = 0; cii < contrastInputs.length; cii++) {
+                        contrastInputs[cii].style.setProperty('color', '#FFFFFF', 'important');
+                      }
+                    }
+                    console.log('[injectRsvpForm] Low RSVP contrast detected (' + contrastRatio.toFixed(2) + ':1) — forced ' + fixLabel + ' text');
                   }
                 }
               }
@@ -4521,8 +4562,8 @@
           + fontsStyle2
           + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet">'
           + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; }</style>'
-          + '<style>' + guaranteedCSS + '</style>'
           + '<style>' + sanitizeThemeText(ver.css || '') + '</style>'
+          + '<style>' + guaranteedCSS + '</style>'
           + '</head><body>' + tyHtml + '</body></html>';
       }
 
@@ -5583,6 +5624,28 @@
         } catch (err) {
           console.error('[rsvp] interpretField error:', err);
         }
+        // Client-side fallback: parse explicit "add a [type] field for [label]" patterns
+        var explicitFieldMatch2 = (addMsg || text).match(/(?:add|create|include|insert)\s+(?:a\s+)?(text|number|textarea|email|phone|select|dropdown|checkbox)\s+(?:field\s+)?(?:for|called|named|about|asking)\s+(.+)/i);
+        if (explicitFieldMatch2) {
+          var efType2 = explicitFieldMatch2[1].toLowerCase();
+          if (efType2 === 'dropdown') efType2 = 'select';
+          var efLabel2 = explicitFieldMatch2[2].trim().replace(/[.!?"']+$/, '').trim();
+          var efKey2 = efLabel2.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+          var efExists2 = rsvpFields.filter(function(f) { return f.enabled; }).some(function(f) {
+            return (f.field_key || '').toLowerCase() === efKey2;
+          });
+          if (!efExists2 && efLabel2) {
+            console.log('[rsvp] Client-side fallback: adding explicit field "' + efLabel2 + '" (' + efType2 + ')');
+            applyRsvpFieldChanges([{ action: 'add', field_key: efKey2, label: efLabel2.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' '), field_type: efType2, is_required: false, placeholder: null }]);
+            renderPreview(themeVersions[activeVersionIndex]);
+            var updatedFields2 = rsvpFields.filter(function(ff) { return ff.enabled; });
+            var fieldListStr2 = updatedFields2.map(function(ff) { return '- ' + ff.label + (ff.is_required ? ' (required)' : ''); }).join('\n');
+            pushDesignChat({ role: 'assistant', content: 'Added "' + efLabel2.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ') + '"!\n\nCurrent fields:\n' + fieldListStr2 + '\n\nSay "looks good" when you\'re happy, or keep adjusting!' });
+            renderDesignChat();
+            sendBtn.disabled = false;
+            return;
+          }
+        }
       }
 
       // Fallback: didn't match any field operation, tell user
@@ -5894,6 +5957,30 @@
           }
         } catch (err) {
           console.error('[tweak] interpretField error:', err);
+        }
+        // Client-side fallback: if interpretField API failed but the message explicitly specifies
+        // a field type and label, parse it directly instead of asking for clarification again.
+        var explicitFieldMatch = addMsg.match(/(?:add|create|include|insert)\s+(?:a\s+)?(text|number|textarea|email|phone|select|dropdown|checkbox)\s+(?:field\s+)?(?:for|called|named|about|asking)\s+(.+)/i);
+        if (explicitFieldMatch) {
+          var efType = explicitFieldMatch[1].toLowerCase();
+          if (efType === 'dropdown') efType = 'select';
+          var efLabel = explicitFieldMatch[2].trim().replace(/[.!?"']+$/, '').trim();
+          var efKey = efLabel.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+          var efExists = rsvpFields.filter(function(f) { return f.enabled; }).some(function(f) {
+            return (f.field_key || '').toLowerCase() === efKey;
+          });
+          if (!efExists && efLabel) {
+            console.log('[tweak] Client-side fallback: adding explicit field "' + efLabel + '" (' + efType + ')');
+            applyRsvpFieldChanges([{ action: 'add', field_key: efKey, label: efLabel.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' '), field_type: efType, is_required: false, placeholder: null }]);
+            renderPreview(themeVersions[activeVersionIndex]);
+            var updatedFields = rsvpFields.filter(function(ff) { return ff.enabled; });
+            var fieldListStr = updatedFields.map(function(ff) { return '- ' + ff.label + (ff.is_required ? ' (required)' : ''); }).join('\n');
+            pushDesignChat({ role: 'assistant', content: syncNote + 'Added "' + efLabel.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ') + '"!\n\nCurrent fields:\n' + fieldListStr + '\n\nSay "looks good" when you\'re happy, or keep adjusting!' });
+            clearDesignChatPhoto();
+            sendBtn.disabled = false;
+            renderDesignChat();
+            return;
+          }
         }
         // If interpretation failed but we had sync changes, still report those
         if (rsvpFieldResult.action === 'mixed' && syncNote) {
@@ -6697,8 +6784,13 @@
             });
             var uploadResult = await uploadRes.json();
             if (uploadResult.success && uploadResult.url) {
-              urlArr.push(uploadResult.url);
-              console.log('[Photos] Uploaded:', file.name);
+              // Deduplicate — prevent the same photo URL from being added twice
+              if (urlArr.indexOf(uploadResult.url) === -1) {
+                urlArr.push(uploadResult.url);
+                console.log('[Photos] Uploaded:', file.name);
+              } else {
+                console.log('[Photos] Skipping duplicate URL:', file.name);
+              }
             } else {
               console.error('[Photos] Upload failed:', uploadResult.error || 'unknown error');
               urlArr.push(null);

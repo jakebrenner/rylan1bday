@@ -825,11 +825,11 @@
             </div>
           </div>
           <div class="ud-card">
-            <div class="ud-card-header"><h4>Revenue vs. Cost by Event</h4></div>
+            <div class="ud-card-header"><h4>Cost & Revenue by Event</h4></div>
             <div class="ud-card-body no-pad">
               <table style="font-size:13px;">
-                <thead><tr><th>Event</th><th>AI Cost</th><th>SMS Cost</th><th>Total Cost</th><th>Revenue Share</th></tr></thead>
-                <tbody id="udEventCosts"><tr><td colspan="5" class="ud-empty">No events</td></tr></tbody>
+                <thead><tr><th>Event</th><th>AI Cost</th><th>SMS Cost</th><th>Total Cost</th><th>Revenue</th><th>Margin</th></tr></thead>
+                <tbody id="udEventCosts"><tr><td colspan="6" class="ud-empty">No events</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -1083,6 +1083,14 @@
               Free tier (1 event) + $4.99/event premium
             </div>
             <div class="hint">Revenue is tracked from actual payments. Profitability = Revenue &minus; API costs per event.</div>
+          </div>
+        </div>
+        <div class="config-row" style="margin-top:16px;">
+          <div class="config-field">
+            <label for="smsCostCentsInput">SMS Cost Per Message (cents)</label>
+            <input type="number" id="smsCostCentsInput" min="0" max="100" step="1" value="3"
+              style="width:120px;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+            <div class="hint">ClickSend cost per SMS in cents. Used for platform cost tracking on all outgoing SMS (invites, reminders, notifications).</div>
           </div>
         </div>
         <div class="config-actions">
@@ -2797,6 +2805,10 @@
         loadStyleLibrary();
         // Preload showcases for featured badge in detail views
         loadShowcases();
+        // Handle initial URL hash route (e.g. #users/abc123/billing)
+        if (window.location.hash) {
+          handleHashRoute();
+        }
       } catch (err) {
         var denied = document.getElementById('accessDenied');
         if (err.message && err.message.indexOf('Server error') !== -1) {
@@ -2834,12 +2846,94 @@
       try { return JSON.parse(text); } catch (e) { throw new Error('Server error: ' + r.status); }
     }
 
-    // ---- Tabs ----
-    function switchTab(tab) {
+    // ---- Tabs & Hash Routing ----
+    var _skipHashUpdate = false; // flag to prevent hash loops
+
+    function switchTab(tab, skipHash) {
       document.querySelectorAll('.sidebar-item').forEach(function(t) { t.classList.toggle('active', t.getAttribute('data-tab') === tab); });
       document.querySelectorAll('.tab-content').forEach(function(tc) { tc.classList.toggle('active', tc.id === 'tab-' + tab); });
       closeSidebar();
+      if (!skipHash && !_skipHashUpdate) {
+        history.replaceState(null, '', '#' + tab);
+      }
     }
+
+    // Tab-specific data loaders (called when navigating via URL hash)
+    var _tabLoaders = {
+      team: function() { loadAdmins(); },
+      subscriptions: function() { loadBillingTab(); },
+      coupons: function() { loadCoupons(); },
+      notifications: function() { loadAdminNotifPrefs(); },
+      quality: function() { loadQualityDashboard(); },
+      marketing: function() { loadMarketingTab(); },
+      blogposts: function() { loadBlogPosts(); },
+      blogcategories: function() { loadBlogCategories(); },
+      viral: function() { loadViralStats(); },
+      reviews: function() { loadReviews(); },
+      reviewemails: function() { loadReviewEmailSettings(); }
+    };
+
+    function handleHashRoute() {
+      var hash = window.location.hash.replace('#', '');
+      if (!hash) return;
+
+      var parts = hash.split('/');
+      var tab = parts[0];
+
+      // Validate tab exists
+      var tabEl = document.getElementById('tab-' + tab);
+      if (!tabEl) return;
+
+      _skipHashUpdate = true;
+
+      // Switch to the tab
+      switchTab(tab, true);
+
+      // Run tab-specific data loader
+      if (_tabLoaders[tab]) _tabLoaders[tab]();
+
+      // Handle sub-routes
+      if (tab === 'users' && parts[1]) {
+        // #users/{userId} or #users/{userId}/{section}
+        var userId = parts[1];
+        var section = parts[2] || 'overview';
+        // Wait for users to load, then open user detail
+        _pendingUserRoute = { userId: userId, section: section };
+        tryOpenPendingUser();
+      } else if (tab === 'users') {
+        // Just #users — make sure we're on the list view
+        document.getElementById('userDetailView').style.display = 'none';
+        document.getElementById('usersListView').style.display = 'block';
+      } else if (tab === 'stylelibrary' && parts[1]) {
+        // #stylelibrary/{view}
+        switchArchiveView(parts[1]);
+      } else if (tab === 'marketing' && parts[1]) {
+        // #marketing/{viewId}
+        switchMarketingView(parts[1]);
+      }
+
+      _skipHashUpdate = false;
+    }
+
+    var _pendingUserRoute = null;
+
+    function tryOpenPendingUser() {
+      if (!_pendingUserRoute) return;
+      var userId = _pendingUserRoute.userId;
+      var section = _pendingUserRoute.section;
+      var u = allUsers.find(function(x) { return x.id === userId; });
+      if (u) {
+        _pendingUserRoute = null;
+        viewUser(userId).then(function() {
+          if (section && section !== 'overview') switchUserSection(section);
+        });
+      } else {
+        // Users might still be loading — retry briefly
+        setTimeout(tryOpenPendingUser, 300);
+      }
+    }
+
+    window.addEventListener('hashchange', handleHashRoute);
 
     function toggleSidebar() {
       document.getElementById('adminSidebar').classList.toggle('open');
@@ -2930,9 +3024,12 @@
 
     // ---- Stats ----
     function fmtCost(v) {
-      if (v < 0.01) return '$' + v.toFixed(4);
-      if (v < 1) return '$' + v.toFixed(3);
-      return '$' + v.toFixed(2);
+      if (v == null || isNaN(v)) return '$0.00';
+      var abs = Math.abs(v);
+      var sign = v < 0 ? '-' : '';
+      if (abs < 0.01 && abs > 0) return sign + '$' + abs.toFixed(4);
+      if (abs < 1) return sign + '$' + abs.toFixed(3);
+      return sign + '$' + abs.toFixed(2);
     }
 
     function showStats(stats) {
@@ -3132,6 +3229,10 @@
     function switchUserSection(section) {
       document.querySelectorAll('.ud-nav-btn').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-section') === section); });
       document.querySelectorAll('.ud-section').forEach(function(s) { s.classList.toggle('active', s.id === 'ud-' + section); });
+      // Update hash with user section
+      if (!_skipHashUpdate && currentUserDetail) {
+        history.replaceState(null, '', '#users/' + currentUserDetail.user.id + '/' + section);
+      }
     }
 
     function getInitials(name, email) {
@@ -3167,6 +3268,11 @@
 
       document.getElementById('usersListView').style.display = 'none';
       document.getElementById('userDetailView').style.display = 'block';
+
+      // Update URL hash
+      if (!_skipHashUpdate) {
+        history.replaceState(null, '', '#users/' + userId);
+      }
 
       // Set initial header from cached user list data
       document.getElementById('udAvatar').textContent = getInitials(u.displayName, u.email);
@@ -3225,8 +3331,9 @@
       // ---- Overview KPIs ----
       var netMargin = f.netMargin;
       document.getElementById('udKpiGrid').innerHTML =
-        kpiCard(fmtCost(f.totalRevenue), 'Total Revenue', 'positive')
-        + kpiCard(fmtCost(f.totalPlatformCost), 'Total Platform Cost', '')
+        kpiCard(fmtCost(f.stripeRevenue), 'Stripe Revenue', 'positive')
+        + kpiCard(f.creditsUsed, 'Credits Used', '')
+        + kpiCard(fmtCost(f.totalPlatformCost), 'Platform Cost', '')
         + kpiCard(fmtCost(netMargin), 'Net Margin', netMargin >= 0 ? 'positive' : 'negative')
         + kpiCard(data.events.length, 'Events', '')
         + kpiCard(f.generationCount, 'AI Generations', '')
@@ -3261,15 +3368,19 @@
       }
 
       // ---- Financials ----
+      var paidEvents = data.events.filter(function(e) { return e.paymentStatus === 'paid'; }).length;
+      var freeEvents = data.events.filter(function(e) { return e.paymentStatus === 'free'; }).length;
+      var unpaidEvents = data.events.length - paidEvents - freeEvents;
       document.getElementById('udFinKpis').innerHTML =
-        kpiCard(fmtCost(f.totalRevenue), 'Subscription Revenue', 'positive')
-        + kpiCard(fmtCost(f.totalDiscount), 'Discounts Applied', 'gold')
-        + kpiCard(fmtCost(f.totalAiCost), 'AI API Cost', '')
-        + kpiCard(fmtCost(f.chatAiCost), 'Chat Cost', '')
-        + kpiCard(fmtCost(f.themeAiCost), 'Theme Gen Cost', '')
+        kpiCard(fmtCost(f.stripeRevenue), 'Stripe Revenue', 'positive')
+        + kpiCard(f.creditsUsed, 'Credits Used', '')
+        + kpiCard(fmtCost(f.totalPlatformCost), 'Platform Cost', '')
+        + kpiCard(fmtCost(f.netMargin), 'Net Margin', f.netMargin >= 0 ? 'positive' : 'negative')
+        + kpiCard(fmtCost(f.totalAiCost), 'AI Cost', '')
+        + kpiCard(fmtCost(f.chatAiCost), 'Chat AI', '')
+        + kpiCard(fmtCost(f.themeAiCost), 'Theme AI', '')
         + kpiCard(fmtCost(f.totalSmsCost), 'SMS Cost', '')
-        + kpiCard(fmtCost(f.revenueAfterMarkup), 'AI Revenue (w/ markup)', 'positive')
-        + kpiCard(f.markupPct + '%', 'Cost Markup', '');
+        + kpiCard(paidEvents + ' paid / ' + freeEvents + ' free', 'Events', '');
 
       // Cost breakdown visual
       var totalCost = f.totalAiCost + f.totalSmsCost;
@@ -3297,16 +3408,24 @@
       // Cost by event table
       var ecBody = document.getElementById('udEventCosts');
       if (data.events.length === 0) {
-        ecBody.innerHTML = '<tr><td colspan="5" class="ud-empty">No events</td></tr>';
+        ecBody.innerHTML = '<tr><td colspan="6" class="ud-empty">No events</td></tr>';
       } else {
         ecBody.innerHTML = data.events.map(function(e) {
           var tc = e.costs.aiCost + e.costs.smsCost;
+          var rev = e.revenue || 0;
+          var margin = rev - tc;
+          var marginClass = margin > 0 ? 'color:var(--mint-fizz)' : margin < 0 ? 'color:var(--party-coral)' : '';
+          var payBadge = e.paidVia === 'stripe' ? '<span class="badge badge-green" style="font-size:9px;margin-left:4px;">stripe</span>'
+            : e.paidVia === 'credit' ? '<span class="badge badge-yellow" style="font-size:9px;margin-left:4px;">credit</span>'
+            : e.paymentStatus === 'free' ? '<span class="badge badge-blue" style="font-size:9px;margin-left:4px;">free</span>'
+            : '<span class="badge badge-gray" style="font-size:9px;margin-left:4px;">unpaid</span>';
           return '<tr>'
-            + '<td><strong>' + escapeHtml(e.title) + '</strong></td>'
+            + '<td><strong>' + escapeHtml(e.title) + '</strong>' + payBadge + '</td>'
             + '<td>' + fmtCost(e.costs.aiCost) + '</td>'
             + '<td>' + fmtCost(e.costs.smsCost) + '</td>'
             + '<td><strong>' + fmtCost(tc) + '</strong></td>'
-            + '<td>' + (totalCost > 0 ? (tc / totalCost * 100).toFixed(1) + '%' : '—') + '</td>'
+            + '<td>' + fmtCost(rev) + '</td>'
+            + '<td style="' + marginClass + ';font-weight:700;">' + (margin >= 0 ? '+' : '') + fmtCost(margin) + '</td>'
             + '</tr>';
         }).join('');
       }
@@ -3428,19 +3547,19 @@
 
       // Event credits display
       var subEl = document.getElementById('udSubscription');
-      var freeCredits = data.profile?.freeEventCredits || 0;
-      var purchasedCredits = data.profile?.purchasedEventCredits || 0;
+      var freeCredits = u.freeEventCredits || 0;
+      var purchasedCredits = u.purchasedEventCredits || 0;
       var totalCredits = freeCredits + purchasedCredits;
-      if (totalCredits > 0) {
-        subEl.innerHTML = '<div class="ud-detail-grid">'
-          + detailItem('Total Credits', '<strong>' + totalCredits + '</strong>')
-          + (purchasedCredits > 0 ? detailItem('Purchased', purchasedCredits) : '')
-          + (freeCredits > 0 ? detailItem('Free / Coupon', freeCredits) : '')
-          + detailItem('Pricing', '$4.99 / event')
-          + '</div>';
-      } else {
-        subEl.innerHTML = '<div class="ud-empty">No credits available</div>';
-      }
+      subEl.innerHTML = '<div class="ud-detail-grid">'
+        + detailItem('Available Credits', '<strong style="font-size:18px;">' + totalCredits + '</strong>')
+        + detailItem('Purchased', purchasedCredits)
+        + detailItem('Free / Coupon', '<span id="udFreeCredits">' + freeCredits + '</span>')
+        + detailItem('Credits Used', '<strong>' + (f.creditsUsed || 0) + '</strong>')
+        + '</div>'
+        + '<div style="margin-top:12px;padding-top:12px;border-top:1px solid #eee;">'
+        + '<button class="btn btn-secondary btn-sm" onclick="showGrantCreditsUI()" style="font-size:12px;">+ Add Free Credits</button>'
+        + '<div id="grantCreditsForm" style="display:none;margin-top:8px;"></div>'
+        + '</div>';
 
       // Billing history
       var bhBody = document.getElementById('udBillingHistory');
@@ -3565,8 +3684,6 @@
       document.getElementById('udAccountInfo').innerHTML =
         detailItem('User ID', '<span style="font-family:monospace;font-size:11px;">' + escapeHtml(u.id) + '</span>')
         + detailItem('Stripe Customer', u.stripeCustomerId ? '<span style="font-family:monospace;font-size:11px;">' + escapeHtml(u.stripeCustomerId) + '</span>' : '—')
-        + detailItem('Purchased Event Credits', '<span>' + (u.purchasedEventCredits || 0) + '</span>')
-        + detailItem('Free Event Credits', '<span id="udFreeCredits">' + (u.freeEventCredits || 0) + '</span> <button class="btn btn-secondary btn-sm" onclick="showGrantCreditsUI()" style="margin-left:8px;font-size:11px;padding:2px 8px;">Add</button><div id="grantCreditsForm" style="display:none;margin-top:8px;"></div>')
         + detailItem('Created', formatDate(u.createdAt))
         + detailItem('Last Updated', u.updatedAt ? formatDate(u.updatedAt) : '—');
 
@@ -3730,6 +3847,7 @@
     function backToUsers() {
       document.getElementById('userDetailView').style.display = 'none';
       document.getElementById('usersListView').style.display = 'block';
+      history.replaceState(null, '', '#users');
       currentUserDetail = null;
     }
 
@@ -3773,6 +3891,8 @@
         if (res.config) {
           document.getElementById('chatModelSelect').value = res.config.chatModel;
           document.getElementById('themeModelSelect').value = res.config.themeModel;
+          var smsCostInput = document.getElementById('smsCostCentsInput');
+          if (smsCostInput) smsCostInput.value = res.config.smsCostCents || 3;
         }
       } catch (err) {
         console.error('Failed to load config:', err);
@@ -3789,7 +3909,8 @@
           method: 'POST',
           body: {
             chatModel: document.getElementById('chatModelSelect').value,
-            themeModel: document.getElementById('themeModelSelect').value
+            themeModel: document.getElementById('themeModelSelect').value,
+            smsCostCents: parseInt(document.getElementById('smsCostCentsInput').value) || 3
           }
         });
         var saved = document.getElementById('configSaved');
@@ -6148,6 +6269,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       if (view === 'showcase' && !showcaseLoaded) {
         showcaseLoaded = true;
         loadShowcases();
+      }
+      if (!_skipHashUpdate) {
+        history.replaceState(null, '', '#stylelibrary/' + view);
       }
     }
 
@@ -8556,6 +8680,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.querySelectorAll('#marketingNav .archive-nav-btn').forEach(function(btn) {
         btn.classList.toggle('active', btn.getAttribute('data-view') === view);
       });
+      if (!_skipHashUpdate) {
+        history.replaceState(null, '', '#marketing/' + view);
+      }
     }
 
     var _mktLoaded = false;

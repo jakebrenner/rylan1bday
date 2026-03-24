@@ -12,7 +12,12 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 const CLICKSEND_API_URL = 'https://rest.clicksend.com/v3/sms/send';
 const CLICKSEND_USERNAME = process.env.CLICKSEND_USERNAME;
 const CLICKSEND_API_KEY = process.env.CLICKSEND_API_KEY;
-const SMS_COST_CENTS = 10;
+async function getSmsCostCents() {
+  try {
+    const { data } = await supabaseAdmin.from('app_config').select('value').eq('key', 'sms_cost_cents').single();
+    return parseInt(data?.value) || 3;
+  } catch { return 3; }
+}
 
 // ---- Helpers (duplicated from sms.js — Vercel isolates functions) ----
 
@@ -66,6 +71,7 @@ async function sendViaClickSend(messages) {
 
 async function recordSmsMessages(userId, eventId, sentMessages, messageType, clickSendResults) {
   const csMessages = clickSendResults?.messages || [];
+  const smsCostCents = await getSmsCostCents();
 
   const smsRecords = sentMessages.map((msg, i) => ({
     user_id: userId,
@@ -75,7 +81,7 @@ async function recordSmsMessages(userId, eventId, sentMessages, messageType, cli
     message_type: messageType,
     status: csMessages[i]?.status === 'SUCCESS' ? 'sent' : 'queued',
     provider_id: csMessages[i]?.message_id || null,
-    cost_cents: SMS_COST_CENTS,
+    cost_cents: smsCostCents,
     billed: false
   }));
 
