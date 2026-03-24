@@ -1294,7 +1294,7 @@
           }).catch(function(e) { console.warn('Background refresh failed:', e); });
           return;
         }
-        // Slow path: no cache, show loading state
+        // Slow path: no cache, show loading state while we fetch event data
         document.getElementById('resumeLoader').style.display = 'none';
         var rls2 = document.getElementById('resumeShowLoader'); if (rls2) rls2.remove();
         document.querySelector('.chat-container').style.display = 'none';
@@ -1367,8 +1367,8 @@
               + '<div id="genAttributionArea"></div>'
               + '</div></div>'
               + '<div id="generatingPaywall" style="display:none;"></div>';
-            // Jump to the right step (old step 3/4 → new step 2/3)
-            var step = (ev.settings && ev.settings.creation_step) || 2;
+            // Determine the right step — default to 0 (chat) if not set
+            var step = (ev.settings && typeof ev.settings.creation_step === 'number') ? ev.settings.creation_step : 0;
             if (step >= 3 && themeVersions.length > 0) {
               goToStep(3); // Review & Publish
             } else if (step >= 2 && themeVersions.length > 0) {
@@ -1379,13 +1379,13 @@
               renderVersionGallery();
               // Restore design chat — prefer DB-saved history over generic welcome
               var dbChat = _dbDesignChatHistory;
-              var chatPhase = ev.settings && ev.settings.design_chat_phase;
-              if (chatPhase === 'collecting_details' || chatPhase === 'rsvp_fields') {
-                designChatPhase = chatPhase;
+              var resumeChatPhase = ev.settings && ev.settings.design_chat_phase;
+              if (resumeChatPhase === 'collecting_details' || resumeChatPhase === 'rsvp_fields') {
+                designChatPhase = resumeChatPhase;
                 if (dbChat && dbChat.length > 0) {
                   designChatHistory = dbChat;
                 } else {
-                  var welcomeMsg = chatPhase === 'collecting_details'
+                  var welcomeMsg = resumeChatPhase === 'collecting_details'
                     ? "Welcome back! Let's continue personalizing your design.\n\nTell me about your event — what's the occasion, when and where is it, and who's hosting?"
                     : "Welcome back! Let's finalize your RSVP fields.\n\nYou can say things like \"remove email\", \"add plus-one count\", or \"make dietary restrictions required\".\nWhen you're happy, just say \"looks good\"!";
                   designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
@@ -1405,10 +1405,47 @@
               initCostTracker();
               // Cache themes for fast reload
               try { sessionStorage.setItem('ryvite_theme_' + ev.id, JSON.stringify(themeVersions)); } catch(e2) {}
-            } else {
-              // Has details but no theme — go straight to generation (step 2)
-              // goToStep(2) auto-triggers generateTheme() when no themes exist
+            } else if (step >= 1 && themeVersions.length === 0) {
+              // Chat completed (step 1) but no theme yet — go to generation
               goToStep(2);
+            } else {
+              // Still in step 1 chat (creation_step 0) — restore chat conversation
+              // Try localStorage first (same device), then DB-saved chat state
+              var localDraft = null;
+              try {
+                var rawDraft = localStorage.getItem('ryvite_create_state');
+                if (rawDraft) {
+                  var parsed = JSON.parse(rawDraft);
+                  if (parsed.currentEventId === resumeId) localDraft = parsed;
+                }
+              } catch(e3) {}
+
+              if (localDraft && localDraft.chatHistory && localDraft.chatHistory.length > 0) {
+                // Restore from localStorage (richest state — same device)
+                chatHistory = localDraft.chatHistory;
+                chatBubbles = localDraft.chatBubbles || [];
+                chatPhase = localDraft.chatPhase || 'chatting';
+                if (localDraft.extractedData) Object.assign(extractedData, localDraft.extractedData);
+                if (localDraft.rsvpFields) rsvpFields = localDraft.rsvpFields;
+              } else if (ev.settings && ev.settings.step1_chat_history && ev.settings.step1_chat_history.length > 0) {
+                // Restore from DB-saved chat state (cross-device)
+                chatHistory = ev.settings.step1_chat_history;
+                chatBubbles = ev.settings.step1_chat_bubbles || [];
+                chatPhase = ev.settings.step1_chat_phase || 'chatting';
+              }
+              // Show step 1 chat
+              goToStep(1);
+              if (chatBubbles.length > 0) {
+                rebuildChatFromBubbles();
+              }
+              // Restore interactive UI based on chatPhase
+              if (chatPhase === 'confirmed') {
+                showConfirmationCard();
+              } else if (chatPhase === 'themeReady') {
+                showConfirmationCard();
+                showDesignReadyCard();
+              }
+              initCostTracker();
             }
             return;
           }
@@ -2186,7 +2223,13 @@
             locationName: extractedData.locationName || '',
             locationAddress: extractedData.locationAddress || '',
             dressCode: extractedData.dressCode || '',
-            eventType: extractedData.eventType || 'other'
+            eventType: extractedData.eventType || 'other',
+            settings: {
+              creation_step: 0,
+              step1_chat_history: chatHistory,
+              step1_chat_bubbles: chatBubbles,
+              step1_chat_phase: chatPhase
+            }
           })
         });
       } catch (err) {
