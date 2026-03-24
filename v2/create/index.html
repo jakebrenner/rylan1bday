@@ -1560,7 +1560,12 @@
       }
 
       // Auto-restore draft on plain page load (no special URL params)
-      if (!urlParams.get('purchased') && !urlParams.get('eventId') && !urlParams.get('new')) {
+      // Skip restoration if a new landing prompt is waiting — user is starting fresh
+      var _hasLandingPrompt = !!localStorage.getItem('ryvite_landing_prompt');
+      if (_hasLandingPrompt) {
+        localStorage.removeItem('ryvite_create_state');
+      }
+      if (!_hasLandingPrompt && !urlParams.get('purchased') && !urlParams.get('eventId') && !urlParams.get('new')) {
         if (restoreDraft(false)) {
           // Rebuild the step 1 chat from saved bubbles
           if (chatBubbles.length > 0) {
