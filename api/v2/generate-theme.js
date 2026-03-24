@@ -1392,9 +1392,16 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Invalid session' });
   }
 
+  // Parse action early so we can skip generation limits for lightweight operations
+  const action = req.query?.action || req.body?.action || 'generate';
+  const isLightweightAction = action === 'interpretField' || action === 'classifyIntent' || action === 'tweak';
+
   // Check per-event generation limits (free tier: 1 + 1 redo, paid: soft cap 10)
+  // Skip for lightweight actions (interpretField, classifyIntent, tweak) — these are cheap
+  // Haiku calls for text/RSVP edits and should always be allowed on free/unpaid events.
+  // The frontend gates design changes (Tier 3) behind the paywall; only text tweaks get through.
   try {
-    const eventIdForCheck = req.body?.eventId;
+    const eventIdForCheck = !isLightweightAction ? req.body?.eventId : null;
     if (eventIdForCheck) {
       // Get event payment status + free generation flags
       const { data: eventForLimit } = await supabase
@@ -1511,7 +1518,6 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Unable to verify generation limits. Please try again.' });
   }
 
-  const action = req.query?.action || req.body?.action || 'generate';
   const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages, inspirationImageUrls, tweakInstructions, currentHtml, currentCss, currentConfig, photoBase64, photoUrl, photoUrls, existingPhotos, basedOnThemeId, previewMode, currentEmailHtml } = req.body;
 
   // --- INTERPRET FIELD: quick Haiku call to parse natural language into field definition ---

@@ -5687,8 +5687,9 @@
         return sendDesignChatRsvpFields(text, input);
       }
 
-      // ── Free/unpaid tier gate: block design chat if generation limit reached ──
-      if (currentEvent && (currentEvent.paymentStatus === 'unpaid' || currentEvent.paymentStatus === 'refunded')) {
+      // ── Free/unpaid tier gate: block DESIGN changes but allow text/RSVP edits ──
+      // Refunded events are fully blocked
+      if (currentEvent && currentEvent.paymentStatus === 'refunded') {
         pendingUpgradeMessage = text;
         sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
         pushDesignChat({ role: 'user', content: text });
@@ -5698,15 +5699,28 @@
         input.style.height = 'auto';
         return;
       }
-      if (currentEvent && currentEvent.paymentStatus === 'free' && currentEvent.freeGenerationUsed) {
-        // Allow Tier 1 client-side operations (RSVP field changes) — they don't cost anything
+      // Unpaid and free (with used generation) events: allow text edits, RSVP changes, and text additions
+      // Only block full design/layout/style changes (Tier 3)
+      var isUnpaidOrFreeLimited = currentEvent && (
+        currentEvent.paymentStatus === 'unpaid' ||
+        (currentEvent.paymentStatus === 'free' && currentEvent.freeGenerationUsed)
+      );
+      if (isUnpaidOrFreeLimited) {
+        // Allow Tier 1: RSVP field changes (client-side, free)
         var rsvpFieldPattern = /\b(remove|delete|drop|hide|add|include|make .+ (required|optional))\b.{0,30}\b(field|name|email|phone|dietary|allergies|plus.?one|song|meal|kids|guests?|notes?|message|comment)\b/i;
+        // Allow Tier 1.75: Text swaps — "change X to Y" (client-side, free)
         var textSwapPattern = /\b(change|replace|swap|switch)\b.{0,10}["'\u201C\u201D].+["'\u201C\u201D]\s*(to|with|for)\s*["'\u201C\u201D]/i;
-        if (!rsvpFieldPattern.test(text) && !textSwapPattern.test(text)) {
+        // Allow Tier 2: Text/copy changes — add text, update wording, change date/title (Haiku, cheap)
+        var textChangePattern = /\b(add|include|insert|put|write|update|change|set)\b.{0,20}\b(text|description|wording|copy|title|heading|date|time|address|location|details?|info|subtitle|tagline|message|paragraph|blurb|note|caption|line|section)\b/i;
+        // Also allow simple "change X to Y" without quotes (e.g., "change the date to April 20th")
+        var simpleTextChangePattern = /\b(change|update|set|make)\b\s+(the\s+)?(title|date|time|location|address|name|heading|subtitle|tagline)\b/i;
+        if (!rsvpFieldPattern.test(text) && !textSwapPattern.test(text) && !textChangePattern.test(text) && !simpleTextChangePattern.test(text)) {
           pendingUpgradeMessage = text;
           sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
           pushDesignChat({ role: 'user', content: text });
-          if (!currentEvent.freeRedoUsed) {
+          if (currentEvent.paymentStatus === 'unpaid') {
+            pushDesignChat({ role: 'upgrade', content: "This event requires a $4.99 upgrade before you can make design changes. Upgrade to unlock AI designs, SMS delivery, and everything you need." });
+          } else if (!currentEvent.freeRedoUsed) {
             pushDesignChat({ role: 'upgrade', content: "I can't make design tweaks on the free plan, but if the design was completely off from what you asked for, I can generate a brand new one \u2014 just tell me what's wrong.\n\nOr upgrade for $4.99 to unlock unlimited design changes." });
           } else {
             pushDesignChat({ role: 'upgrade', content: "You've used your free design and redo. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite." });
