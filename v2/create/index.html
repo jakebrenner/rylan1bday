@@ -3165,6 +3165,8 @@
       // (see injectRsvpForm) — NO script injection in srcdoc.
       return '<!DOCTYPE html><html><head><meta charset="UTF-8">'
         + '<meta name="viewport" content="width=393, initial-scale=1.0">'
+        + '<link rel="preconnect" href="https://fonts.googleapis.com">'
+        + '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
         + fontsStyle
         + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; } ' + fallbackCSS + '</style>'
         + (headStyles || '')
@@ -3360,6 +3362,82 @@
       }
     }
 
+    // ── STRUCTURAL INTEGRITY: Ensure key elements exist after render ──
+    // Lightweight inline repair — re-inserts missing structural elements
+    // without burning an expensive AI regeneration.
+    function ensureStructuralElements(iframe) {
+      try {
+        var doc = iframe.contentDocument;
+        if (!doc || !doc.body) return { repaired: false, repairs: [] };
+        var repairs = [];
+
+        // 1. Ensure .rsvp-slot exists
+        if (!doc.querySelector('.rsvp-slot')) {
+          var rsvpDiv = doc.createElement('div');
+          rsvpDiv.className = 'rsvp-slot';
+          rsvpDiv.style.cssText = 'display:flex; flex-direction:column; width:100%; padding:20px;';
+          doc.body.appendChild(rsvpDiv);
+          repairs.push('rsvp-slot');
+        }
+
+        // 2. Ensure .details-slot exists (unless legacy data-field elements are present)
+        if (!doc.querySelector('.details-slot') && !doc.querySelector('[data-field="datetime"]')) {
+          var detailsDiv = doc.createElement('div');
+          detailsDiv.className = 'details-slot';
+          detailsDiv.style.cssText = 'width:100%; padding:16px;';
+          // Insert before .rsvp-slot so details appear above RSVP form
+          var rsvpSlot = doc.querySelector('.rsvp-slot');
+          if (rsvpSlot && rsvpSlot.parentNode) {
+            rsvpSlot.parentNode.insertBefore(detailsDiv, rsvpSlot);
+          } else {
+            doc.body.appendChild(detailsDiv);
+          }
+          repairs.push('details-slot');
+        }
+
+        // 3. Ensure [data-field="title"] exists — tag the first heading
+        if (!doc.querySelector('[data-field="title"]')) {
+          var heading = doc.querySelector('h1, h2');
+          if (heading) {
+            heading.setAttribute('data-field', 'title');
+            repairs.push('title-attr');
+          }
+        }
+
+        // 4. Ensure .rsvp-slot is visible (not display:none or visibility:hidden)
+        var rsvpEl = doc.querySelector('.rsvp-slot');
+        if (rsvpEl) {
+          var rsvpStyle = doc.defaultView.getComputedStyle(rsvpEl);
+          if (rsvpStyle.display === 'none') {
+            rsvpEl.style.display = 'flex';
+            repairs.push('rsvp-visibility');
+          }
+          if (rsvpStyle.visibility === 'hidden') {
+            rsvpEl.style.visibility = 'visible';
+            repairs.push('rsvp-visibility');
+          }
+        }
+
+        // 5. Ensure .details-slot is visible
+        var detailsEl = doc.querySelector('.details-slot');
+        if (detailsEl) {
+          var detStyle = doc.defaultView.getComputedStyle(detailsEl);
+          if (detStyle.display === 'none') {
+            detailsEl.style.display = 'block';
+            repairs.push('details-visibility');
+          }
+        }
+
+        if (repairs.length > 0) {
+          console.warn('[ensureStructuralElements] Repaired:', repairs.join(', '));
+        }
+        return { repaired: repairs.length > 0, repairs: repairs };
+      } catch (e) {
+        console.warn('[ensureStructuralElements] Error:', e.message);
+        return { repaired: false, repairs: [] };
+      }
+    }
+
     function injectRsvpForm(iframe) {
       try {
         var doc = iframe.contentDocument;
@@ -3502,6 +3580,12 @@
           var win = iframe.contentWindow;
           if (win && win.requestAnimationFrame) {
             win.requestAnimationFrame(function() {
+              // Ensure structural elements exist before injection (lightweight inline repair)
+              var structRepair = ensureStructuralElements(iframe);
+              if (structRepair.repaired) {
+                // Persist repairs to the version object so re-renders don't lose them
+                try { ver.html = iframe.contentDocument.body.innerHTML; } catch(e) {}
+              }
               injectRsvpForm(iframe);
               checkCssRendered(iframe, ver);
               // Content completeness check — runs after injection, with delay for paint + CSS animations
@@ -3536,6 +3620,11 @@
             });
           } else {
             setTimeout(function() {
+              // Ensure structural elements exist before injection (lightweight inline repair)
+              var structRepair = ensureStructuralElements(iframe);
+              if (structRepair.repaired) {
+                try { ver.html = iframe.contentDocument.body.innerHTML; } catch(e) {}
+              }
               injectRsvpForm(iframe);
               checkCssRendered(iframe, ver);
               // Content completeness check — with delay for CSS animations
@@ -3652,9 +3741,12 @@
             var fallbackConfig = ver.config || {};
             var fbBg = fallbackConfig.backgroundColor || '#FFFAF5';
             var fbText = fallbackConfig.textColor || '#1A1A2E';
-            var fbFont = fallbackConfig.fontBody || 'Inter';
             var fallbackStyle = doc.createElement('style');
-            fallbackStyle.textContent = 'html, body { background:' + fbBg + ' !important; color:' + fbText + ' !important; font-family:\'' + fbFont + '\',sans-serif !important; }';
+            // Only inject background + color with !important — NOT font-family.
+            // Font-family !important permanently overrides AI-generated custom fonts
+            // when Google Fonts are slow to load (the low-specificity fallback in
+            // buildSrcdoc already handles font fallback without !important).
+            fallbackStyle.textContent = 'html, body { background:' + fbBg + ' !important; color:' + fbText + ' !important; }';
             doc.head.appendChild(fallbackStyle);
           } catch (injectErr) {
             console.warn('[checkCssRendered] Failed to inject fallback CSS:', injectErr.message);
@@ -3956,7 +4048,27 @@
       var missingDesc = missing.map(function(m) { return missingLabels[m] || m; }).join(', ');
 
       if (brokenRenderCount <= 1 && !autoRetryInProgress) {
-        // First broken render — notify and auto-retry
+        // First broken render — try lightweight inline repair before expensive regeneration.
+        // ensureStructuralElements already ran in renderPreview, but check if it fixed things:
+        var iframe = document.getElementById('previewFrame');
+        if (iframe) {
+          var repairResult = ensureStructuralElements(iframe);
+          if (repairResult.repaired) {
+            // Re-populate repaired slots with content
+            injectRsvpForm(iframe);
+            try { themeVersions[activeVersionIndex].html = iframe.contentDocument.body.innerHTML; } catch(e) {}
+            // Re-validate after repair
+            var recheck = validateContentCompleteness(iframe);
+            if (recheck.valid) {
+              console.log('[handleBrokenRender] Inline repair successful — avoided full regeneration');
+              lastRenderBroken = false;
+              brokenRenderCount = 0;
+              return; // Fixed without regeneration!
+            }
+          }
+        }
+
+        // Inline repair wasn't enough — fall back to full regeneration
         autoRetryInProgress = true;
         pushDesignChat({
           role: 'assistant',

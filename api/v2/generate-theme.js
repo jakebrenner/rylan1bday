@@ -1929,6 +1929,7 @@ Return ONLY a valid JSON object:
 - If only RSVP field changes are needed and no HTML text changes, return an empty html_replacements array.
 - RSVP fields: { "action": "remove"|"add"|"modify", "field_key": "...", "label": "...", "field_type": "text"|"number"|"select"|"checkbox"|"textarea", "is_required": false }
 - .rsvp-slot MUST be completely EMPTY — the platform injects the RSVP form at runtime. NEVER put buttons or content inside it — fields are rendered by the platform, NOT in HTML
+- NEVER remove structural elements: .rsvp-slot, .details-slot, [data-field="title"], or their CSS styles — even if user doesn't mention them
 - Keep changes minimal — only what the user asked for`
         : `You are an elite invite designer modifying event invites via a conversational chat interface. Your modifications should maintain the extraordinary quality standard — better than Evite, Paperless Post, or Canva.
 
@@ -1966,6 +1967,13 @@ Return ONLY a valid JSON object with these keys:
 - To add/remove/modify RSVP fields, use the "rsvp_field_changes" array in your response — do NOT add form inputs to HTML
 - Example: user says "remove birthday message field" → include { "action": "remove", "field_key": "birthday_message_for_max" } in rsvp_field_changes
 - Example: user says "add a song request field" → include { "action": "add", "field_key": "song_request", "label": "Song Request", "field_type": "text", "is_required": false, "placeholder": "What song gets you dancing?" }
+
+### STRUCTURAL INTEGRITY (CRITICAL — never remove these elements):
+- \`<div class="rsvp-slot">...</div>\` — RSVP form container (platform-managed). MUST remain in output.
+- \`<div class="details-slot">...</div>\` — event details container (platform-managed). MUST remain in output.
+- Any element with \`data-field="title"\` — the event title. MUST remain in output.
+- All CSS classes that style these elements (.rsvp-slot, .details-slot, .rsvp-submit, .rsvp-form-group, .detail-item, .detail-label, .detail-value) MUST remain in the CSS.
+Even if the user's request doesn't mention these elements, they MUST be preserved exactly as they appear in the current HTML. Removing them breaks the invite.
 
 ### Design rules:
 - Max-width 393px, mobile-first, WCAG AA contrast

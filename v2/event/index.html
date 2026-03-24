@@ -162,6 +162,8 @@
     // Fix double-escaped whitespace from AI model output (pre-fix DB themes)
     function sanitizeThemeText(str) {
       if (!str) return str;
+      // Fix multi-level escaped quotes (AI sometimes produces \\\" in SVG attributes)
+      while (str.indexOf('\\"') !== -1) str = str.replace(/\\"/g, '"');
       if (str.indexOf('\\n') !== -1) str = str.replace(/\\n/g, '\n');
       if (str.indexOf('\\t') !== -1) str = str.replace(/\\t/g, '\t');
       return str;
@@ -224,9 +226,12 @@
             var config = themeData.config || {};
             var fbBg = config.backgroundColor || '#FFFAF5';
             var fbText = config.textColor || '#1A1A2E';
-            var fbFont = config.fontBody || 'Inter';
             var fallbackStyle = doc.createElement('style');
-            fallbackStyle.textContent = 'html, body { background:' + fbBg + ' !important; color:' + fbText + ' !important; font-family:\'' + fbFont + '\',sans-serif !important; }';
+            // Only inject background + color with !important — NOT font-family.
+            // Font-family !important permanently overrides AI-generated custom fonts
+            // when Google Fonts are slow to load (the low-specificity fallback in
+            // buildGuestSrcdoc already handles font fallback without !important).
+            fallbackStyle.textContent = 'html, body { background:' + fbBg + ' !important; color:' + fbText + ' !important; }';
             doc.head.appendChild(fallbackStyle);
           } catch (e) {
             console.warn('[guest-css-check] Fallback inject failed:', e.message);
@@ -322,6 +327,8 @@
     }
 
     // ── Build guest srcdoc with proper CSS ordering ──
+    // MUST match buildSrcdoc() in v2/create/index.html for rendering consistency.
+    // The preview users approve during creation must be identical to what guests see.
     function buildGuestSrcdoc(themeData) {
       var config = themeData.config || {};
       var css = themeData.css || '';
@@ -341,9 +348,10 @@
       if (fontsImport && !fontsImport.startsWith('@import')) {
         fontsImport = "@import url('" + fontsImport + "');";
       }
+      // Google Fonts @import MUST be the very first thing in the first <style> block
       var fontsStyle = fontsImport ? '<style>' + fontsImport + '</style>' : '';
 
-      // Strip stray @import from CSS body
+      // Strip stray @import from CSS body — they must be in their own <style> block first.
       var cleanedCss = sanitizeThemeText(css);
       var strayImports = cleanedCss.match(/@import\s+url\([^)]+\);?\s*/g);
       if (strayImports) {
@@ -354,13 +362,32 @@
         }
       }
 
-      // Fallback CSS from config colors
+      // Extract CSS content from <head> <style> blocks before stripping document tags.
+      // This matches buildSrcdoc() in create page — AI often puts critical CSS in <head>.
+      var headStyles = '';
+      var headMatch = html.match(/<head(?:\s[^>]*)?>[\s\S]*?<\/head\s*>/i);
+      if (headMatch) {
+        var headStyleMatches = headMatch[0].match(/<style[^>]*>([\s\S]*?)<\/style\s*>/gi);
+        if (headStyleMatches) {
+          var headCss = headStyleMatches.map(function(s) {
+            return s.replace(/<style[^>]*>/gi, '').replace(/<\/style\s*>/gi, '');
+          }).join('\n');
+          headCss = sanitizeThemeText(headCss).replace(/<\/style/gi, '<\\/style');
+          if (headCss.trim()) headStyles = '<style>' + headCss + '</style>';
+        }
+      }
+
+      // Extract body attributes (AI often puts background/color on <body>)
+      var bodyTagMatch = html.match(/<body\b([^>]*)>/i);
+      var bodyAttrs = bodyTagMatch ? bodyTagMatch[1].trim() : '';
+
+      // Fallback CSS from config colors — low specificity so AI CSS overrides
       var fallbackBg = config.backgroundColor || '#FFFAF5';
       var fallbackText = config.textColor || '#1A1A2E';
       var fallbackFont = config.fontBody || 'Inter';
       var fallbackCSS = 'html, body { background:' + fallbackBg + '; color:' + fallbackText + '; font-family:\'' + fallbackFont + '\',sans-serif; }';
 
-      // Strip document-level tags
+      // Strip document-level tags — our template provides these
       var themeHtml = sanitizeThemeText(html)
         .replace(/<!DOCTYPE[^>]*>/gi, '')
         .replace(/<html\b[^>]*>/gi, '').replace(/<\/html\s*>/gi, '')
@@ -368,12 +395,16 @@
         .replace(/<body\b[^>]*>/gi, '').replace(/<\/body\s*>/gi, '')
         .replace(/<script\b[\s\S]*?<\/script\s*>/gi, '');
 
+      // Structure must match buildSrcdoc() exactly: fonts → preconnect → reset+fallback → headStyles → theme CSS
       return '<!DOCTYPE html><html><head><meta charset="UTF-8">'
-        + '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+        + '<meta name="viewport" content="width=393, initial-scale=1.0">'
+        + '<link rel="preconnect" href="https://fonts.googleapis.com">'
+        + '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
         + fontsStyle
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { padding: 20px; background: #f9f9f9; } ' + fallbackCSS + '</style>'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; } ' + fallbackCSS + '</style>'
+        + (headStyles || '')
         + '<style>' + cleanedCss.replace(/<\/style/gi, '<\\/style') + '</style>'
-        + '</head><body>' + themeHtml + '</body></html>';
+        + '</head><body' + (bodyAttrs ? ' ' + bodyAttrs : '') + '>' + themeHtml + '</body></html>';
     }
 
     function buildEventDetailsHtml(event) {
