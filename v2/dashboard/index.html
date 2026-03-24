@@ -1090,6 +1090,7 @@
     var manageDate = null;
     var manageSlug = null;
     var manageRsvps = null;
+    var manageCustomFields = [];
     var managePaymentStatus = null;
     var manageCurrentTab = 'guests';
     var manageIsOwner = true;
@@ -1624,6 +1625,7 @@
         var result = await res.json();
         if (result.success) {
           manageRsvps = result.rsvps || [];
+          manageCustomFields = result.customFields || [];
           renderGuestsTab(manageRsvps);
         } else {
           content.innerHTML = '<div class="rsvp-empty">Error loading guests</div>';
@@ -1722,41 +1724,59 @@
 
       var html = '';
 
-      // RSVP info
+      // Editable RSVP status
       html += '<div class="guest-detail-section">'
         + '<div class="guest-detail-label">RSVP Status</div>'
-        + '<div style="font-size:13px;">';
-      var statusLabel = guest.status === 'attending' ? 'Attending' : guest.status === 'declined' ? 'Declined' : guest.status === 'maybe' ? 'Maybe' : guest.status || 'Unknown';
-      html += '<strong>' + statusLabel + '</strong>';
-      if (guest.respondedAt) html += ' &middot; Responded ' + new Date(guest.respondedAt).toLocaleDateString();
-      if (guest.invitedAt) html += ' &middot; Invited ' + new Date(guest.invitedAt).toLocaleDateString();
-      if (guest.plusOnes) html += ' &middot; +' + guest.plusOnes + ' guest' + (guest.plusOnes > 1 ? 's' : '');
+        + '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">'
+        + '<select id="guest-status-' + guestId + '" onchange="updateGuestField(\'' + guestId + '\', \'status\', this.value)" style="padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;cursor:pointer;background:white;min-width:130px;">'
+        + '<option value="invited"' + (guest.status === 'invited' ? ' selected' : '') + '>Invited</option>'
+        + '<option value="attending"' + (guest.status === 'attending' ? ' selected' : '') + '>Attending</option>'
+        + '<option value="declined"' + (guest.status === 'declined' ? ' selected' : '') + '>Declined</option>'
+        + '<option value="maybe"' + (guest.status === 'maybe' ? ' selected' : '') + '>Maybe</option>'
+        + '</select>'
+        + '<span id="guest-save-indicator-' + guestId + '" style="font-size:11px;color:#28a745;display:none;">Saved</span>';
+      if (guest.respondedAt) html += '<span style="font-size:12px;color:#999;">Responded ' + new Date(guest.respondedAt).toLocaleDateString() + '</span>';
+      if (guest.invitedAt) html += '<span style="font-size:12px;color:#999;">Invited ' + new Date(guest.invitedAt).toLocaleDateString() + '</span>';
       html += '</div></div>';
 
-      // Custom field responses
-      if (guest.responseData && Object.keys(guest.responseData).length > 0) {
-        html += '<div class="guest-detail-section">'
-          + '<div class="guest-detail-label">Responses</div>'
-          + '<div class="guest-response-chips">';
-        for (var key in guest.responseData) {
-          var val = guest.responseData[key];
-          if (val !== null && val !== undefined && val !== '') {
-            html += '<div class="guest-response-chip">'
-              + '<div class="guest-response-chip-label">' + escapeHtml(key) + '</div>'
-              + '<div class="guest-response-chip-value">' + escapeHtml(String(val)) + '</div>'
-              + '</div>';
-          }
-        }
-        html += '</div></div>';
-      }
+      // Editable plus-ones
+      html += '<div class="guest-detail-section" style="display:flex;gap:24px;flex-wrap:wrap;">'
+        + '<div><div class="guest-detail-label">Plus Ones</div>'
+        + '<input type="number" min="0" max="20" value="' + (guest.plusOnes || 0) + '" onchange="updateGuestField(\'' + guestId + '\', \'plusOnes\', parseInt(this.value)||0)" style="padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;width:80px;">'
+        + '</div>';
 
-      // Notes
-      if (guest.notes) {
-        html += '<div class="guest-detail-section">'
-          + '<div class="guest-detail-label">Notes</div>'
-          + '<div style="font-size:13px;color:#666;">' + escapeHtml(guest.notes) + '</div>'
-          + '</div>';
+      // Editable custom field responses
+      if (manageCustomFields.length > 0) {
+        var rd = guest.responseData || {};
+        manageCustomFields.forEach(function(f) {
+          var val = rd[f.key] !== undefined ? rd[f.key] : '';
+          html += '<div><div class="guest-detail-label">' + escapeHtml(f.label) + '</div>';
+          if (f.fieldType === 'select' && f.options && f.options.length > 0) {
+            html += '<select onchange="updateGuestResponseField(\'' + guestId + '\', \'' + escapeHtml(f.key) + '\', this.value)" style="padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;cursor:pointer;background:white;min-width:120px;">'
+              + '<option value="">--</option>';
+            f.options.forEach(function(opt) {
+              html += '<option value="' + escapeHtml(opt) + '"' + (String(val) === String(opt) ? ' selected' : '') + '>' + escapeHtml(opt) + '</option>';
+            });
+            html += '</select>';
+          } else if (f.fieldType === 'checkbox') {
+            html += '<input type="checkbox"' + (val ? ' checked' : '') + ' onchange="updateGuestResponseField(\'' + guestId + '\', \'' + escapeHtml(f.key) + '\', this.checked)" style="width:18px;height:18px;accent-color:var(--party-coral);cursor:pointer;">';
+          } else if (f.fieldType === 'number') {
+            html += '<input type="number" value="' + escapeHtml(String(val)) + '" onchange="updateGuestResponseField(\'' + guestId + '\', \'' + escapeHtml(f.key) + '\', this.value)" style="padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;width:100px;">';
+          } else if (f.fieldType === 'textarea') {
+            html += '<textarea onchange="updateGuestResponseField(\'' + guestId + '\', \'' + escapeHtml(f.key) + '\', this.value)" style="padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;min-height:60px;width:200px;resize:vertical;">' + escapeHtml(String(val)) + '</textarea>';
+          } else {
+            html += '<input type="text" value="' + escapeHtml(String(val)) + '" onchange="updateGuestResponseField(\'' + guestId + '\', \'' + escapeHtml(f.key) + '\', this.value)" style="padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;width:180px;">';
+          }
+          html += '</div>';
+        });
       }
+      html += '</div>';
+
+      // Editable notes
+      html += '<div class="guest-detail-section">'
+        + '<div class="guest-detail-label">Notes</div>'
+        + '<textarea onchange="updateGuestField(\'' + guestId + '\', \'notes\', this.value)" placeholder="Add notes about this guest..." style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;width:100%;min-height:50px;resize:vertical;">' + escapeHtml(guest.notes || '') + '</textarea>'
+        + '</div>';
 
       // Communication timeline
       html += '<div class="guest-detail-section">'
@@ -1782,17 +1802,74 @@
       }
       html += '</div>';
 
-      // Actions
-      html += '<div class="guest-detail-actions">';
-      html += '<button class="guest-detail-btn" onclick="event.stopPropagation();saveGuestToContacts(\'' + guestId + '\', this)">Save to Contacts</button>';
+      // Actions (only Make Co-Host — Save to Contacts is automatic)
       if (guest.email && manageIsOwner) {
+        html += '<div class="guest-detail-actions">';
         html += '<button class="guest-detail-btn" onclick="event.stopPropagation();makeGuestCohost(\'' + guestId + '\', \'' + escapeHtml(guest.email).replace(/'/g, "\\'") + '\', this)">Make Co-Host</button>';
-      } else if (!guest.email) {
-        html += '<button class="guest-detail-btn" disabled title="Guest needs an email to become a co-host">Make Co-Host</button>';
+        html += '</div>';
       }
-      html += '</div>';
 
       panel.innerHTML = html;
+    }
+
+    // Update a direct guest field (status, plusOnes, notes)
+    async function updateGuestField(guestId, field, value) {
+      var body = { guestId: guestId };
+      body[field] = value;
+      var indicator = document.getElementById('guest-save-indicator-' + guestId);
+      try {
+        var res = await authFetch('/api/v2/events?action=updateGuest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        var data = await res.json();
+        if (data.success) {
+          // Update local state
+          var guest = manageRsvps ? manageRsvps.find(function(r) { return r.id === guestId; }) : null;
+          if (guest) {
+            if (field === 'status') guest.status = value;
+            if (field === 'plusOnes') guest.plusOnes = value;
+            if (field === 'notes') guest.notes = value;
+          }
+          // Update status badge in card header
+          if (field === 'status') {
+            var statusEl = document.querySelector('#guest-card-' + guestId + ' .rsvp-item-status');
+            if (statusEl) {
+              var lbl = value === 'attending' ? 'Attending' : value === 'declined' ? 'Declined' : value === 'maybe' ? 'Maybe' : value;
+              var stl = value === 'attending' ? 'background:#d4edda;color:#155724' : value === 'declined' ? 'background:#f8d7da;color:#721c24' : value === 'maybe' ? 'background:#fff3cd;color:#856404' : 'background:#e8eaf6;color:#3949ab';
+              statusEl.textContent = lbl;
+              statusEl.setAttribute('style', 'padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;' + stl);
+            }
+            // Update overview RSVP counts
+            if (manageRsvps) {
+              var a = manageRsvps.filter(function(r) { return r.status === 'attending'; }).length;
+              var d = manageRsvps.filter(function(r) { return r.status === 'declined'; }).length;
+              var m = manageRsvps.filter(function(r) { return r.status === 'maybe'; }).length;
+              renderEmpRsvpInline(a, d, m);
+            }
+          }
+          if (indicator) { indicator.style.display = 'inline'; setTimeout(function() { indicator.style.display = 'none'; }, 2000); }
+        }
+      } catch (e) { console.error('Update guest error:', e); }
+    }
+
+    // Update a custom response field (stored in responseData JSONB)
+    async function updateGuestResponseField(guestId, fieldKey, value) {
+      var guest = manageRsvps ? manageRsvps.find(function(r) { return r.id === guestId; }) : null;
+      if (!guest) return;
+      var rd = guest.responseData ? JSON.parse(JSON.stringify(guest.responseData)) : {};
+      rd[fieldKey] = value;
+      guest.responseData = rd;
+      var indicator = document.getElementById('guest-save-indicator-' + guestId);
+      try {
+        await authFetch('/api/v2/events?action=updateGuest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ guestId: guestId, responseData: rd })
+        });
+        if (indicator) { indicator.style.display = 'inline'; setTimeout(function() { indicator.style.display = 'none'; }, 2000); }
+      } catch (e) { console.error('Update guest response error:', e); }
     }
 
     async function makeGuestCohost(guestId, email, btn) {
@@ -2730,6 +2807,26 @@
           + '<button onclick="copyGalleryLink()" style="padding:6px 12px;border:1px solid #ddd;background:white;border-radius:6px;font-size:12px;cursor:pointer;font-family:Inter,sans-serif;white-space:nowrap;" id="copyGalleryBtn">Copy</button>'
           + '</div>';
 
+        // Notify guests about gallery
+        var defaultShareMsg = 'Hi {name}! We\'d love to see your photos from ' + escapeHtml(manageTitle) + '! Upload them here: ' + galleryUrl;
+        var defaultThankMsg = 'Thanks for celebrating with us at ' + escapeHtml(manageTitle) + '! Share your favorite photos: ' + galleryUrl;
+        html += '<div style="background:linear-gradient(135deg,rgba(167,139,250,0.06),rgba(78,205,196,0.06));border:1px solid rgba(167,139,250,0.15);border-radius:12px;padding:16px;margin-bottom:20px;">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
+          + '<div style="font-size:14px;font-weight:600;color:var(--midnight);">Text Guests About Photos</div>'
+          + '<div style="display:flex;gap:4px;">'
+          + '<button class="preview-sub-btn active" onclick="switchPhotoSmsTemplate(\'share\', this)" style="padding:5px 12px;font-size:11px;">Share Photos</button>'
+          + '<button class="preview-sub-btn" onclick="switchPhotoSmsTemplate(\'thankyou\', this)" style="padding:5px 12px;font-size:11px;">Thank You</button>'
+          + '</div></div>'
+          + '<textarea id="photoSmsMsg" style="width:100%;min-height:60px;border:1px solid #ddd;border-radius:8px;padding:10px 12px;font-size:13px;font-family:Inter,sans-serif;resize:vertical;line-height:1.5;">' + defaultShareMsg + '</textarea>'
+          + '<div style="display:flex;gap:8px;margin-top:10px;align-items:center;">'
+          + '<select id="photoSmsRecipients" style="padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;background:white;">'
+          + '<option value="attending">Attending guests</option>'
+          + '<option value="all">All guests with phone</option>'
+          + '<option value="maybe">Maybe guests</option>'
+          + '</select>'
+          + '<button onclick="sendPhotoGallerySms(this)" style="padding:8px 18px;border:none;border-radius:8px;background:var(--party-coral);color:white;font-size:13px;font-weight:600;font-family:Inter,sans-serif;cursor:pointer;white-space:nowrap;">Send SMS</button>'
+          + '</div></div>';
+
         // Photo count + download all
         html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
           + '<span style="font-size:14px;font-weight:600;">'
@@ -2781,6 +2878,49 @@
         console.error('Toggle photos error:', err);
         document.getElementById('photosToggle').checked = !enabled;
       }
+    }
+
+    function switchPhotoSmsTemplate(type, btn) {
+      var galleryUrl = window.location.origin + '/v2/event/' + manageSlug + '/photos';
+      var textarea = document.getElementById('photoSmsMsg');
+      if (!textarea) return;
+      if (type === 'share') {
+        textarea.value = 'Hi {name}! We\'d love to see your photos from ' + manageTitle + '! Upload them here: ' + galleryUrl;
+      } else {
+        textarea.value = 'Thanks for celebrating with us at ' + manageTitle + '! Share your favorite photos: ' + galleryUrl;
+      }
+      // Update active state on buttons
+      if (btn) {
+        btn.parentElement.querySelectorAll('.preview-sub-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+      }
+    }
+
+    async function sendPhotoGallerySms(btn) {
+      var msg = document.getElementById('photoSmsMsg').value.trim();
+      var filter = document.getElementById('photoSmsRecipients').value;
+      if (!msg) { showToast('Please enter a message'); return; }
+      btn.disabled = true; btn.textContent = 'Sending...';
+      try {
+        var res = await authFetch('/api/v2/sms?action=sendUpdate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId: manageEventId,
+            message: msg,
+            recipientFilter: filter
+          })
+        });
+        var data = await res.json();
+        if (data.success) {
+          showToast('Gallery SMS sent to ' + (data.sentCount || 0) + ' guests!');
+        } else {
+          showToast(data.error || 'Failed to send SMS');
+        }
+      } catch (e) {
+        showToast('Error sending SMS');
+      }
+      btn.disabled = false; btn.textContent = 'Send SMS';
     }
 
     async function deletePhoto(photoId) {

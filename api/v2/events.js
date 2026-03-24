@@ -1410,6 +1410,36 @@ async function autoCapture(hostUserId, eventId, guestId, { name, email, phone, r
         .from('guests')
         .update({ contact_id: contactId })
         .eq('id', guestId);
+
+      // Auto-tag contact with event name for easy filtering
+      try {
+        const { data: evt } = await supabaseAdmin.from('events').select('title').eq('id', eventId).single();
+        if (evt?.title) {
+          const tagName = evt.title.trim();
+          // Find or create tag
+          let { data: existingTag } = await supabaseAdmin
+            .from('contact_tags')
+            .select('id')
+            .eq('user_id', hostUserId)
+            .ilike('name', tagName)
+            .maybeSingle();
+
+          let tagId = existingTag?.id;
+          if (!tagId) {
+            const { data: newTag } = await supabaseAdmin
+              .from('contact_tags')
+              .insert({ user_id: hostUserId, name: tagName, color: '#A78BFA' })
+              .select('id')
+              .single();
+            tagId = newTag?.id;
+          }
+          if (tagId) {
+            await supabaseAdmin
+              .from('contact_tag_assignments')
+              .upsert({ contact_id: contactId, tag_id: tagId }, { onConflict: 'contact_id,tag_id' });
+          }
+        }
+      } catch (tagErr) { /* tag assignment is best-effort */ }
     }
 
     return contactId;
