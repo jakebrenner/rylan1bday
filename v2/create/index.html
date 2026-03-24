@@ -1056,6 +1056,9 @@
 
     var token = localStorage.getItem('sb_access_token');
     var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
+    var _guestMode = !token || !user; // Allow unauthenticated users to start chatting
+    var _guestChatStep = 0; // 0=first msg, 1=followup, 2=email
+    var _guestMessages = []; // Accumulated messages to replay after auth
     var _loginRedirect = '/v2/create/' + window.location.search;
     var _pendingTemplateId = new URLSearchParams(window.location.search).get('templateId');
     if (_pendingTemplateId) localStorage.setItem('pending_templateId', _pendingTemplateId);
@@ -1064,8 +1067,7 @@
     var _utmParts = [];
     ['utm_source', 'utm_medium', 'utm_campaign'].forEach(function(k) { var v = _createParams.get(k); if (v) _utmParts.push(k + '=' + encodeURIComponent(v)); });
     var _loginUrl = '/v2/login/?redirect=' + encodeURIComponent(_loginRedirect) + (_utmParts.length ? '&' + _utmParts.join('&') : '');
-    if (!token || !user) { window.location.href = _loginUrl; }
-    else {
+    if (!_guestMode) {
       var pn = document.getElementById('profileName');
       var pe = document.getElementById('profileEmail');
       if (pn) pn.textContent = user.displayName || user.email?.split('@')[0] || '';
@@ -1131,10 +1133,12 @@
 
     // Refresh on page load if token might be stale, then check for resume
     (async function() {
-      try {
-        var res = await fetch('/api/v2/auth?action=profile', { headers: { 'Authorization': 'Bearer ' + token } });
-        if (!res.ok) await refreshToken();
-      } catch (e) {}
+      if (!_guestMode) {
+        try {
+          var res = await fetch('/api/v2/auth?action=profile', { headers: { 'Authorization': 'Bearer ' + token } });
+          if (!res.ok) await refreshToken();
+        } catch (e) {}
+      }
 
       // Handle post-purchase redirect: restore state and auto-generate
       var urlParams = new URLSearchParams(window.location.search);
@@ -1630,6 +1634,189 @@
         runTestMode();
         return;
       }
+
+      // ── Guest onboarding: handle first exchanges client-side ──
+      if (_guestMode) {
+        input.value = '';
+
+        if (_guestChatStep === 0) {
+          // First message: show it, then ask a clarifying follow-up
+          addChatBubble(text, 'user');
+          _guestMessages.push({ role: 'user', content: text });
+          _guestChatStep = 1;
+
+          // Show typing indicator briefly, then clarifying question
+          var typing0 = document.createElement('div');
+          typing0.className = 'chat-bubble assistant typing';
+          typing0.id = 'typingIndicator';
+          typing0.innerHTML = '<span></span><span></span><span></span>';
+          document.getElementById('chatMessages').appendChild(typing0);
+          scrollChat();
+          input.disabled = true;
+
+          setTimeout(function() {
+            var t = document.getElementById('typingIndicator');
+            if (t) t.remove();
+            var followUp = "Love it! When's the date and where will it be?";
+            addChatBubble(followUp, 'assistant');
+            _guestMessages.push({ role: 'assistant', content: followUp });
+            input.disabled = false;
+            input.focus();
+          }, 1000);
+          return;
+        }
+
+        if (_guestChatStep === 1) {
+          // Second message: show it, then ask for email
+          addChatBubble(text, 'user');
+          _guestMessages.push({ role: 'user', content: text });
+          _guestChatStep = 2;
+
+          var typing1 = document.createElement('div');
+          typing1.className = 'chat-bubble assistant typing';
+          typing1.id = 'typingIndicator';
+          typing1.innerHTML = '<span></span><span></span><span></span>';
+          document.getElementById('chatMessages').appendChild(typing1);
+          scrollChat();
+          input.disabled = true;
+
+          setTimeout(function() {
+            var t = document.getElementById('typingIndicator');
+            if (t) t.remove();
+            var emailAsk = "This is going to be amazing! Just need your email to get started \u2014 we'll set everything up for you automatically.";
+            addChatBubble(emailAsk, 'assistant');
+            _guestMessages.push({ role: 'assistant', content: emailAsk });
+            input.type = 'email';
+            input.autocomplete = 'email';
+            input.placeholder = 'your@email.com';
+            var sendBtn = document.getElementById('chatSendBtn');
+            if (sendBtn) sendBtn.title = 'Submit email';
+            input.disabled = false;
+            input.focus();
+          }, 1000);
+          return;
+        }
+
+        if (_guestChatStep === 2) {
+          // Third message: should be email — validate and do silent signup
+          var email = text.trim().toLowerCase();
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            addChatBubble(email, 'user');
+            addChatBubble("Hmm, that doesn't look like a valid email. Could you try again?", 'assistant');
+            return;
+          }
+
+          addChatBubble(email, 'user');
+          input.value = '';
+          input.disabled = true;
+          var sendBtn2 = document.getElementById('chatSendBtn');
+          if (sendBtn2) sendBtn2.disabled = true;
+
+          // Show typing while we create the account
+          var typing2 = document.createElement('div');
+          typing2.className = 'chat-bubble assistant typing';
+          typing2.id = 'typingIndicator';
+          typing2.innerHTML = '<span></span><span></span><span></span>';
+          document.getElementById('chatMessages').appendChild(typing2);
+          scrollChat();
+
+          try {
+            var res = await fetch('/api/v2/auth?action=quickSignup', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: email })
+            });
+            var result = await res.json();
+
+            if (!result.success) {
+              var t2 = document.getElementById('typingIndicator');
+              if (t2) t2.remove();
+              addChatBubble("Hmm, something went wrong: " + (result.error || 'Please try again.'), 'assistant');
+              input.disabled = false;
+              if (sendBtn2) sendBtn2.disabled = false;
+              return;
+            }
+
+            // Store auth tokens — user is now silently logged in
+            token = result.accessToken;
+            user = result.user;
+            localStorage.setItem('sb_access_token', result.accessToken);
+            localStorage.setItem('sb_refresh_token', result.refreshToken);
+            localStorage.setItem('v2_user', JSON.stringify(result.user));
+            _guestMode = false;
+
+            // Update profile UI
+            var pn = document.getElementById('profileName');
+            var pe = document.getElementById('profileEmail');
+            if (pn) pn.textContent = user.displayName || user.email?.split('@')[0] || '';
+            if (pe) pe.textContent = user.email || '';
+
+            // Remove typing indicator
+            var t3 = document.getElementById('typingIndicator');
+            if (t3) t3.remove();
+
+            // Restore input to normal text mode
+            input.type = 'text';
+            input.autocomplete = 'off';
+            input.placeholder = 'Tell me what\'s on your mind...';
+
+            // Now create the draft event and send accumulated messages to the real chat API
+            await createDraftEvent();
+
+            // Build the real chat history from guest messages and send to API
+            chatHistory = [];
+            // Combine the user's first two messages into one rich prompt for the AI
+            var userMsgs = _guestMessages.filter(function(m) { return m.role === 'user'; });
+            var combinedPrompt = userMsgs.map(function(m) { return m.content; }).join('. ');
+            chatHistory.push({ role: 'user', content: combinedPrompt });
+
+            // Call the real chat API with the combined context
+            addChatBubble("Great, you're all set! Let me think about your event...", 'assistant');
+
+            var chatRes = await authFetch('/api/v2/chat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ messages: chatHistory, sessionId: chatSessionId, eventId: currentEvent ? currentEvent.id : null })
+            });
+            var chatResult = await chatRes.json();
+
+            if (chatResult.success) {
+              if (chatResult.sessionId) chatSessionId = chatResult.sessionId;
+              chatHistory.push({ role: 'assistant', content: JSON.stringify(chatResult) });
+              if (chatResult.extracted) {
+                Object.assign(extractedData, chatResult.extracted);
+                if (currentEvent && chatResult.extracted.title) updateDraftEvent();
+              }
+              if (chatResult.suggestedRsvpFields && chatResult.suggestedRsvpFields.length > 0) {
+                rsvpFields = chatResult.suggestedRsvpFields
+                  .filter(function(f) { return f.field_key !== 'email' && f.field_key !== 'phone'; })
+                  .map(function(f) { return Object.assign({}, f, { enabled: true }); });
+              }
+              if (chatResult.ready && chatResult.confirmed && chatPhase !== 'confirmed' && chatPhase !== 'themeReady') {
+                chatPhase = 'confirmed';
+                showConfirmationCard();
+              }
+              addChatBubble(chatResult.message, 'assistant');
+              if (chatResult.themeReady && chatPhase !== 'themeReady') {
+                chatPhase = 'themeReady';
+                showDesignReadyCard();
+              }
+            } else {
+              addChatBubble('Let\'s keep going! Tell me more about your event.', 'assistant');
+            }
+          } catch (err) {
+            var t4 = document.getElementById('typingIndicator');
+            if (t4) t4.remove();
+            addChatBubble('Connection error. Please try again.', 'assistant');
+          }
+
+          input.disabled = false;
+          if (sendBtn2) sendBtn2.disabled = false;
+          input.focus();
+          return;
+        }
+      }
+      // ── End guest onboarding ──
 
       input.value = '';
       addChatBubble(text, 'user');
