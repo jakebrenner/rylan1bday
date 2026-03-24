@@ -679,7 +679,7 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
     let startTime = null;
     let animFrameId = null;
 
-    recorder.start();
+    recorder.start(1000);
 
     function drawFrame(timestamp) {
       if (!startTime) startTime = timestamp;

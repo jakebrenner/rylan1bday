@@ -109,9 +109,7 @@ export default async function handler(req, res) {
   if (!html) return res.status(400).json({ error: 'html is required' });
 
   const recordDuration = Math.min(Math.max(duration || 6, 2), 10); // 2-10 seconds
-  const viewport = format === 'feed_1x1'
-    ? { width: 393, height: 393, deviceScaleFactor: 2 }
-    : { width: 393, height: 852, deviceScaleFactor: 2 }; // 2x for crisp rendering
+  const viewport = { width: 393, height: 852, deviceScaleFactor: 2 }; // Always phone viewport — format only affects ad canvas, not invite capture
 
   const fps = 4; // 4fps is enough for CSS animation capture
   const totalFrames = Math.ceil(recordDuration * fps);
