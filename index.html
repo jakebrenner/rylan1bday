@@ -77,10 +77,10 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
 
 /* ===== HERO CHAT PROMPT ===== */
 .hero-chat{max-width:560px;margin:1.5rem auto 0;position:relative}
-.hero-chat-box{display:flex;align-items:center;background:rgba(255,255,255,0.12);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.2);border-radius:50px;padding:6px 6px 6px 24px;transition:all 0.3s ease}
-.hero-chat-box:focus-within{background:rgba(255,255,255,0.18);border-color:rgba(255,255,255,0.4);box-shadow:0 0 0 4px rgba(233,69,96,0.15)}
-.hero-chat-input{flex:1;background:none;border:none;color:#fff;font-size:1rem;font-family:var(--font-body);padding:10px 0;outline:none;min-width:0}
-.hero-chat-input::placeholder{color:rgba(255,255,255,0.45)}
+.hero-chat-box{display:flex;align-items:center;background:#fff;border:1px solid rgba(255,255,255,0.9);border-radius:50px;padding:6px 6px 6px 24px;transition:all 0.3s ease;box-shadow:0 4px 24px rgba(0,0,0,0.12)}
+.hero-chat-box:focus-within{box-shadow:0 4px 24px rgba(0,0,0,0.12),0 0 0 4px rgba(233,69,96,0.15)}
+.hero-chat-input{flex:1;background:none;border:none;color:var(--midnight);font-size:1rem;font-family:var(--font-body);padding:10px 0;outline:none;min-width:0}
+.hero-chat-input::placeholder{color:rgba(0,0,0,0.4)}
 .hero-chat-send{background:linear-gradient(135deg,var(--party-coral),var(--blush-pop));color:#fff;border:none;border-radius:50px;padding:12px 24px;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all 0.3s ease;white-space:nowrap;flex-shrink:0}
 .hero-chat-send:hover:not(:disabled){transform:scale(1.03);box-shadow:0 4px 15px rgba(233,69,96,0.4)}
 .hero-chat-send:disabled{opacity:0.5;cursor:not-allowed}
@@ -88,14 +88,17 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
 .hero-chat-pill{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.65);font-size:0.78rem;padding:5px 14px;border-radius:50px;cursor:pointer;transition:all 0.2s ease;font-family:var(--font-body)}
 .hero-chat-pill:hover{background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3)}
 
-/* ===== HERO EMAIL STEP ===== */
-.hero-email-step{display:none;animation:heroFadeIn 0.4s ease}
-.hero-user-msg{background:rgba(233,69,96,0.2);border:1px solid rgba(233,69,96,0.3);border-radius:16px;padding:14px 20px;margin-bottom:16px;font-size:0.95rem;color:rgba(255,255,255,0.9);text-align:left;line-height:1.5}
-.hero-ai-msg{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:14px 20px;margin-bottom:16px;font-size:0.95rem;color:rgba(255,255,255,0.85);text-align:left;line-height:1.5}
-.hero-email-box{display:flex;align-items:center;background:rgba(255,255,255,0.12);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.2);border-radius:50px;padding:6px 6px 6px 24px}
-.hero-email-box:focus-within{background:rgba(255,255,255,0.18);border-color:rgba(255,255,255,0.4);box-shadow:0 0 0 4px rgba(233,69,96,0.15)}
-.hero-email-input{flex:1;background:none;border:none;color:#fff;font-size:1rem;font-family:var(--font-body);padding:10px 0;outline:none;min-width:0}
-.hero-email-input::placeholder{color:rgba(255,255,255,0.45)}
+/* ===== HERO CHAT EXPERIENCE ===== */
+.hero-chat-step{display:none;animation:heroFadeIn 0.4s ease}
+.hero-chat-messages{margin-bottom:16px;text-align:left}
+.hero-msg{border-radius:16px;padding:14px 20px;margin-bottom:12px;font-size:0.95rem;line-height:1.5;animation:heroFadeIn 0.4s ease}
+.hero-msg-user{background:rgba(233,69,96,0.2);border:1px solid rgba(233,69,96,0.3);color:rgba(255,255,255,0.9);text-align:right}
+.hero-msg-ai{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);text-align:left}
+.hero-typing{display:inline-flex;gap:4px;padding:14px 20px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:16px;margin-bottom:12px}
+.hero-typing-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.4);animation:heroTypingBounce 1.2s ease-in-out infinite}
+.hero-typing-dot:nth-child(2){animation-delay:0.15s}
+.hero-typing-dot:nth-child(3){animation-delay:0.3s}
+@keyframes heroTypingBounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
 
 /* ===== HERO SUCCESS STEP ===== */
 .hero-success-step{display:none;animation:heroFadeIn 0.4s ease}
@@ -430,20 +433,18 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
       <p class="subtext" style="margin-top:14px;font-size:0.85rem;">No credit card required</p>
     </div>
 
-    <!-- Step 2: Email collection -->
-    <div class="hero-chat hero-email-step fade-in-up fade-delay-3" id="heroEmailStep">
-      <div class="hero-user-msg" id="heroUserPrompt"></div>
-      <div class="hero-ai-msg">Love it! Let's make that happen. Drop your email and I'll start designing your invite right away.</div>
-      <div class="hero-email-box">
-        <input type="email" class="hero-email-input" id="heroEmailInput" placeholder="your@email.com" autocomplete="email">
-        <button class="hero-chat-send" id="heroEmailSend" onclick="submitHeroEmail()">Let's Go</button>
+    <!-- Step 2: Chat experience -->
+    <div class="hero-chat hero-chat-step" id="heroChatStep">
+      <div class="hero-chat-messages" id="heroChatMessages"></div>
+      <div class="hero-chat-box">
+        <input type="text" class="hero-chat-input" id="heroChatInput" placeholder="Type your answer..." autocomplete="off">
+        <button class="hero-chat-send" id="heroChatSend">Send</button>
       </div>
-      <div class="hero-error" id="heroEmailError"></div>
-      <p class="subtext" style="margin-top:8px;font-size:0.85rem;">We'll create your free account automatically</p>
+      <div class="hero-error" id="heroChatError"></div>
     </div>
 
     <!-- Step 3: Success / check email -->
-    <div class="hero-chat hero-success-step fade-in-up fade-delay-3" id="heroSuccessStep">
+    <div class="hero-chat hero-success-step" id="heroSuccessStep">
       <div class="hero-success-icon">&#x2709;&#xFE0F;</div>
       <div class="hero-success-title">Check Your Email!</div>
       <div class="hero-success-text">We sent a magic link to <span class="hero-success-email" id="heroSuccessEmail"></span>. Click it to see your invite come to life.</div>
@@ -750,6 +751,8 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
 <script>
 // ===== HERO PROMPT FLOW =====
 var _heroPrompt = '';
+var _heroDetails = '';
+var _heroChatPhase = ''; // 'clarify' | 'email'
 
 function fillPrompt(pill) {
   var input = document.getElementById('heroPromptInput');
@@ -761,9 +764,31 @@ document.getElementById('heroPromptInput').addEventListener('keydown', function(
   if (e.key === 'Enter') { e.preventDefault(); submitHeroPrompt(); }
 });
 
-document.getElementById('heroEmailInput').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') { e.preventDefault(); submitHeroEmail(); }
+document.getElementById('heroChatInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); handleChatSend(); }
 });
+document.getElementById('heroChatSend').addEventListener('click', function() { handleChatSend(); });
+
+function addChatMsg(text, type) {
+  var msgs = document.getElementById('heroChatMessages');
+  var div = document.createElement('div');
+  div.className = 'hero-msg hero-msg-' + type;
+  div.textContent = text;
+  msgs.appendChild(div);
+}
+
+function showTypingThenMsg(text, callback) {
+  var msgs = document.getElementById('heroChatMessages');
+  var typing = document.createElement('div');
+  typing.className = 'hero-typing';
+  typing.innerHTML = '<span class="hero-typing-dot"></span><span class="hero-typing-dot"></span><span class="hero-typing-dot"></span>';
+  msgs.appendChild(typing);
+  setTimeout(function() {
+    msgs.removeChild(typing);
+    addChatMsg(text, 'ai');
+    if (callback) callback();
+  }, 1200);
+}
 
 function submitHeroPrompt() {
   var input = document.getElementById('heroPromptInput');
@@ -771,7 +796,7 @@ function submitHeroPrompt() {
   if (!text) { input.focus(); return; }
   _heroPrompt = text;
 
-  // If already logged in, skip email and go straight to create
+  // If already logged in, skip chat and go straight to create
   var token = localStorage.getItem('sb_access_token');
   var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
   if (token && user) {
@@ -780,63 +805,97 @@ function submitHeroPrompt() {
     return;
   }
 
-  // Show email step
-  document.getElementById('heroUserPrompt').textContent = text;
+  // Transition to chat experience
   document.getElementById('heroPromptStep').style.display = 'none';
-  document.getElementById('heroEmailStep').style.display = 'block';
-  document.getElementById('heroEmailInput').focus();
+  document.getElementById('heroChatStep').style.display = 'block';
+
+  // Show user's message, then AI clarifying question
+  addChatMsg(text, 'user');
+  _heroChatPhase = 'clarify';
+  var chatInput = document.getElementById('heroChatInput');
+
+  showTypingThenMsg("Love it! When's the date and where will it be?", function() {
+    chatInput.placeholder = 'e.g. March 15th at our house...';
+    chatInput.focus();
+  });
 }
 
-async function submitHeroEmail() {
-  var emailInput = document.getElementById('heroEmailInput');
-  var email = emailInput.value.trim().toLowerCase();
-  var errorEl = document.getElementById('heroEmailError');
-  var sendBtn = document.getElementById('heroEmailSend');
+function handleChatSend() {
+  var input = document.getElementById('heroChatInput');
+  var errorEl = document.getElementById('heroChatError');
+  var sendBtn = document.getElementById('heroChatSend');
   errorEl.textContent = '';
 
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errorEl.textContent = 'Please enter a valid email address.';
-    emailInput.focus();
-    return;
-  }
+  if (_heroChatPhase === 'clarify') {
+    var text = input.value.trim();
+    if (!text) { input.focus(); return; }
+    _heroDetails = text;
+    addChatMsg(text, 'user');
+    input.value = '';
 
-  sendBtn.disabled = true;
-  sendBtn.innerHTML = '<span class="hero-spinner"></span>Creating...';
-
-  localStorage.setItem('ryvite_landing_prompt', _heroPrompt);
-
-  try {
-    var redirectPath = '/v2/create/' + (window.location.search || '');
-    var res = await fetch('/api/v2/auth?action=signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email,
-        redirectPath: redirectPath,
-        origin: window.location.origin
-      })
-    });
-    var result = await res.json();
-
-    if (!result.success) {
-      errorEl.textContent = result.error || 'Something went wrong. Please try again.';
-      sendBtn.disabled = false;
+    // Transition to email phase
+    _heroChatPhase = 'email';
+    showTypingThenMsg("This is going to be great! Just need your email to get started \u2014 we'll create your free account automatically.", function() {
+      input.type = 'email';
+      input.autocomplete = 'email';
+      input.placeholder = 'your@email.com';
       sendBtn.textContent = "Let's Go";
+      input.focus();
+    });
+
+  } else if (_heroChatPhase === 'email') {
+    var email = input.value.trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errorEl.textContent = 'Please enter a valid email address.';
+      input.focus();
       return;
     }
 
-    if (typeof fbq === 'function') {
-      fbq('track', 'CompleteRegistration', { content_name: 'Homepage Hero Chat' });
-    }
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<span class="hero-spinner"></span>Creating...';
+    input.disabled = true;
 
-    document.getElementById('heroSuccessEmail').textContent = email;
-    document.getElementById('heroEmailStep').style.display = 'none';
-    document.getElementById('heroSuccessStep').style.display = 'block';
+    // Store full prompt (original + details) for the create page
+    var fullPrompt = _heroPrompt + ' — ' + _heroDetails;
+    localStorage.setItem('ryvite_landing_prompt', fullPrompt);
 
-  } catch (err) {
-    errorEl.textContent = 'Network error. Please try again.';
-    sendBtn.disabled = false;
-    sendBtn.textContent = "Let's Go";
+    (async function() {
+      try {
+        var redirectPath = '/v2/create/' + (window.location.search || '');
+        var res = await fetch('/api/v2/auth?action=signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email,
+            redirectPath: redirectPath,
+            origin: window.location.origin
+          })
+        });
+        var result = await res.json();
+
+        if (!result.success) {
+          errorEl.textContent = result.error || 'Something went wrong. Please try again.';
+          sendBtn.disabled = false;
+          sendBtn.textContent = "Let's Go";
+          input.disabled = false;
+          return;
+        }
+
+        if (typeof fbq === 'function') {
+          fbq('track', 'CompleteRegistration', { content_name: 'Homepage Hero Chat' });
+        }
+
+        document.getElementById('heroSuccessEmail').textContent = email;
+        document.getElementById('heroChatStep').style.display = 'none';
+        document.getElementById('heroSuccessStep').style.display = 'block';
+
+      } catch (err) {
+        errorEl.textContent = 'Network error. Please try again.';
+        sendBtn.disabled = false;
+        sendBtn.textContent = "Let's Go";
+        input.disabled = false;
+      }
+    })();
   }
 }
 
