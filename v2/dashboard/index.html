@@ -898,7 +898,7 @@
 
       section.style.display = 'block';
       grid.innerHTML = events.map(function(event) {
-        var eventDate = event.eventDate ? new Date(event.eventDate).toLocaleDateString() : 'No date set';
+        var eventDate = event.eventDate ? parseEventDate(event.eventDate).toLocaleDateString() : 'No date set';
         var statusClass = 'status-' + (event.status || 'draft').toLowerCase();
         var roleBadge = event.collaboratorRole === 'editor'
           ? '<span class="collab-badge collab-editor">Co-Host</span>'
@@ -984,7 +984,7 @@
 
       document.getElementById('emptyState').style.display = 'none';
       grid.innerHTML = filtered.map(function(event) {
-        var eventDate = event.eventDate ? new Date(event.eventDate).toLocaleDateString() : 'No date set';
+        var eventDate = event.eventDate ? parseEventDate(event.eventDate).toLocaleDateString() : 'No date set';
         var statusClass = 'status-' + (event.status || 'draft').toLowerCase();
         var isDraft = (event.status || 'Draft').toLowerCase() === 'draft';
         var isPublished = event.status === 'Published';
@@ -1161,7 +1161,7 @@
         // Meta row: date · location · type · status
         var chips = [];
         if (data.event.eventDate) {
-          var d = new Date(data.event.eventDate);
+          var d = parseEventDate(data.event.eventDate);
           var dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
           chips.push('<span class="emp-detail-chip"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>' + dateStr + '</span>');
         }
@@ -1322,11 +1322,11 @@
     function buildPreviewDetailsHtml(ev) {
       var items = [];
       if (ev.eventDate) {
-        var d = new Date(ev.eventDate);
+        var d = parseEventDate(ev.eventDate);
         var formatted = d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         var timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
         if (ev.endDate) {
-          var end = new Date(ev.endDate);
+          var end = parseEventDate(ev.endDate);
           timeStr += ' \u2013 ' + end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
         }
         items.push({ icon: '&#128197;', label: 'Date', value: formatted + '<br>' + timeStr });
@@ -1363,7 +1363,7 @@
       // Build event recap
       var recapItems = [];
       if (ev.eventDate) {
-        var d = new Date(ev.eventDate);
+        var d = parseEventDate(ev.eventDate);
         var formatted = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
         var timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
         recapItems.push('<div class="detail-item"><div class="detail-icon">&#128197;</div><div><div class="detail-label">Date &amp; Time</div><div class="detail-value">' + formatted + '<br>' + timeStr + '</div></div></div>');
@@ -1421,7 +1421,7 @@
           return '<option value="' + t.value + '"' + (ev.eventType === t.value ? ' selected' : '') + '>' + t.label + '</option>';
         }).join('');
 
-        var dateValue = ev.eventDate ? new Date(ev.eventDate).toISOString().split('T')[0] : '';
+        var dateValue = ev.eventDate ? String(ev.eventDate).split('T')[0] : '';
 
         container.innerHTML =
           '<div class="emp-settings-section">' +
@@ -2175,7 +2175,7 @@
 
       // Event date banner
       if (manageDate) {
-        var d = new Date(manageDate);
+        var d = parseEventDate(manageDate);
         var dateStr = d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         var timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
         html += '<div class="reminder-date-banner">Event date: <strong>' + dateStr + ' at ' + timeStr + '</strong></div>';
@@ -2853,6 +2853,30 @@
 
     function escapeHtml(str) {
       var div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML;
+    }
+
+    // Parse event date string in a timezone-safe way.
+    // DB stores dates as UTC midnight (e.g., "2026-05-14T00:00:00+00:00").
+    // new Date() would shift this back a day in western timezones.
+    // This function forces interpretation as local noon to avoid day shift.
+    function parseEventDate(dateStr) {
+      if (!dateStr) return null;
+      // If it's a date-only string (YYYY-MM-DD), parse as local date at noon
+      var match = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]), 12, 0, 0);
+      }
+      // If it has a time component with actual non-midnight time, use as-is
+      if (dateStr.indexOf('T') !== -1) {
+        var timePart = dateStr.split('T')[1] || '';
+        // Check if it's midnight UTC (the common date-only case)
+        if (timePart.startsWith('00:00:00')) {
+          var datePart = dateStr.split('T')[0];
+          var parts = datePart.split('-');
+          return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
+        }
+      }
+      return new Date(dateStr);
     }
 
     function rescalePreviewIframes() {
