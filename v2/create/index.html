@@ -5687,8 +5687,8 @@
         return sendDesignChatRsvpFields(text, input);
       }
 
-      // ── Free/unpaid tier gate: block DESIGN changes but allow text/RSVP edits ──
-      // Refunded events are fully blocked
+      // ── Free/unpaid tier gate ──
+      // Refunded events are fully blocked — no operations allowed
       if (currentEvent && currentEvent.paymentStatus === 'refunded') {
         pendingUpgradeMessage = text;
         sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
@@ -5699,38 +5699,13 @@
         input.style.height = 'auto';
         return;
       }
-      // Unpaid and free (with used generation) events: allow text edits, RSVP changes, and text additions
-      // Only block full design/layout/style changes (Tier 3)
-      var isUnpaidOrFreeLimited = currentEvent && (
+      // For unpaid/free events, we let all messages through to tier routing + intent classification.
+      // The paywall is enforced AFTER classification, so only actual design changes (Tier 3) are blocked.
+      // Text edits, RSVP changes, text swaps, and questions all proceed freely.
+      var _isUnpaidOrFreeLimited = currentEvent && (
         currentEvent.paymentStatus === 'unpaid' ||
         (currentEvent.paymentStatus === 'free' && currentEvent.freeGenerationUsed)
       );
-      if (isUnpaidOrFreeLimited) {
-        // Allow Tier 1: RSVP field changes (client-side, free)
-        var rsvpFieldPattern = /\b(remove|delete|drop|hide|add|include|make .+ (required|optional))\b.{0,30}\b(field|name|email|phone|dietary|allergies|plus.?one|song|meal|kids|guests?|notes?|message|comment)\b/i;
-        // Allow Tier 1.75: Text swaps — "change X to Y" (client-side, free)
-        var textSwapPattern = /\b(change|replace|swap|switch)\b.{0,10}["'\u201C\u201D].+["'\u201C\u201D]\s*(to|with|for)\s*["'\u201C\u201D]/i;
-        // Allow Tier 2: Text/copy changes — add text, update wording, change date/title (Haiku, cheap)
-        var textChangePattern = /\b(add|include|insert|put|write|update|change|set)\b.{0,20}\b(text|description|wording|copy|title|heading|date|time|address|location|details?|info|subtitle|tagline|message|paragraph|blurb|note|caption|line|section)\b/i;
-        // Also allow simple "change X to Y" without quotes (e.g., "change the date to April 20th")
-        var simpleTextChangePattern = /\b(change|update|set|make)\b\s+(the\s+)?(title|date|time|location|address|name|heading|subtitle|tagline)\b/i;
-        if (!rsvpFieldPattern.test(text) && !textSwapPattern.test(text) && !textChangePattern.test(text) && !simpleTextChangePattern.test(text)) {
-          pendingUpgradeMessage = text;
-          sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
-          pushDesignChat({ role: 'user', content: text });
-          if (currentEvent.paymentStatus === 'unpaid') {
-            pushDesignChat({ role: 'upgrade', content: "This event requires a $4.99 upgrade before you can make design changes. Upgrade to unlock AI designs, SMS delivery, and everything you need." });
-          } else if (!currentEvent.freeRedoUsed) {
-            pushDesignChat({ role: 'upgrade', content: "I can't make design tweaks on the free plan, but if the design was completely off from what you asked for, I can generate a brand new one \u2014 just tell me what's wrong.\n\nOr upgrade for $4.99 to unlock unlimited design changes." });
-          } else {
-            pushDesignChat({ role: 'upgrade', content: "You've used your free design and redo. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite." });
-          }
-          renderDesignChat();
-          input.value = '';
-          input.style.height = 'auto';
-          return;
-        }
-      }
 
       // Detect if user mentions wanting a photo but didn't attach one
       // Skip this check if: (a) current design already has user-uploaded photos,
@@ -6128,6 +6103,24 @@
               return;
             }
 
+            // ── Paywall gate for design changes on unpaid/free events ──
+            // Only block after classification confirms it's a design change (not text/field)
+            if (_isUnpaidOrFreeLimited && (classification.intent === 'design_change' || classification.intent === 'broken_render')) {
+              pendingUpgradeMessage = text;
+              sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
+              if (currentEvent.paymentStatus === 'unpaid') {
+                pushDesignChat({ role: 'upgrade', content: "Design changes require a $4.99 upgrade. Upgrade to unlock AI designs, SMS delivery, and everything you need.\n\nYou can still update text, change dates, and edit RSVP fields for free!" });
+              } else if (!currentEvent.freeRedoUsed) {
+                pushDesignChat({ role: 'upgrade', content: "I can't make design tweaks on the free plan, but if the design was completely off from what you asked for, I can generate a brand new one \u2014 just tell me what's wrong.\n\nOr upgrade for $4.99 to unlock unlimited design changes." });
+              } else {
+                pushDesignChat({ role: 'upgrade', content: "You've used your free design and redo. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite.\n\nYou can still update text, change dates, and edit RSVP fields for free!" });
+              }
+              clearDesignChatPhoto();
+              sendBtn.disabled = false;
+              renderDesignChat();
+              return;
+            }
+
             // If the classifier detected a broken render report, bypass clarification and auto-regenerate
             if (classification.intent === 'broken_render' && classification.confidence >= 0.6) {
               console.log('[tweak] Classifier detected broken_render — triggering auto-regeneration');
@@ -6190,6 +6183,24 @@
         }
       }
       skipIntentClassification = false; // Reset flag
+
+      // ── Final paywall check before Tier 2/3 AI calls ──
+      // If classification wasn't available (skipped/errored) and event is unpaid/free,
+      // block to be safe — the tweak endpoint would fail anyway for design changes
+      if (_isUnpaidOrFreeLimited) {
+        var classifiedIntent = (typeof classification !== 'undefined' && classification) ? classification.intent : null;
+        // If no classification or classified as design_change, block
+        if (!classifiedIntent || classifiedIntent === 'design_change') {
+          pendingUpgradeMessage = text;
+          sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
+          pushDesignChat({ role: 'upgrade', content: "Design changes require a $4.99 upgrade. You can still update text, change dates, and edit RSVP fields for free!\n\nTry something like \"change the date to April 20th\" or \"add a dietary restrictions field\"." });
+          clearDesignChatPhoto();
+          sendBtn.disabled = false;
+          renderDesignChat();
+          return;
+        }
+        // text_change, add_field, etc. — proceed to Tier 2/3 (backend handles it cheaply)
+      }
 
       // ── TIER 2 & 3: AI-powered tweaks (text-only via Haiku or design via Sonnet) ──
       // Build a contextual acknowledgment so the user knows we heard them
