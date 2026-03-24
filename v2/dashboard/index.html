@@ -1152,10 +1152,11 @@
         if (!data.success || !data.event) return;
         manageEventData = data.event;
 
-        // Title
-        var title = data.event.title || 'Untitled Event';
-        manageTitle = title;
-        document.getElementById('empTitle').textContent = title;
+        // Sync all local state variables
+        manageTitle = data.event.title || 'Untitled Event';
+        manageDate = data.event.eventDate || '';
+        if (data.event.slug) manageSlug = encodeURIComponent(data.event.slug);
+        document.getElementById('empTitle').textContent = manageTitle;
 
         // Meta row: date · location · type · status
         var chips = [];
@@ -1495,14 +1496,23 @@
         });
         var data = await res.json();
         if (data.success) {
+          // Optimistic local update — sync immediately so all tabs see new values
+          manageTitle = body.title || manageTitle;
+          manageDate = body.eventDate || manageDate;
+          if (manageEventData) {
+            if (body.eventDate !== undefined) manageEventData.eventDate = body.eventDate;
+            if (body.title) manageEventData.title = body.title;
+            if (body.locationName !== undefined) manageEventData.locationName = body.locationName;
+            if (body.locationAddress !== undefined) manageEventData.locationAddress = body.locationAddress;
+            if (body.description !== undefined) manageEventData.description = body.description;
+            if (body.eventType) manageEventData.eventType = body.eventType;
+          }
+          document.getElementById('empTitle').textContent = manageTitle;
+          // Refresh overview from server (awaited to ensure full sync)
+          await loadEventOverview(manageEventId);
           status.textContent = 'Saved!';
           status.style.color = '#28a745';
           status.style.display = 'inline';
-          // Update overview title and details
-          manageTitle = body.title || manageTitle;
-          document.getElementById('empTitle').textContent = manageTitle;
-          // Refresh overview
-          loadEventOverview(manageEventId);
           setTimeout(function() { status.style.display = 'none'; }, 3000);
         } else {
           status.textContent = data.error || 'Save failed';
