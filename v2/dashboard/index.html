@@ -331,6 +331,48 @@
     .emp-settings-save { padding: 12px 28px; border: none; border-radius: 10px; background: var(--party-coral); color: white; font-size: 14px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; min-height: 44px; }
     .emp-settings-save:hover:not(:disabled) { background: var(--blush-pop); transform: translateY(-1px); }
     .emp-settings-save:disabled { opacity: 0.5; cursor: not-allowed; }
+    /* Preview tab */
+    .preview-sub-nav { display: flex; gap: 4px; margin-bottom: 20px; }
+    .preview-sub-btn { padding: 8px 18px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; background: white; color: #666; transition: all 0.15s; }
+    .preview-sub-btn:hover { border-color: #bbb; color: var(--midnight); }
+    .preview-sub-btn.active { background: var(--midnight); color: white; border-color: var(--midnight); }
+    .preview-frame-wrapper { display: flex; justify-content: center; padding: 20px 0; }
+    .preview-phone-frame { width: 393px; max-width: 100%; border-radius: 20px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.12); border: 1px solid #e0e0e0; background: white; }
+    .preview-phone-frame iframe { width: 100%; height: 700px; border: none; }
+    .preview-phone-frame.email-frame { width: 600px; border-radius: 8px; }
+    .preview-phone-frame.email-frame iframe { height: 500px; }
+    .preview-empty { text-align: center; padding: 60px 20px; color: #999; font-size: 14px; }
+
+    /* Guest detail panel */
+    .guest-card { border: 1px solid #eee; border-radius: 10px; margin-bottom: 8px; overflow: hidden; transition: all 0.15s; }
+    .guest-card:hover { border-color: #ddd; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .guest-card-header { display: flex; align-items: center; padding: 12px 16px; gap: 12px; cursor: pointer; }
+    .guest-card-header:hover { background: #fafafa; }
+    .guest-card-info { flex: 1; min-width: 0; }
+    .guest-card-name { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .guest-card-detail { font-size: 12px; color: #999; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .guest-card-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .guest-detail-panel { background: #f9f9f9; border-top: 1px solid #eee; padding: 16px 20px; }
+    .guest-detail-section { margin-bottom: 14px; }
+    .guest-detail-section:last-child { margin-bottom: 0; }
+    .guest-detail-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #888; margin-bottom: 6px; }
+    .guest-timeline { list-style: none; }
+    .guest-timeline li { display: flex; gap: 10px; padding: 6px 0; font-size: 13px; align-items: flex-start; }
+    .guest-timeline-icon { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; font-weight: 700; }
+    .guest-timeline-icon.sms { background: rgba(233,69,96,0.1); color: var(--party-coral); }
+    .guest-timeline-icon.rsvp { background: rgba(78,205,196,0.1); color: var(--mint-fizz); }
+    .guest-timeline-icon.email { background: rgba(167,139,250,0.1); color: var(--party-purple); }
+    .guest-timeline-text { flex: 1; }
+    .guest-timeline-date { font-size: 11px; color: #aaa; }
+    .guest-detail-actions { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee; flex-wrap: wrap; }
+    .guest-detail-btn { padding: 7px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 12px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; background: white; color: var(--midnight); transition: all 0.15s; }
+    .guest-detail-btn:hover:not(:disabled) { border-color: var(--party-coral); color: var(--party-coral); }
+    .guest-detail-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .guest-response-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .guest-response-chip { background: white; border: 1px solid #eee; border-radius: 6px; padding: 4px 10px; font-size: 12px; }
+    .guest-response-chip-label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.03em; }
+    .guest-response-chip-value { font-weight: 600; color: var(--midnight); }
+
     .emp-danger-zone { background: #fff8f8; border: 1px solid #f5e0e0; border-radius: 12px; padding: 20px; }
     .emp-danger-zone h3 { color: #dc3545; }
     .emp-danger-actions { display: flex; gap: 12px; flex-wrap: wrap; }
@@ -733,6 +775,7 @@
         <button class="emp-tab" onclick="switchManageTab('reminders')">Reminders</button>
         <button class="emp-tab" onclick="switchManageTab('notifications')">Alerts</button>
         <button class="emp-tab" onclick="switchManageTab('photos')">Photos</button>
+        <button class="emp-tab" onclick="switchManageTab('preview')">Preview</button>
         <button class="emp-tab" onclick="switchManageTab('cohosts')">Co-Hosts</button>
         <button class="emp-tab" onclick="switchManageTab('settings')">Settings</button>
       </div>
@@ -893,7 +936,6 @@
           + '</div>'
           + buildRsvpMiniStats(event.rsvpCounts)
           + '<div class="event-actions">'
-          + '<a href="/v2/event/' + encodeURIComponent(event.slug) + '" target="_blank">View</a>'
           + '<button onclick="openEventManagePage(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\', null, \'' + (event.paymentStatus || '') + '\', false)">Manage</button>'
           + '</div></div></div>';
       }).join('');
@@ -956,31 +998,10 @@
             + '<div class="progress-label">' + prog.pct + '% — ' + escapeHtml(prog.label) + '</div>';
         }
 
-        var noInvitesHtml = '';
-        if (isPublished && event.settings && !event.settings.invites_sent) {
-          noInvitesHtml = '<div class="no-invites-flag"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> No invites sent yet — share the link below to invite guests</div>';
-        }
-
-        var shareHtml = '';
-        if (isPublished) {
-          shareHtml = '<div class="share-row">'
-            + '<div class="invite-link-row">'
-            + '<input class="invite-link-input" value="' + escapeHtml(inviteUrl) + '" readonly onclick="this.select()">'
-            + '<button class="copy-btn" onclick="copyLink(this, \'' + escapeHtml(inviteUrl) + '\')">Copy</button>'
-            + '</div>'
-            + '<div class="share-buttons">';
-        var smsPaid = (event.paymentStatus || '').toLowerCase() === 'paid';
-        shareHtml += '<button class="share-btn" onclick="openEventManagePage(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\', \'messages\', \'' + (event.paymentStatus || '') + '\')">' + (smsPaid ? 'Send SMS' : 'Send SMS &#x1F512;') + '</button>'
-            + '<a class="share-btn" href="mailto:?subject=' + encodeURIComponent(event.title + ' - You\'re Invited!') + '&body=' + encodeURIComponent("You're invited to " + event.title + "!\n\nRSVP here: " + inviteUrl) + '">Email</a>'
-            + '</div></div>';
-        }
-
         var actionsHtml = '<div class="event-actions">';
         if (isDraft) {
           actionsHtml += '<a href="/v2/create/?eventId=' + encodeURIComponent(event.id) + '">Continue</a>';
         } else if (!isArchived) {
-          actionsHtml += '<a href="/v2/event/' + encodeURIComponent(event.slug) + '" target="_blank">View</a>';
-          actionsHtml += '<a href="/v2/create/?eventId=' + encodeURIComponent(event.id) + '">Edit</a>';
           actionsHtml += '<button onclick="openEventManagePage(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\', null, \'' + (event.paymentStatus || '') + '\')">Manage</button>';
         } else {
           actionsHtml += '<a href="/v2/event/' + encodeURIComponent(event.slug) + '" target="_blank">View</a>';
@@ -1035,8 +1056,6 @@
           + '</div>'
           + buildRsvpMiniStats(event.rsvpCounts)
           + progressHtml
-          + noInvitesHtml
-          + shareHtml
           + actionsHtml
           + '</div></div>';
       }).join('');
@@ -1200,6 +1219,7 @@
           (tabName === 'reminders' && t.textContent === 'Reminders') ||
           (tabName === 'notifications' && t.textContent === 'Alerts') ||
           (tabName === 'photos' && t.textContent === 'Photos') ||
+          (tabName === 'preview' && t.textContent === 'Preview') ||
           (tabName === 'cohosts' && t.textContent === 'Co-Hosts') ||
           (tabName === 'settings' && t.textContent === 'Settings'));
       });
@@ -1209,12 +1229,76 @@
       else if (tabName === 'reminders') loadRemindersTab();
       else if (tabName === 'notifications') loadNotificationsTab();
       else if (tabName === 'photos') loadPhotosTab();
+      else if (tabName === 'preview') loadPreviewTab();
       else if (tabName === 'cohosts') loadCohostsTab();
       else if (tabName === 'settings') loadSettingsTab();
     }
 
     // Backward compat alias
     function switchTab(tabName) { switchManageTab(tabName); }
+
+    // ============================================================
+    // Preview Tab
+    // ============================================================
+    function loadPreviewTab() {
+      var content = document.getElementById('manageContent');
+      if (!manageEventData || !manageEventData.themeHtml) {
+        content.innerHTML = '<div class="preview-empty">No theme generated yet. Edit your event to create a design.</div>';
+        return;
+      }
+      content.innerHTML = '<div class="preview-sub-nav">'
+        + '<button class="preview-sub-btn active" onclick="showPreview(\'invite\', this)">Invite Page</button>'
+        + '<button class="preview-sub-btn" onclick="showPreview(\'thankyou\', this)">Thank You</button>'
+        + '<button class="preview-sub-btn" onclick="showPreview(\'email\', this)">Email</button>'
+        + '</div>'
+        + '<div class="preview-frame-wrapper"><div class="preview-phone-frame" id="previewPhoneFrame">'
+        + '<iframe id="previewIframe" sandbox="allow-same-origin"></iframe>'
+        + '</div></div>';
+      showPreview('invite');
+    }
+
+    function showPreview(type, btn) {
+      // Update sub-nav active state
+      if (btn) {
+        document.querySelectorAll('.preview-sub-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+      }
+      var iframe = document.getElementById('previewIframe');
+      var frame = document.getElementById('previewPhoneFrame');
+      if (!iframe || !frame) return;
+
+      var config = manageEventData.themeConfig || {};
+      var fontsImport = config.googleFontsImport || '';
+      var bg = config.backgroundColor || '#f9f9f9';
+      var css = manageEventData.themeCss || '';
+
+      var srcdoc = '';
+      if (type === 'invite') {
+        frame.className = 'preview-phone-frame';
+        srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+          + '<style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:' + bg + '}' + fontsImport + '</style>'
+          + '<style>' + css + '</style></head><body>' + manageEventData.themeHtml + '</body></html>';
+      } else if (type === 'thankyou') {
+        frame.className = 'preview-phone-frame';
+        var thankyouHtml = config.thankyouHtml || '';
+        if (!thankyouHtml) {
+          iframe.srcdoc = '<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Inter,sans-serif;color:#999;font-size:14px;">No thank you page generated yet</body></html>';
+          return;
+        }
+        srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+          + '<style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:' + bg + '}' + fontsImport + '</style>'
+          + '<style>' + css + '</style></head><body>' + thankyouHtml + '</body></html>';
+      } else if (type === 'email') {
+        frame.className = 'preview-phone-frame email-frame';
+        var emailHtml = config.emailHtml || '';
+        if (!emailHtml) {
+          iframe.srcdoc = '<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Inter,sans-serif;color:#999;font-size:14px;">No email template generated yet</body></html>';
+          return;
+        }
+        srcdoc = emailHtml;
+      }
+      iframe.srcdoc = srcdoc;
+    }
 
     // ============================================================
     // Settings Tab
@@ -1458,6 +1542,8 @@
       }
     }
 
+    var guestHistoryCache = {};
+
     function renderGuestsTab(rsvps) {
       var content = document.getElementById('manageContent');
       if (!rsvps || rsvps.length === 0) {
@@ -1469,33 +1555,177 @@
       var attending = rsvps.filter(function(r) { return r.status === 'attending'; }).length;
       var declined = rsvps.filter(function(r) { return r.status === 'declined'; }).length;
       var maybe = rsvps.filter(function(r) { return r.status === 'maybe'; }).length;
-
-      // Update the overview bar with accurate counts from guest data
       renderEmpRsvpInline(attending, declined, maybe);
+      guestHistoryCache = {};
 
       var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
         + '<span style="font-size:13px;color:#666;">' + rsvps.length + ' response' + (rsvps.length !== 1 ? 's' : '') + '</span>'
         + '<a href="/v2/contacts/" style="color:var(--party-coral);font-weight:600;font-size:13px;text-decoration:none;">+ Add from contacts</a>'
         + '</div>';
 
-      html += '<ul class="rsvp-list">';
-
       rsvps.forEach(function(r) {
-        var statusLabel = r.status === 'attending' ? 'Attending' : r.status === 'declined' ? 'Declined' : 'Maybe';
-        var style = r.status === 'attending' ? 'background:#d4edda;color:#155724' : r.status === 'declined' ? 'background:#f8d7da;color:#721c24' : 'background:#fff3cd;color:#856404';
+        var statusLabel = r.status === 'attending' ? 'Attending' : r.status === 'declined' ? 'Declined' : r.status === 'maybe' ? 'Maybe' : r.status;
+        var statusStyle = r.status === 'attending' ? 'background:#d4edda;color:#155724' : r.status === 'declined' ? 'background:#f8d7da;color:#721c24' : 'background:#fff3cd;color:#856404';
         var detail = '';
         if (r.email) detail += escapeHtml(r.email);
-        if (r.phone) detail += (detail ? ' · ' : '') + escapeHtml(r.phone);
-        if (r.respondedAt) detail += (detail ? ' · ' : '') + new Date(r.respondedAt).toLocaleDateString();
-
+        if (r.phone) detail += (detail ? ' &middot; ' : '') + escapeHtml(r.phone);
+        if (r.respondedAt) detail += (detail ? ' &middot; ' : '') + new Date(r.respondedAt).toLocaleDateString();
         var smsBadge = r.invitedAt ? ' <span class="sms-badge sms-badge-sms">SMS sent</span>' : '';
 
-        html += '<li class="rsvp-item"><div class="rsvp-item-info"><div class="rsvp-item-name">' + escapeHtml(r.name) + smsBadge + '</div>'
-          + (detail ? '<div class="rsvp-item-detail">' + detail + '</div>' : '')
-          + '</div><button onclick="saveGuestToContacts(\'' + r.id + '\', this)" style="padding:4px 10px;border:1px solid #ddd;border-radius:6px;background:white;font-size:11px;cursor:pointer;font-family:Inter,sans-serif;color:#666;margin-right:8px;white-space:nowrap;transition:all 0.15s;" onmouseover="this.style.borderColor=\'var(--party-coral)\';this.style.color=\'var(--party-coral)\'" onmouseout="this.style.borderColor=\'#ddd\';this.style.color=\'#666\'">Save</button><span class="rsvp-item-status" style="' + style + '">' + statusLabel + '</span></li>';
+        html += '<div class="guest-card" id="guest-card-' + r.id + '">'
+          + '<div class="guest-card-header" onclick="toggleGuestDetail(\'' + r.id + '\')">'
+          + '<div class="guest-card-info">'
+          + '<div class="guest-card-name">' + escapeHtml(r.name) + smsBadge + '</div>'
+          + (detail ? '<div class="guest-card-detail">' + detail + '</div>' : '')
+          + '</div>'
+          + '<div class="guest-card-actions">'
+          + '<span class="rsvp-item-status" style="padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;' + statusStyle + '">' + statusLabel + '</span>'
+          + '<svg width="16" height="16" viewBox="0 0 24 24" fill="#ccc" style="transition:transform 0.2s;" id="guest-chevron-' + r.id + '"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>'
+          + '</div></div>'
+          + '<div class="guest-detail-panel" id="guest-detail-' + r.id + '" style="display:none;">'
+          + '<div style="text-align:center;padding:12px;color:#999;font-size:13px;">Loading...</div>'
+          + '</div></div>';
       });
-      html += '</ul>';
       content.innerHTML = html;
+    }
+
+    async function toggleGuestDetail(guestId) {
+      var panel = document.getElementById('guest-detail-' + guestId);
+      var chevron = document.getElementById('guest-chevron-' + guestId);
+      if (!panel) return;
+
+      if (panel.style.display !== 'none') {
+        panel.style.display = 'none';
+        if (chevron) chevron.style.transform = '';
+        return;
+      }
+
+      panel.style.display = 'block';
+      if (chevron) chevron.style.transform = 'rotate(180deg)';
+
+      // Find guest data
+      var guest = manageRsvps ? manageRsvps.find(function(r) { return r.id === guestId; }) : null;
+      if (!guest) return;
+
+      // If already loaded, don't refetch
+      if (guestHistoryCache[guestId]) {
+        renderGuestDetail(guestId, guest, guestHistoryCache[guestId]);
+        return;
+      }
+
+      // Fetch timeline
+      try {
+        var res = await authFetch('/api/v2/events?action=guestHistory&guestId=' + guestId + '&eventId=' + manageEventId);
+        var data = await res.json();
+        var timeline = data.success ? (data.timeline || []) : [];
+        guestHistoryCache[guestId] = timeline;
+        renderGuestDetail(guestId, guest, timeline);
+      } catch (e) {
+        panel.innerHTML = '<div style="padding:12px;color:#999;font-size:13px;">Failed to load history</div>';
+      }
+    }
+
+    function renderGuestDetail(guestId, guest, timeline) {
+      var panel = document.getElementById('guest-detail-' + guestId);
+      if (!panel) return;
+
+      var html = '';
+
+      // RSVP info
+      html += '<div class="guest-detail-section">'
+        + '<div class="guest-detail-label">RSVP Status</div>'
+        + '<div style="font-size:13px;">';
+      var statusLabel = guest.status === 'attending' ? 'Attending' : guest.status === 'declined' ? 'Declined' : guest.status === 'maybe' ? 'Maybe' : guest.status || 'Unknown';
+      html += '<strong>' + statusLabel + '</strong>';
+      if (guest.respondedAt) html += ' &middot; Responded ' + new Date(guest.respondedAt).toLocaleDateString();
+      if (guest.invitedAt) html += ' &middot; Invited ' + new Date(guest.invitedAt).toLocaleDateString();
+      if (guest.plusOnes) html += ' &middot; +' + guest.plusOnes + ' guest' + (guest.plusOnes > 1 ? 's' : '');
+      html += '</div></div>';
+
+      // Custom field responses
+      if (guest.responseData && Object.keys(guest.responseData).length > 0) {
+        html += '<div class="guest-detail-section">'
+          + '<div class="guest-detail-label">Responses</div>'
+          + '<div class="guest-response-chips">';
+        for (var key in guest.responseData) {
+          var val = guest.responseData[key];
+          if (val !== null && val !== undefined && val !== '') {
+            html += '<div class="guest-response-chip">'
+              + '<div class="guest-response-chip-label">' + escapeHtml(key) + '</div>'
+              + '<div class="guest-response-chip-value">' + escapeHtml(String(val)) + '</div>'
+              + '</div>';
+          }
+        }
+        html += '</div></div>';
+      }
+
+      // Notes
+      if (guest.notes) {
+        html += '<div class="guest-detail-section">'
+          + '<div class="guest-detail-label">Notes</div>'
+          + '<div style="font-size:13px;color:#666;">' + escapeHtml(guest.notes) + '</div>'
+          + '</div>';
+      }
+
+      // Communication timeline
+      html += '<div class="guest-detail-section">'
+        + '<div class="guest-detail-label">Communication History</div>';
+      if (timeline.length === 0) {
+        html += '<div style="font-size:13px;color:#aaa;">No communications recorded</div>';
+      } else {
+        html += '<ul class="guest-timeline">';
+        timeline.forEach(function(t) {
+          var iconClass = t.type === 'email' ? 'email' : t.type === 'sms' ? 'sms' : 'rsvp';
+          var iconText = t.type === 'email' ? '&#9993;' : t.type === 'sms' ? '&#9993;' : '&#10003;';
+          var dateStr = t.date ? new Date(t.date).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+          var statusBadge = t.status === 'sent' || t.status === 'delivered' ? '<span style="color:#28a745;font-size:11px;"> &#10003; ' + t.status + '</span>'
+            : t.status === 'failed' ? '<span style="color:#dc3545;font-size:11px;"> &#10007; failed</span>'
+            : t.status ? '<span style="color:#888;font-size:11px;"> ' + t.status + '</span>' : '';
+          html += '<li>'
+            + '<span class="guest-timeline-icon ' + iconClass + '">' + iconText + '</span>'
+            + '<span class="guest-timeline-text">' + escapeHtml(t.detail || t.type) + statusBadge + '</span>'
+            + '<span class="guest-timeline-date">' + dateStr + '</span>'
+            + '</li>';
+        });
+        html += '</ul>';
+      }
+      html += '</div>';
+
+      // Actions
+      html += '<div class="guest-detail-actions">';
+      html += '<button class="guest-detail-btn" onclick="event.stopPropagation();saveGuestToContacts(\'' + guestId + '\', this)">Save to Contacts</button>';
+      if (guest.email && manageIsOwner) {
+        html += '<button class="guest-detail-btn" onclick="event.stopPropagation();makeGuestCohost(\'' + guestId + '\', \'' + escapeHtml(guest.email).replace(/'/g, "\\'") + '\', this)">Make Co-Host</button>';
+      } else if (!guest.email) {
+        html += '<button class="guest-detail-btn" disabled title="Guest needs an email to become a co-host">Make Co-Host</button>';
+      }
+      html += '</div>';
+
+      panel.innerHTML = html;
+    }
+
+    async function makeGuestCohost(guestId, email, btn) {
+      btn.disabled = true; btn.textContent = 'Inviting...';
+      try {
+        var res = await authFetch('/api/v2/cohost?action=invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: manageEventId, email: email, role: 'editor' })
+        });
+        var data = await res.json();
+        if (data.success) {
+          btn.textContent = 'Co-Host Invited!';
+          btn.style.borderColor = 'var(--mint-fizz)';
+          btn.style.color = 'var(--mint-fizz)';
+          showToast('Co-host invitation sent to ' + email);
+        } else {
+          btn.textContent = data.error || 'Error';
+          btn.disabled = false;
+        }
+      } catch (e) {
+        btn.textContent = 'Error';
+        btn.disabled = false;
+      }
     }
 
     async function saveGuestToContacts(guestId, btn) {
@@ -2409,17 +2639,30 @@
           + '<button onclick="copyGalleryLink()" style="padding:6px 12px;border:1px solid #ddd;background:white;border-radius:6px;font-size:12px;cursor:pointer;font-family:Inter,sans-serif;white-space:nowrap;" id="copyGalleryBtn">Copy</button>'
           + '</div>';
 
-        // Photo count
-        html += '<div style="font-size:14px;font-weight:600;margin-bottom:12px;">'
+        // Photo count + download all
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
+          + '<span style="font-size:14px;font-weight:600;">'
           + managePhotoTotal + ' photo' + (managePhotoTotal !== 1 ? 's' : '') + ' shared'
-          + '</div>';
+          + '</span>';
+        if (managePhotos.length > 0) {
+          html += '<a href="/api/v2/photos?action=downloadAll&eventId=' + encodeURIComponent(manageEventId) + '&token=' + encodeURIComponent(token) + '" class="emp-action-btn" style="font-size:12px;padding:6px 14px;">'
+            + '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>'
+            + 'Download All (' + managePhotos.length + ')'
+            + '</a>';
+        }
+        html += '</div>';
 
         // Photo grid
         if (managePhotos.length > 0) {
           html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">';
           managePhotos.forEach(function(p) {
+            // Use thumbnail URL with Supabase image transforms (fall back to full URL if transforms unavailable)
+            var thumbUrl = p.photo_url;
+            if (thumbUrl.includes('/storage/v1/object/public/')) {
+              thumbUrl = thumbUrl.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/') + '?width=400&height=400&resize=cover';
+            }
             html += '<div style="position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;background:#f0f0f0;">'
-              + '<img src="' + escapeHtml(p.photo_url) + '" style="width:100%;height:100%;object-fit:cover;" loading="lazy">'
+              + '<img src="' + escapeHtml(thumbUrl) + '" style="width:100%;height:100%;object-fit:cover;" loading="lazy">'
               + '<button onclick="deletePhoto(\'' + p.id + '\')" style="position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.6);color:white;border:none;cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;" title="Delete photo">&times;</button>'
               + '<div style="position:absolute;bottom:0;left:0;right:0;padding:4px 6px;background:linear-gradient(transparent,rgba(0,0,0,0.5));color:white;font-size:10px;">' + escapeHtml(p.uploader_name) + '</div>'
               + '</div>';

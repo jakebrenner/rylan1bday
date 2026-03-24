@@ -95,6 +95,10 @@
       "maxDuration": 300,
       "memory": 1024
     },
+    "api/v2/photos.js": {
+      "maxDuration": 120,
+      "memory": 1024
+    },
     "api/v2/billing.js": {
       "maxDuration": 60
     },

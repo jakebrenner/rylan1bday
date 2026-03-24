@@ -769,6 +769,7 @@ export default async function handler(req, res) {
           responseData: g.response_data,
           plusOnes: g.plus_ones,
           notes: g.notes,
+          invitedAt: g.invited_at,
           respondedAt: g.responded_at,
           createdAt: g.created_at
         }))
@@ -824,6 +825,76 @@ export default async function handler(req, res) {
         status: data.status, responseData: data.response_data, plusOnes: data.plus_ones,
         notes: data.notes, respondedAt: data.responded_at
       }});
+    }
+
+    if (action === 'guestHistory') {
+      const { guestId, eventId } = req.query;
+      if (!guestId || !eventId) return res.status(400).json({ success: false, error: 'guestId and eventId required' });
+
+      const access = await checkEventAccess(user.id, eventId, 'viewer');
+      if (!access.allowed) return res.status(403).json({ success: false, error: 'Not authorized' });
+
+      // Fetch notification log entries for this guest
+      const { data: notifications } = await supabaseAdmin
+        .from('notification_log')
+        .select('id, channel, recipient, status, sent_at, created_at')
+        .eq('event_id', eventId)
+        .eq('guest_id', guestId)
+        .order('created_at', { ascending: false });
+
+      // Also fetch SMS messages by phone (notification_log may not have all records)
+      const { data: guest } = await supabaseAdmin
+        .from('guests')
+        .select('phone')
+        .eq('id', guestId)
+        .single();
+
+      let smsMessages = [];
+      if (guest?.phone) {
+        const normalizedPhone = guest.phone.replace(/\D/g, '').slice(-10);
+        const { data: sms } = await supabaseAdmin
+          .from('sms_messages')
+          .select('id, message_type, status, created_at, recipient_name')
+          .eq('event_id', eventId)
+          .like('recipient_phone', `%${normalizedPhone}`)
+          .order('created_at', { ascending: false });
+        smsMessages = sms || [];
+      }
+
+      // Build unified timeline
+      const timeline = [];
+
+      // Add notification log entries
+      (notifications || []).forEach(n => {
+        timeline.push({
+          type: n.channel || 'sms',
+          date: n.sent_at || n.created_at,
+          status: n.status,
+          detail: n.channel === 'email' ? 'Email notification' : 'SMS notification'
+        });
+      });
+
+      // Add SMS messages (deduplicate by checking if already in notification_log by timestamp proximity)
+      const notifDates = new Set((notifications || []).map(n => (n.sent_at || n.created_at || '').substring(0, 16)));
+      smsMessages.forEach(s => {
+        const sDate = (s.created_at || '').substring(0, 16);
+        if (!notifDates.has(sDate)) {
+          const typeLabel = s.message_type === 'invite' ? 'Invite SMS' :
+            s.message_type === 'reminder' ? 'Reminder SMS' :
+            s.message_type === 'update' ? 'Update SMS' : 'SMS';
+          timeline.push({
+            type: 'sms',
+            date: s.created_at,
+            status: s.status,
+            detail: typeLabel
+          });
+        }
+      });
+
+      // Sort by date descending
+      timeline.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      return res.status(200).json({ success: true, timeline });
     }
 
     if (action === 'saveFields') {
