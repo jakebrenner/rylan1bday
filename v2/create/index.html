@@ -5688,6 +5688,35 @@
       }
 
       // ── Free/unpaid tier gate ──
+      // Before checking paywall, re-verify payment status from server in case credits
+      // were added since page load (admin-granted, purchased on another tab, etc.)
+      // Throttle to once per 30s to avoid excessive API calls on rapid messages.
+      if (currentEvent && (currentEvent.paymentStatus === 'unpaid' || currentEvent.paymentStatus === 'refunded')) {
+        var now = Date.now();
+        var lastCheck = currentEvent._lastPaymentCheck || 0;
+        if (now - lastCheck > 30000) {
+          currentEvent._lastPaymentCheck = now;
+          try {
+            var statusRes = await authFetch('/api/v2/events?action=get&eventId=' + encodeURIComponent(currentEvent.id));
+            var statusData = await statusRes.json();
+            if (statusData.success && statusData.event && statusData.event.paymentStatus) {
+              var newStatus = statusData.event.paymentStatus;
+              if (newStatus !== currentEvent.paymentStatus) {
+                console.log('[paywall] Payment status updated from server:', currentEvent.paymentStatus, '->', newStatus);
+                currentEvent.paymentStatus = newStatus;
+                if (newStatus === 'paid') {
+                  currentEvent.freeGenerationUsed = false;
+                  currentEvent.freeRedoUsed = false;
+                }
+                // Remove any existing upgrade cards since status changed
+                designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'upgrade'; });
+              }
+            }
+          } catch (e) {
+            console.warn('[paywall] Credit check failed, using cached status:', e);
+          }
+        }
+      }
       // Refunded events are fully blocked — no operations allowed
       if (currentEvent && currentEvent.paymentStatus === 'refunded') {
         pendingUpgradeMessage = text;
