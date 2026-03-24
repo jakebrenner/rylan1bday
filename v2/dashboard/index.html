@@ -1242,6 +1242,71 @@
     // ============================================================
     // Preview Tab
     // ============================================================
+
+    // Detect if an element's effective background is dark (walks up ancestors)
+    function detectPreviewBgDark(el, win) {
+      var node = el;
+      while (node && node.nodeType === 1) {
+        try {
+          var s = win.getComputedStyle(node);
+          var bg = s.backgroundColor;
+          if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+            var m = bg.match(/\d+/g);
+            if (m && m.length >= 3) {
+              var rgb = [+m[0], +m[1], +m[2]];
+              var a = rgb.map(function(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+              return (0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]) < 0.35;
+            }
+          }
+          var bgImg = s.backgroundImage;
+          if (bgImg && bgImg !== 'none') {
+            var gc = bgImg.match(/rgb[a]?\([^)]+\)/g);
+            if (gc) { var gm = gc[0].match(/\d+/g); if (gm && gm.length >= 3) { var rgb = [+gm[0], +gm[1], +gm[2]]; var a = rgb.map(function(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return (0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]) < 0.35; } }
+          }
+        } catch (e) {}
+        node = node.parentElement;
+      }
+      return false;
+    }
+
+    // Build a preview RSVP form with explicit colors baked in
+    function buildPreviewRsvpHtml(ev, isDark) {
+      var textColor = isDark ? '#FFFFFF' : '#1A1A1A';
+      var borderColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.15)';
+      var inputBg = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)';
+      var accent = (ev.themeConfig && (ev.themeConfig.accentColor || ev.themeConfig.primaryColor)) || '#E94560';
+      var inputStyle = 'width:100%;padding:10px 12px;border:1px solid ' + borderColor + ';border-radius:8px;font-size:14px;background:' + inputBg + ';color:' + textColor + ';font-family:inherit;';
+      var labelStyle = 'display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:' + textColor + ';';
+
+      var html = '<div style="font-family:inherit;color:' + textColor + ';">';
+      html += '<div style="margin-bottom:12px;"><label style="' + labelStyle + '">Name <span style="color:' + accent + ';">*</span></label>'
+        + '<input type="text" placeholder="Your name" disabled style="' + inputStyle + '"></div>';
+      html += '<div style="margin-bottom:12px;"><label style="' + labelStyle + '">RSVP Status <span style="color:' + accent + ';">*</span></label>'
+        + '<div style="display:flex;gap:6px;">'
+        + ['Attending', 'Declined', 'Maybe'].map(function(opt, idx) {
+          var isFirst = idx === 0;
+          return '<label style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px 6px;border:2px solid ' + (isFirst ? accent : borderColor) + ';border-radius:8px;font-size:12px;font-weight:500;background:' + (isFirst ? accent : inputBg) + ';color:' + (isFirst ? '#fff' : textColor) + ';">' + opt + '</label>';
+        }).join('') + '</div></div>';
+
+      // Custom fields from event
+      var fields = ev.customFields || [];
+      if (typeof fields === 'string') { try { fields = JSON.parse(fields); } catch(e) { fields = []; } }
+      fields.forEach(function(f) {
+        var reqStar = f.is_required || f.required ? ' <span style="color:' + accent + ';">*</span>' : '';
+        html += '<div style="margin-bottom:12px;"><label style="' + labelStyle + '">' + (f.label || f.key || '') + reqStar + '</label>';
+        if (f.field_type === 'select' || f.fieldType === 'select') {
+          html += '<select disabled style="' + inputStyle + '-webkit-appearance:none;"><option>' + ((f.options && f.options[0]) || 'Select...') + '</option></select>';
+        } else if (f.field_type === 'textarea' || f.fieldType === 'textarea') {
+          html += '<textarea disabled placeholder="' + (f.placeholder || '') + '" style="' + inputStyle + 'min-height:60px;resize:none;"></textarea>';
+        } else {
+          html += '<input type="text" placeholder="' + (f.placeholder || '') + '" disabled style="' + inputStyle + '">';
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+      return html;
+    }
+
     function loadPreviewTab() {
       var content = document.getElementById('manageContent');
       if (!manageEventData || !manageEventData.themeHtml) {
@@ -1254,7 +1319,7 @@
         + '<button class="preview-sub-btn" onclick="showPreview(\'email\', this)">Email</button>'
         + '</div>'
         + '<div class="preview-frame-wrapper"><div class="preview-phone-frame" id="previewPhoneFrame">'
-        + '<iframe id="previewIframe" sandbox="allow-same-origin"></iframe>'
+        + '<iframe id="previewIframe" sandbox="allow-scripts allow-same-origin"></iframe>'
         + '</div></div>';
       showPreview('invite');
     }
@@ -1291,6 +1356,19 @@
             if (detailsSlot) {
               detailsSlot.innerHTML = buildPreviewDetailsHtml(ev);
             }
+            // Inject RSVP form preview into .rsvp-slot
+            var rsvpSlot = doc.querySelector('.rsvp-slot');
+            if (rsvpSlot) {
+              var ifrWin = iframe.contentWindow || doc.defaultView;
+              var isDark = detectPreviewBgDark(rsvpSlot, ifrWin);
+              var btn = rsvpSlot.querySelector('.rsvp-button, button, [type="submit"]');
+              var btnHtml = btn ? btn.outerHTML : '';
+              rsvpSlot.innerHTML = buildPreviewRsvpHtml(ev, isDark) + btnHtml;
+            }
+            // Resize iframe to content
+            setTimeout(function() {
+              try { iframe.style.height = Math.max(doc.body.scrollHeight + 20, 600) + 'px'; } catch(e) {}
+            }, 100);
           } catch(e) {}
         };
         return;

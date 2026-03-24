@@ -654,7 +654,7 @@
         + '</div>';
 
       // Try to inject into iframe's .rsvp-slot
-      var iframe = document.querySelector('.invite-frame');
+      var iframe = document.getElementById('themeFrame');
       if (iframe && iframe.contentDocument) {
         var rsvpSlot = iframe.contentDocument.querySelector('.rsvp-slot');
         if (rsvpSlot) {
@@ -692,7 +692,7 @@
     // Helper to get RSVP form values from either iframe or external section
     function getRsvpFormDoc() {
       if (rsvpInjectedInIframe) {
-        var iframe = document.querySelector('.invite-frame');
+        var iframe = document.getElementById('themeFrame');
         if (iframe && iframe.contentDocument) return iframe.contentDocument;
       }
       return document;
