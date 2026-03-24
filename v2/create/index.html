@@ -2920,24 +2920,60 @@
       generateTheme();
     }
 
-    function buildRsvpFormHtml() {
+    // Detect effective background color by walking up ancestors
+    function detectRsvpBackground(el, win) {
+      var node = el;
+      while (node && node.nodeType === 1) {
+        try {
+          var styles = win.getComputedStyle(node);
+          var bg = styles.backgroundColor;
+          if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+            var rgb = parseRgb(bg);
+            if (rgb) return { color: bg, rgb: rgb };
+          }
+          // Also check background-image for gradients
+          var bgImg = styles.backgroundImage;
+          if (bgImg && bgImg !== 'none') {
+            var gradColors = bgImg.match(/rgb[a]?\([^)]+\)/g);
+            if (gradColors && gradColors.length > 0) {
+              var gradRgb = parseRgb(gradColors[0]);
+              if (gradRgb) return { color: gradColors[0], rgb: gradRgb };
+            }
+          }
+        } catch (e) {}
+        node = node.parentElement;
+      }
+      return { color: 'rgb(255,255,255)', rgb: { r: 255, g: 255, b: 255 } };
+    }
+
+    function buildRsvpFormHtml(isDarkBg) {
       var config = themeVersions[activeVersionIndex] ? themeVersions[activeVersionIndex].config : {};
       var accent = config.accentColor || config.primaryColor || '#E94560';
-      var html = '<div style="font-family:inherit;">';
 
-      // Name field (always present)
+      // Explicit colors based on detected background — NEVER use 'inherit'
+      var textColor = isDarkBg ? '#FFFFFF' : '#1A1A1A';
+      var borderColor = isDarkBg ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.15)';
+      var inputBg = isDarkBg ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)';
+      var placeholderOpacity = isDarkBg ? '0.5' : '0.4';
+
+      var inputStyle = 'width:100%;padding:10px 12px;border:1px solid ' + borderColor + ';border-radius:8px;font-size:14px;background:' + inputBg + ';color:' + textColor + ';font-family:inherit;';
+      var labelStyle = 'display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:' + textColor + ';';
+
+      var html = '<div class="rsvp-form-injected" style="font-family:inherit;color:' + textColor + ';">';
+
+      // Name field
       html += '<div style="margin-bottom:12px;">'
-        + '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;opacity:0.9;">Name <span style="color:' + accent + ';">*</span></label>'
-        + '<input type="text" placeholder="Your name" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">'
+        + '<label style="' + labelStyle + '">Name <span style="color:' + accent + ';">*</span></label>'
+        + '<input type="text" placeholder="Your name" disabled style="' + inputStyle + '">'
         + '</div>';
 
       // RSVP Status — styled radio buttons
       html += '<div style="margin-bottom:12px;">'
-        + '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;opacity:0.9;">RSVP Status <span style="color:' + accent + ';">*</span></label>'
+        + '<label style="' + labelStyle + '">RSVP Status <span style="color:' + accent + ';">*</span></label>'
         + '<div style="display:flex;gap:6px;">'
         + ['Attending', 'Declined', 'Maybe'].map(function(opt, idx) {
           var isFirst = idx === 0;
-          return '<label style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px 6px;border:2px solid ' + (isFirst ? accent : 'rgba(255,255,255,0.3)') + ';border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;background:' + (isFirst ? accent : 'rgba(255,255,255,0.1)') + ';color:' + (isFirst ? '#fff' : 'inherit') + ';transition:all 0.2s;">'
+          return '<label style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px 6px;border:2px solid ' + (isFirst ? accent : borderColor) + ';border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;background:' + (isFirst ? accent : inputBg) + ';color:' + (isFirst ? '#fff' : textColor) + ';transition:all 0.2s;">'
             + '<input type="radio" name="rsvpStatus" value="' + opt + '"' + (isFirst ? ' checked' : '') + ' disabled style="display:none;">'
             + opt + '</label>';
         }).join('')
@@ -2947,24 +2983,20 @@
       rsvpFields.forEach(function(f) {
         var reqStar = f.is_required ? ' <span style="color:' + accent + ';">*</span>' : '';
         html += '<div style="margin-bottom:12px;">'
-          + '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;opacity:0.9;">' + escapeHtml(f.label) + reqStar + '</label>';
+          + '<label style="' + labelStyle + '">' + escapeHtml(f.label) + reqStar + '</label>';
         if (f.field_type === 'checkbox') {
-          html += '<label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">'
+          html += '<label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;color:' + textColor + ';">'
             + '<input type="checkbox" disabled style="width:18px;height:18px;accent-color:' + accent + ';cursor:pointer;">'
-            + '<span style="opacity:0.9;">' + escapeHtml(f.placeholder || f.label) + '</span></label>';
+            + '<span>' + escapeHtml(f.placeholder || f.label) + '</span></label>';
         } else if (f.field_type === 'select' && f.options && f.options.length > 0) {
-          html += '<select disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;-webkit-appearance:none;">'
+          html += '<select disabled style="' + inputStyle + '-webkit-appearance:none;">'
             + '<option>' + escapeHtml(f.options[0]) + '</option></select>';
         } else if (f.field_type === 'textarea') {
-          html += '<textarea disabled placeholder="' + escapeHtml(f.placeholder || '') + '" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;min-height:60px;resize:none;"></textarea>';
-        } else if (f.field_type === 'number') {
-          html += '<input type="number" placeholder="' + escapeHtml(f.placeholder || '0') + '" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">';
-        } else if (f.field_type === 'email') {
-          html += '<input type="email" placeholder="' + escapeHtml(f.placeholder || 'your@email.com') + '" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">';
-        } else if (f.field_type === 'phone' || f.field_type === 'tel') {
-          html += '<input type="tel" placeholder="' + escapeHtml(f.placeholder || '(555) 123-4567') + '" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">';
+          html += '<textarea disabled placeholder="' + escapeHtml(f.placeholder || '') + '" style="' + inputStyle + 'min-height:60px;resize:none;"></textarea>';
         } else {
-          html += '<input type="text" placeholder="' + escapeHtml(f.placeholder || '') + '" disabled style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;">';
+          var pholder = f.field_type === 'number' ? (f.placeholder || '0') : f.field_type === 'email' ? (f.placeholder || 'your@email.com') : f.field_type === 'phone' || f.field_type === 'tel' ? (f.placeholder || '(555) 123-4567') : (f.placeholder || '');
+          var inputType = f.field_type === 'phone' || f.field_type === 'tel' ? 'tel' : f.field_type === 'email' ? 'email' : f.field_type === 'number' ? 'number' : 'text';
+          html += '<input type="' + inputType + '" placeholder="' + escapeHtml(pholder) + '" disabled style="' + inputStyle + '">';
         }
         html += '</div>';
       });
@@ -3293,9 +3325,12 @@
         // Inject RSVP form into .rsvp-slot
         var slot = doc.querySelector('.rsvp-slot');
         if (slot) {
+          var ifrWinForBg = iframe.contentWindow || doc.defaultView;
+          var bgInfo = detectRsvpBackground(slot, ifrWinForBg);
+          var slotIsDark = bgInfo.rgb ? relativeLuminance(bgInfo.rgb) < 0.35 : false;
           var btn = slot.querySelector('.rsvp-button');
           var btnHtml = btn ? btn.outerHTML : '';
-          slot.innerHTML = buildRsvpFormHtml() + btnHtml;
+          slot.innerHTML = buildRsvpFormHtml(slotIsDark) + btnHtml;
         } else {
           // Fallback: template has no .rsvp-slot — look for baked-in form fields
           // and wrap them in a .rsvp-slot so we can control them
@@ -3315,76 +3350,17 @@
               // Preserve the button if present
               var existingBtn = formContainer.querySelector('button, [type="submit"], .rsvp-button');
               var existingBtnHtml = existingBtn ? existingBtn.outerHTML : '';
-              formContainer.innerHTML = buildRsvpFormHtml() + existingBtnHtml;
+              var fbIfrWin = iframe.contentWindow || doc.defaultView;
+              var fbBgInfo = detectRsvpBackground(formContainer, fbIfrWin);
+              var fbIsDark = fbBgInfo.rgb ? relativeLuminance(fbBgInfo.rgb) < 0.35 : false;
+              formContainer.innerHTML = buildRsvpFormHtml(fbIsDark) + existingBtnHtml;
               formContainer.classList.add('rsvp-slot');
             }
           }
         }
 
-        // RSVP form contrast auto-fix: detect dark backgrounds and force light text
-        var rsvpSlotForContrast = doc.querySelector('.rsvp-slot');
-        if (rsvpSlotForContrast) {
-          try {
-            var ifrWin = iframe.contentWindow || doc.defaultView;
-            var rsvpBg = findEffectiveBgColor(rsvpSlotForContrast, ifrWin);
-            if (rsvpBg && isDarkColor(rsvpBg)) {
-              // Dark background detected — force light text on all form elements
-              rsvpSlotForContrast.style.setProperty('color', '#FFFFFF', 'important');
-              var formEls = rsvpSlotForContrast.querySelectorAll('label, input, select, textarea, span, div:not(.rsvp-button)');
-              for (var fei = 0; fei < formEls.length; fei++) {
-                var fe = formEls[fei];
-                // Don't override the submit button or elements that already have explicit light colors
-                if (fe.classList.contains('rsvp-button') || fe.tagName === 'BUTTON') continue;
-                var feColor = ifrWin.getComputedStyle(fe).color;
-                if (feColor && isDarkColor(feColor)) {
-                  fe.style.setProperty('color', '#FFFFFF', 'important');
-                }
-              }
-              // Fix input placeholder visibility
-              var inputs = rsvpSlotForContrast.querySelectorAll('input, select, textarea');
-              for (var ii = 0; ii < inputs.length; ii++) {
-                var inp = inputs[ii];
-                var inpBg = ifrWin.getComputedStyle(inp).backgroundColor;
-                // If input background is also dark or transparent, ensure text is light
-                inp.style.setProperty('color', '#FFFFFF', 'important');
-              }
-              console.log('[injectRsvpForm] Dark RSVP background detected — forced light text for contrast');
-            } else if (rsvpBg) {
-              // Non-dark background per isDarkColor (<0.2) — but could still be medium-dark
-              // Check actual contrast and choose the right fix direction
-              var rsvpTextColor = ifrWin.getComputedStyle(rsvpSlotForContrast).color;
-              if (rsvpTextColor) {
-                var rsvpTextRgb = parseRgb(rsvpTextColor);
-                var rsvpBgRgb = parseRgb(rsvpBg);
-                if (rsvpTextRgb && rsvpBgRgb) {
-                  var l1 = relativeLuminance(rsvpTextRgb), l2 = relativeLuminance(rsvpBgRgb);
-                  var contrastRatio = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
-                  if (contrastRatio < 2.5) {
-                    // Very low contrast — choose light or dark text based on background luminance
-                    var bgLum = relativeLuminance(rsvpBgRgb);
-                    var fixColor = bgLum < 0.5 ? '#FFFFFF' : '#1A1A1A';
-                    var fixLabel = bgLum < 0.5 ? 'light' : 'dark';
-                    rsvpSlotForContrast.style.setProperty('color', fixColor, 'important');
-                    var lightFormEls = rsvpSlotForContrast.querySelectorAll('label, input, select, textarea, span');
-                    for (var lfi = 0; lfi < lightFormEls.length; lfi++) {
-                      if (!lightFormEls[lfi].classList.contains('rsvp-button')) {
-                        lightFormEls[lfi].style.setProperty('color', fixColor, 'important');
-                      }
-                    }
-                    // Also fix input text color if forcing light text on dark-ish background
-                    if (bgLum < 0.5) {
-                      var contrastInputs = rsvpSlotForContrast.querySelectorAll('input, select, textarea');
-                      for (var cii = 0; cii < contrastInputs.length; cii++) {
-                        contrastInputs[cii].style.setProperty('color', '#FFFFFF', 'important');
-                      }
-                    }
-                    console.log('[injectRsvpForm] Low RSVP contrast detected (' + contrastRatio.toFixed(2) + ':1) — forced ' + fixLabel + ' text');
-                  }
-                }
-              }
-            }
-          } catch (ce) { console.warn('[injectRsvpForm] Contrast fix error:', ce.message); }
-        }
+        // RSVP contrast is now handled at form build time via detectRsvpBackground() + buildRsvpFormHtml(isDark)
+        // Colors are baked directly into inline styles — no post-hoc runtime fix needed
 
         // Inject event details into .details-slot (new pattern — platform controls details HTML)
         var detailsSlot = doc.querySelector('.details-slot');

@@ -286,15 +286,100 @@
 
     /* (contacts card removed — usage now in header) */
 
-    /* Manage Modal */
-    .manage-modal { background: white; width: 100%; max-width: 700px; max-height: 90vh; border-radius: 16px 16px 0 0; overflow: hidden; display: flex; flex-direction: column; animation: slideUpModal 0.3s ease-out; }
-    .manage-modal-header { padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-    .manage-modal-header h3 { font-size: 18px; font-weight: 600; }
-    .manage-tabs { display: flex; gap: 4px; padding: 12px 20px; border-bottom: 1px solid #eee; flex-shrink: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .manage-tab { padding: 8px 16px; border-radius: 6px; border: none; background: none; font-size: 13px; font-weight: 600; color: #888; cursor: pointer; font-family: 'Inter', sans-serif; white-space: nowrap; transition: all 0.15s; }
-    .manage-tab:hover { background: #f5f5f5; color: var(--midnight); }
-    .manage-tab.active { background: var(--midnight); color: white; }
-    .manage-tab-content { padding: 20px; overflow-y: auto; flex: 1; }
+    /* Event Management Page */
+    .emp-header { position: sticky; top: 0; z-index: 50; background: white; border-bottom: 1px solid #eee; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .emp-back-btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border: 1px solid #e0e0e0; border-radius: 10px; background: white; font-size: 14px; font-weight: 500; font-family: 'Inter', sans-serif; color: var(--midnight); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .emp-back-btn:hover { border-color: var(--party-coral); color: var(--party-coral); background: rgba(233,69,96,0.03); }
+    .emp-header-actions { display: flex; gap: 8px; }
+    .emp-action-btn { padding: 8px 18px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; color: var(--midnight); text-decoration: none; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+    .emp-action-btn:hover { border-color: var(--party-coral); color: var(--party-coral); }
+    .emp-action-btn-primary { background: var(--party-coral); color: white; border-color: var(--party-coral); }
+    .emp-action-btn-primary:hover { background: var(--blush-pop); color: white; border-color: var(--blush-pop); }
+
+    .emp-container { max-width: 1200px; margin: 0 auto; padding: 20px 24px; }
+
+    .emp-overview { background: white; border-radius: 12px; padding: 18px 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 16px; }
+    .emp-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--midnight); line-height: 1.2; margin: 0 0 8px; }
+    .emp-meta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 13px; color: #666; }
+    .emp-meta-row .emp-detail-chip { display: inline-flex; align-items: center; gap: 5px; font-weight: 500; }
+    .emp-meta-row .emp-detail-chip svg { width: 14px; height: 14px; fill: #888; flex-shrink: 0; }
+    .emp-meta-sep { color: #ccc; font-size: 11px; }
+    .emp-rsvp-inline { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: 13px; font-weight: 600; color: #555; }
+    .emp-rsvp-inline .emp-rsvp-item { display: inline-flex; align-items: center; gap: 5px; }
+    .emp-rsvp-inline .emp-rsvp-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .emp-rsvp-inline .emp-rsvp-dot.yes { background: #28a745; }
+    .emp-rsvp-inline .emp-rsvp-dot.no { background: #dc3545; }
+    .emp-rsvp-inline .emp-rsvp-dot.maybe { background: #e5a100; }
+
+    .emp-tabs { display: flex; gap: 4px; padding: 0 0 2px; margin-bottom: 16px; border-bottom: 2px solid #eee; overflow-x: auto; -webkit-overflow-scrolling: touch; background: white; border-radius: 12px 12px 0 0; }
+    .emp-tab { padding: 12px 20px; border: none; background: none; font-size: 14px; font-weight: 600; color: #888; cursor: pointer; font-family: 'Inter', sans-serif; white-space: nowrap; transition: all 0.15s; position: relative; border-radius: 0; }
+    .emp-tab:hover { color: var(--midnight); }
+    .emp-tab.active { color: var(--party-coral); }
+    .emp-tab.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 3px; background: var(--party-coral); border-radius: 3px 3px 0 0; }
+    .emp-tab-content { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); min-height: 300px; }
+
+    /* Settings tab */
+    .emp-settings-section { margin-bottom: 28px; }
+    .emp-settings-section h3 { font-size: 16px; font-weight: 700; color: var(--midnight); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .emp-settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .emp-settings-field { display: flex; flex-direction: column; gap: 6px; }
+    .emp-settings-field.full-width { grid-column: 1 / -1; }
+    .emp-settings-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #888; }
+    .emp-settings-input { padding: 10px 14px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 14px; font-family: 'Inter', sans-serif; color: var(--midnight); background: white; transition: border-color 0.15s; min-height: 44px; }
+    .emp-settings-input:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.08); }
+    .emp-settings-textarea { min-height: 80px; resize: vertical; line-height: 1.5; }
+    .emp-settings-save { padding: 12px 28px; border: none; border-radius: 10px; background: var(--party-coral); color: white; font-size: 14px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; min-height: 44px; }
+    .emp-settings-save:hover:not(:disabled) { background: var(--blush-pop); transform: translateY(-1px); }
+    .emp-settings-save:disabled { opacity: 0.5; cursor: not-allowed; }
+    /* Preview tab */
+    .preview-sub-nav { display: flex; gap: 4px; margin-bottom: 20px; }
+    .preview-sub-btn { padding: 8px 18px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; background: white; color: #666; transition: all 0.15s; }
+    .preview-sub-btn:hover { border-color: #bbb; color: var(--midnight); }
+    .preview-sub-btn.active { background: var(--midnight); color: white; border-color: var(--midnight); }
+    .preview-frame-wrapper { display: flex; justify-content: center; padding: 20px 0; }
+    .preview-phone-frame { width: 393px; max-width: 100%; border-radius: 20px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.12); border: 1px solid #e0e0e0; background: white; }
+    .preview-phone-frame iframe { width: 100%; height: 700px; border: none; }
+    .preview-phone-frame.email-frame { width: 600px; border-radius: 8px; }
+    .preview-phone-frame.email-frame iframe { height: 500px; }
+    .preview-empty { text-align: center; padding: 60px 20px; color: #999; font-size: 14px; }
+
+    /* Guest detail panel */
+    .guest-card { border: 1px solid #eee; border-radius: 10px; margin-bottom: 8px; overflow: hidden; transition: all 0.15s; }
+    .guest-card:hover { border-color: #ddd; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .guest-card-header { display: flex; align-items: center; padding: 12px 16px; gap: 12px; cursor: pointer; }
+    .guest-card-header:hover { background: #fafafa; }
+    .guest-card-info { flex: 1; min-width: 0; }
+    .guest-card-name { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .guest-card-detail { font-size: 12px; color: #999; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .guest-card-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .guest-detail-panel { background: #f9f9f9; border-top: 1px solid #eee; padding: 16px 20px; }
+    .guest-detail-section { margin-bottom: 14px; }
+    .guest-detail-section:last-child { margin-bottom: 0; }
+    .guest-detail-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #888; margin-bottom: 6px; }
+    .guest-timeline { list-style: none; }
+    .guest-timeline li { display: flex; gap: 10px; padding: 6px 0; font-size: 13px; align-items: flex-start; }
+    .guest-timeline-icon { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; font-weight: 700; }
+    .guest-timeline-icon.sms { background: rgba(233,69,96,0.1); color: var(--party-coral); }
+    .guest-timeline-icon.rsvp { background: rgba(78,205,196,0.1); color: var(--mint-fizz); }
+    .guest-timeline-icon.email { background: rgba(167,139,250,0.1); color: var(--party-purple); }
+    .guest-timeline-text { flex: 1; }
+    .guest-timeline-date { font-size: 11px; color: #aaa; }
+    .guest-detail-actions { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee; flex-wrap: wrap; }
+    .guest-detail-btn { padding: 7px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 12px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; background: white; color: var(--midnight); transition: all 0.15s; }
+    .guest-detail-btn:hover:not(:disabled) { border-color: var(--party-coral); color: var(--party-coral); }
+    .guest-detail-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .guest-response-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .guest-response-chip { background: white; border: 1px solid #eee; border-radius: 6px; padding: 4px 10px; font-size: 12px; }
+    .guest-response-chip-label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.03em; }
+    .guest-response-chip-value { font-weight: 600; color: var(--midnight); }
+
+    .emp-danger-zone { background: #fff8f8; border: 1px solid #f5e0e0; border-radius: 12px; padding: 20px; }
+    .emp-danger-zone h3 { color: #dc3545; }
+    .emp-danger-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    .emp-danger-btn { padding: 10px 20px; border: 1px solid #ddd; border-radius: 10px; font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s; background: white; color: var(--midnight); min-height: 44px; }
+    .emp-danger-btn:hover { border-color: #dc3545; color: #dc3545; background: #fff5f5; }
+    .emp-danger-btn.danger-primary { background: #dc3545; color: white; border-color: #dc3545; }
+    .emp-danger-btn.danger-primary:hover { background: #c82333; }
 
     /* Messages tab */
     .msg-type-pills { display: flex; gap: 8px; margin-bottom: 16px; }
@@ -430,6 +515,12 @@
     .collab-editor { background: rgba(167,139,250,0.15); color: #7c3aed; }
     .collab-viewer { background: rgba(78,205,196,0.15); color: #0d9488; }
 
+    /* Event management page — tablet */
+    @media (max-width: 768px) {
+      .emp-title { font-size: 20px; }
+      .emp-settings-grid { grid-template-columns: 1fr; }
+    }
+
     @media (max-width: 640px) {
       .header { padding: 10px 16px; }
       .header-right { gap: 8px; }
@@ -456,10 +547,6 @@
       .rsvp-edit-actions { flex-direction: column; }
       .rsvp-edit-actions button { width: 100%; text-align: center; justify-content: center; }
       .rsvp-modal { max-height: 90vh; }
-      .manage-modal { max-height: 95vh; }
-      .manage-tabs { gap: 2px; padding: 10px 16px; }
-      .manage-tab { padding: 7px 12px; font-size: 12px; }
-      .manage-tab-content { padding: 16px; }
       .mode-cards { flex-direction: column; }
       .reminder-form-row { flex-wrap: wrap; }
       .reminder-item-msg { max-width: 200px; }
@@ -467,6 +554,24 @@
       .profile-dropdown { right: -8px; }
       .rsvp-mini-stats { gap: 4px; }
       .rsvp-mini-stat .num { font-size: 15px; }
+
+      /* Event management page — mobile */
+      .emp-header { padding: 10px 16px; }
+      .emp-back-btn { font-size: 13px; padding: 8px 12px; }
+      .emp-header-actions { gap: 6px; }
+      .emp-action-btn { padding: 8px 12px; font-size: 12px; }
+      .emp-action-btn .emp-btn-label { display: none; }
+      .emp-container { padding: 16px; }
+      .emp-overview { padding: 14px 16px; }
+      .emp-title { font-size: 18px; }
+      .emp-meta-row { gap: 4px 10px; font-size: 12px; }
+      .emp-rsvp-inline { gap: 10px; font-size: 12px; }
+      .emp-tabs { gap: 0; margin-bottom: 12px; }
+      .emp-tab { padding: 10px 14px; font-size: 13px; }
+      .emp-tab-content { padding: 16px; border-radius: 12px; }
+      .emp-settings-grid { grid-template-columns: 1fr; }
+      .emp-danger-actions { flex-direction: column; }
+      .emp-danger-btn { width: 100%; text-align: center; justify-content: center; }
     }
   </style>
 <script src="/js/meta-pixel.js"></script>
@@ -632,22 +737,51 @@
     </div>
   </div>
 
-  <!-- Manage Modal -->
-  <div class="modal-overlay" id="manageModal" onclick="if(event.target===this)closeManageModal()">
-    <div class="manage-modal">
-      <div class="manage-modal-header">
-        <h3 id="manageModalTitle">Manage Event</h3>
-        <button class="rsvp-modal-close" onclick="closeManageModal()">&times;</button>
+  <!-- Event Management Page -->
+  <div id="eventManagePage" style="display:none;">
+    <div class="emp-header">
+      <button class="emp-back-btn" onclick="closeEventManagePage()">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        Back to Events
+      </button>
+      <div class="emp-header-actions">
+        <button class="emp-action-btn" id="empCopyLinkBtn" style="display:none;" onclick="copyEmpLink(this)">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          <span class="emp-btn-label">Copy Link</span>
+        </button>
+        <a class="emp-action-btn" id="empViewBtn" target="_blank">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+          <span class="emp-btn-label">View</span>
+        </a>
+        <a class="emp-action-btn" id="empEditBtn">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+          <span class="emp-btn-label">Edit Design</span>
+        </a>
       </div>
-      <div class="manage-tabs" id="manageTabs">
-        <button class="manage-tab active" onclick="switchTab('guests')">Guests</button>
-        <button class="manage-tab" onclick="switchTab('messages')">Messages</button>
-        <button class="manage-tab" onclick="switchTab('reminders')">Reminders</button>
-        <button class="manage-tab" onclick="switchTab('notifications')">Alerts</button>
-        <button class="manage-tab" onclick="switchTab('photos')">Photos</button>
-        <button class="manage-tab" onclick="switchTab('cohosts')">Co-Hosts</button>
+    </div>
+
+    <div class="emp-container">
+      <!-- Event Overview -->
+      <div class="emp-overview" id="empOverview">
+        <h1 class="emp-title" id="empTitle">Loading...</h1>
+        <div class="emp-meta-row" id="empDetails"></div>
+        <div class="emp-rsvp-inline" id="empRsvpStats"></div>
       </div>
-      <div class="manage-tab-content" id="manageContent">
+
+      <!-- Tab Navigation -->
+      <div class="emp-tabs" id="empTabs">
+        <button class="emp-tab active" onclick="switchManageTab('guests')">Guests</button>
+        <button class="emp-tab" onclick="switchManageTab('messages')">Messages</button>
+        <button class="emp-tab" onclick="switchManageTab('reminders')">Reminders</button>
+        <button class="emp-tab" onclick="switchManageTab('notifications')">Alerts</button>
+        <button class="emp-tab" onclick="switchManageTab('photos')">Photos</button>
+        <button class="emp-tab" onclick="switchManageTab('preview')">Preview</button>
+        <button class="emp-tab" onclick="switchManageTab('cohosts')">Co-Hosts</button>
+        <button class="emp-tab" onclick="switchManageTab('settings')">Settings</button>
+      </div>
+
+      <!-- Tab Content -->
+      <div class="emp-tab-content" id="manageContent">
         <div class="loading">Loading...</div>
       </div>
     </div>
@@ -764,7 +898,7 @@
 
       section.style.display = 'block';
       grid.innerHTML = events.map(function(event) {
-        var eventDate = event.eventDate ? new Date(event.eventDate).toLocaleDateString() : 'No date set';
+        var eventDate = event.eventDate ? parseEventDate(event.eventDate).toLocaleDateString() : 'No date set';
         var statusClass = 'status-' + (event.status || 'draft').toLowerCase();
         var roleBadge = event.collaboratorRole === 'editor'
           ? '<span class="collab-badge collab-editor">Co-Host</span>'
@@ -802,8 +936,7 @@
           + '</div>'
           + buildRsvpMiniStats(event.rsvpCounts)
           + '<div class="event-actions">'
-          + '<a href="/v2/event/' + encodeURIComponent(event.slug) + '" target="_blank">View</a>'
-          + '<button onclick="openManageModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\', null, \'' + (event.paymentStatus || '') + '\', false)">Manage</button>'
+          + '<button onclick="openEventManagePage(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\', null, \'' + (event.paymentStatus || '') + '\', false)">Manage</button>'
           + '</div></div></div>';
       }).join('');
 
@@ -851,7 +984,7 @@
 
       document.getElementById('emptyState').style.display = 'none';
       grid.innerHTML = filtered.map(function(event) {
-        var eventDate = event.eventDate ? new Date(event.eventDate).toLocaleDateString() : 'No date set';
+        var eventDate = event.eventDate ? parseEventDate(event.eventDate).toLocaleDateString() : 'No date set';
         var statusClass = 'status-' + (event.status || 'draft').toLowerCase();
         var isDraft = (event.status || 'Draft').toLowerCase() === 'draft';
         var isPublished = event.status === 'Published';
@@ -865,32 +998,11 @@
             + '<div class="progress-label">' + prog.pct + '% — ' + escapeHtml(prog.label) + '</div>';
         }
 
-        var noInvitesHtml = '';
-        if (isPublished && event.settings && !event.settings.invites_sent) {
-          noInvitesHtml = '<div class="no-invites-flag"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> No invites sent yet — share the link below to invite guests</div>';
-        }
-
-        var shareHtml = '';
-        if (isPublished) {
-          shareHtml = '<div class="share-row">'
-            + '<div class="invite-link-row">'
-            + '<input class="invite-link-input" value="' + escapeHtml(inviteUrl) + '" readonly onclick="this.select()">'
-            + '<button class="copy-btn" onclick="copyLink(this, \'' + escapeHtml(inviteUrl) + '\')">Copy</button>'
-            + '</div>'
-            + '<div class="share-buttons">';
-        var smsPaid = (event.paymentStatus || '').toLowerCase() === 'paid';
-        shareHtml += '<button class="share-btn" onclick="openManageModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\', \'messages\', \'' + (event.paymentStatus || '') + '\')">' + (smsPaid ? 'Send SMS' : 'Send SMS &#x1F512;') + '</button>'
-            + '<a class="share-btn" href="mailto:?subject=' + encodeURIComponent(event.title + ' - You\'re Invited!') + '&body=' + encodeURIComponent("You're invited to " + event.title + "!\n\nRSVP here: " + inviteUrl) + '">Email</a>'
-            + '</div></div>';
-        }
-
         var actionsHtml = '<div class="event-actions">';
         if (isDraft) {
           actionsHtml += '<a href="/v2/create/?eventId=' + encodeURIComponent(event.id) + '">Continue</a>';
         } else if (!isArchived) {
-          actionsHtml += '<a href="/v2/event/' + encodeURIComponent(event.slug) + '" target="_blank">View</a>';
-          actionsHtml += '<a href="/v2/create/?eventId=' + encodeURIComponent(event.id) + '">Edit</a>';
-          actionsHtml += '<button onclick="openManageModal(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\', null, \'' + (event.paymentStatus || '') + '\')">Manage</button>';
+          actionsHtml += '<button onclick="openEventManagePage(\'' + event.id + '\', \'' + escapeHtml(event.title).replace(/'/g, "\\'") + '\', \'' + (event.eventDate || '') + '\', \'' + encodeURIComponent(event.slug) + '\', null, \'' + (event.paymentStatus || '') + '\')">Manage</button>';
         } else {
           actionsHtml += '<a href="/v2/event/' + encodeURIComponent(event.slug) + '" target="_blank">View</a>';
         }
@@ -944,8 +1056,6 @@
           + '</div>'
           + buildRsvpMiniStats(event.rsvpCounts)
           + progressHtml
-          + noInvitesHtml
-          + shareHtml
           + actionsHtml
           + '</div></div>';
       }).join('');
@@ -973,24 +1083,26 @@
     }
 
     // ============================================================
-    // Manage Modal — State
+    // Event Management Page — State
     // ============================================================
     var manageEventId = null;
     var manageTitle = null;
     var manageDate = null;
     var manageSlug = null;
     var manageRsvps = null;
+    var manageCustomFields = [];
     var managePaymentStatus = null;
     var manageCurrentTab = 'guests';
     var manageIsOwner = true;
     var manageMsgType = 'invite';
     var manageHistoryOpen = false;
     var manageReminderFormOpen = false;
+    var manageEventData = null;
 
     // ============================================================
-    // Manage Modal — Lifecycle
+    // Event Management Page — Lifecycle
     // ============================================================
-    async function openManageModal(eventId, title, eventDate, slug, initialTab, paymentStatus, isOwner) {
+    async function openEventManagePage(eventId, title, eventDate, slug, initialTab, paymentStatus, isOwner) {
       manageEventId = eventId;
       managePaymentStatus = paymentStatus || null;
       manageIsOwner = isOwner !== false;
@@ -1000,24 +1112,108 @@
       manageRsvps = null;
       manageHistoryOpen = false;
       manageReminderFormOpen = false;
+      manageEventData = null;
 
-      document.getElementById('manageModalTitle').textContent = manageTitle;
+      // Hide dashboard, show event management page
+      document.querySelector('.container').style.display = 'none';
+      document.getElementById('eventManagePage').style.display = 'block';
+      window.scrollTo(0, 0);
+
+      // Set header action links
+      document.getElementById('empTitle').textContent = manageTitle || 'Loading...';
+      document.getElementById('empViewBtn').href = '/v2/event/' + encodeURIComponent(manageSlug);
+      document.getElementById('empEditBtn').href = '/v2/create/?eventId=' + encodeURIComponent(eventId);
       document.getElementById('manageContent').innerHTML = '<div class="loading">Loading...</div>';
-      document.getElementById('manageModal').classList.add('active');
-      document.body.style.overflow = 'hidden';
 
-      switchTab(initialTab || 'guests');
+      // Load event overview data
+      loadEventOverview(eventId);
+
+      // Load initial tab
+      switchManageTab(initialTab || 'guests');
     }
 
-    function closeManageModal() {
-      document.getElementById('manageModal').classList.remove('active');
-      document.body.style.overflow = '';
+    // Keep backward compat alias for any external callers
+    var openManageModal = openEventManagePage;
+
+    function closeEventManagePage() {
+      document.getElementById('eventManagePage').style.display = 'none';
+      document.querySelector('.container').style.display = 'block';
       manageEventId = null;
+      manageEventData = null;
     }
 
-    function switchTab(tabName) {
+    var empInviteUrl = '';
+
+    async function loadEventOverview(eventId) {
+      try {
+        var res = await fetch('/api/v2/events?action=get&eventId=' + encodeURIComponent(eventId), {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        var data = await res.json();
+        if (!data.success || !data.event) return;
+        manageEventData = data.event;
+
+        // Sync all local state variables
+        manageTitle = data.event.title || 'Untitled Event';
+        manageDate = data.event.eventDate || '';
+        if (data.event.slug) manageSlug = encodeURIComponent(data.event.slug);
+        document.getElementById('empTitle').textContent = manageTitle;
+
+        // Meta row: date · location · type · status
+        var chips = [];
+        if (data.event.eventDate) {
+          var d = parseEventDate(data.event.eventDate);
+          var dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+          chips.push('<span class="emp-detail-chip"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>' + dateStr + '</span>');
+        }
+        if (data.event.locationName) {
+          chips.push('<span class="emp-detail-chip"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>' + escapeHtml(data.event.locationName) + '</span>');
+        }
+        if (data.event.eventType) {
+          var typeLabel = data.event.eventType.replace(/([A-Z])/g, ' $1').replace(/^./, function(s) { return s.toUpperCase(); });
+          chips.push('<span class="emp-detail-chip">' + escapeHtml(typeLabel) + '</span>');
+        }
+        var statusClass = (data.event.status === 'published') ? 'status-published' : (data.event.status === 'archived') ? 'status-archived' : 'status-draft';
+        chips.push('<span class="status-badge ' + statusClass + '">' + (data.event.status || 'Draft') + '</span>');
+        document.getElementById('empDetails').innerHTML = chips.join('<span class="emp-meta-sep">&middot;</span>');
+
+        // Inline RSVP stats
+        var counts = data.event.rsvpCounts || {};
+        renderEmpRsvpInline(counts.attending || 0, counts.declined || 0, counts.maybe || 0);
+
+        // Copy Link button in header
+        var copyBtn = document.getElementById('empCopyLinkBtn');
+        if (data.event.status === 'published' && data.event.slug) {
+          empInviteUrl = window.location.origin + '/v2/event/' + encodeURIComponent(data.event.slug);
+          copyBtn.style.display = '';
+        } else {
+          empInviteUrl = '';
+          copyBtn.style.display = 'none';
+        }
+      } catch (e) {
+        console.error('Failed to load event overview:', e);
+      }
+    }
+
+    function renderEmpRsvpInline(attending, declined, maybe) {
+      document.getElementById('empRsvpStats').innerHTML =
+        '<span class="emp-rsvp-item"><span class="emp-rsvp-dot yes"></span>' + attending + ' attending</span>' +
+        '<span class="emp-rsvp-item"><span class="emp-rsvp-dot no"></span>' + declined + ' declined</span>' +
+        '<span class="emp-rsvp-item"><span class="emp-rsvp-dot maybe"></span>' + maybe + ' maybe</span>';
+    }
+
+    function copyEmpLink(btn) {
+      if (!empInviteUrl) return;
+      navigator.clipboard.writeText(empInviteUrl).then(function() {
+        var label = btn.querySelector('.emp-btn-label');
+        if (label) { label.textContent = 'Copied!'; setTimeout(function() { label.textContent = 'Copy Link'; }, 2000); }
+        else { btn.textContent = 'Copied!'; setTimeout(function() { btn.textContent = 'Copy Link'; }, 2000); }
+      });
+    }
+
+    function switchManageTab(tabName) {
       manageCurrentTab = tabName;
-      var tabs = document.querySelectorAll('.manage-tab');
+      var tabs = document.querySelectorAll('.emp-tab');
       tabs.forEach(function(t) {
         t.classList.toggle('active', t.textContent.toLowerCase().replace(/[\s-]/g,'') === tabName ||
           (tabName === 'guests' && t.textContent === 'Guests') ||
@@ -1025,7 +1221,9 @@
           (tabName === 'reminders' && t.textContent === 'Reminders') ||
           (tabName === 'notifications' && t.textContent === 'Alerts') ||
           (tabName === 'photos' && t.textContent === 'Photos') ||
-          (tabName === 'cohosts' && t.textContent === 'Co-Hosts'));
+          (tabName === 'preview' && t.textContent === 'Preview') ||
+          (tabName === 'cohosts' && t.textContent === 'Co-Hosts') ||
+          (tabName === 'settings' && t.textContent === 'Settings'));
       });
 
       if (tabName === 'guests') loadGuestsTab();
@@ -1033,7 +1231,416 @@
       else if (tabName === 'reminders') loadRemindersTab();
       else if (tabName === 'notifications') loadNotificationsTab();
       else if (tabName === 'photos') loadPhotosTab();
+      else if (tabName === 'preview') loadPreviewTab();
       else if (tabName === 'cohosts') loadCohostsTab();
+      else if (tabName === 'settings') loadSettingsTab();
+    }
+
+    // Backward compat alias
+    function switchTab(tabName) { switchManageTab(tabName); }
+
+    // ============================================================
+    // Preview Tab
+    // ============================================================
+
+    // Detect if an element's effective background is dark (walks up ancestors)
+    function detectPreviewBgDark(el, win) {
+      var node = el;
+      while (node && node.nodeType === 1) {
+        try {
+          var s = win.getComputedStyle(node);
+          var bg = s.backgroundColor;
+          if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+            var m = bg.match(/\d+/g);
+            if (m && m.length >= 3) {
+              var rgb = [+m[0], +m[1], +m[2]];
+              var a = rgb.map(function(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+              return (0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]) < 0.35;
+            }
+          }
+          var bgImg = s.backgroundImage;
+          if (bgImg && bgImg !== 'none') {
+            var gc = bgImg.match(/rgb[a]?\([^)]+\)/g);
+            if (gc) { var gm = gc[0].match(/\d+/g); if (gm && gm.length >= 3) { var rgb = [+gm[0], +gm[1], +gm[2]]; var a = rgb.map(function(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return (0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]) < 0.35; } }
+          }
+        } catch (e) {}
+        node = node.parentElement;
+      }
+      return false;
+    }
+
+    // Build a preview RSVP form with explicit colors baked in
+    function buildPreviewRsvpHtml(ev, isDark) {
+      var textColor = isDark ? '#FFFFFF' : '#1A1A1A';
+      var borderColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.15)';
+      var inputBg = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)';
+      var accent = (ev.themeConfig && (ev.themeConfig.accentColor || ev.themeConfig.primaryColor)) || '#E94560';
+      var inputStyle = 'width:100%;padding:10px 12px;border:1px solid ' + borderColor + ';border-radius:8px;font-size:14px;background:' + inputBg + ';color:' + textColor + ';font-family:inherit;';
+      var labelStyle = 'display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:' + textColor + ';';
+
+      var html = '<div style="font-family:inherit;color:' + textColor + ';">';
+      html += '<div style="margin-bottom:12px;"><label style="' + labelStyle + '">Name <span style="color:' + accent + ';">*</span></label>'
+        + '<input type="text" placeholder="Your name" disabled style="' + inputStyle + '"></div>';
+      html += '<div style="margin-bottom:12px;"><label style="' + labelStyle + '">RSVP Status <span style="color:' + accent + ';">*</span></label>'
+        + '<div style="display:flex;gap:6px;">'
+        + ['Attending', 'Declined', 'Maybe'].map(function(opt, idx) {
+          var isFirst = idx === 0;
+          return '<label style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px 6px;border:2px solid ' + (isFirst ? accent : borderColor) + ';border-radius:8px;font-size:12px;font-weight:500;background:' + (isFirst ? accent : inputBg) + ';color:' + (isFirst ? '#fff' : textColor) + ';">' + opt + '</label>';
+        }).join('') + '</div></div>';
+
+      // Custom fields from event
+      var fields = ev.customFields || [];
+      if (typeof fields === 'string') { try { fields = JSON.parse(fields); } catch(e) { fields = []; } }
+      fields.forEach(function(f) {
+        var reqStar = f.is_required || f.required ? ' <span style="color:' + accent + ';">*</span>' : '';
+        html += '<div style="margin-bottom:12px;"><label style="' + labelStyle + '">' + (f.label || f.key || '') + reqStar + '</label>';
+        if (f.field_type === 'select' || f.fieldType === 'select') {
+          html += '<select disabled style="' + inputStyle + '-webkit-appearance:none;"><option>' + ((f.options && f.options[0]) || 'Select...') + '</option></select>';
+        } else if (f.field_type === 'textarea' || f.fieldType === 'textarea') {
+          html += '<textarea disabled placeholder="' + (f.placeholder || '') + '" style="' + inputStyle + 'min-height:60px;resize:none;"></textarea>';
+        } else {
+          html += '<input type="text" placeholder="' + (f.placeholder || '') + '" disabled style="' + inputStyle + '">';
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+      return html;
+    }
+
+    function loadPreviewTab() {
+      var content = document.getElementById('manageContent');
+      if (!manageEventData || !manageEventData.themeHtml) {
+        content.innerHTML = '<div class="preview-empty">No theme generated yet. Edit your event to create a design.</div>';
+        return;
+      }
+      content.innerHTML = '<div class="preview-sub-nav">'
+        + '<button class="preview-sub-btn active" onclick="showPreview(\'invite\', this)">Invite Page</button>'
+        + '<button class="preview-sub-btn" onclick="showPreview(\'thankyou\', this)">Thank You</button>'
+        + '<button class="preview-sub-btn" onclick="showPreview(\'email\', this)">Email</button>'
+        + '</div>'
+        + '<div class="preview-frame-wrapper"><div class="preview-phone-frame" id="previewPhoneFrame">'
+        + '<iframe id="previewIframe" sandbox="allow-scripts allow-same-origin"></iframe>'
+        + '</div></div>';
+      showPreview('invite');
+    }
+
+    function showPreview(type, btn) {
+      // Update sub-nav active state
+      if (btn) {
+        document.querySelectorAll('.preview-sub-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+      }
+      var iframe = document.getElementById('previewIframe');
+      var frame = document.getElementById('previewPhoneFrame');
+      if (!iframe || !frame) return;
+
+      var config = manageEventData.themeConfig || {};
+      var fontsImport = config.googleFontsImport || '';
+      var bg = config.backgroundColor || '#f9f9f9';
+      var css = manageEventData.themeCss || '';
+      var ev = manageEventData;
+
+      var srcdoc = '';
+      if (type === 'invite') {
+        frame.className = 'preview-phone-frame';
+        srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+          + '<style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:' + bg + '}' + fontsImport + '</style>'
+          + '<style>' + css + '</style></head><body>' + manageEventData.themeHtml + '</body></html>';
+        iframe.srcdoc = srcdoc;
+        // After iframe loads, inject event details into .details-slot
+        iframe.onload = function() {
+          try {
+            var doc = iframe.contentDocument;
+            if (!doc) return;
+            var detailsSlot = doc.querySelector('.details-slot');
+            if (detailsSlot) {
+              detailsSlot.innerHTML = buildPreviewDetailsHtml(ev);
+            }
+            // Inject RSVP form preview into .rsvp-slot
+            var rsvpSlot = doc.querySelector('.rsvp-slot');
+            if (rsvpSlot) {
+              var ifrWin = iframe.contentWindow || doc.defaultView;
+              var isDark = detectPreviewBgDark(rsvpSlot, ifrWin);
+              var btn = rsvpSlot.querySelector('.rsvp-button, button, [type="submit"]');
+              var btnHtml = btn ? btn.outerHTML : '';
+              rsvpSlot.innerHTML = buildPreviewRsvpHtml(ev, isDark) + btnHtml;
+            }
+            // Resize iframe to content
+            setTimeout(function() {
+              try { iframe.style.height = Math.max(doc.body.scrollHeight + 20, 600) + 'px'; } catch(e) {}
+            }, 100);
+          } catch(e) {}
+        };
+        return;
+      } else if (type === 'thankyou') {
+        frame.className = 'preview-phone-frame';
+        var thankyouHtml = config.thankyouHtml || '';
+        if (!thankyouHtml) {
+          iframe.srcdoc = '<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Inter,sans-serif;color:#999;font-size:14px;">No thank you page generated yet</body></html>';
+          return;
+        }
+        // Inject thank you content into the hero and add event recap
+        thankyouHtml = injectThankYouContent(thankyouHtml, ev);
+        srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+          + '<style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:' + bg + '}' + fontsImport + '</style>'
+          + '<style>' + css + '</style></head><body>' + thankyouHtml + '</body></html>';
+      } else if (type === 'email') {
+        frame.className = 'preview-phone-frame email-frame';
+        var emailHtml = config.emailHtml || '';
+        if (!emailHtml) {
+          iframe.srcdoc = '<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Inter,sans-serif;color:#999;font-size:14px;">No email template generated yet</body></html>';
+          return;
+        }
+        srcdoc = emailHtml;
+      }
+      iframe.onload = null;
+      iframe.srcdoc = srcdoc;
+    }
+
+    // Build event details HTML for the invite page .details-slot
+    function buildPreviewDetailsHtml(ev) {
+      var items = [];
+      if (ev.eventDate) {
+        var d = parseEventDate(ev.eventDate);
+        var formatted = d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        var timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        if (ev.endDate) {
+          var end = parseEventDate(ev.endDate);
+          timeStr += ' \u2013 ' + end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        }
+        items.push({ icon: '&#128197;', label: 'Date', value: formatted + '<br>' + timeStr });
+      }
+      var locName = ev.locationName || '';
+      var locAddr = ev.locationAddress || '';
+      if (locName || locAddr) {
+        items.push({ icon: '&#128205;', label: 'Location', value: [locName, locAddr].filter(Boolean).join('<br>') });
+      }
+      if (ev.dressCode) {
+        items.push({ icon: '&#128087;', label: 'Dress Code', value: escapeHtml(ev.dressCode) });
+      }
+      return items.map(function(item) {
+        return '<div class="detail-item">'
+          + '<div class="detail-icon">' + item.icon + '</div>'
+          + '<div class="detail-text"><div class="detail-label">' + item.label + '</div>'
+          + '<div class="detail-value">' + item.value + '</div></div>'
+          + '</div>';
+      }).join('');
+    }
+
+    // Inject title/subtitle/event recap into thank you page HTML
+    function injectThankYouContent(html, ev) {
+      var title = ev.title || 'the event';
+      // Fill .thankyou-hero with title and subtitle
+      html = html.replace(/<div class="thankyou-hero">\s*<\/div>/i,
+        '<div class="thankyou-hero">'
+        + '<h1 class="thankyou-title">Thank You!</h1>'
+        + '<p class="thankyou-subtitle">We\'re so glad you responded to<br><strong>' + escapeHtml(title) + '</strong></p>'
+        + '</div>');
+      // Replace placeholder spans if present
+      html = html.replace(/<span class="thankyou-guest">[^<]*<\/span>/g, '<span class="thankyou-guest">Guest</span>');
+      html = html.replace(/<span class="thankyou-event">[^<]*<\/span>/g, '<span class="thankyou-event">' + escapeHtml(title) + '</span>');
+      // Build event recap
+      var recapItems = [];
+      if (ev.eventDate) {
+        var d = parseEventDate(ev.eventDate);
+        var formatted = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        var timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        recapItems.push('<div class="detail-item"><div class="detail-icon">&#128197;</div><div><div class="detail-label">Date &amp; Time</div><div class="detail-value">' + formatted + '<br>' + timeStr + '</div></div></div>');
+      }
+      if (ev.locationName || ev.locationAddress) {
+        recapItems.push('<div class="detail-item"><div class="detail-icon">&#128205;</div><div><div class="detail-label">Location</div><div class="detail-value">' + escapeHtml(ev.locationName || '') + (ev.locationAddress ? '<br>' + escapeHtml(ev.locationAddress) : '') + '</div></div></div>');
+      }
+      if (recapItems.length > 0) {
+        var recapHtml = '<div class="thankyou-event-recap">' + recapItems.join('') + '</div>';
+        // Insert recap before the last </div> of the thankyou-page
+        var lastDiv = html.lastIndexOf('</div>');
+        if (lastDiv !== -1) {
+          html = html.substring(0, lastDiv) + recapHtml + '</div>';
+        }
+      }
+      return html;
+    }
+
+    // ============================================================
+    // Settings Tab
+    // ============================================================
+    async function loadSettingsTab() {
+      var container = document.getElementById('manageContent');
+      container.innerHTML = '<div class="loading">Loading settings...</div>';
+
+      try {
+        var ev = manageEventData;
+        if (!ev) {
+          var res = await fetch('/api/v2/events?action=get&eventId=' + encodeURIComponent(manageEventId), {
+            headers: { 'Authorization': 'Bearer ' + token }
+          });
+          var data = await res.json();
+          if (!data.success) { container.innerHTML = '<p style="color:#dc3545;">Failed to load event settings.</p>'; return; }
+          ev = data.event;
+          manageEventData = ev;
+        }
+
+        var eventTypes = [
+          { value: 'kidsBirthday', label: "Kid's Birthday" },
+          { value: 'adultBirthday', label: 'Adult Birthday' },
+          { value: 'babyShower', label: 'Baby Shower' },
+          { value: 'bridalShower', label: 'Bridal Shower' },
+          { value: 'engagement', label: 'Engagement' },
+          { value: 'wedding', label: 'Wedding' },
+          { value: 'graduation', label: 'Graduation' },
+          { value: 'holiday', label: 'Holiday Party' },
+          { value: 'dinnerParty', label: 'Dinner Party' },
+          { value: 'retirement', label: 'Retirement' },
+          { value: 'anniversary', label: 'Anniversary' },
+          { value: 'sports', label: 'Sports Event' },
+          { value: 'corporate', label: 'Corporate' },
+          { value: 'other', label: 'Other' }
+        ];
+        var typeOptions = eventTypes.map(function(t) {
+          return '<option value="' + t.value + '"' + (ev.eventType === t.value ? ' selected' : '') + '>' + t.label + '</option>';
+        }).join('');
+
+        var dateValue = ev.eventDate ? String(ev.eventDate).split('T')[0] : '';
+
+        container.innerHTML =
+          '<div class="emp-settings-section">' +
+            '<h3><svg viewBox="0 0 24 24" width="18" height="18" fill="var(--midnight)"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg> Event Details</h3>' +
+            '<div class="emp-settings-grid">' +
+              '<div class="emp-settings-field full-width">' +
+                '<label class="emp-settings-label">Event Title</label>' +
+                '<input class="emp-settings-input" id="settingsTitle" type="text" value="' + escapeHtml(ev.title || '') + '">' +
+              '</div>' +
+              '<div class="emp-settings-field">' +
+                '<label class="emp-settings-label">Event Date</label>' +
+                '<input class="emp-settings-input" id="settingsDate" type="date" value="' + dateValue + '">' +
+              '</div>' +
+              '<div class="emp-settings-field">' +
+                '<label class="emp-settings-label">Event Type</label>' +
+                '<select class="emp-settings-input" id="settingsType">' + typeOptions + '</select>' +
+              '</div>' +
+              '<div class="emp-settings-field">' +
+                '<label class="emp-settings-label">Location Name</label>' +
+                '<input class="emp-settings-input" id="settingsLocation" type="text" value="' + escapeHtml(ev.locationName || '') + '">' +
+              '</div>' +
+              '<div class="emp-settings-field">' +
+                '<label class="emp-settings-label">Location Address</label>' +
+                '<input class="emp-settings-input" id="settingsAddress" type="text" value="' + escapeHtml(ev.locationAddress || '') + '">' +
+              '</div>' +
+              '<div class="emp-settings-field full-width">' +
+                '<label class="emp-settings-label">Description</label>' +
+                '<textarea class="emp-settings-input emp-settings-textarea" id="settingsDescription">' + escapeHtml(ev.description || '') + '</textarea>' +
+              '</div>' +
+            '</div>' +
+            '<div style="margin-top:20px;display:flex;gap:12px;align-items:center;">' +
+              '<button class="emp-settings-save" onclick="saveEventSettings()">Save Changes</button>' +
+              '<span id="settingsSaveStatus" style="font-size:13px;color:#28a745;display:none;">Saved!</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="emp-settings-section emp-danger-zone">' +
+            '<h3><svg viewBox="0 0 24 24" width="18" height="18" fill="#dc3545"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg> Danger Zone</h3>' +
+            '<p style="font-size:13px;color:#666;margin-bottom:16px;">These actions cannot be easily undone. Please proceed with caution.</p>' +
+            '<div class="emp-danger-actions">' +
+              (ev.status === 'archived'
+                ? '<button class="emp-danger-btn" onclick="settingsUnarchive()">Unarchive Event</button>'
+                : '<button class="emp-danger-btn" onclick="settingsArchive()">Archive Event</button>') +
+            '</div>' +
+          '</div>';
+      } catch (e) {
+        container.innerHTML = '<p style="color:#dc3545;">Error loading settings.</p>';
+        console.error('Settings load error:', e);
+      }
+    }
+
+    async function saveEventSettings() {
+      var btn = document.querySelector('.emp-settings-save');
+      var status = document.getElementById('settingsSaveStatus');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      status.style.display = 'none';
+
+      try {
+        var body = {
+          eventId: manageEventId,
+          title: document.getElementById('settingsTitle').value.trim(),
+          eventDate: document.getElementById('settingsDate').value || null,
+          eventType: document.getElementById('settingsType').value,
+          locationName: document.getElementById('settingsLocation').value.trim(),
+          locationAddress: document.getElementById('settingsAddress').value.trim(),
+          description: document.getElementById('settingsDescription').value.trim()
+        };
+        var res = await fetch('/api/v2/events?action=update', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        var data = await res.json();
+        if (data.success) {
+          // Optimistic local update — sync immediately so all tabs see new values
+          manageTitle = body.title || manageTitle;
+          manageDate = body.eventDate || manageDate;
+          if (manageEventData) {
+            if (body.eventDate !== undefined) manageEventData.eventDate = body.eventDate;
+            if (body.title) manageEventData.title = body.title;
+            if (body.locationName !== undefined) manageEventData.locationName = body.locationName;
+            if (body.locationAddress !== undefined) manageEventData.locationAddress = body.locationAddress;
+            if (body.description !== undefined) manageEventData.description = body.description;
+            if (body.eventType) manageEventData.eventType = body.eventType;
+          }
+          document.getElementById('empTitle').textContent = manageTitle;
+          // Refresh overview from server (awaited to ensure full sync)
+          await loadEventOverview(manageEventId);
+          status.textContent = 'Saved!';
+          status.style.color = '#28a745';
+          status.style.display = 'inline';
+          setTimeout(function() { status.style.display = 'none'; }, 3000);
+        } else {
+          status.textContent = data.error || 'Save failed';
+          status.style.color = '#dc3545';
+          status.style.display = 'inline';
+        }
+      } catch (e) {
+        status.textContent = 'Network error';
+        status.style.color = '#dc3545';
+        status.style.display = 'inline';
+      }
+      btn.disabled = false;
+      btn.textContent = 'Save Changes';
+    }
+
+    function settingsArchive() {
+      showConfirm('Archive Event', 'This will hide the event from your dashboard. You can unarchive it later.', '#E94560', async function() {
+        try {
+          var res = await fetch('/api/v2/events?action=update', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: manageEventId, status: 'archived' })
+          });
+          var data = await res.json();
+          if (data.success) {
+            showToast('Event archived');
+            closeEventManagePage();
+            loadDashboard();
+          }
+        } catch (e) { showToast('Failed to archive event'); }
+      });
+    }
+
+    function settingsUnarchive() {
+      showConfirm('Unarchive Event', 'This will restore the event to your dashboard.', 'var(--mint-fizz)', async function() {
+        try {
+          var res = await fetch('/api/v2/events?action=update', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: manageEventId, status: 'published' })
+          });
+          var data = await res.json();
+          if (data.success) {
+            showToast('Event unarchived');
+            closeEventManagePage();
+            loadDashboard();
+          }
+        } catch (e) { showToast('Failed to unarchive event'); }
+      });
     }
 
     // ============================================================
@@ -1096,6 +1703,7 @@
         var result = await res.json();
         if (result.success) {
           manageRsvps = result.rsvps || [];
+          manageCustomFields = result.customFields || [];
           renderGuestsTab(manageRsvps);
         } else {
           content.innerHTML = '<div class="rsvp-empty">Error loading guests</div>';
@@ -1104,6 +1712,8 @@
         content.innerHTML = '<div class="rsvp-empty">Error loading guests</div>';
       }
     }
+
+    var guestHistoryCache = {};
 
     function renderGuestsTab(rsvps) {
       var content = document.getElementById('manageContent');
@@ -1116,35 +1726,252 @@
       var attending = rsvps.filter(function(r) { return r.status === 'attending'; }).length;
       var declined = rsvps.filter(function(r) { return r.status === 'declined'; }).length;
       var maybe = rsvps.filter(function(r) { return r.status === 'maybe'; }).length;
-      var invited = rsvps.filter(function(r) { return r.status === 'invited' || r.status === 'viewed'; }).length;
+      renderEmpRsvpInline(attending, declined, maybe);
+      guestHistoryCache = {};
 
       var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
         + '<span style="font-size:13px;color:#666;">' + rsvps.length + ' response' + (rsvps.length !== 1 ? 's' : '') + '</span>'
         + '<a href="/v2/contacts/" style="color:var(--party-coral);font-weight:600;font-size:13px;text-decoration:none;">+ Add from contacts</a>'
         + '</div>';
 
-      html += '<div class="rsvp-stats">'
-        + '<div class="rsvp-stat attending"><div class="rsvp-stat-num">' + attending + '</div><div class="rsvp-stat-label">Attending</div></div>'
-        + '<div class="rsvp-stat declined"><div class="rsvp-stat-num">' + declined + '</div><div class="rsvp-stat-label">Declined</div></div>'
-        + '<div class="rsvp-stat maybe"><div class="rsvp-stat-num">' + maybe + '</div><div class="rsvp-stat-label">Maybe</div></div>'
-        + '</div><ul class="rsvp-list">';
-
       rsvps.forEach(function(r) {
-        var statusLabel = r.status === 'attending' ? 'Attending' : r.status === 'declined' ? 'Declined' : 'Maybe';
-        var style = r.status === 'attending' ? 'background:#d4edda;color:#155724' : r.status === 'declined' ? 'background:#f8d7da;color:#721c24' : 'background:#fff3cd;color:#856404';
+        var statusLabel = r.status === 'attending' ? 'Attending' : r.status === 'declined' ? 'Declined' : r.status === 'maybe' ? 'Maybe' : r.status;
+        var statusStyle = r.status === 'attending' ? 'background:#d4edda;color:#155724' : r.status === 'declined' ? 'background:#f8d7da;color:#721c24' : 'background:#fff3cd;color:#856404';
         var detail = '';
         if (r.email) detail += escapeHtml(r.email);
-        if (r.phone) detail += (detail ? ' · ' : '') + escapeHtml(r.phone);
-        if (r.respondedAt) detail += (detail ? ' · ' : '') + new Date(r.respondedAt).toLocaleDateString();
-
+        if (r.phone) detail += (detail ? ' &middot; ' : '') + escapeHtml(r.phone);
+        if (r.respondedAt) detail += (detail ? ' &middot; ' : '') + new Date(r.respondedAt).toLocaleDateString();
         var smsBadge = r.invitedAt ? ' <span class="sms-badge sms-badge-sms">SMS sent</span>' : '';
 
-        html += '<li class="rsvp-item"><div class="rsvp-item-info"><div class="rsvp-item-name">' + escapeHtml(r.name) + smsBadge + '</div>'
-          + (detail ? '<div class="rsvp-item-detail">' + detail + '</div>' : '')
-          + '</div><button onclick="saveGuestToContacts(\'' + r.id + '\', this)" style="padding:4px 10px;border:1px solid #ddd;border-radius:6px;background:white;font-size:11px;cursor:pointer;font-family:Inter,sans-serif;color:#666;margin-right:8px;white-space:nowrap;transition:all 0.15s;" onmouseover="this.style.borderColor=\'var(--party-coral)\';this.style.color=\'var(--party-coral)\'" onmouseout="this.style.borderColor=\'#ddd\';this.style.color=\'#666\'">Save</button><span class="rsvp-item-status" style="' + style + '">' + statusLabel + '</span></li>';
+        html += '<div class="guest-card" id="guest-card-' + r.id + '">'
+          + '<div class="guest-card-header" onclick="toggleGuestDetail(\'' + r.id + '\')">'
+          + '<div class="guest-card-info">'
+          + '<div class="guest-card-name">' + escapeHtml(r.name) + smsBadge + '</div>'
+          + (detail ? '<div class="guest-card-detail">' + detail + '</div>' : '')
+          + '</div>'
+          + '<div class="guest-card-actions">'
+          + '<span class="rsvp-item-status" style="padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;' + statusStyle + '">' + statusLabel + '</span>'
+          + '<svg width="16" height="16" viewBox="0 0 24 24" fill="#ccc" style="transition:transform 0.2s;" id="guest-chevron-' + r.id + '"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>'
+          + '</div></div>'
+          + '<div class="guest-detail-panel" id="guest-detail-' + r.id + '" style="display:none;">'
+          + '<div style="text-align:center;padding:12px;color:#999;font-size:13px;">Loading...</div>'
+          + '</div></div>';
       });
-      html += '</ul>';
       content.innerHTML = html;
+    }
+
+    async function toggleGuestDetail(guestId) {
+      var panel = document.getElementById('guest-detail-' + guestId);
+      var chevron = document.getElementById('guest-chevron-' + guestId);
+      if (!panel) return;
+
+      if (panel.style.display !== 'none') {
+        panel.style.display = 'none';
+        if (chevron) chevron.style.transform = '';
+        return;
+      }
+
+      panel.style.display = 'block';
+      if (chevron) chevron.style.transform = 'rotate(180deg)';
+
+      // Find guest data
+      var guest = manageRsvps ? manageRsvps.find(function(r) { return r.id === guestId; }) : null;
+      if (!guest) return;
+
+      // If already loaded, don't refetch
+      if (guestHistoryCache[guestId]) {
+        renderGuestDetail(guestId, guest, guestHistoryCache[guestId]);
+        return;
+      }
+
+      // Fetch timeline
+      try {
+        var res = await authFetch('/api/v2/events?action=guestHistory&guestId=' + guestId + '&eventId=' + manageEventId);
+        var data = await res.json();
+        var timeline = data.success ? (data.timeline || []) : [];
+        guestHistoryCache[guestId] = timeline;
+        renderGuestDetail(guestId, guest, timeline);
+      } catch (e) {
+        panel.innerHTML = '<div style="padding:12px;color:#999;font-size:13px;">Failed to load history</div>';
+      }
+    }
+
+    function renderGuestDetail(guestId, guest, timeline) {
+      var panel = document.getElementById('guest-detail-' + guestId);
+      if (!panel) return;
+
+      var html = '';
+
+      // Editable RSVP status
+      html += '<div class="guest-detail-section">'
+        + '<div class="guest-detail-label">RSVP Status</div>'
+        + '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">'
+        + '<select id="guest-status-' + guestId + '" onchange="updateGuestField(\'' + guestId + '\', \'status\', this.value)" style="padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;cursor:pointer;background:white;min-width:130px;">'
+        + '<option value="invited"' + (guest.status === 'invited' ? ' selected' : '') + '>Invited</option>'
+        + '<option value="attending"' + (guest.status === 'attending' ? ' selected' : '') + '>Attending</option>'
+        + '<option value="declined"' + (guest.status === 'declined' ? ' selected' : '') + '>Declined</option>'
+        + '<option value="maybe"' + (guest.status === 'maybe' ? ' selected' : '') + '>Maybe</option>'
+        + '</select>'
+        + '<span id="guest-save-indicator-' + guestId + '" style="font-size:11px;color:#28a745;display:none;">Saved</span>';
+      if (guest.respondedAt) html += '<span style="font-size:12px;color:#999;">Responded ' + new Date(guest.respondedAt).toLocaleDateString() + '</span>';
+      if (guest.invitedAt) html += '<span style="font-size:12px;color:#999;">Invited ' + new Date(guest.invitedAt).toLocaleDateString() + '</span>';
+      html += '</div></div>';
+
+      // Editable plus-ones
+      html += '<div class="guest-detail-section" style="display:flex;gap:24px;flex-wrap:wrap;">'
+        + '<div><div class="guest-detail-label">Plus Ones</div>'
+        + '<input type="number" min="0" max="20" value="' + (guest.plusOnes || 0) + '" onchange="updateGuestField(\'' + guestId + '\', \'plusOnes\', parseInt(this.value)||0)" style="padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;width:80px;">'
+        + '</div>';
+
+      // Editable custom field responses
+      if (manageCustomFields.length > 0) {
+        var rd = guest.responseData || {};
+        manageCustomFields.forEach(function(f) {
+          var val = rd[f.key] !== undefined ? rd[f.key] : '';
+          html += '<div><div class="guest-detail-label">' + escapeHtml(f.label) + '</div>';
+          if (f.fieldType === 'select' && f.options && f.options.length > 0) {
+            html += '<select onchange="updateGuestResponseField(\'' + guestId + '\', \'' + escapeHtml(f.key) + '\', this.value)" style="padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;cursor:pointer;background:white;min-width:120px;">'
+              + '<option value="">--</option>';
+            f.options.forEach(function(opt) {
+              html += '<option value="' + escapeHtml(opt) + '"' + (String(val) === String(opt) ? ' selected' : '') + '>' + escapeHtml(opt) + '</option>';
+            });
+            html += '</select>';
+          } else if (f.fieldType === 'checkbox') {
+            html += '<input type="checkbox"' + (val ? ' checked' : '') + ' onchange="updateGuestResponseField(\'' + guestId + '\', \'' + escapeHtml(f.key) + '\', this.checked)" style="width:18px;height:18px;accent-color:var(--party-coral);cursor:pointer;">';
+          } else if (f.fieldType === 'number') {
+            html += '<input type="number" value="' + escapeHtml(String(val)) + '" onchange="updateGuestResponseField(\'' + guestId + '\', \'' + escapeHtml(f.key) + '\', this.value)" style="padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;width:100px;">';
+          } else if (f.fieldType === 'textarea') {
+            html += '<textarea onchange="updateGuestResponseField(\'' + guestId + '\', \'' + escapeHtml(f.key) + '\', this.value)" style="padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;min-height:60px;width:200px;resize:vertical;">' + escapeHtml(String(val)) + '</textarea>';
+          } else {
+            html += '<input type="text" value="' + escapeHtml(String(val)) + '" onchange="updateGuestResponseField(\'' + guestId + '\', \'' + escapeHtml(f.key) + '\', this.value)" style="padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;width:180px;">';
+          }
+          html += '</div>';
+        });
+      }
+      html += '</div>';
+
+      // Editable notes
+      html += '<div class="guest-detail-section">'
+        + '<div class="guest-detail-label">Notes</div>'
+        + '<textarea onchange="updateGuestField(\'' + guestId + '\', \'notes\', this.value)" placeholder="Add notes about this guest..." style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;width:100%;min-height:50px;resize:vertical;">' + escapeHtml(guest.notes || '') + '</textarea>'
+        + '</div>';
+
+      // Communication timeline
+      html += '<div class="guest-detail-section">'
+        + '<div class="guest-detail-label">Communication History</div>';
+      if (timeline.length === 0) {
+        html += '<div style="font-size:13px;color:#aaa;">No communications recorded</div>';
+      } else {
+        html += '<ul class="guest-timeline">';
+        timeline.forEach(function(t) {
+          var iconClass = t.type === 'email' ? 'email' : t.type === 'sms' ? 'sms' : 'rsvp';
+          var iconText = t.type === 'email' ? '&#9993;' : t.type === 'sms' ? '&#9993;' : '&#10003;';
+          var dateStr = t.date ? new Date(t.date).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+          var statusBadge = t.status === 'sent' || t.status === 'delivered' ? '<span style="color:#28a745;font-size:11px;"> &#10003; ' + t.status + '</span>'
+            : t.status === 'failed' ? '<span style="color:#dc3545;font-size:11px;"> &#10007; failed</span>'
+            : t.status ? '<span style="color:#888;font-size:11px;"> ' + t.status + '</span>' : '';
+          html += '<li>'
+            + '<span class="guest-timeline-icon ' + iconClass + '">' + iconText + '</span>'
+            + '<span class="guest-timeline-text">' + escapeHtml(t.detail || t.type) + statusBadge + '</span>'
+            + '<span class="guest-timeline-date">' + dateStr + '</span>'
+            + '</li>';
+        });
+        html += '</ul>';
+      }
+      html += '</div>';
+
+      // Actions (only Make Co-Host — Save to Contacts is automatic)
+      if (guest.email && manageIsOwner) {
+        html += '<div class="guest-detail-actions">';
+        html += '<button class="guest-detail-btn" onclick="event.stopPropagation();makeGuestCohost(\'' + guestId + '\', \'' + escapeHtml(guest.email).replace(/'/g, "\\'") + '\', this)">Make Co-Host</button>';
+        html += '</div>';
+      }
+
+      panel.innerHTML = html;
+    }
+
+    // Update a direct guest field (status, plusOnes, notes)
+    async function updateGuestField(guestId, field, value) {
+      var body = { guestId: guestId };
+      body[field] = value;
+      var indicator = document.getElementById('guest-save-indicator-' + guestId);
+      try {
+        var res = await authFetch('/api/v2/events?action=updateGuest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        var data = await res.json();
+        if (data.success) {
+          // Update local state
+          var guest = manageRsvps ? manageRsvps.find(function(r) { return r.id === guestId; }) : null;
+          if (guest) {
+            if (field === 'status') guest.status = value;
+            if (field === 'plusOnes') guest.plusOnes = value;
+            if (field === 'notes') guest.notes = value;
+          }
+          // Update status badge in card header
+          if (field === 'status') {
+            var statusEl = document.querySelector('#guest-card-' + guestId + ' .rsvp-item-status');
+            if (statusEl) {
+              var lbl = value === 'attending' ? 'Attending' : value === 'declined' ? 'Declined' : value === 'maybe' ? 'Maybe' : value;
+              var stl = value === 'attending' ? 'background:#d4edda;color:#155724' : value === 'declined' ? 'background:#f8d7da;color:#721c24' : value === 'maybe' ? 'background:#fff3cd;color:#856404' : 'background:#e8eaf6;color:#3949ab';
+              statusEl.textContent = lbl;
+              statusEl.setAttribute('style', 'padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;' + stl);
+            }
+            // Update overview RSVP counts
+            if (manageRsvps) {
+              var a = manageRsvps.filter(function(r) { return r.status === 'attending'; }).length;
+              var d = manageRsvps.filter(function(r) { return r.status === 'declined'; }).length;
+              var m = manageRsvps.filter(function(r) { return r.status === 'maybe'; }).length;
+              renderEmpRsvpInline(a, d, m);
+            }
+          }
+          if (indicator) { indicator.style.display = 'inline'; setTimeout(function() { indicator.style.display = 'none'; }, 2000); }
+        }
+      } catch (e) { console.error('Update guest error:', e); }
+    }
+
+    // Update a custom response field (stored in responseData JSONB)
+    async function updateGuestResponseField(guestId, fieldKey, value) {
+      var guest = manageRsvps ? manageRsvps.find(function(r) { return r.id === guestId; }) : null;
+      if (!guest) return;
+      var rd = guest.responseData ? JSON.parse(JSON.stringify(guest.responseData)) : {};
+      rd[fieldKey] = value;
+      guest.responseData = rd;
+      var indicator = document.getElementById('guest-save-indicator-' + guestId);
+      try {
+        await authFetch('/api/v2/events?action=updateGuest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ guestId: guestId, responseData: rd })
+        });
+        if (indicator) { indicator.style.display = 'inline'; setTimeout(function() { indicator.style.display = 'none'; }, 2000); }
+      } catch (e) { console.error('Update guest response error:', e); }
+    }
+
+    async function makeGuestCohost(guestId, email, btn) {
+      btn.disabled = true; btn.textContent = 'Inviting...';
+      try {
+        var res = await authFetch('/api/v2/cohost?action=invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: manageEventId, email: email, role: 'editor' })
+        });
+        var data = await res.json();
+        if (data.success) {
+          btn.textContent = 'Co-Host Invited!';
+          btn.style.borderColor = 'var(--mint-fizz)';
+          btn.style.color = 'var(--mint-fizz)';
+          showToast('Co-host invitation sent to ' + email);
+        } else {
+          btn.textContent = data.error || 'Error';
+          btn.disabled = false;
+        }
+      } catch (e) {
+        btn.textContent = 'Error';
+        btn.disabled = false;
+      }
     }
 
     async function saveGuestToContacts(guestId, btn) {
@@ -1503,7 +2330,7 @@
 
       // Event date banner
       if (manageDate) {
-        var d = new Date(manageDate);
+        var d = parseEventDate(manageDate);
         var dateStr = d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         var timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
         html += '<div class="reminder-date-banner">Event date: <strong>' + dateStr + ' at ' + timeStr + '</strong></div>';
@@ -2058,17 +2885,50 @@
           + '<button onclick="copyGalleryLink()" style="padding:6px 12px;border:1px solid #ddd;background:white;border-radius:6px;font-size:12px;cursor:pointer;font-family:Inter,sans-serif;white-space:nowrap;" id="copyGalleryBtn">Copy</button>'
           + '</div>';
 
-        // Photo count
-        html += '<div style="font-size:14px;font-weight:600;margin-bottom:12px;">'
+        // Notify guests about gallery
+        var defaultShareMsg = 'Hi {name}! We\'d love to see your photos from ' + escapeHtml(manageTitle) + '! Upload them here: ' + galleryUrl;
+        var defaultThankMsg = 'Thanks for celebrating with us at ' + escapeHtml(manageTitle) + '! Share your favorite photos: ' + galleryUrl;
+        html += '<div style="background:linear-gradient(135deg,rgba(167,139,250,0.06),rgba(78,205,196,0.06));border:1px solid rgba(167,139,250,0.15);border-radius:12px;padding:16px;margin-bottom:20px;">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
+          + '<div style="font-size:14px;font-weight:600;color:var(--midnight);">Text Guests About Photos</div>'
+          + '<div style="display:flex;gap:4px;">'
+          + '<button class="preview-sub-btn active" onclick="switchPhotoSmsTemplate(\'share\', this)" style="padding:5px 12px;font-size:11px;">Share Photos</button>'
+          + '<button class="preview-sub-btn" onclick="switchPhotoSmsTemplate(\'thankyou\', this)" style="padding:5px 12px;font-size:11px;">Thank You</button>'
+          + '</div></div>'
+          + '<textarea id="photoSmsMsg" style="width:100%;min-height:60px;border:1px solid #ddd;border-radius:8px;padding:10px 12px;font-size:13px;font-family:Inter,sans-serif;resize:vertical;line-height:1.5;">' + defaultShareMsg + '</textarea>'
+          + '<div style="display:flex;gap:8px;margin-top:10px;align-items:center;">'
+          + '<select id="photoSmsRecipients" style="padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;background:white;">'
+          + '<option value="attending">Attending guests</option>'
+          + '<option value="all">All guests with phone</option>'
+          + '<option value="maybe">Maybe guests</option>'
+          + '</select>'
+          + '<button onclick="sendPhotoGallerySms(this)" style="padding:8px 18px;border:none;border-radius:8px;background:var(--party-coral);color:white;font-size:13px;font-weight:600;font-family:Inter,sans-serif;cursor:pointer;white-space:nowrap;">Send SMS</button>'
+          + '</div></div>';
+
+        // Photo count + download all
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
+          + '<span style="font-size:14px;font-weight:600;">'
           + managePhotoTotal + ' photo' + (managePhotoTotal !== 1 ? 's' : '') + ' shared'
-          + '</div>';
+          + '</span>';
+        if (managePhotos.length > 0) {
+          html += '<a href="/api/v2/photos?action=downloadAll&eventId=' + encodeURIComponent(manageEventId) + '&token=' + encodeURIComponent(token) + '" class="emp-action-btn" style="font-size:12px;padding:6px 14px;">'
+            + '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>'
+            + 'Download All (' + managePhotos.length + ')'
+            + '</a>';
+        }
+        html += '</div>';
 
         // Photo grid
         if (managePhotos.length > 0) {
           html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">';
           managePhotos.forEach(function(p) {
+            // Use thumbnail URL with Supabase image transforms (fall back to full URL if transforms unavailable)
+            var thumbUrl = p.photo_url;
+            if (thumbUrl.includes('/storage/v1/object/public/')) {
+              thumbUrl = thumbUrl.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/') + '?width=400&height=400&resize=cover';
+            }
             html += '<div style="position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;background:#f0f0f0;">'
-              + '<img src="' + escapeHtml(p.photo_url) + '" style="width:100%;height:100%;object-fit:cover;" loading="lazy">'
+              + '<img src="' + escapeHtml(thumbUrl) + '" style="width:100%;height:100%;object-fit:cover;" loading="lazy">'
               + '<button onclick="deletePhoto(\'' + p.id + '\')" style="position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.6);color:white;border:none;cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;" title="Delete photo">&times;</button>'
               + '<div style="position:absolute;bottom:0;left:0;right:0;padding:4px 6px;background:linear-gradient(transparent,rgba(0,0,0,0.5));color:white;font-size:10px;">' + escapeHtml(p.uploader_name) + '</div>'
               + '</div>';
@@ -2096,6 +2956,49 @@
         console.error('Toggle photos error:', err);
         document.getElementById('photosToggle').checked = !enabled;
       }
+    }
+
+    function switchPhotoSmsTemplate(type, btn) {
+      var galleryUrl = window.location.origin + '/v2/event/' + manageSlug + '/photos';
+      var textarea = document.getElementById('photoSmsMsg');
+      if (!textarea) return;
+      if (type === 'share') {
+        textarea.value = 'Hi {name}! We\'d love to see your photos from ' + manageTitle + '! Upload them here: ' + galleryUrl;
+      } else {
+        textarea.value = 'Thanks for celebrating with us at ' + manageTitle + '! Share your favorite photos: ' + galleryUrl;
+      }
+      // Update active state on buttons
+      if (btn) {
+        btn.parentElement.querySelectorAll('.preview-sub-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+      }
+    }
+
+    async function sendPhotoGallerySms(btn) {
+      var msg = document.getElementById('photoSmsMsg').value.trim();
+      var filter = document.getElementById('photoSmsRecipients').value;
+      if (!msg) { showToast('Please enter a message'); return; }
+      btn.disabled = true; btn.textContent = 'Sending...';
+      try {
+        var res = await authFetch('/api/v2/sms?action=sendUpdate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId: manageEventId,
+            message: msg,
+            recipientFilter: filter
+          })
+        });
+        var data = await res.json();
+        if (data.success) {
+          showToast('Gallery SMS sent to ' + (data.sentCount || 0) + ' guests!');
+        } else {
+          showToast(data.error || 'Failed to send SMS');
+        }
+      } catch (e) {
+        showToast('Error sending SMS');
+      }
+      btn.disabled = false; btn.textContent = 'Send SMS';
     }
 
     async function deletePhoto(photoId) {
@@ -2168,6 +3071,30 @@
 
     function escapeHtml(str) {
       var div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML;
+    }
+
+    // Parse event date string in a timezone-safe way.
+    // DB stores dates as UTC midnight (e.g., "2026-05-14T00:00:00+00:00").
+    // new Date() would shift this back a day in western timezones.
+    // This function forces interpretation as local noon to avoid day shift.
+    function parseEventDate(dateStr) {
+      if (!dateStr) return null;
+      // If it's a date-only string (YYYY-MM-DD), parse as local date at noon
+      var match = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]), 12, 0, 0);
+      }
+      // If it has a time component with actual non-midnight time, use as-is
+      if (dateStr.indexOf('T') !== -1) {
+        var timePart = dateStr.split('T')[1] || '';
+        // Check if it's midnight UTC (the common date-only case)
+        if (timePart.startsWith('00:00:00')) {
+          var datePart = dateStr.split('T')[0];
+          var parts = datePart.split('-');
+          return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
+        }
+      }
+      return new Date(dateStr);
     }
 
     function rescalePreviewIframes() {
@@ -2300,7 +3227,7 @@
       }
       // Reload dashboard to reflect new payment status
       loadDashboard();
-      // If manage modal is open, reload its data
+      // If event management page is open, reload its data
       if (manageEventId) {
         managePaymentStatus = 'paid';
         switchTab(manageCurrentTab);

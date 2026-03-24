@@ -147,6 +147,67 @@ export default async function handler(req, res) {
       return res.status(200).json({ photos: photos || [], total: count || 0 });
     }
 
+    // ---- Download All (auth via query param for direct link) ----
+
+    if (action === 'downloadAll' && req.method === 'GET') {
+      const { eventId } = req.query;
+      if (!eventId) return res.status(400).json({ error: 'Missing eventId' });
+
+      // Auth via query param token (direct link download)
+      const dlToken = req.query.token || (req.headers.authorization || '').slice(7);
+      if (!dlToken) return res.status(401).json({ error: 'Unauthorized' });
+      const { data: { user: dlUser }, error: dlAuthErr } = await supabaseAdmin.auth.getUser(dlToken);
+      if (dlAuthErr || !dlUser) return res.status(401).json({ error: 'Invalid session' });
+
+      const hasAccess = await checkEventAccess(dlUser.id, eventId);
+      if (!hasAccess) return res.status(403).json({ error: 'Not authorized' });
+
+      // Get event title for filename
+      const { data: dlEvent } = await supabaseAdmin
+        .from('events')
+        .select('title')
+        .eq('id', eventId)
+        .single();
+
+      // Fetch all photos
+      const { data: photos, error: photosErr } = await supabaseAdmin
+        .from('event_photos')
+        .select('photo_url, storage_path, uploader_name, created_at')
+        .eq('event_id', eventId)
+        .order('created_at', { ascending: true });
+
+      if (photosErr || !photos || photos.length === 0) {
+        return res.status(404).json({ error: 'No photos found' });
+      }
+
+      // Build zip using JSZip
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      const folderName = (dlEvent?.title || 'event').replace(/[^a-zA-Z0-9 _-]/g, '').substring(0, 50) || 'photos';
+      const folder = zip.folder(folderName);
+
+      for (let i = 0; i < photos.length; i++) {
+        try {
+          const { data: fileData, error: dlErr } = await supabaseAdmin.storage
+            .from(BUCKET)
+            .download(photos[i].storage_path);
+          if (dlErr || !fileData) continue;
+          const buffer = Buffer.from(await fileData.arrayBuffer());
+          const uploaderSlug = (photos[i].uploader_name || 'photo').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+          folder.file(`${uploaderSlug}_${i + 1}.jpg`, buffer);
+        } catch (e) {
+          console.error('Error fetching photo for zip:', e);
+        }
+      }
+
+      const zipBuffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+      const safeTitle = (dlEvent?.title || 'event').replace(/[^a-zA-Z0-9 _-]/g, '').substring(0, 50);
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}_photos.zip"`);
+      res.setHeader('Content-Length', zipBuffer.length);
+      return res.send(zipBuffer);
+    }
+
     // ---- Authenticated actions (host/editor) ----
 
     const authHeader = req.headers.authorization;

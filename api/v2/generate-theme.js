@@ -442,30 +442,28 @@ Return a JSON object with exactly these keys:
 ## PAGE STRUCTURE — REQUIRED SECTIONS
 Build the page with these sections (creative freedom on visual execution):
 1. **THEMATIC HEADER** — An animated or illustrated element specific to this event type.
-2. **HERO SECTION** — Large display headline with event title/names/tagline. Photo treatment if photos provided.
+2. **HERO SECTION** — Large display headline with event title/names/tagline. Photo treatment if photos provided. CRITICAL: The event title must appear exactly ONCE in the hero — NEVER duplicate names, repeat the title, or split it across multiple elements that show the same information. For weddings with "Jake & Sarah's Wedding", do NOT separately show "Jake &" on one line, "Sarah's Wedding" on another, THEN repeat "& Sarah" again below. The title should be a single, coherent display.
 3. **EVENT DETAILS** — \`<div class="details-slot"></div>\`. The platform injects event details (date, time, location, dress code) at runtime — just like the RSVP form. You MUST NOT put any text, icons, or labels inside this div. Style it via CSS to match the theme. The platform injects children with classes: \`.detail-item\`, \`.detail-icon\`, \`.detail-label\`, \`.detail-value\` — style these in theme_css.
-4. **RSVP SECTION** — \`<div class="rsvp-slot"><button class="rsvp-button">...</button></div>\`. The rsvp-slot MUST contain ONLY the button — the platform injects the real form at runtime. Make the button text fun and on-theme but NEVER use commitment words like "I'm Coming", "Count Me In", "I'll Be There", "RSVP Yes", "Sign Me Up", etc. The RSVP status (attending/declined/maybe) is handled by the form — the button just opens it. Use action phrases like "Let's Party!", "Open the Invite!", "Get the Details!", "Join the Fun!", "See What's Inside!", "Reserve Your Spot!" instead.
+4. **RSVP SECTION** — \`<div class="rsvp-slot"></div>\`. The rsvp-slot MUST be completely empty — the platform injects the RSVP form fields (name input, status dropdown, custom fields, submit button) directly into this div at runtime. NEVER put a button, link, text, or any content inside the rsvp-slot. NEVER create a "gate" or "reveal" pattern — the RSVP form is ALWAYS visible inline on the page, not hidden behind a button. You can add a heading above it like "KINDLY REPLY" or "RSVP" but the actual \`.rsvp-slot\` div must be empty.
 
-## RSVP BUTTON — CRITICAL PLATFORM RULES
-- Full-width within its container (width: 100% or at least 280px) — NEVER shrink to fit text
-- Min-height: 56px, max-height: 72px — NEVER make the button taller than 72px. It should be a normal button, NOT a giant vertical element.
-- Generous padding (16px 32px minimum)
-- Border-radius matching the design language (8-16px modern, 28px+ pill)
-- Clear, high-contrast centered text — use flexbox (display:flex; align-items:center; justify-content:center)
-- Font-size: 16-18px, bold/semibold
-- NEVER use default browser button styling — always set appearance:none, explicit background, color, border
-- Smooth hover transition (transform scale 1.02-1.05, subtle shadow lift, or color shift)
-- NEVER overflow, clip, or break layout at 393px viewport width
-- NEVER put form inputs/selects/labels inside \`.rsvp-slot\` — ONLY the button
-- The RSVP button must NOT overlap or cover other content. It should sit naturally in the page flow, NOT be position:absolute or position:fixed.
-- RSVP fields and buttons MUST ALWAYS be single-column (stacked vertically, full-width). NEVER use two-column grid, flex-row, or side-by-side layouts for form fields or the RSVP button — the platform injects form fields that break when laid out in columns on mobile. This is a 393px viewport.
-
-## RSVP FORM LAYOUT — CRITICAL (platform injects form at runtime)
-- The platform replaces the \`.rsvp-slot\` contents with form fields (name, status, custom fields) + the button
-- The injected form MUST render as a **single column** — NEVER two-column, grid, or side-by-side inputs
+## RSVP SLOT — CRITICAL PLATFORM RULES
+- The \`.rsvp-slot\` is an EMPTY container. The platform fills it with form fields at runtime.
+- NEVER put buttons, links, "Open Invitation", "RSVP Now", or ANY content inside \`.rsvp-slot\` — it must be completely empty like \`.details-slot\`
+- NEVER create a click-to-reveal or button-gated pattern for the RSVP. The form is ALWAYS visible.
 - Style \`.rsvp-slot\` with: \`display: flex; flex-direction: column; width: 100%;\`
 - NEVER set \`.rsvp-slot\` to \`display: grid\`, \`flex-direction: row\`, or \`flex-wrap: wrap\` with side-by-side children
-- All inputs inside \`.rsvp-slot\` must be full-width (width: 100%) — no 50% widths, no multi-column layouts
+- All children of \`.rsvp-slot\` will be full-width form fields — style them via CSS to match the theme
+
+## RSVP FORM STYLING — CRITICAL (platform injects these elements at runtime)
+- The platform injects: text inputs, select dropdowns, labels, and a submit button into \`.rsvp-slot\`
+- All injected form fields MUST render as a **single column** (stacked vertically, full-width)
+- Style these classes in theme_css to match the theme:
+  - \`.rsvp-slot input, .rsvp-slot select\` — form inputs. Set background, border, border-radius, padding (12px 14px), font-size (14px), color, width: 100%
+  - \`.rsvp-slot label\` — field labels. Set font-size (13px), font-weight (600), color, margin-bottom (4px)
+  - \`.rsvp-slot .rsvp-submit\` — the submit button. Make it prominent, full-width, min-height 52px, matching the theme's accent color
+  - \`.rsvp-slot .rsvp-form-group\` — each field group (label + input). Set margin-bottom (14px)
+- RSVP fields and submit button MUST ALWAYS be single-column. NEVER use two-column grid or side-by-side layouts — this is a 393px mobile viewport
+- If the theme has a dark/colored RSVP section background, ensure form text and labels have sufficient contrast (white text on dark bg)
 
 ## REQUIRED DATA ATTRIBUTES
 - \`data-field="title"\` — on the element containing the event title text (the ONLY data-field you generate)
@@ -1054,7 +1052,7 @@ function repairTheme(theme, issues) {
 
   if (issues.includes('missing_rsvp_slot')) {
     // Inject minimal RSVP slot at end of HTML
-    theme.theme_html = (theme.theme_html || '') + '\n<div class="rsvp-slot"><button class="rsvp-button">RSVP</button></div>';
+    theme.theme_html = (theme.theme_html || '') + '\n<div class="rsvp-slot"></div>';
     console.log('[repairTheme] Injected missing .rsvp-slot');
   }
 
@@ -1752,7 +1750,7 @@ Rules:
 - Keep all inline styles — email clients don't support <style> blocks reliably` : `
 - For RSVP field changes: { "action": "remove"|"add"|"modify", "field_key": "...", "label": "...", "field_type": "text"|"number"|"select"|"checkbox"|"textarea", "is_required": false }
 - RSVP fields are rendered by the platform, NOT in the HTML. Do NOT add form inputs to html_replacements.
-- .rsvp-slot MUST contain ONLY a <button class="rsvp-button">
+- .rsvp-slot MUST be completely EMPTY — the platform injects the RSVP form at runtime. NEVER put buttons or content inside it
 - Preserve all data-field attributes`}`;
       } else if (isEmailMode) {
         // ── EMAIL DESIGN TWEAK: modify the email invite template ──
@@ -1804,7 +1802,7 @@ ${JSON.stringify(currentConfig || {})}
 **User's message:**
 ${tweakInstructions}
 
-IMPORTANT: The .rsvp-slot div must contain ONLY a <button class="rsvp-button"> — the platform injects the real RSVP form at runtime. Do NOT add any form inputs, selects, textareas, or labels inside .rsvp-slot.`;
+IMPORTANT: The .rsvp-slot div must be completely EMPTY — the platform injects the RSVP form at runtime. Do NOT add buttons, form inputs, selects, textareas, labels, or ANY content inside .rsvp-slot.`;
 
         // Handle multiple photos (new) or single photo (legacy)
         const allPhotoUrls = photoUrls?.length > 0 ? photoUrls : (photoUrl ? [photoUrl] : []);
@@ -1924,7 +1922,7 @@ Return ONLY a valid JSON object:
 - html_replacements: each "old" must be an exact substring copied from the current HTML. "new" is its replacement. Include enough surrounding HTML context (tags, attributes) to make matches unique.
 - If only RSVP field changes are needed and no HTML text changes, return an empty html_replacements array.
 - RSVP fields: { "action": "remove"|"add"|"modify", "field_key": "...", "label": "...", "field_type": "text"|"number"|"select"|"checkbox"|"textarea", "is_required": false }
-- .rsvp-slot MUST contain ONLY a <button class="rsvp-button"> — fields are rendered by the platform, NOT in HTML
+- .rsvp-slot MUST be completely EMPTY — the platform injects the RSVP form at runtime. NEVER put buttons or content inside it — fields are rendered by the platform, NOT in HTML
 - Keep changes minimal — only what the user asked for`
         : `You are an elite invite designer modifying event invites via a conversational chat interface. Your modifications should maintain the extraordinary quality standard — better than Evite, Paperless Post, or Canva.
 
@@ -1957,7 +1955,7 @@ Return ONLY a valid JSON object with these keys:
 - \`data-field="host"\` — on host name element (if present)
 
 ### RSVP form section:
-- \`.rsvp-slot\` MUST contain ONLY a \`<button class="rsvp-button">\` — NO form inputs, labels, or fields
+- \`.rsvp-slot\` MUST be completely EMPTY — the platform injects the form at runtime. NO buttons, links, or content inside it
 - The platform injects the real RSVP form at runtime from the field definitions (NOT from the HTML)
 - To add/remove/modify RSVP fields, use the "rsvp_field_changes" array in your response — do NOT add form inputs to HTML
 - Example: user says "remove birthday message field" → include { "action": "remove", "field_key": "birthday_message_for_max" } in rsvp_field_changes
@@ -2487,7 +2485,7 @@ ${designDnaContext}
 RSVP FORM
 ══════════════════════
 The platform injects a fully functional RSVP form into the \`.rsvp-slot\` at runtime.
-You MUST only place a styled \`<button class="rsvp-button">\` inside \`.rsvp-slot\`. NO form inputs.
+The \`.rsvp-slot\` MUST be completely EMPTY — the platform injects the RSVP form at runtime. NEVER put buttons, links, or content inside it.
 Make the button text fun and on-theme but NEVER imply commitment or attendance (no "Count Me In", "I'll Be There", "I'm Coming", "Sign Me Up"). The button opens the RSVP form where guests choose attending/declined/maybe — so use neutral action phrases like "Let's Party!", "RSVP Now!", "Open the Invite!", "Get the Details!".
 RSVP fields and the button MUST be single-column, stacked vertically, full-width. NEVER use two-column or grid layouts for form elements.
 
@@ -2515,12 +2513,14 @@ ${rsvpFieldsDesc}`;
 ⚠️ FINAL CHECK — TEXT CONTRAST (NON-NEGOTIABLE)
 ══════════════════════
 Before outputting, mentally walk through EVERY text element and verify:
-1. Dark/colored background sections (navy, green, black, charcoal, etc.) → text MUST be #FFFFFF or #FAFAFA
+1. Dark/colored background sections (navy, green, black, charcoal, brown, etc.) → text MUST be #FFFFFF or #FAFAFA
 2. Light background sections → text MUST be #1A1A1A or darker
 3. Buttons → text color must contrast against the button's background color
 4. NEVER use accent colors (coral, salmon, rose, gold, etc.) as text on dark backgrounds — they FAIL contrast
 5. The .details-slot CSS — if its background is dark, .detail-label and .detail-value MUST be white
-6. The .thankyou-page CSS — .thankyou-title and .thankyou-subtitle must contrast against the page background
+6. The .rsvp-slot CSS — if the RSVP section has a dark/colored background, ALL labels, inputs, and text inside .rsvp-slot MUST be white/light. Set .rsvp-slot label { color: #FFFFFF; } and .rsvp-slot input, .rsvp-slot select { color: #FFFFFF; }
+7. The .thankyou-page CSS — .thankyou-title and .thankyou-subtitle must contrast against the page background
+8. NEVER let ANY text have the same or similar color as its background — minimum 4.5:1 contrast ratio
 This is the most common failure mode. Double-check it.`;
 
     // Resolve inspiration images: use base64 if provided, otherwise fetch from URLs
