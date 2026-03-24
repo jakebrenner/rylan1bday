@@ -9762,6 +9762,257 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       }, 2000);
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // AUTO LOOP TESTING
+    // ═══════════════════════════════════════════════════════════════
+    var currentLoopId = null;
+    var loopRunning = false;
+
+    function toggleLoopSection() {
+      var body = document.getElementById('loopBody');
+      var arrow = document.getElementById('loopToggle');
+      body.classList.toggle('open');
+      arrow.classList.toggle('open');
+      if (body.classList.contains('open')) {
+        loadLoopPromptVersions();
+        loadLoopHistory();
+        updateLoopEstimate();
+      }
+    }
+
+    function toggleAllLoopEventTypes(checked) {
+      document.querySelectorAll('#loopEventTypes input[type=checkbox]').forEach(function(cb) { cb.checked = checked; });
+      updateLoopEstimate();
+    }
+
+    function getLoopConfig() {
+      var promptVersionIds = [];
+      document.querySelectorAll('#loopPromptVersions input:checked').forEach(function(cb) { promptVersionIds.push(cb.value); });
+      var models = [];
+      document.querySelectorAll('#loopModels input:checked').forEach(function(cb) { models.push(cb.value); });
+      var eventTypes = [];
+      document.querySelectorAll('#loopEventTypes input:checked').forEach(function(cb) { eventTypes.push(cb.value); });
+      return {
+        promptVersionIds: promptVersionIds,
+        models: models,
+        eventTypes: eventTypes,
+        runsPerCombo: parseInt(document.getElementById('loopRunsPerCombo').value) || 1,
+        maxBudgetCents: Math.round((parseFloat(document.getElementById('loopBudgetCap').value) || 5) * 100),
+        autoDraft: document.getElementById('loopAutoDraft').checked
+      };
+    }
+
+    function updateLoopEstimate() {
+      var config = getLoopConfig();
+      var total = config.promptVersionIds.length * config.models.length * config.eventTypes.length * config.runsPerCombo;
+      // Rough cost estimate: ~$0.08 per Sonnet generation + $0.005 per eval + $0.005 per dummy data
+      var avgCostPerGen = 0;
+      config.models.forEach(function(m) {
+        if (m.includes('opus')) avgCostPerGen += 0.50;
+        else if (m.includes('sonnet') || m === 'gpt-4.1' || m === 'o3') avgCostPerGen += 0.10;
+        else avgCostPerGen += 0.03;
+      });
+      avgCostPerGen = config.models.length > 0 ? avgCostPerGen / config.models.length : 0.10;
+      var estCost = total * (avgCostPerGen + 0.01); // +$0.01 for eval + dummy data
+      var el = document.getElementById('loopEstimate');
+      if (total === 0) {
+        el.innerHTML = 'Select at least one prompt version, model, and event type.';
+      } else {
+        el.innerHTML = '<strong>' + config.promptVersionIds.length + '</strong> prompt(s) &times; <strong>' + config.models.length + '</strong> model(s) &times; <strong>' + config.eventTypes.length + '</strong> event type(s) &times; <strong>' + config.runsPerCombo + '</strong> run(s) = <strong>' + total + ' generations</strong> (~$' + estCost.toFixed(2) + ' estimated)';
+      }
+    }
+
+    function loadLoopPromptVersions() {
+      adminFetch('listPromptVersions').then(function(data) {
+        if (!data.versions) return;
+        var html = '<label style="font-size:12px;display:flex;gap:4px;margin-bottom:4px"><input type="checkbox" value="active" checked onchange="updateLoopEstimate()"> Active version</label>';
+        data.versions.forEach(function(v) {
+          html += '<label style="font-size:12px;display:flex;gap:4px;margin-bottom:4px"><input type="checkbox" value="' + v.id + '" onchange="updateLoopEstimate()"> v' + v.version + ': ' + (v.name || 'Unnamed') + (v.is_active ? ' (active)' : '') + '</label>';
+        });
+        document.getElementById('loopPromptVersions').innerHTML = html;
+        updateLoopEstimate();
+      });
+    }
+
+    async function startLoop() {
+      if (loopRunning) return;
+      var config = getLoopConfig();
+      if (config.promptVersionIds.length === 0 || config.models.length === 0 || config.eventTypes.length === 0) {
+        alert('Select at least one prompt version, model, and event type.');
+        return;
+      }
+
+      loopRunning = true;
+      currentLoopId = null;
+      document.getElementById('loopStartBtn').disabled = true;
+      document.getElementById('loopCancelBtn').style.display = 'inline-block';
+      document.getElementById('loopProgress').classList.add('active');
+      document.getElementById('loopResults').style.display = 'none';
+      document.getElementById('loopProgressFill').style.width = '0%';
+      document.getElementById('loopProgressText').textContent = 'Starting loop...';
+      document.getElementById('loopStatusText').textContent = '';
+
+      try {
+        var response = await fetch('/api/v2/prompt-loop?action=start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify(config)
+        });
+
+        // Read SSE stream
+        var text = await response.text();
+        var lines = text.split('\n');
+        var lastData = null;
+
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i];
+          if (line.startsWith('data: ')) {
+            try {
+              var eventData = JSON.parse(line.substring(6));
+              lastData = eventData;
+
+              if (eventData.loopRunId) currentLoopId = eventData.loopRunId;
+
+              if (eventData.type === 'progress') {
+                var pct = eventData.total > 0 ? Math.round((eventData.completed / eventData.total) * 100) : 0;
+                document.getElementById('loopProgressFill').style.width = pct + '%';
+                document.getElementById('loopProgressText').textContent =
+                  'Generation ' + eventData.completed + '/' + eventData.total +
+                  ' | ' + (eventData.eventType || '') + ' | Score: ' + (eventData.lastScore || '...') +
+                  ' | Cost: $' + ((eventData.costCents || 0) / 100).toFixed(2);
+              }
+
+              if (eventData.type === 'done' || eventData.type === 'error') {
+                break;
+              }
+            } catch(e) {}
+          }
+        }
+
+        loopRunning = false;
+        document.getElementById('loopStartBtn').disabled = false;
+        document.getElementById('loopCancelBtn').style.display = 'none';
+
+        if (lastData && lastData.type === 'done') {
+          document.getElementById('loopProgressText').textContent = 'Completed! ' + lastData.completed + ' generations, $' + ((lastData.totalCostCents || 0) / 100).toFixed(2) + ' total cost';
+          document.getElementById('loopStatusText').textContent = '';
+          if (currentLoopId) loadLoopResults(currentLoopId);
+        } else if (lastData && lastData.type === 'error') {
+          document.getElementById('loopProgressText').textContent = 'Error: ' + (lastData.message || 'Unknown error');
+        }
+
+        loadLoopHistory();
+      } catch(err) {
+        loopRunning = false;
+        document.getElementById('loopStartBtn').disabled = false;
+        document.getElementById('loopCancelBtn').style.display = 'none';
+        document.getElementById('loopProgressText').textContent = 'Error: ' + err.message;
+      }
+    }
+
+    async function cancelLoop() {
+      if (!currentLoopId) return;
+      try {
+        await fetch('/api/v2/prompt-loop?action=cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ loopRunId: currentLoopId })
+        });
+        document.getElementById('loopStatusText').textContent = 'Cancelling...';
+      } catch(e) {}
+    }
+
+    async function loadLoopResults(loopRunId) {
+      try {
+        var data = await adminFetch('loopRunDetail', { params: { loopRunId: loopRunId } });
+        if (!data.success) return;
+
+        document.getElementById('loopResults').style.display = 'block';
+
+        // Insights box
+        var insightsHtml = '';
+        if (data.loopRun.insights_report) {
+          var insights = data.loopRun.insights_report;
+          insightsHtml = '<div class="loop-insights"><h4>Insights</h4><ul>';
+          if (insights.bestCombo) insightsHtml += '<li><strong>Best combo:</strong> ' + insights.bestCombo + '</li>';
+          if (insights.weakestEventTypes && insights.weakestEventTypes.length > 0) {
+            insightsHtml += '<li><strong>Weakest event types:</strong> ' + insights.weakestEventTypes.join(', ') + '</li>';
+          }
+          if (insights.recommendations && insights.recommendations.length > 0) {
+            insights.recommendations.forEach(function(r) { insightsHtml += '<li>' + r + '</li>'; });
+          }
+          insightsHtml += '</ul></div>';
+        }
+        document.getElementById('loopInsightsBox').innerHTML = insightsHtml;
+
+        // Draft banner
+        var draftHtml = '';
+        if (data.loopRun.draft_prompt_version_id) {
+          draftHtml = '<div class="loop-draft-banner"><span>Auto-drafted prompt version ready for review</span><button onclick="switchTab(\'promptlab\')">Review Draft</button></div>';
+        }
+        document.getElementById('loopDraftBanner').innerHTML = draftHtml;
+
+        // Heatmap - combos as rows, dimensions as columns
+        if (data.combos && data.combos.length > 0) {
+          var heatHtml = '<table class="loop-heatmap"><thead><tr><th>Prompt</th><th>Model</th><th>Runs</th><th>Overall</th><th>Visual</th><th>Contrast</th><th>Layout</th><th>Coherence</th><th>Animation</th><th>Complete</th><th>Structural</th></tr></thead><tbody>';
+          data.combos.sort(function(a,b) { return b.avgOverall - a.avgOverall; });
+          data.combos.forEach(function(c) {
+            var avgScores = {};
+            ['visual_design','text_contrast','layout_structure','theme_coherence','animation_quality','completeness'].forEach(function(dim) {
+              var sum = 0, cnt = 0;
+              c.runs.forEach(function(r) { if (r[dim]) { sum += r[dim]; cnt++; } });
+              avgScores[dim] = cnt > 0 ? (sum/cnt).toFixed(1) : '-';
+            });
+            function scoreClass(v) { var n = Math.round(parseFloat(v)); return n >= 1 && n <= 5 ? 'score-' + n : ''; }
+            heatHtml += '<tr>';
+            heatHtml += '<td>' + (c.promptVersionId ? c.promptVersionId.substring(0,8) : 'Default') + '</td>';
+            heatHtml += '<td>' + c.model.replace('claude-','').replace('-20251001','') + '</td>';
+            heatHtml += '<td>' + c.runs.length + '</td>';
+            heatHtml += '<td><span class="score-cell ' + scoreClass(c.avgOverall) + '">' + c.avgOverall + '</span></td>';
+            heatHtml += '<td><span class="score-cell ' + scoreClass(avgScores.visual_design) + '">' + avgScores.visual_design + '</span></td>';
+            heatHtml += '<td><span class="score-cell ' + scoreClass(avgScores.text_contrast) + '">' + avgScores.text_contrast + '</span></td>';
+            heatHtml += '<td><span class="score-cell ' + scoreClass(avgScores.layout_structure) + '">' + avgScores.layout_structure + '</span></td>';
+            heatHtml += '<td><span class="score-cell ' + scoreClass(avgScores.theme_coherence) + '">' + avgScores.theme_coherence + '</span></td>';
+            heatHtml += '<td><span class="score-cell ' + scoreClass(avgScores.animation_quality) + '">' + avgScores.animation_quality + '</span></td>';
+            heatHtml += '<td><span class="score-cell ' + scoreClass(avgScores.completeness) + '">' + avgScores.completeness + '</span></td>';
+            heatHtml += '<td>' + c.avgStructural + '/100</td>';
+            heatHtml += '</tr>';
+          });
+          heatHtml += '</tbody></table>';
+          document.getElementById('loopHeatmap').innerHTML = heatHtml;
+        }
+      } catch(e) {
+        console.error('Failed to load loop results:', e);
+      }
+    }
+
+    async function loadLoopHistory() {
+      try {
+        var data = await adminFetch('loopRuns');
+        if (!data.success || !data.loopRuns || data.loopRuns.length === 0) {
+          document.getElementById('loopHistoryTable').innerHTML = '<em style="color:#9ca3af;font-size:12px">No loops run yet</em>';
+          return;
+        }
+        var html = '<table class="loop-history-table"><thead><tr><th>Date</th><th>Status</th><th>Generations</th><th>Avg Score</th><th>Cost</th><th>Draft</th></tr></thead><tbody>';
+        data.loopRuns.forEach(function(run) {
+          var date = new Date(run.started_at).toLocaleDateString() + ' ' + new Date(run.started_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+          var statusClass = 'loop-status-' + run.status;
+          html += '<tr onclick="loadLoopResults(\'' + run.id + '\')">';
+          html += '<td>' + date + '</td>';
+          html += '<td><span class="loop-status-badge ' + statusClass + '">' + run.status + '</span></td>';
+          html += '<td>' + run.completed_generations + '/' + run.total_generations + '</td>';
+          html += '<td>' + (run.avg_overall_score ? run.avg_overall_score.toFixed(1) : '-') + '</td>';
+          html += '<td>$' + ((run.total_cost_cents || 0) / 100).toFixed(2) + '</td>';
+          html += '<td>' + (run.draft_prompt_version_id ? 'Yes' : '-') + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table>';
+        document.getElementById('loopHistoryTable').innerHTML = html;
+      } catch(e) {
+        console.error('Failed to load loop history:', e);
+      }
+    }
+
   </script>
   <div class="bulk-progress" id="bulkProgress" style="display:none;"></div>
   <!-- Style Detail View Overlay -->
