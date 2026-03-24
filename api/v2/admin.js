@@ -3345,6 +3345,95 @@ ${cssSnippet}`
       return res.status(200).json({ success: true, html, sampleData: { eventTitle: sampleEvent, firstName: sampleFirst } });
     }
 
+    // --- Loop Management Endpoints ---
+
+    if (action === 'loopRuns') {
+      const { data, error } = await supabaseAdmin
+        .from('loop_runs')
+        .select('*')
+        .order('started_at', { ascending: false })
+        .limit(20);
+      if (error) return res.status(400).json({ error: error.message });
+      return res.status(200).json({ success: true, loopRuns: data || [] });
+    }
+
+    if (action === 'loopRunDetail') {
+      const loopRunId = req.query.loopRunId;
+      if (!loopRunId) return res.status(400).json({ error: 'loopRunId required' });
+
+      // Get the loop run itself
+      const { data: run } = await supabaseAdmin
+        .from('loop_runs')
+        .select('*')
+        .eq('id', loopRunId)
+        .single();
+      if (!run) return res.status(404).json({ error: 'Loop run not found' });
+
+      // Get all eval scores with test run data
+      const { data: evals } = await supabaseAdmin
+        .from('auto_eval_scores')
+        .select('*, prompt_test_runs!inner(prompt_version_id, model, event_type, event_details, result_html, result_css, result_config, result_thankyou_html, latency_ms, input_tokens, output_tokens)')
+        .eq('loop_run_id', loopRunId)
+        .order('created_at', { ascending: true });
+
+      // Group by prompt_version_id + model for summary
+      const combos = {};
+      for (const ev of (evals || [])) {
+        const ptr = ev.prompt_test_runs;
+        const key = (ptr.prompt_version_id || 'default') + '|' + ptr.model;
+        if (!combos[key]) {
+          combos[key] = {
+            promptVersionId: ptr.prompt_version_id,
+            model: ptr.model,
+            runs: [],
+            avgOverall: 0,
+            avgStructural: 0
+          };
+        }
+        combos[key].runs.push(ev);
+      }
+      // Calculate averages
+      for (const c of Object.values(combos)) {
+        c.avgOverall = c.runs.reduce((s, r) => s + (r.overall || 0), 0) / c.runs.length;
+        c.avgStructural = c.runs.reduce((s, r) => s + (r.structural_score || 0), 0) / c.runs.length;
+        c.avgOverall = Math.round(c.avgOverall * 100) / 100;
+        c.avgStructural = Math.round(c.avgStructural * 10) / 10;
+      }
+
+      return res.status(200).json({
+        success: true,
+        loopRun: run,
+        evals: evals || [],
+        combos: Object.values(combos)
+      });
+    }
+
+    if (action === 'loopLeaderboard') {
+      // Try the view first, fall back to manual query
+      let { data, error } = await supabaseAdmin
+        .from('prompt_loop_leaderboard')
+        .select('*')
+        .limit(50);
+
+      if (error) {
+        // View might not exist yet - return empty
+        return res.status(200).json({ success: true, leaderboard: [] });
+      }
+      return res.status(200).json({ success: true, leaderboard: data || [] });
+    }
+
+    if (action === 'eventTypeQuality') {
+      let { data, error } = await supabaseAdmin
+        .from('event_type_quality')
+        .select('*')
+        .limit(100);
+
+      if (error) {
+        return res.status(200).json({ success: true, eventTypes: [] });
+      }
+      return res.status(200).json({ success: true, eventTypes: data || [] });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Admin API error:', err);

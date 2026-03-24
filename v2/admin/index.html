@@ -523,6 +523,62 @@
       /* Ensure body and tab content don't overflow */
       .tab-content { max-width: 100vw; overflow-x: hidden; }
     }
+
+    /* Auto Loop styles */
+    .loop-section { margin-top: 32px; border-top: 2px solid #e5e7eb; padding-top: 24px; }
+    .loop-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 12px 0; }
+    .loop-header h3 { margin: 0; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+    .loop-header .toggle-arrow { transition: transform 0.2s; font-size: 12px; color: #9ca3af; }
+    .loop-header .toggle-arrow.open { transform: rotate(90deg); }
+    .loop-body { display: none; padding-top: 16px; }
+    .loop-body.open { display: block; }
+    .loop-config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .loop-config-grid .config-section { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; }
+    .loop-config-grid .config-section h4 { margin: 0 0 12px 0; font-size: 14px; color: #374151; }
+    .loop-event-types { display: flex; flex-wrap: wrap; gap: 6px; }
+    .loop-event-types label { font-size: 12px; display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: white; border: 1px solid #d1d5db; border-radius: 4px; cursor: pointer; }
+    .loop-event-types label:has(input:checked) { background: #eff6ff; border-color: #3b82f6; }
+    .loop-estimate { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 12px 16px; margin: 16px 0; font-size: 13px; color: #0369a1; }
+    .loop-actions { display: flex; gap: 12px; align-items: center; margin-top: 16px; }
+    .loop-btn { padding: 10px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; border: none; cursor: pointer; }
+    .loop-btn-primary { background: #2563eb; color: white; }
+    .loop-btn-primary:hover { background: #1d4ed8; }
+    .loop-btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+    .loop-btn-danger { background: #ef4444; color: white; }
+    .loop-btn-danger:hover { background: #dc2626; }
+    .loop-progress { margin-top: 16px; display: none; }
+    .loop-progress.active { display: block; }
+    .loop-progress-bar { height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; margin: 8px 0; }
+    .loop-progress-fill { height: 100%; background: #2563eb; border-radius: 4px; transition: width 0.3s; }
+    .loop-progress-text { font-size: 13px; color: #6b7280; }
+    .loop-results { margin-top: 24px; }
+    .loop-results h4 { margin: 0 0 12px 0; font-size: 16px; }
+    .loop-heatmap { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .loop-heatmap th { padding: 8px; text-align: left; background: #f9fafb; border-bottom: 1px solid #e5e7eb; font-weight: 600; }
+    .loop-heatmap td { padding: 8px; text-align: center; border-bottom: 1px solid #f3f4f6; }
+    .loop-heatmap .score-cell { border-radius: 4px; padding: 4px 8px; font-weight: 600; }
+    .score-1 { background: #fee2e2; color: #991b1b; }
+    .score-2 { background: #fed7aa; color: #9a3412; }
+    .score-3 { background: #fef9c3; color: #854d0e; }
+    .score-4 { background: #bbf7d0; color: #166534; }
+    .score-5 { background: #a7f3d0; color: #065f46; }
+    .loop-history { margin-top: 24px; }
+    .loop-history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .loop-history-table th { padding: 8px 12px; text-align: left; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+    .loop-history-table td { padding: 8px 12px; border-bottom: 1px solid #f3f4f6; }
+    .loop-history-table tr:hover { background: #f9fafb; cursor: pointer; }
+    .loop-status-badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .loop-status-running { background: #dbeafe; color: #1d4ed8; }
+    .loop-status-completed { background: #d1fae5; color: #065f46; }
+    .loop-status-failed { background: #fee2e2; color: #991b1b; }
+    .loop-status-cancelled { background: #f3f4f6; color: #6b7280; }
+    .loop-insights { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 16px; margin-top: 16px; }
+    .loop-insights h4 { margin: 0 0 8px 0; font-size: 14px; color: #92400e; }
+    .loop-insights ul { margin: 0; padding-left: 20px; font-size: 13px; color: #78350f; }
+    .loop-insights li { margin-bottom: 4px; }
+    .loop-draft-banner { background: #ede9fe; border: 1px solid #c4b5fd; border-radius: 8px; padding: 12px 16px; margin-top: 12px; display: flex; align-items: center; justify-content: space-between; }
+    .loop-draft-banner span { font-size: 13px; color: #5b21b6; }
+    .loop-draft-banner button { padding: 6px 16px; background: #7c3aed; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; }
   </style>
 <script src="/js/meta-pixel.js"></script>
 </head>
@@ -1477,6 +1533,94 @@
             </div>
           </div>
           <div id="matrixResultGrid" class="matrix-results"></div>
+        </div>
+      </div>
+
+      <!-- ═══ AUTO LOOP TESTING ═══ -->
+      <div class="loop-section" id="loopSection">
+        <div class="loop-header" onclick="toggleLoopSection()">
+          <h3><span class="toggle-arrow" id="loopToggle">&#9654;</span> Automated Testing Loop</h3>
+          <span style="font-size:12px;color:#9ca3af">AI-powered prompt evaluation</span>
+        </div>
+        <div class="loop-body" id="loopBody">
+          <div class="loop-config-grid">
+            <div class="config-section">
+              <h4>Prompt Versions</h4>
+              <div id="loopPromptVersions"><em style="color:#9ca3af;font-size:12px">Loading...</em></div>
+            </div>
+            <div class="config-section">
+              <h4>Models</h4>
+              <div id="loopModels">
+                <label style="font-size:12px;display:flex;gap:4px;margin-bottom:4px"><input type="checkbox" value="claude-sonnet-4-6" checked> Sonnet 4.6</label>
+                <label style="font-size:12px;display:flex;gap:4px;margin-bottom:4px"><input type="checkbox" value="claude-haiku-4-5-20251001"> Haiku 4.5</label>
+                <label style="font-size:12px;display:flex;gap:4px;margin-bottom:4px"><input type="checkbox" value="claude-opus-4-6"> Opus 4.6</label>
+                <label style="font-size:12px;display:flex;gap:4px;margin-bottom:4px"><input type="checkbox" value="gpt-4.1"> GPT-4.1</label>
+                <label style="font-size:12px;display:flex;gap:4px;margin-bottom:4px"><input type="checkbox" value="gpt-4.1-mini"> GPT-4.1 Mini</label>
+              </div>
+            </div>
+            <div class="config-section">
+              <h4>Event Types</h4>
+              <div style="margin-bottom:8px"><label style="font-size:12px;display:flex;gap:4px"><input type="checkbox" id="loopAllEventTypes" onchange="toggleAllLoopEventTypes(this.checked)" checked> Select All</label></div>
+              <div class="loop-event-types" id="loopEventTypes">
+                <label><input type="checkbox" value="kidsBirthday" checked> Kids Birthday</label>
+                <label><input type="checkbox" value="adultBirthday" checked> Adult Birthday</label>
+                <label><input type="checkbox" value="babyShower" checked> Baby Shower</label>
+                <label><input type="checkbox" value="engagement" checked> Engagement</label>
+                <label><input type="checkbox" value="wedding" checked> Wedding</label>
+                <label><input type="checkbox" value="graduation" checked> Graduation</label>
+                <label><input type="checkbox" value="holiday" checked> Holiday</label>
+                <label><input type="checkbox" value="dinnerParty" checked> Dinner Party</label>
+                <label><input type="checkbox" value="retirement" checked> Retirement</label>
+                <label><input type="checkbox" value="anniversary" checked> Anniversary</label>
+                <label><input type="checkbox" value="sports" checked> Sports</label>
+                <label><input type="checkbox" value="bridalShower" checked> Bridal Shower</label>
+                <label><input type="checkbox" value="corporate" checked> Corporate</label>
+                <label><input type="checkbox" value="other" checked> Other</label>
+              </div>
+            </div>
+            <div class="config-section">
+              <h4>Settings</h4>
+              <div style="margin-bottom:10px">
+                <label style="font-size:12px;display:block;margin-bottom:4px">Runs per combo</label>
+                <input type="number" id="loopRunsPerCombo" value="1" min="1" max="5" style="width:60px;padding:4px 8px;border:1px solid #d1d5db;border-radius:4px" onchange="updateLoopEstimate()">
+              </div>
+              <div style="margin-bottom:10px">
+                <label style="font-size:12px;display:block;margin-bottom:4px">Budget cap ($)</label>
+                <input type="number" id="loopBudgetCap" value="5.00" min="0.50" max="100" step="0.50" style="width:80px;padding:4px 8px;border:1px solid #d1d5db;border-radius:4px">
+              </div>
+              <div>
+                <label style="font-size:12px;display:flex;gap:4px;align-items:center"><input type="checkbox" id="loopAutoDraft" checked> Auto-draft improved prompt</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="loop-estimate" id="loopEstimate"></div>
+
+          <div class="loop-actions">
+            <button class="loop-btn loop-btn-primary" id="loopStartBtn" onclick="startLoop()">Run Automated Loop</button>
+            <button class="loop-btn loop-btn-danger" id="loopCancelBtn" onclick="cancelLoop()" style="display:none">Cancel</button>
+            <span id="loopStatusText" style="font-size:13px;color:#6b7280"></span>
+          </div>
+
+          <div class="loop-progress" id="loopProgress">
+            <div class="loop-progress-bar"><div class="loop-progress-fill" id="loopProgressFill" style="width:0%"></div></div>
+            <div class="loop-progress-text" id="loopProgressText">Starting...</div>
+          </div>
+
+          <!-- Results for current/selected loop run -->
+          <div class="loop-results" id="loopResults" style="display:none">
+            <h4>Loop Results</h4>
+            <div id="loopInsightsBox"></div>
+            <div id="loopDraftBanner"></div>
+            <div id="loopHeatmap"></div>
+            <div id="loopDetailCards"></div>
+          </div>
+
+          <!-- Loop run history -->
+          <div class="loop-history">
+            <h4 style="margin-top:24px">Loop History</h4>
+            <div id="loopHistoryTable"><em style="color:#9ca3af;font-size:12px">No loops run yet</em></div>
+          </div>
         </div>
       </div>
     </div>
