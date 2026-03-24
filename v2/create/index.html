@@ -2929,12 +2929,11 @@
           var bg = styles.backgroundColor;
           if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
             var rgb = parseRgb(bg);
-            if (rgb && (rgb[0] > 0 || rgb[1] > 0 || rgb[2] > 0)) return { color: bg, rgb: rgb };
+            if (rgb) return { color: bg, rgb: rgb };
           }
           // Also check background-image for gradients
           var bgImg = styles.backgroundImage;
           if (bgImg && bgImg !== 'none') {
-            // Extract first color from gradient
             var gradColors = bgImg.match(/rgb[a]?\([^)]+\)/g);
             if (gradColors && gradColors.length > 0) {
               var gradRgb = parseRgb(gradColors[0]);
@@ -2944,7 +2943,7 @@
         } catch (e) {}
         node = node.parentElement;
       }
-      return { color: 'rgb(255,255,255)', rgb: [255, 255, 255] };
+      return { color: 'rgb(255,255,255)', rgb: { r: 255, g: 255, b: 255 } };
     }
 
     function buildRsvpFormHtml(isDarkBg) {

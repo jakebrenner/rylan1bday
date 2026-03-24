@@ -646,13 +646,6 @@
     function renderRSVPForm(event) {
       rsvpFormEvent = event;
 
-      // Calendar buttons (always in external section)
-      var calHtml = '<div class="calendar-buttons">'
-        + '<a class="calendar-btn" href="' + generateGoogleCalendarLink(event) + '" target="_blank">Google Calendar</a>'
-        + '<a class="calendar-btn" href="' + generateOutlookLink(event) + '" target="_blank">Outlook</a>'
-        + '<button class="calendar-btn" onclick="downloadICS()">Download .ics</button>'
-        + '</div>';
-
       // Try to inject into iframe's .rsvp-slot
       var iframe = document.getElementById('themeFrame');
       if (iframe && iframe.contentDocument) {
@@ -674,10 +667,7 @@
           setTimeout(function() {
             iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 40, 600) + 'px';
           }, 100);
-          // Show only calendar buttons externally
-          var rsvpSection = document.getElementById('rsvpSection');
-          rsvpSection.innerHTML = calHtml;
-          rsvpSection.style.display = 'block';
+          // Calendar links are shown on thank you page after RSVP, not on invite page
           return;
         }
       }
@@ -685,7 +675,7 @@
       // Fallback: render in external section (white background = light mode)
       var formHtml = buildRSVPFormHtml(event, false);
       var rsvpSection = document.getElementById('rsvpSection');
-      rsvpSection.innerHTML = '<h3>RSVP</h3>' + formHtml + calHtml;
+      rsvpSection.innerHTML = '<h3>RSVP</h3>' + formHtml;
       rsvpSection.style.display = 'block';
     }
 
