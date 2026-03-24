@@ -176,7 +176,7 @@ export default async function handler(req, res) {
         supabaseAdmin.from('generation_log').select('id, event_id, model, input_tokens, output_tokens, prompt, status, latency_ms, created_at').eq('user_id', userId).eq('status', 'success').order('created_at', { ascending: false }),
         supabaseAdmin.from('sms_messages').select('id, event_id, recipient_phone, recipient_name, message_type, status, cost_cents, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
         supabaseAdmin.from('chat_messages').select('id, session_id, role, content, model, input_tokens, output_tokens, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(200),
-        supabaseAdmin.from('credit_ledger').select('entry_type, amount, source, notes, reference_id, created_at').eq('user_id', userId).order('created_at', { ascending: false }).catch(() => ({ data: [] }))
+        (async () => { try { return await supabaseAdmin.from('credit_ledger').select('entry_type, amount, source, notes, reference_id, created_at').eq('user_id', userId).order('created_at', { ascending: false }); } catch { return { data: [] }; } })()
       ]);
 
       const profile = profileRes.data;
