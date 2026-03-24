@@ -244,7 +244,7 @@ Return a JSON object with exactly these keys:
 
 ## PAGE STRUCTURE — REQUIRED SECTIONS
 1. **THEMATIC HEADER** — An animated or illustrated element specific to this event type.
-2. **HERO SECTION** — Large display headline with event title/names/tagline.
+2. **HERO SECTION** — Large display headline with event title/names/tagline. CRITICAL: The event title must appear exactly ONCE — NEVER duplicate names, repeat the title, or split it into elements that show the same info redundantly.
 3. **EVENT DETAILS** — \`<div class="details-slot"></div>\`. The platform injects event details (date, time, location, dress code) at runtime — just like the RSVP form. You MUST NOT put any text, icons, or labels inside this div. Style it via CSS to match the theme. The platform injects children with classes: \`.detail-item\`, \`.detail-icon\`, \`.detail-label\`, \`.detail-value\` — style these in theme_css.
 4. **RSVP SECTION** — \`<div class="rsvp-slot"></div>\`. The rsvp-slot MUST be completely empty — the platform injects the RSVP form fields (name input, status dropdown, custom fields, submit button) directly into this div at runtime. NEVER put a button, link, text, or any content inside the rsvp-slot. NEVER create a "gate" or "reveal" pattern — the RSVP form is ALWAYS visible inline on the page, not hidden behind a button. You can add a heading above it like "KINDLY REPLY" or "RSVP" but the actual \`.rsvp-slot\` div must be empty.
 

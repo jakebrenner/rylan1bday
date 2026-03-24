@@ -442,7 +442,7 @@ Return a JSON object with exactly these keys:
 ## PAGE STRUCTURE — REQUIRED SECTIONS
 Build the page with these sections (creative freedom on visual execution):
 1. **THEMATIC HEADER** — An animated or illustrated element specific to this event type.
-2. **HERO SECTION** — Large display headline with event title/names/tagline. Photo treatment if photos provided.
+2. **HERO SECTION** — Large display headline with event title/names/tagline. Photo treatment if photos provided. CRITICAL: The event title must appear exactly ONCE in the hero — NEVER duplicate names, repeat the title, or split it across multiple elements that show the same information. For weddings with "Jake & Sarah's Wedding", do NOT separately show "Jake &" on one line, "Sarah's Wedding" on another, THEN repeat "& Sarah" again below. The title should be a single, coherent display.
 3. **EVENT DETAILS** — \`<div class="details-slot"></div>\`. The platform injects event details (date, time, location, dress code) at runtime — just like the RSVP form. You MUST NOT put any text, icons, or labels inside this div. Style it via CSS to match the theme. The platform injects children with classes: \`.detail-item\`, \`.detail-icon\`, \`.detail-label\`, \`.detail-value\` — style these in theme_css.
 4. **RSVP SECTION** — \`<div class="rsvp-slot"></div>\`. The rsvp-slot MUST be completely empty — the platform injects the RSVP form fields (name input, status dropdown, custom fields, submit button) directly into this div at runtime. NEVER put a button, link, text, or any content inside the rsvp-slot. NEVER create a "gate" or "reveal" pattern — the RSVP form is ALWAYS visible inline on the page, not hidden behind a button. You can add a heading above it like "KINDLY REPLY" or "RSVP" but the actual \`.rsvp-slot\` div must be empty.
 
@@ -2513,12 +2513,14 @@ ${rsvpFieldsDesc}`;
 ⚠️ FINAL CHECK — TEXT CONTRAST (NON-NEGOTIABLE)
 ══════════════════════
 Before outputting, mentally walk through EVERY text element and verify:
-1. Dark/colored background sections (navy, green, black, charcoal, etc.) → text MUST be #FFFFFF or #FAFAFA
+1. Dark/colored background sections (navy, green, black, charcoal, brown, etc.) → text MUST be #FFFFFF or #FAFAFA
 2. Light background sections → text MUST be #1A1A1A or darker
 3. Buttons → text color must contrast against the button's background color
 4. NEVER use accent colors (coral, salmon, rose, gold, etc.) as text on dark backgrounds — they FAIL contrast
 5. The .details-slot CSS — if its background is dark, .detail-label and .detail-value MUST be white
-6. The .thankyou-page CSS — .thankyou-title and .thankyou-subtitle must contrast against the page background
+6. The .rsvp-slot CSS — if the RSVP section has a dark/colored background, ALL labels, inputs, and text inside .rsvp-slot MUST be white/light. Set .rsvp-slot label { color: #FFFFFF; } and .rsvp-slot input, .rsvp-slot select { color: #FFFFFF; }
+7. The .thankyou-page CSS — .thankyou-title and .thankyou-subtitle must contrast against the page background
+8. NEVER let ANY text have the same or similar color as its background — minimum 4.5:1 contrast ratio
 This is the most common failure mode. Double-check it.`;
 
     // Resolve inspiration images: use base64 if provided, otherwise fetch from URLs
