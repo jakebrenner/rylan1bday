@@ -1271,6 +1271,7 @@
       var fontsImport = config.googleFontsImport || '';
       var bg = config.backgroundColor || '#f9f9f9';
       var css = manageEventData.themeCss || '';
+      var ev = manageEventData;
 
       var srcdoc = '';
       if (type === 'invite') {
@@ -1278,6 +1279,19 @@
         srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
           + '<style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:' + bg + '}' + fontsImport + '</style>'
           + '<style>' + css + '</style></head><body>' + manageEventData.themeHtml + '</body></html>';
+        iframe.srcdoc = srcdoc;
+        // After iframe loads, inject event details into .details-slot
+        iframe.onload = function() {
+          try {
+            var doc = iframe.contentDocument;
+            if (!doc) return;
+            var detailsSlot = doc.querySelector('.details-slot');
+            if (detailsSlot) {
+              detailsSlot.innerHTML = buildPreviewDetailsHtml(ev);
+            }
+          } catch(e) {}
+        };
+        return;
       } else if (type === 'thankyou') {
         frame.className = 'preview-phone-frame';
         var thankyouHtml = config.thankyouHtml || '';
@@ -1285,6 +1299,8 @@
           iframe.srcdoc = '<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Inter,sans-serif;color:#999;font-size:14px;">No thank you page generated yet</body></html>';
           return;
         }
+        // Inject thank you content into the hero and add event recap
+        thankyouHtml = injectThankYouContent(thankyouHtml, ev);
         srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
           + '<style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:' + bg + '}' + fontsImport + '</style>'
           + '<style>' + css + '</style></head><body>' + thankyouHtml + '</body></html>';
@@ -1297,7 +1313,72 @@
         }
         srcdoc = emailHtml;
       }
+      iframe.onload = null;
       iframe.srcdoc = srcdoc;
+    }
+
+    // Build event details HTML for the invite page .details-slot
+    function buildPreviewDetailsHtml(ev) {
+      var items = [];
+      if (ev.eventDate) {
+        var d = new Date(ev.eventDate);
+        var formatted = d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        var timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        if (ev.endDate) {
+          var end = new Date(ev.endDate);
+          timeStr += ' \u2013 ' + end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        }
+        items.push({ icon: '&#128197;', label: 'Date', value: formatted + '<br>' + timeStr });
+      }
+      var locName = ev.locationName || '';
+      var locAddr = ev.locationAddress || '';
+      if (locName || locAddr) {
+        items.push({ icon: '&#128205;', label: 'Location', value: [locName, locAddr].filter(Boolean).join('<br>') });
+      }
+      if (ev.dressCode) {
+        items.push({ icon: '&#128087;', label: 'Dress Code', value: escapeHtml(ev.dressCode) });
+      }
+      return items.map(function(item) {
+        return '<div class="detail-item">'
+          + '<div class="detail-icon">' + item.icon + '</div>'
+          + '<div class="detail-text"><div class="detail-label">' + item.label + '</div>'
+          + '<div class="detail-value">' + item.value + '</div></div>'
+          + '</div>';
+      }).join('');
+    }
+
+    // Inject title/subtitle/event recap into thank you page HTML
+    function injectThankYouContent(html, ev) {
+      var title = ev.title || 'the event';
+      // Fill .thankyou-hero with title and subtitle
+      html = html.replace(/<div class="thankyou-hero">\s*<\/div>/i,
+        '<div class="thankyou-hero">'
+        + '<h1 class="thankyou-title">Thank You!</h1>'
+        + '<p class="thankyou-subtitle">We\'re so glad you responded to<br><strong>' + escapeHtml(title) + '</strong></p>'
+        + '</div>');
+      // Replace placeholder spans if present
+      html = html.replace(/<span class="thankyou-guest">[^<]*<\/span>/g, '<span class="thankyou-guest">Guest</span>');
+      html = html.replace(/<span class="thankyou-event">[^<]*<\/span>/g, '<span class="thankyou-event">' + escapeHtml(title) + '</span>');
+      // Build event recap
+      var recapItems = [];
+      if (ev.eventDate) {
+        var d = new Date(ev.eventDate);
+        var formatted = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        var timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        recapItems.push('<div class="detail-item"><div class="detail-icon">&#128197;</div><div><div class="detail-label">Date &amp; Time</div><div class="detail-value">' + formatted + '<br>' + timeStr + '</div></div></div>');
+      }
+      if (ev.locationName || ev.locationAddress) {
+        recapItems.push('<div class="detail-item"><div class="detail-icon">&#128205;</div><div><div class="detail-label">Location</div><div class="detail-value">' + escapeHtml(ev.locationName || '') + (ev.locationAddress ? '<br>' + escapeHtml(ev.locationAddress) : '') + '</div></div></div>');
+      }
+      if (recapItems.length > 0) {
+        var recapHtml = '<div class="thankyou-event-recap">' + recapItems.join('') + '</div>';
+        // Insert recap before the last </div> of the thankyou-page
+        var lastDiv = html.lastIndexOf('</div>');
+        if (lastDiv !== -1) {
+          html = html.substring(0, lastDiv) + recapHtml + '</div>';
+        }
+      }
+      return html;
     }
 
     // ============================================================
