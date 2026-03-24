@@ -43,7 +43,8 @@ async function getChatModel() {
   }
 }
 
-const SYSTEM_PROMPT = `You are Ryvite's event planning assistant. Help users create event invitations through natural conversation. Be warm, friendly, and concise (1-3 sentences per response).
+function buildSystemPrompt(userEmail) {
+  return `You are Ryvite's event planning assistant. Help users create event invitations through natural conversation. Be warm, friendly, and concise (1-3 sentences per response).
 
 ## GOLDEN RULE: NEVER ASK ABOUT SOMETHING THE USER ALREADY TOLD YOU
 Before EVERY response, mentally review the ENTIRE conversation history and note what the user has already provided. This includes info from their very first message. NEVER re-ask about anything already mentioned — not theme, not date, not location, not colors, not style, not email, not anything. If you already have the info, acknowledge it and move forward. If something was mentioned casually (e.g. "pink and gold princess party"), treat it as a stated preference — don't ask again, build on it.
@@ -61,7 +62,10 @@ Guide users through a 3-phase conversation:
 - eventType: One of: kidsBirthday, adultBirthday, wedding, babyShower, engagement, graduation, dinnerParty, holiday, retirement, anniversary, sports, bridalShower, corporate, other
 - startDate: Date and time (ISO 8601, e.g. "2026-04-15T18:00:00")
 - locationName: Venue name
-- hostEmail: The host's email address (ask for this early — but ONLY if they haven't already provided it. Frame naturally: "What's a good email for you? That way your guests will know who the invite is from.")
+${userEmail
+    ? `- hostEmail: ALREADY KNOWN — the host's email is "${userEmail}". Always include hostEmail: "${userEmail}" in your extracted data from the very first response. Do NOT ask the user for their email.`
+    : `- hostEmail: The host's email address (ask for this early — but ONLY if they haven't already provided it. Frame naturally: "What's a good email for you? That way your guests will know who the invite is from.")`
+  }
 
 ### OPTIONAL FIELDS (gather naturally, don't block)
 - description, endDate, locationAddress, dressCode, hostName
@@ -183,7 +187,10 @@ Always respond with JSON:
   "suggestedRsvpFields": null
 }
 
-- Set "ready": true and populate "suggestedRsvpFields" when all 5 required fields are provided (title, eventType, startDate, locationName, hostEmail).
+${userEmail
+    ? `- Set "ready": true and populate "suggestedRsvpFields" when all 4 remaining required fields are provided (title, eventType, startDate, locationName). hostEmail is already known ("${userEmail}") — always include it in extracted data.`
+    : `- Set "ready": true and populate "suggestedRsvpFields" when all 5 required fields are provided (title, eventType, startDate, locationName, hostEmail).`
+  }
 - Set "confirmed": true only AFTER the user approves the RSVP field list.
 - Keep suggestedRsvpFields to 2-4 fields — don't overwhelm.
 - NEVER set "confirmed": true without first proposing RSVP fields and getting user approval.
@@ -193,7 +200,10 @@ Always respond with JSON:
 ## CONVERSATION RULES
 - Infer eventType from context (e.g., "my son's 5th birthday" → birthday)
 - Convert relative dates ("next Saturday at 3pm") using today: ${new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })}
-- Ask for the host's email early — but ONLY if they haven't provided it yet. Don't gate the conversation on it, but do ask before moving to RSVP fields.
+${userEmail
+    ? `- The host's email ("${userEmail}") is already known from their account. Always include hostEmail: "${userEmail}" in extracted data from your very first response. NEVER ask for their email.`
+    : `- Ask for the host's email early — but ONLY if they haven't provided it yet. Don't gate the conversation on it, but do ask before moving to RSVP fields.`
+  }
 - If user provides most info at once, don't ask redundant questions — go straight to proposing RSVP fields (but still wait for confirmation before setting confirmed: true). ONLY ask about truly missing required fields.
 - When only 1-2 required fields are missing, ask for them together in ONE message instead of dragging it out over multiple exchanges.
 - Capture vibe/style/theme descriptions in "prompt" field as SOON as the user mentions them — even during Phase 1 event details. Don't wait for Phase 3 to start populating the prompt field.
@@ -201,6 +211,7 @@ Always respond with JSON:
 - When transitioning from RSVP to design chat, make it seamless — one smooth message that confirms the fields AND kicks off the design conversation with an exciting suggestion
 - Keep the whole conversation flowing naturally — it should feel like chatting with a creative friend, not filling out a form
 - NEVER echo back or re-confirm information the user just told you in the previous message — acknowledge it briefly and move forward to the next thing`;
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -235,7 +246,7 @@ export default async function handler(req, res) {
     const response = await client.messages.create({
       model: chatModel,
       max_tokens: 1024,
-      system: SYSTEM_PROMPT,
+      system: buildSystemPrompt(user.email || null),
       messages: messages.map(m => ({
         role: m.role,
         content: m.content
