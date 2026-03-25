@@ -255,6 +255,43 @@ No auth required — supports host, guest, and anonymous raters.
 - V2 create page is a single-file HTML app with vanilla JS at `v2/create/index.html`
 - Vercel serverless functions are isolated — shared constants (like `STRUCTURAL_RULES`) must be duplicated across files
 
+### Prompt & Rendering Guardian Rules
+
+**CRITICAL**: These rules protect against regressions that git merge conflicts won't catch. Before modifying ANY of these files, verify these invariants still hold after your changes:
+
+#### `api/v2/generate-theme.js` — AI Generation Prompts
+- `STRUCTURAL_RULES` (line ~420-570): Must contain ALL of these requirements:
+  - `.rsvp-slot` must be empty (platform fills it)
+  - `.details-slot` must be empty (platform fills it)
+  - `data-field="title"` attribute on the title element
+  - `theme_thankyou_html` with `.thankyou-page` background matching the invite
+  - `googleFontsImport` in `theme_config`
+  - Output format: `theme_html`, `theme_css`, `theme_thankyou_html`, `theme_config`
+- Tweak prompts (Tier 2 at ~line 1917, Tier 3 at ~line 1933): Must preserve structural elements (`.rsvp-slot`, `.details-slot`, `[data-field="title"]`)
+- `parseThemeResponse()` + `normalizeThemeKeys()`: Must extract `googleFontsImport` from config, CSS @import, AND HTML `<link>` tags
+
+#### `api/v2/chat.js` — Event Creation Chat
+- Phase 2 RSVP: Must wait for user confirmation before setting `confirmed: true`
+- Phase 3 Design: Must set `themeReady: true` at the SAME time as `confirmed: true` — no multi-turn design Q&A
+- Must NOT ask about photos (the generate UI handles this)
+- Must NOT ask about vibe/style if it can be inferred from event context
+- Authenticated users: Must never ask for email
+
+#### `v2/create/index.html` — Preview Rendering
+- `buildSrcdoc()`: CSS order must be: fonts `<style>` → preconnect → reset+fallback → headStyles → theme CSS
+- `buildThankYouSrcdoc()`: Both AI-generated and fallback paths must have CSS in order: AI CSS → guaranteed CSS (not reversed)
+- `checkCssRendered()`: Must NOT inject `font-family` with `!important` — only background and color
+- `ensureStructuralElements()`: Must run before `injectRsvpForm()`
+- All `@import` font loading must have `<link rel="preconnect">` hints before it
+
+#### `v2/event/index.html` — Published Invite (Guest Page)
+- `buildGuestSrcdoc()` must match `buildSrcdoc()` structure: same viewport (393px), same CSS order, headStyles extraction, body attributes
+- Must NOT have hardcoded `padding: 20px; background: #f9f9f9`
+- `checkGuestCssRendered()`: Must NOT inject `font-family` with `!important`
+
+#### Rendering Consistency Invariant
+The invite rendered by `buildSrcdoc()` (create preview) and `buildGuestSrcdoc()` (published page) MUST produce identical output. If you change one, change the other. If you add CSS to one, add it to the other.
+
 ### SSE Streaming & Mobile Safari
 - All AI generation uses Server-Sent Events (SSE) to avoid Vercel's 60s timeout
 - Client reads full response via `res.text()` — NOT ReadableStream (Safari mobile kills it on page blur)
