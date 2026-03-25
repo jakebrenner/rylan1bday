@@ -3044,6 +3044,14 @@
         html += '</div>';
       });
 
+      // Submit button — always included so the form is never missing one
+      var btnBg = accent;
+      var btnText = '#FFFFFF';
+      // If accent is very light, darken it for the button or use a dark fallback
+      html += '<div style="margin-top:16px;">'
+        + '<button type="submit" disabled class="rsvp-button" style="width:100%;padding:14px 24px;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;background:' + btnBg + ';color:' + btnText + ';font-family:inherit;letter-spacing:0.02em;transition:opacity 0.2s;">'
+        + 'RSVP Now</button></div>';
+
       html += '</div>';
       return html;
     }
@@ -3449,9 +3457,7 @@
           var ifrWinForBg = iframe.contentWindow || doc.defaultView;
           var bgInfo = detectRsvpBackground(slot, ifrWinForBg);
           var slotIsDark = bgInfo.rgb ? relativeLuminance(bgInfo.rgb) < 0.35 : false;
-          var btn = slot.querySelector('.rsvp-button');
-          var btnHtml = btn ? btn.outerHTML : '';
-          slot.innerHTML = buildRsvpFormHtml(slotIsDark) + btnHtml;
+          slot.innerHTML = buildRsvpFormHtml(slotIsDark);
         } else {
           // Fallback: template has no .rsvp-slot — look for baked-in form fields
           // and wrap them in a .rsvp-slot so we can control them
@@ -3468,13 +3474,10 @@
               formContainer = formContainer.parentElement;
             }
             if (formContainer && formContainer.tagName !== 'BODY') {
-              // Preserve the button if present
-              var existingBtn = formContainer.querySelector('button, [type="submit"], .rsvp-button');
-              var existingBtnHtml = existingBtn ? existingBtn.outerHTML : '';
               var fbIfrWin = iframe.contentWindow || doc.defaultView;
               var fbBgInfo = detectRsvpBackground(formContainer, fbIfrWin);
               var fbIsDark = fbBgInfo.rgb ? relativeLuminance(fbBgInfo.rgb) < 0.35 : false;
-              formContainer.innerHTML = buildRsvpFormHtml(fbIsDark) + existingBtnHtml;
+              formContainer.innerHTML = buildRsvpFormHtml(fbIsDark);
               formContainer.classList.add('rsvp-slot');
             }
           }
