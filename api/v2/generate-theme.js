@@ -626,6 +626,116 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 const SYSTEM_PROMPT = STRUCTURAL_RULES + '\n\n' + DEFAULT_CREATIVE_DIRECTION;
 
 // ═══════════════════════════════════════════════════════════════════
+// COMPLETENESS AUTO-FILL: Quick Haiku call to generate missing pieces
+// Runs after main generation if thank you page, fonts, or config are missing.
+// ═══════════════════════════════════════════════════════════════════
+async function generateMissingPieces(theme, missingPieces, eventDetails) {
+  const needsThankyou = missingPieces.includes('thankyou_html');
+  const needsFonts = missingPieces.includes('googleFontsImport');
+  const needsBgColor = missingPieces.includes('backgroundColor');
+  const needsHeadlineFont = missingPieces.includes('fontHeadline');
+
+  // Extract key visual info from the existing theme to guide the fill
+  const cssSnippet = (theme.theme_css || '').substring(0, 2000); // First 2KB of CSS for context
+  const htmlSnippet = (theme.theme_html || '').substring(0, 1000); // First 1KB of HTML for context
+  const config = theme.theme_config || {};
+
+  let prompt = `You are a theme completeness assistant. An AI designer generated an event invite but MISSED some required pieces. Your job is to fill in ONLY the missing pieces based on the existing theme.
+
+## EXISTING THEME CONTEXT
+Event: ${eventDetails?.title || 'Event'} (${eventDetails?.eventType || 'other'})
+Existing config: ${JSON.stringify({ primaryColor: config.primaryColor, secondaryColor: config.secondaryColor, accentColor: config.accentColor, backgroundColor: config.backgroundColor, fontHeadline: config.fontHeadline, fontBody: config.fontBody, googleFontsImport: config.googleFontsImport })}
+
+CSS preview (first 2KB):
+\`\`\`css
+${cssSnippet}
+\`\`\`
+
+HTML preview (first 1KB):
+\`\`\`html
+${htmlSnippet}
+\`\`\`
+
+## WHAT'S MISSING — Generate ONLY these:
+${needsThankyou ? `
+### thankyou_html (REQUIRED)
+Generate a complete thank you page wrapper that visually matches the invite theme.
+Rules:
+- Must be a \`<div class="thankyou-page">\` containing a \`<div class="thankyou-decoration">\` with an inline SVG illustration (under 2KB, with CSS animation) and an empty \`<div class="thankyou-hero"></div>\`
+- .thankyou-page MUST have a background matching the invite (gradient, color, or pattern)
+- .thankyou-hero MUST be completely empty — the platform fills it
+- NO text, NO emojis, NO calendar buttons inside
+- The SVG illustration should match the event type and theme mood
+
+### thankyou_css (REQUIRED if thankyou_html is provided)
+CSS rules for .thankyou-page, .thankyou-decoration, .thankyou-hero, .thankyou-title, .thankyou-subtitle, .cal-btn, .cal-apple, .cal-google, .cal-outlook, .thankyou-event-recap, .thankyou-cta-section, .thankyou-cta-btn, .thankyou-footer
+- Colors and fonts MUST match the invite theme
+- On dark backgrounds: use rgba(255,255,255,0.12) for buttons with border:1px solid rgba(255,255,255,0.25)
+- On light backgrounds: use primary/accent color for buttons
+` : ''}
+${needsFonts ? `
+### googleFontsImport (REQUIRED)
+Analyze the CSS font-family declarations and provide the correct Google Fonts @import URL.
+Format: @import url('https://fonts.googleapis.com/css2?family=...');
+` : ''}
+${needsBgColor ? `
+### backgroundColor (REQUIRED)
+Analyze the CSS and determine the main background color of the invite body. Return as hex.
+` : ''}
+${needsHeadlineFont ? `
+### fontHeadline (REQUIRED)
+Analyze the CSS font-family declarations for h1/h2 elements and return the headline font name.
+` : ''}
+
+## OUTPUT FORMAT
+Return ONLY a valid JSON object with the missing pieces:
+{
+  ${needsThankyou ? '"thankyou_html": "<div class=\\"thankyou-page\\">...</div>",' : ''}
+  ${needsThankyou ? '"thankyou_css": ".thankyou-page { ... } .thankyou-decoration { ... } ...",' : ''}
+  ${needsFonts ? '"googleFontsImport": "@import url(\'...\');",' : ''}
+  ${needsBgColor ? '"backgroundColor": "#hex",' : ''}
+  ${needsHeadlineFont ? '"fontHeadline": "Font Name",' : ''}
+  "fontBody": "Font Name or null"
+}`;
+
+  const startTime = Date.now();
+  const response = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: needsThankyou ? 4096 : 512,
+    system: 'You are a precise JSON generator. Return ONLY valid JSON, no markdown fences, no explanation.',
+    messages: [{ role: 'user', content: prompt }]
+  });
+
+  const latency = Date.now() - startTime;
+  console.log('[completeness] Haiku fill completed in', latency, 'ms');
+
+  let text = response.content[0]?.text || '';
+  // Strip markdown fences if present
+  text = text.replace(/```(?:json)?\s*\n?/g, '').replace(/\n?\s*```$/g, '').trim();
+
+  try {
+    const result = JSON.parse(text);
+    // Normalize thankyou_html escaping
+    if (result.thankyou_html) {
+      while (result.thankyou_html.includes('\\"')) result.thankyou_html = result.thankyou_html.replace(/\\"/g, '"');
+      if (result.thankyou_html.includes('\\n')) result.thankyou_html = result.thankyou_html.replace(/\\n/g, '\n');
+    }
+    if (result.thankyou_css) {
+      while (result.thankyou_css.includes('\\"')) result.thankyou_css = result.thankyou_css.replace(/\\"/g, '"');
+      if (result.thankyou_css.includes('\\n')) result.thankyou_css = result.thankyou_css.replace(/\\n/g, '\n');
+    }
+    // Normalize googleFontsImport
+    if (result.googleFontsImport && !result.googleFontsImport.startsWith('@import')) {
+      result.googleFontsImport = "@import url('" + result.googleFontsImport + "');";
+    }
+    return result;
+  } catch (e) {
+    console.error('[completeness] Failed to parse Haiku response:', text.substring(0, 200));
+    return {};
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // ROBUST THEME RESPONSE PARSER (duplicated from prompt-test.js — Vercel
 // serverless functions can't share imports)
 // ═══════════════════════════════════════════════════════════════════
@@ -866,6 +976,14 @@ function validateThemeIntegrity(theme) {
     const textOnly = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     if (textOnly.length < 20) issues.push('content_too_sparse');
   }
+
+  // 9b. Thank you page completeness
+  if (!theme.theme_thankyou_html || theme.theme_thankyou_html.trim().length < 50) {
+    issues.push('missing_thankyou_html');
+  }
+  // 9c. Config completeness — these drive the fallback rendering on the client
+  if (!theme.theme_config?.googleFontsImport) issues.push('missing_google_fonts_import');
+  if (!theme.theme_config?.backgroundColor) issues.push('missing_background_color');
 
   // ── 10. CSS Visual Rendering Analysis ──
   // Catch CSS patterns that produce invisible/broken output the AI commonly generates.
@@ -2653,13 +2771,64 @@ This is the most common failure mode. Double-check it.`;
       }
     }
 
+    // ── COMPLETENESS CHECK: Auto-generate missing pieces via quick Haiku call ──
+    // The main generation sometimes omits the thank you page, googleFontsImport,
+    // or config colors. Instead of falling back to ugly defaults on the client,
+    // we detect what's missing and make a targeted follow-up call to fill gaps.
+    const missingPieces = [];
+    if (!theme.theme_thankyou_html || theme.theme_thankyou_html.trim().length < 50) {
+      missingPieces.push('thankyou_html');
+    }
+    if (!theme.theme_config.googleFontsImport) {
+      missingPieces.push('googleFontsImport');
+    }
+    if (!theme.theme_config.backgroundColor) {
+      missingPieces.push('backgroundColor');
+    }
+    if (!theme.theme_config.fontHeadline) {
+      missingPieces.push('fontHeadline');
+    }
+
+    if (missingPieces.length > 0) {
+      console.warn('[completeness] Missing pieces detected:', missingPieces.join(', '), '— requesting auto-fill via Haiku');
+      try {
+        res.write(': keepalive\n\n'); // Keep connection alive during follow-up
+        const fillResult = await generateMissingPieces(theme, missingPieces, eventDetails);
+        if (fillResult.thankyou_html) {
+          theme.theme_thankyou_html = fillResult.thankyou_html;
+          console.log('[completeness] Auto-generated thank you HTML:', fillResult.thankyou_html.length, 'chars');
+        }
+        if (fillResult.googleFontsImport) {
+          theme.theme_config.googleFontsImport = fillResult.googleFontsImport;
+          console.log('[completeness] Auto-filled googleFontsImport');
+        }
+        if (fillResult.backgroundColor) {
+          theme.theme_config.backgroundColor = fillResult.backgroundColor;
+          console.log('[completeness] Auto-filled backgroundColor');
+        }
+        if (fillResult.fontHeadline) {
+          theme.theme_config.fontHeadline = fillResult.fontHeadline;
+          console.log('[completeness] Auto-filled fontHeadline');
+        }
+        if (fillResult.fontBody && !theme.theme_config.fontBody) {
+          theme.theme_config.fontBody = fillResult.fontBody;
+        }
+        if (fillResult.thankyou_css) {
+          theme.theme_css = (theme.theme_css || '') + '\n' + fillResult.thankyou_css;
+          console.log('[completeness] Auto-filled thank you CSS:', fillResult.thankyou_css.length, 'chars');
+        }
+      } catch (fillErr) {
+        console.error('[completeness] Auto-fill failed (client fallback will be used):', fillErr.message);
+      }
+    }
+
     // Store thank you HTML in config to avoid DB schema change
     if (theme.theme_thankyou_html) {
       theme.theme_config.thankyouHtml = theme.theme_thankyou_html;
     } else {
       // Log whether fallback will work — AI CSS may still have .thankyou-page rules
       const hasTyCssRules = (theme.theme_css || '').includes('.thankyou-page');
-      console.warn('[generate] thankyouHtml is empty. CSS has .thankyou-page rules:', hasTyCssRules, '— client fallback will be used');
+      console.warn('[generate] thankyouHtml is empty after completeness check. CSS has .thankyou-page rules:', hasTyCssRules, '— client fallback will be used');
     }
 
     // ── CSS FAILSAFE: If CSS is empty but HTML contains <style> blocks, extract them ──
