@@ -170,6 +170,103 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, message: 'Check your email for login link', metaEventId });
     }
 
+    // Silent signup: creates user + returns session token immediately (no magic link click needed)
+    // Used by the create page guest onboarding flow
+    if (action === 'quickSignup') {
+      const { email } = req.body || {};
+      if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
+
+      let userId = null;
+      let isExisting = false;
+
+      // Try to create user (auto-confirmed)
+      const { data: createData, error: createError } = await supabase.auth.admin.createUser({
+        email,
+        email_confirm: true
+      });
+
+      if (createError) {
+        if (createError.message.includes('already been registered')) {
+          // User exists — look up their ID
+          isExisting = true;
+          const { data: { users } } = await supabase.auth.admin.listUsers();
+          const existing = users.find(u => u.email === email);
+          if (existing) {
+            userId = existing.id;
+          } else {
+            return res.status(400).json({ success: false, error: 'Could not find existing account' });
+          }
+        } else {
+          return res.status(400).json({ success: false, error: createError.message });
+        }
+      } else {
+        userId = createData.user.id;
+      }
+
+      // Generate magic link token (without sending email)
+      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        type: 'magiclink',
+        email
+      });
+
+      if (linkError || !linkData?.properties?.hashed_token) {
+        return res.status(500).json({ success: false, error: 'Could not generate session' });
+      }
+
+      // Exchange the token for a real session
+      const { data: sessionData, error: sessionError } = await supabaseAnon.auth.verifyOtp({
+        token_hash: linkData.properties.hashed_token,
+        type: 'magiclink'
+      });
+
+      if (sessionError || !sessionData?.session) {
+        return res.status(500).json({ success: false, error: 'Could not create session: ' + (sessionError?.message || 'unknown') });
+      }
+
+      // Create profile if new user
+      if (!isExisting && userId) {
+        await supabase.from('profiles').upsert({ id: userId, email }, { onConflict: 'id' }).catch(() => {});
+
+        // Notify admins (fire-and-forget)
+        sendAdminSignupNotifications(email, '', '').catch(() => {});
+
+        // Track CompleteRegistration via Meta CAPI (fire-and-forget)
+        const metaEventId = crypto.randomUUID();
+        sendCapiEvent({
+          eventName: 'CompleteRegistration',
+          eventId: metaEventId,
+          eventSourceUrl: req.headers.referer || req.headers.origin || '',
+          userData: { email },
+          customData: { content_name: 'Guest Onboarding', status: 'true' },
+          req
+        }).catch(() => {});
+      }
+
+      // Fetch profile for client
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      return res.status(200).json({
+        success: true,
+        accessToken: sessionData.session.access_token,
+        refreshToken: sessionData.session.refresh_token,
+        expiresAt: sessionData.session.expires_at,
+        user: {
+          id: userId,
+          email,
+          displayName: profile?.display_name || '',
+          phone: profile?.phone || '',
+          tier: profile?.tier || 'free',
+          freeEventCredits: profile?.free_event_credits ?? 0,
+          purchasedEventCredits: profile?.purchased_event_credits ?? 0,
+          isGlobalAdmin: profile?.is_global_admin || false
+        }
+      });
+    }
+
     if (action === 'login') {
       const { email } = req.body || {};
       if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
