@@ -1010,7 +1010,7 @@
         var fontsImport = config.googleFontsImport || '';
         var fontsTag2 = fontsImport ? '<style>' + fontsImport + '</style>' : '';
         var iframe = document.getElementById('themeFrame');
-        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">' + fontsTag2 + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet"><style>* { margin:0; padding:0; box-sizing:border-box; } html, body { padding: 0; background: transparent; }</style><style>' + (currentEventData.themeCss || '') + '</style><style>' + guaranteedCSS + '</style></head><body>' + tyHtml + '</body></html>';
+        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' + fontsTag2 + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet"><style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; }</style><style>' + (currentEventData.themeCss || '') + '</style><style>' + guaranteedCSS + '</style></head><body>' + tyHtml + '</body></html>';
         iframe.onload = function() { try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 40, 600) + 'px'; } catch(e) {} };
 
         // Wire up calendar buttons and CTA click tracking inside the iframe after load

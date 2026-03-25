@@ -3714,8 +3714,18 @@
             if (testFont === 'Times' || testFont === '"Times New Roman"' || testFont === 'serif') {
               // Check if CSS specifies a custom font
               if (ver.css.match(/font-family\s*:/i)) {
-                console.warn('[checkCssRendered] CSS specifies custom fonts but default serif is rendering');
-                // Don't force re-render for font issues — Google Fonts may just be slow to load
+                console.warn('[checkCssRendered] CSS specifies custom fonts but default serif is rendering — waiting for Google Fonts');
+                // Use document.fonts API to watch for font loading completion
+                // When fonts load, the iframe will automatically re-render text with the new font
+                // But we need to trigger a layout recalc so the user sees the change
+                if (doc.fonts && doc.fonts.ready) {
+                  doc.fonts.ready.then(function() {
+                    console.log('[checkCssRendered] Fonts loaded — forcing layout refresh');
+                    // Force a layout recalc by toggling a style
+                    doc.body.style.opacity = '0.999';
+                    setTimeout(function() { doc.body.style.opacity = ''; }, 50);
+                  });
+                }
               }
             }
           }
@@ -4690,6 +4700,8 @@
 
         var fontsStyle2 = fontsImport ? '<style>' + fontsImport + '</style>' : '';
         return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+          + '<link rel="preconnect" href="https://fonts.googleapis.com">'
+          + '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
           + fontsStyle2
           + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet">'
           + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; }</style>'
@@ -4725,11 +4737,13 @@
 
       var fontsStyle3 = fontsImport ? '<style>' + fontsImport + '</style>' : '';
       return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        + '<link rel="preconnect" href="https://fonts.googleapis.com">'
+        + '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
         + fontsStyle3
         + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet">'
         + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; background:' + bgColor + '; }</style>'
-        + '<style>' + guaranteedCSS + '</style>'
         + '<style>' + sanitizeThemeText(ver.css || '').replace(/<\/style/gi, '<\\/style') + '</style>'
+        + '<style>' + guaranteedCSS + '</style>'
         + '</head><body>' + thankYouHtml + '</body></html>';
     }
 
