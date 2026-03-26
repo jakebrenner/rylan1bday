@@ -8607,7 +8607,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          inviteImageUrl: inviteImg.src,
+          inviteImageBase64: inviteImg.src,
           promptText: promptText,
           format: fmt,
           theme: _adVideoTheme

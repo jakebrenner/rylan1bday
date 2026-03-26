@@ -287,9 +287,9 @@ export default async function handler(req, res) {
     });
   }
 
-  const { inviteImageUrl, promptText, format, theme } = req.body;
+  const { inviteImageBase64, inviteImageUrl: providedUrl, promptText, format, theme } = req.body;
 
-  if (!inviteImageUrl) return res.status(400).json({ error: 'inviteImageUrl is required' });
+  if (!inviteImageBase64 && !providedUrl) return res.status(400).json({ error: 'inviteImageBase64 or inviteImageUrl is required' });
   if (!promptText) return res.status(400).json({ error: 'promptText is required' });
   if (!format) return res.status(400).json({ error: 'format is required (reels_9x16 or feed_1x1)' });
 
@@ -303,7 +303,58 @@ export default async function handler(req, res) {
   const keepalive = setInterval(() => { res.write(': keepalive\n\n'); }, 3000);
 
   try {
-    res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Building video timeline...', pct: 10 })}\n\n`);
+    let inviteImageUrl = providedUrl;
+
+    // If base64 image provided, upload to Shotstack Ingest API first
+    if (inviteImageBase64 && !inviteImageUrl) {
+      res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Uploading invite image...', pct: 5 })}\n\n`);
+
+      // Step 1: Request a signed upload URL from Shotstack Ingest API
+      const ingestRes = await fetch(`${SHOTSTACK_BASE.replace('/edit', '/ingest')}/${env}/upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          fileName: `ryvite-invite-${Date.now()}.png`,
+          fileType: 'image/png',
+        }),
+      });
+
+      if (!ingestRes.ok) {
+        // Fallback: if Ingest API isn't available, try a different approach
+        // Use a data URL with a smaller image (JPEG, lower quality)
+        const dataUrl = inviteImageBase64.startsWith('data:')
+          ? inviteImageBase64
+          : `data:image/png;base64,${inviteImageBase64}`;
+        inviteImageUrl = dataUrl;
+        res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Using inline image...', pct: 8 })}\n\n`);
+      } else {
+        const ingestData = await ingestRes.json();
+        const signedUrl = ingestData?.data?.attributes?.url;
+        const sourceUrl = ingestData?.data?.attributes?.source;
+
+        if (signedUrl) {
+          // Step 2: Upload the image binary to the signed URL
+          const base64Data = inviteImageBase64.replace(/^data:image\/\w+;base64,/, '');
+          const imageBuffer = Buffer.from(base64Data, 'base64');
+
+          await fetch(signedUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'image/png' },
+            body: imageBuffer,
+          });
+
+          inviteImageUrl = sourceUrl || signedUrl.split('?')[0];
+          res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Image uploaded', pct: 10 })}\n\n`);
+        } else {
+          throw new Error('Failed to get upload URL from Shotstack Ingest API');
+        }
+      }
+    }
+
+    res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Building video timeline...', pct: 12 })}\n\n`);
 
     // Build Shotstack timeline
     const payload = buildTimeline({
