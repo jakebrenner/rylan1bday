@@ -2176,6 +2176,7 @@ Even if the user's request doesn't mention these elements, they MUST be preserve
       // parseThemeResponse→normalizeThemeKeys throws when theme_html is missing, so handle light tweak
       // JSON separately to avoid the raw JSON leaking as a "chat" message.
       let theme;
+      let lightTweakFailed = false; // Track if light tweak needs escalation
       try {
         let lightTweakText = fullText.trim();
         // Strip markdown fences if present
@@ -2193,37 +2194,42 @@ Even if the user's request doesn't mention these elements, they MUST be preserve
           theme = parseThemeResponse(fullText);
         }
       } catch (parseErr) {
-        // No valid JSON/HTML found — AI responded with conversational text instead of a theme.
-        // Return it as a chat response so the client can display it gracefully.
-        const chatOnlyCost = calcGenerationCost(tweakModel, tweakInputTokens, tweakOutputTokens);
-        // Log chat-only tweak to generation_log BEFORE res.end()
-        const chatOnlyMeta = getClientMeta(req);
-        const chatOnlyLogResult = await supabase.from('generation_log').insert({
-          event_id: eventId, user_id: user.id, prompt: 'Tweak (chat): ' + tweakInstructions.substring(0, 200),
-          model: tweakModel, input_tokens: tweakInputTokens,
-          output_tokens: tweakOutputTokens, latency_ms: Date.now() - startTime, status: 'success',
-          is_tweak: true, cost_cents: chatOnlyCost.costCentsExact, event_type: eventDetails?.eventType || '',
-          client_ip: chatOnlyMeta.ip, client_geo: chatOnlyMeta.geo, user_agent: chatOnlyMeta.userAgent
-        });
-        if (chatOnlyLogResult.error) console.error('Chat-only tweak log failed:', chatOnlyLogResult.error.message);
-        if (eventId) {
-          try {
-            const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: chatOnlyCost.rawCostCents });
-            if (rpcErr) {
-              const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
-              if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + chatOnlyCost.rawCostCents }).eq('id', eventId);
-            }
-          } catch (e) { /* non-critical */ }
+        if (isLightTweak) {
+          // Light tweak parse failed — mark for escalation instead of returning chatOnly
+          console.warn('[tweak] Light tweak parse failed — will escalate to Sonnet:', parseErr.message);
+          lightTweakFailed = true;
+          theme = null;
+        } else {
+          // Design tweak parse failure — return as chat response (no escalation path)
+          const chatOnlyCost = calcGenerationCost(tweakModel, tweakInputTokens, tweakOutputTokens);
+          const chatOnlyMeta = getClientMeta(req);
+          const chatOnlyLogResult = await supabase.from('generation_log').insert({
+            event_id: eventId, user_id: user.id, prompt: 'Tweak (chat): ' + tweakInstructions.substring(0, 200),
+            model: tweakModel, input_tokens: tweakInputTokens,
+            output_tokens: tweakOutputTokens, latency_ms: Date.now() - startTime, status: 'success',
+            is_tweak: true, cost_cents: chatOnlyCost.costCentsExact, event_type: eventDetails?.eventType || '',
+            client_ip: chatOnlyMeta.ip, client_geo: chatOnlyMeta.geo, user_agent: chatOnlyMeta.userAgent
+          });
+          if (chatOnlyLogResult.error) console.error('Chat-only tweak log failed:', chatOnlyLogResult.error.message);
+          if (eventId) {
+            try {
+              const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: chatOnlyCost.rawCostCents });
+              if (rpcErr) {
+                const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
+                if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + chatOnlyCost.rawCostCents }).eq('id', eventId);
+              }
+            } catch (e) { /* non-critical */ }
+          }
+          sendSSE('done', {
+            success: true,
+            chatOnly: true,
+            chatResponse: fullText.trim(),
+            theme: null,
+            metadata: { model: tweakModel, latencyMs: Date.now() - startTime, tokens: { input: tweakInputTokens, output: tweakOutputTokens }, cost: chatOnlyCost }
+          });
+          res.end();
+          return;
         }
-        sendSSE('done', {
-          success: true,
-          chatOnly: true,
-          chatResponse: fullText.trim(),
-          theme: null,
-          metadata: { model: tweakModel, latencyMs: Date.now() - startTime, tokens: { input: tweakInputTokens, output: tweakOutputTokens }, cost: chatOnlyCost }
-        });
-        res.end();
-        return;
       }
 
       // ── Email mode: handle email-specific response ──
@@ -2244,9 +2250,14 @@ Even if the user's request doesn't mention these elements, they MUST be preserve
             }
           }
           console.log(`[tweak] Applied ${appliedCount}/${theme.html_replacements.length} email replacements`);
-          theme.theme_html = currentHtml;
-          theme.theme_css = currentCss;
-          theme.theme_config = { ...(currentConfig || {}), emailHtml: patchedEmail };
+          if (appliedCount === 0 && theme.html_replacements.length > 0) {
+            console.warn('[tweak] Zero email replacements matched — marking for escalation');
+            lightTweakFailed = true;
+          } else {
+            theme.theme_html = currentHtml;
+            theme.theme_css = currentCss;
+            theme.theme_config = { ...(currentConfig || {}), emailHtml: patchedEmail };
+          }
         } else if (emailHtmlResult) {
           // Full email design tweak — AI returned complete email HTML
           console.log(`[tweak] Got full email HTML from AI (${emailHtmlResult.length} chars)`);
@@ -2274,9 +2285,15 @@ Even if the user's request doesn't mention these elements, they MUST be preserve
           }
         }
         console.log(`[tweak] Applied ${appliedCount}/${theme.html_replacements.length} replacements`);
-        theme.theme_html = patchedHtml;
-        theme.theme_css = currentCss;
-        theme.theme_config = currentConfig || {};
+        // If zero replacements applied and there were actual replacements attempted, escalate
+        if (appliedCount === 0 && theme.html_replacements.length > 0) {
+          console.warn('[tweak] Zero replacements matched — marking for escalation');
+          lightTweakFailed = true;
+        } else {
+          theme.theme_html = patchedHtml;
+          theme.theme_css = currentCss;
+          theme.theme_config = currentConfig || {};
+        }
       } else if (isLightTweak && !theme.theme_html && !theme.html) {
         // Light tweak with only rsvp_field_changes, no HTML changes needed
         console.log('[tweak] Light tweak with no HTML changes (field-only)');
@@ -2305,6 +2322,135 @@ Even if the user's request doesn't mention these elements, they MUST be preserve
         }
       }
 
+      // ── ESCALATION: If light tweak failed, retry with Sonnet as a full design tweak ──
+      if (lightTweakFailed) {
+        console.log('[tweak] ESCALATING to Sonnet — light tweak could not fulfill the request');
+        sendSSE('status', { phase: 'escalating', message: 'Trying a more thorough approach...' });
+        res.write(': keepalive\n\n');
+
+        // Log the failed Haiku attempt
+        const failedCost = calcGenerationCost(tweakModel, tweakInputTokens, tweakOutputTokens);
+        const failedMeta = getClientMeta(req);
+        try {
+          await supabase.from('generation_log').insert({
+            event_id: eventId, user_id: user.id, prompt: 'Tweak (escalated): ' + tweakInstructions.substring(0, 200),
+            model: tweakModel, input_tokens: tweakInputTokens, output_tokens: tweakOutputTokens,
+            latency_ms: Date.now() - startTime, status: 'escalated',
+            is_tweak: true, cost_cents: failedCost.costCentsExact, event_type: eventDetails?.eventType || '',
+            client_ip: failedMeta.ip, client_geo: failedMeta.geo, user_agent: failedMeta.userAgent
+          });
+        } catch (logErr) { console.error('[escalation] Failed to log escalated attempt:', logErr.message); }
+
+        // Build the full design tweak message (same as the design tweak path)
+        const escalationModel = themeModel; // Use the same model as design tweaks
+        const escalationMessage = `Here is an existing invite theme. The user is using the chat designer to modify their invite.
+${eventContext}
+**Current HTML:**
+\`\`\`html
+${currentHtml}
+\`\`\`
+
+**Current CSS:**
+\`\`\`css
+${currentCss}
+\`\`\`
+
+**Current Config:**
+\`\`\`json
+${JSON.stringify(currentConfig || {})}
+\`\`\`
+
+**User's message:**
+${tweakInstructions}
+
+IMPORTANT: The .rsvp-slot div must be completely EMPTY — the platform injects the RSVP form at runtime. Do NOT add buttons, form inputs, selects, textareas, labels, or ANY content inside .rsvp-slot.
+
+${currentConfig?.thankyouHtml ? `**Current Thank You Page HTML:**\n\`\`\`html\n${currentConfig.thankyouHtml}\n\`\`\`\nIf your changes affect the visual style (colors, fonts, spacing, backgrounds), update the thank you page to match. If the change is content-only (e.g., changing text, adding an element to the invite), you may set theme_thankyou_html to null to keep it unchanged.` : ''}
+
+Return the updated theme as a JSON object: { "theme_html": "...", "theme_css": "...", "theme_thankyou_html": "..." or null if unchanged, "theme_config": { ... }, "chat_response": "Brief friendly message about what you changed", "rsvp_field_changes": [...] or null if no RSVP field changes }. Make ONLY the changes the user requested — keep everything else exactly the same. If the thank you page doesn't need changes, set theme_thankyou_html to null.`;
+
+        const escalationSystemPrompt = `You are an expert web designer modifying an event invitation. Make the SPECIFIC changes the user requested. Keep everything else exactly the same.
+
+## OUTPUT FORMAT
+Return ONLY a valid JSON object with the complete updated theme:
+{
+  "theme_html": "...the complete updated HTML...",
+  "theme_css": "...the complete updated CSS...",
+  "theme_thankyou_html": "..." or null if unchanged,
+  "theme_config": { "primaryColor": "...", "backgroundColor": "...", "fontHeadline": "...", "fontBody": "...", "googleFontsImport": "...", "mood": "...", "loadingPun": "..." },
+  "chat_response": "Brief friendly message about what you changed",
+  "rsvp_field_changes": null
+}
+
+## CRITICAL RULES
+- data-field="title" MUST remain on the title element
+- .rsvp-slot MUST remain empty (platform fills it)
+- .details-slot MUST remain empty (platform fills it)
+- Keep ALL existing structure, data attributes, and CSS animations
+- Make ONLY the specific changes requested — minimal diff
+- TEXT CONTRAST: every text element must be readable against its background`;
+
+        const escalationContent = [{ type: 'text', text: escalationMessage }];
+        const escalationStream = client.messages.stream({
+          model: escalationModel,
+          max_tokens: 16384,
+          system: escalationSystemPrompt,
+          messages: [{ role: 'user', content: escalationContent }]
+        });
+
+        let escalationText = '';
+        let escalationChunks = 0;
+        let escalationFinalMsg = null;
+
+        const escalationKeep = setInterval(() => {
+          try { res.write(': keepalive\n\n'); } catch (e) {}
+        }, 3000);
+
+        const escFinalPromise = new Promise(r => { escalationStream.on('finalMessage', (msg) => { escalationFinalMsg = msg; r(msg); }); });
+        await new Promise((resolve, reject) => {
+          let resolved = false;
+          let lastChunk = Date.now();
+          const done = () => { if (!resolved) { resolved = true; clearInterval(escIdleCheck); clearInterval(escalationKeep); resolve(); } };
+          escalationStream.on('text', (text) => { escalationText += text; escalationChunks++; lastChunk = Date.now(); });
+          escalationStream.on('finalMessage', () => done());
+          escalationStream.on('end', () => done());
+          escalationStream.on('error', (err) => { if (!resolved) { resolved = true; clearInterval(escIdleCheck); clearInterval(escalationKeep); reject(err); } });
+          const escIdleCheck = setInterval(() => {
+            if (escalationChunks > 0 && Date.now() - lastChunk > 15000 && escalationText.length > 3000) done();
+          }, 1000);
+          setTimeout(() => {
+            if (!resolved) {
+              if (escalationText.length > 0) done();
+              else { resolved = true; clearInterval(escIdleCheck); clearInterval(escalationKeep); reject(new Error('Escalation stream timeout')); }
+            }
+          }, 120000);
+        });
+
+        // Parse escalation result
+        theme = parseThemeResponse(escalationText);
+        if (!theme.theme_html && theme.html) { theme.theme_html = theme.html; }
+        if (!theme.theme_css && theme.css) { theme.theme_css = theme.css; }
+        if (!theme.theme_config && theme.config) { theme.theme_config = theme.config; }
+        if (!theme.theme_thankyou_html && theme.thankyou_html) { theme.theme_thankyou_html = theme.thankyou_html; }
+
+        // Extract embedded CSS from HTML if missing
+        if (theme.theme_html && !theme.theme_css) {
+          const styleMatch = theme.theme_html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+          if (styleMatch) {
+            theme.theme_css = styleMatch.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+            theme.theme_html = theme.theme_html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+          }
+        }
+
+        // Update token counts for the escalation
+        const escInputTokens = escalationFinalMsg?.usage?.input_tokens || Math.round((escalationSystemPrompt.length + escalationMessage.length) / 4);
+        const escOutputTokens = escalationFinalMsg?.usage?.output_tokens || Math.round(escalationText.length / 4);
+        tweakInputTokens += escInputTokens;
+        tweakOutputTokens += escOutputTokens;
+
+        console.log(`[tweak] Escalation complete — ${escalationText.length} chars, ${escalationChunks} chunks`);
+      }
+
       // Merge config — use null for unchanged thank you page
       const tweakConfig = theme.theme_config || currentConfig || {};
       if (theme.theme_thankyou_html && theme.theme_thankyou_html !== null) {
@@ -2331,7 +2477,14 @@ Even if the user's request doesn't mention these elements, they MUST be preserve
       }
 
       // Save tweak theme to DB BEFORE closing SSE so it's reliable
-      const tweakCost = calcGenerationCost(tweakModel, tweakInputTokens, tweakOutputTokens);
+      // If escalated, use the escalation model for cost calculation (more expensive)
+      const finalTweakModel = lightTweakFailed ? (themeModel || 'claude-sonnet-4-5-20250514') : tweakModel;
+      const tweakCost = lightTweakFailed
+        ? { // Combine both costs: Haiku attempt + Sonnet escalation
+            ...calcGenerationCost(finalTweakModel, tweakInputTokens, tweakOutputTokens),
+            escalated: true
+          }
+        : calcGenerationCost(tweakModel, tweakInputTokens, tweakOutputTokens);
       let savedTweakThemeId = 'pending';
       let savedTweakVersion = 0;
       try {
@@ -2407,8 +2560,8 @@ Even if the user's request doesn't mention these elements, they MUST be preserve
       let tweakLogId = null;
       const tweakLogResult = await supabase.from('generation_log').insert({
         event_id: eventId, user_id: user.id, prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
-        model: tweakModel, input_tokens: tweakInputTokens,
-        output_tokens: tweakOutputTokens, latency_ms: latency, status: 'success',
+        model: lightTweakFailed ? finalTweakModel : tweakModel, input_tokens: tweakInputTokens,
+        output_tokens: tweakOutputTokens, latency_ms: Date.now() - startTime, status: lightTweakFailed ? 'escalated_success' : 'success',
         is_tweak: true, cost_cents: tweakCost.costCentsExact, event_type: eventDetails?.eventType || '',
         client_ip: tweakMeta.ip, client_geo: tweakMeta.geo, user_agent: tweakMeta.userAgent
       }).select('id').single();
@@ -2434,8 +2587,9 @@ Even if the user's request doesn't mention these elements, they MUST be preserve
         rsvpFieldChanges: theme.rsvp_field_changes || null,
         isLightTweak,
         metadata: {
-          model: tweakModel,
-          latencyMs: latency,
+          model: lightTweakFailed ? finalTweakModel : tweakModel,
+          escalated: lightTweakFailed || false,
+          latencyMs: Date.now() - startTime,
           tokens: { input: tweakInputTokens, output: tweakOutputTokens },
           cost: tweakCost
         }
