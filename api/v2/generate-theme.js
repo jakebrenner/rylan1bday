@@ -1763,16 +1763,18 @@ Rules:
       }
       // Log classifyIntent to generation_log — these add up
       const classifyMeta = getClientMeta(req);
-      await supabase.from('generation_log').insert({
-        user_id: user.id, event_id: eventId || null,
-        prompt: 'classifyIntent: ' + userMessage.substring(0, 200),
-        model: 'claude-haiku-4-5-20251001', input_tokens: classifyInputTokens,
-        output_tokens: classifyOutputTokens, latency_ms: classifyLatency, status: 'success',
-        is_tweak: true, cost_cents: classifyCost.costCentsExact, event_type: eventType || '',
-        client_ip: classifyMeta.ip, client_geo: classifyMeta.geo, user_agent: classifyMeta.userAgent
-      }).catch(e => console.error('classifyIntent generation_log insert failed:', e.message));
+      try {
+        await supabase.from('generation_log').insert({
+          user_id: user.id, event_id: eventId || null,
+          prompt: 'classifyIntent: ' + userMessage.substring(0, 200),
+          model: 'claude-haiku-4-5-20251001', input_tokens: classifyInputTokens,
+          output_tokens: classifyOutputTokens, latency_ms: classifyLatency, status: 'success',
+          is_tweak: true, cost_cents: classifyCost.costCentsExact, event_type: eventType || '',
+          client_ip: classifyMeta.ip, client_geo: classifyMeta.geo, user_agent: classifyMeta.userAgent
+        });
+      } catch (e) { console.error('classifyIntent generation_log insert failed:', e.message); }
       if (eventId) {
-        await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: classifyCost.rawCostCents }).catch(() => {});
+        try { await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: classifyCost.rawCostCents }); } catch (e) { /* non-critical */ }
       }
       // AI generation included in $4.99 event price — no per-generation billing
       return res.json({ success: true, ...classification, metadata: { cost: classifyCost } });
@@ -2369,26 +2371,48 @@ ${currentConfig?.thankyouHtml ? `**Current Thank You Page HTML:**\n\`\`\`html\n$
 
 Return the updated theme as a JSON object: { "theme_html": "...", "theme_css": "...", "theme_thankyou_html": "..." or null if unchanged, "theme_config": { ... }, "chat_response": "Brief friendly message about what you changed", "rsvp_field_changes": [...] or null if no RSVP field changes }. Make ONLY the changes the user requested — keep everything else exactly the same. If the thank you page doesn't need changes, set theme_thankyou_html to null.`;
 
-        const escalationSystemPrompt = `You are an expert web designer modifying an event invitation. Make the SPECIFIC changes the user requested. Keep everything else exactly the same.
+        // Build escalation system prompt — must be the FULL design tweak prompt, not the light tweak one
+        // The original tweakSystemPrompt was built for light tweaks (html_replacements format).
+        // For escalation we need the full design format (theme_html, theme_css, etc.)
+        const escalationSystemPrompt = isEmailMode
+          ? tweakSystemPrompt // Email mode already uses full prompt
+          : `You are an elite invite designer modifying event invites. A simpler approach failed to make the user's requested change, so you need to return the COMPLETE updated theme.
 
 ## OUTPUT FORMAT
-Return ONLY a valid JSON object with the complete updated theme:
+Return ONLY a valid JSON object with the COMPLETE updated theme:
 {
-  "theme_html": "...the complete updated HTML...",
-  "theme_css": "...the complete updated CSS...",
-  "theme_thankyou_html": "..." or null if unchanged,
-  "theme_config": { "primaryColor": "...", "backgroundColor": "...", "fontHeadline": "...", "fontBody": "...", "googleFontsImport": "...", "mood": "...", "loadingPun": "..." },
+  "theme_html": "...the COMPLETE updated HTML...",
+  "theme_css": "...the COMPLETE updated CSS...",
+  "theme_thankyou_html": null,
+  "theme_config": { "primaryColor": "...", "backgroundColor": "...", "fontHeadline": "...", "fontBody": "...", "googleFontsImport": "@import url('...');", "mood": "...", "loadingPun": "..." },
   "chat_response": "Brief friendly message about what you changed",
   "rsvp_field_changes": null
 }
 
-## CRITICAL RULES
-- data-field="title" MUST remain on the title element
-- .rsvp-slot MUST remain empty (platform fills it)
-- .details-slot MUST remain empty (platform fills it)
-- Keep ALL existing structure, data attributes, and CSS animations
-- Make ONLY the specific changes requested — minimal diff
-- TEXT CONTRAST: every text element must be readable against its background`;
+## CRITICAL STRUCTURAL RULES (NEVER violate these)
+
+### Data attributes (REQUIRED — always preserve):
+- \`data-field="title"\` — on the event title element
+- \`data-field="datetime"\` — on date/time container (if present)
+- \`data-field="location"\` — on location container (if present)
+- \`data-field="dresscode"\` — on dress code container (if present)
+- \`data-field="host"\` — on host name element (if present)
+
+### RSVP form section:
+- \`.rsvp-slot\` MUST be completely EMPTY — the platform injects the form at runtime. NO buttons, links, or content inside it
+- To add/remove/modify RSVP fields, use "rsvp_field_changes" — do NOT add form inputs to HTML
+
+### STRUCTURAL INTEGRITY (CRITICAL — never remove these elements):
+- \`<div class="rsvp-slot">...</div>\` — RSVP form container. MUST remain in output.
+- \`<div class="details-slot">...</div>\` — event details container. MUST remain in output.
+- Any element with \`data-field="title"\` — the event title. MUST remain in output.
+
+### Design rules:
+- Max-width 393px, mobile-first, WCAG AA contrast
+- Google Fonts only (include @import in theme_config.googleFontsImport)
+- No JavaScript, no external images (except Google Fonts and user-uploaded photos)
+- Make ONLY the changes the user asked for — keep EVERYTHING else exactly the same
+- TEXT CONTRAST: EVERY text element must be readable against its background`;
 
         const escalationContent = [{ type: 'text', text: escalationMessage }];
         const escalationStream = client.messages.stream({
@@ -2545,14 +2569,16 @@ Return ONLY a valid JSON object with the complete updated theme:
 
       // ── Quality signal: Content warnings persist after tweak repair ──
       if (tweakContentWarnings.length > 0) {
-        supabase.from('quality_incidents').insert({
-          event_id: eventId, user_id: user.id,
-          trigger_type: 'content_warning',
-          trigger_data: { contentWarnings: tweakContentWarnings, htmlLength: theme.theme_html.length, isTweak: true },
-          theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
-          validation_results: { server: tweakContentWarnings },
-          resolution_type: 'unresolved'
-        }).catch(e => console.error('[quality] Tweak content warning incident failed:', e.message));
+        try {
+          await supabase.from('quality_incidents').insert({
+            event_id: eventId, user_id: user.id,
+            trigger_type: 'content_warning',
+            trigger_data: { contentWarnings: tweakContentWarnings, htmlLength: theme.theme_html.length, isTweak: true },
+            theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
+            validation_results: { server: tweakContentWarnings },
+            resolution_type: 'unresolved'
+          });
+        } catch (e) { console.error('[quality] Tweak content warning incident failed:', e.message); }
       }
 
       // ── Log tweak to generation_log BEFORE res.end() — uses estimated tokens ──
@@ -3037,14 +3063,16 @@ This is the most common failure mode. Double-check it.`;
 
     // ── Quality signal: Content warnings persist after repair ──
     if (contentWarnings.length > 0) {
-      supabase.from('quality_incidents').insert({
-        event_id: eventId, user_id: user.id,
-        trigger_type: 'content_warning',
-        trigger_data: { contentWarnings, htmlLength: theme.theme_html.length },
-        theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: theme.theme_config },
-        validation_results: { server: contentWarnings },
-        resolution_type: 'unresolved'
-      }).catch(e => console.error('[quality] Content warning incident failed:', e.message));
+      try {
+        await supabase.from('quality_incidents').insert({
+          event_id: eventId, user_id: user.id,
+          trigger_type: 'content_warning',
+          trigger_data: { contentWarnings, htmlLength: theme.theme_html.length },
+          theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: theme.theme_config },
+          validation_results: { server: contentWarnings },
+          resolution_type: 'unresolved'
+        });
+      } catch (e) { console.error('[quality] Content warning incident failed:', e.message); }
     }
 
     // ── Save theme to event_themes BEFORE res.end() ──
