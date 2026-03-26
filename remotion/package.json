@@ -1,0 +1,23 @@
+{
+  "name": "ryvite-remotion",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "preview": "remotion preview src/index.ts",
+    "render": "remotion render src/index.ts AdVideo out/video.mp4",
+    "deploy-lambda": "remotion lambda functions deploy",
+    "deploy-site": "remotion lambda sites create src/index.ts --site-name=ryvite-ad-video"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.262",
+    "@remotion/lambda": "4.0.262",
+    "@remotion/player": "4.0.262",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "4.0.262"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "typescript": "^5.6.3"
+  }
+}

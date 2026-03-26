@@ -8480,22 +8480,31 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           document.getElementById('adVideoPhase').textContent = (formats.length > 1 ? (fi + 1) + '/' + formats.length + ' — ' : '') + 'Preparing ' + fmtLabel + '...';
 
           var useLiveAnimation = document.getElementById('adVideoLiveAnimation').checked;
-          var blob = await window.AdVideoGenerator.generate({
-            html: _adVideoData.html,
-            css: _adVideoData.css,
-            config: _adVideoData.config,
-            promptText: promptText,
-            format: fmt,
-            theme: _adVideoTheme,
-            liveAnimation: useLiveAnimation,
-            authFetch: authFetch,
-            onProgress: function(pct, phase) {
-              var overall = baseProgress + (pct / 100) * progressRange;
-              document.getElementById('adVideoProgressBar').style.width = overall + '%';
-              document.getElementById('adVideoProgressPct').textContent = Math.round(overall) + '%';
-              document.getElementById('adVideoPhase').textContent = (formats.length > 1 ? (fi + 1) + '/' + formats.length + ' — ' : '') + fmtLabel + ': ' + (phase || 'Processing...');
-            }
-          });
+          var useRemotion = document.getElementById('adVideoRemotion').checked;
+          var blob;
+
+          if (useRemotion) {
+            // ── Remotion Lambda render path ──
+            blob = await renderViaRemotion(fmt, fmtLabel, promptText, baseProgress, progressRange, formats.length, fi);
+          } else {
+            // ── Client-side Canvas render path (original) ──
+            blob = await window.AdVideoGenerator.generate({
+              html: _adVideoData.html,
+              css: _adVideoData.css,
+              config: _adVideoData.config,
+              promptText: promptText,
+              format: fmt,
+              theme: _adVideoTheme,
+              liveAnimation: useLiveAnimation,
+              authFetch: authFetch,
+              onProgress: function(pct, phase) {
+                var overall = baseProgress + (pct / 100) * progressRange;
+                document.getElementById('adVideoProgressBar').style.width = overall + '%';
+                document.getElementById('adVideoProgressPct').textContent = Math.round(overall) + '%';
+                document.getElementById('adVideoPhase').textContent = (formats.length > 1 ? (fi + 1) + '/' + formats.length + ' — ' : '') + fmtLabel + ': ' + (phase || 'Processing...');
+              }
+            });
+          }
 
           _adVideoBlobs[fmt] = blob;
 
@@ -8566,6 +8575,107 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         document.getElementById('adVideoProgress').style.display = 'none';
         document.getElementById('adVideoConfig').style.display = '';
       }
+    }
+
+    /**
+     * Remotion Lambda rendering path.
+     * Calls /api/v2/render-ad-video which triggers AWS Lambda render.
+     * Returns a Blob fetched from the resulting S3 URL.
+     */
+    async function renderViaRemotion(fmt, fmtLabel, promptText, baseProgress, progressRange, totalFormats, fi) {
+      function updateProgress(pct, phase) {
+        var overall = baseProgress + (pct / 100) * progressRange;
+        document.getElementById('adVideoProgressBar').style.width = overall + '%';
+        document.getElementById('adVideoProgressPct').textContent = Math.round(overall) + '%';
+        document.getElementById('adVideoPhase').textContent = (totalFormats > 1 ? (fi + 1) + '/' + totalFormats + ' — ' : '') + fmtLabel + ': ' + (phase || 'Processing...');
+      }
+
+      updateProgress(5, 'Capturing invite screenshot...');
+
+      // Step 1: Capture invite as a full-page screenshot via existing Puppeteer endpoint
+      var screenshotRes = await authFetch('/api/v2/render-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          html: _adVideoData.html,
+          css: _adVideoData.css,
+          config: _adVideoData.config,
+          format: fmt,
+          duration: 1 // Just need 1 frame for screenshot
+        })
+      });
+
+      var sseText = await screenshotRes.text();
+      var frameData = null;
+      var lines = sseText.split('\n');
+      for (var li = 0; li < lines.length; li++) {
+        if (!lines[li].startsWith('data: ')) continue;
+        try {
+          var evt = JSON.parse(lines[li].substring(6));
+          if (evt.type === 'frame' && evt.index === 0) {
+            frameData = evt.data;
+            break;
+          }
+        } catch(e) {}
+      }
+
+      if (!frameData) throw new Error('Failed to capture invite screenshot');
+
+      // Convert base64 JPEG to data URL for Remotion
+      var inviteImageUrl = 'data:image/jpeg;base64,' + frameData;
+
+      // Get invite dimensions from the image
+      var tempImg = new Image();
+      tempImg.src = inviteImageUrl;
+      await new Promise(function(resolve, reject) {
+        tempImg.onload = resolve;
+        tempImg.onerror = function() { reject(new Error('Failed to load invite screenshot')); };
+      });
+
+      updateProgress(15, 'Starting Remotion render...');
+
+      // Step 2: Trigger Remotion Lambda render via SSE endpoint
+      var renderRes = await authFetch('/api/v2/render-ad-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inviteImageUrl: inviteImageUrl,
+          inviteWidth: tempImg.naturalWidth,
+          inviteHeight: tempImg.naturalHeight,
+          promptText: promptText,
+          format: fmt,
+          theme: _adVideoTheme
+        })
+      });
+
+      var renderText = await renderRes.text();
+      var renderLines = renderText.split('\n');
+      var videoUrl = null;
+      var renderError = null;
+
+      for (var ri = 0; ri < renderLines.length; ri++) {
+        if (!renderLines[ri].startsWith('data: ')) continue;
+        try {
+          var revt = JSON.parse(renderLines[ri].substring(6));
+          if (revt.type === 'progress') {
+            updateProgress(revt.pct || 20, revt.phase || 'Rendering...');
+          } else if (revt.type === 'done') {
+            videoUrl = revt.url;
+            updateProgress(95, 'Downloading video...');
+          } else if (revt.type === 'error') {
+            renderError = revt.error;
+          }
+        } catch(e) {}
+      }
+
+      if (renderError) throw new Error('Remotion render failed: ' + renderError);
+      if (!videoUrl) throw new Error('Remotion render completed but no video URL returned');
+
+      // Step 3: Download the rendered MP4 from S3
+      var videoRes = await fetch(videoUrl);
+      var videoBlob = await videoRes.blob();
+      updateProgress(100, 'Done!');
+      return videoBlob;
     }
 
     function downloadAdVideoFmt(fmt) {
@@ -9832,6 +9942,16 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             <div>
               <div style="font-size:14px;font-weight:600;color:#1a1a2e;">Capture Live Animations</div>
               <div style="font-size:12px;color:#888;margin-top:2px;">Records actual CSS animations via server rendering (~30s slower, much higher quality)</div>
+            </div>
+          </label>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:2px solid #7c3aed;border-radius:8px;cursor:pointer;background:#f5f0ff;">
+            <input type="checkbox" id="adVideoRemotion" style="accent-color:#7c3aed;width:18px;height:18px;">
+            <div>
+              <div style="font-size:14px;font-weight:600;color:#1a1a2e;">Remotion Render <span style="font-size:10px;background:#7c3aed;color:white;padding:1px 6px;border-radius:4px;margin-left:6px;">BETA</span></div>
+              <div style="font-size:12px;color:#888;margin-top:2px;">Server-side H.264 MP4 via AWS Lambda — spring animations, GPU rendering, proper codec</div>
             </div>
           </label>
         </div>
