@@ -2486,15 +2486,40 @@ Return ONLY a valid JSON object with the COMPLETE updated theme:
         console.log(`[tweak] Escalation complete — ${escalationText.length} chars, ${escalationChunks} chunks`);
       }
 
-      // Merge config — use null for unchanged thank you page
+      // Merge config — handle thank you page and email based on tweak type
       const tweakConfig = theme.theme_config || currentConfig || {};
+      const isFullDesignTweak = !isLightTweak || lightTweakFailed; // Tier 3 or escalated
       if (theme.theme_thankyou_html && theme.theme_thankyou_html !== null) {
+        // AI generated a new thank you page — use it
         tweakConfig.thankyouHtml = theme.theme_thankyou_html;
+      } else if (isFullDesignTweak) {
+        // Full design change — old thank you page won't match new design.
+        // Auto-generate a new one via completeness check.
+        console.log('[tweak] Full design tweak without new thankyou — auto-generating to match new theme');
+        try {
+          res.write(': keepalive\n\n');
+          const tyFill = await generateMissingPieces(theme, ['thankyou_html'], eventDetails);
+          if (tyFill.thankyou_html) {
+            tweakConfig.thankyouHtml = tyFill.thankyou_html;
+            if (tyFill.thankyou_css) {
+              theme.theme_css = (theme.theme_css || '') + '\n' + tyFill.thankyou_css;
+            }
+            console.log('[tweak] Auto-generated new thank you page:', tyFill.thankyou_html.length, 'chars');
+          } else if (currentConfig?.thankyouHtml) {
+            tweakConfig.thankyouHtml = currentConfig.thankyouHtml; // Fallback to old
+          }
+        } catch (e) {
+          console.warn('[tweak] Auto-generate thankyou failed:', e.message);
+          if (currentConfig?.thankyouHtml) tweakConfig.thankyouHtml = currentConfig.thankyouHtml;
+        }
+        // Full design tweak — clear old emailHtml so client regenerates from new config colors
+        tweakConfig.emailHtml = null;
       } else if (currentConfig?.thankyouHtml) {
+        // Light tweak — preserve old thank you page (colors didn't change)
         tweakConfig.thankyouHtml = currentConfig.thankyouHtml;
       }
-      // Preserve emailHtml across non-email tweaks
-      if (!tweakConfig.emailHtml && currentConfig?.emailHtml) {
+      // Preserve emailHtml across light (non-design) tweaks only
+      if (!isFullDesignTweak && !tweakConfig.emailHtml && currentConfig?.emailHtml) {
         tweakConfig.emailHtml = currentConfig.emailHtml;
       }
 
