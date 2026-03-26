@@ -1121,6 +1121,7 @@ function downloadBlob(blob, filename) {
 window.AdVideoGenerator = {
   generate: generateAdVideo,
   renderVideo: renderInviteVideo,
+  renderImage: renderInviteToImage,
   download: downloadBlob,
   themes: VIDEO_THEMES,
   formats: FORMAT_CONFIGS

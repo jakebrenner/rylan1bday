@@ -8578,9 +8578,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     /**
-     * Remotion Lambda rendering path.
-     * Calls /api/v2/render-ad-video which triggers AWS Lambda render.
-     * Returns a Blob fetched from the resulting S3 URL.
+     * Shotstack cloud rendering path.
+     * Captures invite screenshot, sends to Shotstack API for H.264 MP4 rendering.
+     * Returns a Blob fetched from the Shotstack output URL.
      */
     async function renderViaRemotion(fmt, fmtLabel, promptText, baseProgress, progressRange, totalFormats, fi) {
       function updateProgress(pct, phase) {
@@ -8590,58 +8590,24 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         document.getElementById('adVideoPhase').textContent = (totalFormats > 1 ? (fi + 1) + '/' + totalFormats + ' — ' : '') + fmtLabel + ': ' + (phase || 'Processing...');
       }
 
-      updateProgress(5, 'Capturing invite screenshot...');
+      updateProgress(5, 'Preparing invite image...');
 
-      // Step 1: Capture invite as a full-page screenshot via existing Puppeteer endpoint
-      var screenshotRes = await authFetch('/api/v2/render-video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          html: _adVideoData.html,
-          css: _adVideoData.css,
-          config: _adVideoData.config,
-          format: fmt,
-          duration: 1 // Just need 1 frame for screenshot
-        })
-      });
+      // Step 1: Render invite as a static image via html2canvas (client-side, fast)
+      // We need a publicly accessible URL for Shotstack — use a data URL via the API
+      var inviteImg = await window.AdVideoGenerator.renderImage(
+        _adVideoData.html, _adVideoData.css, _adVideoData.config, 393
+      );
 
-      var sseText = await screenshotRes.text();
-      var frameData = null;
-      var lines = sseText.split('\n');
-      for (var li = 0; li < lines.length; li++) {
-        if (!lines[li].startsWith('data: ')) continue;
-        try {
-          var evt = JSON.parse(lines[li].substring(6));
-          if (evt.type === 'frame' && evt.index === 0) {
-            frameData = evt.data;
-            break;
-          }
-        } catch(e) {}
-      }
+      if (!inviteImg || !inviteImg.src) throw new Error('Failed to render invite image');
 
-      if (!frameData) throw new Error('Failed to capture invite screenshot');
+      updateProgress(15, 'Submitting to Shotstack...');
 
-      // Convert base64 JPEG to data URL for Remotion
-      var inviteImageUrl = 'data:image/jpeg;base64,' + frameData;
-
-      // Get invite dimensions from the image
-      var tempImg = new Image();
-      tempImg.src = inviteImageUrl;
-      await new Promise(function(resolve, reject) {
-        tempImg.onload = resolve;
-        tempImg.onerror = function() { reject(new Error('Failed to load invite screenshot')); };
-      });
-
-      updateProgress(15, 'Starting Remotion render...');
-
-      // Step 2: Trigger Remotion Lambda render via SSE endpoint
+      // Step 2: Send to Shotstack via our API endpoint (SSE progress)
       var renderRes = await authFetch('/api/v2/render-ad-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          inviteImageUrl: inviteImageUrl,
-          inviteWidth: tempImg.naturalWidth,
-          inviteHeight: tempImg.naturalHeight,
+          inviteImageUrl: inviteImg.src,
           promptText: promptText,
           format: fmt,
           theme: _adVideoTheme
@@ -8668,10 +8634,10 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         } catch(e) {}
       }
 
-      if (renderError) throw new Error('Remotion render failed: ' + renderError);
-      if (!videoUrl) throw new Error('Remotion render completed but no video URL returned');
+      if (renderError) throw new Error('Shotstack render failed: ' + renderError);
+      if (!videoUrl) throw new Error('Shotstack render completed but no video URL returned');
 
-      // Step 3: Download the rendered MP4 from S3
+      // Step 3: Download the rendered MP4
       var videoRes = await fetch(videoUrl);
       var videoBlob = await videoRes.blob();
       updateProgress(100, 'Done!');
@@ -9950,8 +9916,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:2px solid #7c3aed;border-radius:8px;cursor:pointer;background:#f5f0ff;">
             <input type="checkbox" id="adVideoRemotion" style="accent-color:#7c3aed;width:18px;height:18px;">
             <div>
-              <div style="font-size:14px;font-weight:600;color:#1a1a2e;">Remotion Render <span style="font-size:10px;background:#7c3aed;color:white;padding:1px 6px;border-radius:4px;margin-left:6px;">BETA</span></div>
-              <div style="font-size:12px;color:#888;margin-top:2px;">Server-side H.264 MP4 via AWS Lambda — spring animations, GPU rendering, proper codec</div>
+              <div style="font-size:14px;font-weight:600;color:#1a1a2e;">Shotstack Render <span style="font-size:10px;background:#7c3aed;color:white;padding:1px 6px;border-radius:4px;margin-left:6px;">BETA</span></div>
+              <div style="font-size:12px;color:#888;margin-top:2px;">Cloud H.264 MP4 via Shotstack — proper codec, no browser limitations (~$0.07/video)</div>
             </div>
           </label>
         </div>

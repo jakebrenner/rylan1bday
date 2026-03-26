@@ -1,29 +1,20 @@
 /**
- * Vercel API endpoint for Remotion-powered ad video rendering.
+ * Vercel API endpoint for Shotstack-powered ad video rendering.
  *
  * Flow:
- * 1. Receive invite data (html, css, config, promptText, format, theme)
- * 2. Screenshot the invite via existing render-video Puppeteer endpoint
- * 3. Upload screenshot to S3
- * 4. Trigger Remotion Lambda render with invite image URL + props
- * 5. Return S3 video URL via SSE progress events
+ * 1. Receive invite screenshot URL + video params (promptText, format, theme)
+ * 2. Build a Shotstack JSON timeline (phone mockup, typing, shimmer, invite scroll, CTA)
+ * 3. POST to Shotstack render API
+ * 4. Poll for completion, stream progress via SSE
+ * 5. Return the rendered MP4 URL
  *
- * Requires env vars:
- * - REMOTION_AWS_ACCESS_KEY_ID, REMOTION_AWS_SECRET_ACCESS_KEY
- * - REMOTION_S3_BUCKET, REMOTION_FUNCTION_NAME, REMOTION_SERVE_URL
- * - REMOTION_AWS_REGION (default: us-east-1)
+ * Requires env var: SHOTSTACK_API_KEY
+ * Optional: SHOTSTACK_ENV (default: 'stage' for sandbox, set to 'v1' for production)
  */
 
 import { createClient } from '@supabase/supabase-js';
 
-// Lazy-load Remotion Lambda SDK (only imported when actually rendering)
-let remotionLambda = null;
-async function getRemotionLambda() {
-  if (!remotionLambda) {
-    remotionLambda = await import('@remotion/lambda/client');
-  }
-  return remotionLambda;
-}
+const SHOTSTACK_BASE = 'https://api.shotstack.io';
 
 async function getUser(req) {
   const authHeader = req.headers.authorization;
@@ -36,6 +27,226 @@ async function getUser(req) {
   );
   const { data: { user }, error } = await supabase.auth.getUser();
   return error ? null : user;
+}
+
+// Theme color palettes (matches ad-video-generator.js)
+const THEMES = {
+  dark_gradient:  { bg: '#1a0a2e', text: '#ffffff', subtext: '#b8b8d0', accent: '#E94560' },
+  light_clean:    { bg: '#f0f2f5', text: '#1a1a2e', subtext: '#666680', accent: '#E94560' },
+  ryvite_brand:   { bg: '#0a0a1a', text: '#ffffff', subtext: '#a8a8c0', accent: '#E94560' },
+  warm_sunset:    { bg: '#ffecd2', text: '#3d1f00', subtext: '#6b4226', accent: '#E94560' },
+};
+
+// Format dimensions
+const FORMATS = {
+  reels_9x16: { width: 1080, height: 1920 },
+  feed_1x1:   { width: 1080, height: 1080 },
+};
+
+/**
+ * Build a Shotstack timeline JSON for the ad video.
+ *
+ * Layers (tracks, top to bottom):
+ * 5. CTA button text (appears at end)
+ * 4. Prompt typing text (appears early, fades out)
+ * 3. "YOUR PROMPT" label
+ * 2. Invite screenshot (with zoom-in reveal + scroll effect)
+ * 1. Phone frame overlay (static, full duration)
+ * 0. Background color
+ */
+function buildTimeline({ inviteImageUrl, promptText, format, theme, phoneFrameUrl }) {
+  const thm = THEMES[theme] || THEMES.dark_gradient;
+  const fmt = FORMATS[format] || FORMATS.reels_9x16;
+  const isReels = format === 'reels_9x16';
+
+  // Timing (seconds) — simplified from original multi-phase timeline
+  const introDelay = 0.5;       // Brief pause before content
+  const typingDuration = 3.0;   // Show prompt text
+  const transitionGap = 0.5;    // Fade between prompt and invite
+  const inviteDuration = 8.0;   // Invite display + slow zoom/pan
+  const ctaDuration = 2.5;      // CTA at the end
+  const totalDuration = introDelay + typingDuration + transitionGap + inviteDuration + ctaDuration;
+
+  // Phase timestamps
+  const promptStart = introDelay;
+  const promptEnd = promptStart + typingDuration;
+  const inviteStart = promptEnd + transitionGap;
+  const inviteEnd = inviteStart + inviteDuration;
+  const ctaStart = inviteEnd - 1.0; // Overlap slightly with invite end
+
+  // Phone frame sizing (centered, proportional to canvas)
+  const phoneScale = isReels ? 0.42 : 0.55;
+  const phoneY = isReels ? -0.05 : -0.02;
+
+  // Invite sizing inside phone (slightly smaller than phone to show bezel)
+  const inviteScale = phoneScale * 0.88;
+  const inviteY = phoneY + 0.01;
+
+  const tracks = [];
+
+  // Track 5: CTA text ("Create Yours Free" + "ryvite.com")
+  tracks.push({
+    clips: [
+      {
+        asset: {
+          type: 'html',
+          html: `<div style="text-align:center;">
+            <div style="background:${thm.accent};color:white;padding:16px 48px;border-radius:32px;font-family:Inter,Arial,sans-serif;font-weight:bold;font-size:28px;display:inline-block;box-shadow:0 6px 20px rgba(233,69,96,0.4);">Create Yours Free</div>
+            <div style="color:${thm.subtext};font-family:Inter,Arial,sans-serif;font-size:18px;margin-top:12px;">ryvite.com</div>
+          </div>`,
+          width: fmt.width,
+          height: 200,
+        },
+        start: ctaStart,
+        length: totalDuration - ctaStart,
+        position: 'bottom',
+        offset: { y: isReels ? 0.05 : 0.04 },
+        transition: { in: 'slideUp' },
+      },
+    ],
+  });
+
+  // Track 4: Prompt text (typed on "phone screen")
+  tracks.push({
+    clips: [
+      {
+        asset: {
+          type: 'html',
+          html: `<div style="text-align:center;padding:24px;">
+            <div style="background:white;border-radius:18px;padding:40px 24px 30px;box-shadow:0 4px 16px rgba(0,0,0,0.1);max-width:360px;margin:0 auto;">
+              <div style="font-family:Inter,sans-serif;font-weight:700;font-size:14px;color:${thm.accent};letter-spacing:0.05em;margin-bottom:16px;">YOUR PROMPT</div>
+              <div style="font-family:Inter,Helvetica Neue,Arial,sans-serif;font-size:22px;line-height:1.5;color:#1a1a2e;">${promptText}</div>
+            </div>
+          </div>`,
+          width: Math.round(fmt.width * phoneScale * 0.85),
+          height: 400,
+        },
+        start: promptStart,
+        length: typingDuration + transitionGap * 0.5,
+        position: 'center',
+        offset: { y: phoneY },
+        transition: {
+          in: 'fade',
+          out: 'fade',
+        },
+      },
+    ],
+  });
+
+  // Track 3: Shimmer / loading effect (brief, between prompt and invite)
+  tracks.push({
+    clips: [
+      {
+        asset: {
+          type: 'html',
+          html: `<div style="text-align:center;font-family:Inter,sans-serif;font-size:18px;font-weight:600;color:${thm.accent};">
+            ✨ Creating your invite...
+          </div>`,
+          width: 400,
+          height: 60,
+        },
+        start: promptEnd - 0.3,
+        length: transitionGap + 0.6,
+        position: 'center',
+        offset: { y: phoneY + 0.12 },
+        transition: {
+          in: 'fade',
+          out: 'fade',
+        },
+      },
+    ],
+  });
+
+  // Track 2: Invite screenshot (inside phone, with slow zoom effect)
+  tracks.push({
+    clips: [
+      {
+        asset: {
+          type: 'image',
+          src: inviteImageUrl,
+        },
+        start: inviteStart,
+        length: inviteDuration,
+        fit: 'contain',
+        scale: inviteScale,
+        position: 'center',
+        offset: { y: inviteY },
+        effect: 'zoomIn',
+        transition: {
+          in: 'fade',
+        },
+      },
+    ],
+  });
+
+  // Track 1: Ryvite logo + subtitle (top of frame)
+  tracks.push({
+    clips: [
+      {
+        asset: {
+          type: 'html',
+          html: `<div style="text-align:center;">
+            <div style="font-family:Playfair Display,Georgia,serif;font-weight:600;font-size:40px;color:${thm.text};">✉ Ryvite</div>
+            <div style="font-family:Inter,Helvetica Neue,Arial,sans-serif;font-size:18px;color:${thm.subtext};margin-top:6px;">AI-Powered Event Invitations</div>
+          </div>`,
+          width: 600,
+          height: 120,
+        },
+        start: 0,
+        length: totalDuration,
+        position: 'top',
+        offset: { y: isReels ? -0.03 : -0.02 },
+        transition: { in: 'fade' },
+      },
+    ],
+  });
+
+  // Track 0: Background
+  tracks.push({
+    clips: [
+      {
+        asset: {
+          type: 'html',
+          html: `<div style="width:100%;height:100%;background:linear-gradient(180deg, ${thm.bg}, ${adjustBrightness(thm.bg, 20)});"></div>`,
+          width: fmt.width,
+          height: fmt.height,
+        },
+        start: 0,
+        length: totalDuration,
+      },
+    ],
+  });
+
+  return {
+    timeline: {
+      background: thm.bg,
+      tracks,
+      fonts: [
+        { src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiA.woff2' },
+        { src: 'https://fonts.gstatic.com/s/playfairdisplay/v37/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKd3vXDXbtXK-F2qC0s.woff2' },
+      ],
+    },
+    output: {
+      format: 'mp4',
+      resolution: isReels ? 'hd' : 'sd',
+      aspectRatio: isReels ? '9:16' : '1:1',
+      fps: 30,
+      quality: 'high',
+      size: {
+        width: fmt.width,
+        height: fmt.height,
+      },
+    },
+  };
+}
+
+/** Lighten/darken a hex color */
+function adjustBrightness(hex, amount) {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const r = Math.min(255, Math.max(0, ((num >> 16) & 255) + amount));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 255) + amount));
+  const b = Math.min(255, Math.max(0, (num & 255) + amount));
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 }
 
 export default async function handler(req, res) {
@@ -51,35 +262,21 @@ export default async function handler(req, res) {
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
   // Validate env
-  const {
-    REMOTION_AWS_ACCESS_KEY_ID,
-    REMOTION_AWS_SECRET_ACCESS_KEY,
-    REMOTION_S3_BUCKET,
-    REMOTION_FUNCTION_NAME,
-    REMOTION_SERVE_URL,
-    REMOTION_AWS_REGION = 'us-east-1',
-  } = process.env;
+  const apiKey = process.env.SHOTSTACK_API_KEY;
+  const env = process.env.SHOTSTACK_ENV || 'stage'; // 'stage' = sandbox, 'v1' = production
 
-  if (!REMOTION_FUNCTION_NAME || !REMOTION_SERVE_URL) {
+  if (!apiKey) {
     return res.status(503).json({
-      error: 'Remotion Lambda not configured. Set REMOTION_FUNCTION_NAME and REMOTION_SERVE_URL env vars.',
-      hint: 'Run: cd remotion && npx remotion lambda functions deploy && npx remotion lambda sites create src/index.ts',
+      error: 'Shotstack not configured. Set SHOTSTACK_API_KEY env var.',
+      hint: 'Sign up at https://dashboard.shotstack.io and copy your API key.',
     });
   }
 
-  const { html, css, config, promptText, format, theme, inviteImageUrl, inviteWidth, inviteHeight } = req.body;
+  const { inviteImageUrl, promptText, format, theme } = req.body;
 
+  if (!inviteImageUrl) return res.status(400).json({ error: 'inviteImageUrl is required' });
   if (!promptText) return res.status(400).json({ error: 'promptText is required' });
   if (!format) return res.status(400).json({ error: 'format is required (reels_9x16 or feed_1x1)' });
-
-  // If invite image URL not provided, we need to generate it
-  // (The admin UI should pre-upload the screenshot, but this is a fallback)
-  if (!inviteImageUrl) {
-    return res.status(400).json({
-      error: 'inviteImageUrl is required. Upload the invite screenshot to S3 first.',
-      hint: 'Use /api/v2/render-video with ?action=screenshot to capture the invite, then upload to S3.',
-    });
-  }
 
   // SSE streaming for progress
   res.writeHead(200, {
@@ -91,88 +288,77 @@ export default async function handler(req, res) {
   const keepalive = setInterval(() => { res.write(': keepalive\n\n'); }, 3000);
 
   try {
-    res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Starting Remotion render...', pct: 10 })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Building video timeline...', pct: 10 })}\n\n`);
 
-    // Determine composition ID based on format
-    const compositionId = format === 'feed_1x1' ? 'AdVideo-Feed' : 'AdVideo-Reels';
-
-    const inputProps = {
+    // Build Shotstack timeline
+    const payload = buildTimeline({
       inviteImageUrl,
       promptText,
       format,
       theme: theme || 'dark_gradient',
-      inviteWidth: inviteWidth || 786,
-      inviteHeight: inviteHeight || 2400,
-    };
-
-    res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Triggering Lambda render...', pct: 20 })}\n\n`);
-
-    const lambda = await getRemotionLambda();
-
-    const { renderId, bucketName } = await lambda.renderMediaOnLambda({
-      region: REMOTION_AWS_REGION,
-      functionName: REMOTION_FUNCTION_NAME,
-      serveUrl: REMOTION_SERVE_URL,
-      composition: compositionId,
-      inputProps,
-      codec: 'h264',
-      imageFormat: 'jpeg',
-      maxRetries: 1,
-      privacy: 'public',
-      outName: `ryvite-ad-${format}-${Date.now()}.mp4`,
     });
 
-    res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Rendering video...', pct: 30, renderId })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Submitting to Shotstack...', pct: 15 })}\n\n`);
+
+    // Submit render
+    const renderRes = await fetch(`${SHOTSTACK_BASE}/${env}/render`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const renderData = await renderRes.json();
+
+    if (!renderData.success || !renderData.response?.id) {
+      throw new Error(`Shotstack render failed: ${renderData.message || JSON.stringify(renderData)}`);
+    }
+
+    const renderId = renderData.response.id;
+    res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Rendering video...', pct: 20, renderId })}\n\n`);
 
     // Poll for completion
     let done = false;
     let attempts = 0;
-    const maxAttempts = 120; // 2 minutes max (polling every 1s)
+    const maxAttempts = 180; // 3 minutes max
 
     while (!done && attempts < maxAttempts) {
       await new Promise(r => setTimeout(r, 1000));
       attempts++;
 
-      try {
-        const progress = await lambda.getRenderProgress({
-          region: REMOTION_AWS_REGION,
-          functionName: REMOTION_FUNCTION_NAME,
-          bucketName,
-          renderId,
-        });
+      const statusRes = await fetch(`${SHOTSTACK_BASE}/${env}/render/${renderId}`, {
+        headers: { 'x-api-key': apiKey },
+      });
 
-        if (progress.fatalErrorEncountered) {
-          throw new Error(`Render failed: ${progress.errors?.[0]?.message || 'Unknown error'}`);
-        }
+      const statusData = await statusRes.json();
+      const status = statusData.response?.status;
 
-        const pct = 30 + Math.round((progress.overallProgress || 0) * 65);
+      if (status === 'failed') {
+        throw new Error(`Shotstack render failed: ${statusData.response?.error || 'Unknown error'}`);
+      }
+
+      // Estimate progress (Shotstack doesn't give exact %)
+      const pct = Math.min(90, 20 + attempts * 2);
+      const phaseLabel = status === 'rendering' ? 'Rendering video...' : status === 'queued' ? 'Queued...' : 'Processing...';
+      res.write(`data: ${JSON.stringify({ type: 'progress', phase: phaseLabel, pct })}\n\n`);
+
+      if (status === 'done') {
+        done = true;
+        const videoUrl = statusData.response.url;
+
         res.write(`data: ${JSON.stringify({
-          type: 'progress',
-          phase: `Rendering... ${Math.round((progress.overallProgress || 0) * 100)}%`,
-          pct,
+          type: 'done',
+          url: videoUrl,
+          renderId,
+          pct: 100,
         })}\n\n`);
-
-        if (progress.done) {
-          done = true;
-          const videoUrl = progress.outputFile;
-
-          res.write(`data: ${JSON.stringify({
-            type: 'done',
-            url: videoUrl,
-            renderId,
-            pct: 100,
-          })}\n\n`);
-        }
-      } catch (pollErr) {
-        // Non-fatal poll errors — retry
-        if (attempts >= maxAttempts) {
-          throw new Error(`Render timed out after ${maxAttempts}s: ${pollErr.message}`);
-        }
       }
     }
 
     if (!done) {
-      throw new Error('Render timed out');
+      throw new Error('Render timed out after 3 minutes');
     }
 
   } catch (err) {
