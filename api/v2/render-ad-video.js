@@ -277,12 +277,12 @@ export default async function handler(req, res) {
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
   // Validate env
-  const apiKey = process.env.SHOTSTACK_API_KEY;
-  const env = process.env.SHOTSTACK_ENV || 'stage'; // 'stage' = sandbox, 'v1' = production
+  const apiKey = process.env.SHOTSTACK_API_KEY_SAND || process.env.SHOTSTACK_API_KEY;
+  const env = process.env.SHOTSTACK_API_KEY_SAND ? 'stage' : (process.env.SHOTSTACK_ENV || 'v1');
 
   if (!apiKey) {
     return res.status(503).json({
-      error: 'Shotstack not configured. Set SHOTSTACK_API_KEY env var.',
+      error: 'Shotstack not configured. Set SHOTSTACK_API_KEY_SAND (sandbox) or SHOTSTACK_API_KEY (production) env var.',
       hint: 'Sign up at https://dashboard.shotstack.io and copy your API key.',
     });
   }
