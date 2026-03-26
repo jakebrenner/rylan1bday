@@ -6297,7 +6297,10 @@
             }
 
             // Low confidence — ask for clarification instead of running expensive AI
-            if (classification.confidence < 0.8 && classification.clarification) {
+            // But for text_change intent, be more lenient (0.5+) since it's cheap (Haiku)
+            // and the user can undo via versions if needed
+            var clarifyThreshold = (classification.intent === 'text_change') ? 0.5 : 0.8;
+            if (classification.confidence < clarifyThreshold && classification.clarification) {
               console.log('[tweak] Low confidence (' + classification.confidence + '), asking for clarification');
               pendingIntentText = text;
               awaitingIntentClarification = true;
@@ -6311,13 +6314,13 @@
                 // Default options based on detected intent
                 if (classification.intent === 'add_field' || classification.intent === 'modify_field') {
                   intentOptions = [
-                    { label: 'Add an RSVP field', value: 'I want to add a new RSVP form field for: ' + (classification.summary || text) },
-                    { label: 'Change the design', value: 'I want to change the visual design: ' + text }
+                    { label: 'Add an RSVP field', value: 'I want to add a new RSVP form field' },
+                    { label: 'Change the design', value: 'I want to change the visual design' }
                   ];
                 } else {
                   intentOptions = [
-                    { label: 'Change the design', value: 'I want to change the visual design: ' + text },
-                    { label: 'Change the text', value: 'I want to change specific text/wording: ' + text },
+                    { label: 'Change the design', value: 'I want to change the visual design' },
+                    { label: 'Change the text', value: 'I want to change specific text/wording' },
                     { label: 'Add an RSVP field', value: 'I want to add a new RSVP form field' }
                   ];
                 }
