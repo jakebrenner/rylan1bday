@@ -16,80 +16,6 @@ import { createClient } from '@supabase/supabase-js';
 
 const SHOTSTACK_BASE = 'https://api.shotstack.io/edit';
 
-/**
- * Build a self-contained HTML document for the invite.
- * Duplicated from render-video.js (Vercel serverless functions can't share code).
- */
-function buildInviteHtml(html, css, config) {
-  const configObj = typeof config === 'string' ? JSON.parse(config || '{}') : (config || {});
-
-  let fontsImport = '';
-  if (configObj.fontUrl) {
-    fontsImport = `@import url("${configObj.fontUrl}");`;
-  } else if (configObj.googleFontsImport) {
-    fontsImport = configObj.googleFontsImport;
-    if (fontsImport && !fontsImport.startsWith('@import')) {
-      fontsImport = `@import url('${fontsImport}');`;
-    }
-  }
-  const fontsStyle = fontsImport ? `<style>${fontsImport}</style>` : '';
-
-  const bodyTagMatch = (html || '').match(/<body\b([^>]*)>/i);
-  const bodyAttrs = bodyTagMatch ? bodyTagMatch[1].trim() : '';
-
-  let headStyles = '';
-  const headMatch = (html || '').match(/<head(?:\s[^>]*)?>[\s\S]*?<\/head\s*>/i);
-  if (headMatch) {
-    const headStyleMatches = headMatch[0].match(/<style[^>]*>([\s\S]*?)<\/style\s*>/gi);
-    if (headStyleMatches) {
-      const headCss = headStyleMatches.map(s =>
-        s.replace(/<style[^>]*>/gi, '').replace(/<\/style\s*>/gi, '')
-      ).join('\n');
-      if (headCss.trim()) headStyles = `<style>${headCss}</style>`;
-    }
-  }
-
-  let themeHtml = (html || '')
-    .replace(/<!DOCTYPE[^>]*>/gi, '')
-    .replace(/<html\b[^>]*>/gi, '').replace(/<\/html\s*>/gi, '')
-    .replace(/<head(?:\s[^>]*)?>[\s\S]*?<\/head\s*>/gi, '')
-    .replace(/<body\b[^>]*>/gi, '').replace(/<\/body\s*>/gi, '')
-    .replace(/<script\b[\s\S]*?<\/script\s*>/gi, '');
-
-  let embeddedCss = '';
-  const styleMatches = themeHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
-  if (styleMatches) {
-    embeddedCss = styleMatches.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
-    themeHtml = themeHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-  }
-
-  let allCss = (css || '') + '\n' + embeddedCss;
-  const strayImports = allCss.match(/@import\s+url\([^)]+\);?\s*/g);
-  if (strayImports) {
-    strayImports.forEach(imp => { allCss = allCss.replace(imp, ''); });
-  }
-
-  const fallbackBg = configObj.backgroundColor || '#FFFAF5';
-  const fallbackText = configObj.textColor || '#1A1A2E';
-  const fallbackFont = configObj.fontBody || 'Inter';
-
-  // Hide RSVP slots for video
-  const hideSlots = '.rsvp-slot,.details-slot{display:none !important}';
-
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<meta name="viewport" content="width=393, initial-scale=1.0">
-${fontsStyle}
-<style>
-* { margin:0; padding:0; box-sizing:border-box; }
-html, body { width: 393px; min-height: 100vh; overflow-x: hidden; }
-html, body { background:${fallbackBg}; color:${fallbackText}; font-family:'${fallbackFont}',sans-serif; }
-${hideSlots}
-</style>
-${headStyles}
-<style>${allCss}</style>
-</head><body${bodyAttrs ? ' ' + bodyAttrs : ''}>${themeHtml}</body></html>`;
-}
-
 async function getUser(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) return null;
@@ -128,7 +54,7 @@ const FORMATS = {
  * 1. Phone frame overlay (static, full duration)
  * 0. Background color
  */
-function buildTimeline({ inviteImageUrl, inviteHtml, promptText, format, theme }) {
+function buildTimeline({ inviteImageUrl, promptText, format, theme }) {
   const thm = THEMES[theme] || THEMES.dark_gradient;
   const fmt = FORMATS[format] || FORMATS.reels_9x16;
   const isReels = format === 'reels_9x16';
@@ -246,54 +172,27 @@ function buildTimeline({ inviteImageUrl, inviteHtml, promptText, format, theme }
     ],
   });
 
-  // Track 2: Invite (HTML with live CSS animations, or fallback to image)
-  if (inviteHtml) {
-    // Full HTML invite with live CSS animations rendered by Shotstack's headless browser
-    const inviteClipW = Math.round(fmt.width * phoneScale * 0.88);
-    const inviteClipH = Math.round(inviteClipW * (852 / 393)); // iPhone aspect ratio
-    tracks.push({
-      clips: [
-        {
-          asset: {
-            type: 'html',
-            html: inviteHtml,
-            width: inviteClipW,
-            height: inviteClipH,
-            background: 'transparent',
-          },
-          start: inviteStart,
-          length: inviteDuration,
-          position: 'center',
-          offset: { y: inviteY },
-          transition: {
-            in: 'fade',
-          },
+  // Track 2: Invite image (with slow zoom effect)
+  tracks.push({
+    clips: [
+      {
+        asset: {
+          type: 'image',
+          src: inviteImageUrl,
         },
-      ],
-    });
-  } else if (inviteImageUrl) {
-    // Fallback: static image (for when HTML isn't available)
-    tracks.push({
-      clips: [
-        {
-          asset: {
-            type: 'image',
-            src: inviteImageUrl,
-          },
-          start: inviteStart,
-          length: inviteDuration,
-          fit: 'contain',
-          scale: inviteScale,
-          position: 'center',
-          offset: { y: inviteY },
-          effect: 'zoomIn',
-          transition: {
-            in: 'fade',
-          },
+        start: inviteStart,
+        length: inviteDuration,
+        fit: 'contain',
+        scale: inviteScale,
+        position: 'center',
+        offset: { y: inviteY },
+        effect: 'zoomIn',
+        transition: {
+          in: 'fade',
         },
-      ],
-    });
-  }
+      },
+    ],
+  });
 
   // Track 1: Ryvite logo + subtitle (top of frame)
   tracks.push({
@@ -388,9 +287,9 @@ export default async function handler(req, res) {
     });
   }
 
-  const { html, css, config, inviteImageBase64, inviteImageUrl: providedUrl, promptText, format, theme } = req.body;
+  const { inviteImageBase64, promptText, format, theme } = req.body;
 
-  if (!html && !inviteImageBase64 && !providedUrl) return res.status(400).json({ error: 'html (for animated invite) or inviteImageBase64/inviteImageUrl is required' });
+  if (!inviteImageBase64) return res.status(400).json({ error: 'inviteImageBase64 is required (JPEG data URL from html2canvas)' });
   if (!promptText) return res.status(400).json({ error: 'promptText is required' });
   if (!format) return res.status(400).json({ error: 'format is required (reels_9x16 or feed_1x1)' });
 
@@ -404,66 +303,65 @@ export default async function handler(req, res) {
   const keepalive = setInterval(() => { res.write(': keepalive\n\n'); }, 3000);
 
   try {
-    let inviteImageUrl = providedUrl;
+    res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Uploading invite image...', pct: 5 })}\n\n`);
 
-    // If base64 image provided, upload to Shotstack Ingest API first
-    if (inviteImageBase64 && !inviteImageUrl) {
-      res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Uploading invite image...', pct: 5 })}\n\n`);
+    // Upload invite image to Shotstack Ingest API to get a hosted URL
+    const isJpeg = inviteImageBase64.startsWith('data:image/jpeg');
+    const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
+    const ext = isJpeg ? 'jpg' : 'png';
 
-      // Step 1: Request a signed upload URL from Shotstack Ingest API
-      const ingestRes = await fetch(`${SHOTSTACK_BASE.replace('/edit', '/ingest')}/${env}/upload`, {
-        method: 'POST',
+    // Request signed upload URL
+    const ingestRes = await fetch(`${SHOTSTACK_BASE.replace('/edit', '/ingest')}/${env}/upload`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        fileName: `ryvite-invite-${Date.now()}.${ext}`,
+        fileType: mimeType,
+      }),
+    });
+
+    let inviteImageUrl;
+
+    if (ingestRes.ok) {
+      const ingestData = await ingestRes.json();
+      const signedUrl = ingestData?.data?.attributes?.url;
+      const sourceUrl = ingestData?.data?.attributes?.source;
+
+      if (!signedUrl) throw new Error('Shotstack Ingest API did not return an upload URL');
+
+      // Upload image binary
+      const base64Data = inviteImageBase64.replace(/^data:image\/\w+;base64,/, '');
+      const imageBuffer = Buffer.from(base64Data, 'base64');
+
+      const uploadRes = await fetch(signedUrl, {
+        method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
+          'Content-Type': mimeType,
+          'Content-Length': imageBuffer.length.toString(),
         },
-        body: JSON.stringify({
-          fileName: `ryvite-invite-${Date.now()}.png`,
-          fileType: 'image/png',
-        }),
+        body: imageBuffer,
       });
 
-      if (!ingestRes.ok) {
-        // Fallback: if Ingest API isn't available, try a different approach
-        // Use a data URL with a smaller image (JPEG, lower quality)
-        const dataUrl = inviteImageBase64.startsWith('data:')
-          ? inviteImageBase64
-          : `data:image/png;base64,${inviteImageBase64}`;
-        inviteImageUrl = dataUrl;
-        res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Using inline image...', pct: 8 })}\n\n`);
-      } else {
-        const ingestData = await ingestRes.json();
-        const signedUrl = ingestData?.data?.attributes?.url;
-        const sourceUrl = ingestData?.data?.attributes?.source;
+      if (!uploadRes.ok) throw new Error(`Image upload failed: ${uploadRes.status} ${uploadRes.statusText}`);
 
-        if (signedUrl) {
-          // Step 2: Upload the image binary to the signed URL
-          const base64Data = inviteImageBase64.replace(/^data:image\/\w+;base64,/, '');
-          const imageBuffer = Buffer.from(base64Data, 'base64');
-
-          await fetch(signedUrl, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'image/png' },
-            body: imageBuffer,
-          });
-
-          inviteImageUrl = sourceUrl || signedUrl.split('?')[0];
-          res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Image uploaded', pct: 10 })}\n\n`);
-        } else {
-          throw new Error('Failed to get upload URL from Shotstack Ingest API');
-        }
-      }
+      inviteImageUrl = sourceUrl || signedUrl.split('?')[0];
+      res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Image uploaded', pct: 12 })}\n\n`);
+    } else {
+      // Ingest API not available — log error and try with inline data URL (may fail for large images)
+      const errText = await ingestRes.text();
+      console.error('[render-ad-video] Ingest API failed:', ingestRes.status, errText);
+      inviteImageUrl = inviteImageBase64;
+      res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Using inline image...', pct: 10 })}\n\n`);
     }
 
-    res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Building video timeline...', pct: 12 })}\n\n`);
-
-    // Build invite HTML if raw html/css/config provided
-    const inviteHtml = html ? buildInviteHtml(html, css, config) : null;
+    res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Building video timeline...', pct: 15 })}\n\n`);
 
     // Build Shotstack timeline
     const payload = buildTimeline({
       inviteImageUrl,
-      inviteHtml,
       promptText,
       format,
       theme: theme || 'dark_gradient',

@@ -8590,16 +8590,30 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         document.getElementById('adVideoPhase').textContent = (totalFormats > 1 ? (fi + 1) + '/' + totalFormats + ' — ' : '') + fmtLabel + ': ' + (phase || 'Processing...');
       }
 
-      updateProgress(5, 'Submitting to Shotstack...');
+      updateProgress(2, 'Rendering invite screenshot...');
 
-      // Send full invite HTML/CSS/config — Shotstack renders it live with CSS animations
+      // Render invite as JPEG image (smaller than PNG for upload)
+      var inviteImg = await window.AdVideoGenerator.renderImage(
+        _adVideoData.html, _adVideoData.css, _adVideoData.config, 393
+      );
+      if (!inviteImg || !inviteImg.src) throw new Error('Failed to render invite image');
+
+      // Convert PNG to JPEG for smaller payload
+      var tempCanvas = document.createElement('canvas');
+      tempCanvas.width = inviteImg.naturalWidth;
+      tempCanvas.height = inviteImg.naturalHeight;
+      var tempCtx = tempCanvas.getContext('2d');
+      tempCtx.drawImage(inviteImg, 0, 0);
+      var jpegDataUrl = tempCanvas.toDataURL('image/jpeg', 0.85);
+
+      updateProgress(8, 'Uploading to Shotstack...');
+
+      // Send JPEG to our API which uploads to Shotstack Ingest then renders
       var renderRes = await authFetch('/api/v2/render-ad-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          html: _adVideoData.html,
-          css: _adVideoData.css,
-          config: _adVideoData.config,
+          inviteImageBase64: jpegDataUrl,
           promptText: promptText,
           format: fmt,
           theme: _adVideoTheme
