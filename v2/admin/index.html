@@ -8590,24 +8590,16 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         document.getElementById('adVideoPhase').textContent = (totalFormats > 1 ? (fi + 1) + '/' + totalFormats + ' — ' : '') + fmtLabel + ': ' + (phase || 'Processing...');
       }
 
-      updateProgress(5, 'Preparing invite image...');
+      updateProgress(5, 'Submitting to Shotstack...');
 
-      // Step 1: Render invite as a static image via html2canvas (client-side, fast)
-      // We need a publicly accessible URL for Shotstack — use a data URL via the API
-      var inviteImg = await window.AdVideoGenerator.renderImage(
-        _adVideoData.html, _adVideoData.css, _adVideoData.config, 393
-      );
-
-      if (!inviteImg || !inviteImg.src) throw new Error('Failed to render invite image');
-
-      updateProgress(15, 'Submitting to Shotstack...');
-
-      // Step 2: Send to Shotstack via our API endpoint (SSE progress)
+      // Send full invite HTML/CSS/config — Shotstack renders it live with CSS animations
       var renderRes = await authFetch('/api/v2/render-ad-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          inviteImageBase64: inviteImg.src,
+          html: _adVideoData.html,
+          css: _adVideoData.css,
+          config: _adVideoData.config,
           promptText: promptText,
           format: fmt,
           theme: _adVideoTheme

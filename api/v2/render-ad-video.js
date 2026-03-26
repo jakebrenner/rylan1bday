@@ -16,6 +16,80 @@ import { createClient } from '@supabase/supabase-js';
 
 const SHOTSTACK_BASE = 'https://api.shotstack.io/edit';
 
+/**
+ * Build a self-contained HTML document for the invite.
+ * Duplicated from render-video.js (Vercel serverless functions can't share code).
+ */
+function buildInviteHtml(html, css, config) {
+  const configObj = typeof config === 'string' ? JSON.parse(config || '{}') : (config || {});
+
+  let fontsImport = '';
+  if (configObj.fontUrl) {
+    fontsImport = `@import url("${configObj.fontUrl}");`;
+  } else if (configObj.googleFontsImport) {
+    fontsImport = configObj.googleFontsImport;
+    if (fontsImport && !fontsImport.startsWith('@import')) {
+      fontsImport = `@import url('${fontsImport}');`;
+    }
+  }
+  const fontsStyle = fontsImport ? `<style>${fontsImport}</style>` : '';
+
+  const bodyTagMatch = (html || '').match(/<body\b([^>]*)>/i);
+  const bodyAttrs = bodyTagMatch ? bodyTagMatch[1].trim() : '';
+
+  let headStyles = '';
+  const headMatch = (html || '').match(/<head(?:\s[^>]*)?>[\s\S]*?<\/head\s*>/i);
+  if (headMatch) {
+    const headStyleMatches = headMatch[0].match(/<style[^>]*>([\s\S]*?)<\/style\s*>/gi);
+    if (headStyleMatches) {
+      const headCss = headStyleMatches.map(s =>
+        s.replace(/<style[^>]*>/gi, '').replace(/<\/style\s*>/gi, '')
+      ).join('\n');
+      if (headCss.trim()) headStyles = `<style>${headCss}</style>`;
+    }
+  }
+
+  let themeHtml = (html || '')
+    .replace(/<!DOCTYPE[^>]*>/gi, '')
+    .replace(/<html\b[^>]*>/gi, '').replace(/<\/html\s*>/gi, '')
+    .replace(/<head(?:\s[^>]*)?>[\s\S]*?<\/head\s*>/gi, '')
+    .replace(/<body\b[^>]*>/gi, '').replace(/<\/body\s*>/gi, '')
+    .replace(/<script\b[\s\S]*?<\/script\s*>/gi, '');
+
+  let embeddedCss = '';
+  const styleMatches = themeHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+  if (styleMatches) {
+    embeddedCss = styleMatches.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+    themeHtml = themeHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+  }
+
+  let allCss = (css || '') + '\n' + embeddedCss;
+  const strayImports = allCss.match(/@import\s+url\([^)]+\);?\s*/g);
+  if (strayImports) {
+    strayImports.forEach(imp => { allCss = allCss.replace(imp, ''); });
+  }
+
+  const fallbackBg = configObj.backgroundColor || '#FFFAF5';
+  const fallbackText = configObj.textColor || '#1A1A2E';
+  const fallbackFont = configObj.fontBody || 'Inter';
+
+  // Hide RSVP slots for video
+  const hideSlots = '.rsvp-slot,.details-slot{display:none !important}';
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<meta name="viewport" content="width=393, initial-scale=1.0">
+${fontsStyle}
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width: 393px; min-height: 100vh; overflow-x: hidden; }
+html, body { background:${fallbackBg}; color:${fallbackText}; font-family:'${fallbackFont}',sans-serif; }
+${hideSlots}
+</style>
+${headStyles}
+<style>${allCss}</style>
+</head><body${bodyAttrs ? ' ' + bodyAttrs : ''}>${themeHtml}</body></html>`;
+}
+
 async function getUser(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) return null;
@@ -54,7 +128,7 @@ const FORMATS = {
  * 1. Phone frame overlay (static, full duration)
  * 0. Background color
  */
-function buildTimeline({ inviteImageUrl, promptText, format, theme, phoneFrameUrl }) {
+function buildTimeline({ inviteImageUrl, inviteHtml, promptText, format, theme }) {
   const thm = THEMES[theme] || THEMES.dark_gradient;
   const fmt = FORMATS[format] || FORMATS.reels_9x16;
   const isReels = format === 'reels_9x16';
@@ -172,27 +246,54 @@ function buildTimeline({ inviteImageUrl, promptText, format, theme, phoneFrameUr
     ],
   });
 
-  // Track 2: Invite screenshot (inside phone, with slow zoom effect)
-  tracks.push({
-    clips: [
-      {
-        asset: {
-          type: 'image',
-          src: inviteImageUrl,
+  // Track 2: Invite (HTML with live CSS animations, or fallback to image)
+  if (inviteHtml) {
+    // Full HTML invite with live CSS animations rendered by Shotstack's headless browser
+    const inviteClipW = Math.round(fmt.width * phoneScale * 0.88);
+    const inviteClipH = Math.round(inviteClipW * (852 / 393)); // iPhone aspect ratio
+    tracks.push({
+      clips: [
+        {
+          asset: {
+            type: 'html',
+            html: inviteHtml,
+            width: inviteClipW,
+            height: inviteClipH,
+            background: 'transparent',
+          },
+          start: inviteStart,
+          length: inviteDuration,
+          position: 'center',
+          offset: { y: inviteY },
+          transition: {
+            in: 'fade',
+          },
         },
-        start: inviteStart,
-        length: inviteDuration,
-        fit: 'contain',
-        scale: inviteScale,
-        position: 'center',
-        offset: { y: inviteY },
-        effect: 'zoomIn',
-        transition: {
-          in: 'fade',
+      ],
+    });
+  } else if (inviteImageUrl) {
+    // Fallback: static image (for when HTML isn't available)
+    tracks.push({
+      clips: [
+        {
+          asset: {
+            type: 'image',
+            src: inviteImageUrl,
+          },
+          start: inviteStart,
+          length: inviteDuration,
+          fit: 'contain',
+          scale: inviteScale,
+          position: 'center',
+          offset: { y: inviteY },
+          effect: 'zoomIn',
+          transition: {
+            in: 'fade',
+          },
         },
-      },
-    ],
-  });
+      ],
+    });
+  }
 
   // Track 1: Ryvite logo + subtitle (top of frame)
   tracks.push({
@@ -287,9 +388,9 @@ export default async function handler(req, res) {
     });
   }
 
-  const { inviteImageBase64, inviteImageUrl: providedUrl, promptText, format, theme } = req.body;
+  const { html, css, config, inviteImageBase64, inviteImageUrl: providedUrl, promptText, format, theme } = req.body;
 
-  if (!inviteImageBase64 && !providedUrl) return res.status(400).json({ error: 'inviteImageBase64 or inviteImageUrl is required' });
+  if (!html && !inviteImageBase64 && !providedUrl) return res.status(400).json({ error: 'html (for animated invite) or inviteImageBase64/inviteImageUrl is required' });
   if (!promptText) return res.status(400).json({ error: 'promptText is required' });
   if (!format) return res.status(400).json({ error: 'format is required (reels_9x16 or feed_1x1)' });
 
@@ -356,9 +457,13 @@ export default async function handler(req, res) {
 
     res.write(`data: ${JSON.stringify({ type: 'progress', phase: 'Building video timeline...', pct: 12 })}\n\n`);
 
+    // Build invite HTML if raw html/css/config provided
+    const inviteHtml = html ? buildInviteHtml(html, css, config) : null;
+
     // Build Shotstack timeline
     const payload = buildTimeline({
       inviteImageUrl,
+      inviteHtml,
       promptText,
       format,
       theme: theme || 'dark_gradient',
