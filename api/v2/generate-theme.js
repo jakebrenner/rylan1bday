@@ -1960,12 +1960,23 @@ Remember: RSVP fields are rendered by the platform, NOT in theme HTML. Do NOT ad
 ⚠️ CONTRAST CHECK: After making changes, verify ALL text is readable. Dark/colored backgrounds → white text (#FFFFFF). Light backgrounds → dark text (#1A1A1A). Never use accent colors as text on dark backgrounds.`;
       }
 
-      const messageContent = photoBase64 && !photoUrl
-        ? [
-            { type: 'text', text: tweakMessage },
-            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: photoBase64 } }
-          ]
-        : [{ type: 'text', text: tweakMessage }];
+      // Build message content — include photos as image blocks for visual context
+      let messageContent = [{ type: 'text', text: tweakMessage }];
+      if (photoBase64 && !photoUrl) {
+        messageContent.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: photoBase64 } });
+      }
+      // Include inspiration images as visual context (fetched and converted to base64)
+      if (inspirationImageUrls?.length > 0 && !photoUrls?.length) {
+        try {
+          const inspoImages = await fetchImagesAsBase64(inspirationImageUrls);
+          for (const img of inspoImages) {
+            messageContent.push(img);
+          }
+          console.log(`[tweak] Added ${inspoImages.length} inspiration images as visual context`);
+        } catch (e) {
+          console.warn('[tweak] Failed to fetch inspiration images:', e.message);
+        }
+      }
 
       // Stream the response from Claude
       sendSSE('status', { phase: 'generating', isLightTweak });

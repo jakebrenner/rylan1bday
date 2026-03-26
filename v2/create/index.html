@@ -4821,6 +4821,7 @@
     var designChatPhotoBase64 = null;
     var designChatPhotoUrl = null;
     var designChatPhotoUrls = []; // Support multiple photo uploads
+    var designChatPhotoType = null; // 'use' (embed in invite) or 'inspiration' (style reference)
     var pendingRedesignText = null; // Holds original message while awaiting clarification
     var awaitingRedesignClarification = false;
     var skipRedesignDetection = false; // Flag to skip detection when sending clarified message
@@ -5537,17 +5538,17 @@
         }
       }
       event.target.value = '';
-      // Show creative photo usage suggestions after successful upload
-      if (designChatPhotoUrls.length > 0) {
+      // Ask user how they want to use the photos
+      if (designChatPhotoUrls.length > 0 && !designChatPhotoType) {
         var photoCount = designChatPhotoUrls.length;
-        var suggestion = (photoCount === 1 ? 'Nice photo!' : 'Nice photos!') + ' Here are some fun ideas \u2014 just describe what you\'d like:\n\n'
-          + '\ud83d\ude81 Animated \u2014 faces flying from helicopters, popping out of presents, orbiting the title\n'
-          + '\ud83d\uddbc\ufe0f Themed frames \u2014 birthday balloons, wedding flowers, patriotic borders\n'
-          + '\ud83c\udfad Collage \u2014 scattered polaroids with fun tilts and washi tape\n'
-          + '\ud83c\udf1f Cutout \u2014 face cutouts placed onto illustrated characters or scenes\n'
-          + '\u2728 Interactive \u2014 photos that spin, bounce, or wave with CSS animation\n\n'
-          + 'Or just send your message and I\'ll find a creative way to feature ' + (photoCount === 1 ? 'your photo' : 'your photos') + '!';
-        pushDesignChat({ role: 'assistant', content: suggestion });
+        pushDesignChat({
+          role: 'assistant',
+          content: (photoCount === 1 ? 'Got your photo!' : 'Got your ' + photoCount + ' photos!') + ' How would you like to use ' + (photoCount === 1 ? 'it' : 'them') + '?',
+          options: [
+            { label: 'Use in the invite', value: '__photo_type_use__' },
+            { label: 'Use as inspiration', value: '__photo_type_inspiration__' }
+          ]
+        });
         renderDesignChat();
       }
     }
@@ -5569,6 +5570,7 @@
       designChatPhotoBase64 = null;
       designChatPhotoUrl = null;
       designChatPhotoUrls = [];
+      designChatPhotoType = null;
       document.getElementById('designChatPhotoPreview').innerHTML = '';
     }
 
@@ -6461,12 +6463,16 @@
             + 'Keep all other design elements exactly as they are.\n\n'
             + 'User request: ' + instructions;
         }
-        if (hasPhotos) {
+        var isInspirationPhotos = designChatPhotoType === 'inspiration';
+        if (hasPhotos && !isInspirationPhotos) {
           instructions += '\n\nThe user has uploaded ' + designChatPhotoUrls.length + ' photo(s). Embed them in the design.';
+        } else if (hasPhotos && isInspirationPhotos) {
+          instructions += '\n\nThe user has uploaded ' + designChatPhotoUrls.length + ' inspiration photo(s). Use these as DESIGN INSPIRATION — match their style, colors, mood, and aesthetic. Do NOT embed these images in the invite.';
         }
         var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
         var existingPhotoUrls = getExistingPhotoUrls(ver);
-        var tweakPhotoUrls = hasPhotos ? designChatPhotoUrls : (existingPhotoUrls.length > 0 ? existingPhotoUrls : undefined);
+        var tweakPhotoUrls = (hasPhotos && !isInspirationPhotos) ? designChatPhotoUrls : (existingPhotoUrls.length > 0 ? existingPhotoUrls : undefined);
+        var tweakInspirationUrls = (hasPhotos && isInspirationPhotos) ? designChatPhotoUrls : undefined;
         var payload = {
           action: 'tweak',
           eventId: currentEvent.id,
@@ -6478,6 +6484,7 @@
           currentEmailHtml: currentPreviewMode === 'email' ? buildEmailSrcdoc(ver) : undefined,
           photoUrls: tweakPhotoUrls,
           photoUrl: tweakPhotoUrls ? tweakPhotoUrls[0] : undefined,
+          inspirationImageUrls: tweakInspirationUrls,
           existingPhotos: !hasPhotos && existingPhotoUrls.length > 0,
           eventDetails: {
             title: extractedData.title || '',
@@ -6628,12 +6635,44 @@
     }
 
     function handleChatOption(value) {
+      // Handle photo type selection
+      if (value === '__photo_type_use__' || value === '__photo_type_inspiration__') {
+        handlePhotoTypeSelection(value === '__photo_type_use__' ? 'use' : 'inspiration');
+        return;
+      }
       // Route to the appropriate handler based on which clarification is active
       if (awaitingIntentClarification) {
         handleIntentOption(value);
       } else {
         handleRedesignOption(value);
       }
+    }
+
+    function handlePhotoTypeSelection(type) {
+      designChatPhotoType = type;
+      // Remove option buttons from the assistant message
+      for (var ci = designChatHistory.length - 1; ci >= 0; ci--) {
+        if (designChatHistory[ci].role === 'assistant' && designChatHistory[ci].options) {
+          delete designChatHistory[ci].options;
+          break;
+        }
+      }
+      var photoCount = designChatPhotoUrls.length;
+      if (type === 'use') {
+        pushDesignChat({ role: 'user', content: 'Use ' + (photoCount === 1 ? 'this photo' : 'these photos') + ' in the invite' });
+        var suggestion = 'Great! Here are some fun ideas for featuring ' + (photoCount === 1 ? 'your photo' : 'your photos') + ':\n\n'
+          + '\ud83d\ude81 Animated \u2014 faces flying from helicopters, popping out of presents, orbiting the title\n'
+          + '\ud83d\uddbc\ufe0f Themed frames \u2014 birthday balloons, wedding flowers, patriotic borders\n'
+          + '\ud83c\udfad Collage \u2014 scattered polaroids with fun tilts and washi tape\n'
+          + '\ud83c\udf1f Cutout \u2014 face cutouts placed onto illustrated characters or scenes\n'
+          + '\u2728 Interactive \u2014 photos that spin, bounce, or wave with CSS animation\n\n'
+          + 'Describe what you\'d like, or just hit send and I\'ll find a creative way to feature ' + (photoCount === 1 ? 'your photo' : 'your photos') + '!';
+        pushDesignChat({ role: 'assistant', content: suggestion });
+      } else {
+        pushDesignChat({ role: 'user', content: 'Use ' + (photoCount === 1 ? 'this' : 'these') + ' as design inspiration' });
+        pushDesignChat({ role: 'assistant', content: 'Got it! I\'ll use ' + (photoCount === 1 ? 'this photo' : 'these photos') + ' as design inspiration to redesign your invite. Hit send or describe any other changes you\'d like, and I\'ll regenerate the design with this inspiration in mind.' });
+      }
+      renderDesignChat();
     }
 
     function handleRedesignOption(value) {
