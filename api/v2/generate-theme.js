@@ -1728,7 +1728,7 @@ Current RSVP fields: ${fieldList || 'none'}
 
 Classify this request. Return JSON:
 {
-  "intent": "add_field|remove_field|modify_field|design_change|text_change|add_photo|question|broken_render|unclear",
+  "intent": "add_field|remove_field|modify_field|design_change|text_change|add_photo|detail_change|question|broken_render|unclear",
   "confidence": 0.0 to 1.0,
   "summary": "One sentence: what the user wants",
   "clarification": "A friendly question to ask if you're not confident (null if confident)",
@@ -1737,8 +1737,10 @@ Classify this request. Return JSON:
 
 Rules:
 - "add_field": user wants to add an RSVP form field (e.g. "add number of adults", "I need a dietary field")
-- "design_change": visual changes (colors, fonts, layout, style, animations, spacing)
-- "text_change": change specific text/wording in the invite
+- "design_change": visual changes (colors, fonts, layout, style, animations, spacing). Also includes requests that reference design elements like "remove the image", "change the text below the photo", "make the picture bigger" — these are about the DESIGN, not about uploading new photos
+- "text_change": change, add, or remove specific text/wording/copy in the invite (e.g. "remove where it says Live August 2026", "add description text", "change the heading")
+- "add_photo": user explicitly wants to UPLOAD or INCLUDE a new photo/image in the design (e.g. "add my photo", "I want to upload a picture", "include a selfie"). NOT for referencing existing design elements — "remove the image at the top" is text_change or design_change, NOT add_photo
+- "detail_change": user wants to change event details like date, time, location, venue, dress code, or event title (e.g. "change the date to April 20", "move the time to 7pm", "update the location"). These changes happen in the Details tab, not through design tweaks
 - "question": user is asking a question, not requesting a change
 - "broken_render": user is reporting the invite looks broken, is missing content/text/fields, appears blank, cut off, or didn't render correctly (e.g. "it's missing all the text", "nothing is showing", "where are the fields", "the invite is blank")
 - "unclear": you genuinely can't determine what they want

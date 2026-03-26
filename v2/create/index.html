@@ -5893,27 +5893,6 @@
         (currentEvent.paymentStatus === 'free' && currentEvent.freeGenerationUsed)
       );
 
-      // Detect if user mentions wanting a photo but didn't attach one
-      // Skip this check if: (a) current design already has user-uploaded photos,
-      // or (b) user is referencing an existing photo ("the photo", "my photo", etc.)
-      if (text && !hasPhotos) {
-        // If user says "the photo/image/pic" or "my photo" they're referring to one already in the design
-        var referringToExisting = /\b(the|my|this|that|its|current)\s+(photo|picture|image|pic)\b/i.test(text);
-        var existingPhotosInDesign = referringToExisting ? [true] : getExistingPhotoUrls(themeVersions[activeVersionIndex]);
-        if (existingPhotosInDesign.length === 0) {
-          var photoKeywords = /\b(photo|picture|image|pic|selfie|headshot|portrait|snapshot|upload.*(photo|image|pic)|include.*(photo|image|pic)|(add|use|put|include|attach|insert).*(photo|picture|image|pic))\b/i;
-          if (photoKeywords.test(text)) {
-            pushDesignChat({ role: 'user', content: text });
-            pushDesignChat({ role: 'assistant', content: "It looks like you want to include a photo, but I don't see one attached! Tap the photo icon (bottom left) to upload your image(s), then send your message again. You can upload up to 6 photos!" });
-            renderDesignChat();
-            input.value = '';
-            input.style.height = 'auto';
-            if (window.innerWidth <= 900) input.focus();
-            return;
-          }
-        }
-      }
-
       // If we're awaiting redesign clarification, treat this message as the clarification
       if (awaitingRedesignClarification && text) {
         awaitingRedesignClarification = false;
@@ -5958,54 +5937,6 @@
         input.style.height = 'auto';
         sendDesignChat();
         return;
-      }
-
-      // Detect if user is asking to change event details (date, time, location, etc.)
-      // These are data changes, not design changes — redirect to the Details tab
-      if (text && !hasPhotos) {
-        var detailChangePattern = /\b(change|update|move|switch|set|make)\b.{0,20}\b(date|time|day|event date|start time|end time|location|venue|address|place|dress code|dresscode|title|event name)\b/i;
-        var dateChangePattern = /\b(a day|one day|two days?|a week|next week|later|earlier|sooner|different day|different date|different time)\b/i;
-        if (detailChangePattern.test(text) || (dateChangePattern.test(text) && /\b(change|update|move|push|bump)\b/i.test(text))) {
-          pushDesignChat({ role: 'user', content: text });
-          pushDesignChat({ role: 'assistant', content: "I handle the visual design of your invite, but I can't change event details like dates, times, or locations. You can update those in the **Details** tab above — just tap \"Details\" and edit from there!\n\nIs there anything design-related I can help with?" });
-          renderDesignChat();
-          input.value = '';
-          input.style.height = 'auto';
-          if (window.innerWidth <= 900) input.focus();
-          return;
-        }
-      }
-
-      // ── BROKEN RENDER DETECTION: Catch user complaints about broken/missing content ──
-      // Must run BEFORE redesign detection to prevent broken renders from entering clarification flow
-      if (text && !skipRedesignDetection) {
-        var brokenRenderPattern = /\b(missing|broken|not showing|blank|empty|no text|can'?t see|where is|nothing there|doesn'?t show|not displaying|cut off|disappeared|gone|invisible|white screen)\b/i;
-        var brokenContentPattern = /\bno\s*.{0,10}\b(text|content|info|information|fields|details|words|title|rsvp)\b/i;
-        var justBackgroundPattern = /\bjust\s*.{0,10}\b(background|image|picture|color)\b/i;
-        var isBrokenComplaint = brokenRenderPattern.test(text) || brokenContentPattern.test(text) || justBackgroundPattern.test(text);
-
-        // If we already know the render is broken, ANY complaint should trigger recovery
-        if (isBrokenComplaint || (lastRenderBroken && vagueKeywords && /\b(don'?t|not|wrong|bad|off|broken|missing)\b/i.test(text))) {
-          pushDesignChat({ role: 'user', content: text });
-          pushDesignChat({
-            role: 'assistant',
-            content: "I can see the issue \u2014 the invite didn't render correctly. Let me regenerate it for you."
-          });
-          pushDesignChat({ role: 'system', content: 'Building a fresh design with all your details — this usually takes 15-30 seconds...' });
-          renderDesignChat();
-          input.value = '';
-          input.style.height = 'auto';
-          if (window.innerWidth <= 900) input.focus();
-
-          // Trigger full regeneration
-          var sendBtn = document.getElementById('designChatSendBtn');
-          sendBtn.disabled = true;
-          autoRetryInProgress = true;
-          triggerBrokenRenderRegeneration().then(function() {
-            sendBtn.disabled = false;
-          });
-          return;
-        }
       }
 
       // Detect if user is asking for a new design OR is vague/unsure about what to change
@@ -6283,6 +6214,24 @@
             // If the classifier detected this is a question, answer conversationally
             if (classification.intent === 'question' && classification.confidence >= 0.6) {
               pushDesignChat({ role: 'assistant', content: (classification.summary || "That's a great question!") + "\n\nI'm your design assistant — I can help you change colors, fonts, layout, add photos, or tweak any visual element of your invite. Just tell me what you'd like to change!" });
+              clearDesignChatPhoto();
+              sendBtn.disabled = false;
+              renderDesignChat();
+              return;
+            }
+
+            // If the classifier detected user wants to add a photo but didn't attach one
+            if (classification.intent === 'add_photo' && classification.confidence >= 0.6) {
+              pushDesignChat({ role: 'assistant', content: "I'd love to add photos to your design! Tap the photo icon (bottom left) to upload your image(s), then send your message again. You can upload up to 6 photos!" });
+              clearDesignChatPhoto();
+              sendBtn.disabled = false;
+              renderDesignChat();
+              return;
+            }
+
+            // If the classifier detected a request to change event details (date, time, location)
+            if (classification.intent === 'detail_change' && classification.confidence >= 0.6) {
+              pushDesignChat({ role: 'assistant', content: "I handle the visual design of your invite, but I can't change event details like dates, times, or locations. You can update those in the **Details** tab above — just tap \"Details\" and edit from there!\n\nIs there anything design-related I can help with?" });
               clearDesignChatPhoto();
               sendBtn.disabled = false;
               renderDesignChat();
