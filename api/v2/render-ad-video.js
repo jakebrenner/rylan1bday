@@ -14,7 +14,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const SHOTSTACK_BASE = 'https://api.shotstack.io';
+const SHOTSTACK_BASE = 'https://api.shotstack.io/edit';
 
 async function getUser(req) {
   const authHeader = req.headers.authorization;
@@ -106,16 +106,15 @@ function buildTimeline({ inviteImageUrl, promptText, format, theme, phoneFrameUr
     ],
   });
 
-  // Track 4: Prompt text (typed on "phone screen")
+  // Track 4b: Prompt card background + "YOUR PROMPT" label
   tracks.push({
     clips: [
       {
         asset: {
           type: 'html',
           html: `<div style="text-align:center;padding:24px;">
-            <div style="background:white;border-radius:18px;padding:40px 24px 30px;box-shadow:0 4px 16px rgba(0,0,0,0.1);max-width:360px;margin:0 auto;">
-              <div style="font-family:Inter,sans-serif;font-weight:700;font-size:14px;color:${thm.accent};letter-spacing:0.05em;margin-bottom:16px;">YOUR PROMPT</div>
-              <div style="font-family:Inter,Helvetica Neue,Arial,sans-serif;font-size:22px;line-height:1.5;color:#1a1a2e;">${promptText}</div>
+            <div style="background:white;border-radius:18px;padding:40px 24px 120px;box-shadow:0 4px 16px rgba(0,0,0,0.1);max-width:360px;margin:0 auto;">
+              <div style="font-family:Inter,sans-serif;font-weight:700;font-size:14px;color:${thm.accent};letter-spacing:0.05em;">YOUR PROMPT</div>
             </div>
           </div>`,
           width: Math.round(fmt.width * phoneScale * 0.85),
@@ -125,10 +124,26 @@ function buildTimeline({ inviteImageUrl, promptText, format, theme, phoneFrameUr
         length: typingDuration + transitionGap * 0.5,
         position: 'center',
         offset: { y: phoneY },
-        transition: {
-          in: 'fade',
-          out: 'fade',
+        transition: { in: 'fade', out: 'fade' },
+      },
+    ],
+  });
+
+  // Track 4a: Prompt text with typewriter animation (on top of card)
+  tracks.unshift({
+    clips: [
+      {
+        asset: {
+          type: 'html',
+          html: `<div style="text-align:center;font-family:Inter,Helvetica Neue,Arial,sans-serif;font-size:22px;line-height:1.5;color:#1a1a2e;max-width:320px;margin:0 auto;">${promptText}</div>`,
+          width: Math.round(fmt.width * phoneScale * 0.75),
+          height: 300,
         },
+        start: promptStart + 0.3,
+        length: typingDuration + transitionGap * 0.2,
+        position: 'center',
+        offset: { y: phoneY + 0.03 },
+        transition: { in: 'fade', out: 'fade' },
       },
     ],
   });
