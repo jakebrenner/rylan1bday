@@ -5040,7 +5040,12 @@
       // so we do a direct keyword check first for built-in field names.
       var isRemoveIntent = /\b(?:remove|delete|drop|get rid of|take off|take out|hide|no more)\b/i.test(lower);
       var isAddIntent = /\b(?:add|include|put|create|insert)\b/i.test(lower);
-      if (isRemoveIntent || isAddIntent) {
+      // Skip built-in field protection if the user is referring to invite TEXT content
+      // (e.g., 'remove the text that says "RSVP Secure your spot"' is NOT a field removal)
+      var isTextContentRequest = /\b(?:text|wording|copy|heading|title|description|line|sentence|paragraph)\b/i.test(lower)
+        || /(?:that says|which says|saying|reads|where it says)/.test(lower)
+        || /["'\u201C\u201D\u2018\u2019]/.test(lower);
+      if ((isRemoveIntent || isAddIntent) && !isTextContentRequest) {
         var builtInCheck = [
           { pattern: /\b(?:email|e-mail)\b/i, name: 'Email' },
           { pattern: /\b(?:phone|telephone|tel|mobile|cell)\b/i, name: 'Phone' },
