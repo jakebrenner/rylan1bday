@@ -1968,11 +1968,11 @@ Remember: RSVP fields are rendered by the platform, NOT in theme HTML. Do NOT ad
       // Include inspiration images as visual context (fetched and converted to base64)
       if (inspirationImageUrls?.length > 0 && !photoUrls?.length) {
         try {
-          const inspoImages = await fetchImagesAsBase64(inspirationImageUrls);
-          for (const img of inspoImages) {
-            messageContent.push(img);
+          const inspoBase64s = await fetchImagesAsBase64(inspirationImageUrls);
+          for (const b64 of inspoBase64s) {
+            messageContent.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } });
           }
-          console.log(`[tweak] Added ${inspoImages.length} inspiration images as visual context`);
+          console.log(`[tweak] Added ${inspoBase64s.length} inspiration images as visual context`);
         } catch (e) {
           console.warn('[tweak] Failed to fetch inspiration images:', e.message);
         }
