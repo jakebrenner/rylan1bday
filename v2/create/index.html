@@ -3056,22 +3056,43 @@
       return html;
     }
 
+    // Parse ISO string as LOCAL time (not UTC) to avoid timezone shift.
+    // "2026-08-15T19:00:00" should display as 7:00 PM, not be shifted by timezone.
+    function parseLocalDate(isoStr) {
+      if (!isoStr) return null;
+      var str = String(isoStr).trim();
+      var tIdx = str.indexOf('T');
+      if (tIdx === -1) {
+        // Date-only: "2026-08-15" — add noon to avoid date-shift at midnight
+        var parts = str.split('-');
+        return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
+      }
+      var datePart = str.substring(0, tIdx).split('-');
+      var timePart = str.substring(tIdx + 1).replace(/Z$/, '').split(/[+-]\d/)[0].split(':');
+      return new Date(
+        parseInt(datePart[0]), parseInt(datePart[1]) - 1, parseInt(datePart[2]),
+        parseInt(timePart[0] || 0), parseInt(timePart[1] || 0), parseInt(timePart[2] || 0)
+      );
+    }
+
     function formatDateTimeForDisplay(startStr, endStr) {
       if (!startStr) return '';
       var opts = { year: 'numeric', month: 'long', day: 'numeric' };
       var timeOpts = { hour: 'numeric', minute: '2-digit', hour12: true };
-      var start = new Date(startStr);
+      var start = parseLocalDate(startStr);
+      if (!start || isNaN(start.getTime())) return '';
       var datePart = start.toLocaleDateString('en-US', opts);
       var timePart = start.toLocaleTimeString('en-US', timeOpts);
       var result = datePart + ' at ' + timePart;
       if (endStr) {
-        var end = new Date(endStr);
-        var endTimePart = end.toLocaleTimeString('en-US', timeOpts);
-        // Same day?
-        if (start.toDateString() === end.toDateString()) {
-          result = datePart + ' · ' + timePart + ' – ' + endTimePart;
-        } else {
-          result = datePart + ' ' + timePart + ' – ' + end.toLocaleDateString('en-US', opts) + ' ' + endTimePart;
+        var end = parseLocalDate(endStr);
+        if (end && !isNaN(end.getTime())) {
+          var endTimePart = end.toLocaleTimeString('en-US', timeOpts);
+          if (start.toDateString() === end.toDateString()) {
+            result = datePart + ' · ' + timePart + ' – ' + endTimePart;
+          } else {
+            result = datePart + ' ' + timePart + ' – ' + end.toLocaleDateString('en-US', opts) + ' ' + endTimePart;
+          }
         }
       }
       return result;
@@ -4417,7 +4438,7 @@
       var title = extractedData.title || currentEvent?.title || 'Your Event';
       var hostName = extractedData.hostName || 'Your host';
       var eventDate = extractedData.startDate
-        ? new Date(extractedData.startDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+        ? parseLocalDate(extractedData.startDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
         : '';
       var location = extractedData.locationName || '';
 
@@ -4612,11 +4633,11 @@
       var recapItems = [];
       var _recapDate = extractedData && (extractedData.startDate || extractedData.eventDate);
       if (_recapDate) {
-        var _sd = new Date(_recapDate);
+        var _sd = parseLocalDate(_recapDate);
         var _dateFormatted = _sd.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
         var _timeStr = _sd.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
         var _endDate = extractedData.endDate;
-        if (_endDate) { _timeStr += ' – ' + new Date(_endDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
+        if (_endDate) { _timeStr += ' – ' + parseLocalDate(_endDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
         recapItems.push('<div class="recap-item"><div class="recap-icon">&#128197;</div><div><div class="recap-label">Date &amp; Time</div><div class="recap-value">' + _dateFormatted + '<br>' + _timeStr + '</div></div></div>');
       }
       var _locName = extractedData && (extractedData.locationName || '');
@@ -6661,14 +6682,27 @@
     function parseISOToDateAndTime(isoStr) {
       if (!isoStr) return { date: '', time: '' };
       try {
-        var d = new Date(isoStr);
-        if (isNaN(d.getTime())) return { date: '', time: '' };
-        var year = d.getFullYear();
-        var month = String(d.getMonth() + 1).padStart(2, '0');
-        var day = String(d.getDate()).padStart(2, '0');
-        var hours = String(d.getHours()).padStart(2, '0');
-        var mins = String(d.getMinutes()).padStart(2, '0');
-        return { date: year + '-' + month + '-' + day, time: hours + ':' + mins };
+        // Parse by splitting the string — NOT with new Date() which treats
+        // timezone-less ISO strings as UTC, causing wrong times when displayed
+        // in local time (e.g., 19:00 UTC → 12:00 PM PDT)
+        var str = String(isoStr).trim();
+        var tIdx = str.indexOf('T');
+        if (tIdx !== -1) {
+          var datePart = str.substring(0, tIdx); // "2026-08-15"
+          var timePart = str.substring(tIdx + 1).replace(/Z$/, '').split(/[+-]\d/)[0]; // strip timezone
+          var timeBits = timePart.split(':');
+          var hours = String(parseInt(timeBits[0] || '0', 10)).padStart(2, '0');
+          var mins = String(parseInt(timeBits[1] || '0', 10)).padStart(2, '0');
+          // Validate date part
+          if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+            return { date: datePart, time: hours + ':' + mins };
+          }
+        }
+        // Fallback: date-only string like "2026-08-15"
+        if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+          return { date: str, time: '' };
+        }
+        return { date: '', time: '' };
       } catch (e) { return { date: '', time: '' }; }
     }
 

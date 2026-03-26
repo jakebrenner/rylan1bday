@@ -407,16 +407,34 @@
         + '</head><body' + (bodyAttrs ? ' ' + bodyAttrs : '') + '>' + themeHtml + '</body></html>';
     }
 
+    // Parse ISO string as LOCAL time (not UTC) to avoid timezone shift.
+    // "2026-08-15T19:00:00" should display as 7:00 PM, not be shifted by timezone.
+    function parseLocalDate(isoStr) {
+      if (!isoStr) return null;
+      var str = String(isoStr).trim();
+      var tIdx = str.indexOf('T');
+      if (tIdx === -1) {
+        var parts = str.split('-');
+        return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
+      }
+      var datePart = str.substring(0, tIdx).split('-');
+      var timePart = str.substring(tIdx + 1).replace(/Z$/, '').split(/[+-]\d/)[0].split(':');
+      return new Date(
+        parseInt(datePart[0]), parseInt(datePart[1]) - 1, parseInt(datePart[2]),
+        parseInt(timePart[0] || 0), parseInt(timePart[1] || 0), parseInt(timePart[2] || 0)
+      );
+    }
+
     function buildEventDetailsHtml(event) {
       var items = [];
       if (event.event_date || event.eventDate) {
         var dateStr = event.event_date || event.eventDate;
-        var startDate = new Date(dateStr);
+        var startDate = parseLocalDate(dateStr);
         var endDateStr = event.end_date || event.endDate;
         var formatted = startDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         var timeStr = startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
         if (endDateStr) {
-          var endDate = new Date(endDateStr);
+          var endDate = parseLocalDate(endDateStr);
           timeStr += ' \u2013 ' + endDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
         }
         items.push({ icon: '&#128197;', label: 'Date', value: formatted + '<br>' + timeStr });
@@ -1092,17 +1110,17 @@
     }
 
     function generateGoogleCalendarLink(event) {
-      var s = new Date(event.eventDate), e = event.endDate ? new Date(event.endDate) : new Date(s.getTime() + 3600000);
+      var s = parseLocalDate(event.eventDate), e = event.endDate ? parseLocalDate(event.endDate) : new Date(s.getTime() + 3600000);
       return 'https://calendar.google.com/calendar/u/0/r/eventedit?' + new URLSearchParams({ action: 'TEMPLATE', text: event.title, dates: fmtDate(s) + '/' + fmtDate(e), location: event.locationName + (event.locationAddress ? ', ' + event.locationAddress : ''), details: event.description || '' }).toString();
     }
 
     function generateOutlookLink(event) {
-      var s = new Date(event.eventDate), e = event.endDate ? new Date(event.endDate) : new Date(s.getTime() + 3600000);
+      var s = parseLocalDate(event.eventDate), e = event.endDate ? parseLocalDate(event.endDate) : new Date(s.getTime() + 3600000);
       return 'https://outlook.live.com/calendar/0/deeplink/compose?' + new URLSearchParams({ path: '/calendar/action/compose', rru: 'addevent', subject: event.title, startdt: s.toISOString(), enddt: e.toISOString(), location: event.locationName + (event.locationAddress ? ', ' + event.locationAddress : ''), body: event.description || '' }).toString();
     }
 
     function generateYahooLink(event) {
-      var s = new Date(event.eventDate), e = event.endDate ? new Date(event.endDate) : new Date(s.getTime() + 3600000);
+      var s = parseLocalDate(event.eventDate), e = event.endDate ? parseLocalDate(event.endDate) : new Date(s.getTime() + 3600000);
       var dur = Math.round((e - s) / 3600000);
       var durStr = (dur < 10 ? '0' : '') + dur + '00';
       return 'https://calendar.yahoo.com/?' + new URLSearchParams({ v: '60', title: event.title, st: fmtDate(s), dur: durStr, in_loc: event.locationName + (event.locationAddress ? ', ' + event.locationAddress : ''), desc: event.description || '' }).toString();
@@ -1110,7 +1128,7 @@
 
     function downloadICS() {
       if (!currentEventData) return;
-      var ev = currentEventData, s = new Date(ev.eventDate), e = ev.endDate ? new Date(ev.endDate) : new Date(s.getTime() + 3600000);
+      var ev = currentEventData, s = parseLocalDate(ev.eventDate), e = ev.endDate ? parseLocalDate(ev.endDate) : new Date(s.getTime() + 3600000);
       var ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Ryvite//Event//EN','BEGIN:VEVENT','DTSTART:' + fmtDate(s),'DTEND:' + fmtDate(e),'SUMMARY:' + ev.title,'LOCATION:' + ev.locationName + (ev.locationAddress ? ', ' + ev.locationAddress : ''),'DESCRIPTION:' + (ev.description || '').replace(/\n/g, '\\n'),'END:VEVENT','END:VCALENDAR'].join('\r\n');
       var blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
       var link = document.createElement('a');
