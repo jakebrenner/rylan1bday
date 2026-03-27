@@ -3472,24 +3472,66 @@
         var doc = iframe.contentDocument;
         if (!doc) return;
 
-        // Inject RSVP form into .rsvp-slot
-        var slot = doc.querySelector('.rsvp-slot');
-        if (slot) {
-          var ifrWinForBg = iframe.contentWindow || doc.defaultView;
-          var bgInfo = detectRsvpBackground(slot, ifrWinForBg);
-          var slotIsDark = bgInfo.rgb ? relativeLuminance(bgInfo.rgb) < 0.35 : false;
-          // Fallback: if detection returned white (default) but theme config says dark bg, trust the config
-          if (!slotIsDark) {
-            var config = themeVersions[activeVersionIndex] ? themeVersions[activeVersionIndex].config : {};
-            var configBg = config.backgroundColor || '';
-            if (configBg) {
-              var configRgb = parseRgb(configBg) || hexToRgb(configBg);
-              if (configRgb && relativeLuminance(configRgb) < 0.35) {
-                slotIsDark = true;
+        // Determine if the invite has a dark background — check multiple sources
+        var isDarkTheme = false;
+        var config = themeVersions[activeVersionIndex] ? themeVersions[activeVersionIndex].config : {};
+
+        // Source 1: Theme config backgroundColor
+        var configBg = config.backgroundColor || '';
+        if (configBg) {
+          var configRgb = parseRgb(configBg) || hexToRgb(configBg);
+          if (configRgb && relativeLuminance(configRgb) < 0.35) isDarkTheme = true;
+        }
+
+        // Source 2: Iframe body/html computed background
+        if (!isDarkTheme) {
+          try {
+            var ifrWin = iframe.contentWindow || doc.defaultView;
+            var bodyBg = ifrWin.getComputedStyle(doc.body).backgroundColor;
+            var bodyRgb = parseRgb(bodyBg);
+            if (bodyRgb && bodyRgb.r + bodyRgb.g + bodyRgb.b > 0 && relativeLuminance(bodyRgb) < 0.35) isDarkTheme = true;
+            if (!isDarkTheme && doc.documentElement) {
+              var htmlBg = ifrWin.getComputedStyle(doc.documentElement).backgroundColor;
+              var htmlRgb = parseRgb(htmlBg);
+              if (htmlRgb && htmlRgb.r + htmlRgb.g + htmlRgb.b > 0 && relativeLuminance(htmlRgb) < 0.35) isDarkTheme = true;
+            }
+          } catch (e) {}
+        }
+
+        // Source 3: Check theme CSS for dark body backgrounds
+        if (!isDarkTheme) {
+          var ver = themeVersions[activeVersionIndex];
+          var css = (ver && ver.css) || '';
+          var bodyBgMatch = css.match(/body\s*\{[^}]*background(?:-color)?\s*:\s*([^;}\n]+)/i);
+          if (bodyBgMatch) {
+            var cssBgVal = bodyBgMatch[1].trim();
+            var cssBgRgb = parseRgb(cssBgVal) || hexToRgb(cssBgVal);
+            if (cssBgRgb && relativeLuminance(cssBgRgb) < 0.35) isDarkTheme = true;
+            // Gradient check — first color
+            if (!isDarkTheme && cssBgVal.includes('gradient')) {
+              var gradColors = cssBgVal.match(/#[0-9a-fA-F]{3,8}|rgb[a]?\([^)]+\)/g);
+              if (gradColors) {
+                for (var gi = 0; gi < gradColors.length; gi++) {
+                  var gRgb = parseRgb(gradColors[gi]) || hexToRgb(gradColors[gi]);
+                  if (gRgb && relativeLuminance(gRgb) < 0.35) { isDarkTheme = true; break; }
+                }
               }
             }
           }
-          slot.innerHTML = buildRsvpFormHtml(slotIsDark);
+        }
+
+        // Source 4: If config mood contains dark-suggesting words
+        if (!isDarkTheme) {
+          var mood = (config.mood || '').toLowerCase();
+          if (/\b(dark|night|neon|midnight|black|moody|gothic)\b/.test(mood)) isDarkTheme = true;
+        }
+
+        console.log('[rsvp] Dark theme detection:', isDarkTheme, '| configBg:', configBg, '| mood:', config.mood || '');
+
+        // Inject RSVP form into .rsvp-slot
+        var slot = doc.querySelector('.rsvp-slot');
+        if (slot) {
+          slot.innerHTML = buildRsvpFormHtml(isDarkTheme);
         } else {
           // Fallback: template has no .rsvp-slot — look for baked-in form fields
           // and wrap them in a .rsvp-slot so we can control them
@@ -3506,69 +3548,44 @@
               formContainer = formContainer.parentElement;
             }
             if (formContainer && formContainer.tagName !== 'BODY') {
-              var fbIfrWin = iframe.contentWindow || doc.defaultView;
-              var fbBgInfo = detectRsvpBackground(formContainer, fbIfrWin);
-              var fbIsDark = fbBgInfo.rgb ? relativeLuminance(fbBgInfo.rgb) < 0.35 : false;
-              // Same config fallback as above
-              if (!fbIsDark) {
-                var fbConfig = themeVersions[activeVersionIndex] ? themeVersions[activeVersionIndex].config : {};
-                var fbConfigBg = fbConfig.backgroundColor || '';
-                if (fbConfigBg) {
-                  var fbConfigRgb = parseRgb(fbConfigBg) || hexToRgb(fbConfigBg);
-                  if (fbConfigRgb && relativeLuminance(fbConfigRgb) < 0.35) fbIsDark = true;
-                }
-              }
-              formContainer.innerHTML = buildRsvpFormHtml(fbIsDark);
+              // Reuse the isDarkTheme detection from above
+              formContainer.innerHTML = buildRsvpFormHtml(isDarkTheme);
               formContainer.classList.add('rsvp-slot');
             }
           }
         }
 
-        // Post-injection contrast safety net: after CSS fully applies, verify RSVP text is readable
-        // This catches cases where background detection failed at build time
+        // Post-injection contrast safety net: re-check after CSS fully applies
+        // The initial isDarkTheme detection runs before CSS animations/transitions complete.
+        // After 300ms, check the actual rendered background and re-inject if detection was wrong.
         setTimeout(function() {
           try {
-            var formEl = doc.querySelector('.rsvp-form-injected');
-            if (!formEl) return;
-            var ifrWin = iframe.contentWindow || doc.defaultView;
-            if (!ifrWin) return;
-            var label = formEl.querySelector('label');
-            if (!label) return;
-            var labelColor = ifrWin.getComputedStyle(label).color;
-            var labelRgb = parseRgb(labelColor);
-            // Walk up to find effective background
-            var bgNode = formEl;
-            var bgRgb = null;
-            while (bgNode && bgNode.nodeType === 1) {
-              var cs = ifrWin.getComputedStyle(bgNode);
+            var rsvpSlot = doc.querySelector('.rsvp-slot');
+            if (!rsvpSlot) return;
+            var ifrW = iframe.contentWindow || doc.defaultView;
+            if (!ifrW) return;
+            // Walk up from rsvp-slot to find the actual rendered background
+            var node = rsvpSlot;
+            var detectedDark = false;
+            while (node && node.nodeType === 1) {
+              var cs = ifrW.getComputedStyle(node);
               var bg = cs.backgroundColor;
               if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
-                bgRgb = parseRgb(bg);
-                if (bgRgb) break;
+                var rgb = parseRgb(bg);
+                if (rgb && (rgb.r + rgb.g + rgb.b) > 0) {
+                  detectedDark = relativeLuminance(rgb) < 0.35;
+                  break;
+                }
               }
-              bgNode = bgNode.parentElement;
+              node = node.parentElement;
             }
-            if (!bgRgb) {
-              // Still no bg found — use config
-              var cfg = themeVersions[activeVersionIndex] ? themeVersions[activeVersionIndex].config : {};
-              var cfgBg = cfg.backgroundColor || '';
-              if (cfgBg) bgRgb = parseRgb(cfgBg) || hexToRgb(cfgBg);
-            }
-            if (labelRgb && bgRgb) {
-              var labelLum = relativeLuminance(labelRgb);
-              var bgLum = relativeLuminance(bgRgb);
-              var contrast = (Math.max(labelLum, bgLum) + 0.05) / (Math.min(labelLum, bgLum) + 0.05);
-              if (contrast < 2.5) {
-                // Poor contrast — force white or dark text based on background
-                var forcedColor = bgLum < 0.35 ? '#FFFFFF' : '#1A1A1A';
-                console.warn('[rsvp-contrast] Poor contrast detected (' + contrast.toFixed(1) + ':1), forcing text to ' + forcedColor);
-                formEl.querySelectorAll('label, input, select, textarea, .rsvp-form-injected').forEach(function(el) {
-                  el.style.setProperty('color', forcedColor, 'important');
-                });
-              }
+            // If the actual rendered background disagrees with our initial detection, re-inject
+            if (detectedDark !== isDarkTheme) {
+              console.warn('[rsvp-contrast] Post-render detection mismatch: initial=' + isDarkTheme + ', actual=' + detectedDark + ' — re-injecting form');
+              rsvpSlot.innerHTML = buildRsvpFormHtml(detectedDark);
             }
           } catch (e) { /* non-critical */ }
-        }, 200);
+        }, 300);
 
         // Inject event details into .details-slot (new pattern — platform controls details HTML)
         var detailsSlot = doc.querySelector('.details-slot');
