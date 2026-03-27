@@ -111,9 +111,9 @@ export default async function handler(req, res) {
   const recordDuration = Math.min(Math.max(duration || 6, 2), 10); // 2-10 seconds
   const viewport = { width: 393, height: 852, deviceScaleFactor: 2 }; // Always phone viewport — format only affects ad canvas, not invite capture
 
-  const fps = 4; // 4fps is enough for CSS animation capture
+  const fps = 12; // 12fps for smooth CSS animation capture
   const totalFrames = Math.ceil(recordDuration * fps);
-  const frameInterval = 1000 / fps; // 250ms between frames
+  const frameInterval = 1000 / fps; // ~83ms between frames
 
   // Use SSE streaming to prevent gateway timeout and send progress
   res.writeHead(200, {
@@ -164,7 +164,7 @@ export default async function handler(req, res) {
     for (let i = 0; i < totalFrames; i++) {
       const screenshot = await page.screenshot({
         type: 'jpeg',
-        quality: 50,
+        quality: 80,
         encoding: 'base64',
         fullPage: true
       });
