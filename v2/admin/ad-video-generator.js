@@ -97,33 +97,32 @@ const FORMAT_CONFIGS = {
   reels_9x16: {
     width: 1080,
     height: 1920,
-    logoY: 80,
-    logoSize: 64,
-    labelFontSize: 28,
-    labelY: 155,
-    // Phone centered vertically (no external CTA — it renders on-screen)
-    phoneWidth: 600,
-    phoneHeight: 1300,
-    phoneY: 260,
-    // Prompt card drawn ON phone screen
-    promptFontSize: 28,
-    promptLineHeight: 42,
-    promptLabelSize: 16,
-    ctaFontSize: 34,
+    logoY: 100,
+    logoSize: 72,
+    labelFontSize: 30,
+    labelY: 185,
+    // Phone vertically centered: logo area ~135px + gap, phone 1300px
+    // Center of content = (1920 - (135 + 1300)) / 2 ≈ 242, + logo offset
+    phoneWidth: 640,
+    phoneHeight: 1388,
+    phoneY: 290,
+    promptFontSize: 30,
+    promptLineHeight: 44,
+    promptLabelSize: 18,
+    ctaFontSize: 36,
     particleCount: 30
   },
   feed_1x1: {
     width: 1440,
     height: 1440,
-    logoY: 60,
-    logoSize: 56,
-    labelFontSize: 26,
-    labelY: 130,
-    // Phone centered vertically
-    phoneWidth: 520,
-    phoneHeight: 1128,
-    phoneY: 190,
-    // Prompt card drawn ON phone screen
+    logoY: 70,
+    logoSize: 64,
+    labelFontSize: 28,
+    labelY: 148,
+    // Phone vertically centered in remaining space
+    phoneWidth: 600,
+    phoneHeight: 1100,
+    phoneY: 220,
     promptFontSize: 28,
     promptLineHeight: 42,
     promptLabelSize: 16,
@@ -937,48 +936,46 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
         ctx.restore();
       }
 
-      // ── CTA (rendered INSIDE the phone screen after invite scroll) ──
+      // ── CTA page (slides up inside phone screen after invite) ──
       if (elapsed >= endHoldEnd) {
         var ctaProgress = Math.min(1, (elapsed - endHoldEnd) / CTA_MS);
         var ctaEased = easeOutCubic(ctaProgress);
 
         ctx.save();
-        // Clip to phone screen area
+        // Clip to phone screen
         roundRect(ctx, screen.screenX, screen.screenY, screen.screenW, screen.screenH, screen.screenRadius);
         ctx.clip();
 
-        // Semi-transparent overlay to dim the invite behind the CTA
-        ctx.fillStyle = 'rgba(0,0,0,' + (ctaEased * 0.55) + ')';
-        ctx.fillRect(screen.screenX, screen.screenY, screen.screenW, screen.screenH);
+        // White page slides up from bottom
+        var slideOffset = (1 - ctaEased) * screen.screenH;
+        var pageY = screen.screenY + slideOffset;
+
+        // White background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(screen.screenX, pageY, screen.screenW, screen.screenH);
 
         ctx.globalAlpha = ctaEased;
+        var centerX = screen.x + screen.w / 2;
+        var centerY = pageY + screen.screenH / 2;
 
-        var ctaW = Math.min(screen.w * 0.8, 400);
-        var ctaH = 56;
-        var ctaCenterX = screen.x + screen.w / 2;
-        var ctaCenterY = screen.y + screen.h / 2;
-        var ctaX = ctaCenterX - ctaW / 2;
-        var ctaY = ctaCenterY - 20;
-
-        // CTA button
-        ctx.shadowColor = 'rgba(233,69,96,0.5)';
-        ctx.shadowBlur = 24;
-        ctx.shadowOffsetY = 6;
-        roundRect(ctx, ctaX, ctaY, ctaW, ctaH, 28);
-        ctx.fillStyle = thm.ctaBg;
-        ctx.fill();
-        ctx.shadowColor = 'transparent';
-
-        ctx.font = 'bold ' + (fmt.ctaFontSize || 32) + 'px "Inter", Arial, sans-serif';
-        ctx.fillStyle = thm.ctaText;
+        // Main text: "100% Unique Invites"
+        ctx.font = 'bold ' + Math.round((fmt.ctaFontSize || 32) * 1.1) + 'px "Inter", Arial, sans-serif';
+        ctx.fillStyle = '#1a1a2e';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('Create Yours Free', ctaCenterX, ctaY + ctaH / 2);
+        ctx.fillText('100% Unique Invites', centerX, centerY - 50);
 
-        // URL below button
-        ctx.font = ((fmt.ctaFontSize || 32) * 0.55) + 'px "Inter", Arial, sans-serif';
-        ctx.fillStyle = 'rgba(255,255,255,0.8)';
-        ctx.fillText('ryvite.com', ctaCenterX, ctaY + ctaH + 28);
+        // "100% Free"
+        ctx.fillText('100% Free', centerX, centerY);
+
+        // "In Seconds"
+        ctx.fillStyle = thm.accentColor || '#E94560';
+        ctx.fillText('In Seconds', centerX, centerY + 50);
+
+        // Ryvite logo mark below
+        ctx.font = '600 ' + Math.round((fmt.ctaFontSize || 32) * 0.7) + 'px "Playfair Display", "Georgia", serif';
+        ctx.fillStyle = '#888';
+        ctx.fillText('ryvite.com', centerX, centerY + 120);
 
         ctx.restore();
       }
