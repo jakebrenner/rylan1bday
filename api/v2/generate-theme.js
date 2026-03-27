@@ -2493,6 +2493,12 @@ Return ONLY a valid JSON object with the COMPLETE updated theme:
           }
         }
 
+        // Escalation CSS validation — catch missing CSS early before the chokepoint
+        if (!theme.theme_css || !theme.theme_css.trim()) {
+          console.warn('[escalation] No CSS in response — falling back to currentCss');
+          theme.theme_css = currentCss || '';
+        }
+
         // Update token counts for the escalation
         const escInputTokens = escalationFinalMsg?.usage?.input_tokens || Math.round((escalationSystemPrompt.length + escalationMessage.length) / 4);
         const escOutputTokens = escalationFinalMsg?.usage?.output_tokens || Math.round(escalationText.length / 4);
@@ -2537,6 +2543,26 @@ Return ONLY a valid JSON object with the COMPLETE updated theme:
       // Preserve emailHtml across light (non-design) tweaks only
       if (!isFullDesignTweak && !tweakConfig.emailHtml && currentConfig?.emailHtml) {
         tweakConfig.emailHtml = currentConfig.emailHtml;
+      }
+
+      // ── CSS SAFETY GATE: Never send a theme with empty CSS ──
+      // This is the single chokepoint ALL tweak paths pass through (full design,
+      // escalation, light tweak). Catches every scenario where CSS was lost.
+      if (!theme.theme_css || !theme.theme_css.trim()) {
+        // Attempt 1: Extract from HTML <style> blocks
+        if (theme.theme_html) {
+          const styleMatch = theme.theme_html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+          if (styleMatch) {
+            theme.theme_css = styleMatch.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+            theme.theme_html = theme.theme_html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+            console.warn('[css-safety] Recovered CSS from HTML <style> blocks:', theme.theme_css.length, 'chars');
+          }
+        }
+        // Attempt 2: Fall back to current version's CSS
+        if (!theme.theme_css || !theme.theme_css.trim()) {
+          theme.theme_css = currentCss || '';
+          console.error('[css-safety] CSS was empty — falling back to currentCss:', (currentCss || '').length, 'chars');
+        }
       }
 
       // ── SERVER-SIDE THEME VALIDATION for tweaks (same as generation path) ──

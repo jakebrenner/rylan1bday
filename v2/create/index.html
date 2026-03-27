@@ -2853,7 +2853,7 @@
               id: genResult.theme.id,
               version: genResult.theme.version,
               html: genResult.theme.html,
-              css: genResult.theme.css,
+              css: genResult.theme.css || '',
               config: genResult.theme.config
             };
             themeVersions.push(ver);
@@ -3129,7 +3129,7 @@
       }
       // If CSS is STILL empty, log a warning — this is a real bug
       if (!css.trim()) {
-        console.error('[buildSrcdoc] WARNING: No CSS found for theme version', ver.id, '— invite will appear unstyled');
+        console.error('[buildSrcdoc] CRITICAL: No CSS for theme', ver.id, '| html length:', (ver.html || '').length, '| config keys:', Object.keys(config).join(','));
       }
       var fontsImport = config.googleFontsImport || '';
       // Normalize: ensure it's a full @import statement, not just a URL
@@ -4277,7 +4277,7 @@
 
         if (regenResult && regenResult.success && regenResult.theme) {
           var regenId = regenResult.theme.id === 'pending' ? ('pending-' + Date.now()) : regenResult.theme.id;
-          var newVer = { id: regenId, version: regenResult.theme.version, html: regenResult.theme.html, css: regenResult.theme.css, config: regenResult.theme.config };
+          var newVer = { id: regenId, version: regenResult.theme.version, html: regenResult.theme.html, css: regenResult.theme.css || '', config: regenResult.theme.config };
           themeVersions.push(newVer);
           activeVersionIndex = themeVersions.length - 1;
           currentEvent.themeHtml = newVer.html;
@@ -6601,7 +6601,8 @@
               currentEvent.freeRedoUsed = true;
             }
             var tweakId = tweakResult.theme.id === 'pending' ? ('pending-' + Date.now()) : tweakResult.theme.id;
-            var newVer = { id: tweakId, version: tweakResult.theme.version, html: tweakResult.theme.html, css: tweakResult.theme.css, config: tweakResult.theme.config };
+            var previousCss = themeVersions[activeVersionIndex] ? themeVersions[activeVersionIndex].css : '';
+            var newVer = { id: tweakId, version: tweakResult.theme.version, html: tweakResult.theme.html, css: tweakResult.theme.css || previousCss || '', config: tweakResult.theme.config };
             themeVersions.push(newVer);
             activeVersionIndex = themeVersions.length - 1;
             currentEvent.themeHtml = newVer.html;
