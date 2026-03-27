@@ -5692,19 +5692,9 @@
         }
       }
       event.target.value = '';
-      // Ask user how they want to use the photos
-      if (designChatPhotoUrls.length > 0 && !designChatPhotoType) {
-        var photoCount = designChatPhotoUrls.length;
-        pushDesignChat({
-          role: 'assistant',
-          content: (photoCount === 1 ? 'Got your photo!' : 'Got your ' + photoCount + ' photos!') + ' How would you like to use ' + (photoCount === 1 ? 'it' : 'them') + '?',
-          options: [
-            { label: 'Use in the invite', value: '__photo_type_use__' },
-            { label: 'Use as inspiration', value: '__photo_type_inspiration__' }
-          ]
-        });
-        renderDesignChat();
-      }
+      // Photos uploaded — thumbnails are shown in the preview area.
+      // Type selection (use in invite vs. inspiration) happens at send time,
+      // so the user can type their message first and submit everything together.
     }
 
     function removeDesignChatPhoto(btn, idx) {
@@ -5989,6 +5979,25 @@
       var text = input.value.trim();
       var hasPhotos = designChatPhotoUrls.length > 0;
       if (!text && !hasPhotos) return;
+
+      // ── Photo type gate: if photos are attached but type not chosen yet, ask first ──
+      if (hasPhotos && !designChatPhotoType) {
+        // Save the user's text so we can send it after they pick a type
+        window._pendingPhotoText = text;
+        var photoCount = designChatPhotoUrls.length;
+        pushDesignChat({
+          role: 'assistant',
+          content: 'How would you like to use ' + (photoCount === 1 ? 'this photo' : 'these ' + photoCount + ' photos') + '?',
+          options: [
+            { label: 'Use in the invite', value: '__photo_type_use__' },
+            { label: 'Use as inspiration', value: '__photo_type_inspiration__' }
+          ]
+        });
+        renderDesignChat();
+        input.value = '';
+        input.style.height = 'auto';
+        return;
+      }
 
       // ── Phase routing for chat-first "Start from Design" flow ──
       if (designChatPhase === 'collecting_details') {
@@ -6761,22 +6770,21 @@
           break;
         }
       }
-      var photoCount = designChatPhotoUrls.length;
-      if (type === 'use') {
-        pushDesignChat({ role: 'user', content: 'Use ' + (photoCount === 1 ? 'this photo' : 'these photos') + ' in the invite' });
-        var suggestion = 'Great! Here are some fun ideas for featuring ' + (photoCount === 1 ? 'your photo' : 'your photos') + ':\n\n'
-          + '\ud83d\ude81 Animated \u2014 faces flying from helicopters, popping out of presents, orbiting the title\n'
-          + '\ud83d\uddbc\ufe0f Themed frames \u2014 birthday balloons, wedding flowers, patriotic borders\n'
-          + '\ud83c\udfad Collage \u2014 scattered polaroids with fun tilts and washi tape\n'
-          + '\ud83c\udf1f Cutout \u2014 face cutouts placed onto illustrated characters or scenes\n'
-          + '\u2728 Interactive \u2014 photos that spin, bounce, or wave with CSS animation\n\n'
-          + 'Describe what you\'d like, or just hit send and I\'ll find a creative way to feature ' + (photoCount === 1 ? 'your photo' : 'your photos') + '!';
-        pushDesignChat({ role: 'assistant', content: suggestion });
-      } else {
-        pushDesignChat({ role: 'user', content: 'Use ' + (photoCount === 1 ? 'this' : 'these') + ' as design inspiration' });
-        pushDesignChat({ role: 'assistant', content: 'Got it! I\'ll use ' + (photoCount === 1 ? 'this photo' : 'these photos') + ' as design inspiration to redesign your invite. Hit send or describe any other changes you\'d like, and I\'ll regenerate the design with this inspiration in mind.' });
-      }
+      pushDesignChat({ role: 'user', content: type === 'use' ? 'Use in the invite' : 'Use as design inspiration' });
       renderDesignChat();
+      // Resume the pending message that was saved before the type selector appeared
+      var pendingText = window._pendingPhotoText || '';
+      window._pendingPhotoText = null;
+      if (pendingText || designChatPhotoUrls.length > 0) {
+        // Put the pending text back in the input and re-send
+        var input = document.getElementById('designChatInput');
+        // The user message was already pushed to chat history by the gate,
+        // so set skipIntentClassification to bypass re-classification
+        input.value = pendingText || '(with photos)';
+        skipIntentClassification = true;
+        skipRedesignDetection = true;
+        sendDesignChat();
+      }
     }
 
     function handleRedesignOption(value) {
