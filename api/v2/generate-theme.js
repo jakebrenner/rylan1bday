@@ -1721,10 +1721,11 @@ try {
       const historyContext = (chatHistory && chatHistory.length > 0)
         ? '\n\nRecent chat history (for context — resolve pronouns like "that", "it", "those"):\n' + chatHistory.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n')
         : '';
+      const classifyModel = 'claude-sonnet-4-5-20250514';
       const resp = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 300,
-        system: 'You classify user requests in a design chat for event invitations. Return ONLY a JSON object, no markdown.',
+        model: classifyModel,
+        max_tokens: 400,
+        system: 'You classify user requests in a design chat for event invitations. Return ONLY a JSON object, no markdown. Be very conservative with add_field — only classify as add_field if the user explicitly mentions "field", "form", "RSVP", "question", or "ask". When in doubt between add_field and design_change, choose design_change.',
         messages: [{ role: 'user', content: `The user is customizing their ${eventType || 'event'} invite${classifyPreviewMode === 'email' ? ' email' : ''} and said:
 "${userMessage}"
 
@@ -1740,14 +1741,15 @@ Classify this request. Return JSON:
 }
 
 Rules:
-- "add_field": user wants to add an RSVP form field (e.g. "add number of adults", "I need a dietary field")
-- "design_change": visual changes (colors, fonts, layout, style, animations, spacing). Also includes requests that reference design elements like "remove the image", "change the text below the photo", "make the picture bigger" — these are about the DESIGN, not about uploading new photos
+- "add_field": user EXPLICITLY wants to add an RSVP form field. MUST mention "field", "form", "RSVP", "question", or "ask" — e.g., "add a field for dietary restrictions", "add a question about plus ones", "I need an RSVP field for meal choice". If the user says "add X to the illustration/graphic/design/invite" WITHOUT mentioning fields/form/RSVP, that is design_change, NOT add_field. This is the most commonly misclassified intent — be VERY conservative.
+- "design_change": visual changes to the invite design (colors, fonts, layout, style, animations, spacing, illustrations, graphics, images, SVGs). This includes: "add performers to the illustration", "add X to the graphic", "make the picture bigger", "change the layout", "add a section for X". If the user is talking about what the invite LOOKS LIKE, it's design_change.
 - "text_change": change, add, or remove specific text/wording/copy in the invite (e.g. "remove where it says Live August 2026", "add description text", "change the heading")
-- "add_photo": user explicitly wants to UPLOAD or INCLUDE a new photo/image in the design (e.g. "add my photo", "I want to upload a picture", "include a selfie"). NOT for referencing existing design elements — "remove the image at the top" is text_change or design_change, NOT add_photo
-- "detail_change": user wants to change event details like date, time, location, venue, dress code, or event title (e.g. "change the date to April 20", "move the time to 7pm", "update the location"). These changes happen in the Details tab, not through design tweaks
+- "add_photo": user explicitly wants to UPLOAD a new photo (e.g. "add my photo", "upload a picture"). NOT for referencing existing design elements.
+- "detail_change": change event data (date, time, location, venue, dress code, title). These happen in the Details tab.
+- "remove_field": user wants to remove an RSVP form field. Must reference a field/form element, not a design element.
 - "question": user is asking a question, not requesting a change
-- "broken_render": user is reporting the invite looks broken, is missing content/text/fields, appears blank, cut off, or didn't render correctly (e.g. "it's missing all the text", "nothing is showing", "where are the fields", "the invite is blank")
-- "unclear": you genuinely can't determine what they want
+- "broken_render": invite looks broken/blank/cut off
+- "unclear": genuinely can't determine what they want
 - IMPORTANT: Use chat history to resolve pronouns and references. "remove that", "undo it", "nope", "remove those" refer to whatever was just done in the previous messages. "that" after a field addition = remove the fields that were just added. "that" after a design change = undo the design change.
 - "create a new version with X in the illustration" = design_change (modify the SVG/graphic), NOT add_field. "performers in the illustration" means adding visual elements to the design, NOT RSVP form fields about performers.
 - confidence 0.9+: crystal clear request. confidence 0.5-0.8: probably understand but should confirm. confidence <0.5: genuinely unclear
@@ -1761,7 +1763,7 @@ Rules:
       const classifyInputTokens = resp.usage?.input_tokens || 0;
       const classifyOutputTokens = resp.usage?.output_tokens || 0;
       const classifyLatency = Date.now() - classifyStartTime;
-      const classifyCost = calcGenerationCost('claude-haiku-4-5-20251001', classifyInputTokens, classifyOutputTokens);
+      const classifyCost = calcGenerationCost(classifyModel, classifyInputTokens, classifyOutputTokens);
       let classification;
       try {
         const cleaned = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
