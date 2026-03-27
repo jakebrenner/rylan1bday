@@ -2060,13 +2060,13 @@ Outer background: #FFFAF5 (Ryvite cream). Max-width: 480px.
 - When users tweak the email, preserve the branded header/footer structure — only modify the card body content
 - The email is a first impression — make it feel premium and on-brand, not generic`
         : isLightTweak
-        ? `You are modifying an event ${isEmailMode ? 'email invite' : 'invite'}. Make ONLY the specific text, wording, or content changes requested. Do NOT change design, layout, colors, fonts, or CSS.
+        ? `You are modifying an event ${isEmailMode ? 'email invite' : 'invite'}. Make ONLY the specific text, wording, or content changes requested. Do NOT change design, layout, colors, fonts, or CSS — UNLESS the user reports a contrast/readability issue.
 
 ## OUTPUT FORMAT
 Return ONLY a valid JSON object:
 {
   "html_replacements": [{"old": "exact text from HTML to find", "new": "replacement text"}],
-  "rsvp_field_changes": [...] or null,
+  ${isEmailMode ? '' : '"css_additions": "extra CSS rules to append (or null if none needed)",\n  "rsvp_field_changes": [...] or null,'}
   "chat_response": "Brief friendly message about what you changed."
 }
 
@@ -2076,6 +2076,7 @@ Return ONLY a valid JSON object:
 - RSVP fields: { "action": "remove"|"add"|"modify", "field_key": "...", "label": "...", "field_type": "text"|"number"|"select"|"checkbox"|"textarea", "is_required": false }
 - .rsvp-slot MUST be completely EMPTY — the platform injects the RSVP form at runtime. NEVER put buttons or content inside it — fields are rendered by the platform, NOT in HTML
 - NEVER remove structural elements: .rsvp-slot, .details-slot, [data-field="title"], or their CSS styles — even if user doesn't mention them
+- CONTRAST/READABILITY FIX: If the user reports text contrast issues (dark text on dark background, light text on light background, unreadable text, can't see text), you CAN add CSS rules via "css_additions" to fix it. The platform-injected RSVP form uses these classes: .rsvp-form-injected, .rsvp-form-injected label, .rsvp-form-injected input, .rsvp-button. On dark backgrounds, add rules like: .rsvp-form-injected label { color: #FFFFFF !important; } .rsvp-form-injected input { color: #FFFFFF !important; border-color: rgba(255,255,255,0.3) !important; }
 - Keep changes minimal — only what the user asked for`
         : `You are an elite invite designer modifying event invites via a conversational chat interface. Your modifications should maintain the extraordinary quality standard — better than Evite, Paperless Post, or Canva.
 
@@ -2319,14 +2320,14 @@ Even if the user's request doesn't mention these elements, they MUST be preserve
           lightTweakFailed = true;
         } else {
           theme.theme_html = patchedHtml;
-          theme.theme_css = currentCss;
+          theme.theme_css = currentCss + (theme.css_additions ? '\n' + theme.css_additions : '');
           theme.theme_config = currentConfig || {};
         }
       } else if (isLightTweak && !theme.theme_html && !theme.html) {
-        // Light tweak with only rsvp_field_changes, no HTML changes needed
-        console.log('[tweak] Light tweak with no HTML changes (field-only)');
+        // Light tweak with only rsvp_field_changes or css_additions, no HTML changes needed
+        console.log('[tweak] Light tweak with no HTML changes (field/css-only)');
         theme.theme_html = currentHtml;
-        theme.theme_css = currentCss;
+        theme.theme_css = currentCss + (theme.css_additions ? '\n' + theme.css_additions : '');
         theme.theme_config = currentConfig || {};
       } else {
         // ── Full tweak: accept both snake_case and camelCase keys from Claude ──
