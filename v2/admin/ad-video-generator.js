@@ -699,13 +699,14 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
     recorder.onerror = function(e) { reject(new Error('MediaRecorder error: ' + (e.error || e.message || 'unknown'))); };
 
     let startTime = null;
-    let animFrameId = null;
+    let animTimerId = null;
+    const frameMs = 1000 / FPS; // target ~33ms per frame
 
     recorder.start(1000);
 
-    function drawFrame(timestamp) {
-      if (!startTime) startTime = timestamp;
-      const elapsed = timestamp - startTime;
+    function drawFrame() {
+      if (!startTime) startTime = performance.now();
+      const elapsed = performance.now() - startTime;
 
       ctx.clearRect(0, 0, fmt.width, fmt.height);
 
@@ -984,16 +985,18 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
       onProgress(progress, phase);
 
       if (elapsed < totalMs) {
-        animFrameId = requestAnimationFrame(drawFrame);
+        // Use setTimeout instead of requestAnimationFrame so rendering
+        // continues at full speed even when the tab is in the background
+        animTimerId = setTimeout(drawFrame, frameMs);
       } else {
         setTimeout(function() {
           recorder.stop();
-          cancelAnimationFrame(animFrameId);
+          clearTimeout(animTimerId);
         }, 200);
       }
     }
 
-    animFrameId = requestAnimationFrame(drawFrame);
+    animTimerId = setTimeout(drawFrame, 0);
   });
 }
 
