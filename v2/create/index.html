@@ -3136,6 +3136,34 @@
       if (fontsImport && !fontsImport.startsWith('@import')) {
         fontsImport = "@import url('" + fontsImport + "');";
       }
+      // Fallback: if no config import, try to extract @import from CSS itself
+      if (!fontsImport && css) {
+        var cssImportMatch = css.match(/@import\s+url\(['"]?(https:\/\/fonts\.googleapis\.com[^'"\)]+)['"]?\)/);
+        if (cssImportMatch) {
+          fontsImport = "@import url('" + cssImportMatch[1] + "');";
+          console.log('[buildSrcdoc] Extracted Google Fonts import from CSS:', fontsImport.substring(0, 80));
+        }
+      }
+      // Fallback 2: if still no import but CSS references Google Fonts by name,
+      // extract font names and build the import URL
+      if (!fontsImport && css) {
+        var fontFamilies = css.match(/font-family\s*:\s*['"]?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/g);
+        if (fontFamilies) {
+          var uniqueFonts = [];
+          var systemFonts = ['Arial', 'Helvetica', 'Times', 'Georgia', 'Verdana', 'Courier', 'Inter', 'Sans', 'Serif', 'Monospace'];
+          fontFamilies.forEach(function(m) {
+            var fontName = m.replace(/font-family\s*:\s*['"]?/, '').trim();
+            if (fontName && systemFonts.indexOf(fontName) === -1 && uniqueFonts.indexOf(fontName) === -1) {
+              uniqueFonts.push(fontName);
+            }
+          });
+          if (uniqueFonts.length > 0) {
+            var fontParams = uniqueFonts.map(function(f) { return 'family=' + f.replace(/\s+/g, '+') + ':wght@300;400;500;600;700'; }).join('&');
+            fontsImport = "@import url('https://fonts.googleapis.com/css2?" + fontParams + "&display=swap');";
+            console.log('[buildSrcdoc] Generated Google Fonts import from CSS font-family refs:', uniqueFonts.join(', '));
+          }
+        }
+      }
       // Google Fonts @import MUST be the very first thing in the first <style> block —
       // browsers silently ignore @import after any other CSS rules
       var fontsStyle = fontsImport ? '<style>' + fontsImport + '</style>' : '';
@@ -3600,11 +3628,25 @@
           var titleEl = doc.querySelector('[data-field="title"]');
           if (titleEl) {
             var win = iframe.contentWindow || doc.defaultView;
+            // Find the deepest text-containing element to update text without losing styling
             var walker = titleEl;
             while (walker.firstElementChild) walker = walker.firstElementChild;
             var origColor = '';
-            try { origColor = win.getComputedStyle(walker).color; } catch(e) {}
-            titleEl.innerHTML = extractedData.title;
+            var origFont = '';
+            try {
+              var cs = win.getComputedStyle(walker);
+              origColor = cs.color;
+              origFont = cs.fontFamily;
+            } catch(e) {}
+            // Update text content in the deepest element to preserve wrapper styling
+            // (font-family, letter-spacing, etc. may be on parent spans)
+            if (walker === titleEl) {
+              // No nested elements — safe to set innerHTML
+              titleEl.innerHTML = extractedData.title;
+            } else {
+              // Nested styled elements — update text content of deepest node
+              walker.textContent = extractedData.title;
+            }
             if (origColor) titleEl.style.setProperty('color', origColor, 'important');
           }
         }
