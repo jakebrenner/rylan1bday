@@ -3856,11 +3856,11 @@
             var fbBg = fallbackConfig.backgroundColor || '#FFFAF5';
             var fbText = fallbackConfig.textColor || '#1A1A2E';
             var fallbackStyle = doc.createElement('style');
-            // Only inject background + color with !important — NOT font-family.
-            // Font-family !important permanently overrides AI-generated custom fonts
-            // when Google Fonts are slow to load (the low-specificity fallback in
-            // buildSrcdoc already handles font fallback without !important).
-            fallbackStyle.textContent = 'html, body { background:' + fbBg + ' !important; color:' + fbText + ' !important; }';
+            // Only inject background with !important — NOT color.
+            // color: !important on body cascades to ALL descendants including the
+            // platform-injected RSVP form, overriding the white text on dark themes.
+            // The AI theme's CSS already sets text colors on specific elements.
+            fallbackStyle.textContent = 'html, body { background:' + fbBg + ' !important; }';
             doc.head.appendChild(fallbackStyle);
           } catch (injectErr) {
             console.warn('[checkCssRendered] Failed to inject fallback CSS:', injectErr.message);
