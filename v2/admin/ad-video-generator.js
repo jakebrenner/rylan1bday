@@ -289,20 +289,42 @@ async function renderInviteVideo(html, css, config, format, authFetch, onProgres
     onProgress(50 + (j / frames.length) * 50);
   }
 
-  // Create a frame player that mimics a video source for animateAndRecord
+  // Create a frame player with cross-fade blending between frames for smooth playback
+  var blendCanvas = document.createElement('canvas');
+  blendCanvas.width = images[0].naturalWidth;
+  blendCanvas.height = images[0].naturalHeight;
+  var blendCtx = blendCanvas.getContext('2d');
+
   var framePlayer = {
     _isVideoSource: true,
     _frames: images,
     _fps: fps,
     _startTime: null,
+    _blendCanvas: blendCanvas,
+    _blendCtx: blendCtx,
     videoWidth: images[0].naturalWidth,
     videoHeight: images[0].naturalHeight,
-    // Get the current frame based on elapsed wall-clock time (loops)
+    // Get the current frame with cross-fade blending between adjacent frames
     getCurrentFrame: function() {
       if (!this._startTime) this._startTime = Date.now();
       var elapsed = Date.now() - this._startTime;
-      var frameIndex = Math.floor((elapsed / 1000) * this._fps) % this._frames.length;
-      return this._frames[frameIndex];
+      var exactFrame = (elapsed / 1000) * this._fps;
+      var totalFrames = this._frames.length;
+      var frameA = Math.floor(exactFrame) % totalFrames;
+      var frameB = (frameA + 1) % totalFrames;
+      var blend = exactFrame - Math.floor(exactFrame); // 0-1 between frames
+
+      // If blend is very close to 0 or 1, skip blending for performance
+      if (blend < 0.05) return this._frames[frameA];
+      if (blend > 0.95) return this._frames[frameB];
+
+      // Cross-fade: draw frame A, then overlay frame B with alpha
+      this._blendCtx.globalAlpha = 1;
+      this._blendCtx.drawImage(this._frames[frameA], 0, 0);
+      this._blendCtx.globalAlpha = blend;
+      this._blendCtx.drawImage(this._frames[frameB], 0, 0);
+      this._blendCtx.globalAlpha = 1;
+      return this._blendCanvas;
     }
   };
 
