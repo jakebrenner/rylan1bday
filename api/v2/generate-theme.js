@@ -1711,12 +1711,16 @@ try {
   // Returns intent, confidence score, and a clarifying question if confidence is low.
   // This prevents expensive AI calls on ambiguous requests and ensures the chat never fails silently.
   if (action === 'classifyIntent') {
-    const { userMessage, currentFields, eventType, previewMode: classifyPreviewMode } = req.body;
+    const { userMessage, chatHistory, currentFields, eventType, previewMode: classifyPreviewMode } = req.body;
     if (!userMessage) return res.status(400).json({ error: 'Missing userMessage' });
 
     try {
       const classifyStartTime = Date.now();
       const fieldList = (currentFields || []).map(f => `"${f.label}" (${f.field_type})`).join(', ');
+      // Build chat history context for the classifier
+      const historyContext = (chatHistory && chatHistory.length > 0)
+        ? '\n\nRecent chat history (for context — resolve pronouns like "that", "it", "those"):\n' + chatHistory.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n')
+        : '';
       const resp = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 300,
@@ -1724,7 +1728,7 @@ try {
         messages: [{ role: 'user', content: `The user is customizing their ${eventType || 'event'} invite${classifyPreviewMode === 'email' ? ' email' : ''} and said:
 "${userMessage}"
 
-Current RSVP fields: ${fieldList || 'none'}
+Current RSVP fields: ${fieldList || 'none'}${historyContext}
 
 Classify this request. Return JSON:
 {
@@ -1744,6 +1748,8 @@ Rules:
 - "question": user is asking a question, not requesting a change
 - "broken_render": user is reporting the invite looks broken, is missing content/text/fields, appears blank, cut off, or didn't render correctly (e.g. "it's missing all the text", "nothing is showing", "where are the fields", "the invite is blank")
 - "unclear": you genuinely can't determine what they want
+- IMPORTANT: Use chat history to resolve pronouns and references. "remove that", "undo it", "nope", "remove those" refer to whatever was just done in the previous messages. "that" after a field addition = remove the fields that were just added. "that" after a design change = undo the design change.
+- "create a new version with X in the illustration" = design_change (modify the SVG/graphic), NOT add_field. "performers in the illustration" means adding visual elements to the design, NOT RSVP form fields about performers.
 - confidence 0.9+: crystal clear request. confidence 0.5-0.8: probably understand but should confirm. confidence <0.5: genuinely unclear
 - For add_field with confidence >= 0.8, include "field_details": {"label": "...", "field_type": "..."} so we can skip a second AI call
 - The clarification should be warm, conversational, and show you understood SOMETHING (never "what do you mean?")

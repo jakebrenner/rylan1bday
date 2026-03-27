@@ -6240,11 +6240,14 @@
         try {
           console.log('[tweak] Classifying intent before AI call...');
           var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+          // Send recent chat history for context (last 6 messages — enough for "remove that" to resolve)
+          var recentHistory = designChatHistory.filter(function(m) { return m.role === 'user' || m.role === 'assistant'; }).slice(-6).map(function(m) { return { role: m.role, content: (m.content || '').substring(0, 300) }; });
           var classifyRes = await authFetch('/api/v2/generate-theme?action=classifyIntent', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               userMessage: text,
+              chatHistory: recentHistory,
               currentFields: enabledFields.map(function(f) { return { label: f.label, field_type: f.field_type }; }),
               eventType: currentEvent ? currentEvent.event_type : null,
               previewMode: currentPreviewMode
