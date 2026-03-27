@@ -382,7 +382,9 @@
 
       // Fallback CSS from config colors — low specificity so AI CSS overrides
       var fallbackBg = config.backgroundColor || '#FFFAF5';
-      var fallbackText = config.textColor || '#1A1A2E';
+      var fallbackBgRgb = parseRgb(fallbackBg) || hexToRgb(fallbackBg);
+      var fallbackBgIsDark = fallbackBgRgb ? relativeLuminance(fallbackBgRgb) < 0.35 : false;
+      var fallbackText = config.textColor || (fallbackBgIsDark ? '#FFFFFF' : '#1A1A2E');
       var fallbackFont = config.fontBody || 'Inter';
       var fallbackCSS = 'html, body { background:' + fallbackBg + '; color:' + fallbackText + '; font-family:\'' + fallbackFont + '\',sans-serif; }';
 
