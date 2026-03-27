@@ -108,12 +108,12 @@ export default async function handler(req, res) {
   const { html, css, config, format, duration } = req.body;
   if (!html) return res.status(400).json({ error: 'html is required' });
 
-  const recordDuration = Math.min(Math.max(duration || 6, 2), 10); // 2-10 seconds
+  const recordDuration = Math.min(Math.max(duration || 10, 2), 15); // 2-15 seconds
   const viewport = { width: 393, height: 852, deviceScaleFactor: 2 }; // Always phone viewport — format only affects ad canvas, not invite capture
 
-  const fps = 8; // 8fps for smooth CSS animation capture (higher causes timing drift)
+  const fps = 10; // 10fps — cross-fade blending on client smooths to 30fps output
   const totalFrames = Math.ceil(recordDuration * fps);
-  const frameInterval = 1000 / fps; // 125ms between frames
+  const frameInterval = 1000 / fps; // 100ms between frames
 
   // Use SSE streaming to prevent gateway timeout and send progress
   res.writeHead(200, {

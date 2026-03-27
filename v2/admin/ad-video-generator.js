@@ -97,20 +97,20 @@ const FORMAT_CONFIGS = {
   reels_9x16: {
     width: 1080,
     height: 1920,
-    logoY: 60,
-    logoSize: 46,
-    labelFontSize: 22,
+    logoY: 50,
+    logoSize: 56,
+    labelFontSize: 26,
     labelY: 118,
-    // Centered phone (iPhone 15 proportions 393:852) — larger, vertically centered
+    // Centered phone (iPhone 15 proportions 393:852) — centered between logo and CTA
     phoneWidth: 580,
     phoneHeight: 1258,
-    phoneY: 180,
+    phoneY: 240,
     // Prompt card drawn ON phone screen
     promptFontSize: 28,
     promptLineHeight: 42,
     promptLabelSize: 16,
-    ctaY: 1760,
-    ctaFontSize: 32,
+    ctaY: 1740,
+    ctaFontSize: 34,
     particleCount: 30
   },
   feed_1x1: {
@@ -141,10 +141,10 @@ const POST_TYPE_PAUSE = 600;
 const DISSOLVE_MS = 500;   // prompt card dissolve before shimmer
 const SHIMMER_MS = 1200;
 const REVEAL_MS = 1200;    // scale + fade reveal
-const SCROLL_PX_PER_SEC = 100; // scroll speed through invite
-const MAX_SCROLL_MS = 6000; // cap scroll duration
-const HOLD_MS = 2000;      // hold at top of invite
-const END_HOLD_MS = 1500;  // hold at bottom of invite
+const SCROLL_PX_PER_SEC = 70;  // scroll speed through invite (slower = more time to see content)
+const MAX_SCROLL_MS = 8000; // cap scroll duration
+const HOLD_MS = 2500;      // hold at top of invite
+const END_HOLD_MS = 2000;  // hold at bottom of invite
 const CTA_MS = 1500;
 const FPS = 30;
 const BG_CYCLE_MS = 12000; // slow background color cycle duration
@@ -243,7 +243,7 @@ async function renderInviteVideo(html, css, config, format, authFetch, onProgres
       css: css,
       config: config,
       format: format,
-      duration: 6
+      duration: 10
     })
   });
 
