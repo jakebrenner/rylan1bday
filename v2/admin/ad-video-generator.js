@@ -690,7 +690,7 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
     const blobType = isMP4 ? 'video/mp4' : 'video/webm';
     const recorder = new MediaRecorder(stream, {
       mimeType: chosenMime,
-      videoBitsPerSecond: 10000000
+      videoBitsPerSecond: 16000000
     });
     const chunks = [];
 
