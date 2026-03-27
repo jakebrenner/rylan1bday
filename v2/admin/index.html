@@ -198,6 +198,7 @@
     .generating-overlay { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center; }
     .generating-spinner { width: 48px; height: 48px; border: 3px solid #eee; border-top-color: var(--party-coral); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .ad-spinner { display:inline-block; width:14px; height:14px; border:2px solid #f59e0b; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; }
     .prompt-toggle { cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--midnight); padding: 10px 14px; background: #f9f9f9; border-radius: 6px; border: 1px solid #eee; margin-bottom: 12px; user-select: none; }
     .prompt-toggle:hover { background: #f0f0f0; }
     .prompt-toggle .arrow { transition: transform 0.2s; }
@@ -8804,13 +8805,21 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         // Video status badge + action
         var statusHtml = '';
         if (c.video_status === 'rendering') {
-          statusHtml = '<span style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;animation:pulse 1.5s infinite;">⏳ Rendering</span>';
+          var elapsed = c.video_started_at ? Math.round((Date.now() - new Date(c.video_started_at).getTime()) / 1000) : 0;
+          var elapsedStr = elapsed > 60 ? Math.floor(elapsed / 60) + 'm ' + (elapsed % 60) + 's' : elapsed + 's';
+          statusHtml = '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">'
+            + '<div style="display:flex;align-items:center;gap:6px;">'
+            + '<span class="ad-spinner"></span>'
+            + '<span style="font-size:11px;font-weight:600;color:#f59e0b;">Rendering</span>'
+            + '</div>'
+            + '<span style="font-size:10px;color:#999;">' + elapsedStr + '</span>'
+            + '</div>';
         } else if (c.video_status === 'ready' && c.video_url) {
-          statusHtml = '<a href="' + escapeHtml(c.video_url) + '" download style="background:#10b981;color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;text-decoration:none;display:inline-block;" onclick="event.stopPropagation();">⬇ Download</a>';
+          statusHtml = '<a href="' + escapeHtml(c.video_url) + '" download style="background:#10b981;color:#fff;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;display:inline-block;" onclick="event.stopPropagation();">Download</a>';
         } else if (c.video_status === 'failed') {
-          statusHtml = '<span style="background:#ef4444;color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;" title="' + escapeHtml(c.video_error || '') + '">✕ Failed</span>';
+          statusHtml = '<span style="color:#ef4444;font-size:11px;font-weight:600;cursor:help;" title="' + escapeHtml(c.video_error || 'Unknown error') + '">Failed</span>';
         } else {
-          statusHtml = '<span style="color:#aaa;font-size:10px;">—</span>';
+          statusHtml = '<span style="color:#ccc;font-size:11px;">—</span>';
         }
 
         return '<tr style="border-bottom:1px solid #f0f0f5;cursor:pointer;" onclick="showCreativeDetail(\'' + c.creative_id + '\')">'
