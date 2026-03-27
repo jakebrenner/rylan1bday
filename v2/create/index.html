@@ -3813,161 +3813,65 @@
     var _MAX_CSS_RETRIES = 2;
 
     function checkCssRendered(iframe, ver) {
+      // Lightweight CSS rendering check — DIAGNOSTIC ONLY, never modifies the DOM.
+      // Previous versions of this function caused more bugs than it fixed by
+      // rebuilding srcdoc (destroying loaded fonts), injecting !important rules
+      // (overriding RSVP form contrast), and re-rendering in loops.
       try {
         var doc = iframe.contentDocument;
         if (!doc || !doc.body) return;
         var win = doc.defaultView;
-        var bodyStyle = win.getComputedStyle(doc.body);
-        var bodyBg = bodyStyle.backgroundColor;
 
-        // Check 1: Body background (existing check)
+        // Check if CSS appears to have loaded
+        var bodyBg = win.getComputedStyle(doc.body).backgroundColor;
         var isUnstyled = (!bodyBg || bodyBg === 'rgba(0, 0, 0, 0)' || bodyBg === 'rgb(255, 255, 255)');
-        // Also check body background-image (gradients) — dark themes use these
+
+        // Check deeper — any styled children means CSS is working
         if (isUnstyled) {
-          var bodyBgImg = bodyStyle.backgroundImage;
-          if (bodyBgImg && bodyBgImg !== 'none') isUnstyled = false;
+          var candidates = doc.querySelectorAll('div, section, main, header, article');
+          for (var ci = 0; ci < Math.min(candidates.length, 10); ci++) {
+            var cs = win.getComputedStyle(candidates[ci]);
+            if ((cs.backgroundColor && cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundColor !== 'rgb(255, 255, 255)') ||
+                (cs.backgroundImage && cs.backgroundImage !== 'none')) {
+              isUnstyled = false;
+              break;
+            }
+          }
         }
-        // Also check: if config says dark bg, CSS IS working even if body bg reads transparent
+
+        // Config says non-white background → CSS is working
         if (isUnstyled) {
           var cfgBg = (ver.config || {}).backgroundColor || '';
           if (cfgBg) {
             var cfgRgb = parseRgb(cfgBg) || hexToRgb(cfgBg);
-            if (cfgRgb && (cfgRgb.r + cfgRgb.g + cfgRgb.b) < 200) isUnstyled = false;
+            if (cfgRgb && (cfgRgb.r + cfgRgb.g + cfgRgb.b) < 700) isUnstyled = false;
           }
         }
 
-        // Check 2: Look for styled elements deeper in the DOM
-        // Even if body bg is white/transparent, the invite may have styled children
-        if (isUnstyled) {
-          // Check multiple elements — themes often nest colorful backgrounds deeper
-          var candidates = doc.querySelectorAll('div, section, main, header, article');
-          for (var ci = 0; ci < Math.min(candidates.length, 10); ci++) {
-            var divStyle = win.getComputedStyle(candidates[ci]);
-            var divBg = divStyle.backgroundColor;
-            // If any child has a non-default background, CSS IS working
-            if (divBg && divBg !== 'rgba(0, 0, 0, 0)' && divBg !== 'rgb(255, 255, 255)') {
-              isUnstyled = false;
-              break;
-            }
-            // Also check for background-image (gradients, images)
-            var bgImg = divStyle.backgroundImage;
-            if (bgImg && bgImg !== 'none') {
-              isUnstyled = false;
-              break;
-            }
-          }
-          // Also check if any non-default font is applied (CSS is working even if bg is white)
-          if (isUnstyled && doc.body.children.length > 0) {
-            var anyFont = win.getComputedStyle(doc.body.children[0]).fontFamily;
-            if (anyFont && anyFont !== 'Times' && anyFont !== '"Times New Roman"' && anyFont !== 'serif' && anyFont !== 'Times New Roman') {
-              isUnstyled = false;
-            }
-          }
-        }
-
-        // Check 3: Verify CSS custom properties are applied (our themes use CSS vars)
-        if (!isUnstyled) {
-          var rootStyles = win.getComputedStyle(doc.documentElement);
-          // If theme has CSS vars but they didn't resolve, something's broken
-          if (ver.css && ver.css.includes('--') && doc.body.children.length > 0) {
-            var testEl = doc.body.children[0];
-            var testFont = win.getComputedStyle(testEl).fontFamily;
-            // If font is still Times/serif default, CSS likely didn't load
-            if (testFont === 'Times' || testFont === '"Times New Roman"' || testFont === 'serif') {
-              // Check if CSS specifies a custom font
-              if (ver.css.match(/font-family\s*:/i)) {
-                console.warn('[checkCssRendered] CSS specifies custom fonts but default serif is rendering — waiting for Google Fonts');
-                // Use document.fonts API to watch for font loading completion
-                // When fonts load, the iframe will automatically re-render text with the new font
-                // But we need to trigger a layout recalc so the user sees the change
-                if (doc.fonts && doc.fonts.ready) {
-                  doc.fonts.ready.then(function() {
-                    console.log('[checkCssRendered] Fonts loaded — forcing layout refresh');
-                    // Force a layout recalc by toggling a style
-                    doc.body.style.opacity = '0.999';
-                    setTimeout(function() { doc.body.style.opacity = ''; }, 50);
-                  });
-                }
-              }
-            }
-          }
-        }
-
-        // Check 4: Content overflow detection — text flowing outside visible area
-        if (!isUnstyled && doc.body.scrollWidth > 420) {
-          console.warn('[checkCssRendered] Content overflow detected: scrollWidth=' + doc.body.scrollWidth + 'px (max 393px)');
-        }
-
-        if (isUnstyled && ver.css && ver.css.trim().length > 100 && _cssCheckRetries < _MAX_CSS_RETRIES) {
-          // CSS exists but didn't apply — try re-injecting the CSS into the iframe
-          // instead of rebuilding the entire srcdoc (which destroys already-loaded fonts)
-          _cssCheckRetries++;
-          console.warn('[checkCssRendered] Invite appears unstyled despite having CSS (' + ver.css.length + ' chars). Re-inject attempt ' + _cssCheckRetries + '/' + _MAX_CSS_RETRIES);
+        // If truly no CSS and we have CSS to inject, append it (non-destructive)
+        if (isUnstyled && ver.css && ver.css.trim().length > 100) {
+          console.warn('[checkCssRendered] CSS may not have applied. Appending as new style element.');
           try {
             var reinjectStyle = doc.createElement('style');
             reinjectStyle.textContent = ver.css;
             doc.head.appendChild(reinjectStyle);
-          } catch (e) {
-            console.warn('[checkCssRendered] CSS re-injection failed:', e.message);
-          }
-          return;
+          } catch (e) {}
         }
 
-        // Last resort: retries exhausted and still unstyled — inject fallback CSS directly into iframe DOM
-        if (isUnstyled && _cssCheckRetries >= _MAX_CSS_RETRIES) {
-          console.error('[checkCssRendered] All retries exhausted. Injecting fallback CSS directly into iframe.');
-          try {
-            var fallbackConfig = ver.config || {};
-            var fbBg = fallbackConfig.backgroundColor || '#FFFAF5';
-            var fallbackStyle = doc.createElement('style');
-            // Only inject background with !important — NOT color.
-            fallbackStyle.textContent = 'html, body { background:' + fbBg + ' !important; }';
-            doc.head.appendChild(fallbackStyle);
-          } catch (injectErr) {
-            console.warn('[checkCssRendered] Failed to inject fallback CSS:', injectErr.message);
-          }
+        // Wait for fonts to load (non-destructive)
+        if (doc.fonts && doc.fonts.ready) {
+          doc.fonts.ready.then(function() {
+            doc.body.style.opacity = '0.999';
+            setTimeout(function() { doc.body.style.opacity = ''; }, 50);
+          });
         }
 
-        // If there's truly no CSS at all, check if HTML contains inline <style> we missed
-        if (isUnstyled && (!ver.css || !ver.css.trim())) {
-          console.error('[checkCssRendered] Invite has no CSS. This is a generation bug. Theme version:', ver.id);
-          var styleBlocks = (ver.html || '').match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
-          if (styleBlocks) {
-            ver.css = styleBlocks.map(function(s) {
-              return s.replace(/<style[^>]*>/gi, '').replace(/<\/style\s*>/gi, '');
-            }).join('\n');
-            console.log('[checkCssRendered] Recovered ' + ver.css.length + ' chars of CSS from HTML.');
-            // Re-inject recovered CSS into existing iframe instead of rebuilding
-            try {
-              var recoveredStyle = doc.createElement('style');
-              recoveredStyle.textContent = ver.css;
-              doc.head.appendChild(recoveredStyle);
-            } catch (e) {}
-          }
+        // Log overflow for debugging (no action taken)
+        if (doc.body.scrollWidth > 420) {
+          console.warn('[checkCssRendered] Content overflow: scrollWidth=' + doc.body.scrollWidth + 'px');
         }
-
-        // Check 5: Validate no markdown fences leaked into rendered content
-        if (doc.body.textContent && doc.body.textContent.includes('```')) {
-          console.warn('[checkCssRendered] Markdown fences detected in rendered content — cleaning');
-          ver.html = ver.html.replace(/```(?:html|css)?\s*/g, '').replace(/```\s*/g, '');
-          ver.css = ver.css.replace(/```(?:css)?\s*/g, '').replace(/```\s*/g, '');
-          // Re-inject cleaned CSS instead of full srcdoc rebuild
-          try {
-            var cleanStyle = doc.createElement('style');
-            cleanStyle.textContent = ver.css;
-            doc.head.appendChild(cleanStyle);
-            // Remove markdown from body text
-            doc.body.innerHTML = doc.body.innerHTML.replace(/```(?:html|css)?\s*/g, '').replace(/```\s*/g, '');
-          } catch (e) {
-            // Only rebuild as absolute last resort
-            iframe.srcdoc = buildSrcdoc(ver);
-          }
-        }
-
-        // Reset retry counter on successful render
-        if (!isUnstyled) _cssCheckRetries = 0;
       } catch (e) {
-        // Cross-origin iframe or other error — can't check, skip silently
+        // Cross-origin or other error — skip silently
       }
     }
 
