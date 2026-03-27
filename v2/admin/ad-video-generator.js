@@ -97,45 +97,43 @@ const FORMAT_CONFIGS = {
   reels_9x16: {
     width: 1080,
     height: 1920,
-    logoY: 50,
-    logoSize: 56,
-    labelFontSize: 26,
-    labelY: 118,
-    // Centered phone (iPhone 15 proportions 393:852) — centered between logo and CTA
-    phoneWidth: 580,
-    phoneHeight: 1258,
-    phoneY: 240,
+    logoY: 80,
+    logoSize: 64,
+    labelFontSize: 28,
+    labelY: 155,
+    // Phone centered vertically (no external CTA — it renders on-screen)
+    phoneWidth: 600,
+    phoneHeight: 1300,
+    phoneY: 260,
     // Prompt card drawn ON phone screen
     promptFontSize: 28,
     promptLineHeight: 42,
     promptLabelSize: 16,
-    ctaY: 1740,
     ctaFontSize: 34,
     particleCount: 30
   },
   feed_1x1: {
     width: 1440,
     height: 1440,
-    logoY: 45,
-    logoSize: 46,
-    labelFontSize: 22,
-    labelY: 105,
-    // Centered phone (iPhone 15 proportions)
-    phoneWidth: 490,
-    phoneHeight: 1062,
-    phoneY: 160,
+    logoY: 60,
+    logoSize: 56,
+    labelFontSize: 26,
+    labelY: 130,
+    // Phone centered vertically
+    phoneWidth: 520,
+    phoneHeight: 1128,
+    phoneY: 190,
     // Prompt card drawn ON phone screen
     promptFontSize: 28,
     promptLineHeight: 42,
     promptLabelSize: 16,
-    ctaY: 1290,
     ctaFontSize: 32,
     particleCount: 25
   }
 };
 
 // ── Animation Timing ──
-const CHAR_MS = 55;
+const CHAR_MS = 40;
 const INTRO_MS = 800;      // phone slide-in + logo fade
 const POST_TYPE_PAUSE = 600;
 const DISSOLVE_MS = 500;   // prompt card dissolve before shimmer
@@ -939,35 +937,48 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
         ctx.restore();
       }
 
-      // ── CTA ──
+      // ── CTA (rendered INSIDE the phone screen after invite scroll) ──
       if (elapsed >= endHoldEnd) {
         var ctaProgress = Math.min(1, (elapsed - endHoldEnd) / CTA_MS);
         var ctaEased = easeOutCubic(ctaProgress);
 
         ctx.save();
+        // Clip to phone screen area
+        roundRect(ctx, screen.screenX, screen.screenY, screen.screenW, screen.screenH, screen.screenRadius);
+        ctx.clip();
+
+        // Semi-transparent overlay to dim the invite behind the CTA
+        ctx.fillStyle = 'rgba(0,0,0,' + (ctaEased * 0.55) + ')';
+        ctx.fillRect(screen.screenX, screen.screenY, screen.screenW, screen.screenH);
+
         ctx.globalAlpha = ctaEased;
 
-        var ctaW = Math.min(460, fmt.width * 0.44);
-        var ctaH = 64;
-        var ctaX = (fmt.width - ctaW) / 2;
+        var ctaW = Math.min(screen.w * 0.8, 400);
+        var ctaH = 56;
+        var ctaCenterX = screen.x + screen.w / 2;
+        var ctaCenterY = screen.y + screen.h / 2;
+        var ctaX = ctaCenterX - ctaW / 2;
+        var ctaY = ctaCenterY - 20;
 
-        ctx.shadowColor = 'rgba(233,69,96,0.4)';
-        ctx.shadowBlur = 20;
+        // CTA button
+        ctx.shadowColor = 'rgba(233,69,96,0.5)';
+        ctx.shadowBlur = 24;
         ctx.shadowOffsetY = 6;
-        roundRect(ctx, ctaX, fmt.ctaY, ctaW, ctaH, 32);
+        roundRect(ctx, ctaX, ctaY, ctaW, ctaH, 28);
         ctx.fillStyle = thm.ctaBg;
         ctx.fill();
         ctx.shadowColor = 'transparent';
 
-        ctx.font = 'bold ' + fmt.ctaFontSize + 'px "Inter", Arial, sans-serif';
+        ctx.font = 'bold ' + (fmt.ctaFontSize || 32) + 'px "Inter", Arial, sans-serif';
         ctx.fillStyle = thm.ctaText;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('Create Yours Free', fmt.width / 2, fmt.ctaY + ctaH / 2);
+        ctx.fillText('Create Yours Free', ctaCenterX, ctaY + ctaH / 2);
 
-        ctx.font = (fmt.ctaFontSize * 0.65) + 'px "Inter", Arial, sans-serif';
-        ctx.fillStyle = thm.subtextColor;
-        ctx.fillText('ryvite.com', fmt.width / 2, fmt.ctaY + ctaH + 30);
+        // URL below button
+        ctx.font = ((fmt.ctaFontSize || 32) * 0.55) + 'px "Inter", Arial, sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.fillText('ryvite.com', ctaCenterX, ctaY + ctaH + 28);
 
         ctx.restore();
       }
