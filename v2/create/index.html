@@ -3779,6 +3779,19 @@
 
         // Check 1: Body background (existing check)
         var isUnstyled = (!bodyBg || bodyBg === 'rgba(0, 0, 0, 0)' || bodyBg === 'rgb(255, 255, 255)');
+        // Also check body background-image (gradients) — dark themes use these
+        if (isUnstyled) {
+          var bodyBgImg = bodyStyle.backgroundImage;
+          if (bodyBgImg && bodyBgImg !== 'none') isUnstyled = false;
+        }
+        // Also check: if config says dark bg, CSS IS working even if body bg reads transparent
+        if (isUnstyled) {
+          var cfgBg = (ver.config || {}).backgroundColor || '';
+          if (cfgBg) {
+            var cfgRgb = parseRgb(cfgBg) || hexToRgb(cfgBg);
+            if (cfgRgb && (cfgRgb.r + cfgRgb.g + cfgRgb.b) < 200) isUnstyled = false;
+          }
+        }
 
         // Check 2: Look for styled elements deeper in the DOM
         // Even if body bg is white/transparent, the invite may have styled children
@@ -3843,10 +3856,18 @@
         }
 
         if (isUnstyled && ver.css && ver.css.trim().length > 100 && _cssCheckRetries < _MAX_CSS_RETRIES) {
-          // CSS exists but didn't apply — likely a rendering glitch. Force reload.
+          // CSS exists but didn't apply — try re-injecting the CSS into the iframe
+          // instead of rebuilding the entire srcdoc (which destroys already-loaded fonts)
           _cssCheckRetries++;
-          console.warn('[checkCssRendered] Invite appears unstyled despite having CSS (' + ver.css.length + ' chars). Re-render attempt ' + _cssCheckRetries + '/' + _MAX_CSS_RETRIES);
-          setTimeout(function() { iframe.srcdoc = buildSrcdoc(ver); }, 150);
+          console.warn('[checkCssRendered] Invite appears unstyled despite having CSS (' + ver.css.length + ' chars). Re-inject attempt ' + _cssCheckRetries + '/' + _MAX_CSS_RETRIES);
+          try {
+            var reinjectStyle = doc.createElement('style');
+            reinjectStyle.textContent = ver.css;
+            doc.head.appendChild(reinjectStyle);
+          } catch (e) {
+            // If CSS re-injection fails, fall back to full srcdoc rebuild as last resort
+            setTimeout(function() { iframe.srcdoc = buildSrcdoc(ver); }, 150);
+          }
           return;
         }
 
