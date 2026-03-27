@@ -6540,7 +6540,14 @@
             }
             var tweakId = tweakResult.theme.id === 'pending' ? ('pending-' + Date.now()) : tweakResult.theme.id;
             var previousCss = themeVersions[activeVersionIndex] ? themeVersions[activeVersionIndex].css : '';
-            var newVer = { id: tweakId, version: tweakResult.theme.version, html: tweakResult.theme.html, css: tweakResult.theme.css || previousCss || '', config: tweakResult.theme.config };
+            var newCss = tweakResult.theme.css || '';
+            // CSS quality check: if new CSS is dramatically shorter than previous (< 30% of length),
+            // it's likely truncated/broken. Fall back to previous CSS to avoid unstyled render.
+            if (newCss && previousCss && newCss.length < previousCss.length * 0.3 && previousCss.length > 500) {
+              console.warn('[tweak] CSS quality check: new CSS (' + newCss.length + ' chars) is <30% of previous (' + previousCss.length + ' chars) — likely truncated, using previous CSS');
+              newCss = previousCss;
+            }
+            var newVer = { id: tweakId, version: tweakResult.theme.version, html: tweakResult.theme.html, css: newCss || previousCss || '', config: tweakResult.theme.config };
             themeVersions.push(newVer);
             activeVersionIndex = themeVersions.length - 1;
             currentEvent.themeHtml = newVer.html;

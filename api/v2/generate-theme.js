@@ -2552,9 +2552,16 @@ Return ONLY a valid JSON object with the COMPLETE updated theme:
         tweakConfig.emailHtml = currentConfig.emailHtml;
       }
 
-      // ── CSS SAFETY GATE: Never send a theme with empty CSS ──
+      // ── CSS SAFETY GATE: Never send a theme with empty or truncated CSS ──
       // This is the single chokepoint ALL tweak paths pass through (full design,
-      // escalation, light tweak). Catches every scenario where CSS was lost.
+      // escalation, light tweak). Catches every scenario where CSS was lost or truncated.
+      const currentCssLen = (currentCss || '').length;
+      const newCssLen = (theme.theme_css || '').trim().length;
+      // Quality check: if new CSS is dramatically shorter than current (< 30%), it's likely truncated
+      if (newCssLen > 0 && currentCssLen > 500 && newCssLen < currentCssLen * 0.3) {
+        console.warn(`[css-safety] CSS quality check: new CSS (${newCssLen} chars) is <30% of current (${currentCssLen} chars) — likely truncated, using currentCss`);
+        theme.theme_css = currentCss;
+      }
       if (!theme.theme_css || !theme.theme_css.trim()) {
         // Attempt 1: Extract from HTML <style> blocks
         if (theme.theme_html) {
