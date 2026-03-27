@@ -626,6 +626,120 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 const SYSTEM_PROMPT = STRUCTURAL_RULES + '\n\n' + DEFAULT_CREATIVE_DIRECTION;
 
 // ═══════════════════════════════════════════════════════════════════
+// AI THEME VALIDATION: Cheap model checks if the generated theme is complete
+// Returns { valid: true } or { valid: false, issues: [...], fixes: "..." }
+// ═══════════════════════════════════════════════════════════════════
+async function validateThemeWithAI(theme) {
+  const html = theme.theme_html || '';
+  const css = theme.theme_css || '';
+
+  // Step 1: Systematic checks (free, instant)
+  const issues = [];
+
+  // Check CSS exists and isn't suspiciously short
+  if (!css.trim()) {
+    issues.push('CSS is completely empty — no styles will render');
+  } else if (css.length < 200 && html.length > 1000) {
+    issues.push('CSS is suspiciously short (' + css.length + ' chars) for HTML of ' + html.length + ' chars — likely truncated');
+  }
+
+  // Check for essential CSS selectors that should exist if HTML uses them
+  const htmlClasses = [...new Set((html.match(/class="([^"]+)"/g) || []).flatMap(m => m.replace(/class="/,'').replace(/"$/,'').split(/\s+/)))];
+  const missingCssClasses = htmlClasses.filter(cls => {
+    if (['rsvp-slot', 'details-slot', 'rsvp-form-injected'].includes(cls)) return false; // Platform-injected
+    return cls.length > 2 && !css.includes('.' + cls) && !css.includes(cls);
+  });
+  if (missingCssClasses.length > htmlClasses.length * 0.5 && missingCssClasses.length > 5) {
+    issues.push('Over 50% of HTML classes have no matching CSS rules. Missing: ' + missingCssClasses.slice(0, 10).join(', '));
+  }
+
+  // Check required structural elements
+  if (!html.includes('rsvp-slot')) issues.push('Missing .rsvp-slot element');
+  if (!html.includes('details-slot') && !html.includes('data-field="datetime"')) issues.push('Missing .details-slot element');
+  if (!html.includes('data-field="title"')) issues.push('Missing data-field="title" attribute');
+
+  // Check Google Fonts import
+  const config = theme.theme_config || {};
+  if (!config.googleFontsImport && !css.includes('@import') && !css.includes('fonts.googleapis.com')) {
+    const fontRefs = css.match(/font-family\s*:\s*['"]?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/g);
+    if (fontRefs && fontRefs.length > 0) {
+      issues.push('CSS references custom fonts but no Google Fonts @import found');
+    }
+  }
+
+  // If systematic checks pass, skip AI validation (save cost)
+  if (issues.length === 0) {
+    return { valid: true, issues: [] };
+  }
+
+  // Step 2: AI validation — only runs if systematic checks found issues
+  console.log('[ai-validate] Systematic issues found:', issues.join('; '));
+  return { valid: false, issues };
+}
+
+// AI-powered fix for validation issues — generates the missing CSS/HTML
+async function fixThemeIssues(theme, issues, currentCss, currentHtml) {
+  const startTime = Date.now();
+  try {
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 8192,
+      system: 'You fix incomplete AI-generated invite themes. Return ONLY valid JSON with the fixed fields. Do not include markdown fences.',
+      messages: [{ role: 'user', content: `An AI generated an invite theme but it has issues:
+
+ISSUES FOUND:
+${issues.map((iss, i) => (i + 1) + '. ' + iss).join('\n')}
+
+CURRENT THEME HTML (${theme.theme_html.length} chars):
+\`\`\`html
+${theme.theme_html.substring(0, 4000)}
+\`\`\`
+
+CURRENT THEME CSS (${(theme.theme_css || '').length} chars):
+\`\`\`css
+${(theme.theme_css || '').substring(0, 2000)}
+\`\`\`
+
+PREVIOUS VERSION CSS (this was working correctly, ${(currentCss || '').length} chars):
+\`\`\`css
+${(currentCss || '').substring(0, 4000)}
+\`\`\`
+
+Fix the issues. Return a JSON object with ONLY the fields that need fixing:
+{
+  "theme_css": "...the COMPLETE fixed CSS stylesheet..." (if CSS was the issue),
+  "theme_html": "...fixed HTML..." (only if structural elements were missing),
+  "googleFontsImport": "@import url('...');" (if fonts import was missing)
+}
+
+RULES:
+- If CSS was truncated/empty, merge the previous version CSS with the new theme HTML's needs
+- Ensure every CSS class used in the HTML has corresponding CSS rules
+- Include structural element styles (.rsvp-slot, .details-slot, .detail-item, .detail-label, .detail-value)
+- Preserve all animations and transitions from the previous CSS
+- Do NOT change the design — only fix what's broken/missing` }]
+    });
+
+    const latency = Date.now() - startTime;
+    console.log('[ai-validate] Fix completed in', latency, 'ms');
+
+    let text = response.content[0]?.text || '';
+    text = text.replace(/```(?:json)?\s*\n?/g, '').replace(/\n?\s*```$/g, '').trim();
+
+    try {
+      const fixes = JSON.parse(text);
+      return fixes;
+    } catch (e) {
+      console.error('[ai-validate] Failed to parse fix response:', text.substring(0, 200));
+      return null;
+    }
+  } catch (e) {
+    console.error('[ai-validate] Fix call failed:', e.message);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // COMPLETENESS AUTO-FILL: Quick Haiku call to generate missing pieces
 // Runs after main generation if thank you page, fonts, or config are missing.
 // ═══════════════════════════════════════════════════════════════════
@@ -1970,7 +2084,15 @@ IMPORTANT: The .rsvp-slot div must be completely EMPTY — the platform injects 
           tweakMessage += `\n\n**Current Thank You Page HTML:**\n\`\`\`html\n${existingThankyou}\n\`\`\`\nIf your changes affect the visual style (colors, fonts, spacing, backgrounds), update the thank you page to match. If the change is content-only (e.g., changing text, adding an element to the invite), you may set theme_thankyou_html to null to keep it unchanged.`;
         }
 
-        tweakMessage += `\n\nReturn the updated theme as a JSON object: { "theme_html": "...", "theme_css": "...", "theme_thankyou_html": "..." or null if unchanged, "theme_config": { ... }, "chat_response": "Brief friendly message about what you changed", "rsvp_field_changes": [...] or null if no RSVP field changes }. Make ONLY the changes the user requested — keep everything else exactly the same. If the thank you page doesn't need changes, set theme_thankyou_html to null.
+        tweakMessage += `\n\nReturn the updated theme as a JSON object: { "theme_html": "...COMPLETE updated HTML...", "theme_css": "...COMPLETE updated CSS...", "theme_thankyou_html": "..." or null if unchanged, "theme_config": { ... }, "chat_response": "Brief friendly message about what you changed", "rsvp_field_changes": [...] or null if no RSVP field changes }.
+
+### CRITICAL: CSS COMPLETENESS
+theme_css MUST contain the ENTIRE stylesheet — ALL CSS rules, not just the ones you changed. Copy ALL existing CSS rules from the current CSS and apply your modifications to them. If you only return the changed rules, the invite will render without any styling for the unchanged elements. The theme_css field is the ONLY source of CSS — there is no merging with previous CSS.
+
+### CRITICAL: HTML COMPLETENESS
+theme_html MUST contain the COMPLETE HTML body content. Do not omit sections you didn't change.
+
+Make ONLY the changes the user requested — keep everything else exactly the same. If the thank you page doesn't need changes, set theme_thankyou_html to null.
 
 ### RSVP Field Changes
 If the user asks to add, remove, or modify RSVP fields, include "rsvp_field_changes" — an array of operations:
@@ -2100,13 +2222,15 @@ Users will ask you to update their invite design — visual changes AND event co
 ## OUTPUT FORMAT
 Return ONLY a valid JSON object with these keys:
 {
-  "theme_html": "...",
-  "theme_css": "...",
+  "theme_html": "...COMPLETE HTML body content...",
+  "theme_css": "...COMPLETE CSS stylesheet (ALL rules, not just changed ones)...",
   "theme_thankyou_html": "..." or null if unchanged,
   "theme_config": { ... },
   "chat_response": "A brief, friendly message (1-2 sentences) describing what you changed. Use a conversational tone.",
   "rsvp_field_changes": [...] or null if no RSVP field changes
 }
+
+CRITICAL: theme_css must be the ENTIRE stylesheet. Include ALL CSS rules from the current CSS, with your modifications applied. Do NOT return only the changed rules — the platform uses theme_css as the sole source of styling. Missing rules = unstyled elements.
 
 ## CRITICAL RULES
 
@@ -2579,6 +2703,34 @@ Return ONLY a valid JSON object with the COMPLETE updated theme:
           theme.theme_css = currentCss || '';
           console.error('[css-safety] CSS was empty — falling back to currentCss:', (currentCss || '').length, 'chars');
         }
+      }
+
+      // ── AI THEME VALIDATION + FIX LOOP ──
+      // Run cheap validation to catch incomplete CSS/HTML before sending to client.
+      // If issues found, give Haiku one shot to fix them.
+      try {
+        const aiValidation = await validateThemeWithAI(theme);
+        if (!aiValidation.valid && aiValidation.issues.length > 0) {
+          console.warn('[tweak] AI validation found issues:', aiValidation.issues.join('; '));
+          res.write(': keepalive\n\n');
+          const fixes = await fixThemeIssues(theme, aiValidation.issues, currentCss, currentHtml);
+          if (fixes) {
+            if (fixes.theme_css && fixes.theme_css.trim().length > (theme.theme_css || '').length) {
+              console.log('[tweak] Applied CSS fix:', fixes.theme_css.length, 'chars (was', (theme.theme_css || '').length, ')');
+              theme.theme_css = fixes.theme_css;
+            }
+            if (fixes.theme_html && fixes.theme_html.includes('rsvp-slot') && !theme.theme_html.includes('rsvp-slot')) {
+              theme.theme_html = fixes.theme_html;
+              console.log('[tweak] Applied HTML structural fix');
+            }
+            if (fixes.googleFontsImport) {
+              tweakConfig.googleFontsImport = fixes.googleFontsImport;
+              console.log('[tweak] Applied Google Fonts import fix');
+            }
+          }
+        }
+      } catch (valErr) {
+        console.warn('[tweak] AI validation failed (non-blocking):', valErr.message);
       }
 
       // ── SERVER-SIDE THEME VALIDATION for tweaks (same as generation path) ──
@@ -3119,6 +3271,31 @@ This is the most common failure mode. Double-check it.`;
     }
     if (!theme.theme_css || !theme.theme_css.trim()) {
       console.error('[generate] WARNING: Theme has no CSS! HTML length:', theme.theme_html?.length, 'Keys:', Object.keys(theme).join(', '));
+    }
+
+    // ── AI THEME VALIDATION + FIX LOOP (initial generation) ──
+    try {
+      const genAiValidation = await validateThemeWithAI(theme);
+      if (!genAiValidation.valid && genAiValidation.issues.length > 0) {
+        console.warn('[generate] AI validation found issues:', genAiValidation.issues.join('; '));
+        res.write(': keepalive\n\n');
+        const genFixes = await fixThemeIssues(theme, genAiValidation.issues, '', '');
+        if (genFixes) {
+          if (genFixes.theme_css && genFixes.theme_css.trim().length > (theme.theme_css || '').length) {
+            theme.theme_css = genFixes.theme_css;
+            console.log('[generate] Applied CSS fix:', genFixes.theme_css.length, 'chars');
+          }
+          if (genFixes.theme_html) {
+            theme.theme_html = genFixes.theme_html;
+            console.log('[generate] Applied HTML structural fix');
+          }
+          if (genFixes.googleFontsImport) {
+            theme.theme_config.googleFontsImport = genFixes.googleFontsImport;
+          }
+        }
+      }
+    } catch (genValErr) {
+      console.warn('[generate] AI validation failed (non-blocking):', genValErr.message);
     }
 
     // ── SERVER-SIDE THEME VALIDATION: Catch broken output before sending to client ──
