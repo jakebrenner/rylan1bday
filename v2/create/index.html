@@ -6083,116 +6083,12 @@
       var sendBtn = document.getElementById('designChatSendBtn');
       sendBtn.disabled = true;
 
-      // ── TIER 1: Instant client-side RSVP field changes (no AI call) ──
-      var rsvpFieldResult = tryInstantRsvpFieldChange(text, hasPhotos);
-      if (rsvpFieldResult && rsvpFieldResult.action !== 'add_async' && rsvpFieldResult.action !== 'mixed') {
-        console.log('[tweak] INSTANT field change:', rsvpFieldResult.action);
-        applyRsvpFieldChanges(rsvpFieldResult.changes);
-        renderPreview(themeVersions[activeVersionIndex]);
-        pushDesignChat({ role: 'assistant', content: rsvpFieldResult.chatResponse + '\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
-        clearDesignChatPhoto();
-        sendBtn.disabled = false;
-        renderDesignChat();
-        return;
-      }
-
-      // ── TIER 1.5: Quick AI field interpretation for "add" requests (~1s) ──
-      // Also handles "mixed" (sync remove/modify + async add in same message)
-      if (rsvpFieldResult && (rsvpFieldResult.action === 'add_async' || rsvpFieldResult.action === 'mixed')) {
-        // Apply any sync changes first (e.g. removes)
-        if (rsvpFieldResult.action === 'mixed' && rsvpFieldResult.syncChanges) {
-          console.log('[tweak] Applying sync changes from mixed command:', rsvpFieldResult.syncChanges);
-          applyRsvpFieldChanges(rsvpFieldResult.syncChanges);
-          renderPreview(themeVersions[activeVersionIndex]);
-        }
-        var addMsg = rsvpFieldResult.action === 'mixed' ? rsvpFieldResult.addAsync.userMessage : rsvpFieldResult.userMessage;
-        var syncNote = rsvpFieldResult.action === 'mixed' ? rsvpFieldResult.syncResponse + ' ' : '';
-        console.log('[tweak] Quick AI field interpretation for:', addMsg);
-        try {
-          var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
-          var interpretRes = await authFetch('/api/v2/generate-theme?action=interpretField', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userMessage: addMsg,
-              eventId: currentEvent ? currentEvent.id : null,
-              existingFields: enabledFields.map(function(f) { return { label: f.label, field_key: f.field_key }; })
-            })
-          });
-          if (interpretRes.ok) {
-            var interpretData = await interpretRes.json();
-            if (interpretData.metadata) updateCostFromGeneration(interpretData);
-            var fields = interpretData.fields || (interpretData.field ? [interpretData.field] : []);
-            if (interpretData.success && fields.length > 0) {
-              var addedLabels = [];
-              var enabledKeys = enabledFields.map(function(ef) { return (ef.field_key || '').toLowerCase(); });
-              for (var fi = 0; fi < fields.length; fi++) {
-                var f = fields[fi];
-                if (enabledKeys.indexOf((f.field_key || '').toLowerCase()) === -1) {
-                  applyRsvpFieldChanges([{ action: 'add', field_key: f.field_key, label: f.label, field_type: f.field_type || 'text', is_required: f.is_required || false, placeholder: f.placeholder || null }]);
-                  enabledKeys.push((f.field_key || '').toLowerCase());
-                  addedLabels.push(f.label);
-                }
-              }
-              renderPreview(themeVersions[activeVersionIndex]);
-              if (addedLabels.length > 0) {
-                var fieldListStr = addedLabels.map(function(l) { return '"' + l + '"'; }).join(' and ');
-                pushDesignChat({ role: 'assistant', content: 'Done! ' + syncNote + 'Added ' + fieldListStr + ' to your RSVP form.\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
-              } else {
-                pushDesignChat({ role: 'assistant', content: syncNote + 'Those fields already exist in your RSVP form!\n\nWant to make any other changes?' });
-              }
-              clearDesignChatPhoto();
-              sendBtn.disabled = false;
-              renderDesignChat();
-              return;
-            }
-          }
-        } catch (err) {
-          console.error('[tweak] interpretField error:', err);
-        }
-        // Client-side fallback: if interpretField API failed but the message explicitly specifies
-        // a field type and label, parse it directly instead of asking for clarification again.
-        var explicitFieldMatch = addMsg.match(/(?:add|create|include|insert)\s+(?:a\s+)?(text|number|textarea|email|phone|select|dropdown|checkbox)\s+(?:field\s+)?(?:for|called|named|about|asking)\s+(.+)/i);
-        if (explicitFieldMatch) {
-          var efType = explicitFieldMatch[1].toLowerCase();
-          if (efType === 'dropdown') efType = 'select';
-          var efLabel = explicitFieldMatch[2].trim().replace(/[.!?"']+$/, '').trim();
-          var efKey = efLabel.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-          var efExists = rsvpFields.filter(function(f) { return f.enabled; }).some(function(f) {
-            return (f.field_key || '').toLowerCase() === efKey;
-          });
-          if (!efExists && efLabel) {
-            console.log('[tweak] Client-side fallback: adding explicit field "' + efLabel + '" (' + efType + ')');
-            applyRsvpFieldChanges([{ action: 'add', field_key: efKey, label: efLabel.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' '), field_type: efType, is_required: false, placeholder: null }]);
-            renderPreview(themeVersions[activeVersionIndex]);
-            var updatedFields = rsvpFields.filter(function(ff) { return ff.enabled; });
-            var fieldListStr = updatedFields.map(function(ff) { return '- ' + ff.label + (ff.is_required ? ' (required)' : ''); }).join('\n');
-            pushDesignChat({ role: 'assistant', content: syncNote + 'Added "' + efLabel.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ') + '"!\n\nCurrent fields:\n' + fieldListStr + '\n\nSay "looks good" when you\'re happy, or keep adjusting!' });
-            clearDesignChatPhoto();
-            sendBtn.disabled = false;
-            renderDesignChat();
-            return;
-          }
-        }
-        // If interpretation failed but we had sync changes, still report those
-        if (rsvpFieldResult.action === 'mixed' && syncNote) {
-          pushDesignChat({ role: 'assistant', content: syncNote + "I wasn't sure about the field to add though. Could you tell me more specifically what you'd like? For example:\n- \"Add a text field for dietary restrictions\"\n- \"Add a dropdown for meal choice with options: chicken, fish, veggie\"" });
-          clearDesignChatPhoto();
-          sendBtn.disabled = false;
-          renderDesignChat();
-          return;
-        }
-        // Pure add_async that failed interpretation — ask for clarification instead of expensive fallthrough
-        if (rsvpFieldResult.action === 'add_async') {
-          pushDesignChat({ role: 'assistant', content: "I think you want to add a field to your RSVP form, but I want to make sure I get it right. Could you describe the field in a bit more detail? For example:\n- \"Add a text field for dietary restrictions\"\n- \"Add a number field for how many guests\"\n- \"Add a dropdown for t-shirt size with options: S, M, L, XL\"" });
-          clearDesignChatPhoto();
-          sendBtn.disabled = false;
-          renderDesignChat();
-          return;
-        }
-      }
-
       // ── TIER 1.75: Instant text swap for "change X to Y" requests ──
+      // NOTE: Tier 1 (regex field detection) and Tier 1.5 (interpretField) were REMOVED.
+      // They used regex to guess if a message was about RSVP fields, causing false positives
+      // like "add performers to the illustration" → added RSVP fields about performers.
+      // All field operations now go through the AI intent classifier (Tier 2) which has
+      // chat history context and understands the difference between design and field requests.
       var textSwap = tryInstantTextSwap(text, hasPhotos);
       if (textSwap) {
         var ver = themeVersions[activeVersionIndex];
@@ -6279,6 +6175,45 @@
               sendBtn.disabled = false;
               renderDesignChat();
               return;
+            }
+
+            // If the classifier detected a field removal, handle it directly
+            if (classification.intent === 'remove_field' && classification.confidence >= 0.6) {
+              var fieldSummary = classification.summary || '';
+              // Try to match the field name from the summary or the original text
+              var fieldsToRemove = [];
+              enabledFields.forEach(function(f) {
+                var fLabel = (f.label || '').toLowerCase();
+                var fKey = (f.field_key || '').toLowerCase();
+                if (fieldSummary.toLowerCase().indexOf(fLabel) !== -1 || text.toLowerCase().indexOf(fLabel) !== -1 ||
+                    fieldSummary.toLowerCase().indexOf(fKey.replace(/_/g, ' ')) !== -1) {
+                  fieldsToRemove.push(f);
+                }
+              });
+              // If "remove that/those/all" and we have chat history showing what was just added, remove those
+              if (fieldsToRemove.length === 0 && /\b(that|those|them|it|all)\b/i.test(text)) {
+                // Look in recent history for "Added X and Y" messages
+                var lastAdded = designChatHistory.filter(function(m) { return m.role === 'assistant' && m.content && m.content.indexOf('Added') !== -1; }).slice(-1)[0];
+                if (lastAdded) {
+                  enabledFields.forEach(function(f) {
+                    if (lastAdded.content.indexOf(f.label) !== -1) fieldsToRemove.push(f);
+                  });
+                }
+              }
+              if (fieldsToRemove.length > 0) {
+                var removedLabels = [];
+                fieldsToRemove.forEach(function(f) {
+                  applyRsvpFieldChanges([{ action: 'remove', field_key: f.field_key }]);
+                  removedLabels.push(f.label);
+                });
+                renderPreview(themeVersions[activeVersionIndex]);
+                pushDesignChat({ role: 'assistant', content: 'Done! Removed ' + removedLabels.map(function(l) { return '"' + l + '"'; }).join(' and ') + ' from your RSVP form.\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
+                clearDesignChatPhoto();
+                sendBtn.disabled = false;
+                renderDesignChat();
+                return;
+              }
+              // If we couldn't match a field, fall through to the AI tweak which handles it via rsvp_field_changes
             }
 
             // If the classifier detected this is a question, answer conversationally

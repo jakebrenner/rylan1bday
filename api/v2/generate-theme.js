@@ -1752,6 +1752,7 @@ Rules:
 - "create a new version with X in the illustration" = design_change (modify the SVG/graphic), NOT add_field. "performers in the illustration" means adding visual elements to the design, NOT RSVP form fields about performers.
 - confidence 0.9+: crystal clear request. confidence 0.5-0.8: probably understand but should confirm. confidence <0.5: genuinely unclear
 - For add_field with confidence >= 0.8, include "field_details": {"label": "...", "field_type": "..."} so we can skip a second AI call
+- For remove_field, include the field name(s) the user wants removed in the "summary" field. If user says "remove that/those", check the chat history for what was just added and include those field names.
 - The clarification should be warm, conversational, and show you understood SOMETHING (never "what do you mean?")
 - suggested_options: 2-3 clickable options that help the user clarify (null if confident)` }]
       });
