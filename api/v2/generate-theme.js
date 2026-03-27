@@ -1636,7 +1636,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Unable to verify generation limits. Please try again.' });
   }
 
-  const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages, inspirationImageUrls, tweakInstructions, currentHtml, currentCss, currentConfig, photoBase64, photoUrl, photoUrls, existingPhotos, basedOnThemeId, previewMode, currentEmailHtml } = req.body;
+  const { eventId, prompt, feedback, rsvpFields, eventDetails, inspirationImages, inspirationImageUrls, tweakInstructions, currentHtml, currentCss, currentConfig, photoBase64, photoUrl, photoUrls, existingPhotos, basedOnThemeId, previewMode, currentEmailHtml, classifiedIntent } = req.body;
 
   // --- INTERPRET FIELD: quick Haiku call to parse natural language into field definition ---
   if (action === 'interpretField') {
@@ -1797,29 +1797,42 @@ Rules:
     const startTime = Date.now();
 
     // --- Smart routing: classify tweak as "light" or "design" ---
-    // Light tweaks: text/copy changes, RSVP field add/remove/modify, wording changes
-    // Design tweaks: colors, fonts, layout, animations, photos, style changes
+    // PRIMARY SIGNAL: Use the client's AI intent classification (from Haiku classifier)
+    // FALLBACK: Keyword-based heuristic when no classification is available
     const lowerInstructions = tweakInstructions.toLowerCase();
     const hasPhotos = (photoUrls?.length > 0) || photoUrl || photoBase64;
-    const designKeywords = [
-      'color', 'colour', 'font', 'background', 'layout', 'animation', 'animate',
-      'style', 'theme', 'themed', 'darker', 'lighter', 'bigger', 'smaller', 'spacing',
-      'margin', 'padding', 'border', 'shadow', 'gradient', 'photo', 'image',
-      'minimalist', 'maximalist', 'elegant', 'bold', 'modern', 'vintage',
-      'vibe', 'mood', 'redesign', 'overhaul',
-      'move', 'position', 'align', 'center',
-      'css', 'width', 'height', 'size', 'rounded', 'hover'
-    ];
-    // Text swap patterns ("change X to Y") are light ONLY when swapping literal text,
-    // not when requesting a thematic/design change like "change it to toy story themed"
-    const hasDesignKeyword = designKeywords.some(kw => new RegExp('\\b' + kw + '\\b').test(lowerInstructions));
-    const isTextSwap = /\b(?:change|replace|update|switch)\b.+\b(?:to|with|for|into)\b/i.test(lowerInstructions)
-      && !/\b(?:color|colour|font|background|layout|theme|style)\s+(?:to|with|for|into)\b/i.test(lowerInstructions)
-      && !hasDesignKeyword;
-    const isLightTweak = isTextSwap || (!hasPhotos && !hasDesignKeyword);
+    const hasInspirationPhotos = inspirationImageUrls?.length > 0;
+    let isLightTweak;
+    if (classifiedIntent) {
+      // Trust the AI classifier — it understands context ("below the image" ≠ design change)
+      isLightTweak = ['text_change', 'add_field', 'remove_field', 'modify_field'].includes(classifiedIntent);
+      // Photos always force design mode (need to embed/reference images)
+      if (hasPhotos || hasInspirationPhotos) isLightTweak = false;
+      console.log(`[tweak] Using AI classification: intent=${classifiedIntent}, isLightTweak=${isLightTweak}`);
+    } else {
+      // Fallback: keyword-based heuristic (no classifier ran — e.g. photos attached skip classification)
+      const designKeywords = [
+        'color', 'colour', 'font', 'background', 'layout', 'animation', 'animate',
+        'style', 'theme', 'themed', 'darker', 'lighter', 'bigger', 'smaller', 'spacing',
+        'margin', 'padding', 'border', 'shadow', 'gradient',
+        'minimalist', 'maximalist', 'elegant', 'bold', 'modern', 'vintage',
+        'vibe', 'mood', 'redesign', 'overhaul',
+        'move', 'position', 'align', 'center',
+        'css', 'width', 'height', 'size', 'rounded', 'hover'
+      ];
+      // Removed 'photo' and 'image' from designKeywords — these are too often used
+      // as positional references ("below the image") not design change requests.
+      // The AI classifier handles photo/image intent correctly.
+      const hasDesignKeyword = designKeywords.some(kw => new RegExp('\\b' + kw + '\\b').test(lowerInstructions));
+      const isTextSwap = /\b(?:change|replace|update|switch)\b.+\b(?:to|with|for|into)\b/i.test(lowerInstructions)
+        && !/\b(?:color|colour|font|background|layout|theme|style)\s+(?:to|with|for|into)\b/i.test(lowerInstructions)
+        && !hasDesignKeyword;
+      isLightTweak = isTextSwap || (!hasPhotos && !hasInspirationPhotos && !hasDesignKeyword);
+      console.log(`[tweak] Using keyword fallback: hasDesignKeyword=${hasDesignKeyword}, isLightTweak=${isLightTweak}`);
+    }
     const tweakModel = isLightTweak ? 'claude-haiku-4-5-20251001' : themeModel;
     const tweakMaxTokens = isLightTweak ? 4096 : 16384;
-    console.log(`[tweak] Classified as ${isLightTweak ? 'LIGHT' : 'DESIGN'} tweak, using model: ${tweakModel}`);
+    console.log(`[tweak] Final routing: ${isLightTweak ? 'LIGHT' : 'DESIGN'} tweak, model: ${tweakModel}`);
 
     // Set up SSE headers
     res.setHeader('Content-Type', 'text/event-stream');

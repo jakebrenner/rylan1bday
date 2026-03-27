@@ -6444,7 +6444,8 @@
             dressCode: extractedData.dressCode || '',
             eventType: extractedData.eventType || 'other'
           },
-          rsvpFields: enabledFields.map(function(f) { return { field_key: f.field_key, label: f.label, field_type: f.field_type, is_required: f.is_required }; })
+          rsvpFields: enabledFields.map(function(f) { return { field_key: f.field_key, label: f.label, field_type: f.field_type, is_required: f.is_required }; }),
+          classifiedIntent: (typeof classification !== 'undefined' && classification) ? classification.intent : null
         };
         if (window._templateSource) payload.basedOnThemeId = window._templateSource.id || '';
         // If this is a redesign redo on a free event, flag it so backend allows one more generation
