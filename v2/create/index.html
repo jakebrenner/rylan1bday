@@ -3002,7 +3002,16 @@
       var inputStyle = 'width:100%;padding:10px 12px;border:1px solid ' + borderColor + ';border-radius:8px;font-size:14px;background:' + inputBg + ';color:' + textColor + ';font-family:inherit;';
       var labelStyle = 'display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:' + textColor + ';';
 
-      var html = '<div class="rsvp-form-injected" style="font-family:inherit;color:' + textColor + ';">';
+      // Inject a style block with !important to override any AI theme CSS that might
+      // set label/input colors incompatible with the background. Inline styles can't
+      // use !important, so we need a <style> block with high-specificity selectors.
+      var overrideStyles = '<style>'
+        + '.rsvp-form-injected label, .rsvp-form-injected .rsvp-form-injected label { color: ' + textColor + ' !important; }'
+        + '.rsvp-form-injected input, .rsvp-form-injected textarea, .rsvp-form-injected select { color: ' + textColor + ' !important; background: ' + inputBg + ' !important; border-color: ' + borderColor + ' !important; }'
+        + '.rsvp-form-injected input::placeholder, .rsvp-form-injected textarea::placeholder { color: ' + textColor + ' !important; opacity: ' + placeholderOpacity + ' !important; }'
+        + '</style>';
+
+      var html = overrideStyles + '<div class="rsvp-form-injected" style="font-family:inherit;color:' + textColor + ';">';
 
       // Name field
       html += '<div style="margin-bottom:12px;">'
