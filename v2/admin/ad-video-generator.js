@@ -101,10 +101,10 @@ const FORMAT_CONFIGS = {
     logoSize: 46,
     labelFontSize: 22,
     labelY: 118,
-    // Centered phone (iPhone 15 proportions 393:852)
-    phoneWidth: 460,
-    phoneHeight: 998,
-    phoneY: 200,
+    // Centered phone (iPhone 15 proportions 393:852) — larger, vertically centered
+    phoneWidth: 580,
+    phoneHeight: 1258,
+    phoneY: 180,
     // Prompt card drawn ON phone screen
     promptFontSize: 28,
     promptLineHeight: 42,
