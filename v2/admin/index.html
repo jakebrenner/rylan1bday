@@ -2258,6 +2258,7 @@
                 <th style="padding:8px 12px;">Theme</th>
                 <th style="padding:8px 12px;">Event Type</th>
                 <th style="padding:8px 12px;">Prompt</th>
+                <th style="padding:8px 12px;text-align:center;">Video</th>
                 <th style="padding:8px 12px;">Actions</th>
               </tr>
             </thead>
@@ -8582,6 +8583,52 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       Object.keys(_adVideoBlobs).forEach(function(fmt) { downloadAdVideoFmt(fmt); });
     }
 
+    async function startServerRender() {
+      var promptText = document.getElementById('adVideoPromptText').value.trim();
+      if (!promptText) { alert('Please enter prompt text'); return; }
+
+      var formats = getSelectedFormats();
+      if (formats.length === 0) { alert('Please select at least one format'); return; }
+
+      var campaignLabel = document.getElementById('adVideoCampaignLabel').value.trim();
+
+      try {
+        for (var fi = 0; fi < formats.length; fi++) {
+          var fmt = formats[fi];
+          var res = await authFetch('/api/v2/render-ad-video', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              html: _adVideoData.html,
+              css: _adVideoData.css,
+              config: _adVideoData.config,
+              promptText: promptText,
+              format: fmt,
+              theme: _adVideoTheme,
+              campaignLabel: campaignLabel || null,
+              sourceType: _adVideoData.sourceType || 'showcase',
+              sourceId: _adVideoData.sourceId || '00000000-0000-0000-0000-000000000000',
+              eventType: _adVideoData.eventType || null,
+              videoTheme: _adVideoTheme,
+              destinationUrl: getUtmBaseUrl()
+            })
+          });
+
+          var result = await res.json();
+          if (!result.success) throw new Error(result.error || 'Server render request failed');
+        }
+
+        // Close modal and refresh creatives list
+        closeAdVideoModal();
+        _mktLoaded = false;
+        await loadAdCreatives();
+        alert('Video rendering started! You\'ll see the status in the Ad Creatives table. You can close this tab — rendering continues on the server.');
+
+      } catch (err) {
+        alert('Failed to start server render: ' + err.message);
+      }
+    }
+
     function copyUtmLink() {
       var input = document.getElementById('adVideoUtmLink');
       input.select();
@@ -8754,6 +8801,18 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var prompt = c.prompt_text ? escapeHtml(c.prompt_text.substring(0, 50)) + (c.prompt_text.length > 50 ? '...' : '') : '—';
         var label = c.campaign_label ? escapeHtml(c.campaign_label.substring(0, 30)) + (c.campaign_label.length > 30 ? '...' : '') : '—';
 
+        // Video status badge + action
+        var statusHtml = '';
+        if (c.video_status === 'rendering') {
+          statusHtml = '<span style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;animation:pulse 1.5s infinite;">⏳ Rendering</span>';
+        } else if (c.video_status === 'ready' && c.video_url) {
+          statusHtml = '<a href="' + escapeHtml(c.video_url) + '" download style="background:#10b981;color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;text-decoration:none;display:inline-block;" onclick="event.stopPropagation();">⬇ Download</a>';
+        } else if (c.video_status === 'failed') {
+          statusHtml = '<span style="background:#ef4444;color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;" title="' + escapeHtml(c.video_error || '') + '">✕ Failed</span>';
+        } else {
+          statusHtml = '<span style="color:#aaa;font-size:10px;">—</span>';
+        }
+
         return '<tr style="border-bottom:1px solid #f0f0f5;cursor:pointer;" onclick="showCreativeDetail(\'' + c.creative_id + '\')">'
           + '<td style="padding:10px 12px;white-space:nowrap;">' + date + '</td>'
           + '<td style="padding:10px 12px;font-family:monospace;font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(c.campaign_name) + '</td>'
@@ -8762,11 +8821,31 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           + '<td style="padding:10px 12px;font-size:12px;">' + escapeHtml(themeName) + '</td>'
           + '<td style="padding:10px 12px;font-size:12px;">' + escapeHtml(c.event_type || '—') + '</td>'
           + '<td style="padding:10px 12px;font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666;">' + prompt + '</td>'
+          + '<td style="padding:10px 12px;text-align:center;">' + statusHtml + '</td>'
           + '<td style="padding:10px 12px;white-space:nowrap;">'
           + '<button class="btn btn-secondary" style="font-size:10px;padding:3px 8px;margin-right:4px;" onclick="event.stopPropagation();copyToClipboard(\'' + escapeHtml(c.utm_url) + '\')">Copy UTM</button>'
           + '<button class="btn btn-secondary" style="font-size:10px;padding:3px 8px;color:#ef4444;" onclick="event.stopPropagation();deleteCreative(\'' + c.creative_id + '\')">Delete</button>'
           + '</td></tr>';
       }).join('');
+
+      // Auto-poll if any creatives are still rendering
+      if (_mktCreatives.some(function(c) { return c.video_status === 'rendering'; })) {
+        if (!window._adCreativePollTimer) {
+          window._adCreativePollTimer = setInterval(function() {
+            loadAdCreatives().then(function() {
+              // Stop polling if nothing is rendering anymore
+              if (!_mktCreatives.some(function(c) { return c.video_status === 'rendering'; })) {
+                clearInterval(window._adCreativePollTimer);
+                window._adCreativePollTimer = null;
+                // Alert user
+                if (document.hidden) {
+                  new Notification && Notification.permission === 'granted' && new Notification('Ryvite', { body: 'Your ad video is ready to download!' });
+                }
+              }
+            });
+          }, 8000); // Poll every 8 seconds
+        }
+      }
     }
 
     var _currentDetailCreativeId = null;
@@ -9836,9 +9915,14 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           </label>
         </div>
 
-        <button class="btn btn-primary" onclick="startAdVideoGeneration()" style="width:100%;padding:14px;font-size:15px;">
-          Generate Video
-        </button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary" onclick="startAdVideoGeneration()" style="flex:1;padding:14px;font-size:15px;">
+            Generate Video (In Browser)
+          </button>
+          <button class="btn btn-secondary" onclick="startServerRender()" style="flex:1;padding:14px;font-size:15px;border:2px solid #7c3aed;color:#7c3aed;background:#f5f0ff;">
+            Render on Server (Background)
+          </button>
+        </div>
       </div>
 
       <!-- Step 2: Progress -->
