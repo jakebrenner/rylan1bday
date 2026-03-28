@@ -495,16 +495,15 @@ If photos are provided via URL, use them in \`<img>\` tags with the exact URL pr
 
 ## THANK YOU PAGE (theme_thankyou_html) — CRITICAL
 The platform injects the "Thank You!" heading, subtitle text, calendar buttons, and footer at runtime.
-Your job: provide the **visual wrapper and decorative illustration** that makes it feel like a celebration, not a blank page.
+Your job: provide the **visual wrapper with a full-width header graphic** that makes it feel like a celebration, matching the invite's design.
 
 \`\`\`html
 <div class="thankyou-page">
-  <!-- REQUIRED: A theme-centric decorative SVG illustration (under 2KB) -->
-  <!-- Examples: confetti burst, balloons, party hat, checkmark with sparkles, -->
-  <!-- champagne glasses, birthday cake, gift box, rainbow, stars cluster, etc. -->
-  <!-- Match the event type and theme — make it feel like a CELEBRATION -->
-  <div class="thankyou-decoration">
-    <svg ...><!-- theme-matching illustration --></svg>
+  <!-- REQUIRED: Full-width header graphic at the top of the page -->
+  <!-- This should be visually similar to the invite's header/hero section -->
+  <!-- Use the same background (gradient, image, pattern) and include a decorative SVG -->
+  <div class="thankyou-header">
+    <svg ...><!-- theme-matching illustration, same style as invite header --></svg>
   </div>
   <!-- LEAVE EMPTY — platform fills with "Thank You!" title + confirmation subtitle -->
   <div class="thankyou-hero"></div>
@@ -513,25 +512,33 @@ Your job: provide the **visual wrapper and decorative illustration** that makes 
 
 Rules:
 - \`.thankyou-page\` MUST have a branded background matching the invite (gradient, pattern, texture, or solid color)
-- \`.thankyou-hero\` MUST be completely empty — no text, no emojis, no SVGs inside it. The platform fills it with title + subtitle.
-- **REQUIRED**: Include a decorative SVG illustration OUTSIDE \`.thankyou-hero\` but INSIDE \`.thankyou-page\`. This is NOT optional — a bare page with just text and buttons looks broken. The illustration should:
-  - Match the event theme (unicorn for kids party, champagne for wedding, etc.)
-  - Be an inline SVG, under 2KB
-  - Have CSS animation (fade-in, bounce, float, scale-up)
-  - Be placed ABOVE \`.thankyou-hero\` so it appears at the top
+- \`.thankyou-header\` is a FULL-WIDTH section at the top (no padding, no margin-top) that mirrors the invite's header/hero graphic. It should:
+  - Span the full width of the page (width: 100%)
+  - Start at the very top of the page (no gap above it)
+  - Have the same background treatment as the invite's header (gradient, color, pattern)
+  - Include a decorative SVG illustration (under 3KB) matching the invite's theme
+  - Have CSS animation (fade-in, scale-up, or similar entrance animation)
+  - Be visually similar to the invite's top section — if the invite has mountains and a night sky, the thank you page should too
+- \`.thankyou-hero\` MUST be completely empty — the platform fills it with title + subtitle
 - NO text content anywhere, NO emojis, NO calendar buttons, NO footer
-- **VISUAL CONSISTENCY IS MANDATORY**: The thank you page must look like it belongs with the invite. If the invite has a pink gradient background, the thank you page needs a similar pink gradient. If the invite uses purple and gold, the thank you page should too. A plain white thank you page after a vibrant themed invite is a broken experience.
+- **VISUAL CONSISTENCY IS MANDATORY**: The thank you page must look like it belongs with the invite — same colors, same mood, same graphic style. A plain white thank you page after a vibrant themed invite is a broken experience.
 - Include these CSS rules in theme_css — **customize ALL colors/fonts/backgrounds to match the invite**:
 \`\`\`css
 .thankyou-page {
-  max-width: 393px; margin: 0 auto; padding: 60px 32px 40px;
+  max-width: 393px; margin: 0 auto; padding: 0;
   min-height: 100vh; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; text-align: center;
+  align-items: center; text-align: center;
   /* COPY the invite's background treatment here — gradient, color, pattern */
   background: /* same gradient or color as the invite body */;
   font-family: /* same body font as the invite */;
 }
-.thankyou-decoration { margin-bottom: 24px; /* add entrance animation */ }
+.thankyou-header {
+  width: 100%; min-height: 200px; display: flex; align-items: center; justify-content: center;
+  /* Same background as invite header — gradient, color, or pattern */
+  background: /* same as invite header */;
+  padding: 40px 20px;
+  /* add entrance animation */
+}
 .thankyou-hero { margin-bottom: 32px; }
 .thankyou-title { font-size: 36px; font-weight: 700; margin-bottom: 12px; font-family: /* same heading font */; color: /* same accent/heading color */; }
 .thankyou-subtitle { font-size: 16px; line-height: 1.5; opacity: 0.8; }

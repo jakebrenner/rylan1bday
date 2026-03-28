@@ -714,9 +714,26 @@
                 <input type="hidden" id="editLocation">
                 <input type="hidden" id="editAddress">
                 <input type="hidden" id="editDressCode">
-                <div id="editCustomFields" style="display:none;"></div>
+                <div style="margin-top:12px;border-top:1px solid #eee;padding-top:12px;">
+                  <label style="font-size:11px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:0.5px;">RSVP Fields</label>
+                  <div id="editCustomFields" style="margin-top:6px;"></div>
+                  <button onclick="document.getElementById('detailsAddFieldForm').style.display='block'" style="margin-top:6px;font-size:12px;color:var(--party-coral);background:none;border:1px dashed var(--party-coral);border-radius:8px;padding:6px 12px;cursor:pointer;width:100%;">+ Add field</button>
+                  <div id="detailsAddFieldForm" style="display:none;margin-top:8px;padding:10px;background:#f9f9f9;border-radius:8px;">
+                    <input id="detailsNewFieldLabel" type="text" placeholder="Field label (e.g., Dietary Restrictions)" style="width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;margin-bottom:6px;">
+                    <select id="detailsNewFieldType" style="width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;margin-bottom:6px;">
+                      <option value="text">Text</option>
+                      <option value="number">Number</option>
+                      <option value="textarea">Long text</option>
+                      <option value="select">Dropdown</option>
+                      <option value="checkbox">Checkbox</option>
+                    </select>
+                    <div style="display:flex;gap:6px;">
+                      <button onclick="addFieldFromDetailsTab()" style="flex:1;padding:6px;font-size:12px;background:var(--party-coral);color:#fff;border:none;border-radius:6px;cursor:pointer;">Add</button>
+                      <button onclick="document.getElementById('detailsAddFieldForm').style.display='none'" style="flex:1;padding:6px;font-size:12px;background:#eee;color:#666;border:none;border-radius:6px;cursor:pointer;">Cancel</button>
+                    </div>
+                  </div>
+                </div>
                 <button class="btn btn-primary btn-sm" onclick="saveEditedDetails()" style="width:100%;margin-top:8px;">Save Changes</button>
-                <p style="font-size:11px;color:#999;margin-top:8px;text-align:center;">Use the Design chat to add location, dress code, RSVP fields, and more.</p>
               </div>
 
               <!-- Versions tab -->
@@ -6163,65 +6180,16 @@
             console.log('[tweak] Classification:', classification.intent, 'confidence:', classification.confidence);
             if (classification.metadata) updateCostFromGeneration(classification);
 
-            // If the classifier detected this is a field addition with high confidence,
-            // route it directly to Tier 1.5 (interpretField) instead of expensive Tier 2/3
-            if (classification.intent === 'add_field' && classification.confidence >= 0.8 && classification.field_details) {
-              console.log('[tweak] Classifier routed to field add:', classification.field_details);
-              var fd = classification.field_details;
-              var fieldKey = fd.field_key || (fd.label || '').toLowerCase().replace(/[^a-z0-9]+/g, '_');
-              var exists = enabledFields.some(function(ef) {
-                return (ef.field_key || '').toLowerCase() === fieldKey.toLowerCase() ||
-                       (ef.label || '').toLowerCase() === (fd.label || '').toLowerCase();
-              });
-              if (!exists) {
-                applyRsvpFieldChanges([{ action: 'add', field_key: fieldKey, label: fd.label, field_type: fd.field_type || 'text', is_required: fd.is_required || false, placeholder: fd.placeholder || null }]);
-                renderPreview(themeVersions[activeVersionIndex]);
-                pushDesignChat({ role: 'assistant', content: 'Done! Added a "' + fd.label + '" field to your RSVP form.\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
-              } else {
-                pushDesignChat({ role: 'assistant', content: 'That field already exists in your RSVP form!\n\nWant to make any other changes?' });
-              }
+            // If the classifier detected a field add/remove/modify, redirect to Details tab
+            // RSVP field management is handled in the Details tab, not the design chat.
+            // This prevents misclassification (e.g., "add performers to illustration" → field add)
+            if ((classification.intent === 'add_field' || classification.intent === 'remove_field' || classification.intent === 'modify_field') && classification.confidence >= 0.6) {
+              pushDesignChat({ role: 'assistant', content: 'RSVP fields are managed in the **Details** tab — tap "Details" above to add, remove, or edit your form fields.\n\nI handle the visual design of your invite. Need any design changes?' });
               clearDesignChatPhoto();
               sendBtn.disabled = false;
               renderDesignChat();
               return;
             }
-
-            // If the classifier detected a field removal, handle it directly
-            if (classification.intent === 'remove_field' && classification.confidence >= 0.6) {
-              var fieldSummary = classification.summary || '';
-              // Try to match the field name from the summary or the original text
-              var fieldsToRemove = [];
-              enabledFields.forEach(function(f) {
-                var fLabel = (f.label || '').toLowerCase();
-                var fKey = (f.field_key || '').toLowerCase();
-                if (fieldSummary.toLowerCase().indexOf(fLabel) !== -1 || text.toLowerCase().indexOf(fLabel) !== -1 ||
-                    fieldSummary.toLowerCase().indexOf(fKey.replace(/_/g, ' ')) !== -1) {
-                  fieldsToRemove.push(f);
-                }
-              });
-              // If "remove that/those/all" and we have chat history showing what was just added, remove those
-              if (fieldsToRemove.length === 0 && /\b(that|those|them|it|all)\b/i.test(text)) {
-                // Look in recent history for "Added X and Y" messages
-                var lastAdded = designChatHistory.filter(function(m) { return m.role === 'assistant' && m.content && m.content.indexOf('Added') !== -1; }).slice(-1)[0];
-                if (lastAdded) {
-                  enabledFields.forEach(function(f) {
-                    if (lastAdded.content.indexOf(f.label) !== -1) fieldsToRemove.push(f);
-                  });
-                }
-              }
-              if (fieldsToRemove.length > 0) {
-                var removedLabels = [];
-                fieldsToRemove.forEach(function(f) {
-                  applyRsvpFieldChanges([{ action: 'remove', field_key: f.field_key }]);
-                  removedLabels.push(f.label);
-                });
-                renderPreview(themeVersions[activeVersionIndex]);
-                pushDesignChat({ role: 'assistant', content: 'Done! Removed ' + removedLabels.map(function(l) { return '"' + l + '"'; }).join(' and ') + ' from your RSVP form.\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
-                clearDesignChatPhoto();
-                sendBtn.disabled = false;
-                renderDesignChat();
-                return;
-              }
               // If we couldn't match a field, fall through to the AI tweak which handles it via rsvp_field_changes
             }
 
@@ -6749,8 +6717,21 @@
     function deleteCustomField(idx) {
       rsvpFields.splice(idx, 1);
       renderEditCustomFields();
-      var rsvpFieldList = document.getElementById('rsvpFieldList');
-      if (rsvpFieldList) rsvpFieldList.innerHTML = renderRsvpFields();
+      renderPreview(themeVersions[activeVersionIndex]);
+      saveCustomFields();
+    }
+
+    function addFieldFromDetailsTab() {
+      var label = document.getElementById('detailsNewFieldLabel').value.trim();
+      var type = document.getElementById('detailsNewFieldType').value;
+      if (!label) { showMessage('Please enter a field label', 'error'); return; }
+      var key = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+      applyRsvpFieldChanges([{ action: 'add', field_key: key, label: label, field_type: type, is_required: false, placeholder: null }]);
+      renderEditCustomFields();
+      renderPreview(themeVersions[activeVersionIndex]);
+      document.getElementById('detailsNewFieldLabel').value = '';
+      document.getElementById('detailsNewFieldType').value = 'text';
+      document.getElementById('detailsAddFieldForm').style.display = 'none';
     }
 
     function editCustomField(idx) {
