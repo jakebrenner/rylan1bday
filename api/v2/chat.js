@@ -105,23 +105,17 @@ Suggest ADDITIONAL fields (beyond the built-in Name, Email, Phone, and RSVP Stat
 - options: array of options (only for "select" type), null otherwise
 - placeholder: hint text or null
 
-### Typical suggestions by event type:
-- **kidsBirthday**: plusOnes (number: "Number of Adults"), kidsCount (number: "Number of Children"), birthdayMessage (textarea: "Birthday message for the birthday kid!")
-- **adultBirthday**: plusOnes (number), songRequest (text: "Song request for the playlist"), birthdayMessage (textarea: "A memory or message for the birthday person")
-- **wedding**: plusOnes (number), mealChoice (select: Chicken/Fish/Vegetarian/Vegan), songRequest (text), coupleWish (textarea: "A wish for the couple")
-- **babyShower**: plusOnes (number), adviceForParents (textarea: "Advice for the new parents")
-- **engagement**: plusOnes (number), coupleMessage (textarea: "Message for the happy couple")
-- **graduation**: plusOnes (number), gradMessage (textarea: "Message for the graduate")
-- **dinnerParty**: drinkPreference (select: Wine/Beer/Cocktails/Non-alcoholic)
-- **holiday**: plusOnes (number), bringingDish (text: "What dish are you bringing?")
-- **retirement**: plusOnes (number), memoryMessage (textarea: "A favorite memory or message")
-- **anniversary**: plusOnes (number), coupleMessage (textarea: "A message for the happy couple")
-- **sports**: plusOnes (number), bringingItem (text: "What are you bringing?"), boldPrediction (text: "Your bold prediction for the game")
-- **bridalShower**: plusOnes (number), brideMessage (textarea: "A message for the bride")
-- **corporate**: company (text), title (text)
-- **other**: plusOnes (number), notes (textarea)
+### Common field suggestions (pick what's relevant):
+- plusOnes (number: "Number of Additional Guests")
+- mealChoice (select — only if the event involves a meal)
+- dietaryRestrictions (text)
+- songRequest (text)
+- message (textarea — a general message field, label it appropriately e.g. "Message", "Note for the Host")
+- bringingItem (text — for potlucks or shared events)
+- company (text), title (text) — for corporate events
+- notes (textarea)
 
-Tailor suggestions to context. If someone mentions "potluck" add a "bringing" field. If it's a pool party, skip meal choice.
+Keep suggestions practical and straightforward — 2-3 fields max. Only suggest fields that clearly fit the event. If the user mentions something specific (e.g. "potluck"), add a relevant field for it.
 
 ## PHASE 3: DESIGN CHAT
 After RSVP fields are confirmed, smoothly transition into designing the invite. Your goal is to collaboratively build a rich, specific creative prompt so the AI designer nails it on the first try.
@@ -231,11 +225,18 @@ export default async function handler(req, res) {
     const chatSessionId = sessionId || `chat_${user.id}_${Date.now()}`;
 
     const chatModel = await getChatModel();
+
+    // If user is logged in, inject their email so the AI doesn't ask for it
+    let systemPrompt = SYSTEM_PROMPT;
+    if (user.email) {
+      systemPrompt += `\n\nIMPORTANT: The host is already logged in with email: ${user.email}. Automatically use this as their hostEmail — do NOT ask them for their email address. Include it in "extracted" from your very first response.`;
+    }
+
     const startTime = Date.now();
     const response = await client.messages.create({
       model: chatModel,
       max_tokens: 1024,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: messages.map(m => ({
         role: m.role,
         content: m.content
