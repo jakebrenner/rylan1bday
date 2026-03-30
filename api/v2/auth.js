@@ -224,6 +224,7 @@ export default async function handler(req, res) {
       }
 
       // Create profile if new user
+      let metaEventId = null;
       if (!isExisting && userId) {
         await supabase.from('profiles').upsert({ id: userId, email }, { onConflict: 'id' }).catch(() => {});
 
@@ -231,7 +232,7 @@ export default async function handler(req, res) {
         sendAdminSignupNotifications(email, '', '').catch(() => {});
 
         // Track CompleteRegistration via Meta CAPI (fire-and-forget)
-        const metaEventId = crypto.randomUUID();
+        metaEventId = crypto.randomUUID();
         sendCapiEvent({
           eventName: 'CompleteRegistration',
           eventId: metaEventId,
@@ -254,6 +255,8 @@ export default async function handler(req, res) {
         accessToken: sessionData.session.access_token,
         refreshToken: sessionData.session.refresh_token,
         expiresAt: sessionData.session.expires_at,
+        isNew: !isExisting,
+        metaEventId: metaEventId,
         user: {
           id: userId,
           email,
