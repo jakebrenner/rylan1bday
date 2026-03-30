@@ -8487,11 +8487,13 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           document.getElementById('adVideoPhase').textContent = (formats.length > 1 ? (fi + 1) + '/' + formats.length + ' — ' : '') + 'Preparing ' + fmtLabel + '...';
 
           var useLiveAnimation = document.getElementById('adVideoLiveAnimation').checked;
+          var hookTextVal = document.getElementById('adVideoHookText').value.trim();
           var blob = await window.AdVideoGenerator.generate({
             html: _adVideoData.html,
             css: _adVideoData.css,
             config: _adVideoData.config,
             promptText: promptText,
+            hookText: hookTextVal,
             format: fmt,
             theme: _adVideoTheme,
             liveAnimation: useLiveAnimation,
@@ -9871,6 +9873,11 @@ If provided, analyze them for color palette, visual mood, textures, typography s
               Warm Sunset
             </button>
           </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Intro Hook (shown on first screen)</label>
+          <textarea id="adVideoHookText" rows="2" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;resize:vertical;box-sizing:border-box;">AI event invitations are finally here... and free.</textarea>
         </div>
 
         <div style="margin-bottom:16px;">
