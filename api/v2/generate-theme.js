@@ -700,12 +700,25 @@ function extractThemeFromHtmlDoc(html) {
   body = body.replace(/<head[\s\S]*?<\/head>/gi, '').replace(/<\/?(html|head|!doctype)[^>]*>/gi, '').replace(/<(link|meta)[^>]*>/gi, '').trim();
   if (!body && !css) throw new Error('Invalid theme response — could not extract HTML or CSS');
   // Extract thankyou-page content if present in the HTML document
+  // Use balanced-div matching since thankyou-page contains nested divs
   let thankyouHtml = '';
-  const thankyouMatch = body.match(/<div[^>]*class=["'][^"']*thankyou-page[^"']*["'][^>]*>[\s\S]*?<\/div>\s*$/i);
-  if (thankyouMatch) {
-    thankyouHtml = thankyouMatch[0];
-    body = body.replace(thankyouMatch[0], '').trim();
-    console.log('[extractThemeFromHtmlDoc] Extracted thankyou-page HTML (' + thankyouHtml.length + ' chars)');
+  const tyStartMatch = body.match(/<div[^>]*class=["'][^"']*thankyou-page[^"']*["'][^>]*>/i);
+  if (tyStartMatch) {
+    const tyStartIdx = body.indexOf(tyStartMatch[0]);
+    let depth = 0;
+    let endIdx = -1;
+    for (let i = tyStartIdx; i < body.length; i++) {
+      if (body.substring(i, i + 4) === '<div') depth++;
+      if (body.substring(i, i + 6) === '</div>') {
+        depth--;
+        if (depth === 0) { endIdx = i + 6; break; }
+      }
+    }
+    if (endIdx > tyStartIdx) {
+      thankyouHtml = body.substring(tyStartIdx, endIdx);
+      body = (body.substring(0, tyStartIdx) + body.substring(endIdx)).trim();
+      console.log('[extractThemeFromHtmlDoc] Extracted thankyou-page HTML (' + thankyouHtml.length + ' chars)');
+    }
   }
   return { theme_html: body, theme_css: css, theme_config: config, theme_thankyou_html: thankyouHtml };
 }
@@ -2583,7 +2596,7 @@ This is the most common failure mode. Double-check it.`;
       ? openaiStream(themeModel, activePrompt.systemPrompt, messageContent, 12288)
       : client.messages.stream({
           model: themeModel,
-          max_tokens: 12288,
+          max_tokens: 16384,
           system: activePrompt.systemPrompt,
           messages: [{ role: 'user', content: messageContent }]
         });
@@ -2671,6 +2684,26 @@ This is the most common failure mode. Double-check it.`;
     }
 
     // Store thank you HTML in config to avoid DB schema change
+    // If thankyou HTML is empty, try extracting from theme_html (AI sometimes puts it inline)
+    if (!theme.theme_thankyou_html && theme.theme_html && theme.theme_html.includes('thankyou-page')) {
+      const tyInlineMatch = theme.theme_html.match(/<div[^>]*class=["'][^"']*thankyou-page[^"']*["'][^>]*>/i);
+      if (tyInlineMatch) {
+        const tyStart = theme.theme_html.indexOf(tyInlineMatch[0]);
+        let depth = 0, tyEnd = -1;
+        for (let i = tyStart; i < theme.theme_html.length; i++) {
+          if (theme.theme_html.substring(i, i + 4) === '<div') depth++;
+          if (theme.theme_html.substring(i, i + 6) === '</div>') {
+            depth--;
+            if (depth === 0) { tyEnd = i + 6; break; }
+          }
+        }
+        if (tyEnd > tyStart) {
+          theme.theme_thankyou_html = theme.theme_html.substring(tyStart, tyEnd);
+          theme.theme_html = (theme.theme_html.substring(0, tyStart) + theme.theme_html.substring(tyEnd)).trim();
+          console.log('[generate] Extracted inline thankyou-page from theme_html (' + theme.theme_thankyou_html.length + ' chars)');
+        }
+      }
+    }
     if (theme.theme_thankyou_html) {
       theme.theme_config.thankyouHtml = theme.theme_thankyou_html;
     } else {
