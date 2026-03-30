@@ -8620,6 +8620,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('adPickerModal').style.display = 'flex';
       _adPickerTab = 'showcases';
       _adPickerPage = 1;
+      document.getElementById('adPickerSearch').value = '';
+      document.getElementById('adPickerEventType').value = '';
       // Reset tab styles
       document.querySelectorAll('.ad-picker-tab').forEach(function(btn) {
         var isActive = btn.dataset.tab === 'showcases';
@@ -8643,6 +8645,15 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     function adPickerPrevPage() { if (_adPickerPage > 1) { _adPickerPage--; loadAdPickerTab(); } }
     function adPickerNextPage() { if (_adPickerPage * _adPickerPageSize < _adPickerTotal) { _adPickerPage++; loadAdPickerTab(); } }
 
+    var _adPickerFilterTimer = null;
+    function adPickerFilterChanged() {
+      clearTimeout(_adPickerFilterTimer);
+      _adPickerFilterTimer = setTimeout(function() {
+        _adPickerPage = 1;
+        loadAdPickerTab();
+      }, 300);
+    }
+
     async function loadAdPickerTab() {
       var grid = document.getElementById('adPickerGrid');
       var empty = document.getElementById('adPickerEmpty');
@@ -8650,6 +8661,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       grid.innerHTML = '<div style="text-align:center;padding:40px;color:#888;grid-column:1/-1;">Loading...</div>';
       empty.style.display = 'none';
       pagination.style.display = 'none';
+
+      var searchQuery = (document.getElementById('adPickerSearch').value || '').trim().toLowerCase();
+      var eventTypeFilter = document.getElementById('adPickerEventType').value;
 
       try {
         var items = [];
@@ -8661,23 +8675,45 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           items = (data.showcases || []).map(function(s) {
             return { html: s.html, css: s.css, config: s.config, title: s.event_title || s.event_type || 'Invite', subtitle: s.prompt_text || '', eventType: s.event_type, sourceType: 'showcase', sourceId: s.id };
           });
+          // Client-side filtering for showcases (API doesn't support it)
+          if (eventTypeFilter) items = items.filter(function(item) { return item.eventType === eventTypeFilter; });
+          if (searchQuery) items = items.filter(function(item) {
+            return (item.title + ' ' + item.subtitle + ' ' + (item.eventType || '')).toLowerCase().indexOf(searchQuery) !== -1;
+          });
           total = items.length;
 
         } else if (_adPickerTab === 'userGen') {
-          var res = await adminFetch('listThemes', { params: { page: _adPickerPage, limit: _adPickerPageSize, sortBy: 'created_at' } });
+          var params = { page: _adPickerPage, limit: _adPickerPageSize, sortBy: 'created_at' };
+          if (eventTypeFilter) params.eventType = eventTypeFilter;
+          var res = await adminFetch('listThemes', { params: params });
           var themes = res.themes || [];
           total = res.total || themes.length;
           items = themes.map(function(t) {
-            return { html: t.html, css: t.css, config: t.config, title: t.eventTitle || t.eventType || 'User Generation', subtitle: (t.userDisplayName || '') + (t.model ? ' · ' + t.model : ''), eventType: t.eventType, sourceType: 'user_theme', sourceId: t.id, rating: t.admin_rating };
+            return { html: t.html, css: t.css, config: t.config, title: t.eventTitle || t.eventType || 'User Generation', subtitle: (t.userDisplayName || '') + (t.model ? ' · ' + t.model : ''), eventType: t.eventType, sourceType: 'user_theme', sourceId: t.id, rating: t.admin_rating, prompt: t.prompt };
           });
+          // Client-side search (API doesn't have text search)
+          if (searchQuery) {
+            items = items.filter(function(item) {
+              return (item.title + ' ' + item.subtitle + ' ' + (item.eventType || '') + ' ' + (item.prompt || '')).toLowerCase().indexOf(searchQuery) !== -1;
+            });
+            total = items.length;
+          }
 
         } else if (_adPickerTab === 'labGen') {
-          var res = await adminFetch('listTestRuns', { params: { page: _adPickerPage, limit: _adPickerPageSize } });
+          var params = { page: _adPickerPage, limit: _adPickerPageSize };
+          if (eventTypeFilter) params.eventType = eventTypeFilter;
+          var res = await adminFetch('listTestRuns', { params: params });
           var runs = res.testRuns || [];
           total = res.total || runs.length;
           items = runs.map(function(r) {
             return { html: r.result_html, css: r.result_css, config: r.result_config, title: r.event_type || 'Lab Generation', subtitle: (r.model || '') + (r.score ? ' · ' + r.score + '★' : ''), eventType: r.event_type, sourceType: 'lab_theme', sourceId: r.id, prompt: r.event_details ? r.event_details.description : '' };
           });
+          if (searchQuery) {
+            items = items.filter(function(item) {
+              return (item.title + ' ' + item.subtitle + ' ' + (item.eventType || '') + ' ' + (item.prompt || '')).toLowerCase().indexOf(searchQuery) !== -1;
+            });
+            total = items.length;
+          }
         }
 
         _adPickerItems = items;
@@ -8686,7 +8722,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         if (items.length === 0) {
           grid.innerHTML = '';
           empty.style.display = '';
-          empty.querySelector('p') && (empty.innerHTML = '<p>No ' + _adPickerTab + ' found.</p>');
+          empty.innerHTML = '<p>No results' + (searchQuery || eventTypeFilter ? ' matching your filters' : '') + '.</p>';
           return;
         }
 
@@ -9888,6 +9924,28 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         <button class="ad-picker-tab active" data-tab="showcases" onclick="switchAdPickerTab('showcases')" style="padding:10px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid #E94560;margin-bottom:-2px;color:#E94560;cursor:pointer;">Showcases</button>
         <button class="ad-picker-tab" data-tab="userGen" onclick="switchAdPickerTab('userGen')" style="padding:10px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:#888;cursor:pointer;">User Generations</button>
         <button class="ad-picker-tab" data-tab="labGen" onclick="switchAdPickerTab('labGen')" style="padding:10px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:#888;cursor:pointer;">Lab Generations</button>
+      </div>
+
+      <!-- Filters -->
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <input type="text" id="adPickerSearch" placeholder="Search invites..." oninput="adPickerFilterChanged()" style="flex:1;min-width:180px;padding:8px 14px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+        <select id="adPickerEventType" onchange="adPickerFilterChanged()" style="padding:8px 14px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;min-width:160px;">
+          <option value="">All Event Types</option>
+          <option value="kidsBirthday">Kids Birthday</option>
+          <option value="adultBirthday">Adult Birthday</option>
+          <option value="babyShower">Baby Shower</option>
+          <option value="engagement">Engagement</option>
+          <option value="wedding">Wedding</option>
+          <option value="graduation">Graduation</option>
+          <option value="holiday">Holiday</option>
+          <option value="dinnerParty">Dinner Party</option>
+          <option value="retirement">Retirement</option>
+          <option value="anniversary">Anniversary</option>
+          <option value="sports">Sports</option>
+          <option value="bridalShower">Bridal Shower</option>
+          <option value="corporate">Corporate</option>
+          <option value="other">Other</option>
+        </select>
       </div>
 
       <!-- Grid -->
