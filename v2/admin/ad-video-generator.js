@@ -696,12 +696,11 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
     recorder.onerror = function(e) { reject(new Error('MediaRecorder error: ' + (e.error || e.message || 'unknown'))); };
 
     let startTime = null;
-    let animTimerId = null;
-    const frameMs = 1000 / FPS; // target ~33ms per frame
+    let animId = null;
 
     recorder.start(1000);
 
-    function drawFrame() {
+    function drawFrame(rafTimestamp) {
       if (!startTime) startTime = performance.now();
       const elapsed = performance.now() - startTime;
 
@@ -993,18 +992,22 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
       onProgress(progress, phase);
 
       if (elapsed < totalMs) {
-        // Use setTimeout instead of requestAnimationFrame so rendering
-        // continues at full speed even when the tab is in the background
-        animTimerId = setTimeout(drawFrame, frameMs);
+        // Use requestAnimationFrame for smooth rendering when tab is visible,
+        // fall back to setTimeout when tab is hidden (RAF gets throttled to ~1fps)
+        if (document.hidden) {
+          animId = setTimeout(drawFrame, 1000 / FPS);
+        } else {
+          animId = requestAnimationFrame(drawFrame);
+        }
       } else {
         setTimeout(function() {
           recorder.stop();
-          clearTimeout(animTimerId);
+          if (typeof animId === 'number') cancelAnimationFrame(animId);
         }, 200);
       }
     }
 
-    animTimerId = setTimeout(drawFrame, 0);
+    animId = requestAnimationFrame(drawFrame);
   });
 }
 
