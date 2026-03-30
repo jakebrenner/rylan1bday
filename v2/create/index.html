@@ -1753,6 +1753,15 @@
             localStorage.setItem('v2_user', JSON.stringify(result.user));
             _guestMode = false;
 
+            // Track CompleteRegistration with Meta Pixel for new users (dedup with server CAPI)
+            if (result.isNew && window.RyvitePixel) {
+              RyvitePixel.reinitWithUserData({ em: email });
+              RyvitePixel.trackEvent('CompleteRegistration', {
+                content_name: 'Guest Onboarding',
+                status: true
+              }, null, result.metaEventId);
+            }
+
             // Update profile UI
             var pn = document.getElementById('profileName');
             var pe = document.getElementById('profileEmail');
