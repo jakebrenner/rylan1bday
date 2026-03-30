@@ -1846,7 +1846,7 @@ try {
       const resp = await client.messages.create({
         model: classifyModel,
         max_tokens: 400,
-        system: 'You classify user requests in a design chat for event invitations. Return ONLY a JSON object, no markdown. Be very conservative with add_field — only classify as add_field if the user explicitly mentions "field", "form", "RSVP", "question", or "ask". When in doubt between add_field and design_change, choose design_change.',
+        system: 'You classify user requests in a design chat for event invitations. Return ONLY a JSON object, no markdown. RSVP field management (add/remove/modify fields) is handled in the Details tab, NOT the design chat. If the user mentions both field changes AND design changes in the same message, classify as design_change (the chat handles design, the Details tab handles fields). When in doubt, choose design_change.',
         messages: [{ role: 'user', content: `The user is customizing their ${eventType || 'event'} invite${classifyPreviewMode === 'email' ? ' email' : ''} and said:
 "${userMessage}"
 

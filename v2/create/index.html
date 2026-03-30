@@ -757,6 +757,9 @@
                 </div>
                 <div class="phone-home-bar"></div>
               </div>
+              <div style="text-align:center;margin-top:8px;">
+                <a href="#" id="viewInvitePageLink" onclick="openInvitePage(); return false;" style="font-size:12px;color:var(--party-coral);text-decoration:none;">View Invite Page ↗</a>
+              </div>
             </div>
             <!-- Mobile action buttons below preview -->
             <div id="mobilePreviewActions" style="display:none;margin-top:16px;width:100%;max-width:360px;">
@@ -3726,6 +3729,16 @@
         }
       } catch (e) {
         console.warn('[injectRsvpForm] Failed:', e.message);
+      }
+    }
+
+    function openInvitePage() {
+      if (currentEvent && currentEvent.slug) {
+        window.open('/v2/event/' + currentEvent.slug, '_blank');
+      } else if (currentEvent && currentEvent.id) {
+        window.open('/v2/event/?id=' + currentEvent.id, '_blank');
+      } else {
+        showMessage('Publish your invite first to view the guest page', 'info');
       }
     }
 
