@@ -139,7 +139,7 @@
     function loadTab(mode) {
       var iframe = document.getElementById('previewFrame');
       if (mode === 'email') {
-        iframe.src = '';
+        iframe.removeAttribute('src');
         iframe.srcdoc = buildEmailPreview();
         iframe.onload = function() {
           try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 48, 600) + 'px'; } catch(e) {}
@@ -147,8 +147,8 @@
       } else {
         // Invite and Thank You: load the real event page with preview flag
         var viewParam = mode === 'thankyou' ? '&view=thankyou' : '';
-        iframe.srcdoc = '';
-        iframe.src = '/v2/event/?eid=' + encodeURIComponent(eventId) + '&preview=true' + viewParam;
+        iframe.removeAttribute('srcdoc');
+        iframe.src = '/v2/event/index.html?eid=' + encodeURIComponent(eventId) + '&preview=true' + viewParam;
         iframe.onload = function() {
           try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 48, 600) + 'px'; } catch(e) {
             // Cross-origin fallback — just use full viewport
