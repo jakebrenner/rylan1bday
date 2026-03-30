@@ -47,218 +47,83 @@
   <div class="preview-banner">
     <span>Preview mode — RSVP submissions won't be saved</span>
     <div id="previewTabs" class="preview-tabs">
-      <button class="active" data-mode="invite" onclick="switchPreviewTab('invite')">Invite</button>
-      <button data-mode="thankyou" onclick="switchPreviewTab('thankyou')">Thank You</button>
-      <button data-mode="email" onclick="switchPreviewTab('email')">Email</button>
+      <button class="active" data-mode="invite" onclick="switchTab('invite')">Invite</button>
+      <button data-mode="thankyou" onclick="switchTab('thankyou')">Thank You</button>
+      <button data-mode="email" onclick="switchTab('email')">Email</button>
     </div>
     <button class="close-preview" onclick="window.close()">Close Preview</button>
   </div>
   <div id="loading" class="loading">Loading preview...</div>
   <iframe id="previewFrame" style="display:none;"></iframe>
   <script>
-    function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-
+    var eventId = null;
     var eventData = null;
-    var currentMode = 'invite';
+    var currentTab = 'invite';
 
-    function switchPreviewTab(mode) {
-      currentMode = mode;
+    function switchTab(mode) {
+      currentTab = mode;
       document.querySelectorAll('#previewTabs button').forEach(function(btn) {
         btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
       });
-      renderCurrentMode();
+      loadTab(mode);
     }
 
-    function renderCurrentMode() {
-      if (!eventData) return;
+    function loadTab(mode) {
       var iframe = document.getElementById('previewFrame');
-      if (currentMode === 'thankyou') {
-        iframe.srcdoc = buildThankYouPage();
-      } else if (currentMode === 'email') {
-        iframe.srcdoc = buildEmailPage();
+      if (mode === 'email') {
+        // Email is just raw HTML — render via srcdoc
+        var config = eventData ? (eventData.themeConfig || {}) : {};
+        var emailHtml = config.emailHtml || '';
+        if (emailHtml) {
+          iframe.src = '';
+          iframe.srcdoc = emailHtml;
+        } else {
+          iframe.src = '';
+          iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
+            + '<style>* { margin:0; padding:0; box-sizing:border-box; } body { display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Inter,sans-serif;color:#888; }</style></head>'
+            + '<body><p>No custom email template generated for this theme.</p></body></html>';
+        }
+        iframe.onload = function() {
+          try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 48, 600) + 'px'; } catch(e) {}
+        };
       } else {
-        iframe.srcdoc = buildInvitePage();
+        // Invite and Thank You: load the real event page with preview flag
+        var viewParam = mode === 'thankyou' ? '&view=thankyou' : '';
+        iframe.srcdoc = '';
+        iframe.src = '/v2/event/?eid=' + encodeURIComponent(eventId) + '&preview=true' + viewParam;
+        iframe.onload = function() {
+          try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 48, 600) + 'px'; } catch(e) {
+            // Cross-origin fallback — just use full viewport
+            iframe.style.height = 'calc(100vh - 48px)';
+          }
+        };
       }
-      iframe.onload = function() {
-        try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 48, 600) + 'px'; } catch(e) {}
-      };
-    }
-
-    function buildInvitePage() {
-      var ev = eventData;
-      var config = ev.themeConfig || {};
-      var fontsImport = config.googleFontsImport || '';
-      var customFields = ev.customFields || [];
-
-      // Build the inject script that runs inside the iframe to detect background
-      // and build the RSVP form with correct colors — matches event page exactly
-      var injectScript = '<script>'
-        + 'var CUSTOM_FIELDS = ' + JSON.stringify(customFields) + ';'
-        + 'var EVENT_DATA = ' + JSON.stringify({event_date: ev.event_date || ev.eventDate, end_date: ev.end_date || ev.endDate, location_name: ev.location_name || ev.locationName, location_address: ev.location_address || ev.locationAddress, dress_code: ev.dress_code || ev.dressCode}) + ';'
-        + 'function escHtml(s){return(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}'
-        + 'function detectBgColor(el){'
-        + '  var node=el;'
-        + '  while(node&&node.nodeType===1){'
-        + '    try{'
-        + '      var s=window.getComputedStyle(node);'
-        + '      var bg=s.backgroundColor;'
-        + '      if(bg&&bg!=="rgba(0, 0, 0, 0)"&&bg!=="transparent"){'
-        + '        var m=bg.match(/\\d+/g);'
-        + '        if(m&&m.length>=3)return[+m[0],+m[1],+m[2]];'
-        + '      }'
-        + '      var bi=s.backgroundImage;'
-        + '      if(bi&&bi!=="none"){'
-        + '        var gc=bi.match(/rgb[a]?\\([^)]+\\)/g);'
-        + '        if(gc){var gm=gc[0].match(/\\d+/g);if(gm&&gm.length>=3)return[+gm[0],+gm[1],+gm[2]];}'
-        + '      }'
-        + '    }catch(e){}'
-        + '    node=node.parentElement;'
-        + '  }'
-        + '  return[255,255,255];'
-        + '}'
-        + 'function bgIsDark(rgb){'
-        + '  var a=rgb.map(function(v){v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);});'
-        + '  return(0.2126*a[0]+0.7152*a[1]+0.0722*a[2])<0.35;'
-        + '}'
-        + 'document.addEventListener("DOMContentLoaded",function(){'
-        + '  var slot=document.querySelector(".rsvp-slot");'
-        + '  if(!slot)return;'
-        + '  var btn=slot.querySelector(".rsvp-button");'
-        + '  var btnHtml=btn?btn.outerHTML:"";'
-        + '  var isDark=bgIsDark(detectBgColor(slot));'
-        + '  var tc=isDark?"#FFFFFF":"#1A1A1A";'
-        + '  var bc=isDark?"rgba(255,255,255,0.3)":"rgba(0,0,0,0.15)";'
-        + '  var ib=isDark?"rgba(255,255,255,0.12)":"rgba(0,0,0,0.04)";'
-        + '  var is="width:100%;padding:12px 14px;border:1px solid "+bc+";border-radius:8px;font-size:16px;font-family:Inter,sans-serif;-webkit-appearance:none;background:"+ib+";color:"+tc+";";'
-        + '  var ls="display:block;margin-bottom:8px;font-weight:600;font-size:14px;color:"+tc+";";'
-        + '  var h=\'<div id="rsvpForm" style="color:\'+tc+\';">\';'
-        // Name
-        + '  h+=\'<div class="rsvp-form-group" style="margin-bottom:14px;"><label style="\'+ls+\'">Name <span style="color:#E94560;">*</span></label><input type="text" placeholder="Your name" style="\'+is+\'"></div>\';'
-        // Email
-        + '  h+=\'<div class="rsvp-form-group" style="margin-bottom:14px;"><label style="\'+ls+\'">Email</label><input type="email" placeholder="your@email.com" style="\'+is+\'"></div>\';'
-        // Phone
-        + '  h+=\'<div class="rsvp-form-group" style="margin-bottom:14px;"><label style="\'+ls+\'">Phone</label><input type="tel" placeholder="(555) 123-4567" style="\'+is+\'"></div>\';'
-        // RSVP Status dropdown
-        + '  h+=\'<div class="rsvp-form-group" style="margin-bottom:14px;"><label style="\'+ls+\'">RSVP Status <span style="color:#E94560;">*</span></label><select style="\'+is+\'cursor:pointer;"><option value="">Select...</option><option value="yes">Yes, I\\\'ll be there!</option><option value="no">No, sorry</option><option value="maybe">Maybe</option></select></div>\';'
-        // Custom fields
-        + '  CUSTOM_FIELDS.forEach(function(f){'
-        + '    if(f.key==="email"||f.key==="name"||f.key==="status"||f.key==="phone")return;'
-        + '    var req=f.required?\" <span style=\\\"color:#E94560;\\\">*</span>\":\"\";'
-        + '    var label=escHtml(f.label||f.key||\"\");'
-        + '    h+=\'<div class="rsvp-form-group" style="margin-bottom:14px;"><label style="\'+ls+\'">\'+label+req+\'</label>\';'
-        + '    if(f.type===\"checkbox\"){'
-        + '      h+=\'<label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;color:\'+tc+\';"><input type="checkbox" style="width:18px;height:18px;accent-color:#E94560;cursor:pointer;"><span>\'+escHtml(f.placeholder||f.label||\"\")+\'</span></label>\';'
-        + '    }else if(f.type===\"select\"&&f.options&&f.options.length>0){'
-        + '      h+=\'<select style="\'+is+\'cursor:pointer;"><option value="">Select...</option>\';'
-        + '      f.options.forEach(function(o){h+=\'<option>\'+escHtml(o)+\'</option>\';});'
-        + '      h+=\'</select>\';'
-        + '    }else if(f.type===\"textarea\"){'
-        + '      h+=\'<textarea placeholder="\'+escHtml(f.placeholder||\"\")+\'" style="\'+is+\'min-height:80px;resize:vertical;"></textarea>\';'
-        + '    }else{'
-        + '      var pt=f.type===\"number\"?\"number\":f.type===\"email\"?\"email\":(f.type===\"phone\"||f.type===\"tel\")?\"tel\":\"text\";'
-        + '      var ph=f.type===\"number\"?(f.placeholder||\"0\"):(f.placeholder||\"\");'
-        + '      h+=\'<input type="\'+pt+\'" placeholder="\'+escHtml(ph)+\'" style="\'+is+\'">\';'
-        + '    }'
-        + '    h+=\'</div>\';'
-        + '  });'
-        // Submit button
-        + '  h+=\'<button class="rsvp-submit" id="rsvpSubmitBtn" style="width:100%;padding:14px 24px;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;background:#E94560;color:#FFFFFF;font-family:Inter,sans-serif;min-height:48px;">Submit RSVP</button>\';'
-        + '  h+=\'</div>\';'
-        + '  slot.innerHTML=h+btnHtml;'
-        // Inject event details into .details-slot (matches event page)
-        + '  var ds=document.querySelector(".details-slot");'
-        + '  if(ds){'
-        + '    var items=[];'
-        + '    var evData=EVENT_DATA;'
-        + '    if(evData.event_date||evData.eventDate){'
-        + '      var d=new Date(evData.event_date||evData.eventDate);'
-        + '      var df=d.toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});'
-        + '      var tf=d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});'
-        + '      if(evData.end_date||evData.endDate){var ed=new Date(evData.end_date||evData.endDate);tf+=" \\u2013 "+ed.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});}'
-        + '      items.push({icon:"&#128197;",label:"Date",value:df+"<br>"+tf});'
-        + '    }'
-        + '    var ln=evData.location_name||evData.locationName||"";'
-        + '    var la=evData.location_address||evData.locationAddress||"";'
-        + '    if(ln||la){items.push({icon:"&#128205;",label:"Location",value:[ln,la].filter(Boolean).join("<br>")});}'
-        + '    var dc=evData.dress_code||evData.dressCode||"";'
-        + '    if(dc){items.push({icon:"&#128087;",label:"Dress Code",value:dc});}'
-        + '    ds.innerHTML=items.map(function(i){return\'<div class="detail-item"><div class="detail-icon">\'+i.icon+\'</div><div class="detail-text"><div class="detail-label">\'+i.label+\'</div><div class="detail-value">\'+i.value+\'</div></div></div>\';}).join("");'
-        + '  }'
-        + '});'
-        + '<\/script>';
-
-      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { background: #f9f9f9; } ' + fontsImport + '</style>'
-        + '<style>' + ev.themeCss + '</style></head><body>'
-        + ev.themeHtml + injectScript
-        + '<div style="clear:both;width:100%;text-align:center;padding:20px;font-size:15px;color:#999;font-family:Inter,sans-serif;">Made with Love by <a href="/" style="color:#999;text-decoration:none;">Ryvite</a></div>'
-        + '</body></html>';
-    }
-
-    function buildThankYouPage() {
-      var ev = eventData;
-      var config = ev.themeConfig || {};
-      var fontsImport = config.googleFontsImport || '';
-      var thankyouHtml = config.thankyouHtml || '';
-
-      if (!thankyouHtml) {
-        return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
-          + '<style>* { margin:0; padding:0; box-sizing:border-box; } body { display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Inter,sans-serif;color:#888; }</style></head>'
-          + '<body><p>No thank-you page generated for this theme.</p></body></html>';
-      }
-
-      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { background: #f9f9f9; } ' + fontsImport + '</style>'
-        + '<style>' + ev.themeCss + '</style></head><body>'
-        + thankyouHtml
-        + '</body></html>';
-    }
-
-    function buildEmailPage() {
-      var ev = eventData;
-      var config = ev.themeConfig || {};
-      var emailHtml = config.emailHtml || '';
-
-      if (emailHtml) return emailHtml;
-
-      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } body { display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Inter,sans-serif;color:#888; }</style></head>'
-        + '<body><p>No custom email template generated for this theme.</p></body></html>';
     }
 
     (async function() {
       var params = new URLSearchParams(window.location.search);
-      var eventId = params.get('eventId');
+      eventId = params.get('eventId');
       if (!eventId) { document.getElementById('loading').textContent = 'No event specified'; return; }
 
+      // Fetch event data once (needed for email tab)
       var token = localStorage.getItem('sb_access_token');
       try {
         var res = await fetch('/api/v2/events?action=get&eventId=' + encodeURIComponent(eventId), {
-          headers: { 'Authorization': 'Bearer ' + token }
+          headers: token ? { 'Authorization': 'Bearer ' + token } : {}
         });
         var result = await res.json();
         if (!result.success || !result.event) {
           document.getElementById('loading').textContent = 'Event not found';
           return;
         }
-        var ev = result.event;
-        if (!ev.themeHtml || !ev.themeCss) {
-          document.getElementById('loading').textContent = 'No theme generated yet';
-          return;
-        }
-        eventData = ev;
+        eventData = result.event;
 
-        // Show tabs
+        // Show tabs and load invite view
         document.getElementById('previewTabs').style.display = 'flex';
-
-        // Render invite view
-        var iframe = document.getElementById('previewFrame');
-        iframe.srcdoc = buildInvitePage();
-        iframe.style.display = 'block';
         document.getElementById('loading').style.display = 'none';
-        iframe.onload = function() {
-          try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 48, 600) + 'px'; } catch(e) {}
-        };
+        var iframe = document.getElementById('previewFrame');
+        iframe.style.display = 'block';
+        loadTab('invite');
       } catch(err) {
         document.getElementById('loading').textContent = 'Error loading preview';
       }

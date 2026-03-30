@@ -417,6 +417,8 @@
       var slug = params.get('slug');
       var eventId = params.get('eid');
       guestId = params.get('gid') || '';
+      var isPreview = params.get('preview') === 'true';
+      var viewMode = params.get('view') || 'invite';
 
       // Support clean URLs: /v2/event/my-slug
       if (!slug && !eventId) {
@@ -431,7 +433,18 @@
 
       try {
         var queryParams = slug ? 'slug=' + encodeURIComponent(slug) : 'eventId=' + encodeURIComponent(eventId);
-        var res = await fetch('/api/v2/events?action=getPublic&' + queryParams);
+        var fetchOpts = {};
+
+        // Preview mode: use authenticated 'get' endpoint (supports draft events)
+        if (isPreview) {
+          var token = localStorage.getItem('sb_access_token');
+          if (token) {
+            fetchOpts.headers = { 'Authorization': 'Bearer ' + token };
+          }
+        }
+
+        var apiAction = isPreview ? 'get' : 'getPublic';
+        var res = await fetch('/api/v2/events?action=' + apiAction + '&' + queryParams, fetchOpts);
         var result = await res.json();
 
         if (!result.success || !result.event) { showError('Event not found'); return; }
@@ -439,21 +452,24 @@
         currentEventData = result.event;
         document.title = result.event.title + ' — Ryvite';
 
-        // Track ViewContent with Meta Pixel
-        if (window.RyvitePixel) {
-          RyvitePixel.trackEvent('ViewContent', {
-            content_type: 'event_invite',
-            content_name: result.event.title,
-            content_ids: [result.event.id],
-            content_category: result.event.eventType || 'event'
-          });
+        // Skip tracking in preview mode
+        if (!isPreview) {
+          // Track ViewContent with Meta Pixel
+          if (window.RyvitePixel) {
+            RyvitePixel.trackEvent('ViewContent', {
+              content_type: 'event_invite',
+              content_name: result.event.title,
+              content_ids: [result.event.id],
+              content_category: result.event.eventType || 'event'
+            });
+          }
+
+          // Track invite page view for viral loop reporting
+          trackViralEvent('page_view', result.event.id);
         }
 
-        // Track invite page view for viral loop reporting
-        trackViralEvent('page_view', result.event.id);
-
         // If guest arrived via personalized invite link, look up their info
-        if (guestId) {
+        if (guestId && !isPreview) {
           try {
             var gRes = await fetch('/api/v2/events?action=getGuest&guestId=' + encodeURIComponent(guestId) + '&eventId=' + encodeURIComponent(result.event.id));
             var gData = await gRes.json();
@@ -494,6 +510,21 @@
                   // Inject RSVP form into .rsvp-slot inside the iframe
                   renderRSVPForm(result.event);
 
+                  // Preview mode: show thank-you page or disable form
+                  if (isPreview) {
+                    if (viewMode === 'thankyou') {
+                      setTimeout(function() { showThankYouPage('Guest', 'yes'); }, 100);
+                    } else {
+                      // Disable submit button in preview
+                      var submitBtn = iframe.contentDocument.querySelector('#rsvpSubmitBtn');
+                      if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.style.opacity = '0.7';
+                        submitBtn.style.cursor = 'default';
+                      }
+                    }
+                  }
+
                   // ── CSS rendering check (retry on failure) ──
                   checkGuestCssRendered(iframe, themeData);
 
@@ -531,7 +562,9 @@
         // RSVP form is injected into iframe's .rsvp-slot in the onload handler (or external section for fallback)
         // Photos section removed from invite page — photos are on the dedicated /photos page
         document.getElementById('loading').style.display = 'none';
-        document.getElementById('poweredBy').style.display = 'block';
+        if (!isPreview) {
+          document.getElementById('poweredBy').style.display = 'block';
+        }
       } catch (err) { console.error(err); showError('Error loading event'); }
     }
 
