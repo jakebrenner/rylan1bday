@@ -2250,7 +2250,6 @@
         </div>
         <div id="mktBulkBar" style="display:none;background:#f0f4ff;border:1px solid #c7d2fe;border-radius:8px;padding:10px 16px;margin-bottom:12px;display:none;align-items:center;gap:12px;flex-wrap:wrap;">
           <span id="mktBulkCount" style="font-size:13px;font-weight:600;color:#4f46e5;">0 selected</span>
-          <button class="btn btn-secondary" onclick="bulkRenderCreatives()" style="font-size:12px;padding:5px 14px;border-color:#7c3aed;color:#7c3aed;">Render on Server</button>
           <button class="btn btn-secondary" onclick="bulkDeleteCreatives()" style="font-size:12px;padding:5px 14px;border-color:#ef4444;color:#ef4444;">Delete Selected</button>
           <button class="btn btn-secondary" onclick="clearBulkSelection()" style="font-size:12px;padding:5px 14px;">Clear</button>
         </div>
@@ -2266,7 +2265,6 @@
                 <th style="padding:8px 12px;">Theme</th>
                 <th style="padding:8px 12px;">Event Type</th>
                 <th style="padding:8px 12px;">Prompt</th>
-                <th style="padding:8px 12px;text-align:center;">Video</th>
                 <th style="padding:8px 12px;">Actions</th>
               </tr>
             </thead>
@@ -2332,8 +2330,6 @@
                   <tr><td style="padding:4px 0;color:#888;font-family:monospace;">utm_term</td><td style="padding:4px 0;" id="cdUtmTerm"></td></tr>
                 </table>
               </div>
-
-              <div id="cdVideoSection"></div>
 
               <div style="display:flex;gap:8px;flex-wrap:wrap;">
                 <button class="btn btn-primary" onclick="regenFromDetail()" style="font-size:13px;">Re-generate Video</button>
@@ -8593,52 +8589,6 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       Object.keys(_adVideoBlobs).forEach(function(fmt) { downloadAdVideoFmt(fmt); });
     }
 
-    async function startServerRender() {
-      var promptText = document.getElementById('adVideoPromptText').value.trim();
-      if (!promptText) { alert('Please enter prompt text'); return; }
-
-      var formats = getSelectedFormats();
-      if (formats.length === 0) { alert('Please select at least one format'); return; }
-
-      var campaignLabel = document.getElementById('adVideoCampaignLabel').value.trim();
-
-      try {
-        for (var fi = 0; fi < formats.length; fi++) {
-          var fmt = formats[fi];
-          var res = await authFetch('/api/v2/render-ad-video', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              html: _adVideoData.html,
-              css: _adVideoData.css,
-              config: _adVideoData.config,
-              promptText: promptText,
-              format: fmt,
-              theme: _adVideoTheme,
-              campaignLabel: campaignLabel || null,
-              sourceType: _adVideoData.sourceType || 'showcase',
-              sourceId: _adVideoData.sourceId || '00000000-0000-0000-0000-000000000000',
-              eventType: _adVideoData.eventType || null,
-              videoTheme: _adVideoTheme,
-              destinationUrl: getUtmBaseUrl()
-            })
-          });
-
-          var result = await res.json();
-          if (!result.success) throw new Error(result.error || 'Server render request failed');
-        }
-
-        // Close modal and refresh creatives list
-        closeAdVideoModal();
-        _mktLoaded = false;
-        await loadAdCreatives();
-        showToast('Video rendering started — check the Video column for progress');
-
-      } catch (err) {
-        showToast('Server render failed: ' + err.message);
-      }
-    }
-
     function copyUtmLink() {
       var input = document.getElementById('adVideoUtmLink');
       input.select();
@@ -8811,27 +8761,6 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var prompt = c.prompt_text ? escapeHtml(c.prompt_text.substring(0, 50)) + (c.prompt_text.length > 50 ? '...' : '') : '—';
         var label = c.campaign_label ? escapeHtml(c.campaign_label.substring(0, 30)) + (c.campaign_label.length > 30 ? '...' : '') : '—';
 
-        // Video status badge + action
-        var statusHtml = '';
-        var vs = c.video_status || '';
-        if (vs === 'rendering') {
-          var elapsed = c.video_started_at ? Math.round((Date.now() - new Date(c.video_started_at).getTime()) / 1000) : 0;
-          var elapsedStr = elapsed > 60 ? Math.floor(elapsed / 60) + 'm ' + (elapsed % 60) + 's' : elapsed + 's';
-          statusHtml = '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">'
-            + '<div style="display:flex;align-items:center;gap:6px;">'
-            + '<span class="ad-spinner"></span>'
-            + '<span style="font-size:11px;font-weight:600;color:#f59e0b;">Rendering</span>'
-            + '</div>'
-            + '<span style="font-size:10px;color:#999;">' + elapsedStr + '</span>'
-            + '</div>';
-        } else if (vs === 'ready' && c.video_url) {
-          statusHtml = '<a href="' + escapeHtml(c.video_url) + '" download style="background:#10b981;color:#fff;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;display:inline-block;" onclick="event.stopPropagation();">Download</a>';
-        } else if (vs === 'failed') {
-          statusHtml = '<span style="color:#ef4444;font-size:11px;font-weight:600;cursor:help;" title="' + escapeHtml(c.video_error || 'Unknown error') + '">Failed</span>';
-        } else {
-          statusHtml = '<span style="color:#ccc;font-size:11px;">—</span>';
-        }
-
         return '<tr style="border-bottom:1px solid #f0f0f5;cursor:pointer;" onclick="showCreativeDetail(\'' + c.creative_id + '\')">'
           + '<td style="padding:10px 6px;" onclick="event.stopPropagation();"><input type="checkbox" class="mkt-row-check" data-id="' + c.creative_id + '" onchange="updateBulkBar()" style="accent-color:#E94560;"></td>'
           + '<td style="padding:10px 12px;white-space:nowrap;">' + date + '</td>'
@@ -8841,31 +8770,12 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           + '<td style="padding:10px 12px;font-size:12px;">' + escapeHtml(themeName) + '</td>'
           + '<td style="padding:10px 12px;font-size:12px;">' + escapeHtml(c.event_type || '—') + '</td>'
           + '<td style="padding:10px 12px;font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666;">' + prompt + '</td>'
-          + '<td style="padding:10px 12px;text-align:center;">' + statusHtml + '</td>'
           + '<td style="padding:10px 12px;white-space:nowrap;">'
           + '<button class="btn btn-secondary" style="font-size:10px;padding:3px 8px;margin-right:4px;" onclick="event.stopPropagation();copyToClipboard(\'' + escapeHtml(c.utm_url) + '\')">Copy UTM</button>'
           + '<button class="btn btn-secondary" style="font-size:10px;padding:3px 8px;color:#ef4444;" onclick="event.stopPropagation();deleteCreative(\'' + c.creative_id + '\')">Delete</button>'
           + '</td></tr>';
       }).join('');
 
-      // Auto-poll if any creatives are still rendering
-      if (_mktCreatives.some(function(c) { return (c.video_status || '') === 'rendering'; })) {
-        if (!window._adCreativePollTimer) {
-          window._adCreativePollTimer = setInterval(function() {
-            loadAdCreatives().then(function() {
-              // Stop polling if nothing is rendering anymore
-              if (!_mktCreatives.some(function(c) { return (c.video_status || '') === 'rendering'; })) {
-                clearInterval(window._adCreativePollTimer);
-                window._adCreativePollTimer = null;
-                // Alert user
-                if (document.hidden) {
-                  new Notification && Notification.permission === 'granted' && new Notification('Ryvite', { body: 'Your ad video is ready to download!' });
-                }
-              }
-            });
-          }, 8000); // Poll every 8 seconds
-        }
-      }
     }
 
     var _currentDetailCreativeId = null;
@@ -8897,34 +8807,6 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         document.getElementById('cdUtmContent').textContent = url.searchParams.get('utm_content') || '';
         document.getElementById('cdUtmTerm').textContent = url.searchParams.get('utm_term') || '';
       } catch (e) {}
-
-      // Video status section
-      var videoSection = document.getElementById('cdVideoSection');
-      if (videoSection) {
-        var vs = c.video_status || '';
-        if (vs === 'ready' && c.video_url) {
-          videoSection.innerHTML = '<div style="margin-bottom:16px;">'
-            + '<div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:8px;">Video</div>'
-            + '<video controls src="' + escapeHtml(c.video_url) + '" style="width:100%;max-height:300px;border-radius:8px;background:#000;margin-bottom:8px;"></video>'
-            + '<a href="' + escapeHtml(c.video_url) + '" download class="btn btn-primary" style="width:100%;text-align:center;display:block;padding:10px;font-size:14px;">Download Video</a>'
-            + '</div>';
-        } else if (vs === 'rendering') {
-          var elapsed = c.video_started_at ? Math.round((Date.now() - new Date(c.video_started_at).getTime()) / 1000) : 0;
-          var elapsedStr = elapsed > 60 ? Math.floor(elapsed / 60) + 'm ' + (elapsed % 60) + 's' : elapsed + 's';
-          videoSection.innerHTML = '<div style="margin-bottom:16px;text-align:center;padding:20px;background:#fffbeb;border-radius:8px;">'
-            + '<span class="ad-spinner" style="margin-bottom:8px;"></span>'
-            + '<div style="font-size:13px;font-weight:600;color:#f59e0b;margin-top:8px;">Rendering video... (' + elapsedStr + ')</div>'
-            + '<div style="font-size:11px;color:#999;margin-top:4px;">You can close this modal — rendering continues on the server</div>'
-            + '</div>';
-        } else if (vs === 'failed') {
-          videoSection.innerHTML = '<div style="margin-bottom:16px;padding:12px;background:#fef2f2;border-radius:8px;">'
-            + '<div style="font-size:13px;font-weight:600;color:#ef4444;">Video render failed</div>'
-            + '<div style="font-size:11px;color:#999;margin-top:4px;">' + escapeHtml(c.video_error || 'Unknown error') + '</div>'
-            + '</div>';
-        } else {
-          videoSection.innerHTML = '';
-        }
-      }
 
       // Invite preview in iframe
       if (c.invite_html) {
@@ -9032,48 +8914,6 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       }
       renderAdCreatives();
       showToast('Deleted ' + (ids.length - failed) + ' creative(s)' + (failed ? ' (' + failed + ' failed)' : ''));
-    }
-
-    async function bulkRenderCreatives() {
-      var ids = getSelectedCreativeIds();
-      if (ids.length === 0) return;
-
-      var creatives = ids.map(function(id) {
-        return _mktCreatives.find(function(c) { return c.creative_id === id; });
-      }).filter(function(c) { return c && c.invite_html; });
-
-      if (creatives.length === 0) {
-        showToast('No creatives with invite HTML found — can\'t render');
-        return;
-      }
-
-      var started = 0;
-      for (var i = 0; i < creatives.length; i++) {
-        var c = creatives[i];
-        try {
-          await authFetch('/api/v2/render-ad-video', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              creativeId: c.creative_id,
-              html: c.invite_html,
-              css: c.invite_css || '',
-              config: c.invite_config || {},
-              promptText: c.prompt_text || 'Create a beautiful invitation',
-              format: c.format,
-              theme: c.video_theme || 'dark_gradient'
-            })
-          });
-          started++;
-        } catch (e) {
-          console.error('Render failed for ' + c.creative_id, e);
-        }
-      }
-
-      clearBulkSelection();
-      _mktLoaded = false;
-      await loadAdCreatives();
-      showToast('Started rendering ' + started + ' video(s) — check Video column for progress');
     }
 
     function copyToClipboard(text) {
@@ -10053,14 +9893,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           </label>
         </div>
 
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-primary" onclick="startAdVideoGeneration()" style="flex:1;padding:14px;font-size:15px;">
-            Generate Video (In Browser)
-          </button>
-          <button class="btn btn-secondary" onclick="startServerRender()" style="flex:1;padding:14px;font-size:15px;border:2px solid #7c3aed;color:#7c3aed;background:#f5f0ff;">
-            Render on Server (Background)
-          </button>
-        </div>
+        <button class="btn btn-primary" onclick="startAdVideoGeneration()" style="width:100%;padding:14px;font-size:15px;">
+          Generate Video
+        </button>
       </div>
 
       <!-- Step 2: Progress -->
