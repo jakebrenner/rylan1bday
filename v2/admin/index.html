@@ -8623,10 +8623,10 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         closeAdVideoModal();
         _mktLoaded = false;
         await loadAdCreatives();
-        alert('Video rendering started! You\'ll see the status in the Ad Creatives table. You can close this tab — rendering continues on the server.');
+        showToast('Video rendering started — check the Video column for progress');
 
       } catch (err) {
-        alert('Failed to start server render: ' + err.message);
+        showToast('Server render failed: ' + err.message);
       }
     }
 
