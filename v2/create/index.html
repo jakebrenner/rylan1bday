@@ -741,6 +741,9 @@
                 <div class="phone-home-bar"></div>
               </div>
             </div>
+            <div id="viewLivePageLink" style="display:none;text-align:center;margin-top:8px;">
+              <a href="#" onclick="openLivePreview(); return false;" target="_blank" style="font-size:13px;color:#888;text-decoration:none;font-family:'Inter',sans-serif;">View Live Page ↗</a>
+            </div>
             <!-- Mobile action buttons below preview -->
             <div id="mobilePreviewActions" style="display:none;margin-top:16px;width:100%;max-width:360px;">
               <div style="display:flex;gap:8px;">
@@ -3627,7 +3630,15 @@
       }
     }
 
+    function openLivePreview() {
+      if (currentEvent && currentEvent.id) {
+        window.open('/v2/preview/?eventId=' + encodeURIComponent(currentEvent.id), '_blank');
+      }
+    }
+
     function renderPreview(ver) {
+      var liveLink = document.getElementById('viewLivePageLink');
+      if (liveLink && currentEvent && currentEvent.id) liveLink.style.display = '';
       var iframe = document.getElementById('previewFrame');
       if (currentPreviewMode === 'email') {
         iframe.onload = null;

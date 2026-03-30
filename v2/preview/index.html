@@ -13,6 +13,7 @@
       padding: 12px 20px; text-align: center; font-family: 'Inter', sans-serif;
       font-size: 14px; font-weight: 500;
       box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+      display: flex; align-items: center; justify-content: center; gap: 16px;
     }
     .preview-banner span { opacity: 0.9; }
     .preview-banner .close-preview {
@@ -22,6 +23,20 @@
       font-family: 'Inter', sans-serif;
     }
     .preview-banner .close-preview:hover { background: rgba(255,255,255,0.25); }
+    .preview-tabs {
+      display: none; gap: 4px;
+    }
+    .preview-tabs button {
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.7); padding: 4px 14px; border-radius: 20px;
+      font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif;
+      transition: all 0.15s;
+    }
+    .preview-tabs button.active {
+      background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.4);
+      color: #fff;
+    }
+    .preview-tabs button:hover { background: rgba(255,255,255,0.2); }
     body { padding-top: 48px; }
     #previewFrame { width: 100%; border: none; min-height: calc(100vh - 48px); display: block; }
     .loading { text-align: center; padding: 60px; font-family: 'Inter', sans-serif; color: #666; }
@@ -31,12 +46,159 @@
 <body>
   <div class="preview-banner">
     <span>Preview mode — RSVP submissions won't be saved</span>
+    <div id="previewTabs" class="preview-tabs">
+      <button class="active" data-mode="invite" onclick="switchPreviewTab('invite')">Invite</button>
+      <button data-mode="thankyou" onclick="switchPreviewTab('thankyou')">Thank You</button>
+      <button data-mode="email" onclick="switchPreviewTab('email')">Email</button>
+    </div>
     <button class="close-preview" onclick="window.close()">Close Preview</button>
   </div>
   <div id="loading" class="loading">Loading preview...</div>
   <iframe id="previewFrame" style="display:none;"></iframe>
   <script>
     function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+    var eventData = null;
+    var currentMode = 'invite';
+
+    function switchPreviewTab(mode) {
+      currentMode = mode;
+      document.querySelectorAll('#previewTabs button').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
+      });
+      renderCurrentMode();
+    }
+
+    function renderCurrentMode() {
+      if (!eventData) return;
+      var iframe = document.getElementById('previewFrame');
+      if (currentMode === 'thankyou') {
+        iframe.srcdoc = buildThankYouPage();
+      } else if (currentMode === 'email') {
+        iframe.srcdoc = buildEmailPage();
+      } else {
+        iframe.srcdoc = buildInvitePage();
+      }
+      iframe.onload = function() {
+        try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 48, 600) + 'px'; } catch(e) {}
+      };
+    }
+
+    function buildInvitePage() {
+      var ev = eventData;
+      var config = ev.themeConfig || {};
+      var fontsImport = config.googleFontsImport || '';
+      var accent = config.accentColor || config.primaryColor || '#E94560';
+      var customFields = ev.customFields || [];
+
+      var html = '<div style="font-family:inherit;">';
+      html += '<div style="margin-bottom:12px;">'
+        + '<label style="display:block;font-size:14px;font-weight:600;margin-bottom:4px;opacity:0.9;">Name <span style="color:' + accent + ';">*</span></label>'
+        + '<input type="text" name="name" placeholder="Your name" required style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;box-sizing:border-box;">'
+        + '</div>';
+      html += '<div style="margin-bottom:12px;">'
+        + '<label style="display:block;font-size:14px;font-weight:600;margin-bottom:4px;opacity:0.9;">Email</label>'
+        + '<input type="email" name="email" placeholder="your@email.com" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;box-sizing:border-box;">'
+        + '</div>';
+      html += '<div style="margin-bottom:12px;">'
+        + '<label style="display:block;font-size:14px;font-weight:600;margin-bottom:6px;opacity:0.9;">RSVP Status <span style="color:' + accent + ';">*</span></label>'
+        + '<div class="rsvp-status-group" style="display:flex;gap:6px;">';
+      ['Attending', 'Declined', 'Maybe'].forEach(function(opt, idx) {
+        var isFirst = idx === 0;
+        html += '<label class="rsvp-status-option" style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px 6px;border:2px solid ' + (isFirst ? accent : 'rgba(255,255,255,0.3)') + ';border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;background:' + (isFirst ? accent : 'rgba(255,255,255,0.1)') + ';color:' + (isFirst ? '#fff' : 'inherit') + ';transition:all 0.2s;">'
+          + '<input type="radio" name="rsvpStatus" value="' + opt + '"' + (isFirst ? ' checked' : '') + ' style="display:none;">'
+          + opt + '</label>';
+      });
+      html += '</div></div>';
+
+      customFields.forEach(function(f) {
+        if (f.key === 'email' || f.key === 'name' || f.key === 'status') return;
+        var req = f.required ? ' <span style="color:' + accent + ';">*</span>' : '';
+        var label = escapeHtml(f.label || f.key || '');
+        html += '<div style="margin-bottom:12px;">'
+          + '<label style="display:block;font-size:14px;font-weight:600;margin-bottom:4px;opacity:0.9;">' + label + req + '</label>';
+        if (f.type === 'checkbox') {
+          html += '<label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">'
+            + '<input type="checkbox" name="' + escapeHtml(f.key) + '" style="width:18px;height:18px;accent-color:' + accent + ';cursor:pointer;">'
+            + '<span style="opacity:0.9;">' + escapeHtml(f.placeholder || f.label || '') + '</span></label>';
+        } else if (f.type === 'select' && f.options && f.options.length > 0) {
+          html += '<select name="' + escapeHtml(f.key) + '" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;box-sizing:border-box;">'
+            + f.options.map(function(o) { return '<option>' + escapeHtml(o) + '</option>'; }).join('') + '</select>';
+        } else if (f.type === 'textarea') {
+          html += '<textarea name="' + escapeHtml(f.key) + '" placeholder="' + escapeHtml(f.placeholder || '') + '" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;min-height:60px;resize:none;box-sizing:border-box;"></textarea>';
+        } else if (f.type === 'number') {
+          html += '<input type="number" name="' + escapeHtml(f.key) + '" placeholder="' + escapeHtml(f.placeholder || '0') + '" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;box-sizing:border-box;">';
+        } else {
+          html += '<input type="text" name="' + escapeHtml(f.key) + '" placeholder="' + escapeHtml(f.placeholder || '') + '" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;box-sizing:border-box;">';
+        }
+        html += '</div>';
+      });
+      html += '<button class="rsvp-submit" style="width:100%;padding:12px 24px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:default;background:' + accent + ';color:#FFFFFF;font-family:inherit;min-height:44px;margin-top:8px;">Submit RSVP</button>';
+      html += '</div>';
+      var rsvpFormHtml = html;
+
+      var injectScript = '<script>'
+        + 'var ACCENT = ' + JSON.stringify(accent) + ';'
+        + 'document.addEventListener("DOMContentLoaded", function() {'
+        + '  var slot = document.querySelector(".rsvp-slot");'
+        + '  if (!slot) return;'
+        + '  var btn = slot.querySelector(".rsvp-button");'
+        + '  var btnHtml = btn ? btn.outerHTML : "";'
+        + '  slot.innerHTML = ' + JSON.stringify(rsvpFormHtml) + ' + btnHtml;'
+        + '  var radios = slot.querySelectorAll(".rsvp-status-option");'
+        + '  radios.forEach(function(label) {'
+        + '    label.addEventListener("click", function() {'
+        + '      radios.forEach(function(l) {'
+        + '        l.style.background = "rgba(255,255,255,0.1)";'
+        + '        l.style.borderColor = "rgba(255,255,255,0.3)";'
+        + '        l.style.color = "inherit";'
+        + '      });'
+        + '      this.style.background = ACCENT;'
+        + '      this.style.borderColor = ACCENT;'
+        + '      this.style.color = "#fff";'
+        + '    });'
+        + '  });'
+        + '});'
+        + '<\/script>';
+
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { background: #f9f9f9; } ' + fontsImport + '</style>'
+        + '<style>' + ev.themeCss + '</style></head><body>'
+        + ev.themeHtml + injectScript
+        + '<div style="clear:both;width:100%;text-align:center;padding:20px;font-size:15px;color:#999;font-family:Inter,sans-serif;">Made with Love by <a href="/" style="color:#999;text-decoration:none;">Ryvite</a></div>'
+        + '</body></html>';
+    }
+
+    function buildThankYouPage() {
+      var ev = eventData;
+      var config = ev.themeConfig || {};
+      var fontsImport = config.googleFontsImport || '';
+      var thankyouHtml = config.thankyouHtml || '';
+
+      if (!thankyouHtml) {
+        return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
+          + '<style>* { margin:0; padding:0; box-sizing:border-box; } body { display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Inter,sans-serif;color:#888; }</style></head>'
+          + '<body><p>No thank-you page generated for this theme.</p></body></html>';
+      }
+
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { background: #f9f9f9; } ' + fontsImport + '</style>'
+        + '<style>' + ev.themeCss + '</style></head><body>'
+        + thankyouHtml
+        + '</body></html>';
+    }
+
+    function buildEmailPage() {
+      var ev = eventData;
+      var config = ev.themeConfig || {};
+      var emailHtml = config.emailHtml || '';
+
+      if (emailHtml) return emailHtml;
+
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } body { display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Inter,sans-serif;color:#888; }</style></head>'
+        + '<body><p>No custom email template generated for this theme.</p></body></html>';
+    }
 
     (async function() {
       var params = new URLSearchParams(window.location.search);
@@ -58,127 +220,14 @@
           document.getElementById('loading').textContent = 'No theme generated yet';
           return;
         }
-        var config = ev.themeConfig || {};
-        var fontsImport = config.googleFontsImport || '';
-        var accent = config.accentColor || config.primaryColor || '#E94560';
+        eventData = ev;
+
+        // Show tabs
+        document.getElementById('previewTabs').style.display = 'flex';
+
+        // Render invite view
         var iframe = document.getElementById('previewFrame');
-        var customFields = ev.customFields || [];
-
-        // Build RSVP form — uses inherit styles to match theme, fields are interactive
-        var html = '<div style="font-family:inherit;">';
-
-        // Name field
-        html += '<div style="margin-bottom:12px;">'
-          + '<label style="display:block;font-size:14px;font-weight:600;margin-bottom:4px;opacity:0.9;">Name <span style="color:' + accent + ';">*</span></label>'
-          + '<input type="text" name="name" placeholder="Your name" required style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;box-sizing:border-box;">'
-          + '</div>';
-
-        // Email field
-        html += '<div style="margin-bottom:12px;">'
-          + '<label style="display:block;font-size:14px;font-weight:600;margin-bottom:4px;opacity:0.9;">Email</label>'
-          + '<input type="email" name="email" placeholder="your@email.com" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;box-sizing:border-box;">'
-          + '</div>';
-
-        // RSVP Status — radio buttons
-        html += '<div style="margin-bottom:12px;">'
-          + '<label style="display:block;font-size:14px;font-weight:600;margin-bottom:6px;opacity:0.9;">RSVP Status <span style="color:' + accent + ';">*</span></label>'
-          + '<div class="rsvp-status-group" style="display:flex;gap:6px;">';
-        ['Attending', 'Declined', 'Maybe'].forEach(function(opt, idx) {
-          var isFirst = idx === 0;
-          html += '<label class="rsvp-status-option" style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px 6px;border:2px solid ' + (isFirst ? accent : 'rgba(255,255,255,0.3)') + ';border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;background:' + (isFirst ? accent : 'rgba(255,255,255,0.1)') + ';color:' + (isFirst ? '#fff' : 'inherit') + ';transition:all 0.2s;">'
-            + '<input type="radio" name="rsvpStatus" value="' + opt + '"' + (isFirst ? ' checked' : '') + ' style="display:none;">'
-            + opt + '</label>';
-        });
-        html += '</div></div>';
-
-        // Custom fields
-        customFields.forEach(function(f) {
-          if (f.key === 'email' || f.key === 'name' || f.key === 'status') return;
-          var req = f.required ? ' <span style="color:' + accent + ';">*</span>' : '';
-          var label = escapeHtml(f.label || f.key || '');
-          html += '<div style="margin-bottom:12px;">'
-            + '<label style="display:block;font-size:14px;font-weight:600;margin-bottom:4px;opacity:0.9;">' + label + req + '</label>';
-          if (f.type === 'checkbox') {
-            html += '<label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">'
-              + '<input type="checkbox" name="' + escapeHtml(f.key) + '" style="width:18px;height:18px;accent-color:' + accent + ';cursor:pointer;">'
-              + '<span style="opacity:0.9;">' + escapeHtml(f.placeholder || f.label || '') + '</span></label>';
-          } else if (f.type === 'select' && f.options && f.options.length > 0) {
-            html += '<select name="' + escapeHtml(f.key) + '" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;box-sizing:border-box;">'
-              + f.options.map(function(o) { return '<option>' + escapeHtml(o) + '</option>'; }).join('') + '</select>';
-          } else if (f.type === 'textarea') {
-            html += '<textarea name="' + escapeHtml(f.key) + '" placeholder="' + escapeHtml(f.placeholder || '') + '" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;min-height:60px;resize:none;box-sizing:border-box;"></textarea>';
-          } else if (f.type === 'number') {
-            html += '<input type="number" name="' + escapeHtml(f.key) + '" placeholder="' + escapeHtml(f.placeholder || '0') + '" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;box-sizing:border-box;">';
-          } else {
-            html += '<input type="text" name="' + escapeHtml(f.key) + '" placeholder="' + escapeHtml(f.placeholder || '') + '" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;font-size:14px;background:rgba(255,255,255,0.15);color:inherit;font-family:inherit;box-sizing:border-box;">';
-          }
-          html += '</div>';
-        });
-        html += '</div>';
-        var rsvpFormHtml = html;
-
-        // Build thank you page HTML
-        var thankyouHtml = config.thankyouHtml || '';
-
-        // Script that: injects RSVP form, makes radio buttons interactive, handles submit to show thank you page
-        var injectScript = '<script>'
-          + 'var ACCENT = ' + JSON.stringify(accent) + ';'
-          + 'var THANKYOU_HTML = ' + JSON.stringify(thankyouHtml) + ';'
-          + 'var THEME_CSS = ' + JSON.stringify(ev.themeCss) + ';'
-          + 'var FONTS_IMPORT = ' + JSON.stringify(fontsImport) + ';'
-          + 'document.addEventListener("DOMContentLoaded", function() {'
-          + '  var slot = document.querySelector(".rsvp-slot");'
-          + '  if (!slot) return;'
-          + '  var btn = slot.querySelector(".rsvp-button");'
-          + '  var btnHtml = btn ? btn.outerHTML : "";'
-          + '  slot.innerHTML = ' + JSON.stringify(rsvpFormHtml) + ' + btnHtml;'
-          // Make radio buttons interactive
-          + '  var radios = slot.querySelectorAll(".rsvp-status-option");'
-          + '  radios.forEach(function(label) {'
-          + '    label.addEventListener("click", function() {'
-          + '      radios.forEach(function(l) {'
-          + '        l.style.background = "rgba(255,255,255,0.1)";'
-          + '        l.style.borderColor = "rgba(255,255,255,0.3)";'
-          + '        l.style.color = "inherit";'
-          + '      });'
-          + '      this.style.background = ACCENT;'
-          + '      this.style.borderColor = ACCENT;'
-          + '      this.style.color = "#fff";'
-          + '    });'
-          + '  });'
-          // Make RSVP button submit the form (show thank you page)
-          + '  var rsvpBtn = slot.querySelector(".rsvp-button");'
-          + '  if (rsvpBtn) {'
-          + '    rsvpBtn.addEventListener("click", function(e) {'
-          + '      e.preventDefault();'
-          + '      var nameInput = slot.querySelector("input[name=name]");'
-          + '      if (nameInput && !nameInput.value.trim()) {'
-          + '        nameInput.style.borderColor = "#E94560";'
-          + '        nameInput.focus();'
-          + '        return;'
-          + '      }'
-          + '      if (THANKYOU_HTML) {'
-          + '        document.open();'
-          + '        document.write("<!DOCTYPE html><html><head><meta charset=UTF-8><meta name=viewport content=\\"width=device-width, initial-scale=1.0\\">"'
-          + '          + "<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { background: #f9f9f9; } " + FONTS_IMPORT + "</style>"'
-          + '          + "<style>" + THEME_CSS + "</style></head><body>"'
-          + '          + THANKYOU_HTML'
-          + '          + "</body></html>");'
-          + '        document.close();'
-          + '      } else {'
-          + '        alert("Thank you for your RSVP! (Preview mode — nothing was saved)");'
-          + '      }'
-          + '    });'
-          + '  }'
-          + '});'
-          + '<\/script>';
-
-        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
-          + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { background: #f9f9f9; } ' + fontsImport + '</style>'
-          + '<style>' + ev.themeCss + '</style></head><body>'
-          + ev.themeHtml + injectScript
-          + '<div style="clear:both;width:100%;text-align:center;padding:20px;font-size:15px;color:#999;font-family:Inter,sans-serif;">Made with Love by <a href="/" style="color:#999;text-decoration:none;">Ryvite</a></div>'
-          + '</body></html>';
+        iframe.srcdoc = buildInvitePage();
         iframe.style.display = 'block';
         document.getElementById('loading').style.display = 'none';
         iframe.onload = function() {
