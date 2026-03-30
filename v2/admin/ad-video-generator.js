@@ -97,15 +97,10 @@ const FORMAT_CONFIGS = {
   reels_9x16: {
     width: 1080,
     height: 1920,
-    logoY: 100,
-    logoSize: 72,
-    labelFontSize: 30,
-    labelY: 185,
-    // Phone vertically centered: logo area ~135px + gap, phone 1300px
-    // Center of content = (1920 - (135 + 1300)) / 2 ≈ 242, + logo offset
-    phoneWidth: 640,
-    phoneHeight: 1388,
-    phoneY: 290,
+    // Phone centered vertically in full frame (no top logo)
+    phoneWidth: 660,
+    phoneHeight: 1430,
+    phoneY: 245,
     promptFontSize: 30,
     promptLineHeight: 44,
     promptLabelSize: 18,
@@ -115,14 +110,10 @@ const FORMAT_CONFIGS = {
   feed_1x1: {
     width: 1440,
     height: 1440,
-    logoY: 70,
-    logoSize: 64,
-    labelFontSize: 28,
-    labelY: 148,
-    // Phone vertically centered in remaining space
-    phoneWidth: 600,
-    phoneHeight: 1100,
-    phoneY: 220,
+    // Phone centered vertically in full frame
+    phoneWidth: 620,
+    phoneHeight: 1180,
+    phoneY: 130,
     promptFontSize: 28,
     promptLineHeight: 42,
     promptLabelSize: 16,
@@ -142,7 +133,7 @@ const SCROLL_PX_PER_SEC = 70;  // scroll speed through invite (slower = more tim
 const MAX_SCROLL_MS = 8000; // cap scroll duration
 const HOLD_MS = 2500;      // hold at top of invite
 const END_HOLD_MS = 2000;  // hold at bottom of invite
-const CTA_MS = 1500;
+const CTA_MS = 3500;
 const FPS = 30;
 const BG_CYCLE_MS = 12000; // slow background color cycle duration
 
@@ -726,56 +717,6 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
       const introEased = easeOutCubic(introProgress);
       const phoneSlideY = phoneBaseY + (1 - introEased) * 80;
 
-      // ── Logo + subtitle (above phone) ──
-      ctx.save();
-      ctx.globalAlpha = introEased;
-      var logoSlide = -15 + introEased * 15;
-      var logoX = fmt.width / 2;
-      var iconSize = fmt.logoSize * 1.1;
-      var textSize = fmt.logoSize;
-      ctx.font = '600 ' + textSize + 'px "Playfair Display", "Georgia", serif';
-      var textW = ctx.measureText('Ryvite').width;
-      var iconW = iconSize + 12;
-      var totalLogoW = iconW + textW;
-      var logoStartX = logoX - totalLogoW / 2;
-
-      // Envelope icon
-      var iconCx = logoStartX + iconSize / 2;
-      var iconCy = fmt.logoY + logoSlide - textSize * 0.25;
-      var iconR = iconSize / 2;
-      ctx.beginPath();
-      ctx.arc(iconCx, iconCy, iconR, 0, Math.PI * 2);
-      ctx.strokeStyle = thm.logoColor;
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(iconCx - iconR * 0.58, iconCy - iconR * 0.35);
-      ctx.lineTo(iconCx, iconCy + iconR * 0.1);
-      ctx.lineTo(iconCx + iconR * 0.58, iconCy - iconR * 0.35);
-      ctx.strokeStyle = thm.logoColor;
-      ctx.lineWidth = 2.5;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(iconCx - iconR * 0.58, iconCy + iconR * 0.42);
-      ctx.lineTo(iconCx + iconR * 0.58, iconCy + iconR * 0.42);
-      ctx.strokeStyle = thm.logoColor;
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.stroke();
-
-      ctx.font = '600 ' + textSize + 'px "Playfair Display", "Georgia", serif';
-      ctx.fillStyle = thm.logoColor;
-      ctx.textAlign = 'left';
-      ctx.fillText('Ryvite', logoStartX + iconW, fmt.logoY + logoSlide);
-
-      ctx.font = fmt.labelFontSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
-      ctx.fillStyle = thm.subtextColor;
-      ctx.textAlign = 'center';
-      ctx.fillText('AI-Powered Event Invitations', logoX, fmt.labelY - 10 + introEased * 10);
-      ctx.restore();
-
       // ── Phone glow (during/after reveal) ──
       if (elapsed >= shimmerEnd) {
         var glowIntensity = 0;
@@ -957,24 +898,51 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
         var centerX = screen.x + screen.w / 2;
         var centerY = pageY + screen.screenH / 2;
 
-        // Main text: "100% Unique Invites"
-        ctx.font = 'bold ' + Math.round((fmt.ctaFontSize || 32) * 1.1) + 'px "Inter", Arial, sans-serif';
-        ctx.fillStyle = '#1a1a2e';
+        // ── Ryvite logo (envelope icon + wordmark) in accent red ──
+        var logoSize = Math.round((fmt.ctaFontSize || 32) * 1.6);
+        var logoY = centerY - 100;
+
+        // Envelope icon circle
+        var iconR = logoSize * 0.45;
+        ctx.beginPath();
+        ctx.arc(centerX, logoY, iconR, 0, Math.PI * 2);
+        ctx.strokeStyle = thm.accentColor || '#E94560';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        // Envelope flap
+        ctx.beginPath();
+        ctx.moveTo(centerX - iconR * 0.55, logoY - iconR * 0.3);
+        ctx.lineTo(centerX, logoY + iconR * 0.15);
+        ctx.lineTo(centerX + iconR * 0.55, logoY - iconR * 0.3);
+        ctx.strokeStyle = thm.accentColor || '#E94560';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+        // Envelope bottom
+        ctx.beginPath();
+        ctx.moveTo(centerX - iconR * 0.55, logoY + iconR * 0.4);
+        ctx.lineTo(centerX + iconR * 0.55, logoY + iconR * 0.4);
+        ctx.strokeStyle = thm.accentColor || '#E94560';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        // "Ryvite" wordmark
+        ctx.font = '600 ' + logoSize + 'px "Playfair Display", "Georgia", serif';
+        ctx.fillStyle = thm.accentColor || '#E94560';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('100% Unique Invites', centerX, centerY - 50);
+        ctx.fillText('Ryvite', centerX, logoY + iconR + logoSize * 0.7);
 
-        // "100% Free"
-        ctx.fillText('100% Free', centerX, centerY);
+        // ── Tagline text ──
+        var tagY = centerY + 40;
+        var tagFontSize = Math.round((fmt.ctaFontSize || 32) * 0.85);
 
-        // "In Seconds"
-        ctx.fillStyle = thm.accentColor || '#E94560';
-        ctx.fillText('In Seconds', centerX, centerY + 50);
-
-        // Ryvite logo mark below
-        ctx.font = '600 ' + Math.round((fmt.ctaFontSize || 32) * 0.7) + 'px "Playfair Display", "Georgia", serif';
-        ctx.fillStyle = '#888';
-        ctx.fillText('ryvite.com', centerX, centerY + 120);
+        ctx.font = 'bold ' + tagFontSize + 'px "Inter", Arial, sans-serif';
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillText('100% Unique AI Invitations.', centerX, tagY);
+        ctx.fillText('100% Free.', centerX, tagY + tagFontSize * 1.4);
 
         ctx.restore();
       }
