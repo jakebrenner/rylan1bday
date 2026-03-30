@@ -198,6 +198,7 @@
     .generating-overlay { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center; }
     .generating-spinner { width: 48px; height: 48px; border: 3px solid #eee; border-top-color: var(--party-coral); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .ad-spinner { display:inline-block; width:14px; height:14px; border:2px solid #f59e0b; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; }
     .prompt-toggle { cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--midnight); padding: 10px 14px; background: #f9f9f9; border-radius: 6px; border: 1px solid #eee; margin-bottom: 12px; user-select: none; }
     .prompt-toggle:hover { background: #f0f0f0; }
     .prompt-toggle .arrow { transition: transform 0.2s; }
@@ -2247,10 +2248,16 @@
             </select>
           </div>
         </div>
+        <div id="mktBulkBar" style="display:none;background:#f0f4ff;border:1px solid #c7d2fe;border-radius:8px;padding:10px 16px;margin-bottom:12px;display:none;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span id="mktBulkCount" style="font-size:13px;font-weight:600;color:#4f46e5;">0 selected</span>
+          <button class="btn btn-secondary" onclick="bulkDeleteCreatives()" style="font-size:12px;padding:5px 14px;border-color:#ef4444;color:#ef4444;">Delete Selected</button>
+          <button class="btn btn-secondary" onclick="clearBulkSelection()" style="font-size:12px;padding:5px 14px;">Clear</button>
+        </div>
         <div style="overflow-x:auto;">
           <table id="mktCreativeTable" style="width:100%;font-size:13px;border-collapse:collapse;">
             <thead>
               <tr style="border-bottom:2px solid #eee;text-align:left;">
+                <th style="padding:8px 6px;width:30px;"><input type="checkbox" id="mktSelectAll" onchange="toggleSelectAllCreatives(this.checked)" style="accent-color:#E94560;"></th>
                 <th style="padding:8px 12px;">Date</th>
                 <th style="padding:8px 12px;">Campaign</th>
                 <th style="padding:8px 12px;">Label</th>
@@ -8480,11 +8487,13 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           document.getElementById('adVideoPhase').textContent = (formats.length > 1 ? (fi + 1) + '/' + formats.length + ' — ' : '') + 'Preparing ' + fmtLabel + '...';
 
           var useLiveAnimation = document.getElementById('adVideoLiveAnimation').checked;
+          var hookTextVal = document.getElementById('adVideoHookText').value.trim();
           var blob = await window.AdVideoGenerator.generate({
             html: _adVideoData.html,
             css: _adVideoData.css,
             config: _adVideoData.config,
             promptText: promptText,
+            hookText: hookTextVal,
             format: fmt,
             theme: _adVideoTheme,
             liveAnimation: useLiveAnimation,
@@ -8600,76 +8609,192 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     // ── New Ad Picker (loads showcases for quick selection) ──
-    async function openNewAdPicker() {
-      var modal = document.getElementById('adPickerModal');
+    // ── Ad Picker (tabbed: Showcases, User Generations, Lab Generations) ──
+    var _adPickerTab = 'showcases';
+    var _adPickerItems = [];
+    var _adPickerPage = 1;
+    var _adPickerTotal = 0;
+    var _adPickerPageSize = 20;
+
+    function openNewAdPicker() {
+      document.getElementById('adPickerModal').style.display = 'flex';
+      _adPickerTab = 'showcases';
+      _adPickerPage = 1;
+      document.getElementById('adPickerSearch').value = '';
+      document.getElementById('adPickerEventType').value = '';
+      // Reset tab styles
+      document.querySelectorAll('.ad-picker-tab').forEach(function(btn) {
+        var isActive = btn.dataset.tab === 'showcases';
+        btn.style.borderBottomColor = isActive ? '#E94560' : 'transparent';
+        btn.style.color = isActive ? '#E94560' : '#888';
+      });
+      loadAdPickerTab();
+    }
+
+    function switchAdPickerTab(tab) {
+      _adPickerTab = tab;
+      _adPickerPage = 1;
+      document.querySelectorAll('.ad-picker-tab').forEach(function(btn) {
+        var isActive = btn.dataset.tab === tab;
+        btn.style.borderBottomColor = isActive ? '#E94560' : 'transparent';
+        btn.style.color = isActive ? '#E94560' : '#888';
+      });
+      loadAdPickerTab();
+    }
+
+    function adPickerPrevPage() { if (_adPickerPage > 1) { _adPickerPage--; loadAdPickerTab(); } }
+    function adPickerNextPage() { if (_adPickerPage * _adPickerPageSize < _adPickerTotal) { _adPickerPage++; loadAdPickerTab(); } }
+
+    var _adPickerFilterTimer = null;
+    function adPickerFilterChanged() {
+      clearTimeout(_adPickerFilterTimer);
+      _adPickerFilterTimer = setTimeout(function() {
+        _adPickerPage = 1;
+        loadAdPickerTab();
+      }, 300);
+    }
+
+    async function loadAdPickerTab() {
       var grid = document.getElementById('adPickerGrid');
       var empty = document.getElementById('adPickerEmpty');
-      modal.style.display = 'flex';
-      grid.innerHTML = '<div style="text-align:center;padding:40px;color:#888;grid-column:1/-1;">Loading showcases...</div>';
+      var pagination = document.getElementById('adPickerPagination');
+      grid.innerHTML = '<div style="text-align:center;padding:40px;color:#888;grid-column:1/-1;">Loading...</div>';
+      empty.style.display = 'none';
+      pagination.style.display = 'none';
+
+      var searchQuery = (document.getElementById('adPickerSearch').value || '').trim().toLowerCase();
+      var eventTypeFilter = document.getElementById('adPickerEventType').value;
 
       try {
-        var res = await fetch('/api/v2/showcases');
-        var data = await res.json();
-        var showcases = data.showcases || [];
-        if (showcases.length === 0) {
+        var items = [];
+        var total = 0;
+
+        if (_adPickerTab === 'showcases') {
+          var res = await fetch('/api/v2/showcases');
+          var data = await res.json();
+          items = (data.showcases || []).map(function(s) {
+            return { html: s.html, css: s.css, config: s.config, title: s.event_title || s.event_type || 'Invite', subtitle: s.prompt_text || '', eventType: s.event_type, sourceType: 'showcase', sourceId: s.id };
+          });
+          // Client-side filtering for showcases (API doesn't support it)
+          if (eventTypeFilter) items = items.filter(function(item) { return item.eventType === eventTypeFilter; });
+          if (searchQuery) items = items.filter(function(item) {
+            return (item.title + ' ' + item.subtitle + ' ' + (item.eventType || '')).toLowerCase().indexOf(searchQuery) !== -1;
+          });
+          total = items.length;
+
+        } else if (_adPickerTab === 'userGen') {
+          var params = { page: _adPickerPage, limit: _adPickerPageSize, sortBy: 'created_at' };
+          if (eventTypeFilter) params.eventType = eventTypeFilter;
+          var res = await adminFetch('listThemes', { params: params });
+          var themes = res.themes || [];
+          total = res.total || themes.length;
+          items = themes.map(function(t) {
+            return { html: t.html, css: t.css, config: t.config, title: t.eventTitle || t.eventType || 'User Generation', subtitle: (t.userDisplayName || '') + (t.model ? ' · ' + t.model : ''), eventType: t.eventType, sourceType: 'user_theme', sourceId: t.id, rating: t.admin_rating, prompt: t.prompt };
+          });
+          // Client-side search (API doesn't have text search)
+          if (searchQuery) {
+            items = items.filter(function(item) {
+              return (item.title + ' ' + item.subtitle + ' ' + (item.eventType || '') + ' ' + (item.prompt || '')).toLowerCase().indexOf(searchQuery) !== -1;
+            });
+            total = items.length;
+          }
+
+        } else if (_adPickerTab === 'labGen') {
+          var params = { page: _adPickerPage, limit: _adPickerPageSize };
+          if (eventTypeFilter) params.eventType = eventTypeFilter;
+          var res = await adminFetch('listTestRuns', { params: params });
+          var runs = res.testRuns || [];
+          total = res.total || runs.length;
+          items = runs.map(function(r) {
+            return { html: r.result_html, css: r.result_css, config: r.result_config, title: r.event_type || 'Lab Generation', subtitle: (r.model || '') + (r.score ? ' · ' + r.score + '★' : ''), eventType: r.event_type, sourceType: 'lab_theme', sourceId: r.id, prompt: r.event_details ? r.event_details.description : '' };
+          });
+          if (searchQuery) {
+            items = items.filter(function(item) {
+              return (item.title + ' ' + item.subtitle + ' ' + (item.eventType || '') + ' ' + (item.prompt || '')).toLowerCase().indexOf(searchQuery) !== -1;
+            });
+            total = items.length;
+          }
+        }
+
+        _adPickerItems = items;
+        _adPickerTotal = total;
+
+        if (items.length === 0) {
           grid.innerHTML = '';
           empty.style.display = '';
+          empty.innerHTML = '<p>No results' + (searchQuery || eventTypeFilter ? ' matching your filters' : '') + '.</p>';
           return;
         }
+
         empty.style.display = 'none';
-        grid.innerHTML = showcases.map(function(s, i) {
-          return '<div class="ad-picker-card" style="border:1px solid #e5e7eb;border-radius:12px;cursor:pointer;overflow:hidden;transition:all 0.2s;background:#fff;" onmouseover="this.style.borderColor=\'#E94560\';this.style.boxShadow=\'0 4px 12px rgba(233,69,96,0.15)\'" onmouseout="this.style.borderColor=\'#e5e7eb\';this.style.boxShadow=\'none\'" onclick="selectAdPickerItem(' + i + ')">'
-            + '<div style="position:relative;width:100%;height:220px;overflow:hidden;background:#f9fafb;border-bottom:1px solid #f0f0f0;">'
-            + '<iframe id="adPickerFrame' + i + '" style="position:absolute;top:0;left:0;width:375px;height:667px;border:none;pointer-events:none;transform-origin:top left;" sandbox="allow-scripts allow-same-origin"></iframe>'
-            + '</div>'
-            + '<div style="padding:10px 12px;">'
-            + '<div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(s.event_title || s.event_type || 'Invite') + '</div>'
-            + '<div style="font-size:11px;color:#888;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">'
-            + escapeHtml((s.prompt_text || '').substring(0, 80))
-            + '</div>'
-            + '</div>'
-            + '</div>';
-        }).join('');
+        renderAdPickerGrid(items);
 
-        // Store showcases and render previews in iframes
-        window._adPickerShowcases = showcases;
+        // Show pagination for paginated tabs
+        if (_adPickerTab !== 'showcases' && total > _adPickerPageSize) {
+          pagination.style.display = '';
+          document.getElementById('adPickerPageInfo').textContent = 'Page ' + _adPickerPage + ' of ' + Math.ceil(total / _adPickerPageSize);
+          document.getElementById('adPickerPrevBtn').disabled = _adPickerPage <= 1;
+          document.getElementById('adPickerNextBtn').disabled = _adPickerPage * _adPickerPageSize >= total;
+        }
 
-        // Wait for DOM to update, then populate iframes
-        requestAnimationFrame(function() {
-          showcases.forEach(function(s, i) {
-            var iframe = document.getElementById('adPickerFrame' + i);
-            if (!iframe || !s.html) return;
-            var card = iframe.closest('.ad-picker-card');
-            var containerWidth = card ? card.offsetWidth : 180;
-            var scale = containerWidth / 375;
-            iframe.style.transform = 'scale(' + scale + ')';
-            iframe.style.height = Math.round(220 / scale) + 'px';
-            var doc = iframe.contentDocument || iframe.contentWindow.document;
-            var cssText = s.css || '';
-            var configObj = typeof s.config === 'string' ? JSON.parse(s.config || '{}') : (s.config || {});
-            var fontImport = configObj.fontUrl ? '<style>@import url("' + configObj.fontUrl + '");</style>' : '';
-            doc.open();
-            doc.write('<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">' + fontImport + '<style>body{margin:0;overflow:hidden;}' + cssText + '</style></head><body>' + s.html + '</body></html>');
-            doc.close();
-          });
-        });
       } catch (e) {
-        grid.innerHTML = '<div style="color:#ef4444;padding:20px;text-align:center;grid-column:1/-1;">Failed to load showcases</div>';
+        grid.innerHTML = '<div style="color:#ef4444;padding:20px;text-align:center;grid-column:1/-1;">Failed to load: ' + escapeHtml(e.message) + '</div>';
       }
     }
 
+    function renderAdPickerGrid(items) {
+      var grid = document.getElementById('adPickerGrid');
+      grid.innerHTML = items.map(function(item, i) {
+        var ratingHtml = item.rating ? '<span style="color:#f59e0b;font-size:11px;">' + '★'.repeat(item.rating) + '</span>' : '';
+        return '<div class="ad-picker-card" style="border:1px solid #e5e7eb;border-radius:12px;cursor:pointer;overflow:hidden;transition:all 0.2s;background:#fff;" onmouseover="this.style.borderColor=\'#E94560\';this.style.boxShadow=\'0 4px 12px rgba(233,69,96,0.15)\'" onmouseout="this.style.borderColor=\'#e5e7eb\';this.style.boxShadow=\'none\'" onclick="selectAdPickerItem(' + i + ')">'
+          + '<div style="position:relative;width:100%;height:220px;overflow:hidden;background:#f9fafb;border-bottom:1px solid #f0f0f0;">'
+          + '<iframe id="adPickerFrame' + i + '" style="position:absolute;top:0;left:0;width:375px;height:667px;border:none;pointer-events:none;transform-origin:top left;" sandbox="allow-scripts allow-same-origin"></iframe>'
+          + '</div>'
+          + '<div style="padding:10px 12px;">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">'
+          + '<div style="font-size:13px;font-weight:600;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;">' + escapeHtml(item.title) + '</div>'
+          + ratingHtml
+          + '</div>'
+          + '<div style="font-size:11px;color:#888;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">'
+          + escapeHtml((item.subtitle || '').substring(0, 80))
+          + '</div>'
+          + '</div>'
+          + '</div>';
+      }).join('');
+
+      // Populate iframes
+      requestAnimationFrame(function() {
+        items.forEach(function(item, i) {
+          var iframe = document.getElementById('adPickerFrame' + i);
+          if (!iframe || !item.html) return;
+          var card = iframe.closest('.ad-picker-card');
+          var containerWidth = card ? card.offsetWidth : 180;
+          var scale = containerWidth / 375;
+          iframe.style.transform = 'scale(' + scale + ')';
+          iframe.style.height = Math.round(220 / scale) + 'px';
+          var doc = iframe.contentDocument || iframe.contentWindow.document;
+          var cssText = item.css || '';
+          var configObj = typeof item.config === 'string' ? JSON.parse(item.config || '{}') : (item.config || {});
+          var fontImport = configObj.fontUrl ? '<style>@import url("' + configObj.fontUrl + '");</style>' : (configObj.googleFontsImport ? '<style>' + (configObj.googleFontsImport.startsWith('@import') ? configObj.googleFontsImport : '@import url(\'' + configObj.googleFontsImport + '\');') + '</style>' : '');
+          doc.open();
+          doc.write('<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">' + fontImport + '<style>body{margin:0;overflow:hidden;}' + cssText + '</style></head><body>' + item.html + '</body></html>');
+          doc.close();
+        });
+      });
+    }
+
     function selectAdPickerItem(idx) {
-      var s = window._adPickerShowcases[idx];
-      if (!s) return;
+      var item = _adPickerItems[idx];
+      if (!item) return;
       document.getElementById('adPickerModal').style.display = 'none';
       openAdVideoModal({
-        html: s.html,
-        css: s.css,
-        config: s.config,
-        promptText: s.prompt_text || 'Create a beautiful invitation',
-        eventType: s.event_type,
-        sourceType: 'showcase',
-        sourceId: s.id
+        html: item.html,
+        css: item.css,
+        config: item.config,
+        promptText: item.prompt || item.subtitle || 'Create a beautiful invitation',
+        eventType: item.eventType,
+        sourceType: item.sourceType,
+        sourceId: item.sourceId
       });
     }
 
@@ -8755,6 +8880,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var label = c.campaign_label ? escapeHtml(c.campaign_label.substring(0, 30)) + (c.campaign_label.length > 30 ? '...' : '') : '—';
 
         return '<tr style="border-bottom:1px solid #f0f0f5;cursor:pointer;" onclick="showCreativeDetail(\'' + c.creative_id + '\')">'
+          + '<td style="padding:10px 6px;" onclick="event.stopPropagation();"><input type="checkbox" class="mkt-row-check" data-id="' + c.creative_id + '" onchange="updateBulkBar()" style="accent-color:#E94560;"></td>'
           + '<td style="padding:10px 12px;white-space:nowrap;">' + date + '</td>'
           + '<td style="padding:10px 12px;font-family:monospace;font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(c.campaign_name) + '</td>'
           + '<td style="padding:10px 12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + label + '</td>'
@@ -8767,6 +8893,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           + '<button class="btn btn-secondary" style="font-size:10px;padding:3px 8px;color:#ef4444;" onclick="event.stopPropagation();deleteCreative(\'' + c.creative_id + '\')">Delete</button>'
           + '</td></tr>';
       }).join('');
+
     }
 
     var _currentDetailCreativeId = null;
@@ -8856,7 +8983,55 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         });
         _mktCreatives = _mktCreatives.filter(function(c) { return c.creative_id !== creativeId; });
         renderAdCreatives();
-      } catch (e) { alert('Delete failed: ' + e.message); }
+      } catch (e) { showToast('Delete failed: ' + e.message); }
+    }
+
+    // ── Bulk Selection ──
+
+    function getSelectedCreativeIds() {
+      return Array.from(document.querySelectorAll('.mkt-row-check:checked')).map(function(cb) { return cb.dataset.id; });
+    }
+
+    function toggleSelectAllCreatives(checked) {
+      document.querySelectorAll('.mkt-row-check').forEach(function(cb) { cb.checked = checked; });
+      updateBulkBar();
+    }
+
+    function updateBulkBar() {
+      var selected = getSelectedCreativeIds();
+      var bar = document.getElementById('mktBulkBar');
+      if (selected.length > 0) {
+        bar.style.display = 'flex';
+        document.getElementById('mktBulkCount').textContent = selected.length + ' selected';
+      } else {
+        bar.style.display = 'none';
+      }
+    }
+
+    function clearBulkSelection() {
+      document.querySelectorAll('.mkt-row-check').forEach(function(cb) { cb.checked = false; });
+      document.getElementById('mktSelectAll').checked = false;
+      updateBulkBar();
+    }
+
+    async function bulkDeleteCreatives() {
+      var ids = getSelectedCreativeIds();
+      if (ids.length === 0) return;
+      if (!confirm('Delete ' + ids.length + ' creative(s)?')) return;
+
+      var failed = 0;
+      for (var i = 0; i < ids.length; i++) {
+        try {
+          await authFetch('/api/v2/ad-creatives?action=delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ creativeId: ids[i] })
+          });
+          _mktCreatives = _mktCreatives.filter(function(c) { return c.creative_id !== ids[i]; });
+        } catch (e) { failed++; }
+      }
+      renderAdCreatives();
+      showToast('Deleted ' + (ids.length - failed) + ' creative(s)' + (failed ? ' (' + failed + ' failed)' : ''));
     }
 
     function copyToClipboard(text) {
@@ -9738,18 +9913,50 @@ If provided, analyze them for color palette, visual mood, textures, typography s
   </div>
   <!-- Ad Source Picker Modal -->
   <div id="adPickerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:16px;max-width:860px;width:94%;max-height:85vh;overflow-y:auto;padding:28px;">
+    <div style="background:#fff;border-radius:16px;max-width:960px;width:96%;max-height:90vh;overflow-y:auto;padding:28px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h3 style="margin:0;">Select Invite for Ad</h3>
+        <h3 style="margin:0;">Select Invite for Ad Video</h3>
         <button onclick="document.getElementById('adPickerModal').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">&times;</button>
       </div>
-      <p style="font-size:13px;color:#888;margin-bottom:16px;">Choose a featured showcase or go to Generations to pick from all user/lab generations.</p>
-      <div id="adPickerGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:16px;"></div>
-      <div id="adPickerEmpty" style="display:none;text-align:center;padding:30px;color:#888;">
-        <p>No showcases available. Add featured invites in the Generations tab first, or use the "Generate Ad" button on any invite card.</p>
+
+      <!-- Tabs -->
+      <div style="display:flex;gap:0;border-bottom:2px solid #eee;margin-bottom:16px;">
+        <button class="ad-picker-tab active" data-tab="showcases" onclick="switchAdPickerTab('showcases')" style="padding:10px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid #E94560;margin-bottom:-2px;color:#E94560;cursor:pointer;">Showcases</button>
+        <button class="ad-picker-tab" data-tab="userGen" onclick="switchAdPickerTab('userGen')" style="padding:10px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:#888;cursor:pointer;">User Generations</button>
+        <button class="ad-picker-tab" data-tab="labGen" onclick="switchAdPickerTab('labGen')" style="padding:10px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:#888;cursor:pointer;">Lab Generations</button>
       </div>
-      <div style="border-top:1px solid #eee;padding-top:12px;text-align:center;">
-        <button class="btn btn-secondary" onclick="document.getElementById('adPickerModal').style.display='none';switchTab('stylelibrary');" style="font-size:13px;">Browse All Generations</button>
+
+      <!-- Filters -->
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <input type="text" id="adPickerSearch" placeholder="Search invites..." oninput="adPickerFilterChanged()" style="flex:1;min-width:180px;padding:8px 14px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+        <select id="adPickerEventType" onchange="adPickerFilterChanged()" style="padding:8px 14px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;min-width:160px;">
+          <option value="">All Event Types</option>
+          <option value="kidsBirthday">Kids Birthday</option>
+          <option value="adultBirthday">Adult Birthday</option>
+          <option value="babyShower">Baby Shower</option>
+          <option value="engagement">Engagement</option>
+          <option value="wedding">Wedding</option>
+          <option value="graduation">Graduation</option>
+          <option value="holiday">Holiday</option>
+          <option value="dinnerParty">Dinner Party</option>
+          <option value="retirement">Retirement</option>
+          <option value="anniversary">Anniversary</option>
+          <option value="sports">Sports</option>
+          <option value="bridalShower">Bridal Shower</option>
+          <option value="corporate">Corporate</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <!-- Grid -->
+      <div id="adPickerGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:16px;"></div>
+      <div id="adPickerEmpty" style="display:none;text-align:center;padding:30px;color:#888;">No items found.</div>
+
+      <!-- Pagination -->
+      <div id="adPickerPagination" style="display:none;text-align:center;padding-top:8px;border-top:1px solid #eee;">
+        <button class="btn btn-secondary" onclick="adPickerPrevPage()" id="adPickerPrevBtn" style="font-size:12px;padding:4px 14px;margin-right:8px;">← Prev</button>
+        <span id="adPickerPageInfo" style="font-size:12px;color:#888;"></span>
+        <button class="btn btn-secondary" onclick="adPickerNextPage()" id="adPickerNextBtn" style="font-size:12px;padding:4px 14px;margin-left:8px;">Next →</button>
       </div>
     </div>
   </div>
@@ -9817,6 +10024,11 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         </div>
 
         <div style="margin-bottom:16px;">
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Intro Hook (shown on first screen)</label>
+          <textarea id="adVideoHookText" rows="2" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;resize:vertical;box-sizing:border-box;">AI event invitations are finally here... and free.</textarea>
+        </div>
+
+        <div style="margin-bottom:16px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
             <label style="font-size:13px;font-weight:600;">Prompt Text (shown in typing animation)</label>
             <button id="adVideoAiPromptBtn" class="btn btn-secondary btn-sm" onclick="generateAiAdPrompt()" style="font-size:11px;padding:4px 10px;">
@@ -9828,7 +10040,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
         <div style="margin-bottom:16px;">
           <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:2px solid #E94560;border-radius:8px;cursor:pointer;background:#fef2f4;">
-            <input type="checkbox" id="adVideoLiveAnimation" style="accent-color:#E94560;width:18px;height:18px;">
+            <input type="checkbox" id="adVideoLiveAnimation" checked style="accent-color:#E94560;width:18px;height:18px;">
             <div>
               <div style="font-size:14px;font-weight:600;color:#1a1a2e;">Capture Live Animations</div>
               <div style="font-size:12px;color:#888;margin-top:2px;">Records actual CSS animations via server rendering (~30s slower, much higher quality)</div>

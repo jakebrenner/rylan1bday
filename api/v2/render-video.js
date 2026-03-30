@@ -108,14 +108,12 @@ export default async function handler(req, res) {
   const { html, css, config, format, duration } = req.body;
   if (!html) return res.status(400).json({ error: 'html is required' });
 
-  const recordDuration = Math.min(Math.max(duration || 6, 2), 10); // 2-10 seconds
-  const viewport = format === 'feed_1x1'
-    ? { width: 393, height: 393, deviceScaleFactor: 2 }
-    : { width: 393, height: 852, deviceScaleFactor: 2 }; // 2x for crisp rendering
+  const recordDuration = Math.min(Math.max(duration || 10, 2), 20); // 2-20 seconds
+  const viewport = { width: 393, height: 852, deviceScaleFactor: 2 }; // Always phone viewport — format only affects ad canvas, not invite capture
 
-  const fps = 4; // 4fps is enough for CSS animation capture
+  const fps = 15; // 15fps with deterministic timing — cross-fade blending smooths to 30fps on client
   const totalFrames = Math.ceil(recordDuration * fps);
-  const frameInterval = 1000 / fps; // 250ms between frames
+  const frameInterval = 1000 / fps; // ~67ms between frames
 
   // Use SSE streaming to prevent gateway timeout and send progress
   res.writeHead(200, {
@@ -154,34 +152,47 @@ export default async function handler(req, res) {
     // Load the invite
     await page.setContent(inviteHtml, { waitUntil: 'networkidle0', timeout: 30000 });
 
-    // Wait for fonts to load and entrance animations to begin
+    // Wait for fonts to load
     await page.evaluate(() => document.fonts.ready);
-    await new Promise(r => setTimeout(r, 500));
+
+    // Let entrance animations start naturally for 300ms, then freeze time
+    await new Promise(r => setTimeout(r, 300));
 
     res.write(`data: ${JSON.stringify({ type: 'progress', message: 'Recording animations...' })}\n\n`);
 
-    // Capture animation frames via sequential screenshots
-    const startTime = Date.now();
+    // ── Deterministic frame capture ──
+    // Pause all CSS animations, then manually advance them frame-by-frame.
+    // This decouples animation timing from screenshot latency — each frame
+    // captures the exact animation state regardless of how long the screenshot takes.
+
+    // Pause animations and store the initial state
+    await page.evaluate(() => {
+      // Pause all running animations at their current time
+      document.getAnimations({ subtree: true }).forEach(a => a.pause());
+    });
 
     for (let i = 0; i < totalFrames; i++) {
+      const targetTimeMs = i * frameInterval;
+
+      // Advance all CSS animations to the exact target time
+      await page.evaluate((t) => {
+        document.getAnimations({ subtree: true }).forEach(a => {
+          // Set currentTime to advance the animation to the right frame
+          a.currentTime = t;
+        });
+      }, targetTimeMs);
+
+      // Small delay to let the browser paint the updated state
+      await new Promise(r => setTimeout(r, 10));
+
       const screenshot = await page.screenshot({
         type: 'jpeg',
-        quality: 50,
+        quality: 90,
         encoding: 'base64',
         fullPage: true
       });
 
-      // Stream each frame as it's captured
       res.write(`data: ${JSON.stringify({ type: 'frame', index: i, data: screenshot })}\n\n`);
-
-      // Sleep until the next frame time (accounting for screenshot duration)
-      if (i < totalFrames - 1) {
-        const nextFrameTime = startTime + (i + 1) * frameInterval;
-        const sleepMs = Math.max(0, nextFrameTime - Date.now());
-        if (sleepMs > 0) {
-          await new Promise(r => setTimeout(r, sleepMs));
-        }
-      }
     }
 
     await browser.close();

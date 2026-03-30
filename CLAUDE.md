@@ -261,3 +261,9 @@ No auth required — supports host, guest, and anonymous raters.
 - Server sends `: keepalive\n\n` every 3 seconds to prevent mobile connection drops
 - Google Fonts `@import` must be first line in `<style>` block or they silently fail
 - AI JSON responses may need repair: strip markdown fences, fix unclosed strings/braces, accept both `snake_case` and `camelCase` keys
+
+### UI Notifications
+- **Never use `alert()`** for success messages, confirmations, or informational feedback — use the `showToast()` function instead (bottom-center toast, auto-dismisses after 3s)
+- `alert()` is only acceptable for true browser-level errors (e.g., WebGL not supported, required API unavailable)
+- For error feedback from API calls, use `showToast()` with the error message
+- For form validation, use inline error styling or `showToast()`, not `alert()`

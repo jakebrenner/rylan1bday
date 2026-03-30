@@ -97,55 +97,45 @@ const FORMAT_CONFIGS = {
   reels_9x16: {
     width: 1080,
     height: 1920,
-    logoY: 60,
-    logoSize: 46,
-    labelFontSize: 22,
-    labelY: 118,
-    // Centered phone (iPhone 15 proportions 393:852)
-    phoneWidth: 460,
-    phoneHeight: 998,
-    phoneY: 200,
-    // Prompt card drawn ON phone screen
-    promptFontSize: 28,
-    promptLineHeight: 42,
-    promptLabelSize: 16,
-    ctaY: 1760,
-    ctaFontSize: 32,
+    // Phone centered vertically in full frame (no top logo)
+    phoneWidth: 660,
+    phoneHeight: 1430,
+    phoneY: 245,
+    promptFontSize: 30,
+    promptLineHeight: 44,
+    promptLabelSize: 18,
+    ctaFontSize: 36,
     particleCount: 30
   },
   feed_1x1: {
     width: 1440,
     height: 1440,
-    logoY: 45,
-    logoSize: 46,
-    labelFontSize: 22,
-    labelY: 105,
-    // Centered phone (iPhone 15 proportions)
-    phoneWidth: 490,
-    phoneHeight: 1062,
-    phoneY: 160,
-    // Prompt card drawn ON phone screen
+    // Phone centered vertically in full frame
+    phoneWidth: 620,
+    phoneHeight: 1180,
+    phoneY: 130,
     promptFontSize: 28,
     promptLineHeight: 42,
     promptLabelSize: 16,
-    ctaY: 1290,
     ctaFontSize: 32,
     particleCount: 25
   }
 };
 
 // ── Animation Timing ──
-const CHAR_MS = 55;
-const INTRO_MS = 800;      // phone slide-in + logo fade
+const CHAR_MS = 40;
+const HOOK_MS = 2500;      // intro hook card display time
+const HOOK_FADE_MS = 500;  // hook card fade out
+const INTRO_MS = 800;      // phone slide-in
 const POST_TYPE_PAUSE = 600;
 const DISSOLVE_MS = 500;   // prompt card dissolve before shimmer
 const SHIMMER_MS = 1200;
 const REVEAL_MS = 1200;    // scale + fade reveal
-const SCROLL_PX_PER_SEC = 100; // scroll speed through invite
-const MAX_SCROLL_MS = 6000; // cap scroll duration
-const HOLD_MS = 2000;      // hold at top of invite
-const END_HOLD_MS = 1500;  // hold at bottom of invite
-const CTA_MS = 1500;
+const SCROLL_PX_PER_SEC = 70;  // scroll speed through invite (slower = more time to see content)
+const MAX_SCROLL_MS = 8000; // cap scroll duration
+const HOLD_MS = 2500;      // hold at top of invite
+const END_HOLD_MS = 2000;  // hold at bottom of invite
+const CTA_MS = 3500;
 const FPS = 30;
 const BG_CYCLE_MS = 12000; // slow background color cycle duration
 
@@ -175,7 +165,7 @@ function createParticles(count, canvasW, canvasH) {
  * @param {boolean} opts.liveAnimation - If true, records actual CSS animations via server-side Puppeteer
  * @param {Function} opts.authFetch - Required for liveAnimation: authenticated fetch function
  */
-async function generateAdVideo({ html, css, config, promptText, format, theme, onProgress, liveAnimation, authFetch }) {
+async function generateAdVideo({ html, css, config, promptText, hookText, format, theme, onProgress, liveAnimation, authFetch }) {
   onProgress = onProgress || function() {};
   const fmt = FORMAT_CONFIGS[format] || FORMAT_CONFIGS.reels_9x16;
   const thm = VIDEO_THEMES[theme] || VIDEO_THEMES.dark_gradient;
@@ -221,7 +211,7 @@ async function generateAdVideo({ html, css, config, promptText, format, theme, o
     onProgress(20, 'Starting animation...');
   }
 
-  const blob = await animateAndRecord(inviteSource, promptText, fmt, thm, onProgress);
+  const blob = await animateAndRecord(inviteSource, promptText, hookText, fmt, thm, onProgress);
   onProgress(100, 'Done!');
   return blob;
 }
@@ -243,7 +233,7 @@ async function renderInviteVideo(html, css, config, format, authFetch, onProgres
       css: css,
       config: config,
       format: format,
-      duration: 6
+      duration: 10
     })
   });
 
@@ -289,20 +279,43 @@ async function renderInviteVideo(html, css, config, format, authFetch, onProgres
     onProgress(50 + (j / frames.length) * 50);
   }
 
-  // Create a frame player that mimics a video source for animateAndRecord
+  // Create a frame player with cross-fade blending between frames for smooth playback
+  var blendCanvas = document.createElement('canvas');
+  blendCanvas.width = images[0].naturalWidth;
+  blendCanvas.height = images[0].naturalHeight;
+  var blendCtx = blendCanvas.getContext('2d');
+
   var framePlayer = {
     _isVideoSource: true,
     _frames: images,
     _fps: fps,
     _startTime: null,
+    _blendCanvas: blendCanvas,
+    _blendCtx: blendCtx,
     videoWidth: images[0].naturalWidth,
     videoHeight: images[0].naturalHeight,
-    // Get the current frame based on elapsed wall-clock time (loops)
+    // Get the current frame with cross-fade blending between adjacent frames
     getCurrentFrame: function() {
       if (!this._startTime) this._startTime = Date.now();
       var elapsed = Date.now() - this._startTime;
-      var frameIndex = Math.floor((elapsed / 1000) * this._fps) % this._frames.length;
-      return this._frames[frameIndex];
+      var exactFrame = (elapsed / 1000) * this._fps;
+      var totalFrames = this._frames.length;
+      // Clamp to last frame instead of looping — prevents invite from reloading
+      var frameA = Math.min(Math.floor(exactFrame), totalFrames - 1);
+      var frameB = Math.min(frameA + 1, totalFrames - 1);
+      var blend = exactFrame - Math.floor(exactFrame); // 0-1 between frames
+
+      // If blend is very close to 0 or 1, skip blending for performance
+      if (blend < 0.05) return this._frames[frameA];
+      if (blend > 0.95) return this._frames[frameB];
+
+      // Cross-fade: draw frame A, then overlay frame B with alpha
+      this._blendCtx.globalAlpha = 1;
+      this._blendCtx.drawImage(this._frames[frameA], 0, 0);
+      this._blendCtx.globalAlpha = blend;
+      this._blendCtx.drawImage(this._frames[frameB], 0, 0);
+      this._blendCtx.globalAlpha = 1;
+      return this._blendCanvas;
     }
   };
 
@@ -620,7 +633,7 @@ function drawAnimatedBackground(ctx, w, h, elapsed, thm) {
  * Run the animation on canvas and record to WebM/MP4.
  * New flow: Centered phone → prompt typed on phone screen → dissolve → shimmer → invite reveal + scroll → CTA
  */
-function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
+function animateAndRecord(inviteSource, promptText, hookText, fmt, thm, onProgress) {
   return new Promise(function(resolve, reject) {
     const canvas = document.createElement('canvas');
     canvas.width = fmt.width;
@@ -644,9 +657,11 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
     const effectiveScrollSpeed = scrollMs > 0 ? scrollDistance / (scrollMs / 1000) : SCROLL_PX_PER_SEC;
 
     // Timeline
+    const hasHook = !!(hookText && hookText.trim());
+    const hookTotalMs = hasHook ? HOOK_MS + HOOK_FADE_MS : 0;
     const typingMs = promptText.length * CHAR_MS;
     const displayMs = HOLD_MS + (scrollMs || HOLD_MS) + END_HOLD_MS;
-    const totalMs = INTRO_MS + typingMs + POST_TYPE_PAUSE + DISSOLVE_MS + SHIMMER_MS + REVEAL_MS + displayMs + CTA_MS;
+    const totalMs = hookTotalMs + INTRO_MS + typingMs + POST_TYPE_PAUSE + DISSOLVE_MS + SHIMMER_MS + REVEAL_MS + displayMs + CTA_MS;
 
     // Create particles
     const particles = createParticles(fmt.particleCount || 30, fmt.width, fmt.height);
@@ -668,7 +683,7 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
     const blobType = isMP4 ? 'video/mp4' : 'video/webm';
     const recorder = new MediaRecorder(stream, {
       mimeType: chosenMime,
-      videoBitsPerSecond: 10000000
+      videoBitsPerSecond: 16000000
     });
     const chunks = [];
 
@@ -677,13 +692,13 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
     recorder.onerror = function(e) { reject(new Error('MediaRecorder error: ' + (e.error || e.message || 'unknown'))); };
 
     let startTime = null;
-    let animFrameId = null;
+    let animId = null;
 
-    recorder.start();
+    recorder.start(1000);
 
-    function drawFrame(timestamp) {
-      if (!startTime) startTime = timestamp;
-      const elapsed = timestamp - startTime;
+    function drawFrame(rafTimestamp) {
+      if (!startTime) startTime = performance.now();
+      const elapsed = performance.now() - startTime;
 
       ctx.clearRect(0, 0, fmt.width, fmt.height);
 
@@ -691,8 +706,9 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
       drawAnimatedBackground(ctx, fmt.width, fmt.height, elapsed, thm);
       drawParticles(ctx, particles, elapsed, thm);
 
-      // ── Phase boundaries ──
-      const introEnd = INTRO_MS;
+      // ── Phase boundaries (hook → intro → type → pause → dissolve → shimmer → reveal → hold → scroll → endHold → CTA) ──
+      const hookEnd = hookTotalMs;
+      const introEnd = hookEnd + INTRO_MS;
       const typeEnd = introEnd + typingMs;
       const pauseEnd = typeEnd + POST_TYPE_PAUSE;
       const dissolveEnd = pauseEnd + DISSOLVE_MS;
@@ -702,60 +718,53 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
       const scrollEnd = holdEnd + (scrollMs || HOLD_MS);
       const endHoldEnd = scrollEnd + END_HOLD_MS;
 
-      // ── Intro animation (phone slides up, logo fades in) ──
-      const introProgress = Math.min(1, elapsed / INTRO_MS);
+      // ── Hook card (intro text on phone screen before prompt) ──
+      if (hasHook && elapsed < hookEnd) {
+        var hookProgress = elapsed < HOOK_MS ? 1 : 1 - Math.min(1, (elapsed - HOOK_MS) / HOOK_FADE_MS);
+        var hookFadeIn = Math.min(1, elapsed / 400);
+
+        // Draw phone at final position and get screen area
+        var hookScreen = drawPhoneFrame(ctx, phoneX, phoneBaseY, fmt.phoneWidth, fmt.phoneHeight, elapsed);
+
+        ctx.save();
+        roundRect(ctx, hookScreen.screenX, hookScreen.screenY, hookScreen.screenW, hookScreen.screenH, hookScreen.screenRadius);
+        ctx.clip();
+
+        // White background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(hookScreen.screenX, hookScreen.screenY, hookScreen.screenW, hookScreen.screenH);
+
+        ctx.globalAlpha = hookFadeIn * hookProgress;
+        var hCenterX = hookScreen.x + hookScreen.w / 2;
+        var hCenterY = hookScreen.y + hookScreen.h / 2;
+
+        // Hook text — wrap lines manually for big text
+        var hookFontSize = Math.round(fmt.promptFontSize * 1.35);
+        ctx.font = '700 ' + hookFontSize + 'px "Inter", Arial, sans-serif';
+        ctx.fillStyle = '#1a1a2e';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        var hookLines = wrapText(ctx, hookText.trim(), hookScreen.w * 0.78);
+        var lineH = hookFontSize * 1.35;
+        var startY = hCenterY - ((hookLines.length - 1) * lineH) / 2;
+        hookLines.forEach(function(line, i) {
+          ctx.fillText(line, hCenterX, startY + i * lineH);
+        });
+
+        ctx.restore();
+      }
+
+      // ── Intro animation (phone slides up) ──
+      var introElapsed = Math.max(0, elapsed - hookEnd);
+      const introProgress = Math.min(1, introElapsed / INTRO_MS);
       const introEased = easeOutCubic(introProgress);
-      const phoneSlideY = phoneBaseY + (1 - introEased) * 80;
+      const phoneSlideY = hasHook ? phoneBaseY : phoneBaseY + (1 - introEased) * 80;
 
-      // ── Logo + subtitle (above phone) ──
-      ctx.save();
-      ctx.globalAlpha = introEased;
-      var logoSlide = -15 + introEased * 15;
-      var logoX = fmt.width / 2;
-      var iconSize = fmt.logoSize * 1.1;
-      var textSize = fmt.logoSize;
-      ctx.font = '600 ' + textSize + 'px "Playfair Display", "Georgia", serif';
-      var textW = ctx.measureText('Ryvite').width;
-      var iconW = iconSize + 12;
-      var totalLogoW = iconW + textW;
-      var logoStartX = logoX - totalLogoW / 2;
-
-      // Envelope icon
-      var iconCx = logoStartX + iconSize / 2;
-      var iconCy = fmt.logoY + logoSlide - textSize * 0.25;
-      var iconR = iconSize / 2;
-      ctx.beginPath();
-      ctx.arc(iconCx, iconCy, iconR, 0, Math.PI * 2);
-      ctx.strokeStyle = thm.logoColor;
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(iconCx - iconR * 0.58, iconCy - iconR * 0.35);
-      ctx.lineTo(iconCx, iconCy + iconR * 0.1);
-      ctx.lineTo(iconCx + iconR * 0.58, iconCy - iconR * 0.35);
-      ctx.strokeStyle = thm.logoColor;
-      ctx.lineWidth = 2.5;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(iconCx - iconR * 0.58, iconCy + iconR * 0.42);
-      ctx.lineTo(iconCx + iconR * 0.58, iconCy + iconR * 0.42);
-      ctx.strokeStyle = thm.logoColor;
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.stroke();
-
-      ctx.font = '600 ' + textSize + 'px "Playfair Display", "Georgia", serif';
-      ctx.fillStyle = thm.logoColor;
-      ctx.textAlign = 'left';
-      ctx.fillText('Ryvite', logoStartX + iconW, fmt.logoY + logoSlide);
-
-      ctx.font = fmt.labelFontSize + 'px "Inter", "Helvetica Neue", Arial, sans-serif';
-      ctx.fillStyle = thm.subtextColor;
-      ctx.textAlign = 'center';
-      ctx.fillText('AI-Powered Event Invitations', logoX, fmt.labelY - 10 + introEased * 10);
-      ctx.restore();
+      // Skip the rest of the phone drawing during hook phase (hook draws its own phone)
+      if (hasHook && elapsed < hookEnd) {
+        // Progress + next frame handled below
+      } else {
 
       // ── Phone glow (during/after reveal) ──
       if (elapsed >= shimmerEnd) {
@@ -916,43 +925,102 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
         ctx.restore();
       }
 
-      // ── CTA ──
+      // ── CTA page (slides up inside phone screen after invite) ──
       if (elapsed >= endHoldEnd) {
         var ctaProgress = Math.min(1, (elapsed - endHoldEnd) / CTA_MS);
         var ctaEased = easeOutCubic(ctaProgress);
 
         ctx.save();
-        ctx.globalAlpha = ctaEased;
+        // Clip to phone screen
+        roundRect(ctx, screen.screenX, screen.screenY, screen.screenW, screen.screenH, screen.screenRadius);
+        ctx.clip();
 
-        var ctaW = Math.min(460, fmt.width * 0.44);
-        var ctaH = 64;
-        var ctaX = (fmt.width - ctaW) / 2;
+        // White page slides up from bottom
+        var slideOffset = (1 - ctaEased) * screen.screenH;
+        var pageY = screen.screenY + slideOffset;
+
+        // White background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(screen.screenX, pageY, screen.screenW, screen.screenH);
+
+        ctx.globalAlpha = ctaEased;
+        var centerX = screen.x + screen.w / 2;
+        var centerY = pageY + screen.screenH / 2;
+
+        // ── Ryvite logo (envelope icon + wordmark) in accent red ──
+        var logoSize = Math.round((fmt.ctaFontSize || 32) * 1.6);
+        var logoY = centerY - 100;
+
+        // Envelope icon circle
+        var iconR = logoSize * 0.45;
+        ctx.beginPath();
+        ctx.arc(centerX, logoY, iconR, 0, Math.PI * 2);
+        ctx.strokeStyle = thm.accentColor || '#E94560';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        // Envelope flap
+        ctx.beginPath();
+        ctx.moveTo(centerX - iconR * 0.55, logoY - iconR * 0.3);
+        ctx.lineTo(centerX, logoY + iconR * 0.15);
+        ctx.lineTo(centerX + iconR * 0.55, logoY - iconR * 0.3);
+        ctx.strokeStyle = thm.accentColor || '#E94560';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+        // Envelope bottom
+        ctx.beginPath();
+        ctx.moveTo(centerX - iconR * 0.55, logoY + iconR * 0.4);
+        ctx.lineTo(centerX + iconR * 0.55, logoY + iconR * 0.4);
+        ctx.strokeStyle = thm.accentColor || '#E94560';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        // "Ryvite" wordmark
+        ctx.font = '600 ' + logoSize + 'px "Playfair Display", "Georgia", serif';
+        ctx.fillStyle = thm.accentColor || '#E94560';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Ryvite', centerX, logoY + iconR + logoSize * 0.7);
+
+        // ── Tagline text ──
+        var tagY = centerY + 40;
+        var tagFontSize = Math.round((fmt.ctaFontSize || 32) * 0.85);
+
+        ctx.font = 'bold ' + tagFontSize + 'px "Inter", Arial, sans-serif';
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillText('100% Unique AI Invitations.', centerX, tagY);
+        ctx.fillText('100% Free.', centerX, tagY + tagFontSize * 1.4);
+
+        // "Create Yours Now" CTA button
+        var ctaBtnY = tagY + tagFontSize * 3.2;
+        var ctaBtnW = Math.min(screen.w * 0.7, 340);
+        var ctaBtnH = 52;
+        var ctaBtnX = centerX - ctaBtnW / 2;
 
         ctx.shadowColor = 'rgba(233,69,96,0.4)';
-        ctx.shadowBlur = 20;
-        ctx.shadowOffsetY = 6;
-        roundRect(ctx, ctaX, fmt.ctaY, ctaW, ctaH, 32);
-        ctx.fillStyle = thm.ctaBg;
+        ctx.shadowBlur = 16;
+        ctx.shadowOffsetY = 4;
+        roundRect(ctx, ctaBtnX, ctaBtnY, ctaBtnW, ctaBtnH, 26);
+        ctx.fillStyle = thm.accentColor || '#E94560';
         ctx.fill();
         ctx.shadowColor = 'transparent';
 
-        ctx.font = 'bold ' + fmt.ctaFontSize + 'px "Inter", Arial, sans-serif';
-        ctx.fillStyle = thm.ctaText;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('Create Yours Free', fmt.width / 2, fmt.ctaY + ctaH / 2);
-
-        ctx.font = (fmt.ctaFontSize * 0.65) + 'px "Inter", Arial, sans-serif';
-        ctx.fillStyle = thm.subtextColor;
-        ctx.fillText('ryvite.com', fmt.width / 2, fmt.ctaY + ctaH + 30);
+        ctx.font = 'bold ' + Math.round(tagFontSize * 0.85) + 'px "Inter", Arial, sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('Create Yours Now', centerX, ctaBtnY + ctaBtnH / 2);
 
         ctx.restore();
       }
 
+      } // end of else (non-hook phase)
+
       // ── Progress ──
       var progress = 20 + Math.min(75, (elapsed / totalMs) * 75);
       var phase = 'Processing...';
-      if (elapsed < typeEnd) phase = 'Typing prompt...';
+      if (hasHook && elapsed < hookEnd) phase = 'Intro card...';
+      else if (elapsed < typeEnd) phase = 'Typing prompt...';
       else if (elapsed < dissolveEnd) phase = 'Transitioning...';
       else if (elapsed < shimmerEnd) phase = 'AI generating...';
       else if (elapsed < revealEnd) phase = 'Revealing invite...';
@@ -962,16 +1030,22 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
       onProgress(progress, phase);
 
       if (elapsed < totalMs) {
-        animFrameId = requestAnimationFrame(drawFrame);
+        // Use requestAnimationFrame for smooth rendering when tab is visible,
+        // fall back to setTimeout when tab is hidden (RAF gets throttled to ~1fps)
+        if (document.hidden) {
+          animId = setTimeout(drawFrame, 1000 / FPS);
+        } else {
+          animId = requestAnimationFrame(drawFrame);
+        }
       } else {
         setTimeout(function() {
           recorder.stop();
-          cancelAnimationFrame(animFrameId);
+          if (typeof animId === 'number') cancelAnimationFrame(animId);
         }, 200);
       }
     }
 
-    animFrameId = requestAnimationFrame(drawFrame);
+    animId = requestAnimationFrame(drawFrame);
   });
 }
 
