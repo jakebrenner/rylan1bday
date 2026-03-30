@@ -741,6 +741,9 @@
                 <div class="phone-home-bar"></div>
               </div>
             </div>
+            <div id="viewLivePageLink" style="display:none;text-align:center;margin-top:8px;">
+              <a href="#" onclick="openLivePreview(); return false;" target="_blank" style="font-size:13px;color:#888;text-decoration:none;font-family:'Inter',sans-serif;">View Live Page ↗</a>
+            </div>
             <!-- Mobile action buttons below preview -->
             <div id="mobilePreviewActions" style="display:none;margin-top:16px;width:100%;max-width:360px;">
               <div style="display:flex;gap:8px;">
@@ -3139,60 +3142,68 @@
     }
 
     function buildRsvpFormHtml(isDarkBg) {
-      var config = themeVersions[activeVersionIndex] ? themeVersions[activeVersionIndex].config : {};
-      var accent = config.accentColor || config.primaryColor || '#E94560';
-
-      // Explicit colors based on detected background — NEVER use 'inherit'
+      // Matches event page buildRSVPFormHtml() exactly — WYSIWYG preview
       var textColor = isDarkBg ? '#FFFFFF' : '#1A1A1A';
       var borderColor = isDarkBg ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.15)';
-      var inputBg = isDarkBg ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)';
-      var placeholderOpacity = isDarkBg ? '0.5' : '0.4';
+      var inputBg = isDarkBg ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.04)';
+      var inputStyle = 'width:100%;padding:12px 14px;border:1px solid ' + borderColor + ';border-radius:8px;font-size:16px;font-family:Inter,sans-serif;-webkit-appearance:none;background:' + inputBg + ';color:' + textColor + ';';
+      var labelStyle = 'display:block;margin-bottom:8px;font-weight:600;font-size:14px;color:' + textColor + ';';
 
-      var inputStyle = 'width:100%;padding:10px 12px;border:1px solid ' + borderColor + ';border-radius:8px;font-size:14px;background:' + inputBg + ';color:' + textColor + ';font-family:inherit;';
-      var labelStyle = 'display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:' + textColor + ';';
-
-      var html = '<div class="rsvp-form-injected" style="font-family:inherit;color:' + textColor + ';">';
+      var html = '<div id="rsvpForm" style="color:' + textColor + ';">';
 
       // Name field
-      html += '<div style="margin-bottom:12px;">'
-        + '<label style="' + labelStyle + '">Name <span style="color:' + accent + ';">*</span></label>'
+      html += '<div class="rsvp-form-group" style="margin-bottom:14px;">'
+        + '<label style="' + labelStyle + '">Name <span style="color:#E94560;">*</span></label>'
         + '<input type="text" placeholder="Your name" disabled style="' + inputStyle + '">'
         + '</div>';
 
-      // RSVP Status — styled radio buttons
-      html += '<div style="margin-bottom:12px;">'
-        + '<label style="' + labelStyle + '">RSVP Status <span style="color:' + accent + ';">*</span></label>'
-        + '<div style="display:flex;gap:6px;">'
-        + ['Attending', 'Declined', 'Maybe'].map(function(opt, idx) {
-          var isFirst = idx === 0;
-          return '<label style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px 6px;border:2px solid ' + (isFirst ? accent : borderColor) + ';border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;background:' + (isFirst ? accent : inputBg) + ';color:' + (isFirst ? '#fff' : textColor) + ';transition:all 0.2s;">'
-            + '<input type="radio" name="rsvpStatus" value="' + opt + '"' + (isFirst ? ' checked' : '') + ' disabled style="display:none;">'
-            + opt + '</label>';
-        }).join('')
-        + '</div></div>';
+      // Email field
+      html += '<div class="rsvp-form-group" style="margin-bottom:14px;">'
+        + '<label style="' + labelStyle + '">Email</label>'
+        + '<input type="email" placeholder="your@email.com" disabled style="' + inputStyle + '">'
+        + '</div>';
+
+      // Phone field
+      html += '<div class="rsvp-form-group" style="margin-bottom:14px;">'
+        + '<label style="' + labelStyle + '">Phone</label>'
+        + '<input type="tel" placeholder="(555) 123-4567" disabled style="' + inputStyle + '">'
+        + '</div>';
+
+      // RSVP Status — select dropdown (matches event page)
+      html += '<div class="rsvp-form-group" style="margin-bottom:14px;">'
+        + '<label style="' + labelStyle + '">RSVP Status <span style="color:#E94560;">*</span></label>'
+        + '<select disabled style="' + inputStyle + 'cursor:pointer;">'
+        + '<option value="">Select...</option>'
+        + '<option value="yes">Yes, I\'ll be there!</option>'
+        + '<option value="no">No, sorry</option>'
+        + '<option value="maybe">Maybe</option>'
+        + '</select></div>';
 
       // Custom RSVP fields
       rsvpFields.forEach(function(f) {
-        var reqStar = f.is_required ? ' <span style="color:' + accent + ';">*</span>' : '';
-        html += '<div style="margin-bottom:12px;">'
+        if (f.field_type === 'email' || f.field_type === 'phone' || f.field_type === 'tel') return;
+        var reqStar = f.is_required ? ' <span style="color:#E94560;">*</span>' : '';
+        html += '<div class="rsvp-form-group" style="margin-bottom:14px;">'
           + '<label style="' + labelStyle + '">' + escapeHtml(f.label) + reqStar + '</label>';
         if (f.field_type === 'checkbox') {
           html += '<label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;color:' + textColor + ';">'
-            + '<input type="checkbox" disabled style="width:18px;height:18px;accent-color:' + accent + ';cursor:pointer;">'
+            + '<input type="checkbox" disabled style="width:18px;height:18px;accent-color:#E94560;cursor:pointer;">'
             + '<span>' + escapeHtml(f.placeholder || f.label) + '</span></label>';
         } else if (f.field_type === 'select' && f.options && f.options.length > 0) {
-          html += '<select disabled style="' + inputStyle + '-webkit-appearance:none;">'
-            + '<option>' + escapeHtml(f.options[0]) + '</option></select>';
+          html += '<select disabled style="' + inputStyle + 'cursor:pointer;"><option value="">Select...</option>';
+          f.options.forEach(function(o) { html += '<option>' + escapeHtml(o) + '</option>'; });
+          html += '</select>';
         } else if (f.field_type === 'textarea') {
-          html += '<textarea disabled placeholder="' + escapeHtml(f.placeholder || '') + '" style="' + inputStyle + 'min-height:60px;resize:none;"></textarea>';
+          html += '<textarea disabled placeholder="' + escapeHtml(f.placeholder || '') + '" style="' + inputStyle + 'min-height:80px;resize:vertical;"></textarea>';
         } else {
-          var pholder = f.field_type === 'number' ? (f.placeholder || '0') : f.field_type === 'email' ? (f.placeholder || 'your@email.com') : f.field_type === 'phone' || f.field_type === 'tel' ? (f.placeholder || '(555) 123-4567') : (f.placeholder || '');
-          var inputType = f.field_type === 'phone' || f.field_type === 'tel' ? 'tel' : f.field_type === 'email' ? 'email' : f.field_type === 'number' ? 'number' : 'text';
+          var pholder = f.field_type === 'number' ? (f.placeholder || '0') : (f.placeholder || '');
+          var inputType = f.field_type === 'number' ? 'number' : 'text';
           html += '<input type="' + inputType + '" placeholder="' + escapeHtml(pholder) + '" disabled style="' + inputStyle + '">';
         }
         html += '</div>';
       });
 
+      html += '<button class="rsvp-submit" id="rsvpSubmitBtn" disabled style="width:100%;padding:14px 24px;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;background:#E94560;color:#FFFFFF;font-family:Inter,sans-serif;min-height:48px;">Submit RSVP</button>';
       html += '</div>';
       return html;
     }
@@ -3626,7 +3637,15 @@
       }
     }
 
+    function openLivePreview() {
+      if (currentEvent && currentEvent.id) {
+        window.open('/v2/preview/?eventId=' + encodeURIComponent(currentEvent.id), '_blank');
+      }
+    }
+
     function renderPreview(ver) {
+      var liveLink = document.getElementById('viewLivePageLink');
+      if (liveLink && currentEvent && currentEvent.id) liveLink.style.display = '';
       var iframe = document.getElementById('previewFrame');
       if (currentPreviewMode === 'email') {
         iframe.onload = null;
