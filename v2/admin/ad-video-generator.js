@@ -298,8 +298,9 @@ async function renderInviteVideo(html, css, config, format, authFetch, onProgres
       var elapsed = Date.now() - this._startTime;
       var exactFrame = (elapsed / 1000) * this._fps;
       var totalFrames = this._frames.length;
-      var frameA = Math.floor(exactFrame) % totalFrames;
-      var frameB = (frameA + 1) % totalFrames;
+      // Clamp to last frame instead of looping — prevents invite from reloading
+      var frameA = Math.min(Math.floor(exactFrame), totalFrames - 1);
+      var frameB = Math.min(frameA + 1, totalFrames - 1);
       var blend = exactFrame - Math.floor(exactFrame); // 0-1 between frames
 
       // If blend is very close to 0 or 1, skip blending for performance
@@ -943,6 +944,24 @@ function animateAndRecord(inviteSource, promptText, fmt, thm, onProgress) {
         ctx.fillStyle = '#1a1a2e';
         ctx.fillText('100% Unique AI Invitations.', centerX, tagY);
         ctx.fillText('100% Free.', centerX, tagY + tagFontSize * 1.4);
+
+        // "Create Yours Now" CTA button
+        var ctaBtnY = tagY + tagFontSize * 3.2;
+        var ctaBtnW = Math.min(screen.w * 0.7, 340);
+        var ctaBtnH = 52;
+        var ctaBtnX = centerX - ctaBtnW / 2;
+
+        ctx.shadowColor = 'rgba(233,69,96,0.4)';
+        ctx.shadowBlur = 16;
+        ctx.shadowOffsetY = 4;
+        roundRect(ctx, ctaBtnX, ctaBtnY, ctaBtnW, ctaBtnH, 26);
+        ctx.fillStyle = thm.accentColor || '#E94560';
+        ctx.fill();
+        ctx.shadowColor = 'transparent';
+
+        ctx.font = 'bold ' + Math.round(tagFontSize * 0.85) + 'px "Inter", Arial, sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('Create Yours Now', centerX, ctaBtnY + ctaBtnH / 2);
 
         ctx.restore();
       }
