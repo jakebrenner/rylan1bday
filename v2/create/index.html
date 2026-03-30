@@ -6203,8 +6203,6 @@
               renderDesignChat();
               return;
             }
-              // If we couldn't match a field, fall through to the AI tweak which handles it via rsvp_field_changes
-            }
 
             // If the classifier detected this is a question, answer conversationally
             if (classification.intent === 'question' && classification.confidence >= 0.6) {
