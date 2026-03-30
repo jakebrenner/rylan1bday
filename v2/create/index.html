@@ -1577,8 +1577,10 @@
           // Restore interactive UI based on chatPhase
           if (chatPhase === 'confirmed') {
             showConfirmationCard();
+            showPhotoUploadPrompt();
           } else if (chatPhase === 'themeReady') {
             showConfirmationCard();
+            showPhotoUploadPrompt();
             showDesignReadyCard();
           }
         }
@@ -1812,6 +1814,7 @@
               if (chatResult.ready && chatResult.confirmed && chatPhase !== 'confirmed' && chatPhase !== 'themeReady') {
                 chatPhase = 'confirmed';
                 showConfirmationCard();
+                showPhotoUploadPrompt();
               }
               addChatBubble(chatResult.message, 'assistant');
               if (chatResult.themeReady && chatPhase !== 'themeReady') {
@@ -1901,6 +1904,7 @@
           if (result.ready && result.confirmed && chatPhase !== 'confirmed' && chatPhase !== 'themeReady') {
             chatPhase = 'confirmed';
             showConfirmationCard();
+            showPhotoUploadPrompt();
           }
 
           addChatBubble(result.message, 'assistant');
@@ -2191,6 +2195,93 @@
       saveEventToDB().catch(function() {});
     }
 
+    function showPhotoUploadPrompt() {
+      // Remove any existing photo prompt card
+      var existing = document.getElementById('photoUploadPrompt');
+      if (existing) existing.remove();
+
+      var eventType = extractedData.eventType || 'other';
+      var photoRec = photoRecommendations[eventType];
+
+      var card = document.createElement('div');
+      card.className = 'chat-extracted';
+      card.id = 'photoUploadPrompt';
+
+      var html = '<div style="font-size:15px;font-weight:600;color:var(--midnight);margin-bottom:4px;">Got any photos? They dramatically help nail the vibe.</div>'
+        + '<div style="font-size:12px;color:#888;margin-bottom:14px;">Uploading inspiration images or photos of the guest of honor helps the AI get the design right on the first try.</div>';
+
+      // Photo uploads — side by side
+      html += '<div style="display:flex;gap:10px;margin-bottom:10px;">'
+        + '<div style="flex:1;">'
+        + '<div class="image-upload-area" id="promptInspoDropZone" onclick="document.getElementById(\'promptInspoInput\').click()" style="padding:10px;border-radius:8px;">'
+        + '<p style="font-size:12px;margin:0;">Inspiration images</p>'
+        + '<p style="font-size:10px;color:#999;margin:2px 0 0;">optional · max 6</p>'
+        + '</div>'
+        + '<input type="file" id="promptInspoInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handleInspirationUpload(event)">'
+        + '<div id="promptInspoPreviews" class="image-previews"></div>'
+        + '</div>'
+        + '<div style="flex:1;">'
+        + '<div class="image-upload-area" id="promptPersonDropZone" onclick="document.getElementById(\'promptPersonInput\').click()" style="padding:10px;border-radius:8px;">'
+        + '<p style="font-size:12px;margin:0;">Photos of the person</p>'
+        + '<p style="font-size:10px;color:#999;margin:2px 0 0;">' + (photoRec ? photoRec.strength.toLowerCase() : 'optional') + ' · max 6</p>'
+        + '</div>'
+        + '<input type="file" id="promptPersonInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.webp" style="display:none;" onchange="handlePersonUpload(event)">'
+        + '<div id="promptPersonPreviews" class="image-previews"></div>'
+        + '</div>'
+        + '</div>';
+
+      // Event-type-specific recommendation
+      if (photoRec) {
+        html += '<div style="font-size:11px;color:#888;margin-bottom:10px;line-height:1.4;">' + photoRec.text + '</div>';
+      }
+
+      // Skip link
+      html += '<div style="text-align:center;"><button onclick="dismissPhotoPrompt()" style="background:none;border:none;color:#999;font-size:12px;cursor:pointer;text-decoration:underline;">Skip — no photos</button></div>';
+
+      card.innerHTML = html;
+      document.getElementById('chatMessages').appendChild(card);
+      scrollChat();
+
+      // Re-render any photos already uploaded
+      if (personPhotoUrls.length > 0) {
+        var personContainer = document.getElementById('promptPersonPreviews');
+        if (personContainer) {
+          personPhotoUrls.forEach(function(url, i) {
+            if (!url) return;
+            var div = document.createElement('div');
+            div.className = 'image-preview';
+            div.setAttribute('data-idx', i);
+            div.setAttribute('data-photo-type', 'person');
+            div.innerHTML = '<img src="' + url + '" alt="Preview"><button class="remove" onclick="removeImage(this, \'person\')">&times;</button>';
+            personContainer.appendChild(div);
+          });
+        }
+      }
+      if (inspirationImageUrls.length > 0) {
+        var inspoContainer = document.getElementById('promptInspoPreviews');
+        if (inspoContainer) {
+          inspirationImageUrls.forEach(function(url, i) {
+            if (!url) return;
+            var div = document.createElement('div');
+            div.className = 'image-preview';
+            div.setAttribute('data-idx', i);
+            div.setAttribute('data-photo-type', 'inspiration');
+            div.innerHTML = '<img src="' + url + '" alt="Preview"><button class="remove" onclick="removeImage(this, \'inspiration\')">&times;</button>';
+            inspoContainer.appendChild(div);
+          });
+        }
+      }
+
+      // Set up drag & drop
+      setupDropZone('promptInspoDropZone', 'inspiration');
+      setupDropZone('promptPersonDropZone', 'person');
+    }
+
+    function dismissPhotoPrompt() {
+      var card = document.getElementById('photoUploadPrompt');
+      if (card) card.style.display = 'none';
+    }
+
     function showDesignReadyCard() {
       // Remove any existing design ready card
       var existing = document.getElementById('designReadyCard');
@@ -2203,9 +2294,13 @@
       card.className = 'chat-extracted';
       card.id = 'designReadyCard';
 
-      var html = '<div style="font-size:14px;font-weight:500;margin-bottom:12px;">Ready to generate! Add any photos before we start:</div>';
+      var hasPhotos = inspirationImageUrls.some(function(u) { return !!u; }) || personPhotoUrls.some(function(u) { return !!u; });
 
-      // Photo uploads — side by side
+      var html = '<div style="font-size:14px;font-weight:500;margin-bottom:12px;">'
+        + (hasPhotos ? 'Ready to generate! Here are your photos:' : 'Ready to generate!')
+        + '</div>';
+
+      // Photo uploads — side by side (compact, allows adding more)
       html += '<div style="display:flex;gap:10px;margin-bottom:14px;">'
         + '<div style="flex:1;">'
         + '<div class="image-upload-area" id="readyInspoDropZone" onclick="document.getElementById(\'readyInspoInput\').click()" style="padding:10px;border-radius:8px;">'
@@ -6943,12 +7038,14 @@
       var base64Arr = photoType === 'person' ? personPhotoBase64Array : inspirationImageBase64Array;
       var urlArr = photoType === 'person' ? personPhotoUrls : inspirationImageUrls;
       var previewContainerId = photoType === 'person' ? 'personPreviews' : 'inspirationPreviews';
+      var promptPreviewContainerId = photoType === 'person' ? 'promptPersonPreviews' : 'promptInspoPreviews';
 
       if (files.length + base64Arr.length > 6) {
         showMessage('Maximum 6 images allowed per category', 'error');
         return;
       }
-      var container = document.getElementById(previewContainerId);
+      var container = document.getElementById(previewContainerId)
+        || document.getElementById(promptPreviewContainerId);
       if (!container) {
         // Fallback: use chat photo preview area, then legacy
         container = document.getElementById('chatPhotoPreview') || document.getElementById('imagePreviews');

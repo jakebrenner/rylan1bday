@@ -492,6 +492,8 @@ Style these classes in theme_css to match the theme:
 If photos are provided via URL, use them in \`<img>\` tags with the exact URL provided.
 - Style with border-radius, box-shadow, border, or creative framing per the event type
 - If photos are bad quality, the treatment should save them (overlay, vignette, color grade via CSS filter)
+- NEVER generate, guess, or hallucinate image URLs. Only use <img> tags for photo URLs explicitly provided in the PHOTOS section. If no photo URLs are provided, do NOT use any <img> tags — use SVG illustrations, CSS gradients, or decorative elements instead.
+- Inspiration images (sent as visual references) are for analyzing color palette, mood, and style ONLY — do NOT try to embed or recreate them as <img> tags.
 
 ## THANK YOU PAGE (theme_thankyou_html) — CRITICAL
 The platform injects the "Thank You!" heading, subtitle text, calendar buttons, and footer at runtime.
@@ -698,12 +700,25 @@ function extractThemeFromHtmlDoc(html) {
   body = body.replace(/<head[\s\S]*?<\/head>/gi, '').replace(/<\/?(html|head|!doctype)[^>]*>/gi, '').replace(/<(link|meta)[^>]*>/gi, '').trim();
   if (!body && !css) throw new Error('Invalid theme response — could not extract HTML or CSS');
   // Extract thankyou-page content if present in the HTML document
+  // Use balanced-div matching since thankyou-page contains nested divs
   let thankyouHtml = '';
-  const thankyouMatch = body.match(/<div[^>]*class=["'][^"']*thankyou-page[^"']*["'][^>]*>[\s\S]*?<\/div>\s*$/i);
-  if (thankyouMatch) {
-    thankyouHtml = thankyouMatch[0];
-    body = body.replace(thankyouMatch[0], '').trim();
-    console.log('[extractThemeFromHtmlDoc] Extracted thankyou-page HTML (' + thankyouHtml.length + ' chars)');
+  const tyStartMatch = body.match(/<div[^>]*class=["'][^"']*thankyou-page[^"']*["'][^>]*>/i);
+  if (tyStartMatch) {
+    const tyStartIdx = body.indexOf(tyStartMatch[0]);
+    let depth = 0;
+    let endIdx = -1;
+    for (let i = tyStartIdx; i < body.length; i++) {
+      if (body.substring(i, i + 4) === '<div') depth++;
+      if (body.substring(i, i + 6) === '</div>') {
+        depth--;
+        if (depth === 0) { endIdx = i + 6; break; }
+      }
+    }
+    if (endIdx > tyStartIdx) {
+      thankyouHtml = body.substring(tyStartIdx, endIdx);
+      body = (body.substring(0, tyStartIdx) + body.substring(endIdx)).trim();
+      console.log('[extractThemeFromHtmlDoc] Extracted thankyou-page HTML (' + thankyouHtml.length + ' chars)');
+    }
   }
   return { theme_html: body, theme_css: css, theme_config: config, theme_thankyou_html: thankyouHtml };
 }
@@ -975,6 +990,20 @@ function validateThemeIntegrity(theme) {
     }
   }
 
+  // 11. Hallucinated image URLs — <img> tags with non-Supabase URLs
+  const imgTags = html.match(/<img[^>]+src=["'][^"']+["'][^>]*>/gi) || [];
+  for (const imgTag of imgTags) {
+    const srcMatch = imgTag.match(/src=["']([^"']+)["']/i);
+    if (srcMatch && srcMatch[1]) {
+      const src = srcMatch[1];
+      // Allow Supabase storage URLs and data: URIs only
+      if (!src.includes('/storage/v1/object/') && !src.startsWith('data:')) {
+        issues.push('hallucinated_img_url');
+        break;
+      }
+    }
+  }
+
   return { valid: issues.length === 0, issues };
 }
 
@@ -1140,6 +1169,21 @@ function repairTheme(theme, issues) {
     if (issues.some(i => i === 'css_clipped_' + selKey)) {
       theme.theme_css = replaceCssProperty(theme.theme_css, sel, /overflow\s*:\s*hidden\s*;?/gi, 'overflow: visible;');
       console.log('[repairTheme] Fixed overflow clipping on .' + sel);
+    }
+  }
+
+  // Strip <img> tags with hallucinated (non-Supabase) URLs
+  if (issues.includes('hallucinated_img_url')) {
+    let stripped = 0;
+    theme.theme_html = (theme.theme_html || '').replace(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi, function(match, src) {
+      if (src.includes('/storage/v1/object/') || src.startsWith('data:')) {
+        return match; // Keep valid Supabase/data URLs
+      }
+      stripped++;
+      return ''; // Remove hallucinated image
+    });
+    if (stripped > 0) {
+      console.log('[repairTheme] Stripped ' + stripped + ' hallucinated <img> tag(s)');
     }
   }
 }
@@ -2552,7 +2596,7 @@ This is the most common failure mode. Double-check it.`;
       ? openaiStream(themeModel, activePrompt.systemPrompt, messageContent, 12288)
       : client.messages.stream({
           model: themeModel,
-          max_tokens: 12288,
+          max_tokens: 16384,
           system: activePrompt.systemPrompt,
           messages: [{ role: 'user', content: messageContent }]
         });
@@ -2640,6 +2684,26 @@ This is the most common failure mode. Double-check it.`;
     }
 
     // Store thank you HTML in config to avoid DB schema change
+    // If thankyou HTML is empty, try extracting from theme_html (AI sometimes puts it inline)
+    if (!theme.theme_thankyou_html && theme.theme_html && theme.theme_html.includes('thankyou-page')) {
+      const tyInlineMatch = theme.theme_html.match(/<div[^>]*class=["'][^"']*thankyou-page[^"']*["'][^>]*>/i);
+      if (tyInlineMatch) {
+        const tyStart = theme.theme_html.indexOf(tyInlineMatch[0]);
+        let depth = 0, tyEnd = -1;
+        for (let i = tyStart; i < theme.theme_html.length; i++) {
+          if (theme.theme_html.substring(i, i + 4) === '<div') depth++;
+          if (theme.theme_html.substring(i, i + 6) === '</div>') {
+            depth--;
+            if (depth === 0) { tyEnd = i + 6; break; }
+          }
+        }
+        if (tyEnd > tyStart) {
+          theme.theme_thankyou_html = theme.theme_html.substring(tyStart, tyEnd);
+          theme.theme_html = (theme.theme_html.substring(0, tyStart) + theme.theme_html.substring(tyEnd)).trim();
+          console.log('[generate] Extracted inline thankyou-page from theme_html (' + theme.theme_thankyou_html.length + ' chars)');
+        }
+      }
+    }
     if (theme.theme_thankyou_html) {
       theme.theme_config.thankyouHtml = theme.theme_thankyou_html;
     } else {
