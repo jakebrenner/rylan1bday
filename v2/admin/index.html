@@ -8609,76 +8609,156 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     // ── New Ad Picker (loads showcases for quick selection) ──
-    async function openNewAdPicker() {
-      var modal = document.getElementById('adPickerModal');
+    // ── Ad Picker (tabbed: Showcases, User Generations, Lab Generations) ──
+    var _adPickerTab = 'showcases';
+    var _adPickerItems = [];
+    var _adPickerPage = 1;
+    var _adPickerTotal = 0;
+    var _adPickerPageSize = 20;
+
+    function openNewAdPicker() {
+      document.getElementById('adPickerModal').style.display = 'flex';
+      _adPickerTab = 'showcases';
+      _adPickerPage = 1;
+      // Reset tab styles
+      document.querySelectorAll('.ad-picker-tab').forEach(function(btn) {
+        var isActive = btn.dataset.tab === 'showcases';
+        btn.style.borderBottomColor = isActive ? '#E94560' : 'transparent';
+        btn.style.color = isActive ? '#E94560' : '#888';
+      });
+      loadAdPickerTab();
+    }
+
+    function switchAdPickerTab(tab) {
+      _adPickerTab = tab;
+      _adPickerPage = 1;
+      document.querySelectorAll('.ad-picker-tab').forEach(function(btn) {
+        var isActive = btn.dataset.tab === tab;
+        btn.style.borderBottomColor = isActive ? '#E94560' : 'transparent';
+        btn.style.color = isActive ? '#E94560' : '#888';
+      });
+      loadAdPickerTab();
+    }
+
+    function adPickerPrevPage() { if (_adPickerPage > 1) { _adPickerPage--; loadAdPickerTab(); } }
+    function adPickerNextPage() { if (_adPickerPage * _adPickerPageSize < _adPickerTotal) { _adPickerPage++; loadAdPickerTab(); } }
+
+    async function loadAdPickerTab() {
       var grid = document.getElementById('adPickerGrid');
       var empty = document.getElementById('adPickerEmpty');
-      modal.style.display = 'flex';
-      grid.innerHTML = '<div style="text-align:center;padding:40px;color:#888;grid-column:1/-1;">Loading showcases...</div>';
+      var pagination = document.getElementById('adPickerPagination');
+      grid.innerHTML = '<div style="text-align:center;padding:40px;color:#888;grid-column:1/-1;">Loading...</div>';
+      empty.style.display = 'none';
+      pagination.style.display = 'none';
 
       try {
-        var res = await fetch('/api/v2/showcases');
-        var data = await res.json();
-        var showcases = data.showcases || [];
-        if (showcases.length === 0) {
+        var items = [];
+        var total = 0;
+
+        if (_adPickerTab === 'showcases') {
+          var res = await fetch('/api/v2/showcases');
+          var data = await res.json();
+          items = (data.showcases || []).map(function(s) {
+            return { html: s.html, css: s.css, config: s.config, title: s.event_title || s.event_type || 'Invite', subtitle: s.prompt_text || '', eventType: s.event_type, sourceType: 'showcase', sourceId: s.id };
+          });
+          total = items.length;
+
+        } else if (_adPickerTab === 'userGen') {
+          var res = await adminFetch('listThemes', { params: { page: _adPickerPage, limit: _adPickerPageSize, sortBy: 'created_at' } });
+          var themes = res.themes || [];
+          total = res.total || themes.length;
+          items = themes.map(function(t) {
+            return { html: t.html, css: t.css, config: t.config, title: t.eventTitle || t.eventType || 'User Generation', subtitle: (t.userDisplayName || '') + (t.model ? ' · ' + t.model : ''), eventType: t.eventType, sourceType: 'user_theme', sourceId: t.id, rating: t.admin_rating };
+          });
+
+        } else if (_adPickerTab === 'labGen') {
+          var res = await adminFetch('listTestRuns', { params: { page: _adPickerPage, limit: _adPickerPageSize } });
+          var runs = res.testRuns || [];
+          total = res.total || runs.length;
+          items = runs.map(function(r) {
+            return { html: r.result_html, css: r.result_css, config: r.result_config, title: r.event_type || 'Lab Generation', subtitle: (r.model || '') + (r.score ? ' · ' + r.score + '★' : ''), eventType: r.event_type, sourceType: 'lab_theme', sourceId: r.id, prompt: r.event_details ? r.event_details.description : '' };
+          });
+        }
+
+        _adPickerItems = items;
+        _adPickerTotal = total;
+
+        if (items.length === 0) {
           grid.innerHTML = '';
           empty.style.display = '';
+          empty.querySelector('p') && (empty.innerHTML = '<p>No ' + _adPickerTab + ' found.</p>');
           return;
         }
+
         empty.style.display = 'none';
-        grid.innerHTML = showcases.map(function(s, i) {
-          return '<div class="ad-picker-card" style="border:1px solid #e5e7eb;border-radius:12px;cursor:pointer;overflow:hidden;transition:all 0.2s;background:#fff;" onmouseover="this.style.borderColor=\'#E94560\';this.style.boxShadow=\'0 4px 12px rgba(233,69,96,0.15)\'" onmouseout="this.style.borderColor=\'#e5e7eb\';this.style.boxShadow=\'none\'" onclick="selectAdPickerItem(' + i + ')">'
-            + '<div style="position:relative;width:100%;height:220px;overflow:hidden;background:#f9fafb;border-bottom:1px solid #f0f0f0;">'
-            + '<iframe id="adPickerFrame' + i + '" style="position:absolute;top:0;left:0;width:375px;height:667px;border:none;pointer-events:none;transform-origin:top left;" sandbox="allow-scripts allow-same-origin"></iframe>'
-            + '</div>'
-            + '<div style="padding:10px 12px;">'
-            + '<div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(s.event_title || s.event_type || 'Invite') + '</div>'
-            + '<div style="font-size:11px;color:#888;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">'
-            + escapeHtml((s.prompt_text || '').substring(0, 80))
-            + '</div>'
-            + '</div>'
-            + '</div>';
-        }).join('');
+        renderAdPickerGrid(items);
 
-        // Store showcases and render previews in iframes
-        window._adPickerShowcases = showcases;
+        // Show pagination for paginated tabs
+        if (_adPickerTab !== 'showcases' && total > _adPickerPageSize) {
+          pagination.style.display = '';
+          document.getElementById('adPickerPageInfo').textContent = 'Page ' + _adPickerPage + ' of ' + Math.ceil(total / _adPickerPageSize);
+          document.getElementById('adPickerPrevBtn').disabled = _adPickerPage <= 1;
+          document.getElementById('adPickerNextBtn').disabled = _adPickerPage * _adPickerPageSize >= total;
+        }
 
-        // Wait for DOM to update, then populate iframes
-        requestAnimationFrame(function() {
-          showcases.forEach(function(s, i) {
-            var iframe = document.getElementById('adPickerFrame' + i);
-            if (!iframe || !s.html) return;
-            var card = iframe.closest('.ad-picker-card');
-            var containerWidth = card ? card.offsetWidth : 180;
-            var scale = containerWidth / 375;
-            iframe.style.transform = 'scale(' + scale + ')';
-            iframe.style.height = Math.round(220 / scale) + 'px';
-            var doc = iframe.contentDocument || iframe.contentWindow.document;
-            var cssText = s.css || '';
-            var configObj = typeof s.config === 'string' ? JSON.parse(s.config || '{}') : (s.config || {});
-            var fontImport = configObj.fontUrl ? '<style>@import url("' + configObj.fontUrl + '");</style>' : '';
-            doc.open();
-            doc.write('<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">' + fontImport + '<style>body{margin:0;overflow:hidden;}' + cssText + '</style></head><body>' + s.html + '</body></html>');
-            doc.close();
-          });
-        });
       } catch (e) {
-        grid.innerHTML = '<div style="color:#ef4444;padding:20px;text-align:center;grid-column:1/-1;">Failed to load showcases</div>';
+        grid.innerHTML = '<div style="color:#ef4444;padding:20px;text-align:center;grid-column:1/-1;">Failed to load: ' + escapeHtml(e.message) + '</div>';
       }
     }
 
+    function renderAdPickerGrid(items) {
+      var grid = document.getElementById('adPickerGrid');
+      grid.innerHTML = items.map(function(item, i) {
+        var ratingHtml = item.rating ? '<span style="color:#f59e0b;font-size:11px;">' + '★'.repeat(item.rating) + '</span>' : '';
+        return '<div class="ad-picker-card" style="border:1px solid #e5e7eb;border-radius:12px;cursor:pointer;overflow:hidden;transition:all 0.2s;background:#fff;" onmouseover="this.style.borderColor=\'#E94560\';this.style.boxShadow=\'0 4px 12px rgba(233,69,96,0.15)\'" onmouseout="this.style.borderColor=\'#e5e7eb\';this.style.boxShadow=\'none\'" onclick="selectAdPickerItem(' + i + ')">'
+          + '<div style="position:relative;width:100%;height:220px;overflow:hidden;background:#f9fafb;border-bottom:1px solid #f0f0f0;">'
+          + '<iframe id="adPickerFrame' + i + '" style="position:absolute;top:0;left:0;width:375px;height:667px;border:none;pointer-events:none;transform-origin:top left;" sandbox="allow-scripts allow-same-origin"></iframe>'
+          + '</div>'
+          + '<div style="padding:10px 12px;">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">'
+          + '<div style="font-size:13px;font-weight:600;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;">' + escapeHtml(item.title) + '</div>'
+          + ratingHtml
+          + '</div>'
+          + '<div style="font-size:11px;color:#888;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">'
+          + escapeHtml((item.subtitle || '').substring(0, 80))
+          + '</div>'
+          + '</div>'
+          + '</div>';
+      }).join('');
+
+      // Populate iframes
+      requestAnimationFrame(function() {
+        items.forEach(function(item, i) {
+          var iframe = document.getElementById('adPickerFrame' + i);
+          if (!iframe || !item.html) return;
+          var card = iframe.closest('.ad-picker-card');
+          var containerWidth = card ? card.offsetWidth : 180;
+          var scale = containerWidth / 375;
+          iframe.style.transform = 'scale(' + scale + ')';
+          iframe.style.height = Math.round(220 / scale) + 'px';
+          var doc = iframe.contentDocument || iframe.contentWindow.document;
+          var cssText = item.css || '';
+          var configObj = typeof item.config === 'string' ? JSON.parse(item.config || '{}') : (item.config || {});
+          var fontImport = configObj.fontUrl ? '<style>@import url("' + configObj.fontUrl + '");</style>' : (configObj.googleFontsImport ? '<style>' + (configObj.googleFontsImport.startsWith('@import') ? configObj.googleFontsImport : '@import url(\'' + configObj.googleFontsImport + '\');') + '</style>' : '');
+          doc.open();
+          doc.write('<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">' + fontImport + '<style>body{margin:0;overflow:hidden;}' + cssText + '</style></head><body>' + item.html + '</body></html>');
+          doc.close();
+        });
+      });
+    }
+
     function selectAdPickerItem(idx) {
-      var s = window._adPickerShowcases[idx];
-      if (!s) return;
+      var item = _adPickerItems[idx];
+      if (!item) return;
       document.getElementById('adPickerModal').style.display = 'none';
       openAdVideoModal({
-        html: s.html,
-        css: s.css,
-        config: s.config,
-        promptText: s.prompt_text || 'Create a beautiful invitation',
-        eventType: s.event_type,
-        sourceType: 'showcase',
-        sourceId: s.id
+        html: item.html,
+        css: item.css,
+        config: item.config,
+        promptText: item.prompt || item.subtitle || 'Create a beautiful invitation',
+        eventType: item.eventType,
+        sourceType: item.sourceType,
+        sourceId: item.sourceId
       });
     }
 
@@ -9797,18 +9877,28 @@ If provided, analyze them for color palette, visual mood, textures, typography s
   </div>
   <!-- Ad Source Picker Modal -->
   <div id="adPickerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:16px;max-width:860px;width:94%;max-height:85vh;overflow-y:auto;padding:28px;">
+    <div style="background:#fff;border-radius:16px;max-width:960px;width:96%;max-height:90vh;overflow-y:auto;padding:28px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h3 style="margin:0;">Select Invite for Ad</h3>
+        <h3 style="margin:0;">Select Invite for Ad Video</h3>
         <button onclick="document.getElementById('adPickerModal').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">&times;</button>
       </div>
-      <p style="font-size:13px;color:#888;margin-bottom:16px;">Choose a featured showcase or go to Generations to pick from all user/lab generations.</p>
-      <div id="adPickerGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:16px;"></div>
-      <div id="adPickerEmpty" style="display:none;text-align:center;padding:30px;color:#888;">
-        <p>No showcases available. Add featured invites in the Generations tab first, or use the "Generate Ad" button on any invite card.</p>
+
+      <!-- Tabs -->
+      <div style="display:flex;gap:0;border-bottom:2px solid #eee;margin-bottom:16px;">
+        <button class="ad-picker-tab active" data-tab="showcases" onclick="switchAdPickerTab('showcases')" style="padding:10px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid #E94560;margin-bottom:-2px;color:#E94560;cursor:pointer;">Showcases</button>
+        <button class="ad-picker-tab" data-tab="userGen" onclick="switchAdPickerTab('userGen')" style="padding:10px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:#888;cursor:pointer;">User Generations</button>
+        <button class="ad-picker-tab" data-tab="labGen" onclick="switchAdPickerTab('labGen')" style="padding:10px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:#888;cursor:pointer;">Lab Generations</button>
       </div>
-      <div style="border-top:1px solid #eee;padding-top:12px;text-align:center;">
-        <button class="btn btn-secondary" onclick="document.getElementById('adPickerModal').style.display='none';switchTab('stylelibrary');" style="font-size:13px;">Browse All Generations</button>
+
+      <!-- Grid -->
+      <div id="adPickerGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:16px;"></div>
+      <div id="adPickerEmpty" style="display:none;text-align:center;padding:30px;color:#888;">No items found.</div>
+
+      <!-- Pagination -->
+      <div id="adPickerPagination" style="display:none;text-align:center;padding-top:8px;border-top:1px solid #eee;">
+        <button class="btn btn-secondary" onclick="adPickerPrevPage()" id="adPickerPrevBtn" style="font-size:12px;padding:4px 14px;margin-right:8px;">← Prev</button>
+        <span id="adPickerPageInfo" style="font-size:12px;color:#888;"></span>
+        <button class="btn btn-secondary" onclick="adPickerNextPage()" id="adPickerNextBtn" style="font-size:12px;padding:4px 14px;margin-left:8px;">Next →</button>
       </div>
     </div>
   </div>
