@@ -771,25 +771,14 @@ function animateAndRecord(inviteSource, promptText, hookText, fmt, thm, onProgre
 
           // ── Hook text at top of phone screen (when present) ──
           var hookTextBottomY = screen.y;
+          var hookTextHeight = 0;
+          var hookGap = 40; // space between hook text and prompt card
           if (hasHook) {
-            var hookFadeIn = Math.min(1, elapsed / HOOK_FADE_IN_MS);
             var hookFontSize = Math.round(fmt.promptFontSize * 1.35);
-            ctx.save();
-            ctx.globalAlpha = promptAlpha * hookFadeIn;
             ctx.font = '700 ' + hookFontSize + 'px "Inter", Arial, sans-serif';
-            ctx.fillStyle = '#1a1a2e';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-
             var hookLines = wrapText(ctx, hookText.trim(), screen.w * 0.78);
             var hookLineH = hookFontSize * 1.35;
-            var hookStartY = screen.y + 36; // top padding inside screen
-            hookLines.forEach(function(line, i) {
-              ctx.fillText(line, screen.x + screen.w / 2, hookStartY + i * hookLineH);
-            });
-            ctx.restore();
-
-            hookTextBottomY = hookStartY + hookLines.length * hookLineH + 24; // gap below hook text
+            hookTextHeight = hookLines.length * hookLineH;
           }
 
           // Prompt card dimensions
@@ -806,10 +795,30 @@ function animateAndRecord(inviteSource, promptText, hookText, fmt, thm, onProgre
           var textBlockH = allLines.length * fmt.promptLineHeight;
           var cardH = cardPadTop + textBlockH + cardPadBottom;
 
-          // Position card: below hook text if present, otherwise centered
+          // Vertically center the combined hook + card block on screen
           var cardY;
           if (hasHook) {
-            cardY = hookTextBottomY + 10;
+            var totalBlockH = hookTextHeight + hookGap + cardH;
+            var blockStartY = screen.y + (screen.h - totalBlockH) / 2;
+
+            // Draw hook text
+            var hookFadeIn = Math.min(1, elapsed / HOOK_FADE_IN_MS);
+            var hookFontSize2 = Math.round(fmt.promptFontSize * 1.35);
+            ctx.save();
+            ctx.globalAlpha = promptAlpha * hookFadeIn;
+            ctx.font = '700 ' + hookFontSize2 + 'px "Inter", Arial, sans-serif';
+            ctx.fillStyle = '#1a1a2e';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+
+            var hookLines2 = wrapText(ctx, hookText.trim(), screen.w * 0.78);
+            var hookLineH2 = hookFontSize2 * 1.35;
+            hookLines2.forEach(function(line, i) {
+              ctx.fillText(line, screen.x + screen.w / 2, blockStartY + i * hookLineH2);
+            });
+            ctx.restore();
+
+            cardY = blockStartY + hookTextHeight + hookGap;
           } else {
             cardY = screen.y + (screen.h - cardH) / 2 - 20;
           }
