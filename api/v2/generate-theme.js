@@ -492,6 +492,8 @@ Style these classes in theme_css to match the theme:
 If photos are provided via URL, use them in \`<img>\` tags with the exact URL provided.
 - Style with border-radius, box-shadow, border, or creative framing per the event type
 - If photos are bad quality, the treatment should save them (overlay, vignette, color grade via CSS filter)
+- NEVER generate, guess, or hallucinate image URLs. Only use <img> tags for photo URLs explicitly provided in the PHOTOS section. If no photo URLs are provided, do NOT use any <img> tags — use SVG illustrations, CSS gradients, or decorative elements instead.
+- Inspiration images (sent as visual references) are for analyzing color palette, mood, and style ONLY — do NOT try to embed or recreate them as <img> tags.
 
 ## THANK YOU PAGE (theme_thankyou_html) — CRITICAL
 The platform injects the "Thank You!" heading, subtitle text, calendar buttons, and footer at runtime.
@@ -975,6 +977,20 @@ function validateThemeIntegrity(theme) {
     }
   }
 
+  // 11. Hallucinated image URLs — <img> tags with non-Supabase URLs
+  const imgTags = html.match(/<img[^>]+src=["'][^"']+["'][^>]*>/gi) || [];
+  for (const imgTag of imgTags) {
+    const srcMatch = imgTag.match(/src=["']([^"']+)["']/i);
+    if (srcMatch && srcMatch[1]) {
+      const src = srcMatch[1];
+      // Allow Supabase storage URLs and data: URIs only
+      if (!src.includes('/storage/v1/object/') && !src.startsWith('data:')) {
+        issues.push('hallucinated_img_url');
+        break;
+      }
+    }
+  }
+
   return { valid: issues.length === 0, issues };
 }
 
@@ -1140,6 +1156,21 @@ function repairTheme(theme, issues) {
     if (issues.some(i => i === 'css_clipped_' + selKey)) {
       theme.theme_css = replaceCssProperty(theme.theme_css, sel, /overflow\s*:\s*hidden\s*;?/gi, 'overflow: visible;');
       console.log('[repairTheme] Fixed overflow clipping on .' + sel);
+    }
+  }
+
+  // Strip <img> tags with hallucinated (non-Supabase) URLs
+  if (issues.includes('hallucinated_img_url')) {
+    let stripped = 0;
+    theme.theme_html = (theme.theme_html || '').replace(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi, function(match, src) {
+      if (src.includes('/storage/v1/object/') || src.startsWith('data:')) {
+        return match; // Keep valid Supabase/data URLs
+      }
+      stripped++;
+      return ''; // Remove hallucinated image
+    });
+    if (stripped > 0) {
+      console.log('[repairTheme] Stripped ' + stripped + ' hallucinated <img> tag(s)');
     }
   }
 }

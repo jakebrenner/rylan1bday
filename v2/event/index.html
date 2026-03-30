@@ -509,6 +509,29 @@
                     detailsSlot.innerHTML = buildEventDetailsHtml(result.event);
                   }
 
+                  // Override title data-field with DB value (AI may have generated a different title)
+                  var evTitle = result.event.title;
+                  if (evTitle) {
+                    var titleEl = doc.querySelector('[data-field="title"]');
+                    if (titleEl) {
+                      var titleWalker = titleEl;
+                      while (titleWalker.firstElementChild) titleWalker = titleWalker.firstElementChild;
+                      var origColor = '';
+                      try { origColor = iframe.contentWindow.getComputedStyle(titleWalker).color; } catch(e) {}
+                      titleEl.innerHTML = evTitle;
+                      if (origColor) titleEl.style.setProperty('color', origColor, 'important');
+                    }
+                  }
+
+                  // Override tagline/subtitle data-field if present
+                  var evTagline = result.event.tagline || result.event.description || '';
+                  if (evTagline) {
+                    var taglineEl = doc.querySelector('[data-field="tagline"]') || doc.querySelector('[data-field="subtitle"]');
+                    if (taglineEl) {
+                      taglineEl.textContent = evTagline;
+                    }
+                  }
+
                   // Inject RSVP form into .rsvp-slot inside the iframe
                   renderRSVPForm(result.event);
 
