@@ -2248,10 +2248,17 @@
             </select>
           </div>
         </div>
+        <div id="mktBulkBar" style="display:none;background:#f0f4ff;border:1px solid #c7d2fe;border-radius:8px;padding:10px 16px;margin-bottom:12px;display:none;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span id="mktBulkCount" style="font-size:13px;font-weight:600;color:#4f46e5;">0 selected</span>
+          <button class="btn btn-secondary" onclick="bulkRenderCreatives()" style="font-size:12px;padding:5px 14px;border-color:#7c3aed;color:#7c3aed;">Render on Server</button>
+          <button class="btn btn-secondary" onclick="bulkDeleteCreatives()" style="font-size:12px;padding:5px 14px;border-color:#ef4444;color:#ef4444;">Delete Selected</button>
+          <button class="btn btn-secondary" onclick="clearBulkSelection()" style="font-size:12px;padding:5px 14px;">Clear</button>
+        </div>
         <div style="overflow-x:auto;">
           <table id="mktCreativeTable" style="width:100%;font-size:13px;border-collapse:collapse;">
             <thead>
               <tr style="border-bottom:2px solid #eee;text-align:left;">
+                <th style="padding:8px 6px;width:30px;"><input type="checkbox" id="mktSelectAll" onchange="toggleSelectAllCreatives(this.checked)" style="accent-color:#E94560;"></th>
                 <th style="padding:8px 12px;">Date</th>
                 <th style="padding:8px 12px;">Campaign</th>
                 <th style="padding:8px 12px;">Label</th>
@@ -8826,6 +8833,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         }
 
         return '<tr style="border-bottom:1px solid #f0f0f5;cursor:pointer;" onclick="showCreativeDetail(\'' + c.creative_id + '\')">'
+          + '<td style="padding:10px 6px;" onclick="event.stopPropagation();"><input type="checkbox" class="mkt-row-check" data-id="' + c.creative_id + '" onchange="updateBulkBar()" style="accent-color:#E94560;"></td>'
           + '<td style="padding:10px 12px;white-space:nowrap;">' + date + '</td>'
           + '<td style="padding:10px 12px;font-family:monospace;font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(c.campaign_name) + '</td>'
           + '<td style="padding:10px 12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + label + '</td>'
@@ -8975,7 +8983,97 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         });
         _mktCreatives = _mktCreatives.filter(function(c) { return c.creative_id !== creativeId; });
         renderAdCreatives();
-      } catch (e) { alert('Delete failed: ' + e.message); }
+      } catch (e) { showToast('Delete failed: ' + e.message); }
+    }
+
+    // ── Bulk Selection ──
+
+    function getSelectedCreativeIds() {
+      return Array.from(document.querySelectorAll('.mkt-row-check:checked')).map(function(cb) { return cb.dataset.id; });
+    }
+
+    function toggleSelectAllCreatives(checked) {
+      document.querySelectorAll('.mkt-row-check').forEach(function(cb) { cb.checked = checked; });
+      updateBulkBar();
+    }
+
+    function updateBulkBar() {
+      var selected = getSelectedCreativeIds();
+      var bar = document.getElementById('mktBulkBar');
+      if (selected.length > 0) {
+        bar.style.display = 'flex';
+        document.getElementById('mktBulkCount').textContent = selected.length + ' selected';
+      } else {
+        bar.style.display = 'none';
+      }
+    }
+
+    function clearBulkSelection() {
+      document.querySelectorAll('.mkt-row-check').forEach(function(cb) { cb.checked = false; });
+      document.getElementById('mktSelectAll').checked = false;
+      updateBulkBar();
+    }
+
+    async function bulkDeleteCreatives() {
+      var ids = getSelectedCreativeIds();
+      if (ids.length === 0) return;
+      if (!confirm('Delete ' + ids.length + ' creative(s)?')) return;
+
+      var failed = 0;
+      for (var i = 0; i < ids.length; i++) {
+        try {
+          await authFetch('/api/v2/ad-creatives?action=delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ creativeId: ids[i] })
+          });
+          _mktCreatives = _mktCreatives.filter(function(c) { return c.creative_id !== ids[i]; });
+        } catch (e) { failed++; }
+      }
+      renderAdCreatives();
+      showToast('Deleted ' + (ids.length - failed) + ' creative(s)' + (failed ? ' (' + failed + ' failed)' : ''));
+    }
+
+    async function bulkRenderCreatives() {
+      var ids = getSelectedCreativeIds();
+      if (ids.length === 0) return;
+
+      var creatives = ids.map(function(id) {
+        return _mktCreatives.find(function(c) { return c.creative_id === id; });
+      }).filter(function(c) { return c && c.invite_html; });
+
+      if (creatives.length === 0) {
+        showToast('No creatives with invite HTML found — can\'t render');
+        return;
+      }
+
+      var started = 0;
+      for (var i = 0; i < creatives.length; i++) {
+        var c = creatives[i];
+        try {
+          await authFetch('/api/v2/render-ad-video', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              creativeId: c.creative_id,
+              html: c.invite_html,
+              css: c.invite_css || '',
+              config: c.invite_config || {},
+              promptText: c.prompt_text || 'Create a beautiful invitation',
+              format: c.format,
+              theme: c.video_theme || 'dark_gradient'
+            })
+          });
+          started++;
+        } catch (e) {
+          console.error('Render failed for ' + c.creative_id, e);
+        }
+      }
+
+      clearBulkSelection();
+      _mktLoaded = false;
+      await loadAdCreatives();
+      showToast('Started rendering ' + started + ' video(s) — check Video column for progress');
     }
 
     function copyToClipboard(text) {
