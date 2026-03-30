@@ -68,21 +68,79 @@
       loadTab(mode);
     }
 
+    function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+    function buildEmailPreview() {
+      var config = eventData ? (eventData.themeConfig || {}) : {};
+      var emailHtml = config.emailHtml || '';
+      if (emailHtml) return emailHtml;
+
+      // Build Ryvite-branded email template from theme colors (matches create page)
+      var pc = config.primaryColor || '#E94560';
+      var bodyFont = config.fontBody || 'Inter';
+      var headlineFont = config.fontHeadline || 'Playfair Display';
+      var title = escapeHtml(eventData.title || 'Your Event');
+      var hostName = escapeHtml(eventData.hostName || eventData.host_name || 'Your host');
+      var eventDate = '';
+      if (eventData.event_date || eventData.eventDate) {
+        eventDate = new Date(eventData.event_date || eventData.eventDate)
+          .toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      }
+      var location = escapeHtml(eventData.location_name || eventData.locationName || '');
+
+      var detailRows = '';
+      if (eventDate) {
+        detailRows += '<tr><td style="width:32px;vertical-align:top;padding-right:12px;"><p style="margin:0;font-size:18px;">&#128197;</p></td>'
+          + '<td><p style="font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:14px;color:#1A1A2E;margin:0;font-weight:600;">' + escapeHtml(eventDate) + '</p></td></tr>';
+      }
+      if (location) {
+        detailRows += '<tr><td style="width:32px;vertical-align:top;padding-right:12px;' + (eventDate ? 'padding-top:10px;' : '') + '"><p style="margin:0;font-size:18px;">&#128205;</p></td>'
+          + '<td style="' + (eventDate ? 'padding-top:10px;' : '') + '"><p style="font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:14px;color:#5A5A6E;margin:0;">' + location + '</p></td></tr>';
+      }
+      var detailsSection = detailRows
+        ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:20px 32px 0;">'
+          + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#FFF5F0;border-radius:12px;"><tr><td style="padding:18px 20px;">'
+          + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">' + detailRows + '</table>'
+          + '</td></tr></table></td></tr></table>'
+        : '';
+
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">'
+        + '<style>body{margin:0;padding:0;background-color:#FFFFFF;}</style></head>'
+        + '<body style="margin:0;padding:0;background-color:#FFFFFF;">'
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#FFFFFF;padding:32px 16px;">'
+        + '<tr><td align="center"><table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;width:100%;">'
+        + '<tr><td align="center" style="padding:0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:' + pc + ';border-radius:16px 16px 0 0;">'
+        + '<tr><td style="padding:40px 32px 32px;text-align:center;">'
+        + '<p style="margin:0 0 8px;font-size:28px;">&#10024;</p>'
+        + '<p style="margin:0 0 6px;font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#FFFFFF;opacity:0.7;">YOU\'RE INVITED</p>'
+        + '<h1 style="margin:0;font-family:\'' + headlineFont + '\',Georgia,serif;font-size:28px;font-weight:700;color:#FFFFFF;line-height:1.25;">' + title + '</h1>'
+        + '</td></tr></table></td></tr>'
+        + '<tr><td style="background-color:#FFFFFF;padding:0;border-radius:0 0 16px 16px;border:1px solid #f0ebe5;border-top:none;">'
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">'
+        + '<tr><td style="padding:28px 32px 0;">'
+        + '<p style="font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:15px;color:#1A1A2E;margin:0;">Hey Sarah,</p>'
+        + '<p style="font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:15px;color:#5A5A6E;margin:6px 0 0;">' + hostName + ' would love for you to be there! Check out the full invite and let them know if you can make it.</p>'
+        + '</td></tr></table>'
+        + detailsSection
+        + '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="height:28px;" height="28">&nbsp;</td></tr></table>'
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:0 32px 0;">'
+        + '<a href="#" style="display:inline-block;padding:16px 48px;background-color:' + pc + ';color:#FFFFFF;font-size:16px;font-weight:700;text-decoration:none;border-radius:50px;font-family:\'' + bodyFont + '\',Arial,sans-serif;min-width:200px;text-align:center;">View Invitation &amp; RSVP</a>'
+        + '</td></tr></table>'
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:24px 32px 24px;">'
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="border-top:1px solid #f0ebe5;height:1px;">&nbsp;</td></tr></table>'
+        + '<p style="font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:12px;color:#B0B0B8;margin:16px 0 0;text-align:center;">Tap the button to see your full invitation and RSVP</p>'
+        + '</td></tr></table></td></tr>'
+        + '<tr><td align="center" style="padding:24px 0 0;">'
+        + '<p style="margin:0;font-size:11px;color:#C8C8D0;font-family:\'' + bodyFont + '\',Arial,sans-serif;">Sent via <span style="color:#E94560;font-weight:600;">Ryvite</span> &mdash; Beautiful invitations, effortlessly.</p>'
+        + '</td></tr>'
+        + '</table></td></tr></table></body></html>';
+    }
+
     function loadTab(mode) {
       var iframe = document.getElementById('previewFrame');
       if (mode === 'email') {
-        // Email is just raw HTML — render via srcdoc
-        var config = eventData ? (eventData.themeConfig || {}) : {};
-        var emailHtml = config.emailHtml || '';
-        if (emailHtml) {
-          iframe.src = '';
-          iframe.srcdoc = emailHtml;
-        } else {
-          iframe.src = '';
-          iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
-            + '<style>* { margin:0; padding:0; box-sizing:border-box; } body { display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Inter,sans-serif;color:#888; }</style></head>'
-            + '<body><p>No custom email template generated for this theme.</p></body></html>';
-        }
+        iframe.src = '';
+        iframe.srcdoc = buildEmailPreview();
         iframe.onload = function() {
           try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 48, 600) + 'px'; } catch(e) {}
         };

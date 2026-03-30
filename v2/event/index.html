@@ -433,19 +433,21 @@
 
       try {
         var queryParams = slug ? 'slug=' + encodeURIComponent(slug) : 'eventId=' + encodeURIComponent(eventId);
-        var fetchOpts = {};
 
-        // Preview mode: use authenticated 'get' endpoint (supports draft events)
-        if (isPreview) {
+        // Try public endpoint first (works for published events, no auth needed)
+        var res = await fetch('/api/v2/events?action=getPublic&' + queryParams);
+        var result = await res.json();
+
+        // Preview mode fallback: if getPublic fails (draft/unpublished), try authenticated get
+        if (isPreview && (!result.success || !result.event)) {
           var token = localStorage.getItem('sb_access_token');
           if (token) {
-            fetchOpts.headers = { 'Authorization': 'Bearer ' + token };
+            res = await fetch('/api/v2/events?action=get&' + queryParams, {
+              headers: { 'Authorization': 'Bearer ' + token }
+            });
+            result = await res.json();
           }
         }
-
-        var apiAction = isPreview ? 'get' : 'getPublic';
-        var res = await fetch('/api/v2/events?action=' + apiAction + '&' + queryParams, fetchOpts);
-        var result = await res.json();
 
         if (!result.success || !result.event) { showError('Event not found'); return; }
 
