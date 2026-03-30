@@ -124,9 +124,8 @@ const FORMAT_CONFIGS = {
 
 // ── Animation Timing ──
 const CHAR_MS = 40;
-const HOOK_MS = 2500;      // intro hook card display time
-const HOOK_FADE_MS = 500;  // hook card fade out
-const INTRO_MS = 800;      // phone slide-in
+const HOOK_FADE_IN_MS = 500; // hook text fade-in during intro
+const INTRO_MS = 800;        // phone slide-in
 const POST_TYPE_PAUSE = 600;
 const DISSOLVE_MS = 500;   // prompt card dissolve before shimmer
 const SHIMMER_MS = 1200;
@@ -658,7 +657,7 @@ function animateAndRecord(inviteSource, promptText, hookText, fmt, thm, onProgre
 
     // Timeline
     const hasHook = !!(hookText && hookText.trim());
-    const hookTotalMs = hasHook ? HOOK_MS + HOOK_FADE_MS : 0;
+    const hookTotalMs = 0; // hook is now part of intro phase, not a separate phase
     const typingMs = promptText.length * CHAR_MS;
     const displayMs = HOLD_MS + (scrollMs || HOLD_MS) + END_HOLD_MS;
     const totalMs = hookTotalMs + INTRO_MS + typingMs + POST_TYPE_PAUSE + DISSOLVE_MS + SHIMMER_MS + REVEAL_MS + displayMs + CTA_MS;
@@ -706,7 +705,7 @@ function animateAndRecord(inviteSource, promptText, hookText, fmt, thm, onProgre
       drawAnimatedBackground(ctx, fmt.width, fmt.height, elapsed, thm);
       drawParticles(ctx, particles, elapsed, thm);
 
-      // ── Phase boundaries (hook → intro → type → pause → dissolve → shimmer → reveal → hold → scroll → endHold → CTA) ──
+      // ── Phase boundaries (intro → type → pause → dissolve → shimmer → reveal → hold → scroll → endHold → CTA) ──
       const hookEnd = hookTotalMs;
       const introEnd = hookEnd + INTRO_MS;
       const typeEnd = introEnd + typingMs;
@@ -718,53 +717,11 @@ function animateAndRecord(inviteSource, promptText, hookText, fmt, thm, onProgre
       const scrollEnd = holdEnd + (scrollMs || HOLD_MS);
       const endHoldEnd = scrollEnd + END_HOLD_MS;
 
-      // ── Hook card (intro text on phone screen before prompt) ──
-      if (hasHook && elapsed < hookEnd) {
-        var hookProgress = elapsed < HOOK_MS ? 1 : 1 - Math.min(1, (elapsed - HOOK_MS) / HOOK_FADE_MS);
-        var hookFadeIn = Math.min(1, elapsed / 400);
-
-        // Draw phone at final position and get screen area
-        var hookScreen = drawPhoneFrame(ctx, phoneX, phoneBaseY, fmt.phoneWidth, fmt.phoneHeight, elapsed);
-
-        ctx.save();
-        roundRect(ctx, hookScreen.screenX, hookScreen.screenY, hookScreen.screenW, hookScreen.screenH, hookScreen.screenRadius);
-        ctx.clip();
-
-        // White background
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(hookScreen.screenX, hookScreen.screenY, hookScreen.screenW, hookScreen.screenH);
-
-        ctx.globalAlpha = hookFadeIn * hookProgress;
-        var hCenterX = hookScreen.x + hookScreen.w / 2;
-        var hCenterY = hookScreen.y + hookScreen.h / 2;
-
-        // Hook text — wrap lines manually for big text
-        var hookFontSize = Math.round(fmt.promptFontSize * 1.35);
-        ctx.font = '700 ' + hookFontSize + 'px "Inter", Arial, sans-serif';
-        ctx.fillStyle = '#1a1a2e';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        var hookLines = wrapText(ctx, hookText.trim(), hookScreen.w * 0.78);
-        var lineH = hookFontSize * 1.35;
-        var startY = hCenterY - ((hookLines.length - 1) * lineH) / 2;
-        hookLines.forEach(function(line, i) {
-          ctx.fillText(line, hCenterX, startY + i * lineH);
-        });
-
-        ctx.restore();
-      }
-
       // ── Intro animation (phone slides up) ──
       var introElapsed = Math.max(0, elapsed - hookEnd);
       const introProgress = Math.min(1, introElapsed / INTRO_MS);
       const introEased = easeOutCubic(introProgress);
-      const phoneSlideY = hasHook ? phoneBaseY : phoneBaseY + (1 - introEased) * 80;
-
-      // Skip the rest of the phone drawing during hook phase (hook draws its own phone)
-      if (hasHook && elapsed < hookEnd) {
-        // Progress + next frame handled below
-      } else {
+      const phoneSlideY = phoneBaseY + (1 - introEased) * 80;
 
       // ── Phone glow (during/after reveal) ──
       if (elapsed >= shimmerEnd) {
@@ -812,7 +769,30 @@ function animateAndRecord(inviteSource, promptText, hookText, fmt, thm, onProgre
           ctx.fillStyle = appBg;
           ctx.fillRect(screen.screenX, screen.screenY, screen.screenW, screen.screenH);
 
-          // Prompt card dimensions (centered in phone screen)
+          // ── Hook text at top of phone screen (when present) ──
+          var hookTextBottomY = screen.y;
+          if (hasHook) {
+            var hookFadeIn = Math.min(1, elapsed / HOOK_FADE_IN_MS);
+            var hookFontSize = Math.round(fmt.promptFontSize * 1.35);
+            ctx.save();
+            ctx.globalAlpha = promptAlpha * hookFadeIn;
+            ctx.font = '700 ' + hookFontSize + 'px "Inter", Arial, sans-serif';
+            ctx.fillStyle = '#1a1a2e';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+
+            var hookLines = wrapText(ctx, hookText.trim(), screen.w * 0.78);
+            var hookLineH = hookFontSize * 1.35;
+            var hookStartY = screen.y + 36; // top padding inside screen
+            hookLines.forEach(function(line, i) {
+              ctx.fillText(line, screen.x + screen.w / 2, hookStartY + i * hookLineH);
+            });
+            ctx.restore();
+
+            hookTextBottomY = hookStartY + hookLines.length * hookLineH + 24; // gap below hook text
+          }
+
+          // Prompt card dimensions
           var cardPadSide = 24;
           var cardX = screen.x + cardPadSide;
           var cardW = screen.w - cardPadSide * 2;
@@ -826,8 +806,13 @@ function animateAndRecord(inviteSource, promptText, hookText, fmt, thm, onProgre
           var textBlockH = allLines.length * fmt.promptLineHeight;
           var cardH = cardPadTop + textBlockH + cardPadBottom;
 
-          // Center card vertically on screen
-          var cardY = screen.y + (screen.h - cardH) / 2 - 20;
+          // Position card: below hook text if present, otherwise centered
+          var cardY;
+          if (hasHook) {
+            cardY = hookTextBottomY + 10;
+          } else {
+            cardY = screen.y + (screen.h - cardH) / 2 - 20;
+          }
 
           // White card with shadow
           ctx.shadowColor = 'rgba(0,0,0,0.1)';
@@ -1014,13 +999,10 @@ function animateAndRecord(inviteSource, promptText, hookText, fmt, thm, onProgre
         ctx.restore();
       }
 
-      } // end of else (non-hook phase)
-
       // ── Progress ──
       var progress = 20 + Math.min(75, (elapsed / totalMs) * 75);
       var phase = 'Processing...';
-      if (hasHook && elapsed < hookEnd) phase = 'Intro card...';
-      else if (elapsed < typeEnd) phase = 'Typing prompt...';
+      if (elapsed < typeEnd) phase = 'Typing prompt...';
       else if (elapsed < dissolveEnd) phase = 'Transitioning...';
       else if (elapsed < shimmerEnd) phase = 'AI generating...';
       else if (elapsed < revealEnd) phase = 'Revealing invite...';
