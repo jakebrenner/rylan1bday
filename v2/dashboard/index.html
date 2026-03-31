@@ -575,6 +575,7 @@
     }
   </style>
 <script src="/js/meta-pixel.js"></script>
+<script src="/js/ga.js"></script>
 </head>
 <body>
   <div class="header">
@@ -3377,8 +3378,13 @@
     // Track AddToCart when user clicks "New Event" links
     document.addEventListener('click', function(e) {
       var link = e.target.closest('a[href*="/v2/create/?new=1"]');
-      if (link && window.RyvitePixel) {
-        RyvitePixel.trackEvent('AddToCart', { content_name: 'New Event', content_type: 'event_creation' });
+      if (link) {
+        if (window.RyvitePixel) {
+          RyvitePixel.trackEvent('AddToCart', { content_name: 'New Event', content_type: 'event_creation' });
+        }
+        if (window.RyviteGA) {
+          RyviteGA.trackEvent('begin_event_creation', { source: 'dashboard' });
+        }
       }
     });
   </script>

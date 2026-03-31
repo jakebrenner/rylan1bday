@@ -466,6 +466,7 @@
     }
   </style>
 <script src="/js/meta-pixel.js"></script>
+<script src="/js/ga.js"></script>
 </head>
 <body class="no-scroll">
   <div class="header">
@@ -1763,6 +1764,9 @@
                 status: true
               }, null, result.metaEventId);
             }
+            if (result.isNew && window.RyviteGA) {
+              RyviteGA.trackEvent('sign_up', { method: 'guest_onboarding' });
+            }
 
             // Update profile UI
             var pn = document.getElementById('profileName');
@@ -2542,11 +2546,19 @@
           }
           await saveCustomFields();
           // Track Lead when event details are saved (not just draft creation)
-          if (window.RyvitePixel && extractedData.title && extractedData.title !== 'Untitled Event' && !currentEvent._leadTracked) {
-            RyvitePixel.trackEvent('Lead', {
-              content_name: extractedData.title,
-              content_category: extractedData.eventType || 'other'
-            });
+          if (extractedData.title && extractedData.title !== 'Untitled Event' && !currentEvent._leadTracked) {
+            if (window.RyvitePixel) {
+              RyvitePixel.trackEvent('Lead', {
+                content_name: extractedData.title,
+                content_category: extractedData.eventType || 'other'
+              });
+            }
+            if (window.RyviteGA) {
+              RyviteGA.trackEvent('event_details_extracted', {
+                event_title: extractedData.title,
+                event_type: extractedData.eventType || 'other'
+              });
+            }
             currentEvent._leadTracked = true;
           }
           return true;
@@ -3123,6 +3135,13 @@
                 content_name: extractedData.title || '',
                 content_category: extractedData.eventType || 'other',
                 content_ids: [currentEvent.id]
+              });
+            }
+            if (window.RyviteGA) {
+              RyviteGA.trackEvent('theme_generated', {
+                event_id: currentEvent.id,
+                event_title: extractedData.title || '',
+                event_type: extractedData.eventType || 'other'
               });
             }
             stopGeneratingPuns();
@@ -7164,6 +7183,13 @@
           value: 4.99
         });
       }
+      if (window.RyviteGA) {
+        RyviteGA.trackEvent('begin_checkout', {
+          currency: 'USD',
+          value: 4.99,
+          items: [{ item_id: currentEvent.id, item_name: extractedData.title || 'Event', item_category: extractedData.eventType || 'event', price: 4.99, quantity: 1 }]
+        });
+      }
       // Redirect to Stripe checkout
       var mainBtn = document.getElementById('publishBtn');
       mainBtn.disabled = true;
@@ -7761,6 +7787,9 @@
           msgEl.style.color = 'var(--mint-fizz)';
           setTimeout(function() { msgEl.style.display = 'none'; }, 2500);
           renderCohosts();
+          if (window.RyviteGA) {
+            RyviteGA.trackEvent('cohost_invited', { event_id: currentEvent.id, cohost_role: role });
+          }
         } else {
           msgEl.textContent = result.error || 'Failed to invite';
           msgEl.style.color = '#E94560';
@@ -7908,6 +7937,20 @@
               currency: 'USD',
               value: isPaid ? 4.99 : 0.00
             }, null, metaEventId);
+          }
+          if (window.RyviteGA) {
+            var gaIsPaid = currentEvent.paymentStatus === 'paid';
+            RyviteGA.trackEvent('purchase', {
+              transaction_id: currentEvent.id,
+              currency: 'USD',
+              value: gaIsPaid ? 4.99 : 0.00,
+              items: [{ item_id: currentEvent.id, item_name: extractedData.title || currentEvent.title || 'Event', item_category: extractedData.eventType || 'event', price: gaIsPaid ? 4.99 : 0.00, quantity: 1 }]
+            });
+            RyviteGA.trackEvent('event_published', {
+              event_id: currentEvent.id,
+              event_title: extractedData.title || currentEvent.title || '',
+              publish_type: gaIsPaid ? 'paid' : 'free'
+            });
           }
           closeSendOptions();
           clearDraft();
@@ -8188,6 +8231,17 @@
         btn.textContent = 'Finishing up...';
         await scheduleReminders();
 
+        // Track event_published for free publish path
+        if (window.RyviteGA) {
+          RyviteGA.trackEvent('event_published', {
+            event_id: currentEvent.id,
+            event_title: extractedData.title || currentEvent.title || '',
+            publish_type: 'free',
+            send_sms: sendSms,
+            send_email: sendEmail
+          });
+        }
+
         // Redirect to dashboard
         clearDraft();
         var params = 'published=' + currentEvent.id;
@@ -8318,6 +8372,13 @@
 
       // Submit rating (quality incident is triggered inside submitHostRating for 1-2 star ratings)
       submitHostRating(themeId, rating, '');
+      if (window.RyviteGA) {
+        RyviteGA.trackEvent('theme_rated', {
+          rating: rating,
+          theme_id: themeId,
+          event_id: currentEvent ? currentEvent.id : ''
+        });
+      }
 
       // Inject assistant response based on rating
       var assistantMsg;
