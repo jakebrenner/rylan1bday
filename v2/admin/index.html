@@ -8380,11 +8380,37 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('adVideoAiPromptBtn').disabled = false;
       document.getElementById('adVideoAiPromptLabel').textContent = 'Generate AI Prompt';
 
-      // Show auto-generated UTM campaign preview
+      // Auto-generated campaign name for this event type + month
       var eventType = data.eventType || 'general';
       var now = new Date();
       var autoUtm = 'ryvite_' + eventType + '_' + now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+
+      // Populate campaign dropdown with existing campaigns
+      var sel = document.getElementById('adVideoCampaignSelect');
+      var newInput = document.getElementById('adVideoCampaignNew');
+      sel.innerHTML = '<option value="__new__">+ New campaign</option>';
+      newInput.value = autoUtm;
+      newInput.style.display = '';
       document.getElementById('adVideoUtmPreview').textContent = 'UTM campaign: ' + autoUtm;
+
+      authFetch('/api/v2/ad-creatives?action=campaigns').then(function(r) { return r.json(); }).then(function(result) {
+        if (result.success && result.campaigns && result.campaigns.length > 0) {
+          var matched = false;
+          result.campaigns.forEach(function(name) {
+            var opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            sel.appendChild(opt);
+            if (name === autoUtm) matched = true;
+          });
+          // Pre-select the matching auto-generated campaign if it exists
+          if (matched) {
+            sel.value = autoUtm;
+            newInput.style.display = 'none';
+            document.getElementById('adVideoUtmPreview').textContent = 'UTM campaign: ' + autoUtm;
+          }
+        }
+      }).catch(function() { /* dropdown stays with just "New campaign" */ });
 
       var modal = document.getElementById('adVideoModal');
       modal.style.display = 'flex';
@@ -8440,6 +8466,26 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       });
     }
 
+    function onAdCampaignSelectChange() {
+      var sel = document.getElementById('adVideoCampaignSelect');
+      var newInput = document.getElementById('adVideoCampaignNew');
+      if (sel.value === '__new__') {
+        newInput.style.display = '';
+        document.getElementById('adVideoUtmPreview').textContent = 'UTM campaign: ' + (newInput.value || '(enter name)');
+      } else {
+        newInput.style.display = 'none';
+        document.getElementById('adVideoUtmPreview').textContent = 'UTM campaign: ' + sel.value;
+      }
+    }
+
+    function getSelectedCampaign() {
+      var sel = document.getElementById('adVideoCampaignSelect');
+      if (sel.value === '__new__') {
+        return document.getElementById('adVideoCampaignNew').value.trim() || null;
+      }
+      return sel.value;
+    }
+
     function updateUtmDestPreview() {
       var sel = document.getElementById('adVideoDestination');
       var customInput = document.getElementById('adVideoCustomUrl');
@@ -8462,6 +8508,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     async function startAdVideoGeneration() {
+      var campaignName = getSelectedCampaign();
       var campaignLabel = document.getElementById('adVideoCampaignLabel').value.trim();
 
       var promptText = document.getElementById('adVideoPromptText').value.trim();
@@ -8514,6 +8561,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
+                campaignName: campaignName || null,
                 campaignLabel: campaignLabel || null,
                 sourceType: _adVideoData.sourceType || 'showcase',
                 sourceId: _adVideoData.sourceId || '00000000-0000-0000-0000-000000000000',
@@ -8531,6 +8579,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             if (result.success && result.creative) {
               _adCreativeResult = result.creative;
               document.getElementById('adVideoUtmLink').value = result.creative.utm_url;
+              var fullUrl = result.creative.utm_url || '';
+              document.getElementById('adVideoUrlParams').value = fullUrl.includes('?') ? fullUrl.split('?')[1] : '';
             } else {
               console.error('Save failed for ' + fmt + ':', result.error);
             }
@@ -8593,6 +8643,16 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     function copyUtmLink() {
       var input = document.getElementById('adVideoUtmLink');
+      input.select();
+      navigator.clipboard.writeText(input.value).then(function() {
+        var btn = input.nextElementSibling;
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+      });
+    }
+
+    function copyUrlParams() {
+      var input = document.getElementById('adVideoUrlParams');
       input.select();
       navigator.clipboard.writeText(input.value).then(function() {
         var btn = input.nextElementSibling;
@@ -9976,9 +10036,16 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       <!-- Step 1: Configure -->
       <div id="adVideoConfig">
         <div style="margin-bottom:16px;">
-          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Label <span style="font-weight:400;color:#999;">(optional — for your reference)</span></label>
-          <input type="text" id="adVideoCampaignLabel" placeholder="e.g., Emma's unicorn birthday" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;box-sizing:border-box;">
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Campaign</label>
+          <select id="adVideoCampaignSelect" onchange="onAdCampaignSelectChange()" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;box-sizing:border-box;background:#fff;">
+            <option value="__new__">+ New campaign</option>
+          </select>
+          <input type="text" id="adVideoCampaignNew" placeholder="e.g., ryvite_wedding_2026-04" style="display:none;width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;box-sizing:border-box;margin-top:8px;">
           <div id="adVideoUtmPreview" style="margin-top:6px;font-size:11px;color:#888;font-family:monospace;"></div>
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Label <span style="font-weight:400;color:#999;">(optional note for your reference)</span></label>
+          <input type="text" id="adVideoCampaignLabel" placeholder="e.g., Emma's unicorn birthday" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;box-sizing:border-box;">
         </div>
 
         <div style="margin-bottom:16px;">
@@ -10065,13 +10132,31 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       <!-- Step 3: Result -->
       <div id="adVideoResult" style="display:none;">
         <div id="adVideoResultVideos" style="display:flex;gap:16px;margin-bottom:16px;justify-content:center;flex-wrap:wrap;"></div>
-        <div style="background:#f5f5fa;border-radius:8px;padding:12px;margin-bottom:16px;">
+        <div style="background:#f5f5fa;border-radius:8px;padding:12px;margin-bottom:12px;">
           <label style="display:block;font-size:11px;font-weight:600;color:#888;margin-bottom:4px;">UTM Link</label>
           <div style="display:flex;gap:8px;align-items:center;">
             <input type="text" id="adVideoUtmLink" readonly style="flex:1;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:monospace;background:#fff;">
             <button class="btn btn-secondary" onclick="copyUtmLink()" style="white-space:nowrap;font-size:12px;">Copy</button>
           </div>
         </div>
+        <div style="background:#f0f7ff;border-radius:8px;padding:12px;margin-bottom:12px;">
+          <label style="display:block;font-size:11px;font-weight:600;color:#888;margin-bottom:4px;">FB Ads Manager URL Parameters <span style="font-weight:400;color:#aaa;">— paste into "URL parameters" field</span></label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" id="adVideoUrlParams" readonly style="flex:1;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:monospace;background:#fff;">
+            <button class="btn btn-secondary" onclick="copyUrlParams()" style="white-space:nowrap;font-size:12px;">Copy</button>
+          </div>
+        </div>
+        <details style="margin-bottom:16px;background:#fffbeb;border-radius:8px;padding:12px;">
+          <summary style="cursor:pointer;font-size:13px;font-weight:600;color:#92400e;">How to set up tracking in Facebook Ads Manager</summary>
+          <ol style="font-size:12px;color:#78350f;margin:10px 0 0 0;padding-left:20px;line-height:1.8;">
+            <li>Upload the downloaded video as your ad creative</li>
+            <li>In ad setup, find <strong>"URL parameters"</strong> under Tracking</li>
+            <li>Paste the URL parameters copied above</li>
+            <li>Set the <strong>Website URL</strong> to your destination without UTM params</li>
+            <li>Facebook will append the parameters automatically to every click</li>
+          </ol>
+          <p style="font-size:11px;color:#a16207;margin:8px 0 0 0;">This ensures every click is attributed back to the exact creative for reporting.</p>
+        </details>
         <div id="adVideoDownloadBtns" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
       </div>
     </div>
