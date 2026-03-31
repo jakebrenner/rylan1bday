@@ -97,6 +97,7 @@
     }
   </style>
 <script src="/js/meta-pixel.js"></script>
+<script src="/js/ga.js"></script>
 </head>
 <body>
   <div class="event-container">
@@ -105,7 +106,7 @@
     <iframe id="themeFrame" style="display: none;"></iframe>
     <div id="rsvpSection" class="rsvp-section" style="display: none;"></div>
     <div id="photoSection" class="photo-section" style="display: none;"></div>
-    <div id="poweredBy" class="powered-by" style="display: none;">Create yours free at <a href="https://www.ryvite.com/?utm_source=invite&utm_medium=footer&utm_campaign=viral" target="_blank" rel="noopener" onclick="trackViralEvent('footer_click')">Ryvite.com</a></div>
+    <div id="poweredBy" class="powered-by" style="display: none;">Create yours free at <a href="https://www.ryvite.com/?utm_source=invite&utm_medium=footer&utm_campaign=viral" target="_blank" rel="noopener" onclick="trackViralEvent('footer_click'); if(window.RyviteGA) RyviteGA.trackEvent('viral_cta_click', {source:'footer'});">Ryvite.com</a></div>
   </div>
 
   <script>
@@ -463,6 +464,13 @@
               content_name: result.event.title,
               content_ids: [result.event.id],
               content_category: result.event.eventType || 'event'
+            });
+          }
+          if (window.RyviteGA) {
+            RyviteGA.trackEvent('view_invite', {
+              event_id: result.event.id,
+              event_title: result.event.title,
+              event_type: result.event.eventType || 'event'
             });
           }
 
@@ -881,6 +889,13 @@
               content_category: 'rsvp'
             });
           }
+          if (window.RyviteGA) {
+            RyviteGA.trackEvent('rsvp_submitted', {
+              event_id: currentEventData.id,
+              event_title: currentEventData.title,
+              rsvp_status: status
+            });
+          }
           showThankYouPage(name, status);
           triggerConfetti();
         } else { alert(result.error || 'Error submitting RSVP. Please try again.'); }
@@ -1090,6 +1105,9 @@
               btn.style.cursor = 'pointer';
               btn.addEventListener('click', function() {
                 var calType = btn.getAttribute('data-cal') || btn.textContent.trim().toLowerCase();
+                if (window.RyviteGA) {
+                  RyviteGA.trackEvent('calendar_add', { calendar_type: calType, event_id: currentEventData ? currentEventData.id : '' });
+                }
                 if (calType === 'google') { window.open(generateGoogleCalendarLink(currentEventData), '_blank'); }
                 else if (calType === 'outlook') { window.open(generateOutlookLink(currentEventData), '_blank'); }
                 else { downloadICS(); } // apple, ics, or any other
@@ -1098,7 +1116,10 @@
             // Track CTA clicks inside iframe
             var ctaBtn = iframe.contentDocument.querySelector('.thankyou-cta-btn');
             if (ctaBtn) {
-              ctaBtn.addEventListener('click', function() { trackViralEvent('rsvp_cta_click'); });
+              ctaBtn.addEventListener('click', function() {
+                trackViralEvent('rsvp_cta_click');
+                if (window.RyviteGA) { RyviteGA.trackEvent('viral_cta_click', { source: 'rsvp_confirm', event_id: currentEventData ? currentEventData.id : '' }); }
+              });
             }
           } catch(e) {}
         });
@@ -1382,6 +1403,9 @@
               caption: null,
               created_at: new Date().toISOString()
             });
+            if (window.RyviteGA) {
+              RyviteGA.trackEvent('photo_uploaded', { event_id: currentEventData.id });
+            }
           }
         } catch(e) { console.error('Upload error:', e); }
       }

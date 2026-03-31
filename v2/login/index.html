@@ -76,6 +76,7 @@
     .back-link a:hover { color: var(--party-coral); }
   </style>
 <script src="/js/meta-pixel.js"></script>
+<script src="/js/ga.js"></script>
 </head>
 <body>
   <div class="login-container">
@@ -352,6 +353,9 @@
               content_name: 'Ryvite Account',
               status: true
             }, null, result.metaEventId);
+          }
+          if (window.RyviteGA) {
+            RyviteGA.trackEvent('sign_up', { method: 'email' });
           }
           document.getElementById('checkEmailAddress').textContent = email;
           toggleMode('checkEmail');
