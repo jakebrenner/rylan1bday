@@ -6073,6 +6073,18 @@
         return sendDesignChatRsvpFields(text, input);
       }
 
+      // ── RSVP field requests: always redirect to Details tab (free, no AI needed) ──
+      var rsvpFieldPattern = /\b(remove|delete|drop|hide|add|include|make .+ (required|optional))\b.{0,30}\b(field|name|email|phone|dietary|allergies|plus.?one|song|meal|kids|guests?|notes?|message|comment)\b/i;
+      if (rsvpFieldPattern.test(text)) {
+        pushDesignChat({ role: 'user', content: text });
+        pushDesignChat({ role: 'assistant', content: "RSVP fields are managed in the **Details** tab! I\u2019m switching you there now \u2014 you can add, remove, or edit any fields directly." });
+        renderDesignChat();
+        input.value = '';
+        input.style.height = 'auto';
+        switchToDetailsTabRsvp();
+        return;
+      }
+
       // ── Free/unpaid tier gate: block design chat if generation limit reached ──
       if (currentEvent && (currentEvent.paymentStatus === 'unpaid' || currentEvent.paymentStatus === 'refunded')) {
         pendingUpgradeMessage = text;
@@ -6085,17 +6097,6 @@
         return;
       }
       if (currentEvent && currentEvent.paymentStatus === 'free' && currentEvent.freeGenerationUsed) {
-        // Redirect RSVP field requests to Details tab (free, no chat needed)
-        var rsvpFieldPattern = /\b(remove|delete|drop|hide|add|include|make .+ (required|optional))\b.{0,30}\b(field|name|email|phone|dietary|allergies|plus.?one|song|meal|kids|guests?|notes?|message|comment)\b/i;
-        if (rsvpFieldPattern.test(text)) {
-          pushDesignChat({ role: 'user', content: text });
-          pushDesignChat({ role: 'assistant', content: "RSVP fields are managed in the **Details** tab! I\u2019m switching you there now \u2014 you can add, remove, or edit any fields directly." });
-          renderDesignChat();
-          input.value = '';
-          input.style.height = 'auto';
-          switchToDetailsTabRsvp();
-          return;
-        }
         // Allow Tier 1.75 client-side text swaps — they don't cost anything
         var textSwapPattern = /\b(change|replace|swap|switch)\b.{0,10}["'\u201C\u201D].+["'\u201C\u201D]\s*(to|with|for)\s*["'\u201C\u201D]/i;
         if (!textSwapPattern.test(text)) {
