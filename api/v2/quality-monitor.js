@@ -303,6 +303,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'eventId and userDescription are required' });
     }
 
+    try { // Outer try/catch — ensures we always return JSON, never a 500 plain text error
+
     const fixModel = 'claude-sonnet-4-6';
     const startTime = Date.now();
 
@@ -546,6 +548,16 @@ If the issue is unfixable without a complete redesign, return:
         fixed: false,
         diagnosis: 'I ran into an issue trying to fix this. Let me escalate to the team.',
         message: aiErr.message
+      });
+    }
+
+    } catch (outerErr) { // Outer catch — prevents Vercel from returning a generic 500 plain text error
+      console.error('[quality-monitor] fixUserReportedIssue outer error:', outerErr);
+      return res.status(200).json({
+        success: true,
+        fixed: false,
+        diagnosis: "I ran into a technical issue. Can you try describing the problem differently?",
+        message: outerErr.message || 'Internal error'
       });
     }
   }

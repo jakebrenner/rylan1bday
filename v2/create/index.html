@@ -8891,6 +8891,9 @@
           body: JSON.stringify(payload)
         });
 
+        if (!res.ok) {
+          throw new Error('Server returned ' + res.status);
+        }
         var data = await res.json();
 
         // Remove loading message
