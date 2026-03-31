@@ -87,8 +87,8 @@ export default async function handler(req, res) {
     // Use provided destination URL or default to landing page
     const baseUrl = destinationUrl || 'https://ryvite.com/lp/';
     const separator = baseUrl.includes('?') ? '&' : '?';
-    // utm_content = sourceId (event_themes/showcase UUID) for tracing back to the exact creative
-    const utmUrl = `${baseUrl}${separator}utm_source=facebook&utm_medium=paid&utm_campaign=${encodeURIComponent(campaign)}&utm_content=${encodeURIComponent(sourceId)}&utm_term=${encodeURIComponent(eventType || '')}`;
+    // utm_content = creativeId (e.g. 'fb-abc123') for attribution — must match ad_creatives.creative_id
+    const utmUrl = `${baseUrl}${separator}utm_source=facebook&utm_medium=paid&utm_campaign=${encodeURIComponent(campaign)}&utm_content=${encodeURIComponent(creativeId)}&utm_term=${encodeURIComponent(eventType || '')}`;
 
     const row = {
       creative_id: creativeId,
