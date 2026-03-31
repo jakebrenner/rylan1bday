@@ -716,8 +716,16 @@
                 <input type="hidden" id="editAddress">
                 <input type="hidden" id="editDressCode">
                 <div id="editCustomFields" style="display:none;"></div>
-                <button class="btn btn-primary btn-sm" onclick="saveEditedDetails()" style="width:100%;margin-top:8px;">Save Changes</button>
-                <p style="font-size:11px;color:#999;margin-top:8px;text-align:center;">Use the Design chat to add location, dress code, RSVP fields, and more.</p>
+                <!-- RSVP Fields Section -->
+                <div style="border-top:1px solid #eee;margin-top:12px;padding-top:12px;">
+                  <h4 style="font-size:13px;font-weight:600;margin:0 0 6px;">RSVP Fields</h4>
+                  <div style="font-size:11px;color:#999;margin-bottom:8px;padding:6px 10px;background:#f9f9f9;border-radius:6px;">Always included: <strong>Name</strong>, <strong>Email</strong>, <strong>Phone</strong>, <strong>RSVP Status</strong></div>
+                  <div id="detailsRsvpFieldList"></div>
+                  <div id="detailsAddFieldContainer"></div>
+                  <button class="btn btn-secondary btn-sm" onclick="showAddFieldFormDetails()" style="margin-top:6px;font-size:11px;padding:4px 12px;">+ Add field</button>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="saveEditedDetails()" style="width:100%;margin-top:12px;">Save Changes</button>
+                <p style="font-size:11px;color:#999;margin-top:8px;text-align:center;">Use the Design chat to change text, colors, layout, and more.</p>
               </div>
 
               <!-- Versions tab -->
@@ -2472,6 +2480,98 @@
       cancelAddFieldStep1();
     }
 
+    // ---- Details Tab RSVP Field Management ----
+
+    function renderRsvpFieldsToDetails() {
+      var container = document.getElementById('detailsRsvpFieldList');
+      if (!container) return;
+      if (rsvpFields.length === 0) {
+        container.innerHTML = '<div style="font-size:13px;color:#999;padding:8px 0;">No additional fields added.</div>';
+        return;
+      }
+      container.innerHTML = rsvpFields.map(function(f, i) {
+        var meta = (FIELD_TYPE_LABELS[f.field_type] || f.field_type);
+        if (f.is_required) meta += ' · Required';
+        if (f.options && f.options.length) meta += ' · ' + f.options.join(', ');
+        return '<div class="rsvp-field-row">'
+          + '<div class="rsvp-field-info">'
+          + '<div class="rsvp-field-label">' + escapeHtml(f.label) + '</div>'
+          + '<div class="rsvp-field-meta">' + escapeHtml(meta) + '</div>'
+          + '</div>'
+          + '<button class="btn btn-secondary btn-sm" onclick="removeRsvpFieldDetails(' + i + ')" style="padding:4px 10px;font-size:11px;">Remove</button>'
+          + '</div>';
+      }).join('');
+    }
+
+    function removeRsvpFieldDetails(idx) {
+      rsvpFields.splice(idx, 1);
+      renderRsvpFieldsToDetails();
+      saveCustomFields();
+      var ver = themeVersions[activeVersionIndex];
+      if (ver) renderPreview(ver);
+    }
+
+    function showAddFieldFormDetails() {
+      var container = document.getElementById('detailsAddFieldContainer');
+      if (!container || container.querySelector('.rsvp-add-form')) return;
+      container.innerHTML = '<div class="rsvp-add-form">'
+        + '<div class="form-row">'
+        + '<input type="text" id="newFieldLabelDetails" placeholder="Field label (e.g. Song Request)">'
+        + '<select id="newFieldTypeDetails"><option value="text">Text</option><option value="number">Number</option><option value="select">Dropdown</option><option value="checkbox">Checkbox</option><option value="textarea">Long text</option><option value="email">Email</option><option value="phone">Phone</option></select>'
+        + '</div>'
+        + '<div class="form-row" id="newFieldOptionsRowDetails" style="display:none;">'
+        + '<input type="text" id="newFieldOptionsDetails" placeholder="Options (comma-separated)" style="grid-column: 1/-1;">'
+        + '</div>'
+        + '<div class="form-row">'
+        + '<input type="text" id="newFieldPlaceholderDetails" placeholder="Placeholder text (optional)">'
+        + '<label style="display:flex;align-items:center;gap:6px;font-size:12px;margin:0;"><input type="checkbox" id="newFieldRequiredDetails"> Required</label>'
+        + '</div>'
+        + '<div class="form-actions">'
+        + '<button class="btn btn-secondary btn-sm" onclick="cancelAddFieldDetails()">Cancel</button>'
+        + '<button class="btn btn-primary btn-sm" onclick="addCustomFieldDetails()">Add Field</button>'
+        + '</div>'
+        + '</div>';
+      document.getElementById('newFieldTypeDetails').addEventListener('change', function() {
+        document.getElementById('newFieldOptionsRowDetails').style.display = this.value === 'select' ? 'grid' : 'none';
+      });
+    }
+
+    function cancelAddFieldDetails() {
+      var container = document.getElementById('detailsAddFieldContainer');
+      if (container) container.innerHTML = '';
+    }
+
+    function addCustomFieldDetails() {
+      var label = document.getElementById('newFieldLabelDetails').value.trim();
+      if (!label) { showToast('Please enter a field label'); return; }
+      var fieldType = document.getElementById('newFieldTypeDetails').value;
+      var placeholder = document.getElementById('newFieldPlaceholderDetails').value.trim();
+      var isRequired = document.getElementById('newFieldRequiredDetails').checked;
+      var options = null;
+      if (fieldType === 'select') {
+        var optStr = document.getElementById('newFieldOptionsDetails').value.trim();
+        if (!optStr) { showToast('Please enter options for the dropdown'); return; }
+        options = optStr.split(',').map(function(o) { return o.trim(); }).filter(Boolean);
+      }
+      var fieldKey = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+
+      rsvpFields.push({
+        field_key: fieldKey,
+        label: label,
+        field_type: fieldType,
+        is_required: isRequired,
+        options: options,
+        placeholder: placeholder || null,
+        enabled: true
+      });
+
+      renderRsvpFieldsToDetails();
+      cancelAddFieldDetails();
+      saveCustomFields();
+      var ver = themeVersions[activeVersionIndex];
+      if (ver) renderPreview(ver);
+    }
+
     // ---- Style Selection Flow (in chat) ----
 
     async function updateDraftEvent() {
@@ -2757,6 +2857,7 @@
         initMobileAccordions();
         window.scrollTo(0, 0);
       }
+      if (step === 2) renderRsvpFieldsToDetails();
       if (step === 2 && !themeVersions.length && !window._templateSource && document.getElementById('generatingPaywall').style.display === 'none') generateTheme();
       else if (step === 2 && themeVersions.length) {
         // Returning to step 2 with existing themes — show preview
@@ -5019,6 +5120,7 @@
         document.querySelector('.panel-tab:nth-child(2)').classList.add('active');
         document.getElementById('tabDetails').classList.add('active');
         populateEditFields();
+        renderRsvpFieldsToDetails();
       } else if (tab === 'versions') {
         document.querySelector('.panel-tab:nth-child(3)').classList.add('active');
         document.getElementById('tabVersions').classList.add('active');
@@ -5036,6 +5138,15 @@
           }
         }
       }
+    }
+
+    function switchToDetailsTabRsvp() {
+      switchTab('details');
+      // Scroll to the RSVP fields section within the Details tab
+      setTimeout(function() {
+        var rsvpSection = document.getElementById('detailsRsvpFieldList');
+        if (rsvpSection) rsvpSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
     }
 
     function populateEditFields() {
@@ -5170,14 +5281,15 @@
         welcomeMsg = "Hey! I'm your design assistant for " + title + ". I'm here to help with the finishing touches.\n\n"
           + "Here are some things I can do:\n"
           + "- \u{1F3A8} Change colors, fonts, or overall vibe\n"
-          + "- \u{1F4F7} Add your photos — upload a pic to use directly in the invite, not just for inspiration\n"
+          + "- \u{1F4F7} Add your photos \u2014 upload a pic to use directly in the invite, not just for inspiration\n"
           + "- \u{2728} Adjust animations, layout, or spacing\n"
           + "- \u{1F58C}\uFE0F Swap the style entirely (minimalist, maximalist, editorial, etc.)\n"
           + "- \u{1F4DD} Tweak wording on the invite\n\n"
           + "Try something like:\n"
           + "\"Make the background darker and the fonts more elegant\"\n"
           + "\"Add my photo as the hero image\" (upload below)\n"
-          + "\"Switch to a gold and black color scheme\"";
+          + "\"Switch to a gold and black color scheme\"\n\n"
+          + "Need to update RSVP fields? Use the **Details** tab above.";
       }
 
       designChatHistory = [{ role: 'assistant', content: welcomeMsg }];
@@ -5404,6 +5516,7 @@
       });
       saveCustomFields();
       if (typeof renderRsvpFields === 'function') renderRsvpFields();
+      renderRsvpFieldsToDetails();
     }
 
     // ── Instant text swap detection for "change X to Y" requests ──
@@ -5864,7 +5977,8 @@
         }
 
         var tweakMsg = "All set! Your invite is personalized and ready.\n\n"
-          + "Want to tweak anything? You can adjust colors, fonts, layout, text, or anything else. Just describe what you'd like to change.";
+          + "Want to tweak the design? You can adjust colors, fonts, layout, text, or anything visual \u2014 just describe what you'd like to change.\n\n"
+          + "Need to update RSVP fields? Head to the **Details** tab above to add, remove, or edit fields anytime.";
         pushDesignChat({ role: 'assistant', content: tweakMsg });
         renderDesignChat();
         sendBtn.disabled = false;
@@ -5978,6 +6092,18 @@
         return sendDesignChatRsvpFields(text, input);
       }
 
+      // ── RSVP field requests: always redirect to Details tab (free, no AI needed) ──
+      var rsvpFieldPattern = /\b(remove|delete|drop|hide|add|include|make .+ (required|optional))\b.{0,30}\b(field|name|email|phone|dietary|allergies|plus.?one|song|meal|kids|guests?|notes?|message|comment)\b/i;
+      if (rsvpFieldPattern.test(text)) {
+        pushDesignChat({ role: 'user', content: text });
+        pushDesignChat({ role: 'assistant', content: "RSVP fields are managed in the **Details** tab! I\u2019m switching you there now \u2014 you can add, remove, or edit any fields directly." });
+        renderDesignChat();
+        input.value = '';
+        input.style.height = 'auto';
+        switchToDetailsTabRsvp();
+        return;
+      }
+
       // ── Free/unpaid tier gate: block design chat if generation limit reached ──
       if (currentEvent && (currentEvent.paymentStatus === 'unpaid' || currentEvent.paymentStatus === 'refunded')) {
         pendingUpgradeMessage = text;
@@ -5990,10 +6116,9 @@
         return;
       }
       if (currentEvent && currentEvent.paymentStatus === 'free' && currentEvent.freeGenerationUsed) {
-        // Allow Tier 1 client-side operations (RSVP field changes) — they don't cost anything
-        var rsvpFieldPattern = /\b(remove|delete|drop|hide|add|include|make .+ (required|optional))\b.{0,30}\b(field|name|email|phone|dietary|allergies|plus.?one|song|meal|kids|guests?|notes?|message|comment)\b/i;
+        // Allow Tier 1.75 client-side text swaps — they don't cost anything
         var textSwapPattern = /\b(change|replace|swap|switch)\b.{0,10}["'\u201C\u201D].+["'\u201C\u201D]\s*(to|with|for)\s*["'\u201C\u201D]/i;
-        if (!rsvpFieldPattern.test(text) && !textSwapPattern.test(text)) {
+        if (!textSwapPattern.test(text)) {
           pendingUpgradeMessage = text;
           sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
           pushDesignChat({ role: 'user', content: text });
@@ -6201,113 +6326,16 @@
       var sendBtn = document.getElementById('designChatSendBtn');
       sendBtn.disabled = true;
 
-      // ── TIER 1: Instant client-side RSVP field changes (no AI call) ──
+      // ── RSVP field changes: redirect to Details tab ──
       var rsvpFieldResult = tryInstantRsvpFieldChange(text, hasPhotos);
-      if (rsvpFieldResult && rsvpFieldResult.action !== 'add_async' && rsvpFieldResult.action !== 'mixed') {
-        console.log('[tweak] INSTANT field change:', rsvpFieldResult.action);
-        applyRsvpFieldChanges(rsvpFieldResult.changes);
-        renderPreview(themeVersions[activeVersionIndex]);
-        pushDesignChat({ role: 'assistant', content: rsvpFieldResult.chatResponse + '\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
+      if (rsvpFieldResult) {
+        console.log('[tweak] RSVP field request detected, redirecting to Details tab');
+        pushDesignChat({ role: 'assistant', content: "RSVP fields are managed in the **Details** tab! I\u2019m switching you there now \u2014 you can add, remove, or edit any fields directly.\n\nThis chat is best for design changes like colors, fonts, layout, photos, and text." });
         clearDesignChatPhoto();
         sendBtn.disabled = false;
         renderDesignChat();
+        switchToDetailsTabRsvp();
         return;
-      }
-
-      // ── TIER 1.5: Quick AI field interpretation for "add" requests (~1s) ──
-      // Also handles "mixed" (sync remove/modify + async add in same message)
-      if (rsvpFieldResult && (rsvpFieldResult.action === 'add_async' || rsvpFieldResult.action === 'mixed')) {
-        // Apply any sync changes first (e.g. removes)
-        if (rsvpFieldResult.action === 'mixed' && rsvpFieldResult.syncChanges) {
-          console.log('[tweak] Applying sync changes from mixed command:', rsvpFieldResult.syncChanges);
-          applyRsvpFieldChanges(rsvpFieldResult.syncChanges);
-          renderPreview(themeVersions[activeVersionIndex]);
-        }
-        var addMsg = rsvpFieldResult.action === 'mixed' ? rsvpFieldResult.addAsync.userMessage : rsvpFieldResult.userMessage;
-        var syncNote = rsvpFieldResult.action === 'mixed' ? rsvpFieldResult.syncResponse + ' ' : '';
-        console.log('[tweak] Quick AI field interpretation for:', addMsg);
-        try {
-          var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
-          var interpretRes = await authFetch('/api/v2/generate-theme?action=interpretField', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userMessage: addMsg,
-              eventId: currentEvent ? currentEvent.id : null,
-              existingFields: enabledFields.map(function(f) { return { label: f.label, field_key: f.field_key }; })
-            })
-          });
-          if (interpretRes.ok) {
-            var interpretData = await interpretRes.json();
-            if (interpretData.metadata) updateCostFromGeneration(interpretData);
-            var fields = interpretData.fields || (interpretData.field ? [interpretData.field] : []);
-            if (interpretData.success && fields.length > 0) {
-              var addedLabels = [];
-              var enabledKeys = enabledFields.map(function(ef) { return (ef.field_key || '').toLowerCase(); });
-              for (var fi = 0; fi < fields.length; fi++) {
-                var f = fields[fi];
-                if (enabledKeys.indexOf((f.field_key || '').toLowerCase()) === -1) {
-                  applyRsvpFieldChanges([{ action: 'add', field_key: f.field_key, label: f.label, field_type: f.field_type || 'text', is_required: f.is_required || false, placeholder: f.placeholder || null }]);
-                  enabledKeys.push((f.field_key || '').toLowerCase());
-                  addedLabels.push(f.label);
-                }
-              }
-              renderPreview(themeVersions[activeVersionIndex]);
-              if (addedLabels.length > 0) {
-                var fieldListStr = addedLabels.map(function(l) { return '"' + l + '"'; }).join(' and ');
-                pushDesignChat({ role: 'assistant', content: 'Done! ' + syncNote + 'Added ' + fieldListStr + ' to your RSVP form.\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
-              } else {
-                pushDesignChat({ role: 'assistant', content: syncNote + 'Those fields already exist in your RSVP form!\n\nWant to make any other changes?' });
-              }
-              clearDesignChatPhoto();
-              sendBtn.disabled = false;
-              renderDesignChat();
-              return;
-            }
-          }
-        } catch (err) {
-          console.error('[tweak] interpretField error:', err);
-        }
-        // Client-side fallback: if interpretField API failed but the message explicitly specifies
-        // a field type and label, parse it directly instead of asking for clarification again.
-        var explicitFieldMatch = addMsg.match(/(?:add|create|include|insert)\s+(?:a\s+)?(text|number|textarea|email|phone|select|dropdown|checkbox)\s+(?:field\s+)?(?:for|called|named|about|asking)\s+(.+)/i);
-        if (explicitFieldMatch) {
-          var efType = explicitFieldMatch[1].toLowerCase();
-          if (efType === 'dropdown') efType = 'select';
-          var efLabel = explicitFieldMatch[2].trim().replace(/[.!?"']+$/, '').trim();
-          var efKey = efLabel.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-          var efExists = rsvpFields.filter(function(f) { return f.enabled; }).some(function(f) {
-            return (f.field_key || '').toLowerCase() === efKey;
-          });
-          if (!efExists && efLabel) {
-            console.log('[tweak] Client-side fallback: adding explicit field "' + efLabel + '" (' + efType + ')');
-            applyRsvpFieldChanges([{ action: 'add', field_key: efKey, label: efLabel.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' '), field_type: efType, is_required: false, placeholder: null }]);
-            renderPreview(themeVersions[activeVersionIndex]);
-            var updatedFields = rsvpFields.filter(function(ff) { return ff.enabled; });
-            var fieldListStr = updatedFields.map(function(ff) { return '- ' + ff.label + (ff.is_required ? ' (required)' : ''); }).join('\n');
-            pushDesignChat({ role: 'assistant', content: syncNote + 'Added "' + efLabel.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ') + '"!\n\nCurrent fields:\n' + fieldListStr + '\n\nSay "looks good" when you\'re happy, or keep adjusting!' });
-            clearDesignChatPhoto();
-            sendBtn.disabled = false;
-            renderDesignChat();
-            return;
-          }
-        }
-        // If interpretation failed but we had sync changes, still report those
-        if (rsvpFieldResult.action === 'mixed' && syncNote) {
-          pushDesignChat({ role: 'assistant', content: syncNote + "I wasn't sure about the field to add though. Could you tell me more specifically what you'd like? For example:\n- \"Add a text field for dietary restrictions\"\n- \"Add a dropdown for meal choice with options: chicken, fish, veggie\"" });
-          clearDesignChatPhoto();
-          sendBtn.disabled = false;
-          renderDesignChat();
-          return;
-        }
-        // Pure add_async that failed interpretation — ask for clarification instead of expensive fallthrough
-        if (rsvpFieldResult.action === 'add_async') {
-          pushDesignChat({ role: 'assistant', content: "I think you want to add a field to your RSVP form, but I want to make sure I get it right. Could you describe the field in a bit more detail? For example:\n- \"Add a text field for dietary restrictions\"\n- \"Add a number field for how many guests\"\n- \"Add a dropdown for t-shirt size with options: S, M, L, XL\"" });
-          clearDesignChatPhoto();
-          sendBtn.disabled = false;
-          renderDesignChat();
-          return;
-        }
       }
 
       // ── TIER 1.75: Instant text swap for "change X to Y" requests ──
@@ -6373,32 +6401,20 @@
             console.log('[tweak] Classification:', classification.intent, 'confidence:', classification.confidence);
             if (classification.metadata) updateCostFromGeneration(classification);
 
-            // If the classifier detected this is a field addition with high confidence,
-            // route it directly to Tier 1.5 (interpretField) instead of expensive Tier 2/3
-            if (classification.intent === 'add_field' && classification.confidence >= 0.8 && classification.field_details) {
-              console.log('[tweak] Classifier routed to field add:', classification.field_details);
-              var fd = classification.field_details;
-              var fieldKey = fd.field_key || (fd.label || '').toLowerCase().replace(/[^a-z0-9]+/g, '_');
-              var exists = enabledFields.some(function(ef) {
-                return (ef.field_key || '').toLowerCase() === fieldKey.toLowerCase() ||
-                       (ef.label || '').toLowerCase() === (fd.label || '').toLowerCase();
-              });
-              if (!exists) {
-                applyRsvpFieldChanges([{ action: 'add', field_key: fieldKey, label: fd.label, field_type: fd.field_type || 'text', is_required: fd.is_required || false, placeholder: fd.placeholder || null }]);
-                renderPreview(themeVersions[activeVersionIndex]);
-                pushDesignChat({ role: 'assistant', content: 'Done! Added a "' + fd.label + '" field to your RSVP form.\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version.' });
-              } else {
-                pushDesignChat({ role: 'assistant', content: 'That field already exists in your RSVP form!\n\nWant to make any other changes?' });
-              }
+            // If the classifier detected this is a field-related request, redirect to Details tab
+            if ((classification.intent === 'add_field' || classification.intent === 'remove_field' || classification.intent === 'modify_field') && classification.confidence >= 0.6) {
+              console.log('[tweak] Classifier detected field request, redirecting to Details tab');
+              pushDesignChat({ role: 'assistant', content: "RSVP fields are managed in the **Details** tab! I\u2019m switching you there now \u2014 you can add, remove, or edit any fields directly.\n\nThis chat is best for design changes like colors, fonts, layout, photos, and text." });
               clearDesignChatPhoto();
               sendBtn.disabled = false;
               renderDesignChat();
+              switchToDetailsTabRsvp();
               return;
             }
 
             // If the classifier detected this is a question, answer conversationally
             if (classification.intent === 'question' && classification.confidence >= 0.6) {
-              pushDesignChat({ role: 'assistant', content: (classification.summary || "That's a great question!") + "\n\nI'm your design assistant — I can help you change colors, fonts, layout, add photos, or tweak any visual element of your invite. Just tell me what you'd like to change!" });
+              pushDesignChat({ role: 'assistant', content: (classification.summary || "That's a great question!") + "\n\nI'm your design assistant \u2014 I can help you change colors, fonts, layout, add photos, or tweak any visual element of your invite. For RSVP field changes, use the Details tab above.\n\nJust tell me what you'd like to change!" });
               clearDesignChatPhoto();
               sendBtn.disabled = false;
               renderDesignChat();
@@ -6434,19 +6450,10 @@
                   return { label: opt, value: opt };
                 });
               } else {
-                // Default options based on detected intent
-                if (classification.intent === 'add_field' || classification.intent === 'modify_field') {
-                  intentOptions = [
-                    { label: 'Add an RSVP field', value: 'I want to add a new RSVP form field for: ' + (classification.summary || text) },
-                    { label: 'Change the design', value: 'I want to change the visual design: ' + text }
-                  ];
-                } else {
-                  intentOptions = [
-                    { label: 'Change the design', value: 'I want to change the visual design: ' + text },
-                    { label: 'Change the text', value: 'I want to change specific text/wording: ' + text },
-                    { label: 'Add an RSVP field', value: 'I want to add a new RSVP form field' }
-                  ];
-                }
+                intentOptions = [
+                  { label: 'Change the design', value: 'I want to change the visual design: ' + text },
+                  { label: 'Change the text', value: 'I want to change specific text/wording: ' + text }
+                ];
               }
 
               pushDesignChat({
