@@ -589,6 +589,10 @@
         <button class="sidebar-item" data-tab="reviews" onclick="switchTab('reviews');loadReviews();">Reviews</button>
         <button class="sidebar-item" data-tab="reviewemails" onclick="switchTab('reviewemails');loadReviewEmailSettings();">Review Emails</button>
       </div>
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">Support</div>
+        <button class="sidebar-item" data-tab="support" onclick="switchTab('support');loadSupportTickets();">Tickets</button>
+      </div>
     </nav>
 
     <!-- Mobile sidebar overlay + toggle -->
@@ -2648,6 +2652,67 @@
           #reviewEmailLayout { grid-template-columns: 1fr !important; }
         }
       </style>
+    </div>
+
+    <!-- Support Tickets Tab -->
+    <div class="tab-content" id="tab-support">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+        <h3 style="margin:0;">Support Tickets</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <select id="supportFilterStatus" onchange="loadSupportTickets()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+            <option value="">All Statuses</option>
+            <option value="open">Open</option>
+            <option value="in_progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+          </select>
+          <select id="supportFilterCategory" onchange="loadSupportTickets()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+            <option value="">All Categories</option>
+            <option value="billing">Billing</option>
+            <option value="event_help">Event Help</option>
+            <option value="technical">Technical</option>
+            <option value="account">Account</option>
+            <option value="other">Other</option>
+          </select>
+          <select id="supportFilterPriority" onchange="loadSupportTickets()" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+            <option value="">All Priorities</option>
+            <option value="low">Low</option>
+            <option value="normal">Normal</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-container">
+        <div class="table-header">
+          <h3>Tickets</h3>
+          <span class="count" id="supportTicketCount">0</span>
+        </div>
+        <table>
+          <thead><tr>
+            <th>#</th>
+            <th>User</th>
+            <th>Subject</th>
+            <th>Category</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Event</th>
+            <th>Updated</th>
+          </tr></thead>
+          <tbody id="supportTicketsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Support Ticket Detail Modal -->
+    <div id="supportTicketModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeSupportModal()">
+      <div class="modal" style="max-width:800px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <h3 id="supportModalTitle" style="margin:0;">Ticket Details</h3>
+          <button onclick="closeSupportModal()" style="border:none;background:none;font-size:24px;cursor:pointer;color:#999;">&times;</button>
+        </div>
+        <div id="supportModalContent"></div>
+      </div>
     </div>
 
     </div><!-- end admin-main -->
@@ -9852,6 +9917,225 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         btn.textContent = 'Send Test Email';
         btn.disabled = false;
       }, 2000);
+    }
+
+    // ================================================================
+    // SUPPORT TICKETS
+    // ================================================================
+    var allSupportTickets = [];
+
+    function supportStatusBadge(status) {
+      var map = { open: 'badge-blue', in_progress: 'badge-yellow', resolved: 'badge-green', closed: 'badge-gray' };
+      var labels = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed' };
+      return '<span class="badge ' + (map[status] || 'badge-gray') + '">' + (labels[status] || status) + '</span>';
+    }
+
+    function supportPriorityBadge(p) {
+      var map = { low: 'badge-gray', normal: 'badge-blue', high: 'badge-yellow', urgent: 'badge-red' };
+      return '<span class="badge ' + (map[p] || 'badge-gray') + '">' + (p || 'normal') + '</span>';
+    }
+
+    function supportCategoryLabel(cat) {
+      var labels = { billing: 'Billing', event_help: 'Event Help', technical: 'Technical', account: 'Account', other: 'Other' };
+      return labels[cat] || cat;
+    }
+
+    function supportTimeAgo(dateStr) {
+      var d = new Date(dateStr);
+      var now = new Date();
+      var diff = Math.floor((now - d) / 1000);
+      if (diff < 60) return 'just now';
+      if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+      if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+      if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+      return d.toLocaleDateString();
+    }
+
+    function supportEsc(str) {
+      var d = document.createElement('div');
+      d.textContent = str || '';
+      return d.innerHTML;
+    }
+
+    async function loadSupportTickets() {
+      var status = document.getElementById('supportFilterStatus').value;
+      var category = document.getElementById('supportFilterCategory').value;
+      var priority = document.getElementById('supportFilterPriority').value;
+
+      var params = 'action=adminList';
+      if (status) params += '&status=' + status;
+      if (category) params += '&category=' + category;
+      if (priority) params += '&priority=' + priority;
+
+      try {
+        var res = await fetch('/api/v2/support-tickets?' + params, {
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+        }).then(function(r) { return r.json(); });
+
+        if (!res.success) { showToast('Failed to load tickets: ' + (res.error || '')); return; }
+        allSupportTickets = res.tickets || [];
+        document.getElementById('supportTicketCount').textContent = allSupportTickets.length;
+        renderSupportTickets();
+      } catch (e) {
+        document.getElementById('supportTicketsBody').innerHTML = '<tr><td colspan="8" style="color:red;">Failed to load tickets</td></tr>';
+      }
+    }
+
+    function renderSupportTickets() {
+      var tbody = document.getElementById('supportTicketsBody');
+      if (!allSupportTickets.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#888;padding:40px;">No support tickets found</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = allSupportTickets.map(function(t) {
+        var userEmail = t.profiles?.email || 'Unknown';
+        var userName = t.profiles?.display_name || '';
+        var eventTitle = t.events?.title || '';
+        var eventCell = eventTitle ? supportEsc(eventTitle) + '<br><span style="font-size:11px;color:#999;font-family:monospace;">' + (t.event_id || '').slice(0, 8) + '</span>' : '<span style="color:#ccc;">—</span>';
+
+        return '<tr onclick="openSupportTicket(\'' + t.id + '\')" style="cursor:pointer;">' +
+          '<td style="font-weight:600;">#' + t.ticket_number + '</td>' +
+          '<td>' + supportEsc(userName || userEmail) + '<br><span style="font-size:11px;color:#999;">' + supportEsc(userEmail) + '</span></td>' +
+          '<td style="max-width:200px;">' + supportEsc(t.subject) + '</td>' +
+          '<td>' + supportCategoryLabel(t.category) + '</td>' +
+          '<td>' + supportPriorityBadge(t.priority) + '</td>' +
+          '<td>' + supportStatusBadge(t.status) + '</td>' +
+          '<td>' + eventCell + '</td>' +
+          '<td>' + supportTimeAgo(t.updated_at) + '</td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    async function openSupportTicket(ticketId) {
+      document.getElementById('supportTicketModal').style.display = 'flex';
+      document.getElementById('supportModalContent').innerHTML = '<p style="text-align:center;color:#888;padding:20px;">Loading...</p>';
+
+      try {
+        var res = await fetch('/api/v2/support-tickets?action=adminGet&ticketId=' + ticketId, {
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+        }).then(function(r) { return r.json(); });
+
+        if (!res.success) { document.getElementById('supportModalContent').innerHTML = '<p style="color:red;">Failed to load ticket</p>'; return; }
+
+        var t = res.ticket;
+        var msgs = res.messages || [];
+        var userEmail = t.profiles?.email || 'Unknown';
+        var userName = t.profiles?.display_name || '';
+        var eventInfo = t.events ? supportEsc(t.events.title) + ' <span style="font-size:11px;color:#999;font-family:monospace;">(' + t.events.id + ')</span>' : '<span style="color:#ccc;">None</span>';
+
+        document.getElementById('supportModalTitle').textContent = 'Ticket #' + t.ticket_number + ' — ' + t.subject;
+
+        var html = '';
+
+        // Ticket info
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;background:#f9f9f9;border-radius:8px;padding:16px;">';
+        html += '<div><span style="font-size:11px;color:#888;text-transform:uppercase;font-weight:600;">User</span><div style="font-size:14px;margin-top:4px;">' + supportEsc(userName) + ' (' + supportEsc(userEmail) + ')</div></div>';
+        html += '<div><span style="font-size:11px;color:#888;text-transform:uppercase;font-weight:600;">Event</span><div style="font-size:14px;margin-top:4px;">' + eventInfo + '</div></div>';
+        html += '<div><span style="font-size:11px;color:#888;text-transform:uppercase;font-weight:600;">Category</span><div style="margin-top:4px;">' + supportCategoryLabel(t.category) + '</div></div>';
+        html += '<div><span style="font-size:11px;color:#888;text-transform:uppercase;font-weight:600;">Priority</span><div style="margin-top:4px;">' + supportPriorityBadge(t.priority) + '</div></div>';
+        html += '<div><span style="font-size:11px;color:#888;text-transform:uppercase;font-weight:600;">Status</span><div style="margin-top:4px;">' + supportStatusBadge(t.status) + '</div></div>';
+        html += '<div><span style="font-size:11px;color:#888;text-transform:uppercase;font-weight:600;">Created</span><div style="font-size:13px;margin-top:4px;">' + new Date(t.created_at).toLocaleString() + '</div></div>';
+        html += '</div>';
+
+        // Status update
+        html += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:20px;">';
+        html += '<label style="font-size:13px;font-weight:600;">Update Status:</label>';
+        html += '<select id="supportStatusSelect" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:\'Inter\',sans-serif;">';
+        ['open', 'in_progress', 'resolved', 'closed'].forEach(function(s) {
+          var labels = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed' };
+          html += '<option value="' + s + '"' + (s === t.status ? ' selected' : '') + '>' + labels[s] + '</option>';
+        });
+        html += '</select>';
+        html += '<button class="btn btn-secondary" style="font-size:12px;padding:6px 14px;min-height:auto;" onclick="updateSupportStatus(\'' + t.id + '\')">Update</button>';
+        html += '</div>';
+
+        // Messages
+        html += '<div style="margin-bottom:16px;"><h4 style="font-size:14px;margin-bottom:12px;">Messages</h4>';
+        msgs.forEach(function(m) {
+          var isAdmin = m.sender_type === 'admin';
+          var senderName = isAdmin ? 'Admin' : (m.profiles?.display_name || m.profiles?.email || 'User');
+          var bgColor = isAdmin ? '#f0fff4' : '#f0f7ff';
+          var borderColor = isAdmin ? '#c6f0d4' : '#d4e6f9';
+          html += '<div style="padding:14px;border-radius:8px;margin-bottom:10px;background:' + bgColor + ';border:1px solid ' + borderColor + ';">';
+          html += '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">';
+          html += '<span style="font-size:12px;font-weight:600;' + (isAdmin ? 'color:#0d6e3a;' : '') + '">' + supportEsc(senderName) + (isAdmin ? ' (Support)' : '') + '</span>';
+          html += '<span style="font-size:11px;color:#999;">' + new Date(m.created_at).toLocaleString() + '</span>';
+          html += '</div>';
+          html += '<div style="font-size:14px;line-height:1.6;white-space:pre-wrap;">' + supportEsc(m.message) + '</div>';
+          html += '</div>';
+        });
+        html += '</div>';
+
+        // Admin reply
+        if (t.status !== 'closed') {
+          html += '<div style="border-top:1px solid #eee;padding-top:16px;">';
+          html += '<h4 style="font-size:14px;margin-bottom:8px;">Reply</h4>';
+          html += '<textarea id="supportAdminReply" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-family:\'Inter\',sans-serif;font-size:14px;resize:vertical;min-height:80px;" placeholder="Type your reply to the user..."></textarea>';
+          html += '<div style="display:flex;justify-content:flex-end;margin-top:8px;">';
+          html += '<button class="btn btn-primary" id="supportReplyBtn" onclick="sendSupportAdminReply(\'' + t.id + '\')" style="font-size:13px;">Send Reply</button>';
+          html += '</div></div>';
+        }
+
+        document.getElementById('supportModalContent').innerHTML = html;
+      } catch (e) {
+        document.getElementById('supportModalContent').innerHTML = '<p style="color:red;">Error loading ticket</p>';
+      }
+    }
+
+    async function updateSupportStatus(ticketId) {
+      var status = document.getElementById('supportStatusSelect').value;
+      try {
+        var res = await fetch('/api/v2/support-tickets?action=adminUpdateStatus', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticketId: ticketId, status: status })
+        }).then(function(r) { return r.json(); });
+
+        if (res.success) {
+          showToast('Status updated');
+          openSupportTicket(ticketId);
+          loadSupportTickets();
+        } else {
+          showToast('Failed: ' + (res.error || ''));
+        }
+      } catch (e) {
+        showToast('Error updating status');
+      }
+    }
+
+    async function sendSupportAdminReply(ticketId) {
+      var message = document.getElementById('supportAdminReply').value.trim();
+      if (!message) { showToast('Please enter a reply'); return; }
+
+      var btn = document.getElementById('supportReplyBtn');
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+
+      try {
+        var res = await fetch('/api/v2/support-tickets?action=adminReply', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticketId: ticketId, message: message })
+        }).then(function(r) { return r.json(); });
+
+        if (res.success) {
+          showToast('Reply sent & user notified');
+          openSupportTicket(ticketId);
+          loadSupportTickets();
+        } else {
+          showToast('Failed: ' + (res.error || ''));
+        }
+      } catch (e) {
+        showToast('Error sending reply');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Send Reply';
+      }
+    }
+
+    function closeSupportModal() {
+      document.getElementById('supportTicketModal').style.display = 'none';
     }
 
   </script>
