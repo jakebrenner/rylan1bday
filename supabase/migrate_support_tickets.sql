@@ -54,6 +54,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS support_tickets_updated_at ON support_tickets;
 CREATE TRIGGER support_tickets_updated_at
   BEFORE UPDATE ON support_tickets
   FOR EACH ROW EXECUTE FUNCTION update_support_ticket_timestamp();
@@ -67,6 +68,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS support_messages_update_ticket ON support_messages;
 CREATE TRIGGER support_messages_update_ticket
   AFTER INSERT ON support_messages
   FOR EACH ROW EXECUTE FUNCTION update_ticket_on_message();
@@ -78,20 +80,24 @@ ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE support_messages ENABLE ROW LEVEL SECURITY;
 
 -- Users can view their own tickets
+DROP POLICY IF EXISTS support_tickets_select_own ON support_tickets;
 CREATE POLICY support_tickets_select_own ON support_tickets
   FOR SELECT USING (auth.uid() = user_id);
 
 -- Users can insert their own tickets
+DROP POLICY IF EXISTS support_tickets_insert_own ON support_tickets;
 CREATE POLICY support_tickets_insert_own ON support_tickets
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- Users can view messages on their own tickets
+DROP POLICY IF EXISTS support_messages_select_own ON support_messages;
 CREATE POLICY support_messages_select_own ON support_messages
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM support_tickets WHERE id = ticket_id AND user_id = auth.uid())
   );
 
 -- Users can insert messages on their own tickets
+DROP POLICY IF EXISTS support_messages_insert_own ON support_messages;
 CREATE POLICY support_messages_insert_own ON support_messages
   FOR INSERT WITH CHECK (
     EXISTS (SELECT 1 FROM support_tickets WHERE id = ticket_id AND user_id = auth.uid())
