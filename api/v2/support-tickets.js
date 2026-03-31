@@ -437,6 +437,76 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    // ── Update ticket resolution (AI resolved, credit issued, etc.) ──
+    if (action === 'updateResolution' && req.method === 'POST') {
+      const { ticketId, resolutionType, aiAttempts, status, priority } = req.body || {};
+      if (!ticketId) return res.status(400).json({ success: false, error: 'ticketId required' });
+
+      const validResolutions = ['ai_resolved', 'human_resolved', 'credit_issued', 'user_abandoned'];
+      const updates = {};
+      if (resolutionType && validResolutions.includes(resolutionType)) updates.resolution_type = resolutionType;
+      if (typeof aiAttempts === 'number') updates.ai_attempts = aiAttempts;
+      if (status) updates.status = status;
+      if (priority) updates.priority = priority;
+      if (resolutionType === 'human_resolved') updates.resolved_by = user.id;
+
+      const { error } = await supabaseAdmin
+        .from('support_tickets')
+        .update(updates)
+        .eq('id', ticketId);
+
+      if (error) return res.status(400).json({ success: false, error: error.message });
+      return res.status(200).json({ success: true });
+    }
+
+    // ── Admin: Get active theme for an event (for HTML editor) ──
+    if (action === 'adminGetTheme' && req.method === 'GET') {
+      if (!(await isAdmin(user))) return res.status(403).json({ success: false, error: 'Admin access required' });
+
+      const eventId = req.query.eventId;
+      if (!eventId) return res.status(400).json({ success: false, error: 'eventId required' });
+
+      const { data: theme, error } = await supabaseAdmin
+        .from('event_themes')
+        .select('id, html, css, config, version, thankyou_html, is_active')
+        .eq('event_id', eventId)
+        .eq('is_active', true)
+        .single();
+
+      if (error) return res.status(404).json({ success: false, error: 'No active theme found' });
+
+      // Also fetch event details for context
+      const { data: event } = await supabaseAdmin
+        .from('events')
+        .select('id, title, event_type, status, slug')
+        .eq('id', eventId)
+        .single();
+
+      return res.status(200).json({ success: true, theme, event });
+    }
+
+    // ── Admin: Save edited theme HTML/CSS (direct edit by support team) ──
+    if (action === 'adminSaveTheme' && req.method === 'POST') {
+      if (!(await isAdmin(user))) return res.status(403).json({ success: false, error: 'Admin access required' });
+
+      const { themeId, html, css, config, eventId } = req.body || {};
+      if (!themeId) return res.status(400).json({ success: false, error: 'themeId required' });
+
+      const updates = {};
+      if (html !== undefined) updates.html = html;
+      if (css !== undefined) updates.css = css;
+      if (config !== undefined) updates.config = config;
+
+      const { error } = await supabaseAdmin
+        .from('event_themes')
+        .update(updates)
+        .eq('id', themeId);
+
+      if (error) return res.status(400).json({ success: false, error: error.message });
+
+      return res.status(200).json({ success: true });
+    }
+
     return res.status(400).json({ success: false, error: 'Unknown action: ' + action });
 
   } catch (err) {

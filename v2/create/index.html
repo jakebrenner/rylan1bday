@@ -3911,11 +3911,13 @@
               injectRsvpForm(iframe);
               checkCssRendered(iframe, ver);
               // Content completeness check — runs after injection, with delay for paint + CSS animations
-              setTimeout(function() {
+              clearTimeout(_validationTimeoutId);
+              _validationTimeoutId = setTimeout(function() {
+                if (currentPreviewMode !== 'invite') return; // Stale timeout — tab switched
                 var result = validateContentCompleteness(iframe);
                 lastValidationResults = { valid: result.valid, missing: result.missing || [] };
                 lastCssIssues = result.cssIssues || [];
-                if (!result.valid && !autoRetryInProgress && !_resumeDataLoading) {
+                if (!result.valid && !autoRetryInProgress && !_resumeDataLoading && !supportMode) {
                   // Only trigger broken render for truly missing structural elements,
                   // not CSS visual issues (opacity/size during animations)
                   var structuralMissing = result.missing.filter(function(m) {
@@ -3947,11 +3949,13 @@
               injectRsvpForm(iframe);
               checkCssRendered(iframe, ver);
               // Content completeness check — with delay for CSS animations
-              setTimeout(function() {
+              clearTimeout(_validationTimeoutId);
+              _validationTimeoutId = setTimeout(function() {
+                if (currentPreviewMode !== 'invite') return; // Stale timeout — tab switched
                 var result = validateContentCompleteness(iframe);
                 lastValidationResults = { valid: result.valid, missing: result.missing || [] };
                 lastCssIssues = result.cssIssues || [];
-                if (!result.valid && !autoRetryInProgress && !_resumeDataLoading) {
+                if (!result.valid && !autoRetryInProgress && !_resumeDataLoading && !supportMode) {
                   var structuralMissing = result.missing.filter(function(m) {
                     var doc2 = iframe.contentDocument;
                     if (!doc2) return true;
@@ -4331,6 +4335,7 @@
 
     // Handle broken render detection and auto-retry
     function handleBrokenRender(missing, cssIssues) {
+      if (supportMode) return; // Don't auto-trigger while support AI is handling things
       lastRenderBroken = true;
       brokenRenderCount++;
       var detectedCssIssues = cssIssues || [];
@@ -4461,11 +4466,13 @@
 
         if (!sseRes.ok) {
           autoRetryInProgress = false;
-          pushDesignChat({
-            role: 'assistant',
-            content: "I wasn't able to regenerate \u2014 sorry about that! Try sending a message like \"start fresh\" and I'll give it another go."
-          });
-          renderDesignChat();
+          if (!supportMode) {
+            pushDesignChat({
+              role: 'assistant',
+              content: "I wasn't able to regenerate \u2014 sorry about that! Try sending a message like \"start fresh\" and I'll give it another go."
+            });
+            renderDesignChat();
+          }
           return;
         }
 
@@ -4517,12 +4524,14 @@
       } catch (err) {
         console.error('[brokenRenderRetry] Error:', err);
         autoRetryInProgress = false;
-        designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
-        pushDesignChat({
-          role: 'assistant',
-          content: "Something went wrong while regenerating \u2014 sorry about that! Try typing \"start fresh\" and I'll give it another go."
-        });
-        renderDesignChat();
+        if (!supportMode) {
+          designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+          pushDesignChat({
+            role: 'assistant',
+            content: "Something went wrong while regenerating \u2014 sorry about that! Try typing \"start fresh\" and I'll give it another go."
+          });
+          renderDesignChat();
+        }
       }
     }
 
@@ -4785,6 +4794,7 @@
     // ---- Preview mode toggle (Invite / Thank You / Email) ----
     function setPreviewMode(mode) {
       currentPreviewMode = mode;
+      clearTimeout(_validationTimeoutId); // Cancel pending invite validation on tab switch
       document.querySelectorAll('.preview-toggle-btn').forEach(function(btn) {
         btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
       });
@@ -5091,6 +5101,7 @@
     var lastRenderBroken = false; // Set when content validation detects missing elements
     var brokenRenderCount = 0; // Tracks consecutive broken renders for escalation
     var autoRetryInProgress = false; // Prevents recursive auto-retry loops
+    var _validationTimeoutId = null; // Tracks pending validation timeout for cancellation
     var _resumeDataLoading = false; // Suppresses broken render checks while event data loads on resume
 
     // ── Client device info for quality incident reports ──
@@ -6743,6 +6754,7 @@
       if (value === 'open_ticket_now') { escalateToTicket('User requested manual help'); return; }
       if (value === 'support_fixed') { exitSupportMode(true); return; }
       if (value === 'support_retry') { /* user will type more detail */ return; }
+      if (value === 'support_free_regen') { triggerSupportFreeRegen(); return; }
       // Route to the appropriate handler based on which clarification is active
       if (awaitingIntentClarification) {
         handleIntentOption(value);
@@ -8727,12 +8739,20 @@
     var supportAttempts = 0;
     var supportChatHistory = []; // tracks support conversation for ticket context
     var _supportChatPlaceholder = 'Add details, RSVP fields, change colors...';
+    var supportTicketId = null; // ID of auto-created support ticket
+    var supportTicketNumber = null; // Human-readable ticket number
 
     function enterSupportMode() {
       if (supportMode) return;
       supportMode = true;
       supportAttempts = 0;
       supportChatHistory = [];
+
+      // Cancel any pending validation timeout and clear auto-retry state
+      clearTimeout(_validationTimeoutId);
+      autoRetryInProgress = false;
+      // Remove any system loading messages from in-progress auto-retry
+      designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
 
       // Remove any existing option buttons from the last message
       for (var ci = designChatHistory.length - 1; ci >= 0; ci--) {
@@ -8755,21 +8775,78 @@
         input.focus();
       }
 
-      // Hide the help link while in support mode
+      // Auto-create support ticket (async, don't block UI)
+      supportTicketId = null;
+      supportTicketNumber = null;
+      (async function() {
+        try {
+          var ver = themeVersions[activeVersionIndex];
+          var res = await authFetch('/api/v2/support-tickets?action=create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              subject: 'Display issue with ' + (currentEvent.title || 'invite'),
+              category: 'event_help',
+              priority: 'normal',
+              eventId: currentEvent.id,
+              message: 'User initiated AI support for display issues.\nAI agent is assisting.\n\nEvent: ' + (currentEvent.title || 'Unknown') + ' (ID: ' + currentEvent.id + ')'
+                + '\nEvent type: ' + (extractedData.eventType || 'unknown')
+                + '\nDevice: ' + navigator.userAgent
+                + '\nViewport: ' + window.innerWidth + 'x' + window.innerHeight
+                + (ver ? '\nTheme ID: ' + ver.id + '\nTheme version: ' + ver.version : '')
+            })
+          });
+          var data = await res.json();
+          if (data.ticket) {
+            supportTicketId = data.ticket.id;
+            supportTicketNumber = data.ticket.ticket_number;
+          }
+        } catch(e) { console.warn('[support] Auto-ticket creation failed:', e); }
+      })();
+
+      // Toggle help link to "Exit support mode"
       var helpLink = document.getElementById('inviteSupportLink');
-      if (helpLink) helpLink.style.display = 'none';
+      if (helpLink) {
+        helpLink.innerHTML = '<a href="#" onclick="event.preventDefault();exitSupportMode(false)">'
+          + '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>'
+          + ' Exit support mode</a>';
+      }
     }
 
     function exitSupportMode(wasFixed) {
       supportMode = false;
+      var attemptCount = supportAttempts;
       supportAttempts = 0;
       supportChatHistory = [];
 
       var input = document.getElementById('designChatInput');
       if (input) input.placeholder = _supportChatPlaceholder;
 
+      // Update ticket resolution
+      if (supportTicketId) {
+        var resType = wasFixed ? 'ai_resolved' : null;
+        var newStatus = wasFixed ? 'resolved' : 'open';
+        authFetch('/api/v2/support-tickets?action=updateResolution', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ticketId: supportTicketId,
+            resolutionType: resType,
+            aiAttempts: attemptCount,
+            status: newStatus
+          })
+        }).catch(function(e) { console.warn('[support] Resolution update failed:', e); });
+      }
+      supportTicketId = null;
+      supportTicketNumber = null;
+
+      // Restore help link to original state
       var helpLink = document.getElementById('inviteSupportLink');
-      if (helpLink) helpLink.style.display = 'flex';
+      if (helpLink) {
+        helpLink.innerHTML = '<a href="#" onclick="event.preventDefault();enterSupportMode()">'
+          + '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>'
+          + ' Need help with your invite?</a>';
+      }
 
       if (wasFixed) {
         pushDesignChat({
@@ -8853,8 +8930,18 @@
           supportChatHistory.push({ role: 'assistant', content: data.diagnosis || 'Could not fix' });
 
           if (supportAttempts >= 3) {
-            // Escalate to support ticket
             escalateToTicket(text);
+          } else if (supportAttempts === 2) {
+            // After 2 failed patches, offer a free regeneration before escalating
+            pushDesignChat({
+              role: 'assistant',
+              content: (data.diagnosis || "I'm having trouble patching this one.") + "\n\nWould you like me to generate a completely fresh design? It'll be a free redesign on us.",
+              options: [
+                { label: 'Yes, fresh design please', value: 'support_free_regen' },
+                { label: 'No, get help from the team', value: 'open_ticket_now' },
+                { label: 'Let me describe it differently', value: 'support_retry' }
+              ]
+            });
           } else {
             pushDesignChat({
               role: 'assistant',
@@ -8871,6 +8958,16 @@
 
         if (supportAttempts >= 3) {
           escalateToTicket(text);
+        } else if (supportAttempts === 2) {
+          pushDesignChat({
+            role: 'assistant',
+            content: "I ran into a technical issue. Would you like me to generate a completely fresh design instead?",
+            options: [
+              { label: 'Yes, fresh design please', value: 'support_free_regen' },
+              { label: 'No, get help from the team', value: 'open_ticket_now' },
+              { label: 'Let me describe it differently', value: 'support_retry' }
+            ]
+          });
         } else {
           pushDesignChat({
             role: 'assistant',
@@ -8887,43 +8984,72 @@
     }
 
     async function escalateToTicket(lastDescription) {
-      // Build comprehensive ticket context
+      // Build comprehensive context message for the ticket
       var ver = themeVersions[activeVersionIndex];
-      var ticketSubject = 'Display issue with ' + (currentEvent.title || 'invite');
-      var ticketMessage = 'User reported display issue:\n\n';
+      var contextMessage = 'AI escalation — unable to resolve after ' + supportAttempts + ' attempts.\n\n';
+      contextMessage += 'Support conversation:\n';
       supportChatHistory.forEach(function(m) {
-        ticketMessage += (m.role === 'user' ? 'User: ' : 'AI: ') + m.content + '\n\n';
+        contextMessage += (m.role === 'user' ? 'User: ' : 'AI: ') + m.content + '\n\n';
       });
-      ticketMessage += '\n---\nEvent: ' + (currentEvent.title || 'Unknown') + ' (ID: ' + currentEvent.id + ')';
-      ticketMessage += '\nEvent type: ' + (extractedData.eventType || 'unknown');
-      ticketMessage += '\nDevice: ' + navigator.userAgent;
-      ticketMessage += '\nViewport: ' + window.innerWidth + 'x' + window.innerHeight;
+      contextMessage += '\n---\nEvent: ' + (currentEvent.title || 'Unknown') + ' (ID: ' + currentEvent.id + ')';
+      contextMessage += '\nEvent type: ' + (extractedData.eventType || 'unknown');
+      contextMessage += '\nDevice: ' + navigator.userAgent;
+      contextMessage += '\nViewport: ' + window.innerWidth + 'x' + window.innerHeight;
       if (ver) {
-        ticketMessage += '\nTheme ID: ' + ver.id;
-        ticketMessage += '\nTheme version: ' + ver.version;
+        contextMessage += '\nTheme ID: ' + ver.id;
+        contextMessage += '\nTheme version: ' + ver.version;
       }
 
       try {
-        var res = await authFetch('/api/v2/support-tickets?action=create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            subject: ticketSubject,
-            category: 'event_help',
-            priority: 'high',
-            eventId: currentEvent.id,
-            message: ticketMessage
-          })
-        });
-        var data = await res.json();
-        var ticketNum = data.ticket ? ('#' + data.ticket.ticket_number) : '';
+        var ticketNum = supportTicketNumber ? ('#' + supportTicketNumber) : '';
+
+        if (supportTicketId) {
+          // Append escalation context to existing ticket and upgrade priority
+          await authFetch('/api/v2/support-tickets?action=reply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ticketId: supportTicketId,
+              message: contextMessage
+            })
+          });
+          // Upgrade priority to high since AI couldn't fix it
+          await authFetch('/api/v2/support-tickets?action=updateResolution', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ticketId: supportTicketId,
+              priority: 'high',
+              aiAttempts: supportAttempts
+            })
+          });
+        } else {
+          // Fallback: create a new ticket if auto-creation failed
+          var res = await authFetch('/api/v2/support-tickets?action=create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              subject: 'Display issue with ' + (currentEvent.title || 'invite'),
+              category: 'event_help',
+              priority: 'high',
+              eventId: currentEvent.id,
+              message: contextMessage
+            })
+          });
+          var data = await res.json();
+          if (data.ticket) {
+            supportTicketId = data.ticket.id;
+            supportTicketNumber = data.ticket.ticket_number;
+            ticketNum = '#' + data.ticket.ticket_number;
+          }
+        }
 
         pushDesignChat({
           role: 'assistant',
-          content: "I wasn't able to nail this one \u2014 I've created support ticket " + ticketNum + " and our team will take a look. You can track it on your <a href='/v2/support/' style='color:var(--party-coral);font-weight:600;'>Support page</a>.\n\nIn the meantime, you can try \"start fresh\" for a completely new design, or keep tweaking the current one."
+          content: "I wasn't able to nail this one \u2014 I've escalated support ticket " + ticketNum + " to our team and they'll take a look. You can track it on your <a href='/v2/support/' style='color:var(--party-coral);font-weight:600;'>Support page</a>.\n\nIn the meantime, you can try \"start fresh\" for a completely new design, or keep tweaking the current one."
         });
       } catch (err) {
-        console.error('[support] Ticket creation failed:', err);
+        console.error('[support] Ticket escalation failed:', err);
         pushDesignChat({
           role: 'assistant',
           content: "I wasn't able to fix this automatically. Please reach out to us at support@ryvite.com and we'll help you out!"
@@ -8931,6 +9057,121 @@
       }
 
       exitSupportMode(false);
+    }
+
+    async function triggerSupportFreeRegen() {
+      // Remove option buttons from the last message
+      for (var ci = designChatHistory.length - 1; ci >= 0; ci--) {
+        if (designChatHistory[ci].options) { delete designChatHistory[ci].options; break; }
+      }
+
+      pushDesignChat({ role: 'system', content: 'Generating a fresh design for you — this usually takes 15-30 seconds...' });
+      renderDesignChat();
+
+      try {
+        var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
+        var payload = {
+          eventId: currentEvent.id,
+          eventDetails: {
+            title: extractedData.title || '',
+            startDate: extractedData.startDate || '',
+            endDate: extractedData.endDate || '',
+            locationName: extractedData.locationName || '',
+            locationAddress: extractedData.locationAddress || '',
+            dressCode: extractedData.dressCode || '',
+            eventType: extractedData.eventType || 'other'
+          },
+          rsvpFields: enabledFields.map(function(f) { return { field_key: f.field_key, label: f.label, field_type: f.field_type, is_required: f.is_required }; })
+        };
+
+        var sseRes = await authFetch('/api/v2/generate-theme?action=generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+
+        if (!sseRes.ok) {
+          pushDesignChat({
+            role: 'assistant',
+            content: "The redesign didn't work out. Let me escalate this to our team.",
+          });
+          renderDesignChat();
+          escalateToTicket('Free regen failed');
+          return;
+        }
+
+        var regenText = await sseRes.text();
+        var regenResult = null;
+        var regenLines = regenText.split('\n');
+        var regenEventType = null;
+        for (var li = 0; li < regenLines.length; li++) {
+          var line = regenLines[li];
+          if (line.startsWith('event: ')) regenEventType = line.substring(7).trim();
+          else if (line.startsWith('data: ') && regenEventType === 'done') {
+            try { regenResult = JSON.parse(line.substring(6)); } catch(e) {}
+            regenEventType = null;
+          }
+        }
+
+        if (regenResult && regenResult.success && regenResult.theme) {
+          var regenId = regenResult.theme.id === 'pending' ? ('pending-' + Date.now()) : regenResult.theme.id;
+          var newVer = { id: regenId, version: regenResult.theme.version, html: regenResult.theme.html, css: regenResult.theme.css, config: regenResult.theme.config };
+          themeVersions.push(newVer);
+          activeVersionIndex = themeVersions.length - 1;
+          currentEvent.themeHtml = newVer.html;
+          currentEvent.themeCss = newVer.css;
+          currentEvent.themeConfig = newVer.config;
+          renderPreview(newVer);
+          renderVersionGallery();
+          if (regenResult.metadata) updateCostFromGeneration(regenResult.metadata);
+          brokenRenderCount = 0;
+          lastRenderBroken = false;
+
+          pushDesignChat({
+            role: 'assistant',
+            content: "Here's a completely fresh design! Take a look. Did that do the trick?",
+            options: [
+              { label: 'Looks great!', value: 'support_fixed' },
+              { label: 'Still not right', value: 'open_ticket_now' }
+            ]
+          });
+
+          // Update ticket resolution type to credit_issued
+          if (supportTicketId) {
+            authFetch('/api/v2/support-tickets?action=updateResolution', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                ticketId: supportTicketId,
+                resolutionType: 'credit_issued',
+                aiAttempts: supportAttempts
+              })
+            }).catch(function(e) { console.warn('[support] Resolution update failed:', e); });
+          }
+        } else {
+          pushDesignChat({
+            role: 'assistant',
+            content: "The fresh design didn't produce a valid result. Let me get our team on this."
+          });
+          renderDesignChat();
+          escalateToTicket('Free regen produced invalid result');
+          return;
+        }
+      } catch (err) {
+        console.error('[support] Free regen failed:', err);
+        designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+        pushDesignChat({
+          role: 'assistant',
+          content: "Something went wrong with the redesign. Let me escalate this to our team."
+        });
+        renderDesignChat();
+        escalateToTicket('Free regen error: ' + err.message);
+        return;
+      }
+
+      renderDesignChat();
     }
 
     // Track validation results for support context

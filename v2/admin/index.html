@@ -2696,6 +2696,7 @@
             <th>Category</th>
             <th>Priority</th>
             <th>Status</th>
+            <th>Resolution</th>
             <th>Event</th>
             <th>Updated</th>
           </tr></thead>
@@ -2706,7 +2707,7 @@
 
     <!-- Support Ticket Detail Modal -->
     <div id="supportTicketModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeSupportModal()">
-      <div class="modal" style="max-width:800px;">
+      <div class="modal" style="max-width:1100px;max-height:90vh;overflow-y:auto;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
           <h3 id="supportModalTitle" style="margin:0;">Ticket Details</h3>
           <button onclick="closeSupportModal()" style="border:none;background:none;font-size:24px;cursor:pointer;color:#999;">&times;</button>
@@ -9984,7 +9985,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     function renderSupportTickets() {
       var tbody = document.getElementById('supportTicketsBody');
       if (!allSupportTickets.length) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#888;padding:40px;">No support tickets found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888;padding:40px;">No support tickets found</td></tr>';
         return;
       }
 
@@ -9993,6 +9994,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var userName = t.profiles?.display_name || '';
         var eventTitle = t.events?.title || '';
         var eventCell = eventTitle ? supportEsc(eventTitle) + '<br><span style="font-size:11px;color:#999;font-family:monospace;">' + (t.event_id || '').slice(0, 8) + '</span>' : '<span style="color:#ccc;">—</span>';
+        var resLabels = { ai_resolved: 'AI', human_resolved: 'Human', credit_issued: 'Credit', user_abandoned: 'Abandoned' };
+        var resColors = { ai_resolved: '#0d6e3a', human_resolved: '#1a56db', credit_issued: '#856404', user_abandoned: '#999' };
+        var resCell = t.resolution_type ? '<span style="font-size:11px;font-weight:600;color:' + (resColors[t.resolution_type] || '#666') + ';">' + (resLabels[t.resolution_type] || t.resolution_type) + '</span>' : '<span style="color:#ccc;">—</span>';
 
         return '<tr onclick="openSupportTicket(\'' + t.id + '\')" style="cursor:pointer;">' +
           '<td style="font-weight:600;">#' + t.ticket_number + '</td>' +
@@ -10001,6 +10005,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           '<td>' + supportCategoryLabel(t.category) + '</td>' +
           '<td>' + supportPriorityBadge(t.priority) + '</td>' +
           '<td>' + supportStatusBadge(t.status) + '</td>' +
+          '<td>' + resCell + '</td>' +
           '<td>' + eventCell + '</td>' +
           '<td>' + supportTimeAgo(t.updated_at) + '</td>' +
           '</tr>';
@@ -10036,6 +10041,13 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         html += '<div><span style="font-size:11px;color:#888;text-transform:uppercase;font-weight:600;">Priority</span><div style="margin-top:4px;">' + supportPriorityBadge(t.priority) + '</div></div>';
         html += '<div><span style="font-size:11px;color:#888;text-transform:uppercase;font-weight:600;">Status</span><div style="margin-top:4px;">' + supportStatusBadge(t.status) + '</div></div>';
         html += '<div><span style="font-size:11px;color:#888;text-transform:uppercase;font-weight:600;">Created</span><div style="font-size:13px;margin-top:4px;">' + new Date(t.created_at).toLocaleString() + '</div></div>';
+        if (t.resolution_type) {
+          var resLabels = { ai_resolved: 'AI Resolved', human_resolved: 'Human Resolved', credit_issued: 'Credit Issued', user_abandoned: 'User Abandoned' };
+          html += '<div><span style="font-size:11px;color:#888;text-transform:uppercase;font-weight:600;">Resolution</span><div style="margin-top:4px;font-size:13px;">' + (resLabels[t.resolution_type] || t.resolution_type) + '</div></div>';
+        }
+        if (t.ai_attempts > 0) {
+          html += '<div><span style="font-size:11px;color:#888;text-transform:uppercase;font-weight:600;">AI Attempts</span><div style="margin-top:4px;font-size:13px;">' + t.ai_attempts + '</div></div>';
+        }
         html += '</div>';
 
         // Status update
@@ -10072,9 +10084,33 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           html += '<div style="border-top:1px solid #eee;padding-top:16px;">';
           html += '<h4 style="font-size:14px;margin-bottom:8px;">Reply</h4>';
           html += '<textarea id="supportAdminReply" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-family:\'Inter\',sans-serif;font-size:14px;resize:vertical;min-height:80px;" placeholder="Type your reply to the user..."></textarea>';
-          html += '<div style="display:flex;justify-content:flex-end;margin-top:8px;">';
+          html += '<div style="display:flex;justify-content:flex-end;margin-top:8px;gap:8px;">';
           html += '<button class="btn btn-primary" id="supportReplyBtn" onclick="sendSupportAdminReply(\'' + t.id + '\')" style="font-size:13px;">Send Reply</button>';
           html += '</div></div>';
+        }
+
+        // ── Theme Editor & AI Fix Tools (only if ticket has an event) ──
+        if (t.event_id || (t.events && t.events.id)) {
+          var eventId = t.event_id || t.events.id;
+
+          html += '<div style="border-top:2px solid #E94560;padding-top:20px;margin-top:20px;">';
+          html += '<h4 style="font-size:15px;margin-bottom:12px;color:#1A1A2E;">Support Tools</h4>';
+
+          // AI Fix button
+          html += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">';
+          html += '<button class="btn btn-secondary" id="supportAiFixBtn" onclick="runSupportAiFix(\'' + eventId + '\', \'' + t.id + '\')" style="font-size:13px;padding:8px 16px;">';
+          html += '<span style="margin-right:4px;">&#x2728;</span> Run AI Fix</button>';
+          html += '<button class="btn btn-secondary" id="supportLoadEditorBtn" onclick="loadThemeEditor(\'' + eventId + '\', \'' + t.id + '\')" style="font-size:13px;padding:8px 16px;">';
+          html += '<span style="margin-right:4px;">&#x270F;</span> Edit Theme HTML</button>';
+          html += '</div>';
+
+          // AI Fix result area (hidden initially)
+          html += '<div id="supportAiFixResult" style="display:none;margin-bottom:16px;"></div>';
+
+          // Theme editor area (hidden initially)
+          html += '<div id="supportThemeEditor" style="display:none;"></div>';
+
+          html += '</div>';
         }
 
         document.getElementById('supportModalContent').innerHTML = html;
@@ -10136,6 +10172,228 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     function closeSupportModal() {
       document.getElementById('supportTicketModal').style.display = 'none';
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // SUPPORT TOOLS: AI Fix + Theme HTML Editor
+    // ═══════════════════════════════════════════════════════
+
+    var _currentSupportTheme = null; // Cache for currently loaded theme
+    var _currentSupportEventId = null;
+    var _currentEditorTab = 'html'; // html, css, thankyou
+
+    async function runSupportAiFix(eventId, ticketId) {
+      var btn = document.getElementById('supportAiFixBtn');
+      var resultDiv = document.getElementById('supportAiFixResult');
+      btn.disabled = true;
+      btn.innerHTML = '<span style="margin-right:4px;">&#x23F3;</span> Running AI Fix...';
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = '<div style="padding:16px;background:#f0f7ff;border:1px solid #d4e6f9;border-radius:8px;"><p style="margin:0;color:#666;font-size:13px;">AI is analyzing the invite and attempting to fix rendering issues...</p></div>';
+
+      try {
+        // Fetch the current theme first
+        var themeRes = await fetch('/api/v2/support-tickets?action=adminGetTheme&eventId=' + eventId, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        }).then(function(r) { return r.json(); });
+
+        if (!themeRes.success || !themeRes.theme) {
+          resultDiv.innerHTML = '<div style="padding:12px;background:#fff0f0;border:1px solid #ffc0c0;border-radius:8px;color:#c00;font-size:13px;">No active theme found for this event.</div>';
+          btn.disabled = false;
+          btn.innerHTML = '<span style="margin-right:4px;">&#x2728;</span> Run AI Fix';
+          return;
+        }
+
+        // Get the user's last message as description context
+        var msgEls = document.querySelectorAll('#supportModalContent .message-content');
+        var userDesc = 'User reported display issues with their invite. Please check for rendering problems, missing elements, and fix any CSS/HTML issues.';
+
+        // Call quality monitor fix endpoint
+        var fixRes = await fetch('/api/v2/quality-monitor?action=fixUserReportedIssue', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId: eventId,
+            userDescription: userDesc,
+            themeSnapshot: { html: themeRes.theme.html, css: themeRes.theme.css, config: themeRes.theme.config }
+          })
+        }).then(function(r) { return r.json(); });
+
+        if (fixRes.fixed && fixRes.theme) {
+          resultDiv.innerHTML = '<div style="padding:16px;background:#f0fff4;border:1px solid #c6f0d4;border-radius:8px;">'
+            + '<p style="margin:0 0 8px;font-weight:600;color:#0d6e3a;font-size:14px;">AI Fix Applied Successfully</p>'
+            + '<p style="margin:0 0 12px;font-size:13px;color:#333;">' + supportEsc(fixRes.diagnosis || 'Fix applied') + '</p>'
+            + '<div style="display:flex;gap:8px;">'
+            + '<button class="btn btn-primary" onclick="previewAiFix()" style="font-size:12px;padding:6px 14px;">Preview Fix</button>'
+            + '<button class="btn btn-secondary" onclick="loadThemeEditor(\'' + eventId + '\', \'' + ticketId + '\')" style="font-size:12px;padding:6px 14px;">Open Editor</button>'
+            + '</div>'
+            + '</div>';
+          // Store the fixed theme for preview
+          _currentSupportTheme = fixRes.theme;
+          _currentSupportEventId = eventId;
+
+          // Update ticket resolution
+          fetch('/api/v2/support-tickets?action=updateResolution', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticketId: ticketId, resolutionType: 'human_resolved', status: 'resolved' })
+          }).catch(function() {});
+        } else {
+          resultDiv.innerHTML = '<div style="padding:16px;background:#fffbf0;border:1px solid #ffe0a0;border-radius:8px;">'
+            + '<p style="margin:0 0 8px;font-weight:600;color:#856404;font-size:14px;">AI Could Not Auto-Fix</p>'
+            + '<p style="margin:0;font-size:13px;color:#333;">' + supportEsc(fixRes.diagnosis || fixRes.message || 'Manual intervention needed') + '</p>'
+            + '</div>';
+        }
+      } catch (e) {
+        resultDiv.innerHTML = '<div style="padding:12px;background:#fff0f0;border:1px solid #ffc0c0;border-radius:8px;color:#c00;font-size:13px;">Error: ' + supportEsc(e.message) + '</div>';
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = '<span style="margin-right:4px;">&#x2728;</span> Run AI Fix';
+    }
+
+    function previewAiFix() {
+      if (!_currentSupportTheme) return;
+      var w = window.open('', '_blank', 'width=420,height=800');
+      if (!w) { showToast('Popup blocked — please allow popups'); return; }
+      var html = _currentSupportTheme.html || '';
+      var css = _currentSupportTheme.css || '';
+      w.document.write('<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>' + css + '</style></head><body>' + html + '</body></html>');
+      w.document.close();
+    }
+
+    async function loadThemeEditor(eventId, ticketId) {
+      var editorDiv = document.getElementById('supportThemeEditor');
+      editorDiv.style.display = 'block';
+      editorDiv.innerHTML = '<p style="color:#888;font-size:13px;padding:8px;">Loading theme...</p>';
+
+      try {
+        // Use cached theme if available, otherwise fetch
+        if (!_currentSupportTheme || _currentSupportEventId !== eventId) {
+          var themeRes = await fetch('/api/v2/support-tickets?action=adminGetTheme&eventId=' + eventId, {
+            headers: { 'Authorization': 'Bearer ' + token }
+          }).then(function(r) { return r.json(); });
+
+          if (!themeRes.success || !themeRes.theme) {
+            editorDiv.innerHTML = '<p style="color:#c00;font-size:13px;">No active theme found.</p>';
+            return;
+          }
+          _currentSupportTheme = themeRes.theme;
+          _currentSupportEventId = eventId;
+        }
+
+        _currentEditorTab = 'html';
+        renderThemeEditor(ticketId);
+      } catch (e) {
+        editorDiv.innerHTML = '<p style="color:#c00;font-size:13px;">Error loading theme: ' + supportEsc(e.message) + '</p>';
+      }
+    }
+
+    function renderThemeEditor(ticketId) {
+      var editorDiv = document.getElementById('supportThemeEditor');
+      var t = _currentSupportTheme;
+      if (!t) return;
+
+      var html = '';
+      // Tab buttons
+      html += '<div style="display:flex;gap:4px;margin-bottom:8px;">';
+      ['html', 'css', 'thankyou'].forEach(function(tab) {
+        var labels = { html: 'Invite HTML', css: 'CSS', thankyou: 'Thank You HTML' };
+        var isActive = _currentEditorTab === tab;
+        html += '<button onclick="_currentEditorTab=\'' + tab + '\';renderThemeEditor(\'' + ticketId + '\')" style="padding:6px 14px;border:1px solid ' + (isActive ? '#E94560' : '#ddd') + ';border-radius:6px 6px 0 0;background:' + (isActive ? '#E94560' : '#fff') + ';color:' + (isActive ? '#fff' : '#333') + ';font-size:12px;font-weight:' + (isActive ? '600' : '400') + ';cursor:pointer;font-family:\'Inter\',sans-serif;">' + labels[tab] + '</button>';
+      });
+      html += '</div>';
+
+      // Editor + preview layout
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;min-height:400px;">';
+
+      // Code editor
+      var content = '';
+      if (_currentEditorTab === 'html') content = t.html || '';
+      else if (_currentEditorTab === 'css') content = t.css || '';
+      else if (_currentEditorTab === 'thankyou') content = t.thankyou_html || '';
+
+      html += '<div style="display:flex;flex-direction:column;">';
+      html += '<textarea id="supportThemeCode" style="flex:1;font-family:\'Courier New\',monospace;font-size:12px;line-height:1.5;padding:12px;border:1px solid #ddd;border-radius:8px;resize:none;tab-size:2;" oninput="updateThemePreview()">' + supportEsc(content) + '</textarea>';
+      html += '</div>';
+
+      // Live preview
+      html += '<div style="display:flex;flex-direction:column;">';
+      html += '<div style="font-size:11px;color:#888;margin-bottom:4px;font-weight:600;">LIVE PREVIEW</div>';
+      html += '<iframe id="supportThemePreview" style="flex:1;border:1px solid #ddd;border-radius:8px;background:#fff;" sandbox="allow-same-origin"></iframe>';
+      html += '</div>';
+
+      html += '</div>';
+
+      // Save button
+      html += '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">';
+      html += '<button class="btn btn-secondary" onclick="document.getElementById(\'supportThemeEditor\').style.display=\'none\'" style="font-size:13px;padding:8px 16px;">Close Editor</button>';
+      html += '<button class="btn btn-primary" id="supportSaveThemeBtn" onclick="saveThemeEdit(\'' + t.id + '\', \'' + ticketId + '\')" style="font-size:13px;padding:8px 16px;">Save Changes</button>';
+      html += '</div>';
+
+      editorDiv.innerHTML = html;
+
+      // Init preview after DOM is ready
+      setTimeout(function() { updateThemePreview(); }, 50);
+    }
+
+    function updateThemePreview() {
+      var iframe = document.getElementById('supportThemePreview');
+      var codeEl = document.getElementById('supportThemeCode');
+      if (!iframe || !codeEl || !_currentSupportTheme) return;
+
+      // Update the cached theme with current editor content
+      var code = codeEl.value;
+      if (_currentEditorTab === 'html') _currentSupportTheme.html = code;
+      else if (_currentEditorTab === 'css') _currentSupportTheme.css = code;
+      else if (_currentEditorTab === 'thankyou') _currentSupportTheme.thankyou_html = code;
+
+      // Build preview — show the right content based on current tab
+      var previewHtml = _currentSupportTheme.html || '';
+      var previewCss = _currentSupportTheme.css || '';
+      if (_currentEditorTab === 'thankyou') {
+        previewHtml = _currentSupportTheme.thankyou_html || '<p style="text-align:center;padding:40px;color:#999;">No thank you page HTML</p>';
+      }
+
+      var srcdoc = '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><style>' + previewCss + '</style></head><body style="margin:0;overflow-x:hidden;">' + previewHtml + '</body></html>';
+      iframe.srcdoc = srcdoc;
+    }
+
+    async function saveThemeEdit(themeId, ticketId) {
+      var btn = document.getElementById('supportSaveThemeBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      try {
+        var payload = { themeId: themeId };
+        // Send all editable fields
+        payload.html = _currentSupportTheme.html;
+        payload.css = _currentSupportTheme.css;
+        if (_currentSupportTheme.config) payload.config = _currentSupportTheme.config;
+
+        var res = await fetch('/api/v2/support-tickets?action=adminSaveTheme', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).then(function(r) { return r.json(); });
+
+        if (res.success) {
+          showToast('Theme saved successfully');
+          // Update ticket resolution
+          fetch('/api/v2/support-tickets?action=updateResolution', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticketId: ticketId, resolutionType: 'human_resolved', status: 'resolved' })
+          }).catch(function() {});
+          loadSupportTickets();
+        } else {
+          showToast('Failed to save: ' + (res.error || ''));
+        }
+      } catch (e) {
+        showToast('Error saving theme: ' + e.message);
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Save Changes';
     }
 
   </script>
