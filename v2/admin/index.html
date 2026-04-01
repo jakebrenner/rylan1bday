@@ -86,6 +86,7 @@
     .btn-success { background: #28a745; color: white; }
     .btn-success:hover { background: #218838; }
     .badge-red { background: #f8d7da; color: #721c24; }
+    .badge-purple { background: #e8d5f5; color: #6f42c1; }
     .btn-sm { padding: 6px 12px; font-size: 12px; }
     .date-preset { background: #f0f0f0; color: #555; border: 1px solid #ddd; }
     .date-preset:hover { background: #e0e0e0; }
@@ -3837,7 +3838,8 @@
         + kpiCard(fmtCost(f.totalPlatformCost), 'Platform Cost', '')
         + kpiCard(fmtCost(netMargin), 'Net Margin', netMargin >= 0 ? 'positive' : 'negative')
         + kpiCard(data.events.length, 'Events', '')
-        + kpiCard(f.generationCount, 'AI Generations', '')
+        + kpiCard(f.chatCount, 'Chat Generations', '')
+        + kpiCard(f.themeCount, 'Theme Generations', '')
         + kpiCard(f.smsSentCount, 'SMS Sent', '');
 
       // Recent events (top 5)
@@ -3848,7 +3850,7 @@
       } else {
         reBody.innerHTML = recentEvents.map(function(e) {
           var sc = e.status === 'published' ? 'badge-green' : e.status === 'draft' ? 'badge-yellow' : 'badge-gray';
-          return '<tr><td><strong>' + escapeHtml(e.title) + '</strong></td>'
+          return '<tr class="clickable" onclick="openEventDetailView(\'' + e.id + '\')" style="cursor:pointer;"><td><strong>' + escapeHtml(e.title) + '</strong></td>'
             + '<td><span class="badge ' + sc + '">' + escapeHtml(e.status) + '</span></td>'
             + '<td>' + e.rsvps.total + '</td></tr>';
         }).join('');
@@ -3940,18 +3942,18 @@
         evBody.innerHTML = data.events.map(function(e) {
           var sc = e.status === 'published' ? 'badge-green' : e.status === 'draft' ? 'badge-yellow' : 'badge-gray';
           var ec = e.costs.aiCost + e.costs.smsCost;
-          return '<tr>'
+          return '<tr class="clickable" onclick="openEventDetailView(\'' + e.id + '\')" style="cursor:pointer;">'
             + '<td><strong>' + escapeHtml(e.title) + '</strong>' + (e.hasTheme ? ' <span class="badge badge-blue" style="font-size:9px;">Themed</span>' : '') + '</td>'
             + '<td>' + escapeHtml(e.eventType || '—') + '</td>'
             + '<td>' + (e.eventDate ? formatDate(e.eventDate) : '—') + '</td>'
             + '<td><span class="badge ' + sc + '">' + escapeHtml(e.status) + '</span></td>'
             + '<td>' + (e.rsvps.total > 0
-              ? '<span class="clickable" onclick="viewRsvps(\'' + e.id + '\', \'' + escapeHtml(e.title).replace(/'/g, "\\'") + '\')">'
+              ? '<span class="clickable" onclick="event.stopPropagation(); viewRsvps(\'' + e.id + '\', \'' + escapeHtml(e.title).replace(/'/g, "\\'") + '\')">'
                 + e.rsvps.attending + ' yes, ' + e.rsvps.declined + ' no</span>'
               : '0') + '</td>'
             + '<td>' + fmtCost(ec) + '</td>'
             + '<td>' + (e.slug && e.status === 'published'
-              ? '<a href="/v2/event/' + e.slug + '" target="_blank" class="btn btn-secondary btn-sm">View</a>'
+              ? '<a href="/v2/event/' + e.slug + '" target="_blank" class="btn btn-secondary btn-sm" onclick="event.stopPropagation();">View</a>'
               : '') + '</td>'
             + '</tr>';
         }).join('');
@@ -7924,6 +7926,224 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('genDetailOverlay').classList.remove('open');
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    // EVENT DETAIL OVERLAY
+    // ═══════════════════════════════════════════════════════════════════
+
+    var currentEventDetail = null;
+
+    async function openEventDetailView(eventId) {
+      var overlay = document.getElementById('eventDetailOverlay');
+      document.getElementById('eventDetailTitle').textContent = 'Loading...';
+      document.getElementById('eventDetailInfo').innerHTML = '<p style="color:#888;">Loading event details...</p>';
+      document.getElementById('eventThemeVersions').innerHTML = '';
+      var iframe = document.getElementById('eventDetailPreviewFrame');
+      iframe.srcdoc = '';
+      overlay.classList.add('open');
+
+      try {
+        var data = await adminFetch('adminEventDetail', { params: { eventId: eventId } });
+        currentEventDetail = data;
+        renderEventDetail(data);
+      } catch (err) {
+        document.getElementById('eventDetailInfo').innerHTML = '<p style="color:red;">Error loading event: ' + escapeHtml(err.message || String(err)) + '</p>';
+      }
+    }
+
+    function closeEventDetailView() {
+      document.getElementById('eventDetailOverlay').classList.remove('open');
+      currentEventDetail = null;
+    }
+
+    function renderEventDetail(data) {
+      var ev = data.event;
+      var owner = data.owner;
+      var themes = data.themes || [];
+      var activeTheme = themes.find(function(t) { return t.isActive; });
+
+      document.getElementById('eventDetailTitle').textContent = ev.title || 'Untitled Event';
+
+      // Render active theme preview
+      var iframe = document.getElementById('eventDetailPreviewFrame');
+      if (activeTheme && activeTheme.html) {
+        var fontsImport = (activeTheme.config && activeTheme.config.googleFontsImport) || '';
+        var fullHtml = '<!DOCTYPE html><html><head>'
+          + '<style>' + fontsImport + '</style>'
+          + '<style>' + (activeTheme.css || '') + '</style></head>'
+          + '<body>' + activeTheme.html + '</body></html>';
+        iframe.srcdoc = fullHtml;
+      } else {
+        iframe.srcdoc = '<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#aaa;"><p>No theme generated</p></body></html>';
+      }
+
+      // Theme version selector (below phone preview)
+      var tvHtml = '';
+      if (themes.length > 1) {
+        tvHtml = '<div style="margin-top:8px;"><h4 style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#888;margin-bottom:8px;">Theme Versions (' + themes.length + ')</h4>';
+        tvHtml += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+        themes.forEach(function(t) {
+          var isActive = t.isActive;
+          var style = 'padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid ' + (isActive ? 'var(--coral)' : '#ddd') + ';background:' + (isActive ? 'var(--coral)' : '#fff') + ';color:' + (isActive ? '#fff' : 'var(--midnight)') + ';';
+          tvHtml += '<button style="' + style + '" onclick="previewEventThemeVersion(\'' + t.id + '\')">';
+          tvHtml += 'v' + t.version + (isActive ? ' (Active)' : '');
+          tvHtml += '</button>';
+        });
+        tvHtml += '</div></div>';
+      }
+      document.getElementById('eventThemeVersions').innerHTML = tvHtml;
+
+      // Build info sections
+      var html = '';
+
+      // Event Info
+      var sc = ev.status === 'published' ? 'badge-green' : ev.status === 'draft' ? 'badge-yellow' : 'badge-gray';
+      var paySc = ev.paymentStatus === 'paid' ? 'badge-green' : ev.paymentStatus === 'free' ? 'badge-blue' : 'badge-yellow';
+      html += '<div class="detail-section"><h4>Event Info</h4>';
+      html += detailRow('Title', escapeHtml(ev.title || ''));
+      html += detailRow('Type', escapeHtml(ev.eventType || ''));
+      html += detailRow('Date', ev.eventDate ? formatDate(ev.eventDate) : '—');
+      if (ev.endDate) html += detailRow('End Date', formatDate(ev.endDate));
+      html += detailRow('Location', escapeHtml(ev.locationName || '—'));
+      if (ev.locationAddress) html += detailRow('Address', escapeHtml(ev.locationAddress));
+      if (ev.dressCode) html += detailRow('Dress Code', escapeHtml(ev.dressCode));
+      html += detailRow('Status', '<span class="badge ' + sc + '">' + escapeHtml(ev.status) + '</span>');
+      html += detailRow('Payment', '<span class="badge ' + paySc + '">' + escapeHtml(ev.paymentStatus || 'unpaid') + '</span>');
+      if (ev.slug) html += detailRow('Slug', '<a href="/v2/event/' + escapeHtml(ev.slug) + '" target="_blank" style="color:var(--coral);">' + escapeHtml(ev.slug) + '</a>');
+      html += detailRow('Event ID', '<code style="font-size:11px;">' + escapeHtml(ev.id) + '</code>');
+      html += detailRow('Created', formatDate(ev.createdAt));
+      html += '</div>';
+
+      // Owner
+      if (owner) {
+        html += '<div class="detail-section"><h4>Owner</h4>';
+        html += detailRow('Name', escapeHtml(owner.displayName || '—'));
+        html += detailRow('Email', '<span class="clickable" onclick="closeEventDetailView(); viewUser(\'' + owner.id + '\')">' + escapeHtml(owner.email) + '</span>');
+        html += detailRow('User ID', '<code style="font-size:11px;">' + escapeHtml(owner.id) + '</code>');
+        html += '</div>';
+      }
+
+      // Cost Summary
+      var smsCost = 0;
+      html += '<div class="detail-section"><h4>Cost Summary</h4>';
+      html += detailRow('AI Cost', '<span style="color:var(--mint-fizz);">' + fmtCost(data.totalAiCost) + '</span>');
+      html += detailRow('SMS Cost', fmtCost(smsCost));
+      html += detailRow('Total', '<strong>' + fmtCost(data.totalAiCost + smsCost) + '</strong>');
+      html += detailRow('Generations', data.generations.length);
+      html += '</div>';
+
+      // RSVP Summary
+      var rs = data.rsvpSummary;
+      html += '<div class="detail-section"><h4>RSVPs (' + rs.total + ')</h4>';
+      if (rs.total > 0) {
+        html += detailRow('Attending', rs.attending);
+        html += detailRow('Declined', rs.declined);
+        html += detailRow('Maybe', rs.maybe);
+        html += detailRow('No Response', rs.noResponse);
+
+        // Guest table
+        html += '<div style="margin-top:8px;max-height:200px;overflow-y:auto;border:1px solid #eee;border-radius:8px;">';
+        html += '<table class="ud-table" style="font-size:12px;"><thead><tr><th>Name</th><th>Email / Phone</th><th>Status</th><th>Responded</th></tr></thead><tbody>';
+        data.guests.forEach(function(g) {
+          var gsc = g.status === 'attending' ? 'badge-green' : g.status === 'declined' ? 'badge-red' : g.status === 'maybe' ? 'badge-yellow' : 'badge-gray';
+          html += '<tr><td>' + escapeHtml(g.name || '—') + '</td>';
+          html += '<td>' + escapeHtml(g.email || g.phone || '—') + '</td>';
+          html += '<td><span class="badge ' + gsc + '" style="font-size:10px;">' + escapeHtml(g.status || 'none') + '</span></td>';
+          html += '<td>' + (g.respondedAt ? formatDate(g.respondedAt) : '—') + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+      } else {
+        html += '<p style="color:#aaa;font-size:13px;">No RSVPs yet</p>';
+      }
+      html += '</div>';
+
+      // Custom Fields
+      if (data.customFields && data.customFields.length > 0) {
+        html += '<div class="detail-section"><h4>Custom RSVP Fields</h4>';
+        data.customFields.forEach(function(f) {
+          html += detailRow(escapeHtml(f.label), escapeHtml(f.type) + (f.required ? ' (required)' : ''));
+        });
+        html += '</div>';
+      }
+
+      // Theme Versions
+      if (themes.length > 0) {
+        html += '<div class="detail-section"><h4>Theme Versions (' + themes.length + ')</h4>';
+        html += '<div style="max-height:300px;overflow-y:auto;">';
+        themes.forEach(function(t) {
+          var activeBadge = t.isActive ? ' <span class="badge badge-green" style="font-size:9px;">Active</span>' : '';
+          var ratingStr = t.adminRating ? (t.adminRating + '/5') : 'Unrated';
+          html += '<div style="padding:8px 0;border-bottom:1px solid #f5f5f5;font-size:13px;display:flex;justify-content:space-between;align-items:center;">';
+          html += '<div><strong>v' + t.version + '</strong>' + activeBadge + ' &middot; ' + shortModel(t.model) + ' &middot; ' + ratingStr + '</div>';
+          html += '<div style="color:#aaa;font-size:11px;">' + formatDate(t.createdAt) + '</div>';
+          html += '</div>';
+        });
+        html += '</div></div>';
+      }
+
+      // Chat History
+      if (data.chatHistory && data.chatHistory.length > 0) {
+        html += '<div class="detail-section"><h4>Chat History (' + data.chatHistory.length + ' messages)</h4>';
+        html += '<div style="max-height:400px;overflow-y:auto;border:1px solid #eee;border-radius:8px;padding:12px;background:#fafafa;">';
+        data.chatHistory.forEach(function(msg) {
+          var isUser = msg.role === 'user';
+          var align = isUser ? 'flex-end' : 'flex-start';
+          var bg = isUser ? 'var(--coral)' : '#fff';
+          var color = isUser ? '#fff' : 'var(--midnight)';
+          var border = isUser ? 'none' : '1px solid #eee';
+          var label = isUser ? 'User' : (msg.role === 'assistant' ? 'AI' : msg.role);
+          var phaseTag = msg.phase ? ' <span style="font-size:9px;color:#aaa;">(' + escapeHtml(msg.phase) + ')</span>' : '';
+          html += '<div style="display:flex;justify-content:' + align + ';margin-bottom:8px;">';
+          html += '<div style="max-width:80%;background:' + bg + ';color:' + color + ';border:' + border + ';border-radius:12px;padding:8px 12px;font-size:12px;">';
+          html += '<div style="font-size:10px;font-weight:600;margin-bottom:4px;">' + label + phaseTag + '</div>';
+          // Truncate long messages
+          var content = msg.content || '';
+          if (content.length > 500) content = content.substring(0, 500) + '...';
+          html += '<div style="white-space:pre-wrap;word-break:break-word;">' + escapeHtml(content) + '</div>';
+          html += '</div></div>';
+        });
+        html += '</div></div>';
+      }
+
+      // Generation Log
+      if (data.generations && data.generations.length > 0) {
+        html += '<div class="detail-section"><h4>Generation Log (' + data.generations.length + ')</h4>';
+        html += '<div style="max-height:300px;overflow-y:auto;border:1px solid #eee;border-radius:8px;">';
+        html += '<table class="ud-table" style="font-size:12px;"><thead><tr><th>Type</th><th>Model</th><th>Tokens</th><th>Cost</th><th>Latency</th><th>Date</th></tr></thead><tbody>';
+        data.generations.forEach(function(g) {
+          html += '<tr>';
+          html += '<td><span class="badge ' + (g.promptType === 'theme' ? 'badge-blue' : g.promptType === 'chat' ? 'badge-purple' : 'badge-gray') + '" style="font-size:10px;">' + escapeHtml(g.promptType) + '</span></td>';
+          html += '<td>' + shortModel(g.model) + '</td>';
+          html += '<td>' + ((g.inputTokens || 0) + (g.outputTokens || 0)).toLocaleString() + '</td>';
+          html += '<td style="color:var(--mint-fizz);">' + fmtCost(g.cost) + '</td>';
+          html += '<td>' + (g.latencyMs ? (g.latencyMs / 1000).toFixed(1) + 's' : '—') + '</td>';
+          html += '<td>' + formatDate(g.createdAt) + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div></div>';
+      }
+
+      document.getElementById('eventDetailInfo').innerHTML = html;
+    }
+
+    function detailRow(label, value) {
+      return '<div class="detail-row"><span class="detail-label">' + label + '</span><span class="detail-value">' + value + '</span></div>';
+    }
+
+    function previewEventThemeVersion(themeId) {
+      if (!currentEventDetail) return;
+      var theme = currentEventDetail.themes.find(function(t) { return t.id === themeId; });
+      if (!theme || !theme.html) return;
+      var iframe = document.getElementById('eventDetailPreviewFrame');
+      var fontsImport = (theme.config && theme.config.googleFontsImport) || '';
+      var fullHtml = '<!DOCTYPE html><html><head>'
+        + '<style>' + fontsImport + '</style>'
+        + '<style>' + (theme.css || '') + '</style></head>'
+        + '<body>' + theme.html + '</body></html>';
+      iframe.srcdoc = fullHtml;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+
     function toggleExcludeFromGallery(id, source, exclude) {
       adminFetch('toggleExcludeFromGallery', { method: 'POST', body: { id: id, source: source, exclude: exclude } })
         .then(function() {
@@ -11764,6 +11984,28 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         </div>
       </div>
       <div class="gen-detail-info" id="genDetailInfo"></div>
+    </div>
+  </div>
+  <!-- Event Detail Overlay -->
+  <div class="gen-detail-overlay" id="eventDetailOverlay">
+    <div class="gen-detail-header">
+      <h2 id="eventDetailTitle">Event Details</h2>
+      <button class="style-detail-back" onclick="closeEventDetailView()">Back</button>
+    </div>
+    <div class="gen-detail-body">
+      <div>
+        <div class="phone-mockup">
+          <div class="phone-frame">
+            <div class="phone-notch"></div>
+            <div class="phone-screen">
+              <iframe id="eventDetailPreviewFrame" sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
+            </div>
+            <div class="phone-home-bar"></div>
+          </div>
+        </div>
+        <div id="eventThemeVersions" style="margin-top:16px;"></div>
+      </div>
+      <div class="gen-detail-info" id="eventDetailInfo"></div>
     </div>
   </div>
   <!-- Ad Source Picker Modal -->

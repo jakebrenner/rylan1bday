@@ -556,6 +556,151 @@ export default async function handler(req, res) {
       });
     }
 
+    // ---- ADMIN EVENT DETAIL ----
+    if (action === 'adminEventDetail') {
+      const eventId = req.query.eventId;
+      if (!eventId) return res.status(400).json({ error: 'eventId required' });
+
+      const [eventRes, themesRes, guestsRes, customFieldsRes, generationsRes, chatRes] = await Promise.all([
+        supabaseAdmin.from('events').select('*').eq('id', eventId).single(),
+        supabaseAdmin.from('event_themes').select('id, event_id, version, is_active, html, css, config, model, input_tokens, output_tokens, latency_ms, admin_rating, admin_notes, rated_by, rated_at, prompt_version_id, created_at').eq('event_id', eventId).order('version', { ascending: true }),
+        supabaseAdmin.from('guests').select('*').eq('event_id', eventId).order('created_at', { ascending: false }),
+        supabaseAdmin.from('event_custom_fields').select('*').eq('event_id', eventId).order('sort_order', { ascending: true }),
+        supabaseAdmin.from('generation_log').select('id, event_id, model, input_tokens, output_tokens, prompt, status, latency_ms, created_at').eq('event_id', eventId).eq('status', 'success').order('created_at', { ascending: false }),
+        supabaseAdmin.from('chat_messages').select('id, session_id, role, content, phase, model, input_tokens, output_tokens, created_at').eq('event_id', eventId).order('created_at', { ascending: true })
+      ]);
+
+      const event = eventRes.data;
+      if (!event) return res.status(404).json({ error: 'Event not found' });
+
+      // Get owner profile
+      const { data: ownerProfile } = await supabaseAdmin.from('profiles').select('id, email, display_name, phone').eq('id', event.user_id).single();
+
+      const MODEL_PRICING = {
+        'claude-haiku-4-5-20251001': { input: 1.00, output: 5.00 },
+        'claude-sonnet-4-20250514':  { input: 3.00, output: 15.00 },
+        'claude-sonnet-4-6':         { input: 3.00, output: 15.00 },
+        'claude-opus-4-20250514':    { input: 15.00, output: 75.00 },
+        'claude-opus-4-6':           { input: 15.00, output: 75.00 },
+      };
+
+      let totalAiCost = 0;
+      const generations = (generationsRes.data || []).map(g => {
+        const pricing = MODEL_PRICING[g.model] || { input: 3.00, output: 15.00 };
+        const cost = ((g.input_tokens || 0) * pricing.input + (g.output_tokens || 0) * pricing.output) / 1_000_000;
+        totalAiCost += cost;
+        return {
+          id: g.id,
+          model: g.model,
+          inputTokens: g.input_tokens,
+          outputTokens: g.output_tokens,
+          promptType: g.prompt?.startsWith('prompt_test') ? 'test'
+            : (g.prompt?.startsWith('QM ') || g.prompt?.startsWith('admin:') || g.prompt?.startsWith('blog:') || g.prompt?.startsWith('publish-verify:')) ? 'internal'
+            : g.prompt?.startsWith('chat:') ? 'chat' : 'theme',
+          cost,
+          latencyMs: g.latency_ms,
+          createdAt: g.created_at
+        };
+      });
+
+      // RSVP summary
+      const guests = guestsRes.data || [];
+      const rsvpSummary = { total: guests.length, attending: 0, declined: 0, maybe: 0, noResponse: 0 };
+      guests.forEach(g => {
+        if (g.status === 'attending') rsvpSummary.attending++;
+        else if (g.status === 'declined') rsvpSummary.declined++;
+        else if (g.status === 'maybe') rsvpSummary.maybe++;
+        else rsvpSummary.noResponse++;
+      });
+
+      return res.status(200).json({
+        success: true,
+        event: {
+          id: event.id,
+          userId: event.user_id,
+          title: event.title,
+          description: event.description,
+          eventType: event.event_type,
+          eventDate: event.event_date,
+          endDate: event.end_date,
+          timezone: event.timezone,
+          locationName: event.location_name,
+          locationAddress: event.location_address,
+          locationUrl: event.location_url,
+          dressCode: event.dress_code,
+          maxGuests: event.max_guests,
+          rsvpDeadline: event.rsvp_deadline,
+          slug: event.slug,
+          status: event.status,
+          paymentStatus: event.payment_status,
+          paidAt: event.paid_at,
+          settings: event.settings,
+          createdAt: event.created_at,
+          updatedAt: event.updated_at
+        },
+        owner: ownerProfile ? {
+          id: ownerProfile.id,
+          email: ownerProfile.email,
+          displayName: ownerProfile.display_name,
+          phone: ownerProfile.phone
+        } : null,
+        themes: (themesRes.data || []).map(t => ({
+          id: t.id,
+          version: t.version,
+          isActive: t.is_active,
+          html: t.html,
+          css: t.css,
+          config: t.config,
+          model: t.model,
+          inputTokens: t.input_tokens,
+          outputTokens: t.output_tokens,
+          latencyMs: t.latency_ms,
+          adminRating: t.admin_rating,
+          adminNotes: t.admin_notes,
+          ratedBy: t.rated_by,
+          ratedAt: t.rated_at,
+          promptVersionId: t.prompt_version_id,
+          createdAt: t.created_at
+        })),
+        customFields: (customFieldsRes.data || []).map(f => ({
+          id: f.id,
+          key: f.field_key,
+          label: f.label,
+          type: f.field_type,
+          required: f.is_required,
+          options: f.options,
+          placeholder: f.placeholder,
+          sortOrder: f.sort_order
+        })),
+        rsvpSummary,
+        guests: guests.map(g => ({
+          id: g.id,
+          name: g.name,
+          email: g.email,
+          phone: g.phone,
+          status: g.status,
+          responseData: g.response_data,
+          plusOnes: g.plus_ones,
+          notes: g.notes,
+          respondedAt: g.responded_at,
+          createdAt: g.created_at
+        })),
+        generations,
+        totalAiCost,
+        chatHistory: (chatRes.data || []).map(c => ({
+          id: c.id,
+          sessionId: c.session_id,
+          role: c.role,
+          content: c.content,
+          phase: c.phase,
+          model: c.model,
+          inputTokens: c.input_tokens,
+          outputTokens: c.output_tokens,
+          createdAt: c.created_at
+        }))
+      });
+    }
+
     // ---- GET EVENT RSVPS ----
     if (action === 'eventRsvps') {
       const eventId = req.query.eventId;
