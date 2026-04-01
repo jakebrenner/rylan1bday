@@ -466,14 +466,27 @@ export default async function handler(req, res) {
       const eventId = req.query.eventId;
       if (!eventId) return res.status(400).json({ success: false, error: 'eventId required' });
 
-      const { data: theme, error } = await supabaseAdmin
+      // Try active theme first, fall back to most recent theme
+      let { data: theme, error } = await supabaseAdmin
         .from('event_themes')
         .select('id, html, css, config, version, thankyou_html, is_active')
         .eq('event_id', eventId)
         .eq('is_active', true)
         .single();
 
-      if (error) return res.status(404).json({ success: false, error: 'No active theme found' });
+      if (error || !theme) {
+        // Fall back to latest theme by version
+        const fallback = await supabaseAdmin
+          .from('event_themes')
+          .select('id, html, css, config, version, thankyou_html, is_active')
+          .eq('event_id', eventId)
+          .order('version', { ascending: false })
+          .limit(1)
+          .single();
+        theme = fallback.data;
+      }
+
+      if (!theme) return res.status(404).json({ success: false, error: 'No theme found for this event' });
 
       // Also fetch event details for context
       const { data: event } = await supabaseAdmin
