@@ -342,15 +342,13 @@
     .summary-value { color: #666; font-size: 14px; text-align: right; max-width: 60%; }
 
     /* Step 3: Invite People — Two-Panel Layout */
-    .invite-layout { display: flex; gap: 24px; max-width: 1080px; margin: 0 auto; }
-    .invite-panel { min-width: 0; }
-    .invite-panel-left { flex: 1.2; display: flex; flex-direction: column; gap: 16px; }
-    .invite-panel-right { flex: 1; display: flex; flex-direction: column; gap: 16px; }
+    .invite-layout { display: flex; flex-direction: column; gap: 16px; max-width: 640px; margin: 0 auto; }
     .invite-card { background: white; border: 1px solid #eee; border-radius: 14px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
     .invite-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
     .invite-card-header h3 { font-size: 16px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px; }
     .invite-card-subtitle { font-size: 12px; color: #999; margin: -8px 0 12px; }
-    .invite-card-optional { font-size: 11px; color: #bbb; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+    .invite-card-divider { border: none; border-top: 1px solid #eee; margin: 16px 0; }
+    .invite-card-divider-label { text-align: center; font-size: 12px; color: #bbb; margin: -8px 0 0; font-weight: 500; }
 
     /* Quick Add Form */
     .invite-quick-add { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
@@ -411,51 +409,19 @@
     .pro-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: linear-gradient(135deg, var(--party-coral), var(--party-purple)); color: white; text-transform: uppercase; letter-spacing: 0.5px; }
     .pro-badge.unlocked { background: linear-gradient(135deg, var(--mint-fizz), #2CB5A8); }
 
-    /* SMS Card */
-    .sms-locked { text-align: center; padding: 20px 16px; }
-    .sms-locked svg { margin-bottom: 12px; opacity: 0.4; }
-    .sms-locked p { color: #999; font-size: 13px; margin-bottom: 16px; line-height: 1.5; }
-    .sms-locked .btn { border-radius: 50px; }
-    .sms-unlocked textarea { width: 100%; min-height: 72px; border: 1.5px solid #ddd; border-radius: 10px; padding: 12px; font-family: 'Inter', sans-serif; font-size: 14px; resize: vertical; box-sizing: border-box; transition: border-color 0.2s; }
-    .sms-unlocked textarea:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.08); }
-    .sms-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 11px; color: #999; }
+    /* SMS compose in publish modal */
+    .sms-modal-compose { margin-top: 12px; padding: 14px; background: #f9f9f9; border-radius: 10px; }
+    .sms-modal-compose textarea { width: 100%; min-height: 64px; border: 1.5px solid #ddd; border-radius: 8px; padding: 10px 12px; font-family: 'Inter', sans-serif; font-size: 13px; resize: vertical; box-sizing: border-box; transition: border-color 0.2s; }
+    .sms-modal-compose textarea:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.08); }
+    .sms-modal-meta { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: #999; }
     .sms-char-count { font-weight: 600; }
-    /* Phone bubble SMS preview */
-    .sms-phone-preview { margin-top: 16px; background: #f0f0f0; border-radius: 20px; padding: 16px 12px; max-width: 280px; margin-left: auto; margin-right: auto; position: relative; }
-    .sms-phone-notch { width: 80px; height: 6px; background: #ddd; border-radius: 3px; margin: 0 auto 12px; }
-    .sms-phone-bubble { background: #34C759; color: white; padding: 10px 14px; border-radius: 16px 16px 4px 16px; font-size: 13px; line-height: 1.5; word-break: break-word; }
-    .sms-phone-time { text-align: center; font-size: 10px; color: #aaa; margin-top: 8px; }
-
-    /* Co-Host Section */
-    .cohost-toggle { cursor: pointer; user-select: none; }
-    .cohost-chevron { transition: transform 0.2s; }
-    .cohost-chevron.expanded { transform: rotate(180deg); }
-    .cohost-body { overflow: hidden; transition: max-height 0.3s ease; }
-    .cohost-add { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-    .cohost-add input { flex: 1; min-width: 160px; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; font-family: 'Inter', sans-serif; }
-    .cohost-add input:focus { outline: none; border-color: var(--party-coral); }
-    .cohost-add select { padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; font-family: 'Inter', sans-serif; background: white; cursor: pointer; }
-    .cohost-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #f9f9f9; border-radius: 8px; margin-bottom: 6px; font-size: 13px; }
-    .cohost-item .cohost-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 600; flex-shrink: 0; }
-    .cohost-item .cohost-info { flex: 1; min-width: 0; }
-    .cohost-item .cohost-email { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
-    .cohost-role-badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
-    .cohost-role-badge.editor { background: rgba(167,139,250,0.15); color: var(--party-purple); }
-    .cohost-role-badge.viewer { background: rgba(78,205,196,0.15); color: var(--mint-fizz); }
-    .cohost-status { font-size: 11px; color: #999; }
-    .cohost-status.pending { color: var(--confetti-gold); }
-    .cohost-status.accepted { color: var(--mint-fizz); }
-    .cohost-status.declined { color: var(--party-coral); }
-    .cohost-remove { background: none; border: none; color: #ccc; cursor: pointer; padding: 4px; font-size: 14px; }
-    .cohost-remove:hover { color: var(--party-coral); }
 
     /* Publish Summary on button */
     .publish-summary { font-size: 11px; font-weight: 400; opacity: 0.85; display: block; margin-top: 2px; }
 
     /* Mobile responsive */
     @media (max-width: 768px) {
-      .invite-layout { flex-direction: column; gap: 16px; max-width: none; margin: 0; }
-      .invite-panel-left, .invite-panel-right { flex: none; width: 100%; }
+      .invite-layout { max-width: none; margin: 0; }
       .step[data-step="3"] { padding-top: 16px; padding-bottom: 120px; margin: 0 -20px; padding-left: 16px; padding-right: 16px; }
       .step[data-step="3"] h2 { font-size: 22px; padding: 0; }
       .step[data-step="3"] .step-desc { padding: 0; font-size: 13px; }
@@ -465,8 +431,6 @@
       .invite-quick-add { flex-direction: column; }
       .invite-quick-add input { min-width: 100%; }
       .contact-tags { display: none; }
-      .sms-phone-preview { max-width: 100%; }
-      .cohost-add { flex-direction: column; }
     }
   </style>
 <script src="/js/meta-pixel.js"></script>
@@ -785,9 +749,7 @@
       <p class="step-desc">Add guests to your event — you can always add more later</p>
 
       <div class="invite-layout">
-        <!-- LEFT PANEL: Add Guests -->
-        <div class="invite-panel invite-panel-left">
-          <!-- Quick Add -->
+          <!-- Add Guests (unified card) -->
           <div class="invite-card">
             <div class="invite-card-header">
               <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Guests</h3>
@@ -805,13 +767,10 @@
               <button class="btn btn-primary btn-sm" onclick="addNewGuest()">+ Add</button>
             </div>
             <div id="newGuestMsg" style="display:none;"></div>
-          </div>
 
-          <!-- Contacts -->
-          <div class="invite-card">
-            <div class="invite-card-header">
-              <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> From Contacts</h3>
-            </div>
+            <!-- Divider -->
+            <hr class="invite-card-divider">
+            <div class="invite-card-divider-label">or pick from your contacts</div>
             <div class="contact-search-wrap">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               <input type="text" class="contact-search" id="contactSearch" placeholder="Search by name, email, or phone..." oninput="filterContacts()">
@@ -820,10 +779,7 @@
             <div id="contactListContainer" class="contact-list" style="margin-top:10px;"></div>
             <button id="addSelectedBtn" onclick="addSelectedContacts()" style="margin-top:10px;">Add Selected</button>
           </div>
-        </div>
 
-        <!-- RIGHT PANEL: Guest List + SMS + Co-Hosts -->
-        <div class="invite-panel invite-panel-right">
           <!-- Guest List -->
           <div class="invite-card">
             <div class="invite-card-header">
@@ -834,89 +790,23 @@
               <div class="empty-guests" id="noGuestsMsg">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ddd" stroke-width="1.2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
                 <div style="font-weight:500;">No guests added yet</div>
-                <div style="font-size:12px;margin-top:4px;color:#ccc;">Search contacts or quick add someone</div>
+                <div style="font-size:12px;margin-top:4px;color:#ccc;">Add guests above or search your contacts</div>
               </div>
             </div>
           </div>
-
-          <!-- Co-Hosts (collapsible) -->
-          <div class="invite-card" id="cohostCard">
-            <div class="invite-card-header cohost-toggle" onclick="toggleCohostSection()">
-              <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> Co-Hosts <span class="invite-card-optional">Optional</span></h3>
-              <svg class="cohost-chevron" id="cohostChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-            <div class="cohost-body" id="cohostBody" style="display:none;">
-              <div id="cohostList"></div>
-              <div class="cohost-add">
-                <input type="email" id="cohostEmail" placeholder="Email address">
-                <select id="cohostRole">
-                  <option value="editor">Co-Host (can edit)</option>
-                  <option value="viewer">Viewer (read only)</option>
-                </select>
-                <button class="btn btn-primary btn-sm" onclick="inviteCohost()">Invite</button>
-              </div>
-              <div id="cohostMsg" style="font-size:12px;margin-top:6px;display:none;"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- SMS Message Card (full width, below contact sections) -->
-      <div style="max-width:1080px;margin:16px auto 0;">
-        <div class="invite-card" id="smsCard">
-          <div class="invite-card-header">
-            <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg> SMS Message</h3>
-            <span class="pro-badge" id="smsBadge">PRO</span>
-          </div>
-          <!-- Locked state (free tier) -->
-          <div id="smsLocked" class="sms-locked">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-            <p>Unlock SMS delivery to text your guests directly. Included with your $4.99 event upgrade.</p>
-            <button class="btn btn-primary" onclick="handleDesignChatUpgrade()">Upgrade — $4.99</button>
-          </div>
-          <!-- Unlocked state (paid tier) -->
-          <div id="smsUnlocked" class="sms-unlocked" style="display:none;">
-            <textarea id="sendSmsMessage" placeholder="Hi {name}, you're invited!" oninput="updateSmsPreview()"></textarea>
-            <div class="sms-meta">
-              <span class="sms-char-count" id="smsCharCount">0 chars</span>
-              <span>{name} = guest name &middot; {link} = RSVP link</span>
-            </div>
-            <div class="sms-phone-preview" id="smsPreview">
-              <div class="sms-phone-notch"></div>
-              <div class="sms-phone-bubble" id="smsPreviewBubble">Your SMS preview will appear here</div>
-              <div class="sms-phone-time">Text Message &middot; now</div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- Bottom Action Bar -->
-      <div class="button-group" style="max-width:1080px;margin:24px auto 0;">
+      <div class="button-group" style="max-width:640px;margin:24px auto 0;">
         <button class="btn btn-secondary" onclick="previousStep()">Back to Design</button>
         <button class="btn btn-primary" id="publishBtn" onclick="showPublishModal()" style="flex:2;">Publish</button>
       </div>
 
       <!-- Publish Modal -->
       <div id="sendOptionsModal" onclick="if(event.target===this)closeSendOptions()" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
-        <div style="background:#fff;border-radius:16px;max-width:520px;width:92%;max-height:90vh;overflow-y:auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+        <div style="background:#fff;border-radius:16px;max-width:480px;width:92%;max-height:90vh;overflow-y:auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
           <h3 style="margin:0 0 4px;font-size:20px;color:var(--midnight);">Publish Your Event</h3>
           <p style="margin:0 0 20px;font-size:14px;color:#888;">Your invite will go live — choose how to notify guests</p>
-
-          <!-- Send Now Section -->
-          <div style="font-weight:600;font-size:13px;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Send invites now</div>
-
-          <!-- SMS option -->
-          <label id="sendOptSms" class="send-option" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:2px solid #e0e0e0;border-radius:12px;cursor:pointer;margin-bottom:10px;">
-            <input type="checkbox" id="sendViaSms" onchange="updateSendPreview()" style="margin-top:3px;width:18px;height:18px;accent-color:var(--party-coral);">
-            <div style="flex:1;">
-              <div style="font-weight:600;font-size:15px;color:var(--midnight);">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                SMS Text Message
-              </div>
-              <div id="smsGuestCount" style="font-size:13px;color:#888;margin-top:2px;"></div>
-              <div id="smsMessagePreviewInModal" style="font-size:12px;color:#aaa;margin-top:4px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:300px;"></div>
-            </div>
-          </label>
 
           <!-- Email option -->
           <label id="sendOptEmail" class="send-option" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:2px solid #e0e0e0;border-radius:12px;cursor:pointer;margin-bottom:10px;">
@@ -935,37 +825,30 @@
             A branded email invite will be sent with your event details and a personalized RSVP link.
           </div>
 
+          <!-- SMS option -->
+          <label id="sendOptSms" class="send-option" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:2px solid #e0e0e0;border-radius:12px;cursor:pointer;margin-bottom:10px;">
+            <input type="checkbox" id="sendViaSms" onchange="updateSendPreview()" style="margin-top:3px;width:18px;height:18px;accent-color:var(--party-coral);">
+            <div style="flex:1;">
+              <div style="font-weight:600;font-size:15px;color:var(--midnight);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                SMS Text Message
+                <span class="pro-badge" style="margin-left:6px;font-size:9px;">PRO</span>
+              </div>
+              <div id="smsGuestCount" style="font-size:13px;color:#888;margin-top:2px;"></div>
+            </div>
+          </label>
+
+          <!-- SMS compose (shown when SMS checked + paid) -->
+          <div id="smsComposeInModal" class="sms-modal-compose" style="display:none;">
+            <textarea id="sendSmsMessage" placeholder="Hi {name}, you're invited!" oninput="updateSmsPreview()"></textarea>
+            <div class="sms-modal-meta">
+              <span class="sms-char-count" id="smsCharCount">0 chars</span>
+              <span>{name} = guest name &middot; {link} = RSVP link</span>
+            </div>
+          </div>
+
           <!-- Delivery summary -->
           <div id="sendCostEstimate" style="padding:10px 14px;background:#f8f8f8;border-radius:8px;font-size:13px;color:var(--midnight);display:none;margin-bottom:16px;"></div>
-
-          <!-- Reminders Section -->
-          <div style="border-top:1px solid #eee;padding-top:16px;margin-top:6px;">
-            <div style="font-weight:600;font-size:13px;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Schedule reminders</div>
-
-            <label class="send-option" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:2px solid #e0e0e0;border-radius:12px;cursor:pointer;margin-bottom:8px;" onclick="toggleReminderOption(this)">
-              <input type="checkbox" name="reminder" value="day_before" style="width:18px;height:18px;accent-color:var(--party-coral);">
-              <div style="flex:1;">
-                <div style="font-weight:600;font-size:14px;color:var(--midnight);">Day-before reminder</div>
-                <div style="font-size:12px;color:#888;margin-top:2px;">Remind all guests 24 hours before the event</div>
-              </div>
-            </label>
-
-            <label class="send-option" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:2px solid #e0e0e0;border-radius:12px;cursor:pointer;margin-bottom:8px;" onclick="toggleReminderOption(this)">
-              <input type="checkbox" name="reminder" value="rsvp_nudge" style="width:18px;height:18px;accent-color:var(--party-coral);">
-              <div style="flex:1;">
-                <div style="font-weight:600;font-size:14px;color:var(--midnight);">RSVP nudge</div>
-                <div style="font-size:12px;color:#888;margin-top:2px;">Remind guests who haven't responded (3 days before)</div>
-              </div>
-            </label>
-
-            <label class="send-option" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:2px solid #e0e0e0;border-radius:12px;cursor:pointer;margin-bottom:8px;" onclick="toggleReminderOption(this)">
-              <input type="checkbox" name="reminder" value="week_before" style="width:18px;height:18px;accent-color:var(--party-coral);">
-              <div style="flex:1;">
-                <div style="font-weight:600;font-size:14px;color:var(--midnight);">Week-before heads up</div>
-                <div style="font-size:12px;color:#888;margin-top:2px;">Send a friendly heads up 7 days before</div>
-              </div>
-            </label>
-          </div>
 
           <!-- Action Buttons -->
           <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;">
@@ -7296,11 +7179,8 @@
       }
     }
 
-    var allCohosts = [];
-
     async function loadContactsForInvite() {
       var loadGuests = currentEvent && addedGuests.length === 0;
-      var loadCohosts = !!currentEvent;
 
       try {
         // Build fetches with named keys
@@ -7310,9 +7190,6 @@
         };
         if (loadGuests) {
           fetchMap.guests = authFetch('/api/v2/events?action=rsvps&eventId=' + currentEvent.id);
-        }
-        if (loadCohosts) {
-          fetchMap.cohosts = authFetch('/api/v2/cohost?action=list&eventId=' + currentEvent.id);
         }
 
         var keys = Object.keys(fetchMap);
@@ -7330,10 +7207,6 @@
             return { id: g.id, serverId: g.id, name: g.name, email: g.email, phone: g.phone, contactId: g.contactId };
           });
         }
-
-        if (dataMap.cohosts && dataMap.cohosts.success) {
-          allCohosts = (dataMap.cohosts.collaborators || []).concat(dataMap.cohosts.pending || []);
-        }
       } catch (e) {
         allContacts = [];
         allTags = [];
@@ -7341,8 +7214,6 @@
       renderTagFilters();
       filterContacts();
       renderGuestList();
-      updateSmsCard();
-      renderCohosts();
       updatePublishButton();
       checkContactPickerSupport();
     }
@@ -7744,157 +7615,13 @@
     }
 
     // ── SMS Card ──
-    function updateSmsCard() {
-      var ps = currentEvent ? currentEvent.paymentStatus : 'unpaid';
-      var isPaid = (ps === 'paid');
-      var locked = document.getElementById('smsLocked');
-      var unlocked = document.getElementById('smsUnlocked');
-      var badge = document.getElementById('smsBadge');
-
-      if (isPaid) {
-        locked.style.display = 'none';
-        unlocked.style.display = '';
-        badge.textContent = 'ACTIVE';
-        badge.className = 'pro-badge unlocked';
-        // Set default SMS message if empty
-        var msgEl = document.getElementById('sendSmsMessage');
-        if (!msgEl.value) {
-          var title = (currentEvent && currentEvent.title) || (extractedData && extractedData.title) || 'our event';
-          msgEl.value = 'Hi {name}, you\'re invited to ' + title + '! RSVP here: {link}';
-        }
-        updateSmsPreview();
-      } else {
-        locked.style.display = '';
-        unlocked.style.display = 'none';
-        badge.textContent = 'PRO';
-        badge.className = 'pro-badge';
-      }
-    }
-
     function updateSmsPreview() {
       var msgEl = document.getElementById('sendSmsMessage');
       var charCount = document.getElementById('smsCharCount');
-      var bubble = document.getElementById('smsPreviewBubble');
-      if (!msgEl) return;
+      if (!msgEl || !charCount) return;
 
       var msg = msgEl.value || '';
       charCount.textContent = msg.length + ' chars' + (msg.length > 160 ? ' (2 SMS)' : '');
-
-      // Resolve placeholders for preview
-      var sampleName = addedGuests.length > 0 ? addedGuests[0].name : 'Sarah';
-      var preview = msg.replace(/\{name\}/g, sampleName).replace(/\{link\}/g, 'ryvite.com/r/abc123');
-      bubble.textContent = preview || 'Your SMS preview will appear here';
-    }
-
-    // ── Co-Host Section ──
-    function toggleCohostSection() {
-      var body = document.getElementById('cohostBody');
-      var chevron = document.getElementById('cohostChevron');
-      if (body.style.display === 'none') {
-        body.style.display = '';
-        chevron.classList.add('expanded');
-      } else {
-        body.style.display = 'none';
-        chevron.classList.remove('expanded');
-      }
-    }
-
-    function renderCohosts() {
-      var container = document.getElementById('cohostList');
-      if (!container) return;
-      if (!allCohosts.length) {
-        container.innerHTML = '<div style="font-size:13px;color:#bbb;padding:8px 0;">No co-hosts yet</div>';
-        return;
-      }
-      container.innerHTML = allCohosts.map(function(ch) {
-        var name = ch.name || ch.email || 'Invited';
-        var email = ch.email || '';
-        var role = ch.role || 'editor';
-        var status = ch.status || ch.accepted_at ? 'accepted' : 'pending';
-        if (ch.status === 'declined') status = 'declined';
-        if (ch.accepted_at) status = 'accepted';
-        var statusLabel = status === 'accepted' ? 'Joined' : status === 'declined' ? 'Declined' : 'Pending';
-        var id = ch.id || ch.invitation_id || '';
-        var type = ch.user_id ? 'collaborator' : 'invitation';
-
-        return '<div class="cohost-item">'
-          + '<div class="cohost-avatar" style="background:' + getAvatarGradient(name) + ';">' + getInitials(name) + '</div>'
-          + '<div class="cohost-info">'
-          + '<span class="cohost-email">' + escapeHtml(email || name) + '</span>'
-          + '</div>'
-          + '<span class="cohost-role-badge ' + role + '">' + (role === 'editor' ? 'Co-Host' : 'Viewer') + '</span>'
-          + '<span class="cohost-status ' + status + '">' + statusLabel + '</span>'
-          + '<button class="cohost-remove" onclick="removeCohost(\'' + id + '\',\'' + type + '\')" title="Remove">&times;</button>'
-          + '</div>';
-      }).join('');
-    }
-
-    async function inviteCohost() {
-      var emailEl = document.getElementById('cohostEmail');
-      var roleEl = document.getElementById('cohostRole');
-      var msgEl = document.getElementById('cohostMsg');
-      var email = (emailEl.value || '').trim();
-      var role = roleEl.value;
-
-      if (!email || !email.includes('@')) {
-        msgEl.textContent = 'Please enter a valid email';
-        msgEl.style.color = '#E94560';
-        msgEl.style.display = 'block';
-        return;
-      }
-      if (!currentEvent) {
-        msgEl.textContent = 'Event not created yet';
-        msgEl.style.color = '#E94560';
-        msgEl.style.display = 'block';
-        return;
-      }
-
-      msgEl.textContent = 'Inviting...';
-      msgEl.style.color = '#666';
-      msgEl.style.display = 'block';
-
-      try {
-        var res = await authFetch('/api/v2/cohost?action=invite', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventId: currentEvent.id, email: email, role: role })
-        });
-        var result = await res.json();
-        if (result.success) {
-          allCohosts.push({ email: email, role: role, status: 'pending', invitation_id: result.invitationId || '' });
-          emailEl.value = '';
-          msgEl.textContent = 'Invitation sent!';
-          msgEl.style.color = 'var(--mint-fizz)';
-          setTimeout(function() { msgEl.style.display = 'none'; }, 2500);
-          renderCohosts();
-          if (window.RyviteGA) {
-            RyviteGA.trackEvent('cohost_invited', { event_id: currentEvent.id, cohost_role: role });
-          }
-        } else {
-          msgEl.textContent = result.error || 'Failed to invite';
-          msgEl.style.color = '#E94560';
-        }
-      } catch (e) {
-        msgEl.textContent = 'Network error — try again';
-        msgEl.style.color = '#E94560';
-      }
-    }
-
-    async function removeCohost(id, type) {
-      if (!currentEvent || !id) return;
-      try {
-        await authFetch('/api/v2/cohost?action=remove', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventId: currentEvent.id, id: id, type: type })
-        });
-        allCohosts = allCohosts.filter(function(ch) {
-          return (ch.id || ch.invitation_id) !== id;
-        });
-        renderCohosts();
-      } catch (e) {
-        showMessage('Error removing co-host', 'error');
-      }
     }
 
     // ── Publish Button ──
@@ -8005,8 +7732,6 @@
         });
         var result = await res.json();
         if (result.success) {
-          // Schedule any selected reminders
-          await scheduleReminders();
           // Track Purchase (event published) with Meta Pixel
           if (window.RyvitePixel) {
             var isPaid = currentEvent.paymentStatus === 'paid';
@@ -8053,18 +7778,12 @@
       document.getElementById('smsGuestCount').textContent = smsCount + ' of ' + totalGuests + ' guest' + (totalGuests !== 1 ? 's' : '') + ' have a phone number';
       document.getElementById('emailGuestCount').textContent = emailCount + ' of ' + totalGuests + ' guest' + (totalGuests !== 1 ? 's' : '') + ' have an email';
 
-      // Default SMS message (set on the main page, not in modal)
+      // Default SMS message
       var title = (currentEvent && currentEvent.title) || (extractedData && extractedData.title) || 'our event';
       var msgEl = document.getElementById('sendSmsMessage');
-      if (!msgEl.value) {
+      if (msgEl && !msgEl.value) {
         msgEl.value = 'Hi {name}, you\'re invited to ' + title + '! RSVP here: {link}';
-      }
-
-      // Show SMS message preview snippet in modal
-      var smsPreviewInModal = document.getElementById('smsMessagePreviewInModal');
-      if (smsPreviewInModal && msgEl.value) {
-        var preview = msgEl.value.substring(0, 60) + (msgEl.value.length > 60 ? '...' : '');
-        smsPreviewInModal.textContent = '"' + preview + '"';
+        updateSmsPreview();
       }
 
       // Configure SMS option
@@ -8083,6 +7802,7 @@
         smsOpt.style.cursor = 'not-allowed';
         smsOpt.style.borderColor = '#e0e0e0';
         smsOpt.style.background = 'transparent';
+        document.getElementById('smsComposeInModal').style.display = 'none';
         if (smsLocked && smsCount > 0) {
           var badge = document.createElement('div');
           badge.className = 'sms-upgrade-badge';
@@ -8097,6 +7817,7 @@
         smsOpt.style.cursor = 'pointer';
         smsOpt.style.borderColor = 'var(--party-coral)';
         smsOpt.style.background = 'rgba(233,69,96,0.04)';
+        document.getElementById('smsComposeInModal').style.display = '';
       }
 
       // Configure Email option
@@ -8128,55 +7849,20 @@
       document.getElementById('sendOptionsModal').style.display = 'none';
     }
 
-    function toggleReminderOption(label) {
-      // Let the checkbox toggle naturally, then style the border
-      setTimeout(function() {
-        var cb = label.querySelector('input[type="checkbox"]');
-        label.style.borderColor = cb.checked ? 'var(--party-coral)' : '#e0e0e0';
-        label.style.background = cb.checked ? 'rgba(233,69,96,0.04)' : 'transparent';
-      }, 10);
-    }
-
-    function getSelectedReminders() {
-      var reminders = [];
-      var checkboxes = document.querySelectorAll('#sendOptionsModal input[name="reminder"]:checked');
-      var title = (currentEvent && currentEvent.title) || (extractedData && extractedData.title) || 'the event';
-      checkboxes.forEach(function(cb) {
-        var val = cb.value;
-        if (val === 'day_before') {
-          reminders.push({ offsetMinutes: -1440, message: 'Hi {name}, just a reminder — ' + title + ' is tomorrow! See you there. {link}', channel: 'sms' });
-        } else if (val === 'rsvp_nudge') {
-          reminders.push({ offsetMinutes: -4320, message: 'Hi {name}, we haven\'t heard from you yet! Can you RSVP for ' + title + '? {link}', channel: 'sms', recipientFilter: 'not_responded' });
-        } else if (val === 'week_before') {
-          reminders.push({ offsetMinutes: -10080, message: 'Hi {name}, heads up — ' + title + ' is in one week! Make sure to RSVP: {link}', channel: 'sms' });
-        }
-      });
-      return reminders;
-    }
-
-    async function scheduleReminders() {
-      var reminders = getSelectedReminders();
-      if (reminders.length === 0 || !currentEvent) return;
-      try {
-        await authFetch('/api/v2/sms?action=saveReminders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventId: currentEvent.id, reminders: reminders })
-        });
-      } catch (e) {
-        // Non-critical — don't block publish
-        console.warn('Failed to schedule reminders:', e);
-      }
-    }
 
     function updateSendPreview() {
       var smsChecked = document.getElementById('sendViaSms').checked;
       var emailChecked = document.getElementById('sendViaEmail').checked;
       var emailTemplate = document.getElementById('emailTemplateSection');
       var costEl = document.getElementById('sendCostEstimate');
+      var smsCompose = document.getElementById('smsComposeInModal');
 
-      // SMS message is now on the main page, not in modal — no template to toggle
       emailTemplate.style.display = emailChecked ? 'block' : 'none';
+
+      // Show/hide SMS compose based on checkbox state
+      if (smsCompose) {
+        smsCompose.style.display = (smsChecked && !document.getElementById('sendViaSms').disabled) ? '' : 'none';
+      }
 
       // Style option borders based on checked state
       var smsOpt = document.getElementById('sendOptSms');
@@ -8306,10 +7992,6 @@
             }
           } catch (e) { errors.push('Email: network error'); }
         }
-
-        // Step 4: Schedule reminders if any selected
-        btn.textContent = 'Finishing up...';
-        await scheduleReminders();
 
         // Track event_published for free publish path
         if (window.RyviteGA) {
@@ -8685,8 +8367,7 @@
         currentEvent.freeRedoUsed = false;
       }
 
-      // Unlock SMS card and update publish button if on step 3
-      updateSmsCard();
+      // Update publish button if on step 3
       updatePublishButton();
 
       // Verify session server-side (ensures DB has payment_status='paid' before replay)
