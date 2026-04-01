@@ -54,7 +54,7 @@
     .btn-secondary:hover { background: #e0e0e0; }
     .btn-sm { padding: 6px 14px; font-size: 12px; }
     .button-group { display: flex; gap: 12px; margin-top: 40px; flex-wrap: wrap; }
-    .button-group .btn { flex: 1; min-width: 0; white-space: nowrap; font-size: 15px; padding: 16px 24px; border-radius: 12px; }
+    .button-group .btn { flex: 1; min-width: 0; white-space: nowrap; font-size: 15px; padding: 16px 24px; border-radius: 12px; overflow: hidden; text-overflow: ellipsis; }
     @media (max-width: 640px) {
       .button-group { gap: 10px; }
       .button-group .btn { font-size: 14px; padding: 14px 20px; }
@@ -798,8 +798,8 @@
 
       <!-- Bottom Action Bar -->
       <div class="button-group" style="max-width:640px;margin:24px auto 0;">
-        <button class="btn btn-secondary" onclick="previousStep()">Back to Design</button>
-        <button class="btn btn-primary" id="publishBtn" onclick="showPublishModal()" style="flex:2;">Publish</button>
+        <button class="btn btn-secondary" onclick="previousStep()" style="flex:none;padding:14px 24px;">Back to Design</button>
+        <button class="btn btn-primary" id="publishBtn" onclick="showPublishModal()" style="flex:1;">Publish</button>
       </div>
 
       <!-- Publish Modal -->
@@ -7795,20 +7795,29 @@
       var oldBadge = smsOpt.querySelector('.sms-upgrade-badge');
       if (oldBadge) oldBadge.remove();
 
+      // Remove previous click handler if any
+      smsOpt.removeAttribute('data-upgrade-click');
+      smsOpt.onclick = null;
+
       if (smsLocked || smsCount === 0) {
         smsCheck.checked = false;
         smsCheck.disabled = true;
-        smsOpt.style.opacity = '0.5';
-        smsOpt.style.cursor = 'not-allowed';
         smsOpt.style.borderColor = '#e0e0e0';
         smsOpt.style.background = 'transparent';
         document.getElementById('smsComposeInModal').style.display = 'none';
         if (smsLocked && smsCount > 0) {
+          // Make entire SMS block clickable to open upgrade
+          smsOpt.style.opacity = '0.7';
+          smsOpt.style.cursor = 'pointer';
+          smsOpt.onclick = function(e) { e.preventDefault(); e.stopPropagation(); handleDesignChatUpgrade(); };
           var badge = document.createElement('div');
           badge.className = 'sms-upgrade-badge';
-          badge.innerHTML = '<span style="font-size:11px;color:var(--party-coral);font-weight:600;cursor:pointer;" onclick="event.preventDefault();event.stopPropagation();handleDesignChatUpgrade();">Upgrade to unlock SMS &rarr;</span>';
+          badge.innerHTML = '<span style="font-size:12px;color:var(--party-coral);font-weight:600;">Upgrade to unlock SMS &rarr;</span>';
           badge.style.marginTop = '4px';
           smsOpt.querySelector('div').appendChild(badge);
+        } else {
+          smsOpt.style.opacity = '0.5';
+          smsOpt.style.cursor = 'not-allowed';
         }
       } else {
         smsCheck.checked = true;
