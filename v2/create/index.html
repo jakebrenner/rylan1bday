@@ -3232,8 +3232,40 @@
             if (currentEvent && currentEvent.paymentStatus === 'free') {
               currentEvent.freeGenerationUsed = true;
             }
+            var themeId = genResult.theme.id;
+            if (themeId === 'pending') {
+              themeId = 'pending-' + Date.now();
+              console.warn('[generate] Theme save failed server-side, id is pending. Will retry save.');
+              // Retry saving the theme to the database
+              (async function() {
+                try {
+                  var saveRes = await authFetch('/api/v2/events?action=saveTheme', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      eventId: currentEvent.id,
+                      html: genResult.theme.html,
+                      css: genResult.theme.css,
+                      config: genResult.theme.config,
+                      version: genResult.theme.version || 1
+                    })
+                  });
+                  var saveData = await saveRes.json();
+                  if (saveData.success && saveData.themeId) {
+                    // Update the pending ID with the real one
+                    for (var vi = 0; vi < themeVersions.length; vi++) {
+                      if (themeVersions[vi].id === themeId) {
+                        themeVersions[vi].id = saveData.themeId;
+                        break;
+                      }
+                    }
+                    console.log('[generate] Theme retry save succeeded, new id:', saveData.themeId);
+                  }
+                } catch (e) { console.warn('[generate] Theme retry save failed:', e.message); }
+              })();
+            }
             var ver = {
-              id: genResult.theme.id,
+              id: themeId,
               version: genResult.theme.version,
               html: genResult.theme.html,
               css: genResult.theme.css,
