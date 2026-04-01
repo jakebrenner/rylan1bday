@@ -1084,9 +1084,16 @@
         </div>
         <div class="config-row" style="margin-top:16px;">
           <div class="config-field">
+            <label for="freeAiGenerationsInput">Free AI Generations Per Event</label>
+            <input type="number" id="freeAiGenerationsInput" min="1" max="10" step="1" value="2"
+              oninput="var s=document.getElementById('pricingSummary');if(s)s.textContent='Free tier ('+this.value+' AI design'+(this.value>1?'s':'')+'/event) + $4.99/event premium';"
+              style="width:120px;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+            <div class="hint">Total number of AI design generations each free event receives. Users must upgrade to $4.99 for unlimited designs beyond this limit.</div>
+          </div>
+          <div class="config-field">
             <label>Pricing Model</label>
-            <div style="padding:10px 14px;background:#f9f9f9;border-radius:6px;font-size:14px;color:var(--midnight);">
-              Free tier (1 event) + $4.99/event premium
+            <div id="pricingSummary" style="padding:10px 14px;background:#f9f9f9;border-radius:6px;font-size:14px;color:var(--midnight);">
+              Free tier (2 AI designs/event) + $4.99/event premium
             </div>
             <div class="hint">Revenue is tracked from actual payments. Profitability = Revenue &minus; API costs per event.</div>
           </div>
@@ -3967,6 +3974,11 @@
           document.getElementById('themeModelSelect').value = res.config.themeModel;
           var smsCostInput = document.getElementById('smsCostCentsInput');
           if (smsCostInput) smsCostInput.value = res.config.smsCostCents || 3;
+          var freeGenInput = document.getElementById('freeAiGenerationsInput');
+          var freeGenVal = res.config.freeAiGenerations || 2;
+          if (freeGenInput) freeGenInput.value = freeGenVal;
+          var pricingSummary = document.getElementById('pricingSummary');
+          if (pricingSummary) pricingSummary.textContent = 'Free tier (' + freeGenVal + ' AI design' + (freeGenVal > 1 ? 's' : '') + '/event) + $4.99/event premium';
         }
       } catch (err) {
         console.error('Failed to load config:', err);
@@ -3984,7 +3996,8 @@
           body: {
             chatModel: document.getElementById('chatModelSelect').value,
             themeModel: document.getElementById('themeModelSelect').value,
-            smsCostCents: parseInt(document.getElementById('smsCostCentsInput').value) || 3
+            smsCostCents: parseInt(document.getElementById('smsCostCentsInput').value) || 3,
+            freeAiGenerations: parseInt(document.getElementById('freeAiGenerationsInput').value) || 2
           }
         });
         var saved = document.getElementById('configSaved');
