@@ -2832,7 +2832,8 @@ This is the most common failure mode. Double-check it.`;
           .from('event_themes').insert(genInsert).select().single());
       }
       if (themeError) {
-        console.error('Failed to save theme:', themeError.message);
+        console.error('Failed to save theme:', themeError.message, 'eventId:', eventId, 'insert keys:', Object.keys(genInsert).join(','));
+        contentWarnings.push('theme_save_failed');
       } else if (newTheme) {
         savedThemeId = newTheme.id;
         savedThemeVersion = newTheme.version;

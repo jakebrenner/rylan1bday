@@ -293,6 +293,275 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, incidentId: incident.id });
   }
 
+  // ── FIX USER-REPORTED ISSUE (synchronous — user is waiting) ──
+  if (action === 'fixUserReportedIssue' && req.method === 'POST') {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { eventId, eventThemeId, userDescription, themeSnapshot, validationResults, cssIssues, attemptNumber, designChatHistory: chatHistory } = req.body;
+    if (!eventId || !userDescription) {
+      return res.status(400).json({ error: 'eventId and userDescription are required' });
+    }
+
+    try { // Outer try/catch — ensures we always return JSON, never a 500 plain text error
+
+    const fixModel = 'claude-sonnet-4-6';
+    const startTime = Date.now();
+
+    // Log incident
+    const clientMeta = getClientMeta(req);
+    const { data: incident } = await supabase
+      .from('quality_incidents')
+      .insert({
+        event_id: eventId,
+        event_theme_id: eventThemeId || null,
+        user_id: user.id,
+        trigger_type: 'user_complaint',
+        trigger_data: { userDescription, attemptNumber: attemptNumber || 1, cssIssues: cssIssues || [] },
+        theme_snapshot: themeSnapshot || null,
+        validation_results: validationResults || null,
+        client_meta: clientMeta,
+        resolution_type: 'unresolved'
+      })
+      .select('id')
+      .single()
+      .catch(e => {
+        console.error('[quality-monitor] User complaint incident insert failed:', e.message);
+        return { data: null };
+      });
+
+    // Fetch event details
+    const { data: event } = await supabase
+      .from('events')
+      .select('title, event_date, event_type, location_name')
+      .eq('id', eventId)
+      .single();
+
+    const htmlContent = themeSnapshot?.html || '';
+    const cssContent = themeSnapshot?.css || '';
+    const configContent = themeSnapshot?.config || {};
+    const cssIssuesList = (cssIssues || []).join(', ') || 'none detected';
+    const attemptNum = attemptNumber || 1;
+
+    try {
+      const resp = await client.messages.create({
+        model: fixModel,
+        max_tokens: 16000,
+        system: `You are a CSS/HTML expert fixing display issues in AI-generated event invitations.
+The user has reported a visual problem. You have their invite's full HTML and CSS.
+
+STRUCTURAL RULES (do NOT violate):
+- MUST keep: <div class="rsvp-slot"></div>, <div class="details-slot"></div>, element with data-field="title"
+- MUST keep: all existing text content and structural elements
+- CSS @import for Google Fonts MUST be the very first line of CSS
+- Mobile-first: designed for 393px viewport width
+- No <script> tags, no external resources except Google Fonts
+- All animations must be CSS-only (no JS)
+
+REPAIR APPROACH:
+- Prefer minimal CSS changes over full rewrites
+- If the issue is purely visual (contrast, visibility, positioning), fix ONLY the CSS
+- If the issue is structural (missing elements, broken HTML), fix both HTML and CSS
+- Preserve the overall design aesthetic — only change what's broken`,
+        messages: [{ role: 'user', content: `The user reported this issue with their ${event?.event_type || 'event'} invite ("${event?.title || 'Untitled'}"):
+
+USER COMPLAINT: "${userDescription}"
+${attemptNum > 1 ? `\nThis is attempt #${attemptNum} — previous fix attempts did not resolve the issue. Try a different approach.` : ''}
+
+Automated validation detected these CSS issues: ${cssIssuesList}
+
+Current theme HTML:
+${htmlContent}
+
+Current theme CSS:
+${cssContent}
+
+Current config: ${JSON.stringify(configContent)}
+
+Return a JSON object (no markdown fences):
+{
+  "fixed": true,
+  "html": "the complete fixed HTML (include ALL content, not just changed parts)",
+  "css": "the complete fixed CSS (include @import on first line if needed)",
+  "config": { "backgroundColor": "...", "textColor": "...", "fontBody": "...", "fontHeadline": "...", "primaryColor": "...", "googleFontsImport": "..." },
+  "explanation": "Brief explanation of what was fixed (1-2 sentences, user-friendly)"
+}
+
+If the issue is unfixable without a complete redesign, return:
+{
+  "fixed": false,
+  "explanation": "Why this can't be fixed with a patch",
+  "suggestion": "What to tell the user"
+}` }]
+      });
+
+      const fixTokens = {
+        input: resp.usage?.input_tokens || 0,
+        output: resp.usage?.output_tokens || 0
+      };
+
+      // Parse response
+      const rawText = resp.content[0]?.text?.trim() || '';
+      const cleaned = rawText.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
+      let fixResult;
+      try {
+        fixResult = JSON.parse(cleaned);
+      } catch (parseErr) {
+        // Try to extract JSON from the response
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          fixResult = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('Could not parse AI response as JSON');
+        }
+      }
+
+      // Log to generation_log for cost tracking
+      await supabase.from('generation_log').insert({
+        event_id: eventId,
+        user_id: user.id,
+        prompt: 'Support fix (user_complaint): ' + userDescription.substring(0, 200),
+        model: fixModel,
+        input_tokens: fixTokens.input,
+        output_tokens: fixTokens.output,
+        latency_ms: Date.now() - startTime,
+        status: fixResult.fixed ? 'success' : 'failed',
+        is_tweak: true,
+        event_type: event?.event_type || ''
+      }).catch(e => console.error('[quality-monitor] Support fix generation_log failed:', e.message));
+
+      // Track cost
+      const fixCostCents = calcCost(fixModel, fixTokens.input, fixTokens.output);
+      if (eventId) {
+        await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: fixCostCents }).catch(() => {});
+      }
+
+      if (!fixResult.fixed) {
+        // Update incident as escalated
+        if (incident?.id) {
+          await supabase.from('quality_incidents').update({
+            ai_diagnosis: fixResult.explanation || 'Could not fix',
+            ai_diagnosis_model: fixModel,
+            diagnosis_tokens: fixTokens,
+            resolution_type: 'escalated'
+          }).eq('id', incident.id);
+        }
+
+        return res.status(200).json({
+          success: true,
+          fixed: false,
+          diagnosis: fixResult.explanation,
+          message: fixResult.suggestion || "I wasn't able to fix this issue automatically."
+        });
+      }
+
+      // Validate the fixed output
+      const fixedHtml = fixResult.html || htmlContent;
+      const fixedCss = fixResult.css || cssContent;
+      const fixedConfig = fixResult.config || configContent;
+
+      const hasRsvp = fixedHtml.includes('rsvp-slot');
+      const hasDetails = fixedHtml.includes('details-slot');
+      const hasTitle = fixedHtml.includes('data-field="title"') || fixedHtml.includes("data-field='title'");
+      const healCssIssues = validateHealedCss(fixedHtml, fixedCss);
+
+      if (!hasRsvp || !hasDetails || !hasTitle || healCssIssues.length > 0) {
+        console.warn('[quality-monitor] Support fix failed validation:', { hasRsvp, hasDetails, hasTitle, healCssIssues });
+        if (incident?.id) {
+          await supabase.from('quality_incidents').update({
+            ai_diagnosis: 'Fix generated but failed validation: ' + healCssIssues.join(', '),
+            ai_diagnosis_model: fixModel,
+            resolution_type: 'escalated'
+          }).eq('id', incident.id);
+        }
+        return res.status(200).json({
+          success: true,
+          fixed: false,
+          diagnosis: 'The fix I generated had some issues of its own. Let me try a different approach.',
+          message: 'The AI fix had validation issues — try describing the problem differently.'
+        });
+      }
+
+      // Save as new theme version
+      const { data: existingThemes } = await supabase
+        .from('event_themes').select('version').eq('event_id', eventId)
+        .order('version', { ascending: false }).limit(1);
+      const nextVersion = existingThemes?.length > 0 ? existingThemes[0].version + 1 : 1;
+
+      await supabase.from('event_themes').update({ is_active: false })
+        .eq('event_id', eventId).eq('is_active', true);
+
+      const { data: newTheme, error: themeErr } = await supabase
+        .from('event_themes').insert({
+          event_id: eventId, version: nextVersion, is_active: true,
+          html: fixedHtml, css: fixedCss, config: fixedConfig,
+          model: fixModel,
+          input_tokens: fixTokens.input, output_tokens: fixTokens.output,
+          latency_ms: Date.now() - startTime,
+          prompt: 'Support fix: ' + userDescription.substring(0, 500)
+        }).select('id').single();
+
+      if (themeErr) {
+        console.error('[quality-monitor] Support fix theme save failed:', themeErr.message);
+        return res.status(200).json({
+          success: true,
+          fixed: false,
+          diagnosis: 'Fixed the issue but failed to save — please try again.',
+          message: 'Save error'
+        });
+      }
+
+      // Update incident as resolved
+      if (incident?.id) {
+        await supabase.from('quality_incidents').update({
+          ai_diagnosis: fixResult.explanation,
+          ai_diagnosis_model: fixModel,
+          diagnosis_tokens: fixTokens,
+          resolution_type: 'auto_healed',
+          resolution_data: {
+            new_theme_id: newTheme.id, model_used: fixModel,
+            action_taken: 'user_reported_fix', userDescription,
+            latencyMs: Date.now() - startTime
+          },
+          resolved_at: new Date().toISOString()
+        }).eq('id', incident.id);
+      }
+
+      return res.status(200).json({
+        success: true,
+        fixed: true,
+        theme: { id: newTheme.id, html: fixedHtml, css: fixedCss, config: fixedConfig, version: nextVersion },
+        diagnosis: fixResult.explanation,
+        message: fixResult.explanation
+      });
+
+    } catch (aiErr) {
+      console.error('[quality-monitor] Support fix AI call failed:', aiErr.message);
+      if (incident?.id) {
+        await supabase.from('quality_incidents').update({
+          ai_diagnosis: 'AI fix call failed: ' + aiErr.message,
+          resolution_type: 'escalated'
+        }).eq('id', incident.id);
+      }
+      return res.status(200).json({
+        success: true,
+        fixed: false,
+        diagnosis: 'I ran into an issue trying to fix this. Let me escalate to the team.',
+        message: aiErr.message
+      });
+    }
+
+    } catch (outerErr) { // Outer catch — prevents Vercel from returning a generic 500 plain text error
+      console.error('[quality-monitor] fixUserReportedIssue outer error:', outerErr);
+      return res.status(200).json({
+        success: true,
+        fixed: false,
+        diagnosis: "I ran into a technical issue. Can you try describing the problem differently?",
+        message: outerErr.message || 'Internal error'
+      });
+    }
+  }
+
   return res.status(400).json({ error: 'Unknown action: ' + action });
 }
 
