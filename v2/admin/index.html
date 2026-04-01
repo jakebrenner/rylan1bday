@@ -10197,7 +10197,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         }).then(function(r) { return r.json(); });
 
         if (!themeRes.success || !themeRes.theme) {
-          resultDiv.innerHTML = '<div style="padding:12px;background:#fff0f0;border:1px solid #ffc0c0;border-radius:8px;color:#c00;font-size:13px;">No active theme found for this event.</div>';
+          resultDiv.innerHTML = '<div style="padding:12px;background:#fffbf0;border:1px solid #ffe0a0;border-radius:8px;color:#856404;font-size:13px;">No theme found in the database for this event. The user may still be creating their invite, or the theme failed to save.</div>';
           btn.disabled = false;
           btn.innerHTML = '<span style="margin-right:4px;">&#x2728;</span> Run AI Fix';
           return;
@@ -10274,7 +10274,13 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           }).then(function(r) { return r.json(); });
 
           if (!themeRes.success || !themeRes.theme) {
-            editorDiv.innerHTML = '<p style="color:#c00;font-size:13px;">No active theme found.</p>';
+            editorDiv.innerHTML = '<div style="padding:16px;background:#fffbf0;border:1px solid #ffe0a0;border-radius:8px;">'
+              + '<p style="margin:0 0 8px;font-weight:600;color:#856404;font-size:14px;">No theme found for this event</p>'
+              + '<p style="margin:0;font-size:13px;color:#666;">This event doesn\'t have any generated themes in the database yet. '
+              + 'The user may have been in the middle of creating their invite when they requested help, '
+              + 'or the theme generation may have failed to save.</p>'
+              + '<p style="margin:8px 0 0;font-size:13px;color:#666;">You can reply to the user asking them to try regenerating their invite, '
+              + 'or ask them to share a screenshot of what they see.</p></div>';
             return;
           }
           _currentSupportTheme = themeRes.theme;
@@ -10364,7 +10370,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       btn.textContent = 'Saving...';
 
       try {
-        var payload = { themeId: themeId };
+        var payload = { themeId: themeId, eventId: _currentSupportEventId };
         // Send all editable fields
         payload.html = _currentSupportTheme.html;
         payload.css = _currentSupportTheme.css;

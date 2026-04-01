@@ -8789,6 +8789,7 @@
               category: 'event_help',
               priority: 'normal',
               eventId: currentEvent.id,
+              themeSnapshot: ver ? { html: ver.html, css: ver.css, config: ver.config } : null,
               message: 'User initiated AI support for display issues.\nAI agent is assisting.\n\nEvent: ' + (currentEvent.title || 'Unknown') + ' (ID: ' + currentEvent.id + ')'
                 + '\nEvent type: ' + (extractedData.eventType || 'unknown')
                 + '\nDevice: ' + navigator.userAgent

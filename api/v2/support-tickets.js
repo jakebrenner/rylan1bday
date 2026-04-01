@@ -229,7 +229,7 @@ export default async function handler(req, res) {
     // USER: Create ticket
     // ================================================================
     if (action === 'create' && req.method === 'POST') {
-      const { subject, category, priority, eventId, message } = req.body || {};
+      const { subject, category, priority, eventId, message, themeSnapshot } = req.body || {};
 
       if (!subject || !category || !message) {
         return res.status(400).json({ success: false, error: 'subject, category, and message are required' });
@@ -255,19 +255,38 @@ export default async function handler(req, res) {
         eventTitle = event.title;
       }
 
-      const { data: ticket, error } = await supabaseAdmin
-        .from('support_tickets')
-        .insert({
-          user_id: user.id,
-          event_id: eventId || null,
-          subject,
-          category,
-          priority: priority || 'normal'
-        })
-        .select()
-        .single();
+      const ticketBase = {
+        user_id: user.id,
+        event_id: eventId || null,
+        subject,
+        category,
+        priority: priority || 'normal'
+      };
 
-      if (error) return res.status(400).json({ success: false, error: error.message });
+      // Try with theme_snapshot first, fall back without if column doesn't exist yet
+      let ticket, ticketError;
+      if (themeSnapshot) {
+        const result = await supabaseAdmin
+          .from('support_tickets')
+          .insert({ ...ticketBase, theme_snapshot: themeSnapshot })
+          .select()
+          .single();
+        if (result.error && result.error.message && result.error.message.includes('theme_snapshot')) {
+          // Column doesn't exist yet — retry without it
+          const retry = await supabaseAdmin.from('support_tickets').insert(ticketBase).select().single();
+          ticket = retry.data;
+          ticketError = retry.error;
+        } else {
+          ticket = result.data;
+          ticketError = result.error;
+        }
+      } else {
+        const result = await supabaseAdmin.from('support_tickets').insert(ticketBase).select().single();
+        ticket = result.data;
+        ticketError = result.error;
+      }
+
+      if (ticketError) return res.status(400).json({ success: false, error: ticketError.message });
 
       // Insert initial message
       await supabaseAdmin
@@ -486,6 +505,34 @@ export default async function handler(req, res) {
         theme = fallback.data;
       }
 
+      // Last resort: check if any support ticket for this event has a theme_snapshot
+      if (!theme) {
+        const { data: ticketWithSnapshot } = await supabaseAdmin
+          .from('support_tickets')
+          .select('theme_snapshot')
+          .eq('event_id', eventId)
+          .not('theme_snapshot', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+          .catch(() => ({ data: null }));
+
+        if (ticketWithSnapshot && ticketWithSnapshot.theme_snapshot) {
+          // Return the snapshot as a virtual theme (not from event_themes)
+          const snap = ticketWithSnapshot.theme_snapshot;
+          theme = {
+            id: 'snapshot',
+            html: snap.html || '',
+            css: snap.css || '',
+            config: snap.config || {},
+            version: 0,
+            thankyou_html: snap.thankyou_html || null,
+            is_active: false,
+            _source: 'ticket_snapshot'
+          };
+        }
+      }
+
       if (!theme) return res.status(404).json({ success: false, error: 'No theme found for this event' });
 
       // Also fetch event details for context
@@ -503,7 +550,28 @@ export default async function handler(req, res) {
       if (!(await isAdmin(user))) return res.status(403).json({ success: false, error: 'Admin access required' });
 
       const { themeId, html, css, config, eventId } = req.body || {};
-      if (!themeId) return res.status(400).json({ success: false, error: 'themeId required' });
+      if (!themeId && !eventId) return res.status(400).json({ success: false, error: 'themeId or eventId required' });
+
+      // If themeId is 'snapshot', we need to create a new event_themes row
+      if (themeId === 'snapshot' && eventId) {
+        const { data: newTheme, error } = await supabaseAdmin
+          .from('event_themes')
+          .insert({
+            event_id: eventId,
+            version: 1,
+            is_active: true,
+            html: html || '',
+            css: css || '',
+            config: config || {},
+            model: 'admin_edit',
+            prompt: 'Manually created by support team'
+          })
+          .select('id')
+          .single();
+
+        if (error) return res.status(400).json({ success: false, error: error.message });
+        return res.status(200).json({ success: true, themeId: newTheme.id });
+      }
 
       const updates = {};
       if (html !== undefined) updates.html = html;
