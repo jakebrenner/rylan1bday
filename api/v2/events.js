@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
+import { Resend } from 'resend';
 import crypto from 'crypto';
 import { sendCapiEvent, extractMetaContext } from './lib/meta-capi.js';
 
@@ -8,11 +9,90 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const PROD_URL = 'https://www.ryvite.com';
 
 function getUserSupabase(token) {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: `Bearer ${token}` } }
   });
+}
+
+async function sendWelcomeEmail(eventId, eventTitle, userEmail, firstName) {
+  if (!resend || !userEmail) return;
+  try {
+    const editUrl = `${PROD_URL}/v2/create/?eventId=${eventId}`;
+    const subject = `Welcome to Ryvite! Let\u2019s make \u201c${eventTitle}\u201d unforgettable`;
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background-color:#f5f5f5;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:40px 20px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+  <tr><td style="background-color:#1A1A2E;padding:32px 40px;border-radius:16px 16px 0 0;text-align:center;">
+    <h1 style="margin:0;font-family:'Playfair Display',Georgia,serif;color:#FFFAF5;font-size:28px;font-weight:700;">
+      Welcome to Ryvite!
+    </h1>
+  </td></tr>
+  <tr><td style="background-color:#FFFAF5;padding:40px;">
+    <p style="margin:0 0 16px;color:#1A1A2E;font-size:16px;line-height:1.6;">
+      Hey ${firstName},
+    </p>
+    <p style="margin:0 0 24px;color:#1A1A2E;font-size:16px;line-height:1.6;">
+      You just created <strong>${eventTitle}</strong> \u2014 great choice! Here\u2019s how to make it shine:
+    </p>
+    <div style="background-color:#F8F5F0;border-radius:12px;padding:24px;margin-bottom:24px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="padding:0 0 14px;">
+          <span style="display:inline-block;width:28px;height:28px;background:#E94560;color:#fff;border-radius:50%;text-align:center;line-height:28px;font-size:14px;font-weight:700;margin-right:12px;vertical-align:middle;">1</span>
+          <span style="color:#1A1A2E;font-size:15px;font-weight:600;vertical-align:middle;">Design your invite with AI</span>
+        </td></tr>
+        <tr><td style="padding:0 0 14px;">
+          <span style="display:inline-block;width:28px;height:28px;background:#E94560;color:#fff;border-radius:50%;text-align:center;line-height:28px;font-size:14px;font-weight:700;margin-right:12px;vertical-align:middle;">2</span>
+          <span style="color:#1A1A2E;font-size:15px;font-weight:600;vertical-align:middle;">Publish your event</span>
+        </td></tr>
+        <tr><td style="padding:0;">
+          <span style="display:inline-block;width:28px;height:28px;background:#E94560;color:#fff;border-radius:50%;text-align:center;line-height:28px;font-size:14px;font-weight:700;margin-right:12px;vertical-align:middle;">3</span>
+          <span style="color:#1A1A2E;font-size:15px;font-weight:600;vertical-align:middle;">Share with your guests</span>
+        </td></tr>
+      </table>
+    </div>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${editUrl}" style="display:inline-block;background-color:#E94560;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:50px;font-size:16px;font-weight:600;">
+        Continue Creating
+      </a>
+    </div>
+    <p style="margin:0;color:#6B7280;font-size:14px;line-height:1.6;text-align:center;">
+      Need help? Just reply to this email.
+    </p>
+  </td></tr>
+  <tr><td style="background-color:#1A1A2E;padding:20px 40px;border-radius:0 0 16px 16px;text-align:center;">
+    <p style="margin:0;color:#6B7280;font-size:12px;">Built with love for Rylan</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+
+    await resend.emails.send({
+      from: 'Ryvite <hello@ryvite.com>',
+      to: userEmail,
+      subject,
+      html
+    });
+
+    await supabaseAdmin.from('notification_log').insert({
+      event_id: eventId,
+      guest_id: null,
+      channel: 'email',
+      recipient: userEmail,
+      subject,
+      status: 'sent',
+      sent_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('Welcome email error:', err);
+  }
 }
 
 function generateSlug(title) {
@@ -372,6 +452,14 @@ export default async function handler(req, res) {
             notes: creditSource === 'purchase' ? 'Used purchased credit' : 'Used free credit',
           });
         }
+      }
+
+      // Fire-and-forget welcome email
+      if (resend && user.email) {
+        const firstName = user.user_metadata?.display_name?.split(' ')[0] || user.email?.split('@')[0] || 'there';
+        sendWelcomeEmail(data.id, title, user.email, firstName).catch(err =>
+          console.error('Welcome email error:', err)
+        );
       }
 
       return res.status(200).json({ success: true, eventId: data.id, slug: data.slug, paymentStatus: data.payment_status });
