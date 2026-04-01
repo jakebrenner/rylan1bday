@@ -765,6 +765,118 @@ function buildReviewRequestEmailCron(firstName, eventTitle, reviewUrl) {
 </body></html>`;
 }
 
+// ---- Job D: Process abandoned draft follow-up emails ----
+
+function buildAbandonmentEmail(firstName, eventTitle, editUrl) {
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background-color:#f5f5f5;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:40px 20px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+  <tr><td style="background-color:#1A1A2E;padding:32px 40px;border-radius:16px 16px 0 0;text-align:center;">
+    <h1 style="margin:0;font-family:'Playfair Display',Georgia,serif;color:#FFFAF5;font-size:28px;font-weight:700;">
+      Need a Hand?
+    </h1>
+  </td></tr>
+  <tr><td style="background-color:#FFFAF5;padding:40px;">
+    <p style="margin:0 0 16px;color:#1A1A2E;font-size:16px;line-height:1.6;">
+      Hey ${firstName},
+    </p>
+    <p style="margin:0 0 24px;color:#1A1A2E;font-size:16px;line-height:1.6;">
+      We noticed your event <strong>${eventTitle}</strong> is still a work in progress. No rush \u2014 but we wanted to make sure you know we\u2019re here if you need anything.
+    </p>
+    <div style="background-color:#F0F7FF;border-radius:12px;padding:20px;margin-bottom:24px;text-align:center;">
+      <p style="margin:0;color:#1A1A2E;font-size:15px;line-height:1.6;">
+        Pick up right where you left off \u2014 your draft is saved and ready to go.
+      </p>
+    </div>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${editUrl}" style="display:inline-block;background-color:#E94560;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:50px;font-size:16px;font-weight:600;">
+        Continue Editing
+      </a>
+    </div>
+    <p style="margin:0;color:#6B7280;font-size:14px;line-height:1.6;text-align:center;">
+      Need help? Just reply to this email \u2014 we\u2019d love to assist.
+    </p>
+  </td></tr>
+  <tr><td style="background-color:#1A1A2E;padding:20px 40px;border-radius:0 0 16px 16px;text-align:center;">
+    <p style="margin:0;color:#6B7280;font-size:12px;">Built with love for Rylan</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+async function processAbandonedDrafts() {
+  if (!resend) return { sent: 0 };
+
+  let sent = 0;
+
+  // Find draft events created 24-48h ago (48h cap prevents processing ancient drafts)
+  const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const cutoff48h = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+
+  const { data: draftEvents, error } = await supabaseAdmin
+    .from('events')
+    .select('id, title, user_id, created_at')
+    .eq('status', 'draft')
+    .lt('created_at', cutoff24h)
+    .gt('created_at', cutoff48h)
+    .limit(20);
+
+  if (error || !draftEvents || draftEvents.length === 0) return { sent: 0 };
+
+  for (const event of draftEvents) {
+    try {
+      // Check if abandonment email already sent (subject contains "still in draft")
+      const { count } = await supabaseAdmin
+        .from('notification_log')
+        .select('id', { count: 'exact', head: true })
+        .eq('event_id', event.id)
+        .ilike('subject', '%still in draft%');
+
+      if (count > 0) continue;
+
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('email, first_name, display_name')
+        .eq('id', event.user_id)
+        .single();
+
+      if (!profile?.email) continue;
+
+      const firstName = profile.first_name || profile.display_name?.split(' ')[0] || 'there';
+      const eventTitle = event.title || 'your event';
+      const editUrl = `https://www.ryvite.com/v2/create/?eventId=${event.id}`;
+      const subject = `Your event \u201c${eventTitle}\u201d is still in draft \u2014 need help?`;
+
+      await resend.emails.send({
+        from: 'Ryvite <hello@ryvite.com>',
+        to: profile.email,
+        subject,
+        html: buildAbandonmentEmail(firstName, eventTitle, editUrl)
+      });
+
+      await supabaseAdmin.from('notification_log').insert({
+        event_id: event.id,
+        guest_id: null,
+        channel: 'email',
+        recipient: profile.email,
+        subject,
+        status: 'sent',
+        sent_at: new Date().toISOString()
+      });
+
+      sent++;
+    } catch (err) {
+      console.error(`Abandonment email error for event ${event.id}:`, err);
+    }
+  }
+
+  return { sent };
+}
+
 // ---- Main Handler ----
 
 export default async function handler(req, res) {
@@ -777,10 +889,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const [reminderResults, digestResults, reviewResults] = await Promise.all([
+    const [reminderResults, digestResults, reviewResults, abandonmentResults] = await Promise.all([
       processDueReminders(),
       processRsvpDigests(),
-      processReviewRequests()
+      processReviewRequests(),
+      processAbandonedDrafts()
     ]);
 
     return res.status(200).json({
@@ -788,7 +901,8 @@ export default async function handler(req, res) {
       timestamp: new Date().toISOString(),
       reminders: reminderResults,
       digests: digestResults,
-      reviews: reviewResults
+      reviews: reviewResults,
+      abandonedDrafts: abandonmentResults
     });
   } catch (err) {
     console.error('SMS cron error:', err);
