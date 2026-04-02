@@ -3682,22 +3682,37 @@ ${cssSnippet}`
 
     // Get funnel metrics for all email touchpoint types
     if (action === 'touchpointAnalytics') {
+      // Parse date range from query params
+      const startDate = req.query.startDate || null;
+      const endDate = req.query.endDate || null;
+
       // 1. Per-type funnel from notification_log
-      const { data: funnel, error: funnelErr } = await supabaseAdmin
+      let funnelQuery = supabaseAdmin
         .from('notification_log')
-        .select('email_type, channel, status, delivered_at, opened_at, clicked_at, bounced_at, sent_at')
-        .not('email_type', 'is', null);
+        .select('email_type, channel, status, delivered_at, opened_at, clicked_at, bounced_at, sent_at');
+      if (startDate) funnelQuery = funnelQuery.gte('sent_at', startDate);
+      if (endDate) funnelQuery = funnelQuery.lte('sent_at', endDate + 'T23:59:59.999Z');
+
+      const { data: funnel, error: funnelErr } = await funnelQuery;
 
       // 2. Review request pipeline
-      const { data: reviewReqs } = await supabaseAdmin
+      let reviewReqQuery = supabaseAdmin
         .from('review_requests')
         .select('status, sent_at, reminder_sent_at, completed_at');
+      if (startDate) reviewReqQuery = reviewReqQuery.gte('sent_at', startDate);
+      if (endDate) reviewReqQuery = reviewReqQuery.lte('sent_at', endDate + 'T23:59:59.999Z');
+
+      const { data: reviewReqs } = await reviewReqQuery;
 
       // 3. Draft abandonment conversion: did events get published after nudge?
-      const { data: abandonmentNudges } = await supabaseAdmin
+      let abandonQuery = supabaseAdmin
         .from('notification_log')
         .select('event_id, sent_at')
         .eq('email_type', 'abandonment_nudge');
+      if (startDate) abandonQuery = abandonQuery.gte('sent_at', startDate);
+      if (endDate) abandonQuery = abandonQuery.lte('sent_at', endDate + 'T23:59:59.999Z');
+
+      const { data: abandonmentNudges } = await abandonQuery;
 
       let abandonmentConversions = 0;
       if (abandonmentNudges && abandonmentNudges.length > 0) {
@@ -3712,12 +3727,13 @@ ${cssSnippet}`
         }
       }
 
-      // Aggregate funnel by email_type
+      // Aggregate funnel by email_type + channel
       const funnelMap = {};
       for (const row of (funnel || [])) {
-        const key = row.email_type || 'unknown';
+        const type = row.email_type || (row.channel === 'sms' ? 'sms_other' : 'email_other');
+        const key = type + ':' + row.channel;
         if (!funnelMap[key]) {
-          funnelMap[key] = { type: key, channel: row.channel, sent: 0, delivered: 0, opened: 0, clicked: 0, bounced: 0, failed: 0 };
+          funnelMap[key] = { type, channel: row.channel, sent: 0, delivered: 0, opened: 0, clicked: 0, bounced: 0, failed: 0 };
         }
         funnelMap[key].sent++;
         if (row.delivered_at) funnelMap[key].delivered++;
@@ -3757,14 +3773,16 @@ ${cssSnippet}`
           : 0
       };
 
-      // Daily trend (last 30 days)
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const { data: recentLogs } = await supabaseAdmin
+      // Daily trend (uses date range, defaults to last 30 days)
+      const trendStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      let trendQuery = supabaseAdmin
         .from('notification_log')
-        .select('email_type, sent_at, delivered_at, opened_at, clicked_at')
-        .not('email_type', 'is', null)
-        .gte('sent_at', thirtyDaysAgo)
+        .select('email_type, channel, sent_at, delivered_at, opened_at, clicked_at')
         .order('sent_at', { ascending: true });
+      trendQuery = trendQuery.gte('sent_at', trendStart);
+      if (endDate) trendQuery = trendQuery.lte('sent_at', endDate + 'T23:59:59.999Z');
+
+      const { data: recentLogs } = await trendQuery;
 
       const dailyTrend = {};
       for (const row of (recentLogs || [])) {
@@ -3777,20 +3795,27 @@ ${cssSnippet}`
         if (row.clicked_at) dailyTrend[day].clicked++;
       }
 
-      // Overall totals
-      const totalSent = (funnel || []).length;
-      const totalDelivered = (funnel || []).filter(r => r.delivered_at).length;
-      const totalOpened = (funnel || []).filter(r => r.opened_at).length;
-      const totalClicked = (funnel || []).filter(r => r.clicked_at).length;
+      // Overall totals — split email vs SMS
+      const allRows = funnel || [];
+      const emailRows = allRows.filter(r => r.channel === 'email');
+      const smsRows = allRows.filter(r => r.channel === 'sms');
+      const totalSent = allRows.length;
+      const totalEmails = emailRows.length;
+      const totalSms = smsRows.length;
+      const totalDelivered = allRows.filter(r => r.delivered_at).length;
+      const totalOpened = allRows.filter(r => r.opened_at).length;
+      const totalClicked = allRows.filter(r => r.clicked_at).length;
 
       return res.status(200).json({
         success: true,
         overview: {
           totalSent,
+          totalEmails,
+          totalSms,
           totalDelivered,
           totalOpened,
           totalClicked,
-          overallDeliveryRate: totalSent > 0 ? Math.round(totalDelivered / totalSent * 1000) / 10 : 0,
+          overallDeliveryRate: totalEmails > 0 ? Math.round(totalDelivered / totalEmails * 1000) / 10 : 0,
           overallOpenRate: totalDelivered > 0 ? Math.round(totalOpened / totalDelivered * 1000) / 10 : 0,
           overallClickRate: totalOpened > 0 ? Math.round(totalClicked / totalOpened * 1000) / 10 : 0
         },

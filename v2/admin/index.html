@@ -2552,15 +2552,31 @@
     <!-- Reviews Tab -->
     <!-- Customer Lifecycle / Touchpoints Tab -->
     <div class="tab-content" id="tab-lifecycle">
-      <h3 style="margin-bottom:4px;">Customer Lifecycle</h3>
-      <p style="font-size:13px;color:#888;margin-bottom:24px;">All customer touchpoints in one place. See open rates, click-through rates, and conversion impact across every email and notification.</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:4px;">
+        <h3 style="margin:0;">Customer Lifecycle</h3>
+      </div>
+      <p style="font-size:13px;color:#888;margin-bottom:16px;">All customer touchpoints in one place. See open rates, click-through rates, and conversion impact across every email and notification.</p>
+
+      <!-- Date Range Picker -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:24px;flex-wrap:wrap;" id="lcDateRangeBar">
+        <button class="btn btn-primary btn-sm lc-range-btn" data-range="7d" onclick="setLcDateRange('7d')">7 Days</button>
+        <button class="btn btn-secondary btn-sm lc-range-btn" data-range="30d" onclick="setLcDateRange('30d')">30 Days</button>
+        <button class="btn btn-secondary btn-sm lc-range-btn" data-range="90d" onclick="setLcDateRange('90d')">90 Days</button>
+        <button class="btn btn-secondary btn-sm lc-range-btn" data-range="all" onclick="setLcDateRange('all')">All Time</button>
+        <div style="height:20px;width:1px;background:#ddd;margin:0 4px;"></div>
+        <label style="font-size:12px;color:#888;">From</label>
+        <input type="date" id="lcStartDate" style="padding:5px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;" onchange="setLcDateRange('custom')">
+        <label style="font-size:12px;color:#888;">To</label>
+        <input type="date" id="lcEndDate" style="padding:5px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;" onchange="setLcDateRange('custom')">
+      </div>
 
       <!-- Overall stats -->
       <div class="stat-grid" id="lifecycleOverviewGrid" style="margin-bottom:28px;">
-        <div class="stat-card"><div class="stat-value" id="lcTotalSent">—</div><div class="stat-label">Emails Sent</div></div>
-        <div class="stat-card"><div class="stat-value" id="lcDeliveryRate">—</div><div class="stat-label">Delivery Rate</div></div>
-        <div class="stat-card"><div class="stat-value" id="lcOpenRate">—</div><div class="stat-label">Open Rate</div></div>
-        <div class="stat-card"><div class="stat-value" id="lcClickRate">—</div><div class="stat-label">Click Rate</div></div>
+        <div class="stat-card"><div class="stat-value" id="lcTotalEmails">—</div><div class="stat-label">Emails Sent</div></div>
+        <div class="stat-card"><div class="stat-value" id="lcTotalSms">—</div><div class="stat-label">SMS Sent</div></div>
+        <div class="stat-card"><div class="stat-value" id="lcDeliveryRate">—</div><div class="stat-label">Email Delivery Rate</div></div>
+        <div class="stat-card"><div class="stat-value" id="lcOpenRate">—</div><div class="stat-label">Email Open Rate</div></div>
+        <div class="stat-card"><div class="stat-value" id="lcClickRate">—</div><div class="stat-label">Email Click Rate</div></div>
       </div>
 
       <!-- Touchpoint funnels -->
@@ -2600,6 +2616,7 @@
             <thead>
               <tr style="border-bottom:2px solid #eee;">
                 <th style="text-align:left;padding:10px 12px;font-weight:700;color:var(--midnight);">Touchpoint</th>
+                <th style="text-align:center;padding:10px 12px;font-weight:700;color:var(--midnight);">Channel</th>
                 <th style="text-align:right;padding:10px 12px;font-weight:700;color:var(--midnight);">Sent</th>
                 <th style="text-align:right;padding:10px 12px;font-weight:700;color:var(--midnight);">Delivered</th>
                 <th style="text-align:right;padding:10px 12px;font-weight:700;color:var(--midnight);">Opened</th>
@@ -2610,7 +2627,7 @@
               </tr>
             </thead>
             <tbody id="lcTouchpointBody">
-              <tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px;">Loading...</td></tr>
+              <tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px;">Loading...</td></tr>
             </tbody>
           </table>
         </div>
@@ -2620,7 +2637,7 @@
       <div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:24px;">
         <h4 style="margin:0 0 16px;font-size:14px;font-weight:700;color:var(--midnight);display:flex;align-items:center;gap:8px;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
-          30-Day Email Activity
+          <span id="lcTrendTitle">Email Activity</span>
         </h4>
         <div id="lcDailyTrend" style="display:flex;align-items:flex-end;gap:2px;height:120px;padding:0 4px;">
           <div style="text-align:center;color:#aaa;font-size:13px;width:100%;align-self:center;">Loading...</div>
@@ -2644,6 +2661,11 @@
         .lc-funnel-fill { height:100%; border-radius:6px; transition:width 0.6s ease; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; min-width:fit-content; }
         .lc-funnel-value { font-size:11px; font-weight:700; color:#fff; white-space:nowrap; }
         .lc-funnel-count { font-size:12px; color:#888; min-width:40px; text-align:right; }
+        .lc-range-btn.active, .lc-range-btn.btn-primary { background:var(--midnight) !important; color:#fff !important; border-color:var(--midnight) !important; }
+        .lc-range-btn:not(.active):not(.btn-primary) { background:#fff !important; color:#555 !important; }
+        .lc-channel-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+        .lc-channel-email { background:#EEF2FF; color:#4F46E5; }
+        .lc-channel-sms { background:#FEF3C7; color:#92400E; }
         @media (max-width: 900px) {
           #lifecycleFunnelGrid { grid-template-columns: 1fr !important; }
         }
@@ -10273,10 +10295,56 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     // ── CUSTOMER LIFECYCLE TAB ──
 
     var lifecycleDataCache = null;
+    var lcCurrentRange = '7d';
+
+    function getLcDateRange() {
+      if (lcCurrentRange === 'custom') {
+        return {
+          startDate: document.getElementById('lcStartDate').value || null,
+          endDate: document.getElementById('lcEndDate').value || null
+        };
+      }
+      if (lcCurrentRange === 'all') return { startDate: null, endDate: null };
+
+      var daysMap = { '7d': 7, '30d': 30, '90d': 90 };
+      var days = daysMap[lcCurrentRange] || 7;
+      var start = new Date(Date.now() - days * 86400000);
+      return {
+        startDate: start.toISOString().substring(0, 10),
+        endDate: new Date().toISOString().substring(0, 10)
+      };
+    }
+
+    function setLcDateRange(range) {
+      lcCurrentRange = range;
+      // Update button active states
+      var btns = document.querySelectorAll('.lc-range-btn');
+      btns.forEach(function(btn) {
+        if (btn.dataset.range === range) {
+          btn.className = 'btn btn-primary btn-sm lc-range-btn active';
+        } else {
+          btn.className = 'btn btn-secondary btn-sm lc-range-btn';
+        }
+      });
+
+      // If preset, update date inputs to match
+      if (range !== 'custom') {
+        var dr = getLcDateRange();
+        document.getElementById('lcStartDate').value = dr.startDate || '';
+        document.getElementById('lcEndDate').value = dr.endDate || '';
+      }
+
+      loadLifecycleDashboard();
+    }
 
     async function loadLifecycleDashboard() {
       try {
-        var res = await fetch('/api/v2/admin?action=touchpointAnalytics', {
+        var dr = getLcDateRange();
+        var url = '/api/v2/admin?action=touchpointAnalytics';
+        if (dr.startDate) url += '&startDate=' + dr.startDate;
+        if (dr.endDate) url += '&endDate=' + dr.endDate;
+
+        var res = await fetch(url, {
           headers: { 'Authorization': 'Bearer ' + token }
         });
         var data = await res.json();
@@ -10297,7 +10365,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     function renderLifecycleOverview(o) {
-      document.getElementById('lcTotalSent').textContent = (o.totalSent || 0).toLocaleString();
+      document.getElementById('lcTotalEmails').textContent = (o.totalEmails || 0).toLocaleString();
+      document.getElementById('lcTotalSms').textContent = (o.totalSms || 0).toLocaleString();
       document.getElementById('lcDeliveryRate').textContent = o.overallDeliveryRate ? o.overallDeliveryRate + '%' : '—';
       document.getElementById('lcOpenRate').textContent = o.overallOpenRate ? o.overallOpenRate + '%' : '—';
       document.getElementById('lcClickRate').textContent = o.overallClickRate ? o.overallClickRate + '%' : '—';
@@ -10353,6 +10422,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       rsvp_digest: 'RSVP Digest',
       cohost_invite: 'Co-host Invite',
       sms_invite: 'SMS Invite',
+      sms_other: 'SMS (Other)',
+      email_other: 'Email (Other)',
       sms_test: 'SMS Test',
       limit_notification: 'Limit Notification'
     };
@@ -10360,7 +10431,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     function renderTouchpointTable(touchpoints) {
       var body = document.getElementById('lcTouchpointBody');
       if (!touchpoints || touchpoints.length === 0) {
-        body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px;">No data yet. Emails will appear here once sent.</td></tr>';
+        body.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px;">No data in this date range.</td></tr>';
         return;
       }
       // Sort by sent desc
@@ -10368,17 +10439,20 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var html = '';
       for (var i = 0; i < touchpoints.length; i++) {
         var t = touchpoints[i];
-        var label = touchpointLabels[t.type] || t.type;
+        var label = touchpointLabels[t.type] || t.type.replace(/_/g, ' ');
+        var channelClass = t.channel === 'email' ? 'lc-channel-email' : 'lc-channel-sms';
+        var channelLabel = t.channel === 'email' ? 'Email' : 'SMS';
         var rowBg = i % 2 === 0 ? '#fafafa' : '#fff';
         html += '<tr style="background:' + rowBg + ';border-bottom:1px solid #f0f0f0;">';
         html += '<td style="padding:10px 12px;font-weight:600;color:var(--midnight);">' + label + '</td>';
+        html += '<td style="padding:10px 12px;text-align:center;"><span class="lc-channel-badge ' + channelClass + '">' + channelLabel + '</span></td>';
         html += '<td style="padding:10px 12px;text-align:right;">' + t.sent + '</td>';
-        html += '<td style="padding:10px 12px;text-align:right;">' + t.delivered + '</td>';
-        html += '<td style="padding:10px 12px;text-align:right;">' + t.opened + '</td>';
-        html += '<td style="padding:10px 12px;text-align:right;">' + t.clicked + '</td>';
-        html += '<td style="padding:10px 12px;text-align:right;font-weight:600;color:' + (t.openRate > 30 ? '#10B981' : t.openRate > 15 ? '#F59E0B' : '#EF4444') + ';">' + (t.openRate || '—') + (t.openRate ? '%' : '') + '</td>';
-        html += '<td style="padding:10px 12px;text-align:right;font-weight:600;color:' + (t.clickRate > 10 ? '#10B981' : t.clickRate > 3 ? '#F59E0B' : '#EF4444') + ';">' + (t.clickRate || '—') + (t.clickRate ? '%' : '') + '</td>';
-        html += '<td style="padding:10px 12px;text-align:right;color:' + (t.bounced > 0 ? '#EF4444' : '#888') + ';">' + t.bounced + '</td>';
+        html += '<td style="padding:10px 12px;text-align:right;">' + (t.channel === 'email' ? t.delivered : '—') + '</td>';
+        html += '<td style="padding:10px 12px;text-align:right;">' + (t.channel === 'email' ? t.opened : '—') + '</td>';
+        html += '<td style="padding:10px 12px;text-align:right;">' + (t.channel === 'email' ? t.clicked : '—') + '</td>';
+        html += '<td style="padding:10px 12px;text-align:right;font-weight:600;color:' + (t.channel !== 'email' ? '#ccc' : t.openRate > 30 ? '#10B981' : t.openRate > 15 ? '#F59E0B' : '#EF4444') + ';">' + (t.channel === 'email' ? (t.openRate || '—') + (t.openRate ? '%' : '') : '—') + '</td>';
+        html += '<td style="padding:10px 12px;text-align:right;font-weight:600;color:' + (t.channel !== 'email' ? '#ccc' : t.clickRate > 10 ? '#10B981' : t.clickRate > 3 ? '#F59E0B' : '#EF4444') + ';">' + (t.channel === 'email' ? (t.clickRate || '—') + (t.clickRate ? '%' : '') : '—') + '</td>';
+        html += '<td style="padding:10px 12px;text-align:right;color:' + (t.bounced > 0 ? '#EF4444' : '#888') + ';">' + (t.channel === 'email' ? t.bounced : '—') + '</td>';
         html += '</tr>';
       }
       body.innerHTML = html;
@@ -10386,37 +10460,70 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     function renderDailyTrend(dailyData) {
       var el = document.getElementById('lcDailyTrend');
+      var titleEl = document.getElementById('lcTrendTitle');
+      var dr = getLcDateRange();
+
       if (!dailyData || dailyData.length === 0) {
-        el.innerHTML = '<div style="text-align:center;color:#aaa;font-size:13px;width:100%;align-self:center;">No data in the last 30 days</div>';
+        el.innerHTML = '<div style="text-align:center;color:#aaa;font-size:13px;width:100%;align-self:center;">No activity in this date range</div>';
+        titleEl.textContent = 'Activity';
         return;
       }
 
-      // Fill in missing days
+      // Determine day range from data or date picker
+      var startStr = dr.startDate || (dailyData.length > 0 ? dailyData[0].day : null);
+      var endStr = dr.endDate || new Date().toISOString().substring(0, 10);
+      if (!startStr) { el.innerHTML = ''; return; }
+
+      var startMs = new Date(startStr + 'T00:00:00').getTime();
+      var endMs = new Date(endStr + 'T00:00:00').getTime();
+      var numDays = Math.max(1, Math.round((endMs - startMs) / 86400000) + 1);
+
+      // Cap at 90 bars for readability
+      var groupDays = numDays > 90 ? Math.ceil(numDays / 90) : 1;
+      var rangeLabel = numDays <= 7 ? '7-Day' : numDays <= 30 ? '30-Day' : numDays <= 90 ? '90-Day' : 'All-Time';
+      titleEl.textContent = rangeLabel + ' Activity';
+
+      // Build day map
       var dayMap = {};
       for (var i = 0; i < dailyData.length; i++) {
-        dayMap[dailyData[i].day] = dailyData[i];
+        var dk = dailyData[i].day;
+        if (!dayMap[dk]) dayMap[dk] = { sent: 0, opened: 0, clicked: 0 };
+        dayMap[dk].sent += dailyData[i].sent || 0;
+        dayMap[dk].opened += dailyData[i].opened || 0;
+        dayMap[dk].clicked += dailyData[i].clicked || 0;
       }
 
-      var days = [];
-      for (var d = 29; d >= 0; d--) {
-        var dt = new Date(Date.now() - d * 86400000);
-        var key = dt.toISOString().substring(0, 10);
-        days.push(dayMap[key] || { day: key, sent: 0, delivered: 0, opened: 0, clicked: 0 });
+      // Build buckets
+      var buckets = [];
+      var bucketStart = startMs;
+      while (bucketStart <= endMs) {
+        var bucket = { sent: 0, opened: 0, clicked: 0, label: '' };
+        var first = new Date(bucketStart).toISOString().substring(0, 10);
+        bucket.label = first.substring(5);
+        for (var g = 0; g < groupDays && bucketStart <= endMs; g++) {
+          var key = new Date(bucketStart).toISOString().substring(0, 10);
+          if (dayMap[key]) {
+            bucket.sent += dayMap[key].sent;
+            bucket.opened += dayMap[key].opened;
+            bucket.clicked += dayMap[key].clicked;
+          }
+          bucketStart += 86400000;
+        }
+        buckets.push(bucket);
       }
 
-      var maxSent = Math.max.apply(null, days.map(function(d) { return d.sent; }));
+      var maxSent = Math.max.apply(null, buckets.map(function(b) { return b.sent; }));
       if (maxSent === 0) maxSent = 1;
 
       var html = '';
-      for (var i = 0; i < days.length; i++) {
-        var dy = days[i];
+      for (var i = 0; i < buckets.length; i++) {
+        var dy = buckets[i];
         var sentH = Math.max(Math.round(dy.sent / maxSent * 100), dy.sent > 0 ? 4 : 1);
         var openH = Math.max(Math.round(dy.opened / maxSent * 100), dy.opened > 0 ? 4 : 0);
         var clickH = Math.max(Math.round(dy.clicked / maxSent * 100), dy.clicked > 0 ? 4 : 0);
-        var dayLabel = dy.day.substring(5); // MM-DD
-        var tooltip = dy.day + ': ' + dy.sent + ' sent, ' + dy.opened + ' opened, ' + dy.clicked + ' clicked';
+        var tooltip = dy.label + ': ' + dy.sent + ' sent, ' + dy.opened + ' opened, ' + dy.clicked + ' clicked';
 
-        html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;justify-content:flex-end;" title="' + tooltip + '">';
+        html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;justify-content:flex-end;min-width:4px;" title="' + tooltip + '">';
         if (dy.clicked > 0) html += '<div style="width:100%;max-width:16px;height:' + clickH + '%;background:#3B82F6;border-radius:2px 2px 0 0;min-height:2px;"></div>';
         if (dy.opened > 0) html += '<div style="width:100%;max-width:16px;height:' + openH + '%;background:#10B981;border-radius:' + (dy.clicked > 0 ? '0' : '2px 2px') + ' 0 0;min-height:2px;"></div>';
         html += '<div style="width:100%;max-width:16px;height:' + sentH + '%;background:#E94560;border-radius:' + (dy.opened > 0 || dy.clicked > 0 ? '0' : '2px 2px') + ' 0 0;min-height:2px;"></div>';
