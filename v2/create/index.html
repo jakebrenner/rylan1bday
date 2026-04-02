@@ -7741,6 +7741,14 @@
               value: isPaid ? 4.99 : 0.00
             }, null, metaEventId);
           }
+          // Track EventPublished custom event with Meta Pixel
+          if (window.RyvitePixel) {
+            RyvitePixel.trackCustom('EventPublished', {
+              content_name: extractedData.title || currentEvent.title || 'Event',
+              content_category: extractedData.eventType || 'event',
+              content_ids: [currentEvent.id]
+            });
+          }
           if (window.RyviteGA) {
             var gaIsPaid = currentEvent.paymentStatus === 'paid';
             RyviteGA.trackEvent('purchase', {
@@ -8001,6 +8009,13 @@
         }
 
         // Track event_published for free publish path
+        if (window.RyvitePixel) {
+          RyvitePixel.trackCustom('EventPublished', {
+            content_name: extractedData.title || currentEvent.title || 'Event',
+            content_category: extractedData.eventType || 'event',
+            content_ids: [currentEvent.id]
+          });
+        }
         if (window.RyviteGA) {
           RyviteGA.trackEvent('event_published', {
             event_id: currentEvent.id,

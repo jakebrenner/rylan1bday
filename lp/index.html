@@ -335,9 +335,13 @@ async function submitHeroEmail() {
       return;
     }
 
-    // Track signup with Meta pixel if available
-    if (typeof fbq === 'function') {
-      fbq('track', 'CompleteRegistration', { content_name: 'Landing Page Chat' });
+    // Track CompleteRegistration with Meta Pixel (dedup with server CAPI via metaEventId)
+    if (window.RyvitePixel) {
+      RyvitePixel.reinitWithUserData({ em: email });
+      RyvitePixel.trackEvent('CompleteRegistration', {
+        content_name: 'Landing Page Chat',
+        status: true
+      }, null, result.metaEventId);
     }
 
     // Show success
@@ -404,6 +408,7 @@ async function submitHeroEmail() {
     .catch(function(e) { console.error('Showcases error:', e); });
 })();
 </script>
+<script src="/js/meta-pixel.js"></script>
 <script src="/js/ga.js"></script>
 </body>
 </html>
