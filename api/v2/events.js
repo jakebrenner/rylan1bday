@@ -426,9 +426,9 @@ export default async function handler(req, res) {
 
       if (error) return res.status(400).json({ success: false, error: error.message });
 
-      // Write credit ledger entries for credit consumption or first-event grant
-      if (isFirstEvent || isPrepaid) {
-        // Get current balance for the ledger
+      // Write credit ledger entry for credit consumption (paid/coupon credits only)
+      // First-event-free is not a credit — it's tracked via payment_status='free'
+      if (isPrepaid) {
         const { data: balProfile } = await supabaseAdmin
           .from('profiles')
           .select('purchased_event_credits, free_event_credits')
@@ -436,40 +436,16 @@ export default async function handler(req, res) {
           .single();
         const currentBal = (balProfile?.purchased_event_credits || 0) + (balProfile?.free_event_credits || 0);
 
-        if (isFirstEvent) {
-          // Log the first-event free credit
-          await supabaseAdmin.from('credit_ledger').insert({
-            user_id: user.id,
-            entry_type: 'credit_added',
-            amount: 1,
-            balance_after: currentBal + 1,
-            source: 'first_event',
-            reference_id: data.id,
-            reference_label: 'First event free',
-          });
-          // Immediately log it being used
-          await supabaseAdmin.from('credit_ledger').insert({
-            user_id: user.id,
-            entry_type: 'credit_used',
-            amount: -1,
-            balance_after: currentBal,
-            source: 'event_publish',
-            reference_id: data.id,
-            reference_label: title || 'Untitled event',
-          });
-        } else if (isPrepaid) {
-          // Log the credit consumption
-          await supabaseAdmin.from('credit_ledger').insert({
-            user_id: user.id,
-            entry_type: 'credit_used',
-            amount: -1,
-            balance_after: currentBal,
-            source: 'event_publish',
-            reference_id: data.id,
-            reference_label: title || 'Untitled event',
-            notes: creditSource === 'purchase' ? 'Used purchased credit' : 'Used free credit',
-          });
-        }
+        await supabaseAdmin.from('credit_ledger').insert({
+          user_id: user.id,
+          entry_type: 'credit_used',
+          amount: -1,
+          balance_after: currentBal,
+          source: 'event_publish',
+          reference_id: data.id,
+          reference_label: title || 'Untitled event',
+          notes: creditSource === 'purchase' ? 'Used purchased credit' : 'Used free credit',
+        });
       }
 
       // Fire-and-forget welcome email
