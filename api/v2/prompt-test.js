@@ -223,11 +223,9 @@ function buildStyleContext(selected, promptSpecificity) {
 // These ensure the output works with Ryvite's runtime.
 // ═══════════════════════════════════════════════════════════════════
 const STRUCTURAL_RULES = `## OUTPUT FORMAT — MANDATORY
-Return a JSON object with exactly these keys:
+Return a JSON object with exactly these keys IN THIS ORDER (CSS first to avoid truncation):
 {
-  "theme_html": "...",
   "theme_css": "...",
-  "theme_thankyou_html": "...",
   "theme_config": {
     "primaryColor": "#hex",
     "secondaryColor": "#hex",
@@ -239,8 +237,12 @@ Return a JSON object with exactly these keys:
     "mood": "one-word mood descriptor",
     "googleFontsImport": "@import url('...')",
     "loadingPun": "A short, fun, on-theme pun shown while the RSVP is submitting"
-  }
+  },
+  "theme_html": "...",
+  "theme_thankyou_html": "..."
 }
+
+CRITICAL: Output theme_css and theme_config BEFORE theme_html. The HTML can be very long — if you run out of output space, the CSS must already be complete.
 
 ## PAGE STRUCTURE — REQUIRED SECTIONS
 1. **THEMATIC HEADER** — An animated or illustrated element specific to this event type.

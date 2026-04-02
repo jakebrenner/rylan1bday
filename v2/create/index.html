@@ -88,6 +88,8 @@
     .chat-input-row { display: flex; gap: 10px; align-items: center; }
     .chat-photo-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #ddd; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; color: #888; }
     .chat-photo-btn:hover { border-color: var(--party-coral); color: var(--party-coral); background: rgba(233,69,96,0.05); }
+    .photo-btn-pulse { animation: photoPulse 0.6s ease-in-out 3; }
+    @keyframes photoPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); border-color: var(--party-coral); color: var(--party-coral); } }
     .chat-photo-menu { display: none; position: absolute; bottom: 100%; left: 0; margin-bottom: 8px; background: white; border: 1px solid #e0e0e0; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); overflow: hidden; z-index: 10; min-width: 200px; }
     .chat-photo-menu.open { display: block; }
     .chat-photo-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 16px; border: none; background: none; cursor: pointer; font-size: 13px; font-family: inherit; color: var(--midnight); transition: background 0.15s; }
@@ -1528,10 +1530,8 @@
           // Restore interactive UI based on chatPhase
           if (chatPhase === 'confirmed') {
             showConfirmationCard();
-            showPhotoUploadPrompt();
           } else if (chatPhase === 'themeReady') {
             showConfirmationCard();
-            showPhotoUploadPrompt();
             showDesignReadyCard();
           }
         }
@@ -1794,7 +1794,6 @@
               if (chatResult.ready && chatResult.confirmed && chatPhase !== 'confirmed' && chatPhase !== 'themeReady') {
                 chatPhase = 'confirmed';
                 showConfirmationCard();
-                showPhotoUploadPrompt();
               }
               addChatBubble(chatResult.message, 'assistant');
               if (chatResult.themeReady && chatPhase !== 'themeReady') {
@@ -1819,6 +1818,9 @@
       // ── End guest onboarding ──
 
       input.value = '';
+      dismissPhotoPrompt();
+      var prevAck = document.getElementById('photoAckCard');
+      if (prevAck) prevAck.remove();
       addChatBubble(text, 'user');
       var photoCtx = buildPhotoContext();
       chatHistory.push({ role: 'user', content: text + photoCtx });
@@ -1885,7 +1887,6 @@
           if (result.ready && result.confirmed && chatPhase !== 'confirmed' && chatPhase !== 'themeReady') {
             chatPhase = 'confirmed';
             showConfirmationCard();
-            showPhotoUploadPrompt();
           }
 
           addChatBubble(result.message, 'assistant');
@@ -2260,13 +2261,21 @@
 
     function dismissPhotoPrompt() {
       var card = document.getElementById('photoUploadPrompt');
-      if (card) card.style.display = 'none';
+      if (card) {
+        card.remove();
+        var photoBtn = document.getElementById('chatPhotoBtn');
+        if (photoBtn) {
+          photoBtn.classList.add('photo-btn-pulse');
+          setTimeout(function() { photoBtn.classList.remove('photo-btn-pulse'); }, 2000);
+        }
+      }
     }
 
     function showDesignReadyCard() {
       // Remove any existing design ready card
       var existing = document.getElementById('designReadyCard');
       if (existing) existing.remove();
+      dismissPhotoPrompt();
 
       var eventType = extractedData.eventType || 'other';
       var photoRec = photoRecommendations[eventType];
@@ -2369,6 +2378,30 @@
         }
         goToStep(2);
       });
+    }
+
+    function showPhotoAckCard(ackText) {
+      // Remove any previous photo ack card so we don't stack them
+      var prevAck = document.getElementById('photoAckCard');
+      if (prevAck) prevAck.remove();
+      var ackCard = document.createElement('div');
+      ackCard.className = 'chat-bubble assistant';
+      ackCard.id = 'photoAckCard';
+      ackCard.innerHTML = '<div>' + ackText + '</div>'
+        + '<div style="margin-top:10px;color:#555;">Anything else you\u2019d like to add or change before we design your invite?</div>'
+        + '<button class="btn btn-primary" onclick="handlePhotoAckGenerate(this)" style="margin-top:12px;width:100%;padding:12px;font-size:14px;font-weight:600;border-radius:10px;">Create My Invite</button>';
+      document.getElementById('chatMessages').appendChild(ackCard);
+      console.log('[Photos] Ack card shown:', ackText);
+      // Ensure the ack card scrolls into view after DOM update
+      setTimeout(function() { scrollChat(); }, 50);
+    }
+
+    function handlePhotoAckGenerate(btn) {
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+      // If themeReady phase hasn't been reached yet, set it now
+      if (chatPhase !== 'themeReady') chatPhase = 'themeReady';
+      generateFromDesignReady();
     }
 
     function renderRsvpFields() {
@@ -3253,6 +3286,13 @@
               css: genResult.theme.css,
               config: genResult.theme.config
             };
+            // Safety check: if CSS is missing or trivially short, auto-retry
+            if (!ver.css || ver.css.trim().length < 50) {
+              console.error('[generate-theme] CSS missing or too short (' + (ver.css ? ver.css.trim().length : 0) + ' chars) — auto-retrying');
+              stopGeneratingPuns();
+              retryGenerate();
+              return;
+            }
             themeVersions.push(ver);
             activeVersionIndex = themeVersions.length - 1;
             currentEvent.themeHtml = ver.html;
@@ -3435,22 +3475,25 @@
       rsvpFields.forEach(function(f) {
         if (f.field_type === 'email' || f.field_type === 'phone' || f.field_type === 'tel') return;
         var reqStar = f.is_required ? ' <span style="color:#E94560;">*</span>' : '';
-        html += '<div class="rsvp-form-group" style="margin-bottom:14px;">'
-          + '<label style="' + labelStyle + '">' + escapeHtml(f.label) + reqStar + '</label>';
+        html += '<div class="rsvp-form-group" style="margin-bottom:14px;">';
         if (f.field_type === 'checkbox') {
-          html += '<label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;color:' + textColor + ';">'
+          // Checkbox: label wraps the input — no separate heading label needed
+          html += '<label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;cursor:pointer;color:' + textColor + ';">'
             + '<input type="checkbox" disabled style="width:18px;height:18px;accent-color:#E94560;cursor:pointer;">'
-            + '<span>' + escapeHtml(f.placeholder || f.label) + '</span></label>';
-        } else if (f.field_type === 'select' && f.options && f.options.length > 0) {
-          html += '<select disabled style="' + inputStyle + 'cursor:pointer;"><option value="">Select...</option>';
-          f.options.forEach(function(o) { html += '<option>' + escapeHtml(o) + '</option>'; });
-          html += '</select>';
-        } else if (f.field_type === 'textarea') {
-          html += '<textarea disabled placeholder="' + escapeHtml(f.placeholder || '') + '" style="' + inputStyle + 'min-height:80px;resize:vertical;"></textarea>';
+            + '<span>' + escapeHtml(f.label) + reqStar + '</span></label>';
         } else {
-          var pholder = f.field_type === 'number' ? (f.placeholder || '0') : (f.placeholder || '');
-          var inputType = f.field_type === 'number' ? 'number' : 'text';
-          html += '<input type="' + inputType + '" placeholder="' + escapeHtml(pholder) + '" disabled style="' + inputStyle + '">';
+          html += '<label style="' + labelStyle + '">' + escapeHtml(f.label) + reqStar + '</label>';
+          if (f.field_type === 'select' && f.options && f.options.length > 0) {
+            html += '<select disabled style="' + inputStyle + 'cursor:pointer;"><option value="">Select...</option>';
+            f.options.forEach(function(o) { html += '<option>' + escapeHtml(o) + '</option>'; });
+            html += '</select>';
+          } else if (f.field_type === 'textarea') {
+            html += '<textarea disabled placeholder="' + escapeHtml(f.placeholder || '') + '" style="' + inputStyle + 'min-height:80px;resize:vertical;"></textarea>';
+          } else {
+            var pholder = f.field_type === 'number' ? (f.placeholder || '0') : (f.placeholder || '');
+            var inputType = f.field_type === 'number' ? 'number' : 'text';
+            html += '<input type="' + inputType + '" placeholder="' + escapeHtml(pholder) + '" disabled style="' + inputStyle + '">';
+          }
         }
         html += '</div>';
       });
@@ -3515,13 +3558,20 @@
         console.error('[buildSrcdoc] WARNING: No CSS found for theme version', ver.id, '— invite will appear unstyled');
       }
       var fontsImport = config.googleFontsImport || '';
-      // Normalize: ensure it's a full @import statement, not just a URL
-      if (fontsImport && !fontsImport.startsWith('@import')) {
-        fontsImport = "@import url('" + fontsImport + "');";
+      // Extract the Google Fonts URL and use a <link> tag instead of @import
+      // <link> is far more reliable — @import inside <style> is silently ignored
+      // if it's not the very first rule, and can block rendering
+      var fontsLink = '';
+      if (fontsImport) {
+        var fontUrlMatch = fontsImport.match(/url\(['"]?([^'"\)]+)['"]?\)/);
+        var fontUrl = fontUrlMatch ? fontUrlMatch[1] : (fontsImport.startsWith('http') ? fontsImport : '');
+        if (fontUrl) {
+          // Use both <link preconnect> and <link stylesheet> for fastest loading
+          fontsLink = '<link rel="preconnect" href="https://fonts.googleapis.com">'
+            + '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+            + '<link rel="stylesheet" href="' + fontUrl + '">';
+        }
       }
-      // Google Fonts @import MUST be the very first thing in the first <style> block —
-      // browsers silently ignore @import after any other CSS rules
-      var fontsStyle = fontsImport ? '<style>' + fontsImport + '</style>' : '';
 
       // Extract body attributes (AI often puts background/color on <body>)
       var bodyTagMatch = ver.html.match(/<body\b([^>]*)>/i);
@@ -3559,10 +3609,14 @@
       var strayImports = cleanedCss.match(/@import\s+url\([^)]+\);?\s*/g);
       if (strayImports) {
         strayImports.forEach(function(imp) { cleanedCss = cleanedCss.replace(imp, ''); });
-        // Add to fonts block if not already there
-        if (!fontsImport) {
-          var importUrl = strayImports[0].match(/url\(['"]?([^'"\)]+)['"]?\)/);
-          if (importUrl) fontsStyle = '<style>@import url(\'' + importUrl[1] + '\');</style>';
+        // Add as <link> if we don't already have one
+        if (!fontsLink) {
+          var strayUrl = strayImports[0].match(/url\(['"]?([^'"\)]+)['"]?\)/);
+          if (strayUrl) {
+            fontsLink = '<link rel="preconnect" href="https://fonts.googleapis.com">'
+              + '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+              + '<link rel="stylesheet" href="' + strayUrl[1] + '">';
+          }
         }
       }
 
@@ -3577,7 +3631,7 @@
       // (see injectRsvpForm) — NO script injection in srcdoc.
       return '<!DOCTYPE html><html><head><meta charset="UTF-8">'
         + '<meta name="viewport" content="width=393, initial-scale=1.0">'
-        + fontsStyle
+        + fontsLink
         + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; } ' + fallbackCSS + '</style>'
         + (headStyles || '')
         + '<style>' + cleanedCss.replace(/<\/style/gi, '<\\/style') + '</style>'
@@ -5012,9 +5066,12 @@
           tyHtml += guaranteedCalendarHTML + guaranteedEventRecapHTML + guaranteedCtaHTML + guaranteedFooterHTML;
         }
 
-        var fontsStyle2 = fontsImport ? '<style>' + fontsImport + '</style>' : '';
+        var fontsLink2 = '';
+        var fontUrlMatch2 = fontsImport.match(/url\(['"]?([^'"\)]+)['"]?\)/);
+        var fontUrl2 = fontUrlMatch2 ? fontUrlMatch2[1] : (fontsImport.startsWith('http') ? fontsImport : '');
+        if (fontUrl2) fontsLink2 = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="' + fontUrl2 + '">';
         return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
-          + fontsStyle2
+          + fontsLink2
           + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet">'
           + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; }</style>'
           + '<style>' + guaranteedCSS + '</style>'
@@ -5047,9 +5104,12 @@
         + guaranteedFooterHTML
         + '</div>';
 
-      var fontsStyle3 = fontsImport ? '<style>' + fontsImport + '</style>' : '';
+      var fontsLink3 = '';
+      var fontUrlMatch3 = fontsImport.match(/url\(['"]?([^'"\)]+)['"]?\)/);
+      var fontUrl3 = fontUrlMatch3 ? fontUrlMatch3[1] : (fontsImport.startsWith('http') ? fontsImport : '');
+      if (fontUrl3) fontsLink3 = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="' + fontUrl3 + '">';
       return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
-        + fontsStyle3
+        + fontsLink3
         + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet">'
         + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; background:' + bgColor + '; }</style>'
         + '<style>' + guaranteedCSS + '</style>'
@@ -5311,9 +5371,11 @@
     function finishDesignChatInit() {
       var title = extractedData.title || 'your event';
       var isUnpaid = currentEvent && currentEvent.paymentStatus === 'unpaid';
+      var isFreeExhausted = currentEvent && currentEvent.paymentStatus === 'free'
+        && (currentEvent.generationCount || 0) >= (currentEvent.generationLimit || 2);
       var welcomeMsg;
 
-      if (isUnpaid) {
+      if (isUnpaid || isFreeExhausted) {
         welcomeMsg = "Your invite for " + title + " is ready! Here's what you can do for free:\n\n"
           + "- \u{1F4DD} **Update text** \u2014 \"change the date to April 20th\" or \"change the title to ...\"\n"
           + "- \u{2795} **Add RSVP fields** \u2014 \"add a dietary restrictions field\"\n"
@@ -5437,7 +5499,10 @@
           if (isAddVerb) {
             var addDesignWords = ['color', 'colour', 'font', 'background', 'theme', 'style',
               'layout', 'animation', 'border', 'shadow', 'gradient', 'photo', 'image',
-              'sparkle', 'glitter', 'confetti', 'effect', 'texture', 'pattern'];
+              'sparkle', 'glitter', 'confetti', 'effect', 'texture', 'pattern',
+              'text', 'spot', 'section', 'wording', 'copy', 'says', 'saying',
+              'mention', 'note', 'line', 'heading', 'title', 'subtitle', 'detail',
+              'price', 'cost', '$', 'info', 'information', 'description'];
             var hasDesignWord = addDesignWords.some(function(w) { return part.indexOf(w) !== -1; });
             if (!hasDesignWord) addDetected = true;
           }
@@ -6142,46 +6207,36 @@
         return sendDesignChatRsvpFields(text, input);
       }
 
-      // ── RSVP field requests: always redirect to Details tab (free, no AI needed) ──
-      var rsvpFieldPattern = /\b(remove|delete|drop|hide|add|include|make .+ (required|optional))\b.{0,30}\b(field|name|email|phone|dietary|allergies|plus.?one|song|meal|kids|guests?|notes?|message|comment)\b/i;
-      if (rsvpFieldPattern.test(text)) {
-        pushDesignChat({ role: 'user', content: text });
-        pushDesignChat({ role: 'assistant', content: "RSVP fields are managed in the **Details** tab! I\u2019m switching you there now \u2014 you can add, remove, or edit any fields directly." });
-        renderDesignChat();
-        input.value = '';
-        input.style.height = 'auto';
-        switchToDetailsTabRsvp();
-        return;
-      }
 
-      // ── Free/unpaid tier gate: block design chat if generation limit reached ──
+      // ── Free/unpaid tier gate: block design chat if not paid ──
       if (currentEvent && (currentEvent.paymentStatus === 'unpaid' || currentEvent.paymentStatus === 'refunded')) {
-        pendingUpgradeMessage = text;
-        sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
-        pushDesignChat({ role: 'user', content: text });
-        pushDesignChat({ role: 'upgrade', content: "This event requires a $4.99 upgrade before you can make design changes. Upgrade to unlock AI designs, SMS delivery, and everything you need." });
-        renderDesignChat();
-        input.value = '';
-        input.style.height = 'auto';
-        return;
-      }
-      if (currentEvent && currentEvent.paymentStatus === 'free' && (currentEvent.generationCount || 0) > 0) {
         // Allow Tier 1.75 client-side text swaps — they don't cost anything
         var textSwapPattern = /\b(change|replace|swap|switch)\b.{0,10}["'\u201C\u201D].+["'\u201C\u201D]\s*(to|with|for)\s*["'\u201C\u201D]/i;
         if (!textSwapPattern.test(text)) {
-          var remaining = (currentEvent.generationLimit || 2) - (currentEvent.generationCount || 0);
           pendingUpgradeMessage = text;
           sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
           pushDesignChat({ role: 'user', content: text });
-          if (remaining > 0) {
-            pushDesignChat({ role: 'upgrade', content: "I can't make design tweaks on the free plan, but I can generate a brand new design. You have " + remaining + " free design" + (remaining > 1 ? "s" : "") + " remaining.\n\nOr upgrade for $4.99 to unlock unlimited design changes." });
-          } else {
-            pushDesignChat({ role: 'upgrade', content: "You've used all " + (currentEvent.generationLimit || 2) + " of your free designs. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite." });
-          }
+          pushDesignChat({ role: 'upgrade', content: "This event requires a $4.99 upgrade before you can make design changes. Upgrade to unlock AI designs, SMS delivery, and everything you need." });
           renderDesignChat();
           input.value = '';
           input.style.height = 'auto';
           return;
+        }
+      }
+      if (currentEvent && currentEvent.paymentStatus === 'free') {
+        var remaining = (currentEvent.generationLimit || 2) - (currentEvent.generationCount || 0);
+        if (remaining <= 0) {
+          var textSwapPattern2 = /\b(change|replace|swap|switch)\b.{0,10}["'\u201C\u201D].+["'\u201C\u201D]\s*(to|with|for)\s*["'\u201C\u201D]/i;
+          if (!textSwapPattern2.test(text)) {
+            pendingUpgradeMessage = text;
+            sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
+            pushDesignChat({ role: 'user', content: text });
+            pushDesignChat({ role: 'upgrade', content: "You've used all " + (currentEvent.generationLimit || 2) + " of your free designs. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite." });
+            renderDesignChat();
+            input.value = '';
+            input.style.height = 'auto';
+            return;
+          }
         }
       }
 
@@ -6376,18 +6431,6 @@
 
       var sendBtn = document.getElementById('designChatSendBtn');
       sendBtn.disabled = true;
-
-      // ── RSVP field changes: redirect to Details tab ──
-      var rsvpFieldResult = tryInstantRsvpFieldChange(text, hasPhotos);
-      if (rsvpFieldResult) {
-        console.log('[tweak] RSVP field request detected, redirecting to Details tab');
-        pushDesignChat({ role: 'assistant', content: "RSVP fields are managed in the **Details** tab! I\u2019m switching you there now \u2014 you can add, remove, or edit any fields directly.\n\nThis chat is best for design changes like colors, fonts, layout, photos, and text." });
-        clearDesignChatPhoto();
-        sendBtn.disabled = false;
-        renderDesignChat();
-        switchToDetailsTabRsvp();
-        return;
-      }
 
       // ── TIER 1.75: Instant text swap for "change X to Y" requests ──
       var textSwap = tryInstantTextSwap(text, hasPhotos);
@@ -7127,9 +7170,9 @@
       var container = document.getElementById(previewContainerId)
         || document.getElementById(promptPreviewContainerId);
       if (!container) {
-        // Fallback: use chat photo preview area, then legacy
         container = document.getElementById('chatPhotoPreview') || document.getElementById('imagePreviews');
       }
+      var uploadedCount = 0;
       for (var i = 0; i < files.length; i++) {
         if (base64Arr.length >= 6) break;
         var file = files[i];
@@ -7160,6 +7203,7 @@
               // Deduplicate — prevent the same photo URL from being added twice
               if (urlArr.indexOf(uploadResult.url) === -1) {
                 urlArr.push(uploadResult.url);
+                uploadedCount++;
                 console.log('[Photos] Uploaded:', file.name);
               } else {
                 console.log('[Photos] Skipping duplicate URL:', file.name);
@@ -7175,6 +7219,18 @@
         } else {
           placeholder.remove();
         }
+      }
+      // Show chat acknowledgment for uploaded photos with follow-up prompt + CTA
+      if (uploadedCount > 0) {
+        var ackText;
+        if (photoType === 'inspiration') {
+          ackText = uploadedCount + ' inspiration photo' + (uploadedCount > 1 ? 's' : '') + ' uploaded \u2014 we\u2019ll use ' + (uploadedCount > 1 ? 'these' : 'this') + ' to match the color palette and mood of your design.';
+        } else {
+          var nameMatch = (extractedData.title || '').match(/^(.+?)(?:'s|'s|\u2019s)\s/i);
+          var personName = nameMatch ? nameMatch[1] : 'the guest of honor';
+          ackText = uploadedCount + ' photo' + (uploadedCount > 1 ? 's' : '') + ' of ' + personName + ' uploaded \u2014 we\u2019ll feature ' + personName + ' prominently in the invite design.';
+        }
+        showPhotoAckCard(ackText);
       }
       // Scroll to keep the Generate button visible after adding photos
       scrollChat();

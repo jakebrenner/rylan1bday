@@ -433,11 +433,9 @@ const DESIGN_DNA = {
 // preview system, data binding, thank-you page rendering).
 // ═══════════════════════════════════════════════════════════════════
 const STRUCTURAL_RULES = `## OUTPUT FORMAT — MANDATORY
-Return a JSON object with exactly these keys:
+Return a JSON object with exactly these keys IN THIS ORDER (CSS first to avoid truncation):
 {
-  "theme_html": "...",
   "theme_css": "...",
-  "theme_thankyou_html": "...",
   "theme_config": {
     "primaryColor": "#hex",
     "secondaryColor": "#hex",
@@ -449,8 +447,12 @@ Return a JSON object with exactly these keys:
     "mood": "one-word mood descriptor",
     "googleFontsImport": "@import url('...')",
     "loadingPun": "A short, fun, on-theme pun shown while the RSVP is submitting (e.g., 'Grabbing your party hat...', 'Saving you a seat...', 'Polishing the dance floor...')"
-  }
+  },
+  "theme_html": "...",
+  "theme_thankyou_html": "..."
 }
+
+CRITICAL: Output theme_css and theme_config BEFORE theme_html. The HTML can be very long — if you run out of output space, the CSS must already be complete.
 
 ## PAGE STRUCTURE — REQUIRED SECTIONS
 Build the page with these sections (creative freedom on visual execution):
@@ -1273,7 +1275,7 @@ async function loadStyleReferences(eventType, promptSpecificity = 0) {
     }));
     // Track usage (fire and forget — silently skip if times_used column doesn't exist)
     selected.forEach(row => {
-      supabase.from('style_library').update({ times_used: (row.times_used || 0) + 1 }).eq('id', row.id).then(() => {}).catch(() => {});
+      try { supabase.from('style_library').update({ times_used: (row.times_used || 0) + 1 }).eq('id', row.id); } catch(e) { /* non-critical */ }
     });
     return { context: buildStyleContext(matched, promptSpecificity), selectedIds };
   } catch {
@@ -1673,16 +1675,18 @@ Rules:
       }
       // Log classifyIntent to generation_log — these add up
       const classifyMeta = getClientMeta(req);
-      await supabase.from('generation_log').insert({
-        user_id: user.id, event_id: eventId || null,
-        prompt: 'classifyIntent: ' + userMessage.substring(0, 200),
-        model: 'claude-haiku-4-5-20251001', input_tokens: classifyInputTokens,
-        output_tokens: classifyOutputTokens, latency_ms: classifyLatency, status: 'success',
-        is_tweak: true, cost_cents: classifyCost.costCentsExact, event_type: eventType || '',
-        client_ip: classifyMeta.ip, client_geo: classifyMeta.geo, user_agent: classifyMeta.userAgent
-      }).catch(e => console.error('classifyIntent generation_log insert failed:', e.message));
+      try {
+        await supabase.from('generation_log').insert({
+          user_id: user.id, event_id: eventId || null,
+          prompt: 'classifyIntent: ' + userMessage.substring(0, 200),
+          model: 'claude-haiku-4-5-20251001', input_tokens: classifyInputTokens,
+          output_tokens: classifyOutputTokens, latency_ms: classifyLatency, status: 'success',
+          is_tweak: true, cost_cents: classifyCost.costCentsExact, event_type: eventType || '',
+          client_ip: classifyMeta.ip, client_geo: classifyMeta.geo, user_agent: classifyMeta.userAgent
+        });
+      } catch(e) { console.error('classifyIntent generation_log insert failed:', e.message); }
       if (eventId) {
-        await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: classifyCost.rawCostCents }).catch(() => {});
+        try { await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: classifyCost.rawCostCents }); } catch(e) { /* non-critical */ }
       }
       // AI generation included in $4.99 event price — no per-generation billing
       return res.json({ success: true, ...classification, metadata: { cost: classifyCost } });
@@ -2292,14 +2296,16 @@ Return ONLY a valid JSON object with these keys:
 
       // ── Quality signal: Content warnings persist after tweak repair ──
       if (tweakContentWarnings.length > 0) {
-        supabase.from('quality_incidents').insert({
-          event_id: eventId, user_id: user.id,
-          trigger_type: 'content_warning',
-          trigger_data: { contentWarnings: tweakContentWarnings, htmlLength: theme.theme_html.length, isTweak: true },
-          theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
-          validation_results: { server: tweakContentWarnings },
-          resolution_type: 'unresolved'
-        }).catch(e => console.error('[quality] Tweak content warning incident failed:', e.message));
+        try {
+          supabase.from('quality_incidents').insert({
+            event_id: eventId, user_id: user.id,
+            trigger_type: 'content_warning',
+            trigger_data: { contentWarnings: tweakContentWarnings, htmlLength: theme.theme_html.length, isTweak: true },
+            theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
+            validation_results: { server: tweakContentWarnings },
+            resolution_type: 'unresolved'
+          });
+        } catch(e) { console.error('[quality] Tweak content warning incident failed:', e.message); }
       }
 
       // ── Log tweak to generation_log BEFORE res.end() — uses estimated tokens ──
@@ -2362,7 +2368,7 @@ Return ONLY a valid JSON object with these keys:
           const finalTweakCost = calcGenerationCost(tweakModel, finalTweakInputTokens, finalTweakOutputTokens);
           const costDelta = finalTweakCost.rawCostCents - tweakCost.rawCostCents;
           if (costDelta > 0) {
-            await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: costDelta }).catch(() => {});
+            try { await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: costDelta }); } catch(e) { /* non-critical */ }
           }
         }
       } catch (e) { /* non-critical — estimated tokens already saved */ }
@@ -2562,7 +2568,7 @@ This is the most common failure mode. Double-check it.`;
     }
 
     if (resolvedInspirationImages.length > 0) {
-      userMessage += `\n\n**Visual Inspiration:** I've provided ${resolvedInspirationImages.length} image(s) as inspiration. Analyze for color palette, mood, textures, and typography cues.`;
+      userMessage += `\n\n**CRITICAL — Visual Inspiration (${resolvedInspirationImages.length} image${resolvedInspirationImages.length > 1 ? 's' : ''}):** The user uploaded these images as design inspiration. You MUST extract and use the dominant color palette, mood, lighting, and visual energy from these images as the primary basis for your design. Do NOT default to generic bright/neon colors — match the actual tones and atmosphere shown in the inspiration. If the images are dark and moody, make the design dark and moody. If warm and golden, use warm golds. The inspiration images are the single strongest signal for what the user wants visually.`;
     }
 
     const messageContent = resolvedInspirationImages.length > 0
@@ -2584,7 +2590,7 @@ This is the most common failure mode. Double-check it.`;
       ? openaiStream(themeModel, activePrompt.systemPrompt, messageContent, 12288)
       : client.messages.stream({
           model: themeModel,
-          max_tokens: 16384,
+          max_tokens: 100000,
           system: activePrompt.systemPrompt,
           messages: [{ role: 'user', content: messageContent }]
         });
@@ -2650,10 +2656,17 @@ This is the most common failure mode. Double-check it.`;
       genInputTokens = Math.round((systemLen + userMsgLen) / 4);
     }
     console.log('[cost] Estimated tokens:', { hadFinalMessage, genInputTokens, genOutputTokens, fullTextLen: fullText.length, model: themeModel });
+
+    // Detect truncation: if finalMessage has stop_reason 'max_tokens', the response was cut off
+    const stopReason = genFinalMessage?.stop_reason || 'unknown';
+    if (stopReason === 'max_tokens') {
+      console.warn('[generate] Response was TRUNCATED (hit max_tokens). Output tokens:', genOutputTokens, 'Text length:', fullText.length);
+    }
     const latency = Date.now() - startTime;
 
     // Parse JSON response — handle various wrapping patterns
     let theme = parseThemeResponse(fullText);
+    console.log('[generate] Parsed theme — CSS length:', theme.theme_css?.length || 0, 'HTML length:', theme.theme_html?.length || 0, 'Raw response length:', fullText.length);
 
     // Normalize: ensure googleFontsImport is always a full @import statement
     if (theme.theme_config.googleFontsImport && !theme.theme_config.googleFontsImport.startsWith('@import')) {
@@ -2713,7 +2726,12 @@ This is the most common failure mode. Double-check it.`;
       }
     }
     if (!theme.theme_css || !theme.theme_css.trim()) {
-      console.error('[generate] WARNING: Theme has no CSS! HTML length:', theme.theme_html?.length, 'Keys:', Object.keys(theme).join(', '));
+      console.error('[generate] CRITICAL: Theme has no CSS! HTML length:', theme.theme_html?.length, 'Keys:', Object.keys(theme).join(', '), 'First 500 chars of raw response:', fullText.substring(0, 500));
+      // Don't save or send an unstyled theme — return error so client can retry
+      clearInterval(keepalive);
+      sendSSE('error', { error: 'Generation produced no CSS styling. Please try again.', retryable: true });
+      res.end();
+      return;
     }
 
     // ── SERVER-SIDE THEME VALIDATION: Catch broken output before sending to client ──
@@ -2748,14 +2766,16 @@ This is the most common failure mode. Double-check it.`;
 
     // ── Quality signal: Content warnings persist after repair ──
     if (contentWarnings.length > 0) {
-      supabase.from('quality_incidents').insert({
-        event_id: eventId, user_id: user.id,
-        trigger_type: 'content_warning',
-        trigger_data: { contentWarnings, htmlLength: theme.theme_html.length },
-        theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: theme.theme_config },
-        validation_results: { server: contentWarnings },
-        resolution_type: 'unresolved'
-      }).catch(e => console.error('[quality] Content warning incident failed:', e.message));
+      try {
+        supabase.from('quality_incidents').insert({
+          event_id: eventId, user_id: user.id,
+          trigger_type: 'content_warning',
+          trigger_data: { contentWarnings, htmlLength: theme.theme_html.length },
+          theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: theme.theme_config },
+          validation_results: { server: contentWarnings },
+          resolution_type: 'unresolved'
+        });
+      } catch(e) { console.error('[quality] Content warning incident failed:', e.message); }
     }
 
     // ── Save theme to event_themes BEFORE res.end() ──
@@ -2929,7 +2949,7 @@ This is the most common failure mode. Double-check it.`;
         // Adjust event cost delta if markup changed significantly
         const costDelta = finalCost.rawCostCents - genCost.rawCostCents;
         if (costDelta > 0) {
-          await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: costDelta }).catch(() => {});
+          try { await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: costDelta }); } catch(e) { /* non-critical */ }
         }
       }
     } catch (e) { /* non-critical — estimated tokens already saved */ }
