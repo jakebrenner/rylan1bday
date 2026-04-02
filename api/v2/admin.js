@@ -194,7 +194,7 @@ export default async function handler(req, res) {
       if (!userId) return res.status(400).json({ error: 'userId required' });
 
       // Fetch all data in parallel — only use tables/columns that actually exist
-      const [profileRes, authUserRes, eventsRes, subsRes, billingRes, generationsRes, smsRes, chatRes, creditLedgerRes] = await Promise.all([
+      const [profileRes, authUserRes, eventsRes, subsRes, billingRes, generationsRes, smsRes, chatRes, creditLedgerRes, notifRes] = await Promise.all([
         supabaseAdmin.from('profiles').select('*').eq('id', userId).single(),
         supabaseAdmin.auth.admin.getUserById(userId).catch(() => ({ data: { user: null } })),
         supabaseAdmin.from('events').select('id, title, event_type, event_date, status, slug, payment_status, paid_at, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
@@ -203,7 +203,33 @@ export default async function handler(req, res) {
         supabaseAdmin.from('generation_log').select('id, event_id, model, input_tokens, output_tokens, prompt, status, latency_ms, created_at').eq('user_id', userId).eq('status', 'success').order('created_at', { ascending: false }),
         supabaseAdmin.from('sms_messages').select('id, event_id, recipient_phone, recipient_name, message_type, status, cost_cents, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
         supabaseAdmin.from('chat_messages').select('id, session_id, role, content, model, input_tokens, output_tokens, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(200),
-        (async () => { try { return await supabaseAdmin.from('credit_ledger').select('entry_type, amount, source, notes, reference_id, created_at').eq('user_id', userId).order('created_at', { ascending: false }); } catch { return { data: [] }; } })()
+        (async () => { try { return await supabaseAdmin.from('credit_ledger').select('entry_type, amount, source, notes, reference_id, created_at').eq('user_id', userId).order('created_at', { ascending: false }); } catch { return { data: [] }; } })(),
+        // Fetch notification_log: match by user_id OR recipient email (for pre-migration records)
+        (async () => {
+          try {
+            // First try by user_id
+            const byUserId = await supabaseAdmin.from('notification_log')
+              .select('id, event_id, channel, recipient, subject, status, email_type, delivered_at, opened_at, clicked_at, bounced_at, sent_at, created_at')
+              .eq('user_id', userId)
+              .order('sent_at', { ascending: false })
+              .limit(100);
+            // Also get by email for records that predate user_id column
+            const profileData = await supabaseAdmin.from('profiles').select('email').eq('id', userId).single();
+            if (profileData.data?.email) {
+              const byEmail = await supabaseAdmin.from('notification_log')
+                .select('id, event_id, channel, recipient, subject, status, email_type, delivered_at, opened_at, clicked_at, bounced_at, sent_at, created_at')
+                .eq('recipient', profileData.data.email)
+                .is('user_id', null)
+                .order('sent_at', { ascending: false })
+                .limit(100);
+              // Merge and deduplicate by id
+              const allNotifs = [...(byUserId.data || []), ...(byEmail.data || [])];
+              const seen = new Set();
+              return { data: allNotifs.filter(n => { if (seen.has(n.id)) return false; seen.add(n.id); return true; }) };
+            }
+            return byUserId;
+          } catch { return { data: [] }; }
+        })()
       ]);
 
       const profile = profileRes.data;
@@ -512,6 +538,20 @@ export default async function handler(req, res) {
           outputTokens: t.output_tokens,
           latencyMs: t.latency_ms,
           createdAt: t.created_at
+        })),
+        notifications: (notifRes.data || []).map(n => ({
+          id: n.id,
+          eventId: n.event_id,
+          channel: n.channel,
+          recipient: n.recipient,
+          subject: n.subject,
+          status: n.status,
+          emailType: n.email_type,
+          deliveredAt: n.delivered_at,
+          openedAt: n.opened_at,
+          clickedAt: n.clicked_at,
+          bouncedAt: n.bounced_at,
+          sentAt: n.sent_at || n.created_at
         }))
       });
     }
@@ -3060,7 +3100,7 @@ ${cssSnippet}`
           id, user_id, event_id, event_theme_id, rating, headline, body,
           reviewer_name, is_anonymous, status, event_type, admin_notes,
           moderated_by, moderated_at, created_at, updated_at,
-          profiles(email, first_name, last_name),
+          profiles(email, display_name),
           events(title, event_date, slug),
           event_themes(html, css, config)
         `, { count: 'exact' })
@@ -3176,7 +3216,7 @@ ${cssSnippet}`
 
       const { data: profile } = await supabaseAdmin
         .from('profiles')
-        .select('email, first_name')
+        .select('email, display_name')
         .eq('id', event.user_id)
         .single();
 
@@ -3197,7 +3237,7 @@ ${cssSnippet}`
       const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
       if (resend) {
         const reviewUrl = `https://www.ryvite.com/v2/review/?token=${token}`;
-        const firstName = profile.first_name || 'there';
+        const firstName = profile.display_name?.split(' ')[0] || 'there';
 
         // Load configurable settings
         const settingKeys = ['review_email_subject', 'review_email_headline', 'review_email_body', 'review_email_cta_text', 'review_email_footer_note'];
@@ -3213,12 +3253,25 @@ ${cssSnippet}`
         const footerNote = replaceVars(cm.review_email_footer_note || 'Your review may be featured on our site to help other event planners.');
         const bodyHtml = bodyText.split('\n').filter(p => p.trim()).map(p => `<p style="margin:0 0 16px;font-size:15px;color:#555;line-height:1.6;">${p}</p>`).join('\n    ');
 
-        await resend.emails.send({
+        const emailResult = await resend.emails.send({
           from: 'Ryvite <hello@ryvite.com>',
           to: profile.email,
           subject,
           html: buildReviewEmailFromSettings(firstName, headline, bodyHtml, ctaText, footerNote, reviewUrl)
         });
+
+        // Log to notification_log for engagement tracking
+        await supabaseAdmin.from('notification_log').insert({
+          event_id: eventId,
+          user_id: event.user_id,
+          channel: 'email',
+          recipient: profile.email,
+          subject,
+          status: 'sent',
+          provider_id: emailResult?.data?.id || null,
+          email_type: 'review_request',
+          sent_at: new Date().toISOString()
+        }).catch(() => {});
       }
 
       return res.status(200).json({ success: true, token });
@@ -3662,6 +3715,154 @@ ${cssSnippet}`
             paymentStatuses: distinctPaymentStatuses
           }
         }
+      });
+    }
+
+    // ── CUSTOMER LIFECYCLE / TOUCHPOINT ANALYTICS ──
+
+    // Get funnel metrics for all email touchpoint types
+    if (action === 'touchpointAnalytics') {
+      // Parse date range from query params
+      const startDate = req.query.startDate || null;
+      const endDate = req.query.endDate || null;
+
+      // 1. Per-type funnel from notification_log
+      let funnelQuery = supabaseAdmin
+        .from('notification_log')
+        .select('email_type, channel, status, delivered_at, opened_at, clicked_at, bounced_at, sent_at');
+      if (startDate) funnelQuery = funnelQuery.gte('sent_at', startDate);
+      if (endDate) funnelQuery = funnelQuery.lte('sent_at', endDate + 'T23:59:59.999Z');
+
+      const { data: funnel, error: funnelErr } = await funnelQuery;
+
+      // 2. Review request pipeline
+      let reviewReqQuery = supabaseAdmin
+        .from('review_requests')
+        .select('status, sent_at, reminder_sent_at, completed_at');
+      if (startDate) reviewReqQuery = reviewReqQuery.gte('sent_at', startDate);
+      if (endDate) reviewReqQuery = reviewReqQuery.lte('sent_at', endDate + 'T23:59:59.999Z');
+
+      const { data: reviewReqs } = await reviewReqQuery;
+
+      // 3. Draft abandonment conversion: did events get published after nudge?
+      let abandonQuery = supabaseAdmin
+        .from('notification_log')
+        .select('event_id, sent_at')
+        .eq('email_type', 'abandonment_nudge');
+      if (startDate) abandonQuery = abandonQuery.gte('sent_at', startDate);
+      if (endDate) abandonQuery = abandonQuery.lte('sent_at', endDate + 'T23:59:59.999Z');
+
+      const { data: abandonmentNudges } = await abandonQuery;
+
+      let abandonmentConversions = 0;
+      if (abandonmentNudges && abandonmentNudges.length > 0) {
+        const nudgedEventIds = abandonmentNudges.map(n => n.event_id).filter(Boolean);
+        if (nudgedEventIds.length > 0) {
+          const { count } = await supabaseAdmin
+            .from('events')
+            .select('id', { count: 'exact', head: true })
+            .in('id', nudgedEventIds)
+            .eq('status', 'published');
+          abandonmentConversions = count || 0;
+        }
+      }
+
+      // Aggregate funnel by email_type + channel
+      const funnelMap = {};
+      for (const row of (funnel || [])) {
+        const type = row.email_type || (row.channel === 'sms' ? 'sms_other' : 'email_other');
+        const key = type + ':' + row.channel;
+        if (!funnelMap[key]) {
+          funnelMap[key] = { type, channel: row.channel, sent: 0, delivered: 0, opened: 0, clicked: 0, bounced: 0, failed: 0 };
+        }
+        funnelMap[key].sent++;
+        if (row.delivered_at) funnelMap[key].delivered++;
+        if (row.opened_at) funnelMap[key].opened++;
+        if (row.clicked_at) funnelMap[key].clicked++;
+        if (row.bounced_at) funnelMap[key].bounced++;
+        if (row.status === 'failed') funnelMap[key].failed++;
+      }
+
+      // Calculate rates
+      const touchpoints = Object.values(funnelMap).map(t => ({
+        ...t,
+        deliveryRate: t.sent > 0 ? Math.round(t.delivered / t.sent * 1000) / 10 : 0,
+        openRate: t.delivered > 0 ? Math.round(t.opened / t.delivered * 1000) / 10 : 0,
+        clickRate: t.opened > 0 ? Math.round(t.clicked / t.opened * 1000) / 10 : 0,
+        bounceRate: t.sent > 0 ? Math.round(t.bounced / t.sent * 1000) / 10 : 0
+      }));
+
+      // Review pipeline
+      const reqs = reviewReqs || [];
+      const reviewPipeline = {
+        totalRequests: reqs.length,
+        sent: reqs.filter(r => ['sent', 'reminded', 'completed'].includes(r.status)).length,
+        reminded: reqs.filter(r => ['reminded', 'completed'].includes(r.status)).length,
+        completed: reqs.filter(r => r.status === 'completed').length,
+        conversionRate: reqs.length > 0
+          ? Math.round(reqs.filter(r => r.status === 'completed').length / reqs.length * 1000) / 10
+          : 0
+      };
+
+      // Abandonment pipeline
+      const abandonmentPipeline = {
+        nudgesSent: (abandonmentNudges || []).length,
+        converted: abandonmentConversions,
+        conversionRate: (abandonmentNudges || []).length > 0
+          ? Math.round(abandonmentConversions / (abandonmentNudges || []).length * 1000) / 10
+          : 0
+      };
+
+      // Daily trend (uses date range, defaults to last 30 days)
+      const trendStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      let trendQuery = supabaseAdmin
+        .from('notification_log')
+        .select('email_type, channel, sent_at, delivered_at, opened_at, clicked_at')
+        .order('sent_at', { ascending: true });
+      trendQuery = trendQuery.gte('sent_at', trendStart);
+      if (endDate) trendQuery = trendQuery.lte('sent_at', endDate + 'T23:59:59.999Z');
+
+      const { data: recentLogs } = await trendQuery;
+
+      const dailyTrend = {};
+      for (const row of (recentLogs || [])) {
+        const day = row.sent_at?.substring(0, 10);
+        if (!day) continue;
+        if (!dailyTrend[day]) dailyTrend[day] = { day, sent: 0, delivered: 0, opened: 0, clicked: 0 };
+        dailyTrend[day].sent++;
+        if (row.delivered_at) dailyTrend[day].delivered++;
+        if (row.opened_at) dailyTrend[day].opened++;
+        if (row.clicked_at) dailyTrend[day].clicked++;
+      }
+
+      // Overall totals — split email vs SMS
+      const allRows = funnel || [];
+      const emailRows = allRows.filter(r => r.channel === 'email');
+      const smsRows = allRows.filter(r => r.channel === 'sms');
+      const totalSent = allRows.length;
+      const totalEmails = emailRows.length;
+      const totalSms = smsRows.length;
+      const totalDelivered = allRows.filter(r => r.delivered_at).length;
+      const totalOpened = allRows.filter(r => r.opened_at).length;
+      const totalClicked = allRows.filter(r => r.clicked_at).length;
+
+      return res.status(200).json({
+        success: true,
+        overview: {
+          totalSent,
+          totalEmails,
+          totalSms,
+          totalDelivered,
+          totalOpened,
+          totalClicked,
+          overallDeliveryRate: totalEmails > 0 ? Math.round(totalDelivered / totalEmails * 1000) / 10 : 0,
+          overallOpenRate: totalDelivered > 0 ? Math.round(totalOpened / totalDelivered * 1000) / 10 : 0,
+          overallClickRate: totalOpened > 0 ? Math.round(totalClicked / totalOpened * 1000) / 10 : 0
+        },
+        touchpoints,
+        reviewPipeline,
+        abandonmentPipeline,
+        dailyTrend: Object.values(dailyTrend)
       });
     }
 

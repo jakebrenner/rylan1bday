@@ -18,7 +18,7 @@ function getUserSupabase(token) {
   });
 }
 
-async function sendWelcomeEmail(eventId, eventTitle, userEmail, firstName) {
+async function sendWelcomeEmail(eventId, eventTitle, userEmail, firstName, userId) {
   if (!resend || !userEmail) return;
   try {
     const editUrl = `${PROD_URL}/v2/create/?eventId=${eventId}`;
@@ -74,7 +74,7 @@ async function sendWelcomeEmail(eventId, eventTitle, userEmail, firstName) {
 </td></tr></table>
 </body></html>`;
 
-    await resend.emails.send({
+    const emailResult = await resend.emails.send({
       from: 'Ryvite <hello@ryvite.com>',
       to: userEmail,
       subject,
@@ -83,11 +83,14 @@ async function sendWelcomeEmail(eventId, eventTitle, userEmail, firstName) {
 
     await supabaseAdmin.from('notification_log').insert({
       event_id: eventId,
+      user_id: userId || null,
       guest_id: null,
       channel: 'email',
       recipient: userEmail,
       subject,
       status: 'sent',
+      provider_id: emailResult?.data?.id || null,
+      email_type: 'welcome',
       sent_at: new Date().toISOString()
     });
   } catch (err) {
@@ -451,7 +454,7 @@ export default async function handler(req, res) {
       // Fire-and-forget welcome email
       if (resend && user.email) {
         const firstName = user.user_metadata?.display_name?.split(' ')[0] || user.email?.split('@')[0] || 'there';
-        sendWelcomeEmail(data.id, title, user.email, firstName).catch(err =>
+        sendWelcomeEmail(data.id, title, user.email, firstName, user.id).catch(err =>
           console.error('Welcome email error:', err)
         );
       }

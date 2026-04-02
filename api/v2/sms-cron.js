@@ -402,7 +402,7 @@ async function processEmailReminder(reminder, now) {
 </html>`;
 
     try {
-      await resend.emails.send({
+      const emailResult = await resend.emails.send({
         from: 'Ryvite <noreply@ryvite.com>',
         to: guest.email,
         subject: emailSubject,
@@ -416,6 +416,9 @@ async function processEmailReminder(reminder, now) {
         recipient: guest.email,
         subject: emailSubject,
         status: 'sent',
+        provider_id: emailResult?.data?.id || null,
+        email_type: 'event_reminder',
+        user_id: reminder.user_id || null,
         sent_at: now
       });
     } catch (emailErr) {
@@ -428,6 +431,8 @@ async function processEmailReminder(reminder, now) {
         subject: emailSubject,
         status: 'failed',
         error: emailErr.message || 'Send failed',
+        email_type: 'event_reminder',
+        user_id: reminder.user_id || null,
         sent_at: now
       });
     }
@@ -649,7 +654,7 @@ async function processReviewRequests() {
         // Get host email
         const { data: profile } = await supabaseAdmin
           .from('profiles')
-          .select('email, first_name')
+          .select('email, display_name')
           .eq('id', event.user_id)
           .single();
 
@@ -668,15 +673,29 @@ async function processReviewRequests() {
         // Send review request email using configurable template
         if (resend) {
           const reviewUrl = `https://www.ryvite.com/v2/review/?token=${token}`;
-          const firstName = profile.first_name || 'there';
+          const firstName = profile.display_name?.split(' ')[0] || 'there';
           const replaceVars = (str) => str.replace(/\{\{eventTitle\}\}/g, event.title).replace(/\{\{firstName\}\}/g, firstName);
+          const emailSubject = replaceVars(settings.emailSubject);
 
-          await resend.emails.send({
+          const emailResult = await resend.emails.send({
             from: 'Ryvite <hello@ryvite.com>',
             to: profile.email,
-            subject: replaceVars(settings.emailSubject),
+            subject: emailSubject,
             html: buildConfigurableReviewEmail(firstName, replaceVars(settings.emailHeadline), replaceVars(settings.emailBody), replaceVars(settings.emailCtaText), replaceVars(settings.emailFooterNote), reviewUrl)
           });
+
+          // Log to notification_log for engagement tracking
+          await supabaseAdmin.from('notification_log').insert({
+            event_id: event.id,
+            user_id: event.user_id,
+            channel: 'email',
+            recipient: profile.email,
+            subject: emailSubject,
+            status: 'sent',
+            provider_id: emailResult?.data?.id || null,
+            email_type: 'review_request',
+            sent_at: new Date().toISOString()
+          }).catch(() => {});
         }
 
         sent++;
@@ -697,7 +716,7 @@ async function processReviewRequests() {
     .select(`
       id, user_id, event_id, token,
       events!inner(title),
-      profiles!inner(email, first_name)
+      profiles!inner(email, display_name)
     `)
     .eq('status', 'sent')
     .lt('sent_at', reminderCutoff)
@@ -711,16 +730,30 @@ async function processReviewRequests() {
 
         if (resend) {
           const reviewUrl = `https://www.ryvite.com/v2/review/?token=${req.token}`;
-          const firstName = req.profiles.first_name || 'there';
+          const firstName = req.profiles.display_name?.split(' ')[0] || 'there';
           const eventTitle = req.events?.title || 'your event';
           const replaceVars = (str) => str.replace(/\{\{eventTitle\}\}/g, eventTitle).replace(/\{\{firstName\}\}/g, firstName);
 
-          await resend.emails.send({
+          const reminderSubject = replaceVars(settings.reminderSubject);
+          const emailResult = await resend.emails.send({
             from: 'Ryvite <hello@ryvite.com>',
             to: req.profiles.email,
-            subject: replaceVars(settings.reminderSubject),
+            subject: reminderSubject,
             html: buildConfigurableReviewEmail(firstName, replaceVars(settings.reminderHeadline), replaceVars(settings.reminderBody), replaceVars(settings.reminderCtaText), replaceVars(settings.reminderFooterNote), reviewUrl)
           });
+
+          // Log to notification_log for engagement tracking
+          await supabaseAdmin.from('notification_log').insert({
+            event_id: req.event_id,
+            user_id: req.user_id,
+            channel: 'email',
+            recipient: req.profiles.email,
+            subject: reminderSubject,
+            status: 'sent',
+            provider_id: emailResult?.data?.id || null,
+            email_type: 'review_reminder',
+            sent_at: new Date().toISOString()
+          }).catch(() => {});
         }
 
         await supabaseAdmin
@@ -840,18 +873,18 @@ async function processAbandonedDrafts() {
 
       const { data: profile } = await supabaseAdmin
         .from('profiles')
-        .select('email, first_name, display_name')
+        .select('email, display_name')
         .eq('id', event.user_id)
         .single();
 
       if (!profile?.email) continue;
 
-      const firstName = profile.first_name || profile.display_name?.split(' ')[0] || 'there';
+      const firstName = profile.display_name?.split(' ')[0] || 'there';
       const eventTitle = event.title || 'your event';
       const editUrl = `https://www.ryvite.com/v2/create/?eventId=${event.id}`;
       const subject = `Your event \u201c${eventTitle}\u201d is still in draft \u2014 need help?`;
 
-      await resend.emails.send({
+      const emailResult = await resend.emails.send({
         from: 'Ryvite <hello@ryvite.com>',
         to: profile.email,
         subject,
@@ -860,11 +893,14 @@ async function processAbandonedDrafts() {
 
       await supabaseAdmin.from('notification_log').insert({
         event_id: event.id,
+        user_id: event.user_id,
         guest_id: null,
         channel: 'email',
         recipient: profile.email,
         subject,
         status: 'sent',
+        provider_id: emailResult?.data?.id || null,
+        email_type: 'abandonment_nudge',
         sent_at: new Date().toISOString()
       });
 
