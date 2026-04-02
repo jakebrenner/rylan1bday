@@ -706,8 +706,8 @@
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
           <span style="font-size:13px;font-weight:600;color:#666;">Filter activity by:</span>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button class="btn btn-sm date-preset active" data-preset="all" onclick="setDatePreset('all')">All Time</button>
-            <button class="btn btn-sm date-preset" data-preset="today" onclick="setDatePreset('today')">Today</button>
+            <button class="btn btn-sm date-preset" data-preset="all" onclick="setDatePreset('all')">All Time</button>
+            <button class="btn btn-sm date-preset active" data-preset="today" onclick="setDatePreset('today')">Today</button>
             <button class="btn btn-sm date-preset" data-preset="7d" onclick="setDatePreset('7d')">Last 7d</button>
             <button class="btn btn-sm date-preset" data-preset="30d" onclick="setDatePreset('30d')">Last 30d</button>
             <button class="btn btn-sm date-preset" data-preset="accurate" onclick="setDatePreset('accurate')">Since Fix (3/19)</button>
@@ -3315,7 +3315,7 @@
     // ---- Date Range Filter ----
     var statsDateFrom = null;
     var statsDateTo = null;
-    var activePreset = 'all';
+    var activePreset = 'today';
     var ACCURACY_FIX_DATE = '2026-03-19';
     var PT_TZ = 'America/Los_Angeles';
 
@@ -3424,6 +3424,7 @@
         if (!res.success) throw new Error('Not admin');
         document.getElementById('adminContent').style.display = 'flex';
         showStats(res.stats);
+        setDatePreset('today');
         loadUsers();
         loadConfig();
         loadAdmins();
