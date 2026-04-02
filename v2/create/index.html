@@ -3559,13 +3559,20 @@
         console.error('[buildSrcdoc] WARNING: No CSS found for theme version', ver.id, '— invite will appear unstyled');
       }
       var fontsImport = config.googleFontsImport || '';
-      // Normalize: ensure it's a full @import statement, not just a URL
-      if (fontsImport && !fontsImport.startsWith('@import')) {
-        fontsImport = "@import url('" + fontsImport + "');";
+      // Extract the Google Fonts URL and use a <link> tag instead of @import
+      // <link> is far more reliable — @import inside <style> is silently ignored
+      // if it's not the very first rule, and can block rendering
+      var fontsLink = '';
+      if (fontsImport) {
+        var fontUrlMatch = fontsImport.match(/url\(['"]?([^'"\)]+)['"]?\)/);
+        var fontUrl = fontUrlMatch ? fontUrlMatch[1] : (fontsImport.startsWith('http') ? fontsImport : '');
+        if (fontUrl) {
+          // Use both <link preconnect> and <link stylesheet> for fastest loading
+          fontsLink = '<link rel="preconnect" href="https://fonts.googleapis.com">'
+            + '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+            + '<link rel="stylesheet" href="' + fontUrl + '">';
+        }
       }
-      // Google Fonts @import MUST be the very first thing in the first <style> block —
-      // browsers silently ignore @import after any other CSS rules
-      var fontsStyle = fontsImport ? '<style>' + fontsImport + '</style>' : '';
 
       // Extract body attributes (AI often puts background/color on <body>)
       var bodyTagMatch = ver.html.match(/<body\b([^>]*)>/i);
@@ -3603,10 +3610,14 @@
       var strayImports = cleanedCss.match(/@import\s+url\([^)]+\);?\s*/g);
       if (strayImports) {
         strayImports.forEach(function(imp) { cleanedCss = cleanedCss.replace(imp, ''); });
-        // Add to fonts block if not already there
-        if (!fontsImport) {
-          var importUrl = strayImports[0].match(/url\(['"]?([^'"\)]+)['"]?\)/);
-          if (importUrl) fontsStyle = '<style>@import url(\'' + importUrl[1] + '\');</style>';
+        // Add as <link> if we don't already have one
+        if (!fontsLink) {
+          var strayUrl = strayImports[0].match(/url\(['"]?([^'"\)]+)['"]?\)/);
+          if (strayUrl) {
+            fontsLink = '<link rel="preconnect" href="https://fonts.googleapis.com">'
+              + '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+              + '<link rel="stylesheet" href="' + strayUrl[1] + '">';
+          }
         }
       }
 
@@ -3621,7 +3632,7 @@
       // (see injectRsvpForm) — NO script injection in srcdoc.
       return '<!DOCTYPE html><html><head><meta charset="UTF-8">'
         + '<meta name="viewport" content="width=393, initial-scale=1.0">'
-        + fontsStyle
+        + fontsLink
         + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; } ' + fallbackCSS + '</style>'
         + (headStyles || '')
         + '<style>' + cleanedCss.replace(/<\/style/gi, '<\\/style') + '</style>'
@@ -5056,9 +5067,12 @@
           tyHtml += guaranteedCalendarHTML + guaranteedEventRecapHTML + guaranteedCtaHTML + guaranteedFooterHTML;
         }
 
-        var fontsStyle2 = fontsImport ? '<style>' + fontsImport + '</style>' : '';
+        var fontsLink2 = '';
+        var fontUrlMatch2 = fontsImport.match(/url\(['"]?([^'"\)]+)['"]?\)/);
+        var fontUrl2 = fontUrlMatch2 ? fontUrlMatch2[1] : (fontsImport.startsWith('http') ? fontsImport : '');
+        if (fontUrl2) fontsLink2 = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="' + fontUrl2 + '">';
         return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
-          + fontsStyle2
+          + fontsLink2
           + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet">'
           + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; }</style>'
           + '<style>' + guaranteedCSS + '</style>'
@@ -5091,9 +5105,12 @@
         + guaranteedFooterHTML
         + '</div>';
 
-      var fontsStyle3 = fontsImport ? '<style>' + fontsImport + '</style>' : '';
+      var fontsLink3 = '';
+      var fontUrlMatch3 = fontsImport.match(/url\(['"]?([^'"\)]+)['"]?\)/);
+      var fontUrl3 = fontUrlMatch3 ? fontUrlMatch3[1] : (fontsImport.startsWith('http') ? fontsImport : '');
+      if (fontUrl3) fontsLink3 = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="' + fontUrl3 + '">';
       return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
-        + fontsStyle3
+        + fontsLink3
         + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet">'
         + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; background:' + bgColor + '; }</style>'
         + '<style>' + guaranteedCSS + '</style>'

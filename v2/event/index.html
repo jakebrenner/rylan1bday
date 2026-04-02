@@ -339,19 +339,30 @@
       }
 
       var fontsImport = config.googleFontsImport || '';
-      if (fontsImport && !fontsImport.startsWith('@import')) {
-        fontsImport = "@import url('" + fontsImport + "');";
+      // Convert @import to <link> tags — far more reliable for font loading
+      var fontsLink = '';
+      if (fontsImport) {
+        var fontUrlMatch = fontsImport.match(/url\(['"]?([^'"\)]+)['"]?\)/);
+        var fontUrl = fontUrlMatch ? fontUrlMatch[1] : (fontsImport.startsWith('http') ? fontsImport : '');
+        if (fontUrl) {
+          fontsLink = '<link rel="preconnect" href="https://fonts.googleapis.com">'
+            + '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+            + '<link rel="stylesheet" href="' + fontUrl + '">';
+        }
       }
-      var fontsStyle = fontsImport ? '<style>' + fontsImport + '</style>' : '';
 
       // Strip stray @import from CSS body
       var cleanedCss = sanitizeThemeText(css);
       var strayImports = cleanedCss.match(/@import\s+url\([^)]+\);?\s*/g);
       if (strayImports) {
         strayImports.forEach(function(imp) { cleanedCss = cleanedCss.replace(imp, ''); });
-        if (!fontsImport) {
-          var importUrl = strayImports[0].match(/url\(['"]?([^'"\)]+)['"]?\)/);
-          if (importUrl) fontsStyle = '<style>@import url(\'' + importUrl[1] + '\');</style>';
+        if (!fontsLink) {
+          var strayUrl = strayImports[0].match(/url\(['"]?([^'"\)]+)['"]?\)/);
+          if (strayUrl) {
+            fontsLink = '<link rel="preconnect" href="https://fonts.googleapis.com">'
+              + '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+              + '<link rel="stylesheet" href="' + strayUrl[1] + '">';
+          }
         }
       }
 
@@ -371,7 +382,7 @@
 
       return '<!DOCTYPE html><html><head><meta charset="UTF-8">'
         + '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
-        + fontsStyle
+        + fontsLink
         + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { padding: 20px; background: #f9f9f9; } ' + fallbackCSS + '</style>'
         + '<style>' + cleanedCss.replace(/<\/style/gi, '<\\/style') + '</style>'
         + '</head><body>' + themeHtml + '</body></html>';
@@ -1092,7 +1103,9 @@
         tyHtml = stripAndInjectGuaranteedElements(tyHtml);
 
         var fontsImport = config.googleFontsImport || '';
-        var fontsTag2 = fontsImport ? '<style>' + fontsImport + '</style>' : '';
+        var fontUrlM2 = fontsImport.match(/url\(['"]?([^'"\)]+)['"]?\)/);
+        var fontU2 = fontUrlM2 ? fontUrlM2[1] : (fontsImport.startsWith('http') ? fontsImport : '');
+        var fontsTag2 = fontU2 ? '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="' + fontU2 + '">' : '';
         var iframe = document.getElementById('themeFrame');
         iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">' + fontsTag2 + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet"><style>* { margin:0; padding:0; box-sizing:border-box; } html, body { padding: 0; background: transparent; }</style><style>' + guaranteedCSS + '</style><style>' + (currentEventData.themeCss || '') + '</style></head><body>' + tyHtml + '</body></html>';
         iframe.onload = function() { try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 40, 600) + 'px'; } catch(e) {} };
