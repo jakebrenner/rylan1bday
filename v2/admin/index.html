@@ -382,6 +382,16 @@
     .ud-nav-btn:hover:not(.active) { background: #f0f0f0; color: var(--midnight); }
     .ud-section { display: none; }
     .ud-section.active { display: block; }
+    .ed-section { display: none; }
+    .ed-section.active { display: block; }
+    .ed-info-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; border-bottom: 1px solid #f5f5f5; gap: 8px; }
+    .ed-info-label { color: #888; flex-shrink: 0; }
+    .ed-info-value { font-weight: 600; color: var(--midnight); text-align: right; word-break: break-word; min-width: 0; }
+    .ed-info-value code { font-size: 11px; word-break: break-all; }
+    @media (max-width: 500px) {
+      .ed-info-row { flex-direction: column; gap: 2px; }
+      .ed-info-value { text-align: left; }
+    }
 
     .ud-kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
     .ud-kpi { background: white; border-radius: 8px; padding: 16px; border: 1px solid #eee; }
@@ -492,28 +502,15 @@
       #styleFilters select, #labFilters select, #userGenFilters select,
       #styleFilters input, #labFilters input, #userGenFilters input { width: 100%; }
 
-      /* Generation / Event detail overlay */
+      /* Generation detail overlay */
       .gen-detail-body { padding: 16px; gap: 20px; }
       .gen-detail-header { padding: 12px 16px; }
       .gen-detail-header h2 { font-size: 16px; }
 
-      /* Event detail — smaller phone on mobile */
-      #eventDetailOverlay .phone-mockup { width: 240px; }
-      #eventDetailOverlay .gen-detail-body { grid-template-columns: 1fr; }
-
-      /* Detail rows — stack on very narrow screens */
-      .gen-detail-info .detail-row { flex-wrap: wrap; gap: 2px; }
-      .gen-detail-info .detail-value { word-break: break-all; }
-      .gen-detail-info .detail-value code { font-size: 10px; word-break: break-all; }
-
-      /* Scrollable tables inside event detail */
-      #eventDetailInfo .ud-table { min-width: 0; font-size: 11px; }
-      #eventDetailInfo table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-
-      /* Chat history — wider bubbles on mobile */
+      /* Event detail page — mobile */
+      #eventDetailView .phone-mockup { width: 240px; }
+      #eventDetailView .ud-two-col { grid-template-columns: 1fr !important; }
       .evt-chat-bubble { max-width: 95%; }
-
-      /* Theme version buttons — smaller */
       #eventThemeVersions button { padding: 4px 8px !important; font-size: 11px !important; }
 
       /* Style detail overlay */
@@ -568,9 +565,10 @@
     }
 
     @media (max-width: 400px) {
-      #eventDetailOverlay .phone-mockup { width: 200px; }
+      #eventDetailView .phone-mockup { width: 200px; }
       .gen-detail-body { padding: 12px; gap: 16px; }
-      .gen-detail-info .detail-row { font-size: 12px; }
+      .ed-info-row { font-size: 12px; }
+      .ud-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
     }
   </style>
 <script src="/js/ga.js"></script>
@@ -1008,6 +1006,107 @@
           </div>
         </div>
 
+      </div>
+
+      <!-- Event Detail View (within Users tab) -->
+      <div id="eventDetailView" style="display:none;">
+        <div class="back-link" id="eventDetailBackLink" onclick="closeEventDetailView()">&#8592; Back to user</div>
+
+        <!-- Event Header -->
+        <div class="ud-header">
+          <div class="ud-avatar" id="edAvatar" style="background:var(--coral);">?</div>
+          <div class="ud-info">
+            <h2 id="edName">Loading...</h2>
+            <div class="ud-meta" id="edMeta"></div>
+          </div>
+          <div class="ud-actions" id="edActions"></div>
+        </div>
+
+        <!-- Sub-navigation -->
+        <div class="ud-nav">
+          <button class="ud-nav-btn active" data-edsection="details" onclick="switchEventSection('details')">Details</button>
+          <button class="ud-nav-btn" data-edsection="preview" onclick="switchEventSection('preview')">Preview</button>
+          <button class="ud-nav-btn" data-edsection="rsvps" onclick="switchEventSection('rsvps')">RSVPs</button>
+          <button class="ud-nav-btn" data-edsection="chat" onclick="switchEventSection('chat')">Chat</button>
+          <button class="ud-nav-btn" data-edsection="generations" onclick="switchEventSection('generations')">Generations</button>
+        </div>
+
+        <!-- Details Section -->
+        <div class="ed-section active" id="ed-details">
+          <div class="ud-kpi-grid" id="edKpiGrid"></div>
+          <div class="ud-two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Event Info</h4></div>
+              <div class="ud-card-body" id="edEventInfo"></div>
+            </div>
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Owner</h4></div>
+              <div class="ud-card-body" id="edOwnerInfo"></div>
+            </div>
+          </div>
+          <div class="ud-card" id="edCustomFieldsCard" style="display:none;margin-top:16px;">
+            <div class="ud-card-header"><h4>Custom RSVP Fields</h4></div>
+            <div class="ud-card-body" id="edCustomFields"></div>
+          </div>
+        </div>
+
+        <!-- Preview Section -->
+        <div class="ed-section" id="ed-preview">
+          <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;">
+            <div>
+              <div class="phone-mockup">
+                <div class="phone-frame">
+                  <div class="phone-notch"></div>
+                  <div class="phone-screen">
+                    <iframe id="eventDetailPreviewFrame" sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
+                  </div>
+                  <div class="phone-home-bar"></div>
+                </div>
+              </div>
+              <div id="eventThemeVersions" style="margin-top:12px;text-align:center;"></div>
+            </div>
+            <div id="edThemeList" style="flex:1;min-width:280px;"></div>
+          </div>
+        </div>
+
+        <!-- RSVPs Section -->
+        <div class="ed-section" id="ed-rsvps">
+          <div class="ud-kpi-grid" id="edRsvpKpis"></div>
+          <div class="ud-card" style="margin-top:16px;">
+            <div class="ud-card-header"><h4>Guest List</h4><span class="count" id="edGuestCount"></span></div>
+            <div class="ud-card-body no-pad">
+              <div class="table-container">
+                <table style="font-size:13px;">
+                  <thead><tr><th>Name</th><th>Contact</th><th>Status</th><th>+Ones</th><th>Responded</th></tr></thead>
+                  <tbody id="edGuestsBody"><tr><td colspan="5" class="ud-empty">No guests</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Section -->
+        <div class="ed-section" id="ed-chat">
+          <div class="ud-card">
+            <div class="ud-card-header"><h4>Chat History</h4><span class="count" id="edChatCount"></span></div>
+            <div class="ud-card-body" id="edChatBody" style="max-height:600px;overflow-y:auto;"></div>
+          </div>
+        </div>
+
+        <!-- Generations Section -->
+        <div class="ed-section" id="ed-generations">
+          <div class="ud-card">
+            <div class="ud-card-header"><h4>Generation Log</h4><span class="count" id="edGenCount"></span></div>
+            <div class="ud-card-body no-pad">
+              <div class="table-container">
+                <table style="font-size:13px;">
+                  <thead><tr><th>Type</th><th>Model</th><th>Tokens</th><th>Cost</th><th>Latency</th><th>Date</th></tr></thead>
+                  <tbody id="edGenBody"><tr><td colspan="6" class="ud-empty">No generations</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -3795,6 +3894,7 @@
       if (!u) return;
 
       document.getElementById('usersListView').style.display = 'none';
+      document.getElementById('eventDetailView').style.display = 'none';
       document.getElementById('userDetailView').style.display = 'block';
 
       // Update URL hash
@@ -4417,9 +4517,11 @@
 
     function backToUsers() {
       document.getElementById('userDetailView').style.display = 'none';
+      document.getElementById('eventDetailView').style.display = 'none';
       document.getElementById('usersListView').style.display = 'block';
       history.replaceState(null, '', '#users');
       currentUserDetail = null;
+      currentEventDetail = null;
     }
 
     // ---- RSVPs Modal ----
@@ -7953,32 +8055,60 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // EVENT DETAIL OVERLAY
+    // EVENT DETAIL PAGE VIEW
     // ═══════════════════════════════════════════════════════════════════
 
     var currentEventDetail = null;
+    var _eventDetailReturnUserId = null;
+
+    function switchEventSection(section) {
+      document.querySelectorAll('.ed-section').forEach(function(s) { s.classList.toggle('active', s.id === 'ed-' + section); });
+      document.querySelectorAll('[data-edsection]').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-edsection') === section); });
+      // Scale iframe when switching to preview
+      if (section === 'preview') {
+        requestAnimationFrame(function() {
+          var iframe = document.getElementById('eventDetailPreviewFrame');
+          if (iframe) {
+            var screen = iframe.closest('.phone-screen');
+            if (screen) iframe.style.transform = 'scale(' + (screen.offsetWidth / 393) + ')';
+          }
+        });
+      }
+    }
 
     async function openEventDetailView(eventId) {
-      var overlay = document.getElementById('eventDetailOverlay');
-      document.getElementById('eventDetailTitle').textContent = 'Loading...';
-      document.getElementById('eventDetailInfo').innerHTML = '<p style="color:#888;">Loading event details...</p>';
-      document.getElementById('eventThemeVersions').innerHTML = '';
-      var iframe = document.getElementById('eventDetailPreviewFrame');
-      iframe.srcdoc = '';
-      overlay.classList.add('open');
+      // Hide user detail, show event detail
+      document.getElementById('userDetailView').style.display = 'none';
+      document.getElementById('eventDetailView').style.display = 'block';
+
+      // Remember which user to go back to
+      if (currentUserDetail) _eventDetailReturnUserId = currentUserDetail.user.id;
+
+      // Reset state
+      document.getElementById('edName').textContent = 'Loading...';
+      document.getElementById('edMeta').innerHTML = '';
+      document.getElementById('edKpiGrid').innerHTML = '';
+      document.getElementById('edEventInfo').innerHTML = '<p style="color:#888;">Loading...</p>';
+      document.getElementById('edOwnerInfo').innerHTML = '';
+      switchEventSection('details');
 
       try {
         var data = await adminFetch('adminEventDetail', { params: { eventId: eventId } });
         currentEventDetail = data;
         renderEventDetail(data);
       } catch (err) {
-        document.getElementById('eventDetailInfo').innerHTML = '<p style="color:red;">Error loading event: ' + escapeHtml(err.message || String(err)) + '</p>';
+        document.getElementById('edEventInfo').innerHTML = '<p style="color:var(--party-coral);">Failed to load event: ' + escapeHtml(err.message || String(err)) + '</p>';
       }
     }
 
     function closeEventDetailView() {
-      document.getElementById('eventDetailOverlay').classList.remove('open');
+      document.getElementById('eventDetailView').style.display = 'none';
+      document.getElementById('userDetailView').style.display = 'block';
       currentEventDetail = null;
+      if (_eventDetailReturnUserId) {
+        // User detail is already rendered, just show it
+        _eventDetailReturnUserId = null;
+      }
     }
 
     function renderEventDetail(data) {
@@ -7986,196 +8116,211 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var owner = data.owner;
       var themes = data.themes || [];
       var activeTheme = themes.find(function(t) { return t.isActive; });
-      // Fallback to latest theme if none is marked active
       var previewTheme = activeTheme || (themes.length > 0 ? themes[themes.length - 1] : null);
+      var rs = data.rsvpSummary;
 
-      document.getElementById('eventDetailTitle').textContent = ev.title || 'Untitled Event';
+      // ---- Header ----
+      var typeInitial = (ev.eventType || '?').charAt(0).toUpperCase();
+      document.getElementById('edAvatar').textContent = typeInitial;
+      document.getElementById('edName').textContent = ev.title || 'Untitled Event';
+      var sc = ev.status === 'published' ? 'badge-green' : ev.status === 'draft' ? 'badge-yellow' : 'badge-gray';
+      var paySc = ev.paymentStatus === 'paid' ? 'badge-green' : ev.paymentStatus === 'free' ? 'badge-blue' : 'badge-yellow';
+      document.getElementById('edMeta').innerHTML =
+        '<span class="badge ' + sc + '">' + escapeHtml(ev.status) + '</span>'
+        + '<span class="sep">|</span>'
+        + '<span>' + escapeHtml(ev.eventType || '') + '</span>'
+        + (ev.eventDate ? '<span class="sep">|</span><span>' + formatDate(ev.eventDate) + '</span>' : '');
 
-      // Render theme preview with proper scaling
+      // Actions
+      var actHtml = '';
+      if (ev.slug && ev.status === 'published') {
+        actHtml += '<a href="/v2/event/' + escapeHtml(ev.slug) + '" target="_blank" class="btn btn-secondary btn-sm">View Live</a>';
+      }
+      document.getElementById('edActions').innerHTML = actHtml;
+
+      // Back link text
+      if (owner) {
+        document.getElementById('eventDetailBackLink').innerHTML = '&#8592; Back to ' + escapeHtml(owner.displayName || owner.email);
+      }
+
+      // ---- KPI Grid ----
+      document.getElementById('edKpiGrid').innerHTML =
+        kpiCard(themes.length, 'Versions', '')
+        + kpiCard(data.generations.length, 'Generations', '')
+        + kpiCard(fmtCost(data.totalAiCost), 'AI Cost', '')
+        + kpiCard(rs.total, 'RSVPs', '')
+        + kpiCard('<span class="badge ' + paySc + '">' + escapeHtml(ev.paymentStatus || 'unpaid') + '</span>', 'Payment', '');
+
+      // ---- Event Info Card ----
+      var eiHtml = '';
+      eiHtml += edRow('Title', escapeHtml(ev.title || ''));
+      eiHtml += edRow('Type', escapeHtml(ev.eventType || '—'));
+      eiHtml += edRow('Date', ev.eventDate ? formatDate(ev.eventDate) : '—');
+      if (ev.endDate) eiHtml += edRow('End Date', formatDate(ev.endDate));
+      eiHtml += edRow('Location', escapeHtml(ev.locationName || '—'));
+      if (ev.locationAddress) eiHtml += edRow('Address', escapeHtml(ev.locationAddress));
+      if (ev.dressCode) eiHtml += edRow('Dress Code', escapeHtml(ev.dressCode));
+      eiHtml += edRow('Status', '<span class="badge ' + sc + '">' + escapeHtml(ev.status) + '</span>');
+      eiHtml += edRow('Payment', '<span class="badge ' + paySc + '">' + escapeHtml(ev.paymentStatus || 'unpaid') + '</span>');
+      if (ev.slug) eiHtml += edRow('Slug', '<a href="/v2/event/' + escapeHtml(ev.slug) + '" target="_blank" style="color:var(--coral);">' + escapeHtml(ev.slug) + '</a>');
+      eiHtml += edRow('Event ID', '<code>' + escapeHtml(ev.id) + '</code>');
+      eiHtml += edRow('Created', formatDate(ev.createdAt));
+      document.getElementById('edEventInfo').innerHTML = eiHtml;
+
+      // ---- Owner Card ----
+      if (owner) {
+        var oHtml = '';
+        oHtml += edRow('Name', escapeHtml(owner.displayName || '—'));
+        oHtml += edRow('Email', '<span class="clickable" onclick="closeEventDetailView(); viewUser(\'' + owner.id + '\')">' + escapeHtml(owner.email) + '</span>');
+        oHtml += edRow('Phone', escapeHtml(owner.phone || '—'));
+        oHtml += edRow('User ID', '<code>' + escapeHtml(owner.id) + '</code>');
+        document.getElementById('edOwnerInfo').innerHTML = oHtml;
+      }
+
+      // ---- Custom Fields ----
+      if (data.customFields && data.customFields.length > 0) {
+        var cfHtml = '';
+        data.customFields.forEach(function(f) {
+          cfHtml += edRow(escapeHtml(f.label), escapeHtml(f.type) + (f.required ? ' <span class="badge badge-yellow" style="font-size:9px;">Required</span>' : ''));
+        });
+        document.getElementById('edCustomFields').innerHTML = cfHtml;
+        document.getElementById('edCustomFieldsCard').style.display = 'block';
+      } else {
+        document.getElementById('edCustomFieldsCard').style.display = 'none';
+      }
+
+      // ---- Preview Section ----
       var iframe = document.getElementById('eventDetailPreviewFrame');
-      requestAnimationFrame(function() {
-        var screen = iframe.closest('.phone-screen');
-        if (screen) iframe.style.transform = 'scale(' + (screen.offsetWidth / 393) + ')';
-      });
       if (previewTheme && previewTheme.html) {
         var fontsImport = (previewTheme.config && previewTheme.config.googleFontsImport) || '';
-        var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
           + '<style>' + fontsImport + '</style>'
           + '<style>' + (previewTheme.css || '') + '</style></head>'
           + '<body>' + previewTheme.html + '</body></html>';
-        iframe.srcdoc = fullHtml;
       } else {
         iframe.srcdoc = '<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#aaa;"><p>No theme generated</p></body></html>';
       }
 
-      // Theme version selector (below phone preview)
+      // Theme versions selector
       var tvHtml = '';
       if (themes.length > 0) {
-        tvHtml = '<div style="margin-top:8px;"><h4 style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#888;margin-bottom:8px;">Theme Versions (' + themes.length + ')</h4>';
-        tvHtml += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+        tvHtml += '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">';
         themes.forEach(function(t) {
-          var isActive = t.isActive;
-          var style = 'padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid ' + (isActive ? 'var(--coral)' : '#ddd') + ';background:' + (isActive ? 'var(--coral)' : '#fff') + ';color:' + (isActive ? '#fff' : 'var(--midnight)') + ';';
-          tvHtml += '<button style="' + style + '" onclick="previewEventThemeVersion(\'' + t.id + '\')">';
-          tvHtml += 'v' + t.version + (isActive ? ' (Active)' : '');
+          var isAct = t.isActive;
+          var cls = isAct ? 'background:var(--coral);color:#fff;border-color:var(--coral);' : 'background:#fff;color:var(--midnight);border-color:#ddd;';
+          tvHtml += '<button style="padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid;' + cls + '" onclick="previewEventThemeVersion(\'' + t.id + '\')">';
+          tvHtml += 'v' + t.version + (isAct ? ' (Active)' : '');
           tvHtml += '</button>';
         });
-        tvHtml += '</div></div>';
+        tvHtml += '</div>';
       }
       document.getElementById('eventThemeVersions').innerHTML = tvHtml;
 
-      // Build info sections
-      var html = '';
-
-      // Event Info
-      var sc = ev.status === 'published' ? 'badge-green' : ev.status === 'draft' ? 'badge-yellow' : 'badge-gray';
-      var paySc = ev.paymentStatus === 'paid' ? 'badge-green' : ev.paymentStatus === 'free' ? 'badge-blue' : 'badge-yellow';
-      html += '<div class="detail-section"><h4>Event Info</h4>';
-      html += detailRow('Title', escapeHtml(ev.title || ''));
-      html += detailRow('Type', escapeHtml(ev.eventType || ''));
-      html += detailRow('Date', ev.eventDate ? formatDate(ev.eventDate) : '—');
-      if (ev.endDate) html += detailRow('End Date', formatDate(ev.endDate));
-      html += detailRow('Location', escapeHtml(ev.locationName || '—'));
-      if (ev.locationAddress) html += detailRow('Address', escapeHtml(ev.locationAddress));
-      if (ev.dressCode) html += detailRow('Dress Code', escapeHtml(ev.dressCode));
-      html += detailRow('Status', '<span class="badge ' + sc + '">' + escapeHtml(ev.status) + '</span>');
-      html += detailRow('Payment', '<span class="badge ' + paySc + '">' + escapeHtml(ev.paymentStatus || 'unpaid') + '</span>');
-      if (ev.slug) html += detailRow('Slug', '<a href="/v2/event/' + escapeHtml(ev.slug) + '" target="_blank" style="color:var(--coral);">' + escapeHtml(ev.slug) + '</a>');
-      html += detailRow('Event ID', '<code style="font-size:11px;">' + escapeHtml(ev.id) + '</code>');
-      html += detailRow('Created', formatDate(ev.createdAt));
-      html += '</div>';
-
-      // Owner
-      if (owner) {
-        html += '<div class="detail-section"><h4>Owner</h4>';
-        html += detailRow('Name', escapeHtml(owner.displayName || '—'));
-        html += detailRow('Email', '<span class="clickable" onclick="closeEventDetailView(); viewUser(\'' + owner.id + '\')">' + escapeHtml(owner.email) + '</span>');
-        html += detailRow('User ID', '<code style="font-size:11px;">' + escapeHtml(owner.id) + '</code>');
-        html += '</div>';
-      }
-
-      // Cost Summary
-      var smsCost = 0;
-      html += '<div class="detail-section"><h4>Cost Summary</h4>';
-      html += detailRow('AI Cost', '<span style="color:var(--mint-fizz);">' + fmtCost(data.totalAiCost) + '</span>');
-      html += detailRow('SMS Cost', fmtCost(smsCost));
-      html += detailRow('Total', '<strong>' + fmtCost(data.totalAiCost + smsCost) + '</strong>');
-      html += detailRow('Generations', data.generations.length);
-      html += '</div>';
-
-      // RSVP Summary
-      var rs = data.rsvpSummary;
-      html += '<div class="detail-section"><h4>RSVPs (' + rs.total + ')</h4>';
-      if (rs.total > 0) {
-        html += detailRow('Attending', rs.attending);
-        html += detailRow('Declined', rs.declined);
-        html += detailRow('Maybe', rs.maybe);
-        html += detailRow('No Response', rs.noResponse);
-
-        // Guest table
-        html += '<div style="margin-top:8px;max-height:200px;overflow-y:auto;border:1px solid #eee;border-radius:8px;">';
-        html += '<table class="ud-table" style="font-size:12px;"><thead><tr><th>Name</th><th>Email / Phone</th><th>Status</th><th>Responded</th></tr></thead><tbody>';
-        data.guests.forEach(function(g) {
-          var gsc = g.status === 'attending' ? 'badge-green' : g.status === 'declined' ? 'badge-red' : g.status === 'maybe' ? 'badge-yellow' : 'badge-gray';
-          html += '<tr><td>' + escapeHtml(g.name || '—') + '</td>';
-          html += '<td>' + escapeHtml(g.email || g.phone || '—') + '</td>';
-          html += '<td><span class="badge ' + gsc + '" style="font-size:10px;">' + escapeHtml(g.status || 'none') + '</span></td>';
-          html += '<td>' + (g.respondedAt ? formatDate(g.respondedAt) : '—') + '</td></tr>';
-        });
-        html += '</tbody></table></div>';
-      } else {
-        html += '<p style="color:#aaa;font-size:13px;">No RSVPs yet</p>';
-      }
-      html += '</div>';
-
-      // Custom Fields
-      if (data.customFields && data.customFields.length > 0) {
-        html += '<div class="detail-section"><h4>Custom RSVP Fields</h4>';
-        data.customFields.forEach(function(f) {
-          html += detailRow(escapeHtml(f.label), escapeHtml(f.type) + (f.required ? ' (required)' : ''));
-        });
-        html += '</div>';
-      }
-
-      // Theme Versions
+      // Theme list (beside preview on desktop)
+      var tlHtml = '';
       if (themes.length > 0) {
-        html += '<div class="detail-section"><h4>Theme Versions (' + themes.length + ')</h4>';
-        html += '<div style="max-height:300px;overflow-y:auto;">';
+        tlHtml += '<div class="ud-card"><div class="ud-card-header"><h4>Theme Versions</h4><span class="count">' + themes.length + '</span></div>';
+        tlHtml += '<div class="ud-card-body no-pad"><table style="font-size:13px;"><thead><tr><th>Version</th><th>Model</th><th>Rating</th><th>Date</th></tr></thead><tbody>';
         themes.forEach(function(t) {
           var activeBadge = t.isActive ? ' <span class="badge badge-green" style="font-size:9px;">Active</span>' : '';
-          var ratingStr = t.adminRating ? (t.adminRating + '/5') : 'Unrated';
-          html += '<div style="padding:8px 0;border-bottom:1px solid #f5f5f5;font-size:13px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">';
-          html += '<div style="min-width:0;"><strong>v' + t.version + '</strong>' + activeBadge + ' &middot; ' + shortModel(t.model) + ' &middot; ' + ratingStr + '</div>';
-          html += '<div style="color:#aaa;font-size:11px;">' + formatDate(t.createdAt) + '</div>';
-          html += '</div>';
+          var ratingStr = t.adminRating ? (t.adminRating + '/5') : '—';
+          tlHtml += '<tr class="clickable" onclick="previewEventThemeVersion(\'' + t.id + '\')">';
+          tlHtml += '<td><strong>v' + t.version + '</strong>' + activeBadge + '</td>';
+          tlHtml += '<td>' + shortModel(t.model) + '</td>';
+          tlHtml += '<td>' + ratingStr + '</td>';
+          tlHtml += '<td>' + formatDate(t.createdAt) + '</td>';
+          tlHtml += '</tr>';
         });
-        html += '</div></div>';
+        tlHtml += '</tbody></table></div></div>';
+      }
+      document.getElementById('edThemeList').innerHTML = tlHtml;
+
+      // ---- RSVP Section ----
+      document.getElementById('edRsvpKpis').innerHTML =
+        kpiCard(rs.attending, 'Attending', 'positive')
+        + kpiCard(rs.declined, 'Declined', 'negative')
+        + kpiCard(rs.maybe, 'Maybe', '')
+        + kpiCard(rs.noResponse, 'No Response', '');
+      document.getElementById('edGuestCount').textContent = rs.total + ' guests';
+
+      var guests = data.guests || [];
+      if (guests.length > 0) {
+        document.getElementById('edGuestsBody').innerHTML = guests.map(function(g) {
+          var gsc = g.status === 'attending' ? 'badge-green' : g.status === 'declined' ? 'badge-red' : g.status === 'maybe' ? 'badge-yellow' : 'badge-gray';
+          return '<tr>'
+            + '<td>' + escapeHtml(g.name || '—') + '</td>'
+            + '<td>' + escapeHtml(g.email || g.phone || '—') + '</td>'
+            + '<td><span class="badge ' + gsc + '">' + escapeHtml(g.status || 'none') + '</span></td>'
+            + '<td>' + (g.plusOnes || 0) + '</td>'
+            + '<td>' + (g.respondedAt ? formatDate(g.respondedAt) : '—') + '</td>'
+            + '</tr>';
+        }).join('');
+      } else {
+        document.getElementById('edGuestsBody').innerHTML = '<tr><td colspan="5" class="ud-empty">No guests yet</td></tr>';
       }
 
-      // Chat History
-      if (data.chatHistory && data.chatHistory.length > 0) {
-        html += '<div class="detail-section"><h4>Chat History (' + data.chatHistory.length + ' messages)</h4>';
-        html += '<div style="max-height:400px;overflow-y:auto;border:1px solid #eee;border-radius:8px;padding:12px;background:#fafafa;">';
-        data.chatHistory.forEach(function(msg) {
+      // ---- Chat Section ----
+      var chatHistory = data.chatHistory || [];
+      document.getElementById('edChatCount').textContent = chatHistory.length + ' messages';
+      if (chatHistory.length > 0) {
+        var chatHtml = '';
+        chatHistory.forEach(function(msg) {
           var isUser = msg.role === 'user';
           var align = isUser ? 'flex-end' : 'flex-start';
           var bg = isUser ? 'var(--coral)' : '#fff';
           var color = isUser ? '#fff' : 'var(--midnight)';
           var border = isUser ? 'none' : '1px solid #eee';
           var label = isUser ? 'User' : (msg.role === 'assistant' ? 'AI' : msg.role);
-          var phaseTag = msg.phase ? ' <span style="font-size:9px;color:#aaa;">(' + escapeHtml(msg.phase) + ')</span>' : '';
-          html += '<div style="display:flex;justify-content:' + align + ';margin-bottom:8px;">';
-          html += '<div class="evt-chat-bubble" style="background:' + bg + ';color:' + color + ';border:' + border + ';border-radius:12px;padding:8px 12px;font-size:12px;">';
-          html += '<div style="font-size:10px;font-weight:600;margin-bottom:4px;">' + label + phaseTag + '</div>';
-          // Truncate long messages
+          var phaseTag = msg.phase ? ' <span style="font-size:9px;opacity:0.7;">(' + escapeHtml(msg.phase) + ')</span>' : '';
+          chatHtml += '<div style="display:flex;justify-content:' + align + ';margin-bottom:8px;">';
+          chatHtml += '<div class="evt-chat-bubble" style="background:' + bg + ';color:' + color + ';border:' + border + ';border-radius:12px;padding:8px 12px;font-size:13px;">';
+          chatHtml += '<div style="font-size:10px;font-weight:600;margin-bottom:4px;">' + label + phaseTag + '</div>';
           var content = msg.content || '';
-          if (content.length > 500) content = content.substring(0, 500) + '...';
-          html += '<div style="white-space:pre-wrap;word-break:break-word;">' + escapeHtml(content) + '</div>';
-          html += '</div></div>';
+          if (content.length > 800) content = content.substring(0, 800) + '...';
+          chatHtml += '<div style="white-space:pre-wrap;word-break:break-word;">' + escapeHtml(content) + '</div>';
+          chatHtml += '</div></div>';
         });
-        html += '</div></div>';
+        document.getElementById('edChatBody').innerHTML = chatHtml;
+      } else {
+        document.getElementById('edChatBody').innerHTML = '<p class="ud-empty">No chat history</p>';
       }
 
-      // Generation Log
-      if (data.generations && data.generations.length > 0) {
-        html += '<div class="detail-section"><h4>Generation Log (' + data.generations.length + ')</h4>';
-        html += '<div style="max-height:300px;overflow-y:auto;border:1px solid #eee;border-radius:8px;">';
-        html += '<table class="ud-table" style="font-size:12px;"><thead><tr><th>Type</th><th>Model</th><th>Tokens</th><th>Cost</th><th>Latency</th><th>Date</th></tr></thead><tbody>';
-        data.generations.forEach(function(g) {
-          html += '<tr>';
-          html += '<td><span class="badge ' + (g.promptType === 'theme' ? 'badge-blue' : g.promptType === 'chat' ? 'badge-purple' : 'badge-gray') + '" style="font-size:10px;">' + escapeHtml(g.promptType) + '</span></td>';
-          html += '<td>' + shortModel(g.model) + '</td>';
-          html += '<td>' + ((g.inputTokens || 0) + (g.outputTokens || 0)).toLocaleString() + '</td>';
-          html += '<td style="color:var(--mint-fizz);">' + fmtCost(g.cost) + '</td>';
-          html += '<td>' + (g.latencyMs ? (g.latencyMs / 1000).toFixed(1) + 's' : '—') + '</td>';
-          html += '<td>' + formatDate(g.createdAt) + '</td>';
-          html += '</tr>';
-        });
-        html += '</tbody></table></div></div>';
+      // ---- Generations Section ----
+      var gens = data.generations || [];
+      document.getElementById('edGenCount').textContent = gens.length + ' calls';
+      if (gens.length > 0) {
+        document.getElementById('edGenBody').innerHTML = gens.map(function(g) {
+          var typeCls = g.promptType === 'theme' ? 'badge-blue' : g.promptType === 'chat' ? 'badge-purple' : 'badge-gray';
+          return '<tr>'
+            + '<td><span class="badge ' + typeCls + '">' + escapeHtml(g.promptType) + '</span></td>'
+            + '<td>' + shortModel(g.model) + '</td>'
+            + '<td>' + ((g.inputTokens || 0) + (g.outputTokens || 0)).toLocaleString() + '</td>'
+            + '<td style="color:var(--mint-fizz);">' + fmtCost(g.cost) + '</td>'
+            + '<td>' + (g.latencyMs ? (g.latencyMs / 1000).toFixed(1) + 's' : '—') + '</td>'
+            + '<td>' + formatDate(g.createdAt) + '</td>'
+            + '</tr>';
+        }).join('');
+      } else {
+        document.getElementById('edGenBody').innerHTML = '<tr><td colspan="6" class="ud-empty">No generations</td></tr>';
       }
-
-      document.getElementById('eventDetailInfo').innerHTML = html;
     }
 
-    function detailRow(label, value) {
-      return '<div class="detail-row"><span class="detail-label">' + label + '</span><span class="detail-value">' + value + '</span></div>';
+    function edRow(label, value) {
+      return '<div class="ed-info-row"><span class="ed-info-label">' + label + '</span><span class="ed-info-value">' + value + '</span></div>';
     }
 
     function previewEventThemeVersion(themeId) {
       if (!currentEventDetail) return;
       var theme = currentEventDetail.themes.find(function(t) { return t.id === themeId; });
       if (!theme || !theme.html) return;
+      // Switch to preview tab if not already there
+      switchEventSection('preview');
       var iframe = document.getElementById('eventDetailPreviewFrame');
-      requestAnimationFrame(function() {
-        var screen = iframe.closest('.phone-screen');
-        if (screen) iframe.style.transform = 'scale(' + (screen.offsetWidth / 393) + ')';
-      });
       var fontsImport = (theme.config && theme.config.googleFontsImport) || '';
-      var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+      iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
         + '<style>' + fontsImport + '</style>'
         + '<style>' + (theme.css || '') + '</style></head>'
         + '<body>' + theme.html + '</body></html>';
-      iframe.srcdoc = fullHtml;
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -12020,28 +12165,6 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         </div>
       </div>
       <div class="gen-detail-info" id="genDetailInfo"></div>
-    </div>
-  </div>
-  <!-- Event Detail Overlay -->
-  <div class="gen-detail-overlay" id="eventDetailOverlay">
-    <div class="gen-detail-header">
-      <h2 id="eventDetailTitle">Event Details</h2>
-      <button class="style-detail-back" onclick="closeEventDetailView()">Back</button>
-    </div>
-    <div class="gen-detail-body">
-      <div>
-        <div class="phone-mockup">
-          <div class="phone-frame">
-            <div class="phone-notch"></div>
-            <div class="phone-screen">
-              <iframe id="eventDetailPreviewFrame" sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
-            </div>
-            <div class="phone-home-bar"></div>
-          </div>
-        </div>
-        <div id="eventThemeVersions" style="margin-top:16px;"></div>
-      </div>
-      <div class="gen-detail-info" id="eventDetailInfo"></div>
     </div>
   </div>
   <!-- Ad Source Picker Modal -->
