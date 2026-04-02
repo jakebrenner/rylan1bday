@@ -132,6 +132,7 @@
     .example-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
     .chip { background: #f0f0f0; border: 1px solid #ddd; padding: 8px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; transition: all 0.2s; font-family: 'Inter', sans-serif; }
     .chip:hover { background: var(--cream); border-color: var(--party-coral); color: var(--party-coral); }
+    .suggestion-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0 8px; align-self: flex-start; max-width: 85%; }
     .image-upload-area { border: 2px dashed #ddd; border-radius: 6px; padding: 30px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fafafa; }
     .image-upload-area:hover, .image-upload-area.dragover { border-color: var(--party-coral); background: rgba(233,69,96,0.05); }
     .image-upload-area p { margin: 0; color: #666; font-size: 14px; }
@@ -696,7 +697,12 @@
   <div class="step active chat-container" data-step="1">
     <div class="chat-messages" id="chatMessages">
       <div class="chat-bubble assistant">
-        Tell me about your event! You can be as casual as you want — something like <em>"My friend Mike is turning 30, we're doing a Formula 1 themed party at The Garage on April 12th at 7pm"</em>
+        What's the event? A few words is all I need — I'll ask about the rest!
+      </div>
+      <div class="suggestion-chips" id="initialChips">
+        <button class="chip" onclick="fillChatChip(this)">Birthday party for my son turning 5</button>
+        <button class="chip" onclick="fillChatChip(this)">Elegant wedding reception</button>
+        <button class="chip" onclick="fillChatChip(this)">Casual backyard BBQ</button>
       </div>
     </div>
     <div class="chat-input-area">
@@ -1876,6 +1882,10 @@
       var text = input.value.trim();
       if (!text) return;
 
+      // Remove suggestion chips once user sends a message
+      var chipsEl = document.getElementById('initialChips');
+      if (chipsEl) chipsEl.remove();
+
       // Easter egg: test mode — skip chat, populate fake data, jump to generate
       if (text === 'engage_test_mode' && chatHistory.length === 0) {
         input.value = '';
@@ -1931,7 +1941,7 @@
           setTimeout(function() {
             var t = document.getElementById('typingIndicator');
             if (t) t.remove();
-            var emailAsk = "This is going to be amazing! Just need your email to get started \u2014 we'll set everything up for you automatically.";
+            var emailAsk = "What's your email? We'll get everything set up for you.";
             addChatBubble(emailAsk, 'assistant');
             _guestMessages.push({ role: 'assistant', content: emailAsk });
             input.type = 'email';
@@ -2400,6 +2410,14 @@
       // Set design prompt and proceed directly to generation
       designPrompt = extractedData.prompt;
       generateFromDesignReady();
+    }
+
+    function fillChatChip(chip) {
+      var input = document.getElementById('chatInput');
+      input.value = chip.textContent;
+      input.focus();
+      var chipsEl = document.getElementById('initialChips');
+      if (chipsEl) chipsEl.remove();
     }
 
     function addChatBubble(text, role, skipSave) {
@@ -3060,7 +3078,7 @@
       }
     }
 
-    var INITIAL_GREETING = 'Tell me about your event! You can be as casual as you want \u2014 something like "My friend Mike is turning 30, we\'re doing a Formula 1 themed party at The Garage on April 12th at 7pm"';
+    var INITIAL_GREETING = "What's the event? A few words is all I need \u2014 I'll ask about the rest!";
 
     function rebuildChatFromBubbles() {
       var container = document.getElementById('chatMessages');
@@ -3070,6 +3088,17 @@
       greeting.className = 'chat-bubble assistant';
       greeting.textContent = INITIAL_GREETING;
       container.appendChild(greeting);
+      // Show suggestion chips only for fresh conversations
+      if (chatBubbles.length === 0) {
+        var chipsDiv = document.createElement('div');
+        chipsDiv.className = 'suggestion-chips';
+        chipsDiv.id = 'initialChips';
+        chipsDiv.innerHTML =
+          '<button class="chip" onclick="fillChatChip(this)">Birthday party for my son turning 5</button>' +
+          '<button class="chip" onclick="fillChatChip(this)">Elegant wedding reception</button>' +
+          '<button class="chip" onclick="fillChatChip(this)">Casual backyard BBQ</button>';
+        container.appendChild(chipsDiv);
+      }
       // Then add all saved bubbles
       chatBubbles.forEach(function(b) {
         var bubble = document.createElement('div');
