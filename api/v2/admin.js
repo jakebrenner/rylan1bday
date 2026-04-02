@@ -3347,6 +3347,297 @@ ${cssSnippet}`
       return res.status(200).json({ success: true, html, sampleData: { eventTitle: sampleEvent, firstName: sampleFirst } });
     }
 
+    // ---- FUNNEL ANALYTICS ----
+    if (action === 'funnelAnalytics') {
+      const from = req.query.from || null;
+      const to = req.query.to || null;
+      const filterPayment = req.query.paymentStatus || null;   // 'free', 'paid', 'unpaid', 'coupon'
+      const filterUtmSource = req.query.utmSource || null;     // e.g. 'facebook', 'google'
+      const filterEventType = req.query.eventType || null;     // e.g. 'wedding', 'birthday'
+      const filterTier = req.query.tier || null;               // 'free', 'per_event'
+
+      // 1. Funnel stage counts
+      let eventsQuery = supabaseAdmin.from('events').select('id, user_id, status, event_type, payment_status, settings, created_at, published_at, first_generation_at, generations_to_publish, updated_at');
+      let profilesQuery = supabaseAdmin.from('profiles').select('id, created_at, tier, utm_source, utm_campaign, utm_medium, free_event_credits, purchased_event_credits');
+      let guestsQuery = supabaseAdmin.from('guests').select('id, event_id, status, responded_at');
+
+      if (from) {
+        eventsQuery = eventsQuery.gte('created_at', from);
+        profilesQuery = profilesQuery.gte('created_at', from);
+      }
+      if (to) {
+        eventsQuery = eventsQuery.lte('created_at', to);
+        profilesQuery = profilesQuery.lte('created_at', to);
+      }
+      if (filterPayment) {
+        if (filterPayment === 'coupon') {
+          // Coupon users: have free_event_credits > 0 — filter on profiles after fetch
+        } else {
+          eventsQuery = eventsQuery.eq('payment_status', filterPayment);
+        }
+      }
+      if (filterEventType) {
+        eventsQuery = eventsQuery.eq('event_type', filterEventType);
+      }
+      if (filterTier) {
+        profilesQuery = profilesQuery.eq('tier', filterTier);
+      }
+
+      const [eventsRes, profilesRes, guestsRes, chatMsgsRes] = await Promise.all([
+        eventsQuery,
+        profilesQuery,
+        guestsQuery,
+        supabaseAdmin.from('chat_messages').select('id, user_id, session_id, event_id, role, content, phase, created_at').order('created_at', { ascending: true })
+      ]);
+
+      let events = eventsRes.data || [];
+      let profiles = profilesRes.data || [];
+      const guests = guestsRes.data || [];
+      const chatMsgs = chatMsgsRes.data || [];
+
+      // Apply cross-table filters
+      if (filterTier) {
+        // Restrict events to users matching the tier filter
+        const tierUserIds = new Set(profiles.map(p => p.id));
+        events = events.filter(e => tierUserIds.has(e.user_id));
+      }
+      if (filterUtmSource) {
+        // Restrict to users with matching utm_source
+        profiles = profiles.filter(p => p.utm_source && p.utm_source.toLowerCase() === filterUtmSource.toLowerCase());
+        const utmUserIds = new Set(profiles.map(p => p.id));
+        events = events.filter(e => utmUserIds.has(e.user_id));
+      }
+      if (filterPayment === 'coupon') {
+        // Coupon users have free_event_credits > 0 granted via coupons
+        const couponUserIds = new Set(profiles.filter(p => (p.free_event_credits || 0) > 0).map(p => p.id));
+        events = events.filter(e => couponUserIds.has(e.user_id));
+        profiles = profiles.filter(p => couponUserIds.has(p.id));
+      }
+
+      // Collect distinct values for filter dropdowns
+      const allEventsForOptions = eventsRes.data || [];
+      const allProfilesForOptions = profilesRes.data || [];
+      const distinctEventTypes = [...new Set(allEventsForOptions.map(e => e.event_type).filter(Boolean))].sort();
+      const distinctUtmSources = [...new Set(allProfilesForOptions.map(p => p.utm_source).filter(Boolean))].sort();
+      const distinctPaymentStatuses = [...new Set(allEventsForOptions.map(e => e.payment_status).filter(Boolean))].sort();
+
+      // Stage counts
+      const totalSignups = profiles.length;
+      const totalEventsCreated = events.length;
+      const totalGenerated = events.filter(e => e.first_generation_at).length;
+      const totalPublished = events.filter(e => e.status === 'published').length;
+      const totalInvitesSent = events.filter(e => e.status === 'published' && e.settings?.invites_sent).length;
+      const eventIdsWithRsvps = new Set(guests.filter(g => ['attending', 'declined', 'maybe'].includes(g.status)).map(g => g.event_id));
+      const totalWithRsvps = eventIdsWithRsvps.size;
+
+      const funnelStages = [
+        { stage: 'Signups', count: totalSignups },
+        { stage: 'Events Created', count: totalEventsCreated },
+        { stage: 'Design Generated', count: totalGenerated },
+        { stage: 'Published', count: totalPublished },
+        { stage: 'Invites Sent', count: totalInvitesSent },
+        { stage: 'RSVPs Received', count: totalWithRsvps }
+      ];
+
+      // 2. Drop-off by creation step (draft events only)
+      const draftEvents = events.filter(e => e.status !== 'published');
+      const stepDistribution = {};
+      const stepLabels = { '0': 'Template Selected', '1': 'Chat / Details', '2': 'Design Preview', '3': 'Guest List' };
+      draftEvents.forEach(e => {
+        const step = String(e.settings?.creation_step || '0');
+        stepDistribution[step] = (stepDistribution[step] || 0) + 1;
+      });
+      const dropOffByStep = Object.entries(stepLabels).map(([step, label]) => ({
+        step, label, count: stepDistribution[step] || 0
+      }));
+
+      // 3. Chat engagement analysis
+      // Group chat messages by session
+      const sessionMap = {};
+      chatMsgs.forEach(m => {
+        const sid = m.session_id || m.event_id || 'unknown';
+        if (!sessionMap[sid]) sessionMap[sid] = { userId: m.user_id, eventId: m.event_id, messages: [], userMessages: 0, phase: m.phase || 'create' };
+        sessionMap[sid].messages.push(m);
+        if (m.role === 'user') sessionMap[sid].userMessages++;
+      });
+
+      // Create a map of user -> published status
+      const userPublished = {};
+      events.forEach(e => {
+        if (e.status === 'published') userPublished[e.user_id] = true;
+      });
+
+      // Chat stats for create phase
+      const createSessions = Object.values(sessionMap).filter(s => s.phase === 'create' || !s.phase);
+      const publishedSessions = createSessions.filter(s => userPublished[s.userId]);
+      const droppedSessions = createSessions.filter(s => !userPublished[s.userId]);
+
+      const avgMsgsPublished = publishedSessions.length > 0
+        ? Math.round(10 * publishedSessions.reduce((s, x) => s + x.userMessages, 0) / publishedSessions.length) / 10
+        : 0;
+      const avgMsgsDropped = droppedSessions.length > 0
+        ? Math.round(10 * droppedSessions.reduce((s, x) => s + x.userMessages, 0) / droppedSessions.length) / 10
+        : 0;
+
+      // Message count distribution (histogram buckets)
+      const msgBuckets = { '1': 0, '2': 0, '3': 0, '4-5': 0, '6-10': 0, '11+': 0 };
+      createSessions.forEach(s => {
+        const n = s.userMessages;
+        if (n <= 1) msgBuckets['1']++;
+        else if (n === 2) msgBuckets['2']++;
+        else if (n === 3) msgBuckets['3']++;
+        else if (n <= 5) msgBuckets['4-5']++;
+        else if (n <= 10) msgBuckets['6-10']++;
+        else msgBuckets['11+']++;
+      });
+
+      // 4. Last messages from dropped users (most recent dropped sessions)
+      const droppedLastMsgs = droppedSessions
+        .filter(s => s.messages.length > 0)
+        .map(s => {
+          const lastUserMsg = [...s.messages].reverse().find(m => m.role === 'user');
+          return {
+            userId: s.userId,
+            messageCount: s.userMessages,
+            lastMessage: lastUserMsg ? lastUserMsg.content.substring(0, 200) : '',
+            lastActivityAt: s.messages[s.messages.length - 1].created_at
+          };
+        })
+        .sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt))
+        .slice(0, 25);
+
+      // 5. Generations-to-publish distribution
+      const gtpEvents = events.filter(e => e.generations_to_publish != null);
+      const gtpBuckets = { '1': 0, '2': 0, '3': 0, '4-5': 0, '6-10': 0, '11+': 0 };
+      gtpEvents.forEach(e => {
+        const n = e.generations_to_publish;
+        if (n <= 1) gtpBuckets['1']++;
+        else if (n === 2) gtpBuckets['2']++;
+        else if (n === 3) gtpBuckets['3']++;
+        else if (n <= 5) gtpBuckets['4-5']++;
+        else if (n <= 10) gtpBuckets['6-10']++;
+        else gtpBuckets['11+']++;
+      });
+      const avgGtp = gtpEvents.length > 0
+        ? Math.round(10 * gtpEvents.reduce((s, e) => s + e.generations_to_publish, 0) / gtpEvents.length) / 10
+        : 0;
+      const firstTryPct = gtpEvents.length > 0
+        ? Math.round(1000 * gtpEvents.filter(e => e.generations_to_publish === 1).length / gtpEvents.length) / 10
+        : 0;
+
+      // 6. Time-to-publish stats
+      const publishedEvents = events.filter(e => e.published_at && e.created_at);
+      let avgMinutesToPublish = 0;
+      let medianMinutesToPublish = 0;
+      let avgMinutesToFirstGen = 0;
+      if (publishedEvents.length > 0) {
+        const ttps = publishedEvents.map(e => (new Date(e.published_at) - new Date(e.created_at)) / 60000);
+        avgMinutesToPublish = Math.round(10 * ttps.reduce((s, v) => s + v, 0) / ttps.length) / 10;
+        const sorted = [...ttps].sort((a, b) => a - b);
+        medianMinutesToPublish = Math.round(10 * sorted[Math.floor(sorted.length / 2)]) / 10;
+
+        const genEvents = publishedEvents.filter(e => e.first_generation_at);
+        if (genEvents.length > 0) {
+          avgMinutesToFirstGen = Math.round(10 * genEvents.reduce((s, e) => s + (new Date(e.first_generation_at) - new Date(e.created_at)) / 60000, 0) / genEvents.length) / 10;
+        }
+      }
+
+      // 7. Event type breakdown
+      const byType = {};
+      events.forEach(e => {
+        const t = e.event_type || 'unknown';
+        if (!byType[t]) byType[t] = { created: 0, generated: 0, published: 0, avgGtp: [] };
+        byType[t].created++;
+        if (e.first_generation_at) byType[t].generated++;
+        if (e.status === 'published') byType[t].published++;
+        if (e.generations_to_publish != null) byType[t].avgGtp.push(e.generations_to_publish);
+      });
+      const eventTypeBreakdown = Object.entries(byType)
+        .map(([type, d]) => ({
+          eventType: type,
+          created: d.created,
+          generated: d.generated,
+          published: d.published,
+          genRate: d.created > 0 ? Math.round(1000 * d.generated / d.created) / 10 : 0,
+          publishRate: d.created > 0 ? Math.round(1000 * d.published / d.created) / 10 : 0,
+          avgGtp: d.avgGtp.length > 0 ? Math.round(10 * d.avgGtp.reduce((s, v) => s + v, 0) / d.avgGtp.length) / 10 : null
+        }))
+        .sort((a, b) => b.created - a.created);
+
+      // 8. Weekly trends (last 12 weeks)
+      const now = new Date();
+      const weeklyTrends = [];
+      for (let i = 11; i >= 0; i--) {
+        const weekStart = new Date(now);
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay() - (i * 7));
+        weekStart.setHours(0, 0, 0, 0);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 7);
+
+        const ws = weekStart.toISOString();
+        const we = weekEnd.toISOString();
+
+        weeklyTrends.push({
+          weekStart: ws,
+          label: weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          signups: profiles.filter(p => p.created_at >= ws && p.created_at < we).length,
+          eventsCreated: events.filter(e => e.created_at >= ws && e.created_at < we).length,
+          generated: events.filter(e => e.first_generation_at && e.first_generation_at >= ws && e.first_generation_at < we).length,
+          published: events.filter(e => e.published_at && e.published_at >= ws && e.published_at < we).length
+        });
+      }
+
+      // 9. Design chat engagement (tweak analysis)
+      const designSessions = Object.values(sessionMap).filter(s => s.phase === 'design');
+      const avgDesignMsgs = designSessions.length > 0
+        ? Math.round(10 * designSessions.reduce((s, x) => s + x.userMessages, 0) / designSessions.length) / 10
+        : 0;
+
+      // 10. Stale/abandoned events (created > 24h ago, still draft, no generation)
+      const oneDayAgo = new Date(Date.now() - 86400000).toISOString();
+      const abandonedCount = events.filter(e => e.status === 'draft' && !e.first_generation_at && e.created_at < oneDayAgo).length;
+
+      return res.status(200).json({
+        success: true,
+        funnel: {
+          stages: funnelStages,
+          dropOffByStep,
+          chatEngagement: {
+            avgMsgsPublished,
+            avgMsgsDropped,
+            avgDesignMsgs,
+            msgDistribution: msgBuckets,
+            totalCreateSessions: createSessions.length,
+            totalDesignSessions: designSessions.length
+          },
+          droppedLastMessages: droppedLastMsgs,
+          generationsToPublish: {
+            distribution: gtpBuckets,
+            avgGtp,
+            firstTryPct,
+            totalWithData: gtpEvents.length
+          },
+          timeToPublish: {
+            avgMinutes: avgMinutesToPublish,
+            medianMinutes: medianMinutesToPublish,
+            avgMinutesToFirstGen,
+            totalPublished: publishedEvents.length
+          },
+          eventTypeBreakdown,
+          weeklyTrends,
+          abandonedCount,
+          overallConversion: totalSignups > 0
+            ? Math.round(1000 * totalPublished / totalSignups) / 10
+            : 0,
+          filterOptions: {
+            eventTypes: distinctEventTypes,
+            utmSources: distinctUtmSources,
+            paymentStatuses: distinctPaymentStatuses
+          }
+        }
+      });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Admin API error:', err);
