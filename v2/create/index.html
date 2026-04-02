@@ -7234,7 +7234,17 @@
           var personName = nameMatch ? nameMatch[1] : 'the guest of honor';
           ackText = uploadedCount + ' photo' + (uploadedCount > 1 ? 's' : '') + ' of ' + personName + ' uploaded \u2014 we\u2019ll feature ' + personName + ' prominently in the invite design.';
         }
-        showPhotoAckCard(ackText);
+        // If we're in the confirmed phase (event details locked, theme discovery in progress),
+        // skip the extra chat exchanges — photos + event details are enough to generate.
+        // Jump straight to the design ready card.
+        if (chatPhase === 'confirmed') {
+          dismissPhotoPrompt();
+          addChatBubble(ackText, 'assistant', true);
+          chatPhase = 'themeReady';
+          showDesignReadyCard();
+        } else {
+          showPhotoAckCard(ackText);
+        }
       }
       // Scroll to keep the Generate button visible after adding photos
       scrollChat();
