@@ -2586,7 +2586,7 @@ This is the most common failure mode. Double-check it.`;
       ? openaiStream(themeModel, activePrompt.systemPrompt, messageContent, 12288)
       : client.messages.stream({
           model: themeModel,
-          max_tokens: 32768,
+          max_tokens: 100000,
           system: activePrompt.systemPrompt,
           messages: [{ role: 'user', content: messageContent }]
         });
