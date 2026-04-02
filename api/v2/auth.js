@@ -274,6 +274,15 @@ export default async function handler(req, res) {
       const { email } = req.body || {};
       if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
 
+      // Check if this email already has a profile (i.e., is an existing user).
+      // signInWithOtp auto-creates new users, so we need to detect that case
+      // to send admin signup notifications.
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+
       const { data, error } = await supabaseAnon.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: redirectTo }
@@ -282,6 +291,11 @@ export default async function handler(req, res) {
       if (error) {
         console.error('OTP login error:', error.message, error.status);
         return res.status(400).json({ success: false, error: error.message });
+      }
+
+      // If no profile existed, this login auto-created a new user — notify admins
+      if (!existingProfile) {
+        sendAdminSignupNotifications(email, '', '').catch(() => {});
       }
 
       return res.status(200).json({ success: true, message: 'Check your email for login link' });
