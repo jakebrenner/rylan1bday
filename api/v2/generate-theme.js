@@ -433,11 +433,9 @@ const DESIGN_DNA = {
 // preview system, data binding, thank-you page rendering).
 // ═══════════════════════════════════════════════════════════════════
 const STRUCTURAL_RULES = `## OUTPUT FORMAT — MANDATORY
-Return a JSON object with exactly these keys:
+Return a JSON object with exactly these keys IN THIS ORDER (CSS first to avoid truncation):
 {
-  "theme_html": "...",
   "theme_css": "...",
-  "theme_thankyou_html": "...",
   "theme_config": {
     "primaryColor": "#hex",
     "secondaryColor": "#hex",
@@ -449,8 +447,12 @@ Return a JSON object with exactly these keys:
     "mood": "one-word mood descriptor",
     "googleFontsImport": "@import url('...')",
     "loadingPun": "A short, fun, on-theme pun shown while the RSVP is submitting (e.g., 'Grabbing your party hat...', 'Saving you a seat...', 'Polishing the dance floor...')"
-  }
+  },
+  "theme_html": "...",
+  "theme_thankyou_html": "..."
 }
+
+CRITICAL: Output theme_css and theme_config BEFORE theme_html. The HTML can be very long — if you run out of output space, the CSS must already be complete.
 
 ## PAGE STRUCTURE — REQUIRED SECTIONS
 Build the page with these sections (creative freedom on visual execution):
@@ -2584,7 +2586,7 @@ This is the most common failure mode. Double-check it.`;
       ? openaiStream(themeModel, activePrompt.systemPrompt, messageContent, 12288)
       : client.messages.stream({
           model: themeModel,
-          max_tokens: 16384,
+          max_tokens: 32768,
           system: activePrompt.systemPrompt,
           messages: [{ role: 'user', content: messageContent }]
         });
@@ -2650,6 +2652,12 @@ This is the most common failure mode. Double-check it.`;
       genInputTokens = Math.round((systemLen + userMsgLen) / 4);
     }
     console.log('[cost] Estimated tokens:', { hadFinalMessage, genInputTokens, genOutputTokens, fullTextLen: fullText.length, model: themeModel });
+
+    // Detect truncation: if finalMessage has stop_reason 'max_tokens', the response was cut off
+    const stopReason = genFinalMessage?.stop_reason || 'unknown';
+    if (stopReason === 'max_tokens') {
+      console.warn('[generate] Response was TRUNCATED (hit max_tokens). Output tokens:', genOutputTokens, 'Text length:', fullText.length);
+    }
     const latency = Date.now() - startTime;
 
     // Parse JSON response — handle various wrapping patterns
