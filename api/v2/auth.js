@@ -244,7 +244,7 @@ export default async function handler(req, res) {
       // Create profile if new user
       let metaEventId = null;
       if (!isExisting && userId) {
-        await getSupabase().from('profiles').upsert({ id: userId, email }, { onConflict: 'id' }).catch(() => {});
+        try { await getSupabase().from('profiles').upsert({ id: userId, email }, { onConflict: 'id' }); } catch (_) {}
 
         // Await background tasks — Vercel may freeze after res.json()
         metaEventId = crypto.randomUUID();
