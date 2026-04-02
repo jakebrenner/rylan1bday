@@ -263,7 +263,7 @@
     .gen-detail-info .detail-value { font-weight: 600; color: var(--midnight); }
     /* Chat bubble styles */
     .evt-chat-bubble { max-width: 80%; position: relative; border-radius: 16px; padding: 10px 14px; font-size: 14px; line-height: 1.45; }
-    .evt-chat-user { background: var(--coral); color: #fff; border-bottom-right-radius: 4px; }
+    .evt-chat-user { background: var(--party-coral); color: #fff; border-bottom-right-radius: 4px; }
     .evt-chat-ai { background: #f0f0f0; color: var(--midnight); border-bottom-left-radius: 4px; }
     #edChatBody { background: #fafafa; padding: 16px; border-radius: 8px; }
     .evt-chat-content { white-space: pre-wrap; word-break: break-word; }
@@ -275,7 +275,7 @@
     .evt-chat-user .evt-chat-meta { color: rgba(255,255,255,0.7); border-top-color: rgba(255,255,255,0.2); }
     .evt-chat-user .evt-chat-meta pre { background: rgba(0,0,0,0.15) !important; color: rgba(255,255,255,0.9); }
     .ed-theme-snapshot { display: flex; align-items: center; gap: 12px; margin: 12px auto; padding: 10px 14px; background: #f0f4ff; border: 1px solid #d0d8f0; border-radius: 10px; cursor: pointer; max-width: 500px; transition: border-color 0.15s; }
-    .ed-theme-snapshot:hover { border-color: var(--coral); }
+    .ed-theme-snapshot:hover { border-color: var(--party-coral); }
     .ed-snapshot-thumb { flex-shrink: 0; width: 60px; height: 110px; border-radius: 8px; overflow: hidden; background: #fff; border: 1px solid #ddd; }
 
     /* Style Library */
@@ -1026,7 +1026,7 @@
 
         <!-- Event Header -->
         <div class="ud-header">
-          <div class="ud-avatar" id="edAvatar" style="background:var(--coral);">?</div>
+          <div class="ud-avatar" id="edAvatar" style="background:var(--party-coral);">?</div>
           <div class="ud-info">
             <h2 id="edName">Loading...</h2>
             <div class="ud-meta" id="edMeta"></div>
@@ -1070,7 +1070,7 @@
                 <div class="phone-frame">
                   <div class="phone-notch"></div>
                   <div class="phone-screen">
-                    <iframe id="eventDetailPreviewFrame" sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
+                    <iframe id="eventDetailPreviewFrame" sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
                   </div>
                   <div class="phone-home-bar"></div>
                 </div>
@@ -1292,7 +1292,7 @@
             <div id="pricingSummarySettings" style="padding:10px 14px;background:#f9f9f9;border-radius:6px;font-size:14px;color:var(--midnight);">
               Free tier + $4.99/event premium
             </div>
-            <div class="hint">Configure plan limits in the <a href="#subscriptions" onclick="switchTab('subscriptions');loadBillingTab();return false;" style="color:var(--coral);text-decoration:underline;">Billing</a> tab.</div>
+            <div class="hint">Configure plan limits in the <a href="#subscriptions" onclick="switchTab('subscriptions');loadBillingTab();return false;" style="color:var(--party-coral);text-decoration:underline;">Billing</a> tab.</div>
           </div>
         </div>
         <div class="config-row" style="margin-top:16px;">
@@ -8147,7 +8147,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       if (ev.dressCode) eiHtml += edRow('Dress Code', escapeHtml(ev.dressCode));
       eiHtml += edRow('Status', '<span class="badge ' + sc + '">' + escapeHtml(ev.status) + '</span>');
       eiHtml += edRow('Payment', '<span class="badge ' + paySc + '">' + escapeHtml(ev.paymentStatus || 'unpaid') + '</span>');
-      if (ev.slug) eiHtml += edRow('Slug', '<a href="/v2/event/' + escapeHtml(ev.slug) + '" target="_blank" style="color:var(--coral);">' + escapeHtml(ev.slug) + '</a>');
+      if (ev.slug) eiHtml += edRow('Slug', '<a href="/v2/event/' + escapeHtml(ev.slug) + '" target="_blank" style="color:var(--party-coral);">' + escapeHtml(ev.slug) + '</a>');
       eiHtml += edRow('Event ID', '<code>' + escapeHtml(ev.id) + '</code>');
       eiHtml += edRow('Created', formatDate(ev.createdAt));
       document.getElementById('edEventInfo').innerHTML = eiHtml;
@@ -8192,7 +8192,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         tvHtml += '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">';
         themes.forEach(function(t) {
           var isAct = t.isActive;
-          var cls = isAct ? 'background:var(--coral);color:#fff;border-color:var(--coral);' : 'background:#fff;color:var(--midnight);border-color:#ddd;';
+          var cls = isAct ? 'background:var(--party-coral);color:#fff;border-color:var(--party-coral);' : 'background:#fff;color:var(--midnight);border-color:#ddd;';
           tvHtml += '<button style="padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid;' + cls + '" onclick="previewEventThemeVersion(\'' + t.id + '\')">';
           tvHtml += 'v' + t.version + (isAct ? ' (Active)' : '');
           tvHtml += '</button>';
@@ -8311,7 +8311,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             var activeBadge = t.isActive ? '<span class="badge badge-green" style="font-size:9px;">Active</span> ' : '';
             chatHtml += '<div class="ed-theme-snapshot" onclick="previewEventThemeVersion(\'' + t.id + '\')">';
             chatHtml += '<div class="ed-snapshot-thumb">';
-            chatHtml += '<iframe class="ed-snapshot-frame" data-theme-id="' + t.id + '" sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;transform-origin:top left;transform:scale(0.153);pointer-events:none;"></iframe>';
+            chatHtml += '<iframe class="ed-snapshot-frame" data-theme-id="' + t.id + '" sandbox="allow-scripts" style="width:393px;height:852px;border:none;transform-origin:top left;transform:scale(0.153);pointer-events:none;"></iframe>';
             chatHtml += '</div>';
             chatHtml += '<div style="min-width:0;flex:1;">';
             chatHtml += '<div style="font-size:12px;font-weight:700;color:var(--midnight);">Theme v' + t.version + ' generated ' + activeBadge + '</div>';
