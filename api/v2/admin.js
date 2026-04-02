@@ -854,8 +854,8 @@ export default async function handler(req, res) {
       const drillTo = req.query.to;
       const LIMIT = 500;
 
-      if (!metric || !['users', 'events', 'rsvps', 'chatGenerations', 'themeGenerations', 'sms'].includes(metric)) {
-        return res.status(400).json({ error: 'metric must be one of: users, events, rsvps, chatGenerations, themeGenerations, sms' });
+      if (!metric || !['users', 'events', 'rsvps', 'chatGenerations', 'themeGenerations', 'sms', 'revenue'].includes(metric)) {
+        return res.status(400).json({ error: 'metric must be one of: users, events, rsvps, chatGenerations, themeGenerations, sms, revenue' });
       }
 
       // Helper to resolve event_ids to titles
@@ -877,14 +877,27 @@ export default async function handler(req, res) {
       }
 
       if (metric === 'users') {
-        let q = supabaseAdmin.from('profiles').select('id, display_name, email, created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(LIMIT);
+        let q = supabaseAdmin.from('profiles').select('id, email, created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(LIMIT);
         if (drillFrom) q = q.gte('created_at', drillFrom);
         if (drillTo) q = q.lte('created_at', drillTo);
         const { data, count, error } = await q;
         if (error) return res.status(400).json({ error: error.message });
+        // Batch-fetch generation counts for these users
+        const userIds = (data || []).map(u => u.id);
+        let genCounts = {};
+        if (userIds.length) {
+          const { data: genData } = await supabaseAdmin.rpc('count_generations_by_users', { user_ids: userIds }).catch(() => ({ data: null }));
+          // Fallback: query generation_log grouped by user_id
+          if (!genData) {
+            const { data: genLogs } = await supabaseAdmin.from('generation_log').select('user_id').in('user_id', userIds).eq('status', 'success');
+            (genLogs || []).forEach(g => { genCounts[g.user_id] = (genCounts[g.user_id] || 0) + 1; });
+          } else {
+            (genData || []).forEach(g => { genCounts[g.user_id] = g.count; });
+          }
+        }
         return res.status(200).json({
           success: true, metric, total: count || 0,
-          rows: (data || []).map(u => ({ name: u.display_name, email: u.email, createdAt: u.created_at }))
+          rows: (data || []).map(u => ({ email: u.email, generations: genCounts[u.id] || 0, createdAt: u.created_at }))
         });
       }
 
@@ -980,6 +993,26 @@ export default async function handler(req, res) {
             recipientName: m.recipient_name, recipientPhone: m.recipient_phone,
             eventTitle: eventMap[m.event_id] || '—', eventId: m.event_id,
             messageType: m.message_type, status: m.status, costCents: m.cost_cents, createdAt: m.created_at
+          }))
+        });
+      }
+
+      if (metric === 'revenue') {
+        let q = supabaseAdmin.from('billing_history').select('id, user_id, event_id, amount_cents, status, description, created_at', { count: 'exact' }).eq('status', 'succeeded').order('created_at', { ascending: false }).limit(LIMIT);
+        if (drillFrom) q = q.gte('created_at', drillFrom);
+        if (drillTo) q = q.lte('created_at', drillTo);
+        const { data, count, error } = await q;
+        if (error) return res.status(400).json({ error: error.message });
+        const userIds = [...new Set((data || []).map(b => b.user_id).filter(Boolean))];
+        const eventIds = [...new Set((data || []).map(b => b.event_id).filter(Boolean))];
+        const [userMap, eventMap] = await Promise.all([resolveUserEmails(userIds), resolveEventTitles(eventIds)]);
+        return res.status(200).json({
+          success: true, metric, total: count || 0,
+          rows: (data || []).map(b => ({
+            userEmail: userMap[b.user_id]?.email || '—',
+            eventTitle: eventMap[b.event_id] || '—', eventId: b.event_id,
+            amount: (b.amount_cents || 0) / 100,
+            description: b.description, createdAt: b.created_at
           }))
         });
       }

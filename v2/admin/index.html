@@ -691,6 +691,7 @@
         <div class="stat-card" style="cursor:pointer" onclick="openDrilldown('chatGenerations')"><div class="stat-value" id="statChatGenerations">—</div><div class="stat-label" id="statChatGenerationsLabel">Chat Messages</div></div>
         <div class="stat-card" style="cursor:pointer" onclick="openDrilldown('themeGenerations')"><div class="stat-value" id="statThemeGenerations">—</div><div class="stat-label" id="statThemeGenerationsLabel">Invite Generations</div></div>
         <div class="stat-card" style="cursor:pointer" onclick="openDrilldown('sms')"><div class="stat-value" id="statSms">—</div><div class="stat-label" id="statSmsLabel">SMS Sent</div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="openDrilldown('revenue')"><div class="stat-value" id="statRevenue">—</div><div class="stat-label" id="statRevenueLabel">Revenue</div></div>
       </div>
 
       <!-- Cost Tracking -->
@@ -3552,8 +3553,13 @@
         }
       })();
 
-      // Cost tracking — adapt labels and visibility based on date filter
+      // Revenue stat card
       var c = stats.costs || {};
+      var revDisplay = isFiltered ? (c.revenueFiltered || 0) : (c.revenueTotal || 0);
+      document.getElementById('statRevenue').textContent = fmtCost(revDisplay);
+      document.getElementById('statRevenueLabel').textContent = isFiltered ? 'Revenue' : 'Revenue';
+
+      // Cost tracking — adapt labels and visibility based on date filter
       document.getElementById('costTotal').textContent = fmtCost(c.apiCostTotal || 0);
       document.getElementById('costTotalLabel').textContent = isFiltered ? 'API Cost (Filtered)' : 'API Cost (All Time)';
       document.getElementById('revenueTotalLabel').textContent = isFiltered ? 'Revenue (Filtered)' : 'Revenue (All Time)';
@@ -11286,7 +11292,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
       var titles = {
         users: 'Users', events: 'Events', rsvps: 'RSVPs',
-        chatGenerations: 'Chat Messages', themeGenerations: 'Invite Generations', sms: 'SMS Sent'
+        chatGenerations: 'Chat Messages', themeGenerations: 'Invite Generations', sms: 'SMS Sent', revenue: 'Revenue'
       };
       document.getElementById('drilldownTitle').textContent = titles[metric] || 'Details';
 
@@ -11314,10 +11320,10 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var columns, rowRenderer;
         switch (metric) {
           case 'users':
-            columns = ['Name', 'Email', 'Joined'];
+            columns = ['Email', 'Generations', 'Joined'];
             rowRenderer = function(r) {
-              return '<td>' + escapeHtml(r.name || '—') + '</td>'
-                + '<td>' + escapeHtml(r.email || '—') + '</td>'
+              return '<td>' + escapeHtml(r.email || '—') + '</td>'
+                + '<td>' + (r.generations || 0) + '</td>'
                 + '<td>' + fmtDate(r.createdAt) + '</td>';
             };
             break;
@@ -11373,6 +11379,16 @@ If provided, analyze them for color palette, visual mood, textures, typography s
                 + '<td>' + escapeHtml(r.eventTitle || '—') + '</td>'
                 + '<td>' + escapeHtml(r.messageType || '—') + '</td>'
                 + '<td>' + escapeHtml(r.status || '—') + '</td>'
+                + '<td>' + fmtDate(r.createdAt) + '</td>';
+            };
+            break;
+          case 'revenue':
+            columns = ['User', 'Event', 'Amount', 'Description', 'Date'];
+            rowRenderer = function(r) {
+              return '<td>' + escapeHtml(r.userEmail || '—') + '</td>'
+                + '<td>' + escapeHtml(r.eventTitle || '—') + '</td>'
+                + '<td style="font-weight:600;color:#16a34a;">' + fmtCost(r.amount) + '</td>'
+                + '<td>' + escapeHtml(r.description || '—') + '</td>'
                 + '<td>' + fmtDate(r.createdAt) + '</td>';
             };
             break;
