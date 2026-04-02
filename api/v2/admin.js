@@ -792,7 +792,9 @@ export default async function handler(req, res) {
             newEvents: filteredEventsRes.count || 0,
             newPublishedEvents: filteredPublished,
             newRsvps: filteredGuestsRes.count || 0,
-            generations: logsRes.count || 0
+            generations: logsRes.count || 0,
+            chatGenerations: chatCount,
+            themeGenerations: themeCount
           },
           // Backward compat (deprecated — use allTime/filtered instead)
           totalUsers: allUsersRes.count || 0,
@@ -843,6 +845,177 @@ export default async function handler(req, res) {
           }
         }
       });
+    }
+
+    // ---- STATS DRILLDOWN ----
+    if (action === 'statsDrilldown') {
+      const metric = req.query.metric;
+      const drillFrom = req.query.from;
+      const drillTo = req.query.to;
+      const LIMIT = 500;
+
+      if (!metric || !['users', 'events', 'rsvps', 'chatGenerations', 'themeGenerations', 'sms', 'revenue'].includes(metric)) {
+        return res.status(400).json({ error: 'metric must be one of: users, events, rsvps, chatGenerations, themeGenerations, sms, revenue' });
+      }
+
+      // Helper to resolve event_ids to titles
+      async function resolveEventTitles(ids) {
+        if (!ids.length) return {};
+        const { data } = await supabaseAdmin.from('events').select('id, title').in('id', ids);
+        const map = {};
+        (data || []).forEach(e => { map[e.id] = e.title; });
+        return map;
+      }
+
+      // Helper to resolve user_ids to emails
+      async function resolveUserEmails(ids) {
+        if (!ids.length) return {};
+        const { data } = await supabaseAdmin.from('profiles').select('id, email, display_name').in('id', ids);
+        const map = {};
+        (data || []).forEach(u => { map[u.id] = { email: u.email, name: u.display_name }; });
+        return map;
+      }
+
+      if (metric === 'users') {
+        let q = supabaseAdmin.from('profiles').select('id, email, created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(LIMIT);
+        if (drillFrom) q = q.gte('created_at', drillFrom);
+        if (drillTo) q = q.lte('created_at', drillTo);
+        const { data, count, error } = await q;
+        if (error) return res.status(400).json({ error: error.message });
+        // Batch-fetch generation counts for these users
+        const userIds = (data || []).map(u => u.id);
+        let genCounts = {};
+        if (userIds.length) {
+          const { data: genData } = await supabaseAdmin.rpc('count_generations_by_users', { user_ids: userIds }).catch(() => ({ data: null }));
+          // Fallback: query generation_log grouped by user_id
+          if (!genData) {
+            const { data: genLogs } = await supabaseAdmin.from('generation_log').select('user_id').in('user_id', userIds).eq('status', 'success');
+            (genLogs || []).forEach(g => { genCounts[g.user_id] = (genCounts[g.user_id] || 0) + 1; });
+          } else {
+            (genData || []).forEach(g => { genCounts[g.user_id] = g.count; });
+          }
+        }
+        return res.status(200).json({
+          success: true, metric, total: count || 0,
+          rows: (data || []).map(u => ({ email: u.email, generations: genCounts[u.id] || 0, createdAt: u.created_at }))
+        });
+      }
+
+      if (metric === 'events') {
+        let q = supabaseAdmin.from('events').select('id, title, user_id, event_type, status, created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(LIMIT);
+        if (drillFrom) q = q.gte('created_at', drillFrom);
+        if (drillTo) q = q.lte('created_at', drillTo);
+        const { data, count, error } = await q;
+        if (error) return res.status(400).json({ error: error.message });
+        const userIds = [...new Set((data || []).map(e => e.user_id).filter(Boolean))];
+        const userMap = await resolveUserEmails(userIds);
+        return res.status(200).json({
+          success: true, metric, total: count || 0,
+          rows: (data || []).map(e => ({
+            id: e.id, title: e.title, creatorEmail: userMap[e.user_id]?.email || '—', creatorName: userMap[e.user_id]?.name || '',
+            eventType: e.event_type, status: e.status, createdAt: e.created_at
+          }))
+        });
+      }
+
+      if (metric === 'rsvps') {
+        let q = supabaseAdmin.from('guests').select('id, name, email, phone, event_id, status, responded_at, created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(LIMIT);
+        if (drillFrom) q = q.gte('created_at', drillFrom);
+        if (drillTo) q = q.lte('created_at', drillTo);
+        const { data, count, error } = await q;
+        if (error) return res.status(400).json({ error: error.message });
+        const eventIds = [...new Set((data || []).map(g => g.event_id).filter(Boolean))];
+        const eventMap = await resolveEventTitles(eventIds);
+        return res.status(200).json({
+          success: true, metric, total: count || 0,
+          rows: (data || []).map(g => ({
+            name: g.name, email: g.email, phone: g.phone,
+            eventTitle: eventMap[g.event_id] || '—', eventId: g.event_id,
+            status: g.status, respondedAt: g.responded_at, createdAt: g.created_at
+          }))
+        });
+      }
+
+      if (metric === 'chatGenerations' || metric === 'themeGenerations') {
+        // Fetch more rows since we filter in JS
+        let q = supabaseAdmin.from('generation_log').select('id, event_id, model, input_tokens, output_tokens, latency_ms, created_at, prompt').eq('status', 'success').order('created_at', { ascending: false }).limit(2000);
+        if (drillFrom) q = q.gte('created_at', drillFrom);
+        if (drillTo) q = q.lte('created_at', drillTo);
+        const { data, error } = await q;
+        if (error) return res.status(400).json({ error: error.message });
+
+        // Same categorization logic as stats endpoint
+        const MODEL_PRICING_DRILL = {
+          'claude-haiku-4-5-20251001': { input: 1.00, output: 5.00 },
+          'claude-sonnet-4-20250514':  { input: 3.00, output: 15.00 },
+          'claude-sonnet-4-6':         { input: 3.00, output: 15.00 },
+          'claude-opus-4-20250514':    { input: 15.00, output: 75.00 },
+          'claude-opus-4-6':           { input: 15.00, output: 75.00 },
+        };
+
+        const filtered = (data || []).filter(l => {
+          const isTest = l.prompt && l.prompt.startsWith('prompt_test');
+          const isInternal = l.prompt && (l.prompt.startsWith('QM ') || l.prompt.startsWith('admin:') || l.prompt.startsWith('blog:') || l.prompt.startsWith('publish-verify:'));
+          const isChat = (l.prompt && l.prompt.startsWith('chat:')) || (!l.event_id && !isTest && !isInternal);
+          if (metric === 'chatGenerations') return isChat;
+          // themeGenerations: not chat, not test, not internal
+          return !isChat && !isTest && !isInternal;
+        }).slice(0, LIMIT);
+
+        const eventIds = [...new Set(filtered.map(l => l.event_id).filter(Boolean))];
+        const eventMap = await resolveEventTitles(eventIds);
+
+        return res.status(200).json({
+          success: true, metric, total: filtered.length,
+          rows: filtered.map(l => {
+            const pricing = MODEL_PRICING_DRILL[l.model] || { input: 3.00, output: 15.00 };
+            const cost = ((l.input_tokens || 0) * pricing.input + (l.output_tokens || 0) * pricing.output) / 1_000_000;
+            return {
+              eventTitle: eventMap[l.event_id] || (l.event_id ? '(unknown)' : '—'), eventId: l.event_id,
+              model: l.model, inputTokens: l.input_tokens || 0, outputTokens: l.output_tokens || 0,
+              latencyMs: l.latency_ms, cost, createdAt: l.created_at
+            };
+          })
+        });
+      }
+
+      if (metric === 'sms') {
+        let q = supabaseAdmin.from('sms_messages').select('id, event_id, recipient_name, recipient_phone, message_type, status, cost_cents, created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(LIMIT);
+        if (drillFrom) q = q.gte('created_at', drillFrom);
+        if (drillTo) q = q.lte('created_at', drillTo);
+        const { data, count, error } = await q;
+        if (error) return res.status(400).json({ error: error.message });
+        const eventIds = [...new Set((data || []).map(m => m.event_id).filter(Boolean))];
+        const eventMap = await resolveEventTitles(eventIds);
+        return res.status(200).json({
+          success: true, metric, total: count || 0,
+          rows: (data || []).map(m => ({
+            recipientName: m.recipient_name, recipientPhone: m.recipient_phone,
+            eventTitle: eventMap[m.event_id] || '—', eventId: m.event_id,
+            messageType: m.message_type, status: m.status, costCents: m.cost_cents, createdAt: m.created_at
+          }))
+        });
+      }
+
+      if (metric === 'revenue') {
+        let q = supabaseAdmin.from('billing_history').select('id, user_id, event_id, amount_cents, status, description, created_at', { count: 'exact' }).eq('status', 'succeeded').order('created_at', { ascending: false }).limit(LIMIT);
+        if (drillFrom) q = q.gte('created_at', drillFrom);
+        if (drillTo) q = q.lte('created_at', drillTo);
+        const { data, count, error } = await q;
+        if (error) return res.status(400).json({ error: error.message });
+        const userIds = [...new Set((data || []).map(b => b.user_id).filter(Boolean))];
+        const eventIds = [...new Set((data || []).map(b => b.event_id).filter(Boolean))];
+        const [userMap, eventMap] = await Promise.all([resolveUserEmails(userIds), resolveEventTitles(eventIds)]);
+        return res.status(200).json({
+          success: true, metric, total: count || 0,
+          rows: (data || []).map(b => ({
+            userEmail: userMap[b.user_id]?.email || '—',
+            eventTitle: eventMap[b.event_id] || '—', eventId: b.event_id,
+            amount: (b.amount_cents || 0) / 100,
+            description: b.description, createdAt: b.created_at
+          }))
+        });
+      }
     }
 
     // ---- GET MODEL CONFIG ----
