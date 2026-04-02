@@ -764,9 +764,9 @@
         </div>
       </div>
       <div id="addGuestInvitePrompt" style="display:none;text-align:center;">
-        <div style="font-size:14px;font-weight:600;color:var(--midnight);margin-bottom:16px;" id="addGuestSuccessMsg"></div>
-        <div id="addGuestInviteBtns" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;"></div>
-        <button onclick="addAnotherGuest()" style="margin-top:16px;background:none;border:none;color:var(--party-coral);font-weight:600;cursor:pointer;font-size:13px;font-family:Inter,sans-serif;">+ Add Another</button>
+        <div style="font-size:14px;font-weight:600;color:var(--midnight);margin-bottom:4px;" id="addGuestSuccessMsg"></div>
+        <div style="font-size:12px;color:#999;margin-bottom:16px;">Send invites from the Messages tab when you're ready.</div>
+        <button onclick="addAnotherGuest()" style="background:var(--party-coral);color:white;border:none;border-radius:8px;padding:8px 20px;font-size:13px;font-weight:600;font-family:Inter,sans-serif;cursor:pointer;">+ Add Another</button>
         <button onclick="closeAddGuestModal()" style="margin-top:8px;background:none;border:none;color:#999;cursor:pointer;font-size:13px;display:block;margin-left:auto;margin-right:auto;font-family:Inter,sans-serif;">Done</button>
       </div>
     </div>
@@ -2010,8 +2010,6 @@
     }
 
     var guestHistoryCache = {};
-    var lastAddedGuestId = null;
-    var lastAddedGuestData = null;
 
     function openAddGuestModal() {
       document.getElementById('dashNewGuestName').value = '';
@@ -2025,15 +2023,11 @@
       document.getElementById('addGuestSubmitBtn').disabled = false;
       document.getElementById('addGuestSubmitBtn').textContent = 'Add Guest';
       document.getElementById('addGuestModal').classList.add('active');
-      lastAddedGuestId = null;
-      lastAddedGuestData = null;
       setTimeout(function() { document.getElementById('dashNewGuestName').focus(); }, 100);
     }
 
     function closeAddGuestModal() {
       document.getElementById('addGuestModal').classList.remove('active');
-      lastAddedGuestId = null;
-      lastAddedGuestData = null;
     }
 
     async function submitNewGuestFromDashboard() {
@@ -2086,32 +2080,12 @@
         });
         var addResult = await addRes.json();
 
-        if (addResult.guests && addResult.guests.length) {
-          lastAddedGuestId = addResult.guests[0].id;
-        }
-        lastAddedGuestData = { name: name, email: email, phone: phone };
-
-        // Step 3: Reload guest list
+        // Reload guest list and show success
         loadGuestsTab();
-
-        // Step 4: Show invite prompt
         showToast(escapeHtml(name) + ' added as a guest!');
         document.getElementById('addGuestFormSection').style.display = 'none';
         document.getElementById('addGuestInvitePrompt').style.display = 'block';
         document.getElementById('addGuestSuccessMsg').textContent = name + ' has been added!';
-
-        // Build invite buttons based on available contact info
-        var btnsHtml = '';
-        if (phone && lastAddedGuestId) {
-          btnsHtml += '<button onclick="sendInviteToNewGuest(\'sms\')" id="addGuestSmsBtn" class="confirm-ok" style="background:var(--party-coral);font-size:13px;padding:8px 16px;">Send SMS Invite</button>';
-        }
-        if (email && lastAddedGuestId) {
-          btnsHtml += '<button onclick="sendInviteToNewGuest(\'email\')" id="addGuestEmailBtn" class="confirm-ok" style="background:var(--mint-fizz);color:white;font-size:13px;padding:8px 16px;">Send Email Invite</button>';
-        }
-        if (!phone && !email) {
-          btnsHtml = '<div style="font-size:12px;color:#999;">Add an email or phone number to send invites</div>';
-        }
-        document.getElementById('addGuestInviteBtns').innerHTML = btnsHtml;
 
       } catch (e) {
         msg.textContent = 'Error adding guest';
@@ -2119,57 +2093,6 @@
         msg.style.display = 'block';
         btn.disabled = false;
         btn.textContent = 'Add Guest';
-      }
-    }
-
-    async function sendInviteToNewGuest(type) {
-      if (!lastAddedGuestId) return;
-      var btn = document.getElementById(type === 'sms' ? 'addGuestSmsBtn' : 'addGuestEmailBtn');
-      if (!btn) return;
-      var origText = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = 'Sending...';
-
-      try {
-        if (type === 'sms') {
-          var inviteUrl = getInviteUrl();
-          var smsMsg = 'You\'re invited to ' + manageTitle + '! RSVP here: ' + inviteUrl;
-          var res = await authFetch('/api/v2/sms?action=sendInvites', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ eventId: manageEventId, guestIds: [lastAddedGuestId], message: smsMsg })
-          });
-          var result = await res.json();
-          if (result.success) {
-            showToast('SMS invite sent!');
-            btn.textContent = 'SMS Sent';
-            loadGuestsTab();
-          } else {
-            showToast(result.error || 'Failed to send SMS');
-            btn.disabled = false;
-            btn.textContent = origText;
-          }
-        } else {
-          var res = await authFetch('/api/v2/sms?action=sendEmailInvites', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ eventId: manageEventId, guestIds: [lastAddedGuestId] })
-          });
-          var result = await res.json();
-          if (result.success) {
-            showToast('Email invite sent!');
-            btn.textContent = 'Email Sent';
-            loadGuestsTab();
-          } else {
-            showToast(result.error || 'Failed to send email');
-            btn.disabled = false;
-            btn.textContent = origText;
-          }
-        }
-      } catch (e) {
-        showToast('Failed to send invite');
-        btn.disabled = false;
-        btn.textContent = origText;
       }
     }
 
@@ -2184,8 +2107,6 @@
       document.getElementById('addGuestInvitePrompt').style.display = 'none';
       document.getElementById('addGuestSubmitBtn').disabled = false;
       document.getElementById('addGuestSubmitBtn').textContent = 'Add Guest';
-      lastAddedGuestId = null;
-      lastAddedGuestData = null;
       setTimeout(function() { document.getElementById('dashNewGuestName').focus(); }, 100);
     }
 

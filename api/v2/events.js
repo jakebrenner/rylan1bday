@@ -1138,8 +1138,7 @@ export default async function handler(req, res) {
           name: c.name,
           email: c.email || null,
           phone: c.phone || null,
-          status: 'invited',
-          invited_at: new Date().toISOString()
+          status: 'invited'
         }));
 
       if (newGuests.length === 0) {
@@ -1202,8 +1201,7 @@ export default async function handler(req, res) {
           name: c.name,
           email: c.email || null,
           phone: c.phone || null,
-          status: 'invited',
-          invited_at: new Date().toISOString()
+          status: 'invited'
         }));
 
       if (newGuests.length > 0) {
@@ -1266,8 +1264,7 @@ export default async function handler(req, res) {
           name: g.name,
           email: g.email || null,
           phone: g.phone || null,
-          status: 'invited',
-          invited_at: new Date().toISOString()
+          status: 'invited'
         }));
 
       if (newGuests.length > 0) {
