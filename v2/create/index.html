@@ -1130,6 +1130,7 @@
 
       // Resume existing draft if ?eventId= is in the URL
       var resumeId = urlParams.get('eventId');
+      var urlStepHint = parseInt(urlParams.get('step')) || 0;
       if (resumeId) {
         localStorage.removeItem('pending_templateId');
         // Fast path: if we have cached themes in sessionStorage, show them instantly
@@ -1172,6 +1173,11 @@
                 prompt: (ev.settings && ev.settings.design_prompt) || ''
               };
               _resumeDataLoading = false; // Event data loaded — re-enable broken render checks
+              // Upgrade to step 3 if that's where the user actually was
+              var savedStep = (ev.settings && ev.settings.creation_step) || 2;
+              if (savedStep >= 3 && currentStep !== 3 && themeVersions.length > 0) {
+                goToStep(3);
+              }
               // Re-inject details into current preview now that extractedData is available
               var previewIframe = document.getElementById('previewFrame');
               if (previewIframe && previewIframe.contentDocument) {
@@ -1295,8 +1301,18 @@
               + '<div id="genAttributionArea"></div>'
               + '</div></div>'
               + '<div id="generatingPaywall" style="display:none;"></div>';
-            // Jump to the right step (old step 3/4 → new step 2/3)
-            var step = (ev.settings && ev.settings.creation_step) || 2;
+            // Jump to the right step based on persisted creation_step (fall back to URL hint)
+            var step = (ev.settings && ev.settings.creation_step != null) ? ev.settings.creation_step : (urlStepHint || 2);
+            if (step <= 0) {
+              // Abandoned before entering details — restart chat
+              clearInterval(resumePunInterval);
+              var resumeStep = document.querySelector('.container .step[data-step="2"]');
+              if (resumeStep) resumeStep.classList.remove('active');
+              document.querySelector('.chat-container').style.display = 'flex';
+              var rhc = document.getElementById('resumeHideChat'); if (rhc) rhc.remove();
+              goToStep(1);
+              return;
+            }
             if (step >= 3 && themeVersions.length > 0) {
               goToStep(3); // Review & Publish
             } else if (step >= 2 && themeVersions.length > 0) {
@@ -2786,10 +2802,19 @@
       if (step === 3) {
         showSummary();
         if (currentEvent) {
+          var saveStep3Body = JSON.stringify({ eventId: currentEvent.id, settings: { creation_step: 3 } });
           authFetch('/api/v2/events?action=update', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ eventId: currentEvent.id, settings: { creation_step: 3 } })
-          }).catch(function() {});
+            body: saveStep3Body
+          }).catch(function() {
+            // Retry once after 2s to reduce risk of lost step data
+            setTimeout(function() {
+              authFetch('/api/v2/events?action=update', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: saveStep3Body
+              }).catch(function(e) { console.warn('Step 3 save failed after retry:', e); });
+            }, 2000);
+          });
         }
       }
     }
