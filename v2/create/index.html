@@ -5354,11 +5354,12 @@
 
     function finishDesignChatInit() {
       var title = extractedData.title || 'your event';
-      var isLimitReached = currentEvent && (currentEvent.paymentStatus === 'free' || currentEvent.paymentStatus === 'unpaid')
+      var isUnpaid = currentEvent && currentEvent.paymentStatus === 'unpaid';
+      var isFreeExhausted = currentEvent && currentEvent.paymentStatus === 'free'
         && (currentEvent.generationCount || 0) >= (currentEvent.generationLimit || 2);
       var welcomeMsg;
 
-      if (isLimitReached) {
+      if (isUnpaid || isFreeExhausted) {
         welcomeMsg = "Your invite for " + title + " is ready! Here's what you can do for free:\n\n"
           + "- \u{1F4DD} **Update text** \u2014 \"change the date to April 20th\" or \"change the title to ...\"\n"
           + "- \u{2795} **Add RSVP fields** \u2014 \"add a dietary restrictions field\"\n"
@@ -6199,23 +6200,26 @@
         return;
       }
 
-      // ── Free/unpaid tier gate: block design chat if generation limit reached ──
-      if (currentEvent && currentEvent.paymentStatus === 'refunded') {
-        pendingUpgradeMessage = text;
-        sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
-        pushDesignChat({ role: 'user', content: text });
-        pushDesignChat({ role: 'upgrade', content: "This event requires a $4.99 upgrade before you can make design changes. Upgrade to unlock AI designs, SMS delivery, and everything you need." });
-        renderDesignChat();
-        input.value = '';
-        input.style.height = 'auto';
-        return;
+      // ── Free/unpaid tier gate: block design chat if not paid ──
+      if (currentEvent && (currentEvent.paymentStatus === 'unpaid' || currentEvent.paymentStatus === 'refunded')) {
+        // Allow Tier 1.75 client-side text swaps — they don't cost anything
+        var textSwapPattern = /\b(change|replace|swap|switch)\b.{0,10}["'\u201C\u201D].+["'\u201C\u201D]\s*(to|with|for)\s*["'\u201C\u201D]/i;
+        if (!textSwapPattern.test(text)) {
+          pendingUpgradeMessage = text;
+          sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
+          pushDesignChat({ role: 'user', content: text });
+          pushDesignChat({ role: 'upgrade', content: "This event requires a $4.99 upgrade before you can make design changes. Upgrade to unlock AI designs, SMS delivery, and everything you need." });
+          renderDesignChat();
+          input.value = '';
+          input.style.height = 'auto';
+          return;
+        }
       }
-      if (currentEvent && (currentEvent.paymentStatus === 'free' || currentEvent.paymentStatus === 'unpaid')) {
+      if (currentEvent && currentEvent.paymentStatus === 'free') {
         var remaining = (currentEvent.generationLimit || 2) - (currentEvent.generationCount || 0);
         if (remaining <= 0) {
-          // Allow Tier 1.75 client-side text swaps — they don't cost anything
-          var textSwapPattern = /\b(change|replace|swap|switch)\b.{0,10}["'\u201C\u201D].+["'\u201C\u201D]\s*(to|with|for)\s*["'\u201C\u201D]/i;
-          if (!textSwapPattern.test(text)) {
+          var textSwapPattern2 = /\b(change|replace|swap|switch)\b.{0,10}["'\u201C\u201D].+["'\u201C\u201D]\s*(to|with|for)\s*["'\u201C\u201D]/i;
+          if (!textSwapPattern2.test(text)) {
             pendingUpgradeMessage = text;
             sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
             pushDesignChat({ role: 'user', content: text });
