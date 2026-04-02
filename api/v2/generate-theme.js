@@ -1275,7 +1275,7 @@ async function loadStyleReferences(eventType, promptSpecificity = 0) {
     }));
     // Track usage (fire and forget — silently skip if times_used column doesn't exist)
     selected.forEach(row => {
-      try { await supabase.from('style_library').update({ times_used: (row.times_used || 0) + 1 }).eq('id', row.id); } catch(e) { /* non-critical */ }
+      try { supabase.from('style_library').update({ times_used: (row.times_used || 0) + 1 }).eq('id', row.id); } catch(e) { /* non-critical */ }
     });
     return { context: buildStyleContext(matched, promptSpecificity), selectedIds };
   } catch {
