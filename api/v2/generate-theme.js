@@ -1275,7 +1275,7 @@ async function loadStyleReferences(eventType, promptSpecificity = 0) {
     }));
     // Track usage (fire and forget — silently skip if times_used column doesn't exist)
     selected.forEach(row => {
-      supabase.from('style_library').update({ times_used: (row.times_used || 0) + 1 }).eq('id', row.id).then(() => {}).catch(() => {});
+      try { await supabase.from('style_library').update({ times_used: (row.times_used || 0) + 1 }).eq('id', row.id); } catch(e) { /* non-critical */ }
     });
     return { context: buildStyleContext(matched, promptSpecificity), selectedIds };
   } catch {
@@ -1675,16 +1675,18 @@ Rules:
       }
       // Log classifyIntent to generation_log — these add up
       const classifyMeta = getClientMeta(req);
-      await supabase.from('generation_log').insert({
-        user_id: user.id, event_id: eventId || null,
-        prompt: 'classifyIntent: ' + userMessage.substring(0, 200),
-        model: 'claude-haiku-4-5-20251001', input_tokens: classifyInputTokens,
-        output_tokens: classifyOutputTokens, latency_ms: classifyLatency, status: 'success',
-        is_tweak: true, cost_cents: classifyCost.costCentsExact, event_type: eventType || '',
-        client_ip: classifyMeta.ip, client_geo: classifyMeta.geo, user_agent: classifyMeta.userAgent
-      }).catch(e => console.error('classifyIntent generation_log insert failed:', e.message));
+      try {
+        await supabase.from('generation_log').insert({
+          user_id: user.id, event_id: eventId || null,
+          prompt: 'classifyIntent: ' + userMessage.substring(0, 200),
+          model: 'claude-haiku-4-5-20251001', input_tokens: classifyInputTokens,
+          output_tokens: classifyOutputTokens, latency_ms: classifyLatency, status: 'success',
+          is_tweak: true, cost_cents: classifyCost.costCentsExact, event_type: eventType || '',
+          client_ip: classifyMeta.ip, client_geo: classifyMeta.geo, user_agent: classifyMeta.userAgent
+        });
+      } catch(e) { console.error('classifyIntent generation_log insert failed:', e.message); }
       if (eventId) {
-        await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: classifyCost.rawCostCents }).catch(() => {});
+        try { await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: classifyCost.rawCostCents }); } catch(e) { /* non-critical */ }
       }
       // AI generation included in $4.99 event price — no per-generation billing
       return res.json({ success: true, ...classification, metadata: { cost: classifyCost } });
@@ -2294,14 +2296,16 @@ Return ONLY a valid JSON object with these keys:
 
       // ── Quality signal: Content warnings persist after tweak repair ──
       if (tweakContentWarnings.length > 0) {
-        supabase.from('quality_incidents').insert({
-          event_id: eventId, user_id: user.id,
-          trigger_type: 'content_warning',
-          trigger_data: { contentWarnings: tweakContentWarnings, htmlLength: theme.theme_html.length, isTweak: true },
-          theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
-          validation_results: { server: tweakContentWarnings },
-          resolution_type: 'unresolved'
-        }).catch(e => console.error('[quality] Tweak content warning incident failed:', e.message));
+        try {
+          supabase.from('quality_incidents').insert({
+            event_id: eventId, user_id: user.id,
+            trigger_type: 'content_warning',
+            trigger_data: { contentWarnings: tweakContentWarnings, htmlLength: theme.theme_html.length, isTweak: true },
+            theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: tweakConfig },
+            validation_results: { server: tweakContentWarnings },
+            resolution_type: 'unresolved'
+          });
+        } catch(e) { console.error('[quality] Tweak content warning incident failed:', e.message); }
       }
 
       // ── Log tweak to generation_log BEFORE res.end() — uses estimated tokens ──
@@ -2364,7 +2368,7 @@ Return ONLY a valid JSON object with these keys:
           const finalTweakCost = calcGenerationCost(tweakModel, finalTweakInputTokens, finalTweakOutputTokens);
           const costDelta = finalTweakCost.rawCostCents - tweakCost.rawCostCents;
           if (costDelta > 0) {
-            await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: costDelta }).catch(() => {});
+            try { await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: costDelta }); } catch(e) { /* non-critical */ }
           }
         }
       } catch (e) { /* non-critical — estimated tokens already saved */ }
@@ -2762,14 +2766,16 @@ This is the most common failure mode. Double-check it.`;
 
     // ── Quality signal: Content warnings persist after repair ──
     if (contentWarnings.length > 0) {
-      supabase.from('quality_incidents').insert({
-        event_id: eventId, user_id: user.id,
-        trigger_type: 'content_warning',
-        trigger_data: { contentWarnings, htmlLength: theme.theme_html.length },
-        theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: theme.theme_config },
-        validation_results: { server: contentWarnings },
-        resolution_type: 'unresolved'
-      }).catch(e => console.error('[quality] Content warning incident failed:', e.message));
+      try {
+        supabase.from('quality_incidents').insert({
+          event_id: eventId, user_id: user.id,
+          trigger_type: 'content_warning',
+          trigger_data: { contentWarnings, htmlLength: theme.theme_html.length },
+          theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: theme.theme_config },
+          validation_results: { server: contentWarnings },
+          resolution_type: 'unresolved'
+        });
+      } catch(e) { console.error('[quality] Content warning incident failed:', e.message); }
     }
 
     // ── Save theme to event_themes BEFORE res.end() ──
@@ -2943,7 +2949,7 @@ This is the most common failure mode. Double-check it.`;
         // Adjust event cost delta if markup changed significantly
         const costDelta = finalCost.rawCostCents - genCost.rawCostCents;
         if (costDelta > 0) {
-          await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: costDelta }).catch(() => {});
+          try { await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: costDelta }); } catch(e) { /* non-critical */ }
         }
       }
     } catch (e) { /* non-critical — estimated tokens already saved */ }
