@@ -1713,6 +1713,16 @@
               RyviteGA.trackEvent('sign_up', { method: 'guest_onboarding' });
             }
 
+            // Track signup conversion for UTM attribution
+            var utmSid = sessionStorage.getItem('utm_session_id');
+            if (utmSid && result.user && result.user.id) {
+              fetch('/api/v2/utm?action=convert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId: utmSid, userId: result.user.id, conversionType: 'signup' })
+              }).catch(function() {});
+            }
+
             // Update profile UI
             var pn = document.getElementById('profileName');
             var pe = document.getElementById('profileEmail');
@@ -2552,6 +2562,16 @@
           currentEvent = { id: result.eventId, slug: result.slug, paymentStatus: result.paymentStatus || 'unpaid', freeGenerationUsed: false, generationCount: 0, generationLimit: 2 };
           window.history.replaceState({}, '', '/v2/create/?eventId=' + result.eventId);
           trackFunnel('event_created');
+          // Track event creation conversion for UTM attribution
+          var utmSid2 = sessionStorage.getItem('utm_session_id');
+          if (utmSid2) {
+            var u2 = JSON.parse(localStorage.getItem('v2_user') || 'null');
+            fetch('/api/v2/utm?action=convert', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId: utmSid2, userId: u2 ? u2.id : undefined, eventId: result.eventId, conversionType: 'event' })
+            }).catch(function() {});
+          }
         }
       } catch (err) {
         console.error('Draft event creation failed:', err);
@@ -7815,6 +7835,16 @@
         var result = await res.json();
         if (result.success) {
           trackFunnel(sendInvites ? 'published_with_invites' : 'published', { generationCount: eventGenCount });
+          // Track publish conversion for UTM attribution
+          var utmSid3 = sessionStorage.getItem('utm_session_id');
+          if (utmSid3) {
+            var u3 = JSON.parse(localStorage.getItem('v2_user') || 'null');
+            fetch('/api/v2/utm?action=convert', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId: utmSid3, userId: u3 ? u3.id : undefined, eventId: currentEvent.id, conversionType: 'publish' })
+            }).catch(function() {});
+          }
           // Track Purchase (event published) with Meta Pixel
           if (window.RyvitePixel) {
             var isPaid = currentEvent.paymentStatus === 'paid';

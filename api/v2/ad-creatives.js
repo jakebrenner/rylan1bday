@@ -152,6 +152,9 @@ export default async function handler(req, res) {
 
   // ── STATS: Get performance stats (uses the ad_creative_performance view) ──
   if (action === 'stats' && req.method === 'GET') {
+    const { since, until } = req.query;
+    const hasDateFilter = since || until;
+
     // Try to use the view; fall back to basic data if view doesn't exist
     const { data: creativeStats, error: viewError } = await supabaseAdmin
       .from('ad_creative_performance')
@@ -167,10 +170,89 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, creatives: basics || [], source: 'basic' });
     }
 
-    // Also fetch campaign-level stats
-    const { data: campaignStats } = await supabaseAdmin
-      .from('campaign_performance')
-      .select('*');
+    let campaignStats;
+    if (hasDateFilter) {
+      // Date-filtered: aggregate from fb_ad_metrics directly
+      let metricsQuery = supabaseAdmin
+        .from('fb_ad_metrics')
+        .select('fb_campaign_name, fb_campaign_id, creative_id, impressions, clicks, spend_cents');
+      if (since) metricsQuery = metricsQuery.gte('date', since);
+      if (until) metricsQuery = metricsQuery.lte('date', until);
+
+      const { data: metrics } = await metricsQuery;
+      // Aggregate by campaign
+      const campMap = {};
+      for (const m of (metrics || [])) {
+        if (!m.fb_campaign_name) continue;
+        if (!campMap[m.fb_campaign_name]) {
+          campMap[m.fb_campaign_name] = {
+            campaign_name: m.fb_campaign_name,
+            fb_campaign_id: m.fb_campaign_id,
+            creative_count: 0,
+            total_impressions: 0,
+            total_clicks: 0,
+            total_spend_cents: 0,
+            total_visits: 0,
+            total_signups: 0,
+            total_events: 0,
+            total_publishes: 0,
+            avg_signup_rate: 0,
+            avg_cost_per_signup: null,
+            avg_cost_per_publish: null,
+            source: 'fb_only',
+            _creativeIds: new Set()
+          };
+        }
+        const c = campMap[m.fb_campaign_name];
+        c.total_impressions += m.impressions || 0;
+        c.total_clicks += m.clicks || 0;
+        c.total_spend_cents += m.spend_cents || 0;
+        if (m.creative_id) {
+          c._creativeIds.add(m.creative_id);
+          c.source = 'ryvite';
+        }
+      }
+
+      // Get conversion data from utm_visits for campaigns in range
+      const campNames = Object.keys(campMap);
+      if (campNames.length > 0) {
+        let uvQuery = supabaseAdmin
+          .from('utm_visits')
+          .select('utm_campaign, converted_signup, converted_event, converted_publish');
+        if (since) uvQuery = uvQuery.gte('created_at', since + 'T00:00:00Z');
+        if (until) uvQuery = uvQuery.lte('created_at', until + 'T23:59:59Z');
+        uvQuery = uvQuery.in('utm_campaign', campNames);
+
+        const { data: visits } = await uvQuery;
+        for (const v of (visits || [])) {
+          const c = campMap[v.utm_campaign];
+          if (!c) continue;
+          c.total_visits++;
+          if (v.converted_signup) c.total_signups++;
+          if (v.converted_event) c.total_events++;
+          if (v.converted_publish) c.total_publishes++;
+        }
+      }
+
+      // Finalize calculated fields
+      campaignStats = Object.values(campMap).map(c => {
+        c.creative_count = c._creativeIds.size;
+        delete c._creativeIds;
+        c.avg_signup_rate = c.total_clicks > 0
+          ? Math.round(c.total_signups / c.total_clicks * 10000) / 100 : 0;
+        c.avg_cost_per_signup = c.total_signups > 0
+          ? Math.round(c.total_spend_cents / c.total_signups) / 100 : null;
+        c.avg_cost_per_publish = c.total_publishes > 0
+          ? Math.round(c.total_spend_cents / c.total_publishes) / 100 : null;
+        return c;
+      });
+    } else {
+      // No date filter: use the view
+      const { data } = await supabaseAdmin
+        .from('all_campaign_performance')
+        .select('*');
+      campaignStats = data;
+    }
 
     return res.status(200).json({
       success: true,
