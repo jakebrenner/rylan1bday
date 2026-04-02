@@ -169,7 +169,7 @@ export default async function handler(req, res) {
 
     // Also fetch campaign-level stats
     const { data: campaignStats } = await supabaseAdmin
-      .from('campaign_performance')
+      .from('all_campaign_performance')
       .select('*');
 
     return res.status(200).json({
