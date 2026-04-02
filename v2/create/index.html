@@ -3475,22 +3475,25 @@
       rsvpFields.forEach(function(f) {
         if (f.field_type === 'email' || f.field_type === 'phone' || f.field_type === 'tel') return;
         var reqStar = f.is_required ? ' <span style="color:#E94560;">*</span>' : '';
-        html += '<div class="rsvp-form-group" style="margin-bottom:14px;">'
-          + '<label style="' + labelStyle + '">' + escapeHtml(f.label) + reqStar + '</label>';
+        html += '<div class="rsvp-form-group" style="margin-bottom:14px;">';
         if (f.field_type === 'checkbox') {
-          html += '<label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;color:' + textColor + ';">'
+          // Checkbox: label wraps the input — no separate heading label needed
+          html += '<label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;cursor:pointer;color:' + textColor + ';">'
             + '<input type="checkbox" disabled style="width:18px;height:18px;accent-color:#E94560;cursor:pointer;">'
-            + '<span>' + escapeHtml(f.placeholder || f.label) + '</span></label>';
-        } else if (f.field_type === 'select' && f.options && f.options.length > 0) {
-          html += '<select disabled style="' + inputStyle + 'cursor:pointer;"><option value="">Select...</option>';
-          f.options.forEach(function(o) { html += '<option>' + escapeHtml(o) + '</option>'; });
-          html += '</select>';
-        } else if (f.field_type === 'textarea') {
-          html += '<textarea disabled placeholder="' + escapeHtml(f.placeholder || '') + '" style="' + inputStyle + 'min-height:80px;resize:vertical;"></textarea>';
+            + '<span>' + escapeHtml(f.label) + reqStar + '</span></label>';
         } else {
-          var pholder = f.field_type === 'number' ? (f.placeholder || '0') : (f.placeholder || '');
-          var inputType = f.field_type === 'number' ? 'number' : 'text';
-          html += '<input type="' + inputType + '" placeholder="' + escapeHtml(pholder) + '" disabled style="' + inputStyle + '">';
+          html += '<label style="' + labelStyle + '">' + escapeHtml(f.label) + reqStar + '</label>';
+          if (f.field_type === 'select' && f.options && f.options.length > 0) {
+            html += '<select disabled style="' + inputStyle + 'cursor:pointer;"><option value="">Select...</option>';
+            f.options.forEach(function(o) { html += '<option>' + escapeHtml(o) + '</option>'; });
+            html += '</select>';
+          } else if (f.field_type === 'textarea') {
+            html += '<textarea disabled placeholder="' + escapeHtml(f.placeholder || '') + '" style="' + inputStyle + 'min-height:80px;resize:vertical;"></textarea>';
+          } else {
+            var pholder = f.field_type === 'number' ? (f.placeholder || '0') : (f.placeholder || '');
+            var inputType = f.field_type === 'number' ? 'number' : 'text';
+            html += '<input type="' + inputType + '" placeholder="' + escapeHtml(pholder) + '" disabled style="' + inputStyle + '">';
+          }
         }
         html += '</div>';
       });
@@ -5496,7 +5499,10 @@
           if (isAddVerb) {
             var addDesignWords = ['color', 'colour', 'font', 'background', 'theme', 'style',
               'layout', 'animation', 'border', 'shadow', 'gradient', 'photo', 'image',
-              'sparkle', 'glitter', 'confetti', 'effect', 'texture', 'pattern'];
+              'sparkle', 'glitter', 'confetti', 'effect', 'texture', 'pattern',
+              'text', 'spot', 'section', 'wording', 'copy', 'says', 'saying',
+              'mention', 'note', 'line', 'heading', 'title', 'subtitle', 'detail',
+              'price', 'cost', '$', 'info', 'information', 'description'];
             var hasDesignWord = addDesignWords.some(function(w) { return part.indexOf(w) !== -1; });
             if (!hasDesignWord) addDetected = true;
           }
@@ -6201,17 +6207,6 @@
         return sendDesignChatRsvpFields(text, input);
       }
 
-      // ── RSVP field requests: always redirect to Details tab (free, no AI needed) ──
-      var rsvpFieldPattern = /\b(remove|delete|drop|hide|add|include|make .+ (required|optional))\b.{0,30}\b(field|name|email|phone|dietary|allergies|plus.?one|song|meal|kids|guests?|notes?|message|comment)\b/i;
-      if (rsvpFieldPattern.test(text)) {
-        pushDesignChat({ role: 'user', content: text });
-        pushDesignChat({ role: 'assistant', content: "RSVP fields are managed in the **Details** tab! I\u2019m switching you there now \u2014 you can add, remove, or edit any fields directly." });
-        renderDesignChat();
-        input.value = '';
-        input.style.height = 'auto';
-        switchToDetailsTabRsvp();
-        return;
-      }
 
       // ── Free/unpaid tier gate: block design chat if not paid ──
       if (currentEvent && (currentEvent.paymentStatus === 'unpaid' || currentEvent.paymentStatus === 'refunded')) {
@@ -6436,18 +6431,6 @@
 
       var sendBtn = document.getElementById('designChatSendBtn');
       sendBtn.disabled = true;
-
-      // ── RSVP field changes: redirect to Details tab ──
-      var rsvpFieldResult = tryInstantRsvpFieldChange(text, hasPhotos);
-      if (rsvpFieldResult) {
-        console.log('[tweak] RSVP field request detected, redirecting to Details tab');
-        pushDesignChat({ role: 'assistant', content: "RSVP fields are managed in the **Details** tab! I\u2019m switching you there now \u2014 you can add, remove, or edit any fields directly.\n\nThis chat is best for design changes like colors, fonts, layout, photos, and text." });
-        clearDesignChatPhoto();
-        sendBtn.disabled = false;
-        renderDesignChat();
-        switchToDetailsTabRsvp();
-        return;
-      }
 
       // ── TIER 1.75: Instant text swap for "change X to Y" requests ──
       var textSwap = tryInstantTextSwap(text, hasPhotos);

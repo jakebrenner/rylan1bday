@@ -673,21 +673,23 @@
       var id = 'custom_' + field.key;
       var reqStar = field.required ? ' <span style="color:#E94560;">*</span>' : '';
       var html = '<div class="rsvp-form-group" style="margin-bottom:14px;">';
-      html += '<label for="' + id + '" style="' + labelStyle + '">' + escapeHtml(field.label) + reqStar + '</label>';
-      if (field.fieldType === 'select' && field.options && field.options.length > 0) {
-        html += '<select id="' + id + '"' + (field.required ? ' required' : '') + ' style="' + inputStyle + 'cursor:pointer;">';
-        html += '<option value="">Select...</option>';
-        field.options.forEach(function(opt) { html += '<option value="' + escapeHtml(opt) + '">' + escapeHtml(opt) + '</option>'; });
-        html += '</select>';
-      } else if (field.fieldType === 'checkbox') {
-        html += '<label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;color:' + textColor + ';">'
+      if (field.fieldType === 'checkbox') {
+        html += '<label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;cursor:pointer;color:' + textColor + ';">'
           + '<input type="checkbox" id="' + id + '" style="width:18px;height:18px;accent-color:#E94560;">'
-          + escapeHtml(field.label) + '</label>';
-      } else if (field.fieldType === 'textarea') {
-        html += '<textarea id="' + id + '"' + (field.required ? ' required' : '') + ' placeholder="' + escapeHtml(field.placeholder || '') + '" style="' + inputStyle + 'min-height:80px;resize:vertical;"></textarea>';
+          + escapeHtml(field.label) + reqStar + '</label>';
       } else {
-        var inputType = field.fieldType === 'number' ? 'number' : field.fieldType === 'email' ? 'email' : field.fieldType === 'phone' || field.fieldType === 'tel' ? 'tel' : 'text';
-        html += '<input type="' + inputType + '" id="' + id + '"' + (field.required ? ' required' : '') + ' placeholder="' + escapeHtml(field.placeholder || '') + '" style="' + inputStyle + '">';
+        html += '<label for="' + id + '" style="' + labelStyle + '">' + escapeHtml(field.label) + reqStar + '</label>';
+        if (field.fieldType === 'select' && field.options && field.options.length > 0) {
+          html += '<select id="' + id + '"' + (field.required ? ' required' : '') + ' style="' + inputStyle + 'cursor:pointer;">';
+          html += '<option value="">Select...</option>';
+          field.options.forEach(function(opt) { html += '<option value="' + escapeHtml(opt) + '">' + escapeHtml(opt) + '</option>'; });
+          html += '</select>';
+        } else if (field.fieldType === 'textarea') {
+          html += '<textarea id="' + id + '"' + (field.required ? ' required' : '') + ' placeholder="' + escapeHtml(field.placeholder || '') + '" style="' + inputStyle + 'min-height:80px;resize:vertical;"></textarea>';
+        } else {
+          var inputType = field.fieldType === 'number' ? 'number' : field.fieldType === 'email' ? 'email' : field.fieldType === 'phone' || field.fieldType === 'tel' ? 'tel' : 'text';
+          html += '<input type="' + inputType + '" id="' + id + '"' + (field.required ? ' required' : '') + ' placeholder="' + escapeHtml(field.placeholder || '') + '" style="' + inputStyle + '">';
+        }
       }
       html += '</div>';
       return html;
