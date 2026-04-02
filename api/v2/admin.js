@@ -3060,7 +3060,7 @@ ${cssSnippet}`
           id, user_id, event_id, event_theme_id, rating, headline, body,
           reviewer_name, is_anonymous, status, event_type, admin_notes,
           moderated_by, moderated_at, created_at, updated_at,
-          profiles(email, first_name, last_name),
+          profiles(email, display_name),
           events(title, event_date, slug),
           event_themes(html, css, config)
         `, { count: 'exact' })
@@ -3176,7 +3176,7 @@ ${cssSnippet}`
 
       const { data: profile } = await supabaseAdmin
         .from('profiles')
-        .select('email, first_name')
+        .select('email, display_name')
         .eq('id', event.user_id)
         .single();
 
@@ -3197,7 +3197,7 @@ ${cssSnippet}`
       const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
       if (resend) {
         const reviewUrl = `https://www.ryvite.com/v2/review/?token=${token}`;
-        const firstName = profile.first_name || 'there';
+        const firstName = profile.display_name?.split(' ')[0] || 'there';
 
         // Load configurable settings
         const settingKeys = ['review_email_subject', 'review_email_headline', 'review_email_body', 'review_email_cta_text', 'review_email_footer_note'];

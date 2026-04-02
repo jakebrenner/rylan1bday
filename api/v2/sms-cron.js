@@ -649,7 +649,7 @@ async function processReviewRequests() {
         // Get host email
         const { data: profile } = await supabaseAdmin
           .from('profiles')
-          .select('email, first_name')
+          .select('email, display_name')
           .eq('id', event.user_id)
           .single();
 
@@ -668,7 +668,7 @@ async function processReviewRequests() {
         // Send review request email using configurable template
         if (resend) {
           const reviewUrl = `https://www.ryvite.com/v2/review/?token=${token}`;
-          const firstName = profile.first_name || 'there';
+          const firstName = profile.display_name?.split(' ')[0] || 'there';
           const replaceVars = (str) => str.replace(/\{\{eventTitle\}\}/g, event.title).replace(/\{\{firstName\}\}/g, firstName);
 
           await resend.emails.send({
@@ -697,7 +697,7 @@ async function processReviewRequests() {
     .select(`
       id, user_id, event_id, token,
       events!inner(title),
-      profiles!inner(email, first_name)
+      profiles!inner(email, display_name)
     `)
     .eq('status', 'sent')
     .lt('sent_at', reminderCutoff)
@@ -711,7 +711,7 @@ async function processReviewRequests() {
 
         if (resend) {
           const reviewUrl = `https://www.ryvite.com/v2/review/?token=${req.token}`;
-          const firstName = req.profiles.first_name || 'there';
+          const firstName = req.profiles.display_name?.split(' ')[0] || 'there';
           const eventTitle = req.events?.title || 'your event';
           const replaceVars = (str) => str.replace(/\{\{eventTitle\}\}/g, eventTitle).replace(/\{\{firstName\}\}/g, firstName);
 
@@ -840,13 +840,13 @@ async function processAbandonedDrafts() {
 
       const { data: profile } = await supabaseAdmin
         .from('profiles')
-        .select('email, first_name, display_name')
+        .select('email, display_name')
         .eq('id', event.user_id)
         .single();
 
       if (!profile?.email) continue;
 
-      const firstName = profile.first_name || profile.display_name?.split(' ')[0] || 'there';
+      const firstName = profile.display_name?.split(' ')[0] || 'there';
       const eventTitle = event.title || 'your event';
       const editUrl = `https://www.ryvite.com/v2/create/?eventId=${event.id}`;
       const subject = `Your event \u201c${eventTitle}\u201d is still in draft \u2014 need help?`;

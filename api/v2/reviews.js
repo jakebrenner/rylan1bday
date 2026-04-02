@@ -56,7 +56,7 @@ export default async function handler(req, res) {
       .select(`
         id, user_id, event_id, status,
         events!inner(id, title, event_type, event_date),
-        profiles!inner(first_name, last_name, email)
+        profiles!inner(display_name, email)
       `)
       .eq('token', token)
       .single();
@@ -85,7 +85,7 @@ export default async function handler(req, res) {
         eventTitle: request.events.title,
         eventType: request.events.event_type,
         eventDate: request.events.event_date,
-        reviewerName: [request.profiles.first_name, request.profiles.last_name].filter(Boolean).join(' '),
+        reviewerName: request.profiles.display_name || '',
         reviewerEmail: request.profiles.email,
         themeId: theme?.id || null,
         themeHtml: theme?.html || null,
