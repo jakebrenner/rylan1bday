@@ -1070,7 +1070,7 @@
                 <div class="phone-frame">
                   <div class="phone-notch"></div>
                   <div class="phone-screen">
-                    <iframe id="eventDetailPreviewFrame" sandbox="allow-scripts" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
+                    <iframe id="eventDetailPreviewFrame" sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
                   </div>
                   <div class="phone-home-bar"></div>
                 </div>
@@ -8311,7 +8311,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             var activeBadge = t.isActive ? '<span class="badge badge-green" style="font-size:9px;">Active</span> ' : '';
             chatHtml += '<div class="ed-theme-snapshot" onclick="previewEventThemeVersion(\'' + t.id + '\')">';
             chatHtml += '<div class="ed-snapshot-thumb">';
-            chatHtml += '<iframe class="ed-snapshot-frame" data-theme-id="' + t.id + '" sandbox="allow-scripts" style="width:393px;height:852px;border:none;transform-origin:top left;transform:scale(0.153);pointer-events:none;"></iframe>';
+            chatHtml += '<iframe class="ed-snapshot-frame" data-theme-id="' + t.id + '" sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;transform-origin:top left;transform:scale(0.153);pointer-events:none;"></iframe>';
             chatHtml += '</div>';
             chatHtml += '<div style="min-width:0;flex:1;">';
             chatHtml += '<div style="font-size:12px;font-weight:700;color:var(--midnight);">Theme v' + t.version + ' generated ' + activeBadge + '</div>';
