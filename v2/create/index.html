@@ -2384,6 +2384,22 @@
       });
     }
 
+    function showPhotoAckCard(ackText) {
+      // Remove any previous photo ack card so we don't stack them
+      var prevAck = document.getElementById('photoAckCard');
+      if (prevAck) prevAck.remove();
+      var ackCard = document.createElement('div');
+      ackCard.className = 'chat-bubble assistant';
+      ackCard.id = 'photoAckCard';
+      ackCard.innerHTML = '<div>' + ackText + '</div>'
+        + '<div style="margin-top:10px;color:#555;">Anything else you\u2019d like to add or change before we design your invite?</div>'
+        + '<button class="btn btn-primary" onclick="handlePhotoAckGenerate(this)" style="margin-top:12px;width:100%;padding:12px;font-size:14px;font-weight:600;border-radius:10px;">Create My Invite</button>';
+      document.getElementById('chatMessages').appendChild(ackCard);
+      console.log('[Photos] Ack card shown:', ackText);
+      // Ensure the ack card scrolls into view after DOM update
+      setTimeout(function() { scrollChat(); }, 50);
+    }
+
     function handlePhotoAckGenerate(btn) {
       btn.disabled = true;
       btn.textContent = 'Generating...';
@@ -7206,17 +7222,7 @@
           var personName = nameMatch ? nameMatch[1] : 'the guest of honor';
           ackText = uploadedCount + ' photo' + (uploadedCount > 1 ? 's' : '') + ' of ' + personName + ' uploaded \u2014 we\u2019ll feature ' + personName + ' prominently in the invite design.';
         }
-        // Remove any previous photo ack card so we don't stack them
-        var prevAck = document.getElementById('photoAckCard');
-        if (prevAck) prevAck.remove();
-        var ackCard = document.createElement('div');
-        ackCard.className = 'chat-bubble assistant';
-        ackCard.id = 'photoAckCard';
-        ackCard.innerHTML = '<div>' + ackText + '</div>'
-          + '<div style="margin-top:10px;color:#555;">Anything else you\u2019d like to add or change before we design your invite?</div>'
-          + '<button class="btn btn-primary" onclick="handlePhotoAckGenerate(this)" style="margin-top:12px;width:100%;padding:12px;font-size:14px;font-weight:600;border-radius:10px;">Create My Invite</button>';
-        document.getElementById('chatMessages').appendChild(ackCard);
-        scrollChat();
+        showPhotoAckCard(ackText);
       }
       // Scroll to keep the Generate button visible after adding photos
       scrollChat();
