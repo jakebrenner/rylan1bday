@@ -890,6 +890,21 @@
     var eventGenCount = 0;
     var usagePlanUser = false;
 
+    // ── Funnel event tracking (fire-and-forget) ──
+    var _trackedFunnelSteps = {};
+    function trackFunnel(step, metadata) {
+      // Deduplicate: only track each step once per event
+      var key = step + ':' + (currentEvent ? currentEvent.id : 'none');
+      if (_trackedFunnelSteps[key]) return;
+      _trackedFunnelSteps[key] = true;
+      var body = { step: step, eventId: currentEvent ? currentEvent.id : null, metadata: metadata || {} };
+      if (currentEvent && currentEvent.event_type) body.metadata.event_type = currentEvent.event_type;
+      authFetch('/api/v2/events?action=trackFunnel', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }).catch(function() {}); // fire-and-forget
+    }
+
     // ── Average generation time (fetched from API, replaces hardcoded "30-60 seconds") ──
     var _avgGenTimeText = 'about a minute'; // fallback until API responds
     (function fetchAvgLatency() {
@@ -2511,6 +2526,7 @@
         if (result.success) {
           currentEvent = { id: result.eventId, slug: result.slug, paymentStatus: result.paymentStatus || 'unpaid', freeGenerationUsed: false, generationCount: 0, generationLimit: 2 };
           window.history.replaceState({}, '', '/v2/create/?eventId=' + result.eventId);
+          trackFunnel('event_created');
         }
       } catch (err) {
         console.error('Draft event creation failed:', err);
@@ -2542,6 +2558,7 @@
             currentEvent.slug = updateResult.event.slug;
           }
           await saveCustomFields();
+          trackFunnel('details_extracted', { messageCount: chatHistory.filter(function(m) { return m.role === 'user'; }).length });
           // Track Lead when event details are saved (not just draft creation)
           if (extractedData.title && extractedData.title !== 'Untitled Event' && !currentEvent._leadTracked) {
             if (window.RyvitePixel) {
@@ -2750,7 +2767,9 @@
       });
 
       currentStep = step;
+      if (step === 2) trackFunnel('design_step_entered');
       if (step === 3) {
+        trackFunnel('guest_step_entered');
         initMobileAccordions();
         window.scrollTo(0, 0);
       }
@@ -4504,6 +4523,7 @@
       console.log('[cost] updateCostFromGeneration:', JSON.stringify(metadata.cost), 'tokens:', JSON.stringify(metadata.tokens), 'model:', metadata.model, 'adding:', genCost, 'to existing:', eventCostCents);
       eventCostCents += genCost;
       eventGenCount++;
+      trackFunnel('generation_complete', { generationNumber: eventGenCount });
       // Show cost tracker immediately even if initCostTracker hasn't returned yet
       usagePlanUser = true;
       document.getElementById('costTracker').classList.remove('hidden');
@@ -7730,6 +7750,7 @@
         });
         var result = await res.json();
         if (result.success) {
+          trackFunnel(sendInvites ? 'published_with_invites' : 'published', { generationCount: eventGenCount });
           // Track Purchase (event published) with Meta Pixel
           if (window.RyvitePixel) {
             var isPaid = currentEvent.paymentStatus === 'paid';

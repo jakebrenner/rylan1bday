@@ -1359,6 +1359,26 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, contactId, alreadySaved: false });
     }
 
+    // ---- TRACK FUNNEL EVENT ----
+    if (action === 'trackFunnel') {
+      const { step, eventId, metadata } = body;
+      if (!step) return res.status(400).json({ error: 'step is required' });
+
+      const { error } = await supabaseAdmin.from('funnel_events').insert({
+        user_id: user.id,
+        event_id: eventId || null,
+        step,
+        metadata: metadata || {}
+      });
+
+      if (error) {
+        // Table might not exist yet — fail silently
+        console.error('Funnel event insert failed:', error.message);
+      }
+
+      return res.status(200).json({ success: true });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Events API error:', err);

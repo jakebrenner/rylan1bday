@@ -198,6 +198,24 @@
     .generating-overlay { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center; }
     .generating-spinner { width: 48px; height: 48px; border: 3px solid #eee; border-top-color: var(--party-coral); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Funnel Analytics */
+    .funnel-bar-row { display: flex; align-items: center; gap: 12px; }
+    .funnel-bar-label { width: 120px; font-size: 12px; font-weight: 600; color: var(--midnight); flex-shrink: 0; text-align: right; }
+    .funnel-bar-track { flex: 1; height: 32px; background: #f0f0f0; border-radius: 6px; overflow: hidden; position: relative; }
+    .funnel-bar-fill { height: 100%; border-radius: 6px; transition: width 0.6s ease; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; min-width: 2px; }
+    .funnel-bar-value { font-size: 12px; font-weight: 700; color: white; white-space: nowrap; }
+    .funnel-bar-pct { width: 60px; font-size: 12px; font-weight: 600; color: #888; text-align: left; flex-shrink: 0; }
+    .funnel-histogram-bar { flex: 1; border-radius: 4px 4px 0 0; transition: height 0.4s ease; position: relative; cursor: default; }
+    .funnel-histogram-bar:hover { opacity: 0.85; }
+    .funnel-histogram-label { flex: 1; text-align: center; font-size: 10px; color: #888; }
+    .funnel-histogram-tooltip { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 700; color: var(--midnight); white-space: nowrap; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+    .funnel-histogram-bar:hover .funnel-histogram-tooltip { opacity: 1; }
+    @media (max-width: 768px) {
+      .funnel-two-col { grid-template-columns: 1fr !important; }
+      .funnel-bar-label { width: 80px; font-size: 11px; }
+      .funnel-bar-pct { width: 50px; font-size: 11px; }
+    }
     .ad-spinner { display:inline-block; width:14px; height:14px; border:2px solid #f59e0b; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; }
     .prompt-toggle { cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--midnight); padding: 10px 14px; background: #f9f9f9; border-radius: 6px; border: 1px solid #eee; margin-bottom: 12px; user-select: none; }
     .prompt-toggle:hover { background: #f0f0f0; }
@@ -592,6 +610,10 @@
       <div class="sidebar-group">
         <div class="sidebar-group-label">Support</div>
         <button class="sidebar-item" data-tab="support" onclick="switchTab('support');loadSupportTickets();">Tickets</button>
+      </div>
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">Analytics</div>
+        <button class="sidebar-item" data-tab="funnel" onclick="switchTab('funnel');loadFunnelAnalytics();">Funnel</button>
       </div>
     </nav>
 
@@ -2750,6 +2772,166 @@
       </div>
     </div>
 
+    <!-- Funnel Analytics Tab -->
+    <div class="tab-content" id="tab-funnel">
+      <h3 style="margin:0 0 20px;">Funnel Analytics</h3>
+
+      <!-- Date filter -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;align-items:center;">
+        <button class="btn btn-sm date-preset funnel-preset active" data-preset="all" onclick="setFunnelDatePreset('all')">All Time</button>
+        <button class="btn btn-sm date-preset funnel-preset" data-preset="7d" onclick="setFunnelDatePreset('7d')">Last 7d</button>
+        <button class="btn btn-sm date-preset funnel-preset" data-preset="30d" onclick="setFunnelDatePreset('30d')">Last 30d</button>
+        <button class="btn btn-sm date-preset funnel-preset" data-preset="90d" onclick="setFunnelDatePreset('90d')">Last 90d</button>
+      </div>
+
+      <!-- Loading state -->
+      <div id="funnelLoading" style="text-align:center;padding:60px 20px;color:#888;">
+        <div class="generating-spinner" style="margin:0 auto 12px;"></div>
+        Loading funnel data...
+      </div>
+
+      <!-- Dashboard content (hidden until loaded) -->
+      <div id="funnelDashboard" style="display:none;">
+
+        <!-- Section 1: Key Metrics Cards -->
+        <div class="stat-grid" id="funnelKeyMetrics" style="margin-bottom:24px;"></div>
+
+        <!-- Section 2: Visual Funnel -->
+        <div class="config-section" style="margin-bottom:24px;">
+          <h3 style="font-size:15px;margin-bottom:16px;">Conversion Funnel</h3>
+          <div id="funnelBars" style="display:flex;flex-direction:column;gap:6px;"></div>
+        </div>
+
+        <!-- Section 3: Drop-off Analysis + Chat Engagement (side by side on desktop) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;" class="funnel-two-col">
+
+          <!-- Drop-off by Step -->
+          <div class="config-section" style="margin:0;">
+            <h3 style="font-size:15px;margin-bottom:16px;">Where Drafts Get Stuck</h3>
+            <div id="dropOffChart" style="display:flex;flex-direction:column;gap:8px;"></div>
+          </div>
+
+          <!-- Chat Engagement -->
+          <div class="config-section" style="margin:0;">
+            <h3 style="font-size:15px;margin-bottom:16px;">Chat Engagement</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+              <div style="background:#f9f9f9;border-radius:8px;padding:14px;text-align:center;">
+                <div id="chatMsgsPublished" style="font-size:24px;font-weight:700;color:var(--mint-fizz);">—</div>
+                <div style="font-size:11px;color:#888;margin-top:4px;">Avg msgs (published)</div>
+              </div>
+              <div style="background:#f9f9f9;border-radius:8px;padding:14px;text-align:center;">
+                <div id="chatMsgsDropped" style="font-size:24px;font-weight:700;color:var(--party-coral);">—</div>
+                <div style="font-size:11px;color:#888;margin-top:4px;">Avg msgs (dropped)</div>
+              </div>
+            </div>
+            <h4 style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Message Count Distribution</h4>
+            <div id="msgHistogram" style="display:flex;align-items:flex-end;gap:4px;height:100px;"></div>
+            <div id="msgHistogramLabels" style="display:flex;gap:4px;margin-top:4px;"></div>
+          </div>
+        </div>
+
+        <!-- Section 4: GTP Distribution + Time to Publish (side by side) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;" class="funnel-two-col">
+
+          <!-- Generations to Publish -->
+          <div class="config-section" style="margin:0;">
+            <h3 style="font-size:15px;margin-bottom:16px;">Generations to Publish</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">
+              <div style="background:#f9f9f9;border-radius:8px;padding:14px;text-align:center;">
+                <div id="gtpAvg" style="font-size:24px;font-weight:700;color:var(--midnight);">—</div>
+                <div style="font-size:11px;color:#888;margin-top:4px;">Average GTP</div>
+              </div>
+              <div style="background:#f9f9f9;border-radius:8px;padding:14px;text-align:center;">
+                <div id="gtpFirstTry" style="font-size:24px;font-weight:700;color:var(--mint-fizz);">—</div>
+                <div style="font-size:11px;color:#888;margin-top:4px;">First-try %</div>
+              </div>
+              <div style="background:#f9f9f9;border-radius:8px;padding:14px;text-align:center;">
+                <div id="gtpTotal" style="font-size:24px;font-weight:700;color:var(--midnight);">—</div>
+                <div style="font-size:11px;color:#888;margin-top:4px;">Data points</div>
+              </div>
+            </div>
+            <div id="gtpChart" style="display:flex;align-items:flex-end;gap:4px;height:100px;"></div>
+            <div id="gtpChartLabels" style="display:flex;gap:4px;margin-top:4px;"></div>
+          </div>
+
+          <!-- Time to Publish -->
+          <div class="config-section" style="margin:0;">
+            <h3 style="font-size:15px;margin-bottom:16px;">Time to Publish</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+              <div style="background:#f9f9f9;border-radius:8px;padding:14px;text-align:center;">
+                <div id="ttpAvg" style="font-size:24px;font-weight:700;color:var(--midnight);">—</div>
+                <div style="font-size:11px;color:#888;margin-top:4px;">Avg minutes</div>
+              </div>
+              <div style="background:#f9f9f9;border-radius:8px;padding:14px;text-align:center;">
+                <div id="ttpMedian" style="font-size:24px;font-weight:700;color:var(--midnight);">—</div>
+                <div style="font-size:11px;color:#888;margin-top:4px;">Median minutes</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div style="background:#f0f8ff;border-radius:8px;padding:14px;text-align:center;">
+                <div id="ttpToGen" style="font-size:20px;font-weight:700;color:#0c5460;">—</div>
+                <div style="font-size:11px;color:#888;margin-top:4px;">Avg min to 1st gen</div>
+              </div>
+              <div style="background:#f0fff0;border-radius:8px;padding:14px;text-align:center;">
+                <div id="ttpPublished" style="font-size:20px;font-weight:700;color:#155724;">—</div>
+                <div style="font-size:11px;color:#888;margin-top:4px;">Total published</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 5: Weekly Trends -->
+        <div class="config-section" style="margin-bottom:24px;">
+          <h3 style="font-size:15px;margin-bottom:16px;">Weekly Trends (12 weeks)</h3>
+          <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+            <div id="weeklyTrendsChart" style="display:flex;align-items:flex-end;gap:2px;height:160px;min-width:600px;"></div>
+            <div id="weeklyTrendsLabels" style="display:flex;gap:2px;margin-top:6px;min-width:600px;"></div>
+          </div>
+          <div id="weeklyTrendsLegend" style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:#888;"></div>
+        </div>
+
+        <!-- Section 6: Event Type Breakdown -->
+        <div class="config-section" style="margin-bottom:24px;">
+          <h3 style="font-size:15px;margin-bottom:16px;">Conversion by Event Type</h3>
+          <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+            <table style="min-width:600px;">
+              <thead>
+                <tr>
+                  <th>Event Type</th>
+                  <th style="text-align:right;">Created</th>
+                  <th style="text-align:right;">Generated</th>
+                  <th style="text-align:right;">Published</th>
+                  <th style="text-align:right;">Gen Rate</th>
+                  <th style="text-align:right;">Publish Rate</th>
+                  <th style="text-align:right;">Avg GTP</th>
+                </tr>
+              </thead>
+              <tbody id="eventTypeTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Section 7: Dropped User Messages -->
+        <div class="config-section" style="margin-bottom:24px;">
+          <h3 style="font-size:15px;margin-bottom:4px;">Last Messages Before Drop-Off</h3>
+          <p style="font-size:12px;color:#888;margin-bottom:16px;">What were users saying right before they abandoned? Sorted by most recent.</p>
+          <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+            <table style="min-width:500px;">
+              <thead>
+                <tr>
+                  <th>Last Message</th>
+                  <th style="text-align:right;">Msgs Sent</th>
+                  <th style="text-align:right;">Last Active</th>
+                </tr>
+              </thead>
+              <tbody id="droppedMessagesTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- end funnelDashboard -->
+    </div><!-- end tab-funnel -->
+
     </div><!-- end admin-main -->
   </div><!-- end admin-layout -->
 
@@ -2978,7 +3160,8 @@
       blogcategories: function() { loadBlogCategories(); },
       viral: function() { loadViralStats(); },
       reviews: function() { loadReviews(); },
-      reviewemails: function() { loadReviewEmailSettings(); }
+      reviewemails: function() { loadReviewEmailSettings(); },
+      funnel: function() { loadFunnelAnalytics(); }
     };
 
     function handleHashRoute() {
@@ -7119,6 +7302,273 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           + '<style>' + css + '</style></head><body>' + html + '</body></html>';
         iframe.srcdoc = fullHtml;
       });
+    }
+
+    // ---- FUNNEL ANALYTICS ----
+    var _funnelData = null;
+    var _funnelDateFrom = null;
+    var _funnelDateTo = null;
+
+    function setFunnelDatePreset(preset) {
+      document.querySelectorAll('.funnel-preset').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-preset') === preset);
+      });
+      var now = new Date();
+      if (preset === 'all') {
+        _funnelDateFrom = null;
+        _funnelDateTo = null;
+      } else if (preset === '7d') {
+        _funnelDateFrom = new Date(now.getTime() - 7 * 86400000).toISOString();
+        _funnelDateTo = null;
+      } else if (preset === '30d') {
+        _funnelDateFrom = new Date(now.getTime() - 30 * 86400000).toISOString();
+        _funnelDateTo = null;
+      } else if (preset === '90d') {
+        _funnelDateFrom = new Date(now.getTime() - 90 * 86400000).toISOString();
+        _funnelDateTo = null;
+      }
+      loadFunnelAnalytics();
+    }
+
+    async function loadFunnelAnalytics() {
+      document.getElementById('funnelLoading').style.display = 'block';
+      document.getElementById('funnelDashboard').style.display = 'none';
+      try {
+        var params = '';
+        if (_funnelDateFrom) params += '&from=' + encodeURIComponent(_funnelDateFrom);
+        if (_funnelDateTo) params += '&to=' + encodeURIComponent(_funnelDateTo);
+        var res = await adminFetch('funnelAnalytics' + params);
+        if (!res.success) throw new Error(res.error || 'Failed to load');
+        _funnelData = res.funnel;
+        renderFunnelDashboard(res.funnel);
+      } catch (e) {
+        console.error('Funnel analytics error:', e);
+        document.getElementById('funnelLoading').innerHTML = '<div style="color:var(--party-coral);">Failed to load funnel data: ' + (e.message || 'Unknown error') + '</div>';
+      }
+    }
+
+    function renderFunnelDashboard(f) {
+      document.getElementById('funnelLoading').style.display = 'none';
+      document.getElementById('funnelDashboard').style.display = 'block';
+
+      // Key metrics cards
+      var metricsHtml = '';
+      var metrics = [
+        { value: f.overallConversion + '%', label: 'Signup → Publish' },
+        { value: f.chatEngagement.avgMsgsPublished || '—', label: 'Avg Chat Msgs (Published)' },
+        { value: f.generationsToPublish.avgGtp || '—', label: 'Avg Generations to Publish' },
+        { value: f.generationsToPublish.firstTryPct + '%', label: 'First-Try Publish Rate' },
+        { value: f.timeToPublish.medianMinutes ? formatDuration(f.timeToPublish.medianMinutes) : '—', label: 'Median Time to Publish' },
+        { value: f.abandonedCount, label: 'Abandoned Events (24h+)' }
+      ];
+      metrics.forEach(function(m) {
+        metricsHtml += '<div class="stat-card"><div class="stat-value">' + m.value + '</div><div class="stat-label">' + m.label + '</div></div>';
+      });
+      document.getElementById('funnelKeyMetrics').innerHTML = metricsHtml;
+
+      // Funnel bars
+      renderFunnelBars(f.stages);
+
+      // Drop-off chart
+      renderDropOffChart(f.dropOffByStep);
+
+      // Chat engagement
+      document.getElementById('chatMsgsPublished').textContent = f.chatEngagement.avgMsgsPublished || '—';
+      document.getElementById('chatMsgsDropped').textContent = f.chatEngagement.avgMsgsDropped || '—';
+      renderHistogram('msgHistogram', 'msgHistogramLabels', f.chatEngagement.msgDistribution, 'var(--party-purple)');
+
+      // GTP
+      document.getElementById('gtpAvg').textContent = f.generationsToPublish.avgGtp || '—';
+      document.getElementById('gtpFirstTry').textContent = f.generationsToPublish.firstTryPct + '%';
+      document.getElementById('gtpTotal').textContent = f.generationsToPublish.totalWithData;
+      renderHistogram('gtpChart', 'gtpChartLabels', f.generationsToPublish.distribution, 'var(--mint-fizz)');
+
+      // Time to publish
+      document.getElementById('ttpAvg').textContent = f.timeToPublish.avgMinutes ? formatDuration(f.timeToPublish.avgMinutes) : '—';
+      document.getElementById('ttpMedian').textContent = f.timeToPublish.medianMinutes ? formatDuration(f.timeToPublish.medianMinutes) : '—';
+      document.getElementById('ttpToGen').textContent = f.timeToPublish.avgMinutesToFirstGen ? formatDuration(f.timeToPublish.avgMinutesToFirstGen) : '—';
+      document.getElementById('ttpPublished').textContent = f.timeToPublish.totalPublished;
+
+      // Weekly trends
+      renderWeeklyTrends(f.weeklyTrends);
+
+      // Event type table
+      renderEventTypeTable(f.eventTypeBreakdown);
+
+      // Dropped messages
+      renderDroppedMessages(f.droppedLastMessages);
+    }
+
+    function formatDuration(mins) {
+      if (mins < 1) return '<1m';
+      if (mins < 60) return Math.round(mins) + 'm';
+      var h = Math.floor(mins / 60);
+      var m = Math.round(mins % 60);
+      return h + 'h ' + m + 'm';
+    }
+
+    function renderFunnelBars(stages) {
+      var container = document.getElementById('funnelBars');
+      var maxVal = Math.max.apply(null, stages.map(function(s) { return s.count; })) || 1;
+      var colors = ['#4ECDC4', '#45B7AA', '#3AA090', '#E94560', '#D63D57', '#C0354E'];
+      var html = '';
+      stages.forEach(function(s, i) {
+        var pct = Math.round(100 * s.count / maxVal);
+        var convPct = i === 0 ? '100%' : (stages[0].count > 0 ? Math.round(1000 * s.count / stages[0].count) / 10 + '%' : '—');
+        var stepPct = i === 0 ? '' : (stages[i - 1].count > 0 ? Math.round(1000 * s.count / stages[i - 1].count) / 10 + '%' : '—');
+        html += '<div class="funnel-bar-row">';
+        html += '<div class="funnel-bar-label">' + s.stage + '</div>';
+        html += '<div class="funnel-bar-track"><div class="funnel-bar-fill" style="width:' + Math.max(pct, 2) + '%;background:' + colors[i % colors.length] + ';"><span class="funnel-bar-value">' + s.count.toLocaleString() + '</span></div></div>';
+        html += '<div class="funnel-bar-pct">' + (i > 0 ? stepPct : '') + '</div>';
+        html += '</div>';
+      });
+      container.innerHTML = html;
+    }
+
+    function renderDropOffChart(steps) {
+      var container = document.getElementById('dropOffChart');
+      var total = steps.reduce(function(s, x) { return s + x.count; }, 0) || 1;
+      var colors = ['#FFB74D', '#4ECDC4', '#A78BFA', '#E94560'];
+      var html = '';
+      steps.forEach(function(s, i) {
+        var pct = Math.round(100 * s.count / total);
+        html += '<div style="display:flex;align-items:center;gap:10px;">';
+        html += '<div style="width:110px;font-size:12px;font-weight:600;color:var(--midnight);text-align:right;flex-shrink:0;">' + s.label + '</div>';
+        html += '<div style="flex:1;height:24px;background:#f0f0f0;border-radius:4px;overflow:hidden;">';
+        html += '<div style="width:' + Math.max(pct, 2) + '%;height:100%;background:' + colors[i % colors.length] + ';border-radius:4px;display:flex;align-items:center;padding-left:8px;"><span style="font-size:11px;font-weight:700;color:white;">' + s.count + '</span></div>';
+        html += '</div>';
+        html += '<div style="width:40px;font-size:11px;color:#888;font-weight:600;">' + pct + '%</div>';
+        html += '</div>';
+      });
+      container.innerHTML = html;
+    }
+
+    function renderHistogram(chartId, labelsId, distribution, color) {
+      var chartEl = document.getElementById(chartId);
+      var labelsEl = document.getElementById(labelsId);
+      var keys = Object.keys(distribution);
+      var vals = Object.values(distribution);
+      var maxVal = Math.max.apply(null, vals) || 1;
+      var barsHtml = '';
+      var labelsHtml = '';
+      keys.forEach(function(key, i) {
+        var h = Math.max(Math.round(100 * vals[i] / maxVal), 2);
+        barsHtml += '<div class="funnel-histogram-bar" style="height:' + h + '%;background:' + color + ';"><span class="funnel-histogram-tooltip">' + vals[i] + '</span></div>';
+        labelsHtml += '<div class="funnel-histogram-label">' + key + '</div>';
+      });
+      chartEl.innerHTML = barsHtml;
+      labelsEl.innerHTML = labelsHtml;
+    }
+
+    function renderWeeklyTrends(trends) {
+      var container = document.getElementById('weeklyTrendsChart');
+      var labelsEl = document.getElementById('weeklyTrendsLabels');
+      var legendEl = document.getElementById('weeklyTrendsLegend');
+
+      if (!trends || trends.length === 0) {
+        container.innerHTML = '<div style="color:#888;font-size:13px;padding:20px;">No trend data available</div>';
+        return;
+      }
+
+      var allVals = [];
+      trends.forEach(function(w) { allVals.push(w.signups, w.eventsCreated, w.generated, w.published); });
+      var maxVal = Math.max.apply(null, allVals) || 1;
+
+      var series = [
+        { key: 'signups', color: '#A78BFA', label: 'Signups' },
+        { key: 'eventsCreated', color: '#4ECDC4', label: 'Events Created' },
+        { key: 'generated', color: '#FFB74D', label: 'Generated' },
+        { key: 'published', color: '#E94560', label: 'Published' }
+      ];
+
+      var barWidth = Math.max(Math.floor(100 / (trends.length * series.length + trends.length)), 1);
+      var barsHtml = '';
+      var labelsHtml = '';
+
+      trends.forEach(function(w, wi) {
+        var groupHtml = '<div style="display:flex;gap:1px;align-items:flex-end;flex:1;">';
+        series.forEach(function(s) {
+          var val = w[s.key] || 0;
+          var h = maxVal > 0 ? Math.max(Math.round(100 * val / maxVal), val > 0 ? 3 : 0) : 0;
+          groupHtml += '<div class="funnel-histogram-bar" style="height:' + h + '%;background:' + s.color + ';min-width:4px;"><span class="funnel-histogram-tooltip">' + val + '</span></div>';
+        });
+        groupHtml += '</div>';
+        barsHtml += groupHtml;
+        labelsHtml += '<div style="flex:1;text-align:center;font-size:9px;color:#888;white-space:nowrap;">' + w.label + '</div>';
+      });
+
+      container.innerHTML = barsHtml;
+      labelsEl.innerHTML = labelsHtml;
+
+      var legendHtml = '';
+      series.forEach(function(s) {
+        legendHtml += '<span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:' + s.color + ';display:inline-block;"></span>' + s.label + '</span>';
+      });
+      legendEl.innerHTML = legendHtml;
+    }
+
+    function renderEventTypeTable(breakdown) {
+      var tbody = document.getElementById('eventTypeTable');
+      if (!breakdown || breakdown.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;padding:24px;">No data</td></tr>';
+        return;
+      }
+      var html = '';
+      breakdown.forEach(function(row) {
+        var publishColor = row.publishRate >= 30 ? 'var(--mint-fizz)' : row.publishRate >= 15 ? 'var(--confetti-gold)' : 'var(--party-coral)';
+        html += '<tr>';
+        html += '<td><span class="badge badge-blue">' + formatEventType(row.eventType) + '</span></td>';
+        html += '<td style="text-align:right;font-weight:600;">' + row.created + '</td>';
+        html += '<td style="text-align:right;">' + row.generated + '</td>';
+        html += '<td style="text-align:right;">' + row.published + '</td>';
+        html += '<td style="text-align:right;">' + row.genRate + '%</td>';
+        html += '<td style="text-align:right;font-weight:700;color:' + publishColor + ';">' + row.publishRate + '%</td>';
+        html += '<td style="text-align:right;">' + (row.avgGtp != null ? row.avgGtp : '—') + '</td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+    }
+
+    function formatEventType(type) {
+      if (!type || type === 'unknown') return 'Unknown';
+      return type.replace(/([A-Z])/g, ' $1').replace(/^./, function(c) { return c.toUpperCase(); }).trim();
+    }
+
+    function renderDroppedMessages(messages) {
+      var tbody = document.getElementById('droppedMessagesTable');
+      if (!messages || messages.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#888;padding:24px;">No dropped sessions with messages</td></tr>';
+        return;
+      }
+      var html = '';
+      messages.forEach(function(m) {
+        var ago = timeAgo(m.lastActivityAt);
+        var truncated = m.lastMessage.length > 120 ? m.lastMessage.substring(0, 120) + '...' : m.lastMessage;
+        html += '<tr>';
+        html += '<td style="max-width:400px;word-break:break-word;font-size:12px;line-height:1.5;">' + escapeHtml(truncated) + '</td>';
+        html += '<td style="text-align:right;font-weight:600;">' + m.messageCount + '</td>';
+        html += '<td style="text-align:right;font-size:12px;color:#888;white-space:nowrap;">' + ago + '</td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+    }
+
+    function timeAgo(dateStr) {
+      if (!dateStr) return '—';
+      var diff = Date.now() - new Date(dateStr).getTime();
+      var mins = Math.floor(diff / 60000);
+      if (mins < 60) return mins + 'm ago';
+      var hrs = Math.floor(mins / 60);
+      if (hrs < 24) return hrs + 'h ago';
+      var days = Math.floor(hrs / 24);
+      if (days < 30) return days + 'd ago';
+      return Math.floor(days / 30) + 'mo ago';
+    }
+
+    function escapeHtml(str) {
+      var div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
     }
 
     function showToast(msg) {
