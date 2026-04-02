@@ -764,6 +764,7 @@
               <input type="text" id="newGuestName" placeholder="Name *">
               <input type="email" id="newGuestEmail" placeholder="Email">
               <input type="tel" id="newGuestPhone" placeholder="Phone">
+              <a href="#" id="phoneUpgradeHint" onclick="event.preventDefault();handleDesignChatUpgrade();" style="display:none;font-size:12px;color:var(--party-coral);font-weight:600;text-decoration:none;padding:6px 0;white-space:nowrap;">Upgrade to collect phones &amp; send SMS &rarr;</a>
               <button class="btn btn-primary btn-sm" onclick="addNewGuest()">+ Add</button>
             </div>
             <div id="newGuestMsg" style="display:none;"></div>
@@ -7152,6 +7153,25 @@
     var addedGuests = []; // { id, name, email, phone, contactId, isNew }
     var activeTagFilter = null;
 
+    function isPhoneLocked() {
+      var ps = currentEvent ? currentEvent.paymentStatus : 'unpaid';
+      return (ps === 'unpaid' || ps === 'free');
+    }
+
+    function updatePhoneFieldVisibility() {
+      var phoneInput = document.getElementById('newGuestPhone');
+      var upgradeHint = document.getElementById('phoneUpgradeHint');
+      if (!phoneInput) return;
+      if (isPhoneLocked()) {
+        phoneInput.style.display = 'none';
+        phoneInput.value = '';
+        if (upgradeHint) upgradeHint.style.display = '';
+      } else {
+        phoneInput.style.display = '';
+        if (upgradeHint) upgradeHint.style.display = 'none';
+      }
+    }
+
     function showSummary() {
       // Update publish button text based on payment status
       updatePublishButtons();
@@ -7246,8 +7266,9 @@
         if (dataMap.tags && dataMap.tags.success) allTags = dataMap.tags.tags || [];
 
         if (dataMap.guests && dataMap.guests.success && dataMap.guests.rsvps && dataMap.guests.rsvps.length > 0) {
+          var stripPh = isPhoneLocked();
           addedGuests = dataMap.guests.rsvps.map(function(g) {
-            return { id: g.id, serverId: g.id, name: g.name, email: g.email, phone: g.phone, contactId: g.contactId };
+            return { id: g.id, serverId: g.id, name: g.name, email: g.email, phone: stripPh ? '' : g.phone, contactId: g.contactId };
           });
         }
       } catch (e) {
@@ -7258,6 +7279,7 @@
       filterContacts();
       renderGuestList();
       updatePublishButton();
+      updatePhoneFieldVisibility();
       checkContactPickerSupport();
     }
 
@@ -7313,7 +7335,8 @@
         var tagHtml = (c.tags || []).map(function(t) {
           return '<span class="contact-tag-pill" style="' + (t.color ? 'background:' + t.color + '20;color:' + t.color : '') + '">' + escapeHtml(t.name) + '</span>';
         }).join('');
-        var hasPhone = c.phone ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ECDC4" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>' : '';
+        var phoneIconColor = isPhoneLocked() ? '#ccc' : '#4ECDC4';
+        var hasPhone = c.phone ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + phoneIconColor + '" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>' : '';
         var hasEmail = c.email ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ECDC4" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>' : '';
         return '<div class="contact-item' + (isSelected ? ' selected' : '') + '" onclick="toggleContactSelect(\'' + c.id + '\')">'
           + '<div class="contact-check">' + (isSelected ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '') + '</div>'
@@ -7354,16 +7377,17 @@
         var result = await res.json();
         if (result.success) {
           // Add to local guest list using server-returned guest data (with real IDs)
+          var stripPhone = isPhoneLocked();
           if (result.guests && result.guests.length) {
             result.guests.forEach(function(g) {
-              addedGuests.push({ id: g.id, serverId: g.id, name: g.name, email: g.email, phone: g.phone, contactId: g.contactId });
+              addedGuests.push({ id: g.id, serverId: g.id, name: g.name, email: g.email, phone: stripPhone ? '' : g.phone, contactId: g.contactId });
             });
           } else {
             // Fallback for skipped (already-added) contacts
             ids.forEach(function(cid) {
               var contact = allContacts.find(function(c) { return c.id === cid; });
               if (contact && !addedGuests.some(function(g) { return g.contactId === cid; })) {
-                addedGuests.push({ id: 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2,4), name: contact.name, email: contact.email, phone: contact.phone, contactId: cid });
+                addedGuests.push({ id: 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2,4), name: contact.name, email: contact.email, phone: stripPhone ? '' : contact.phone, contactId: cid });
               }
             });
           }
@@ -7387,10 +7411,13 @@
       countEl.textContent = addedGuests.length + ' invited';
 
       // Breakdown stats
+      var phoneLocked = isPhoneLocked();
       var withPhone = addedGuests.filter(function(g) { return g.phone; }).length;
       var withEmail = addedGuests.filter(function(g) { return g.email; }).length;
       if (addedGuests.length > 0) {
-        breakdownEl.textContent = withPhone + ' with phone \u00B7 ' + withEmail + ' with email';
+        breakdownEl.textContent = phoneLocked
+          ? withEmail + ' with email'
+          : withPhone + ' with phone \u00B7 ' + withEmail + ' with email';
         breakdownEl.style.display = '';
       } else {
         breakdownEl.style.display = 'none';
@@ -7410,15 +7437,17 @@
       var emailSvgGrey = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ddd" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>';
 
       var html = addedGuests.map(function(g, i) {
-        var detail = g.email || g.phone || '';
+        var detail = phoneLocked ? (g.email || '') : (g.email || g.phone || '');
+        var phoneTitle = phoneLocked ? 'Upgrade to use SMS' : (g.phone ? 'SMS ready' : 'No phone');
+        var phoneIcon = phoneLocked ? phoneSvgGrey : (g.phone ? phoneSvgGreen : phoneSvgGrey);
         return '<div class="guest-item">'
           + '<div class="guest-avatar" style="background:' + getAvatarGradient(g.name) + ';">' + getInitials(g.name) + '</div>'
           + '<div class="guest-info">'
           + '<span class="guest-name">' + escapeHtml(g.name) + '</span>'
           + (detail ? '<span class="guest-contact">' + escapeHtml(detail) + '</span>' : '')
           + '</div>'
-          + '<div class="guest-channels" title="' + (g.phone ? 'SMS ready' : 'No phone') + ' / ' + (g.email ? 'Email ready' : 'No email') + '">'
-          + (g.phone ? phoneSvgGreen : phoneSvgGrey)
+          + '<div class="guest-channels" title="' + phoneTitle + ' / ' + (g.email ? 'Email ready' : 'No email') + '">'
+          + phoneIcon
           + (g.email ? emailSvgGreen : emailSvgGrey)
           + '</div>'
           + '<button class="guest-remove" onclick="removeGuest(' + i + ')" title="Remove">&times;</button>'
@@ -7450,6 +7479,7 @@
       var name = document.getElementById('newGuestName').value.trim();
       var email = document.getElementById('newGuestEmail').value.trim();
       var phone = document.getElementById('newGuestPhone').value.trim();
+      if (isPhoneLocked()) phone = '';
       var msgEl = document.getElementById('newGuestMsg');
 
       if (!name) {
@@ -7586,8 +7616,9 @@
             });
             guestAddResult = await addRes.json();
             if (guestAddResult.success && guestAddResult.guests) {
+              var stripPh = isPhoneLocked();
               guestAddResult.guests.forEach(function(g) {
-                addedGuests.push({ id: g.id, serverId: g.id, name: g.name, email: g.email, phone: g.phone, contactId: g.contactId });
+                addedGuests.push({ id: g.id, serverId: g.id, name: g.name, email: g.email, phone: stripPh ? '' : g.phone, contactId: g.contactId });
               });
             }
           }
@@ -8437,6 +8468,11 @@
 
       // Update publish button if on step 3
       updatePublishButton();
+
+      // Re-render guest section to show phone fields now that user upgraded
+      updatePhoneFieldVisibility();
+      renderGuestList();
+      filterContacts();
 
       // Verify session server-side (ensures DB has payment_status='paid' before replay)
       if (checkoutSessionId) {
