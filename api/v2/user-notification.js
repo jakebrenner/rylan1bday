@@ -82,7 +82,8 @@ export default async function handler(req, res) {
 </html>`;
 
     await resend.emails.send({
-      from: 'Ryvite <hello@ryvite.com>',
+      from: 'Ryvite <support@ryvite.com>',
+      replyTo: 'support@ryvite.com',
       to: userEmail,
       subject: `Your SMS limit has been increased for ${eventTitle || 'your event'}`,
       html

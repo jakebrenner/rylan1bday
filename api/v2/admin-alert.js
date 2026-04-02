@@ -94,7 +94,8 @@ export default async function handler(req, res) {
 </html>`;
 
     await resend.emails.send({
-      from: 'Ryvite Alerts <alerts@ryvite.com>',
+      from: 'Ryvite Alerts <support@ryvite.com>',
+      replyTo: 'support@ryvite.com',
       to: ADMIN_EMAIL,
       subject,
       html

@@ -897,7 +897,8 @@ export default async function handler(req, res) {
       try {
         const resend = new Resend(process.env.RESEND_API_KEY);
         await resend.emails.send({
-          from: 'Ryvite <noreply@ryvite.com>',
+          from: 'Ryvite <support@ryvite.com>',
+          replyTo: 'support@ryvite.com',
           to: newEmail,
           subject: `${inviterName} invited you to the Ryvite admin team`,
           html: `
@@ -3187,7 +3188,8 @@ ${cssSnippet}`
         const bodyHtml = bodyText.split('\n').filter(p => p.trim()).map(p => `<p style="margin:0 0 16px;font-size:15px;color:#555;line-height:1.6;">${p}</p>`).join('\n    ');
 
         await resend.emails.send({
-          from: 'Ryvite <hello@ryvite.com>',
+          from: 'Ryvite <support@ryvite.com>',
+          replyTo: 'support@ryvite.com',
           to: profile.email,
           subject,
           html: buildReviewEmailFromSettings(firstName, headline, bodyHtml, ctaText, footerNote, reviewUrl)

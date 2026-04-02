@@ -876,7 +876,8 @@ export default async function handler(req, res) {
 
         try {
           await resend.emails.send({
-            from: 'Ryvite <noreply@ryvite.com>',
+            from: 'Ryvite <support@ryvite.com>',
+            replyTo: 'support@ryvite.com',
             to: guest.email,
             subject: emailSubject,
             html: html

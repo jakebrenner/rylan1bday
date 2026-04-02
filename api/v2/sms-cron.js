@@ -403,7 +403,8 @@ async function processEmailReminder(reminder, now) {
 
     try {
       await resend.emails.send({
-        from: 'Ryvite <noreply@ryvite.com>',
+        from: 'Ryvite <support@ryvite.com>',
+        replyTo: 'support@ryvite.com',
         to: guest.email,
         subject: emailSubject,
         html: html
@@ -672,7 +673,8 @@ async function processReviewRequests() {
           const replaceVars = (str) => str.replace(/\{\{eventTitle\}\}/g, event.title).replace(/\{\{firstName\}\}/g, firstName);
 
           await resend.emails.send({
-            from: 'Ryvite <hello@ryvite.com>',
+            from: 'Ryvite <support@ryvite.com>',
+            replyTo: 'support@ryvite.com',
             to: profile.email,
             subject: replaceVars(settings.emailSubject),
             html: buildConfigurableReviewEmail(firstName, replaceVars(settings.emailHeadline), replaceVars(settings.emailBody), replaceVars(settings.emailCtaText), replaceVars(settings.emailFooterNote), reviewUrl)
@@ -716,7 +718,8 @@ async function processReviewRequests() {
           const replaceVars = (str) => str.replace(/\{\{eventTitle\}\}/g, eventTitle).replace(/\{\{firstName\}\}/g, firstName);
 
           await resend.emails.send({
-            from: 'Ryvite <hello@ryvite.com>',
+            from: 'Ryvite <support@ryvite.com>',
+            replyTo: 'support@ryvite.com',
             to: req.profiles.email,
             subject: replaceVars(settings.reminderSubject),
             html: buildConfigurableReviewEmail(firstName, replaceVars(settings.reminderHeadline), replaceVars(settings.reminderBody), replaceVars(settings.reminderCtaText), replaceVars(settings.reminderFooterNote), reviewUrl)
@@ -852,7 +855,8 @@ async function processAbandonedDrafts() {
       const subject = `Your event \u201c${eventTitle}\u201d is still in draft \u2014 need help?`;
 
       await resend.emails.send({
-        from: 'Ryvite <hello@ryvite.com>',
+        from: 'Ryvite <support@ryvite.com>',
+        replyTo: 'support@ryvite.com',
         to: profile.email,
         subject,
         html: buildAbandonmentEmail(firstName, eventTitle, editUrl)

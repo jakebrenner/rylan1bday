@@ -18,11 +18,11 @@ function getUserSupabase(token) {
   });
 }
 
-async function sendWelcomeEmail(eventId, eventTitle, userEmail, firstName) {
+async function sendWelcomeEmail(eventId, eventTitle, userEmail) {
   if (!resend || !userEmail) return;
   try {
     const editUrl = `${PROD_URL}/v2/create/?eventId=${eventId}`;
-    const subject = `Welcome to Ryvite! Let\u2019s make \u201c${eventTitle}\u201d unforgettable`;
+    const subject = `Welcome to Ryvite! Let\u2019s make your event unforgettable`;
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -36,11 +36,8 @@ async function sendWelcomeEmail(eventId, eventTitle, userEmail, firstName) {
     </h1>
   </td></tr>
   <tr><td style="background-color:#FFFAF5;padding:40px;">
-    <p style="margin:0 0 16px;color:#1A1A2E;font-size:16px;line-height:1.6;">
-      Hey ${firstName},
-    </p>
     <p style="margin:0 0 24px;color:#1A1A2E;font-size:16px;line-height:1.6;">
-      You just created <strong>${eventTitle}</strong> \u2014 great choice! Here\u2019s how to make it shine:
+      You just created an event \u2014 great choice! Here\u2019s how to make it shine:
     </p>
     <div style="background-color:#F8F5F0;border-radius:12px;padding:24px;margin-bottom:24px;">
       <table width="100%" cellpadding="0" cellspacing="0">
@@ -75,7 +72,8 @@ async function sendWelcomeEmail(eventId, eventTitle, userEmail, firstName) {
 </body></html>`;
 
     await resend.emails.send({
-      from: 'Ryvite <hello@ryvite.com>',
+      from: 'Ryvite <support@ryvite.com>',
+      replyTo: 'support@ryvite.com',
       to: userEmail,
       subject,
       html
@@ -450,8 +448,7 @@ export default async function handler(req, res) {
 
       // Fire-and-forget welcome email
       if (resend && user.email) {
-        const firstName = user.user_metadata?.display_name?.split(' ')[0] || user.email?.split('@')[0] || 'there';
-        sendWelcomeEmail(data.id, title, user.email, firstName).catch(err =>
+        sendWelcomeEmail(data.id, title, user.email).catch(err =>
           console.error('Welcome email error:', err)
         );
       }

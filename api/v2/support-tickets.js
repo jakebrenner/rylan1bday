@@ -103,7 +103,8 @@ async function sendNewTicketEmail(ticket, userEmail, userName, eventTitle) {
 
   try {
     await resend.emails.send({
-      from: 'Ryvite Alerts <alerts@ryvite.com>',
+      from: 'Ryvite Alerts <support@ryvite.com>',
+      replyTo: 'support@ryvite.com',
       to: process.env.ADMIN_EMAIL || 'support@ryvite.com',
       subject: `[Ticket #${ticket.ticket_number}] ${ticket.subject}`,
       html
@@ -163,7 +164,8 @@ async function sendAdminReplyEmail(ticket, userEmail, userName, replyMessage) {
 
   try {
     await resend.emails.send({
-      from: 'Ryvite Support <hello@ryvite.com>',
+      from: 'Ryvite Support <support@ryvite.com>',
+      replyTo: 'support@ryvite.com',
       to: userEmail,
       subject: `Re: [Ticket #${ticket.ticket_number}] ${ticket.subject}`,
       html

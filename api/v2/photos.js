@@ -391,7 +391,8 @@ async function sendPhotoNotification(event) {
     if (profile?.email) {
       const firstName = profile.display_name ? profile.display_name.split(' ')[0] : 'there';
       await resend.emails.send({
-        from: 'Ryvite <hello@ryvite.com>',
+        from: 'Ryvite <support@ryvite.com>',
+        replyTo: 'support@ryvite.com',
         to: profile.email,
         subject: `New photos shared to ${event.title || 'your event'}!`,
         html: buildPhotoNotificationEmail(firstName, event.title, photoCount, galleryUrl)

@@ -15,7 +15,8 @@ export default async function handler(req, res) {
 
   try {
     await resend.emails.send({
-      from: 'Ryvite <onboarding@resend.dev>',
+      from: 'Ryvite <support@ryvite.com>',
+      replyTo: 'support@ryvite.com',
       to: 'jake@getmrkt.com',
       subject: `New Ryvite Request from ${name}`,
       html: `
