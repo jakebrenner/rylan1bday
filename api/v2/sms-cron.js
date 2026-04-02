@@ -852,7 +852,7 @@ async function processAbandonedDrafts() {
 
   const { data: draftEvents, error } = await supabaseAdmin
     .from('events')
-    .select('id, title, user_id, created_at')
+    .select('id, title, user_id, created_at, settings')
     .eq('status', 'draft')
     .lt('created_at', cutoff24h)
     .gt('created_at', cutoff48h)
@@ -881,7 +881,8 @@ async function processAbandonedDrafts() {
 
       const firstName = profile.display_name?.split(' ')[0] || 'there';
       const eventTitle = event.title || 'your event';
-      const editUrl = `https://www.ryvite.com/v2/create/?eventId=${event.id}`;
+      const creationStep = event.settings?.creation_step || 0;
+      const editUrl = `https://www.ryvite.com/v2/create/?eventId=${event.id}&step=${creationStep}`;
       const subject = `Your event \u201c${eventTitle}\u201d is still in draft \u2014 need help?`;
 
       const emailResult = await resend.emails.send({
