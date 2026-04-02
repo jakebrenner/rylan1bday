@@ -1148,7 +1148,7 @@
           }).then(function(result) {
             if (result.success && result.event) {
               var ev = result.event;
-              currentEvent = { id: ev.id, slug: ev.slug, paymentStatus: ev.paymentStatus || 'unpaid', freeGenerationUsed: !!ev.freeGenerationUsed, freeRedoUsed: !!ev.freeRedoUsed };
+              currentEvent = { id: ev.id, slug: ev.slug, paymentStatus: ev.paymentStatus || 'unpaid', freeGenerationUsed: !!ev.freeGenerationUsed, generationCount: ev.generationCount || 0, generationLimit: ev.generationLimit || 2 };
               extractedData = {
                 title: ev.title || '', eventType: ev.eventType || 'other',
                 startDate: ev.eventDate || '', endDate: ev.endDate || '',
@@ -1231,7 +1231,7 @@
           var result = await res.json();
           if (result.success && result.event) {
             var ev = result.event;
-            currentEvent = { id: ev.id, slug: ev.slug, paymentStatus: ev.paymentStatus || 'unpaid', freeGenerationUsed: !!ev.freeGenerationUsed, freeRedoUsed: !!ev.freeRedoUsed };
+            currentEvent = { id: ev.id, slug: ev.slug, paymentStatus: ev.paymentStatus || 'unpaid', freeGenerationUsed: !!ev.freeGenerationUsed, generationCount: ev.generationCount || 0, generationLimit: ev.generationLimit || 2 };
             extractedData = {
               title: ev.title || '',
               eventType: ev.eventType || 'other',
@@ -2509,7 +2509,7 @@
         });
         var result = await res.json();
         if (result.success) {
-          currentEvent = { id: result.eventId, slug: result.slug, paymentStatus: result.paymentStatus || 'unpaid', freeGenerationUsed: false, freeRedoUsed: false };
+          currentEvent = { id: result.eventId, slug: result.slug, paymentStatus: result.paymentStatus || 'unpaid', freeGenerationUsed: false, generationCount: 0, generationLimit: 2 };
           window.history.replaceState({}, '', '/v2/create/?eventId=' + result.eventId);
         }
       } catch (err) {
@@ -2584,7 +2584,7 @@
         });
         var result = await res.json();
         if (result.success) {
-          currentEvent = { id: result.eventId, slug: result.slug, paymentStatus: result.paymentStatus || 'unpaid', freeGenerationUsed: false, freeRedoUsed: false };
+          currentEvent = { id: result.eventId, slug: result.slug, paymentStatus: result.paymentStatus || 'unpaid', freeGenerationUsed: false, generationCount: 0, generationLimit: 2 };
           await saveCustomFields();
           window.history.replaceState({}, '', '/v2/create/?eventId=' + result.eventId);
           autoSaveDraft();
@@ -6065,17 +6065,18 @@
         input.style.height = 'auto';
         return;
       }
-      if (currentEvent && currentEvent.paymentStatus === 'free' && currentEvent.freeGenerationUsed) {
+      if (currentEvent && currentEvent.paymentStatus === 'free' && (currentEvent.generationCount || 0) > 0) {
         // Allow Tier 1.75 client-side text swaps — they don't cost anything
         var textSwapPattern = /\b(change|replace|swap|switch)\b.{0,10}["'\u201C\u201D].+["'\u201C\u201D]\s*(to|with|for)\s*["'\u201C\u201D]/i;
         if (!textSwapPattern.test(text)) {
+          var remaining = (currentEvent.generationLimit || 2) - (currentEvent.generationCount || 0);
           pendingUpgradeMessage = text;
           sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
           pushDesignChat({ role: 'user', content: text });
-          if (!currentEvent.freeRedoUsed) {
-            pushDesignChat({ role: 'upgrade', content: "I can't make design tweaks on the free plan, but if the design was completely off from what you asked for, I can generate a brand new one \u2014 just tell me what's wrong.\n\nOr upgrade for $4.99 to unlock unlimited design changes." });
+          if (remaining > 0) {
+            pushDesignChat({ role: 'upgrade', content: "I can't make design tweaks on the free plan, but I can generate a brand new design. You have " + remaining + " free design" + (remaining > 1 ? "s" : "") + " remaining.\n\nOr upgrade for $4.99 to unlock unlimited design changes." });
           } else {
-            pushDesignChat({ role: 'upgrade', content: "You've used your free design and redo. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite." });
+            pushDesignChat({ role: 'upgrade', content: "You've used all " + (currentEvent.generationLimit || 2) + " of your free designs. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite." });
           }
           renderDesignChat();
           input.value = '';
@@ -6208,7 +6209,7 @@
 
         // Directed theme/style change: user says WHAT broad change they want (e.g., "make the theme more modern",
         // "change the theme to garden focused", "make it more elegant"). These have clear intent so they should
-        // skip clarification and go straight to regeneration as a design tweak with freeRedo enabled.
+        // skip clarification and go straight to regeneration as a design tweak.
         var directedThemeChange = /\b(?:change|make|switch|update)\s+(?:the\s+)?(?:theme|style|vibe|look|design|whole thing)\s+(?:to\s+(?:be\s+)?|more\s+)/i.test(text)
           || /\b(?:make|change)\s+(?:it|this)\s+(?:more\s+|to\s+(?:be\s+)?(?:more\s+)?)\w+/i.test(text)
           || /\bmore\s+\w+\s+(?:theme|style|look|vibe|focused|inspired)\b/i.test(text);
@@ -6221,7 +6222,7 @@
         // Directed theme changes with clear intent → skip clarification, treat as redesign redo
         if (directedThemeChange && !redesignKeywords.test(text)) {
           console.log('[tweak] Directed theme change detected — skipping clarification, routing as redesign');
-          skipRedesignDetection = true; // Will make isRedesignRedo = true for freeRedo
+          skipRedesignDetection = true; // Will make isRedesignRedo = true
           // Fall through to tier 2/3 — the intent is clear, no need to ask
         } else if (redesignKeywords.test(text) || (vagueKeywords.test(text) && !hasSpecificInstruction)) {
           pendingRedesignText = text;
@@ -6527,8 +6528,6 @@
           rsvpFields: enabledFields.map(function(f) { return { field_key: f.field_key, label: f.label, field_type: f.field_type, is_required: f.is_required }; })
         };
         if (window._templateSource) payload.basedOnThemeId = window._templateSource.id || '';
-        // If this is a redesign redo on a free event, flag it so backend allows one more generation
-        if (isRedesignRedo && currentEvent && currentEvent.paymentStatus === 'free') payload.freeRedo = true;
 
         // Use streaming SSE to avoid timeouts
         var sseRes = await authFetch('/api/v2/generate-theme?action=tweak', {
@@ -6543,12 +6542,11 @@
           if (sseRes.status === 403) {
             var errJson403 = {};
             try { errJson403 = await sseRes.json(); } catch(e) {}
-            if (errJson403.requiresPayment && errJson403.freeRedoAvailable) {
-              // First generation used, but redo still available — guide the user
-              pushDesignChat({ role: 'assistant', content: "I can't make small tweaks on the free plan, but if the design is completely off from what you asked for, I can generate a brand new one.\n\nJust tell me what's wrong with the current design (e.g., \"this is a rocket theme but I asked for trains\") and I'll start fresh.\n\nOr upgrade for $4.99 to unlock unlimited design changes." });
-            } else if (errJson403.requiresPayment) {
-              // Both free gen + redo used — upgrade required
-              pushDesignChat({ role: 'upgrade', content: "You've used your free design and redo. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite." });
+            if (errJson403.requiresPayment) {
+              // Update local tracking from server response
+              if (errJson403.generationCount !== undefined && currentEvent) currentEvent.generationCount = errJson403.generationCount;
+              if (errJson403.generationLimit !== undefined && currentEvent) currentEvent.generationLimit = errJson403.generationLimit;
+              pushDesignChat({ role: 'upgrade', content: "You've used all " + (errJson403.generationLimit || 2) + " of your free AI designs. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite." });
             } else {
               pushDesignChat({ role: 'assistant', content: errJson403.error || "I wasn't able to make that change right now." });
             }
@@ -6608,9 +6606,9 @@
             if (tweakResult.contentWarnings && tweakResult.contentWarnings.length > 0) {
               console.warn('[tweak] Server content warnings:', tweakResult.contentWarnings.join(', '));
             }
-            // Mark free redo as used client-side if this was a redesign redo
-            if (currentEvent && currentEvent.paymentStatus === 'free' && isRedesignRedo) {
-              currentEvent.freeRedoUsed = true;
+            // Increment generation count client-side after successful generation
+            if (currentEvent) {
+              currentEvent.generationCount = (currentEvent.generationCount || 0) + 1;
             }
             var tweakId = tweakResult.theme.id === 'pending' ? ('pending-' + Date.now()) : tweakResult.theme.id;
             var newVer = { id: tweakId, version: tweakResult.theme.version, html: tweakResult.theme.html, css: tweakResult.theme.css, config: tweakResult.theme.config };
@@ -8373,7 +8371,7 @@
       if (currentEvent) {
         currentEvent.paymentStatus = 'paid';
         currentEvent.freeGenerationUsed = false;
-        currentEvent.freeRedoUsed = false;
+        // Paid events have unlimited generations — count no longer matters
       }
 
       // Update publish button if on step 3

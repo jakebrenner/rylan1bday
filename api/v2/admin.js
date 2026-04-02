@@ -784,7 +784,7 @@ export default async function handler(req, res) {
       const { data } = await supabaseAdmin
         .from('app_config')
         .select('key, value')
-        .in('key', ['chat_model', 'theme_model', 'cost_markup_pct', 'sms_cost_cents']);
+        .in('key', ['chat_model', 'theme_model', 'cost_markup_pct', 'sms_cost_cents', 'free_ai_generations']);
 
       const config = {};
       (data || []).forEach(row => { config[row.key] = row.value; });
@@ -795,7 +795,8 @@ export default async function handler(req, res) {
           chatModel: config.chat_model || 'claude-haiku-4-5-20251001',
           themeModel: config.theme_model || 'claude-sonnet-4-6',
           costMarkupPct: parseFloat(config.cost_markup_pct) || 100,
-          smsCostCents: parseInt(config.sms_cost_cents) || 3
+          smsCostCents: parseInt(config.sms_cost_cents) || 3,
+          freeAiGenerations: parseInt(config.free_ai_generations) || 2
         }
       });
     }
@@ -804,13 +805,14 @@ export default async function handler(req, res) {
     if (action === 'saveConfig') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
-      const { chatModel, themeModel, costMarkupPct, smsCostCents } = req.body;
+      const { chatModel, themeModel, costMarkupPct, smsCostCents, freeAiGenerations } = req.body;
 
       const upserts = [];
       if (chatModel) upserts.push({ key: 'chat_model', value: chatModel, updated_by: admin.id, updated_at: new Date().toISOString() });
       if (themeModel) upserts.push({ key: 'theme_model', value: themeModel, updated_by: admin.id, updated_at: new Date().toISOString() });
       if (costMarkupPct !== undefined) upserts.push({ key: 'cost_markup_pct', value: String(costMarkupPct), updated_by: admin.id, updated_at: new Date().toISOString() });
       if (smsCostCents !== undefined) upserts.push({ key: 'sms_cost_cents', value: String(smsCostCents), updated_by: admin.id, updated_at: new Date().toISOString() });
+      if (freeAiGenerations !== undefined) upserts.push({ key: 'free_ai_generations', value: String(Math.max(1, Math.min(10, parseInt(freeAiGenerations) || 2))), updated_by: admin.id, updated_at: new Date().toISOString() });
 
       if (upserts.length > 0) {
         const { error } = await supabaseAdmin

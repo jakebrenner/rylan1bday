@@ -1039,6 +1039,40 @@
       </div>
     </div>
 
+    <!-- Billing Tab -->
+    <div class="tab-content" id="tab-subscriptions">
+      <div class="config-section">
+        <h3>Plan Settings</h3>
+        <p style="font-size:13px;color:#888;margin-bottom:20px;">Configure free-tier limits and pricing. Changes take effect immediately for all new events.</p>
+        <div class="config-row">
+          <div class="config-field">
+            <label for="freeAiGenerationsInput">Free AI Generations Per Event</label>
+            <input type="number" id="freeAiGenerationsInput" min="1" max="10" step="1" value="2"
+              oninput="var s=document.getElementById('billingPricingSummary');if(s)s.textContent='Free tier ('+this.value+' AI design'+(this.value>1?'s':'')+'/event) + $4.99/event premium';"
+              style="width:120px;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+            <div class="hint">Total number of AI design generations each free event receives. Users must upgrade to $4.99 for unlimited designs beyond this limit.</div>
+          </div>
+          <div class="config-field">
+            <label>Event Price</label>
+            <div style="padding:10px 14px;background:#f9f9f9;border-radius:6px;font-size:14px;color:var(--midnight);">$4.99 per event</div>
+            <div class="hint">One-time payment to unlock unlimited AI generations, SMS delivery, and all premium features for an event.</div>
+          </div>
+        </div>
+        <div class="config-row" style="margin-top:16px;">
+          <div class="config-field">
+            <label>Current Pricing Model</label>
+            <div id="billingPricingSummary" style="padding:10px 14px;background:#f9f9f9;border-radius:6px;font-size:14px;color:var(--midnight);">
+              Free tier (2 AI designs/event) + $4.99/event premium
+            </div>
+          </div>
+        </div>
+        <div class="config-actions" style="margin-top:16px;">
+          <button class="btn btn-primary" id="saveBillingConfigBtn" onclick="saveBillingConfig()">Save Plan Settings</button>
+          <span class="config-saved" id="billingConfigSaved" style="display:none;">Saved!</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Settings Tab -->
     <div class="tab-content" id="tab-settings">
       <div class="config-section">
@@ -1085,10 +1119,10 @@
         <div class="config-row" style="margin-top:16px;">
           <div class="config-field">
             <label>Pricing Model</label>
-            <div style="padding:10px 14px;background:#f9f9f9;border-radius:6px;font-size:14px;color:var(--midnight);">
-              Free tier (1 event) + $4.99/event premium
+            <div id="pricingSummarySettings" style="padding:10px 14px;background:#f9f9f9;border-radius:6px;font-size:14px;color:var(--midnight);">
+              Free tier + $4.99/event premium
             </div>
-            <div class="hint">Revenue is tracked from actual payments. Profitability = Revenue &minus; API costs per event.</div>
+            <div class="hint">Configure plan limits in the <a href="#subscriptions" onclick="switchTab('subscriptions');loadBillingTab();return false;" style="color:var(--coral);text-decoration:underline;">Billing</a> tab.</div>
           </div>
         </div>
         <div class="config-row" style="margin-top:16px;">
@@ -3995,6 +4029,43 @@
       }
       btn.disabled = false;
       btn.textContent = 'Save Configuration';
+    }
+
+    // ---- Billing / Plan Settings ----
+    async function loadBillingTab() {
+      try {
+        var res = await adminFetch('getConfig');
+        if (res.config) {
+          var freeGenInput = document.getElementById('freeAiGenerationsInput');
+          var freeGenVal = res.config.freeAiGenerations || 2;
+          if (freeGenInput) freeGenInput.value = freeGenVal;
+          var summary = document.getElementById('billingPricingSummary');
+          if (summary) summary.textContent = 'Free tier (' + freeGenVal + ' AI design' + (freeGenVal > 1 ? 's' : '') + '/event) + $4.99/event premium';
+        }
+      } catch (err) {
+        console.error('Failed to load billing config:', err);
+      }
+    }
+
+    async function saveBillingConfig() {
+      var btn = document.getElementById('saveBillingConfigBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      try {
+        await adminFetch('saveConfig', {
+          method: 'POST',
+          body: {
+            freeAiGenerations: parseInt(document.getElementById('freeAiGenerationsInput').value) || 2
+          }
+        });
+        var saved = document.getElementById('billingConfigSaved');
+        saved.style.display = 'inline';
+        setTimeout(function() { saved.style.display = 'none'; }, 3000);
+      } catch (err) {
+        alert('Failed to save plan settings');
+      }
+      btn.disabled = false;
+      btn.textContent = 'Save Plan Settings';
     }
 
     // ---- Admin Management ----

@@ -149,9 +149,27 @@ export default async function handler(req, res) {
         .eq('event_id', event.id)
         .order('sort_order', { ascending: true });
 
+      const formatted = formatEvent(event, theme, customFields);
+
+      // Enrich with generation count/limit for free-tier tracking
+      if (event.payment_status === 'free' || event.payment_status === 'unpaid') {
+        const { count: genCount } = await supabaseAdmin
+          .from('generation_log')
+          .select('id', { count: 'exact', head: true })
+          .eq('event_id', event.id)
+          .eq('status', 'success');
+        const { data: limitRow } = await supabaseAdmin
+          .from('app_config')
+          .select('value')
+          .eq('key', 'free_ai_generations')
+          .single();
+        formatted.generationCount = genCount || 0;
+        formatted.generationLimit = Math.max(1, parseInt(limitRow?.value) || 2);
+      }
+
       return res.status(200).json({
         success: true,
-        event: formatEvent(event, theme, customFields)
+        event: formatted
       });
     }
 
@@ -811,6 +829,22 @@ export default async function handler(req, res) {
       formatted.themeVersions = (allThemes || []).map(t => ({
         id: t.id, version: t.version, html: t.html, css: t.css, config: t.config, isActive: t.is_active
       }));
+
+      // Enrich with generation count/limit for free-tier tracking
+      if (data.payment_status === 'free' || data.payment_status === 'unpaid') {
+        const { count: genCount } = await supabaseAdmin
+          .from('generation_log')
+          .select('id', { count: 'exact', head: true })
+          .eq('event_id', eventId)
+          .eq('status', 'success');
+        const { data: limitRow } = await supabaseAdmin
+          .from('app_config')
+          .select('value')
+          .eq('key', 'free_ai_generations')
+          .single();
+        formatted.generationCount = genCount || 0;
+        formatted.generationLimit = Math.max(1, parseInt(limitRow?.value) || 2);
+      }
 
       return res.status(200).json({ success: true, event: formatted });
     }

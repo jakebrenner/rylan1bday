@@ -200,6 +200,19 @@ async function getActivePrompt() {
   return { promptVersionId: null, systemPrompt: SYSTEM_PROMPT, designDna: DESIGN_DNA };
 }
 
+async function getFreeGenerationLimit() {
+  try {
+    const { data } = await supabase
+      .from('app_config')
+      .select('value')
+      .eq('key', 'free_ai_generations')
+      .single();
+    return Math.max(1, parseInt(data?.value) || 2);
+  } catch {
+    return 2;
+  }
+}
+
 async function getThemeModel() {
   try {
     const { data } = await supabase
@@ -1443,7 +1456,7 @@ export default async function handler(req, res) {
       // Get event payment status + free generation flags
       const { data: eventForLimit } = await supabase
         .from('events')
-        .select('payment_status, user_id, free_generation_used, free_redo_used')
+        .select('payment_status, user_id')
         .eq('id', eventIdForCheck)
         .single();
 
@@ -1489,51 +1502,28 @@ export default async function handler(req, res) {
           });
         }
 
-        // Unpaid and free events both get 1 free generation + 1 redo
+        // Free/unpaid events: count-based enforcement against configurable limit
         if (eventForLimit.payment_status === 'free' || eventForLimit.payment_status === 'unpaid') {
-          const freeGenUsed = eventForLimit.free_generation_used;
-          const freeRedoUsed = eventForLimit.free_redo_used;
-          const isFreeRedo = req.body?.freeRedo === true;
+          const freeLimit = await getFreeGenerationLimit();
 
-          // Column exists and first gen is used
-          if (freeGenUsed === true) {
-            // Allow one redo if the design was completely wrong
-            if (isFreeRedo && freeRedoUsed !== true) {
-              // Allow — redo will be marked as used after success
-              req._isFreeRedo = true;
-            } else {
-              return res.status(403).json({
-                error: freeRedoUsed
-                  ? 'Your free event includes 1 AI design. Upgrade to $4.99 for unlimited designs.'
-                  : 'Your free event includes 1 AI design. If the design was completely wrong, tell me what\'s off and I can try once more.',
-                limitReached: true,
-                requiresPayment: true,
-                freeRedoAvailable: freeRedoUsed !== true,
-                generationCount: 1,
-                generationLimit: 1
-              });
-            }
-          }
-          // Column doesn't exist (null/undefined) — fallback to generation_log count
-          else if (freeGenUsed == null) {
-            const { count: fallbackCount } = await supabase
-              .from('generation_log')
-              .select('id', { count: 'exact', head: true })
-              .eq('event_id', eventIdForCheck)
-              .eq('status', 'success');
+          const { count: genCount } = await supabase
+            .from('generation_log')
+            .select('id', { count: 'exact', head: true })
+            .eq('event_id', eventIdForCheck)
+            .eq('status', 'success');
 
-            if ((fallbackCount || 0) >= 2) {
-              return res.status(403).json({
-                error: 'Your free event includes 1 AI design. Upgrade to $4.99 for unlimited designs.',
-                limitReached: true,
-                requiresPayment: true,
-                freeRedoAvailable: false,
-                generationCount: fallbackCount,
-                generationLimit: 1
-              });
-            }
+          const currentCount = genCount || 0;
+
+          if (currentCount >= freeLimit) {
+            return res.status(403).json({
+              error: `Your free event includes ${freeLimit} AI design${freeLimit > 1 ? 's' : ''}. Upgrade to $4.99 for unlimited designs.`,
+              limitReached: true,
+              requiresPayment: true,
+              freeRedoAvailable: false,
+              generationCount: currentCount,
+              generationLimit: freeLimit
+            });
           }
-          // freeGenUsed === false → first generation, allow it
         }
 
         // Paid events: soft cap at 10 (include flag but don't block)
@@ -2290,13 +2280,11 @@ Return ONLY a valid JSON object with these keys:
         console.error('Tweak theme DB save failed:', saveErr);
       }
 
-      // Mark free redo as used BEFORE sending response (prevents race with next request)
-      if (req._isFreeRedo) {
-        await supabase.from('events')
-          .update({ free_redo_used: true })
-          .eq('id', eventId)
-          .in('payment_status', ['free', 'unpaid']);
-      }
+      // Legacy: mark free_generation_used for backward compatibility
+      await supabase.from('events')
+        .update({ free_generation_used: true })
+        .eq('id', eventId)
+        .in('payment_status', ['free', 'unpaid']);
 
       // Collect content warnings for the client (post-repair)
       const tweakFinalCheck = validateThemeIntegrity(theme);
@@ -2742,13 +2730,9 @@ This is the most common failure mode. Double-check it.`;
       }
     }
 
-    // CRITICAL: Mark free generation as used BEFORE sending response to client.
-    // If we wait until after res.end(), the client can fire a tweak request before
-    // the DB update completes, bypassing the free tier limit.
-    const freeUpdate = { free_generation_used: true };
-    if (req._isFreeRedo) freeUpdate.free_redo_used = true;
+    // Legacy: mark free_generation_used for backward compatibility (count-based enforcement is primary)
     await supabase.from('events')
-      .update(freeUpdate)
+      .update({ free_generation_used: true })
       .eq('id', eventId)
       .in('payment_status', ['free', 'unpaid']);
 
