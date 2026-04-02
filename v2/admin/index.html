@@ -2777,12 +2777,45 @@
       <h3 style="margin:0 0 20px;">Funnel Analytics</h3>
 
       <!-- Date filter -->
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;align-items:center;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
         <button class="btn btn-sm date-preset funnel-preset active" data-preset="all" onclick="setFunnelDatePreset('all')">All Time</button>
+        <button class="btn btn-sm date-preset funnel-preset" data-preset="today" onclick="setFunnelDatePreset('today')">Today</button>
         <button class="btn btn-sm date-preset funnel-preset" data-preset="7d" onclick="setFunnelDatePreset('7d')">Last 7d</button>
         <button class="btn btn-sm date-preset funnel-preset" data-preset="30d" onclick="setFunnelDatePreset('30d')">Last 30d</button>
         <button class="btn btn-sm date-preset funnel-preset" data-preset="90d" onclick="setFunnelDatePreset('90d')">Last 90d</button>
+        <button class="btn btn-sm date-preset funnel-preset" data-preset="custom" onclick="setFunnelDatePreset('custom')">Custom</button>
       </div>
+      <!-- Custom date range (hidden by default) -->
+      <div id="funnelCustomDateRange" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
+        <input type="date" id="funnelDateFrom" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+        <span style="color:#888;font-size:13px;">to</span>
+        <input type="date" id="funnelDateTo" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+        <button class="btn btn-sm btn-primary" onclick="applyFunnelCustomDate()">Apply</button>
+      </div>
+      <!-- Segment filters -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;align-items:center;">
+        <select id="funnelFilterPayment" onchange="loadFunnelAnalytics()" style="padding:7px 12px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;color:var(--midnight);background:white;cursor:pointer;">
+          <option value="">All Events</option>
+          <option value="free">Free (1st event)</option>
+          <option value="paid">Paid ($4.99)</option>
+          <option value="coupon">Coupon / Credits</option>
+          <option value="unpaid">Unpaid (draft)</option>
+        </select>
+        <select id="funnelFilterUtm" onchange="loadFunnelAnalytics()" style="padding:7px 12px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;color:var(--midnight);background:white;cursor:pointer;">
+          <option value="">All Traffic Sources</option>
+        </select>
+        <select id="funnelFilterEventType" onchange="loadFunnelAnalytics()" style="padding:7px 12px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;color:var(--midnight);background:white;cursor:pointer;">
+          <option value="">All Event Types</option>
+        </select>
+        <select id="funnelFilterTier" onchange="loadFunnelAnalytics()" style="padding:7px 12px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;color:var(--midnight);background:white;cursor:pointer;">
+          <option value="">All User Tiers</option>
+          <option value="free">Free Tier</option>
+          <option value="per_event">Per-Event (Paid)</option>
+        </select>
+        <button class="btn btn-sm btn-secondary" onclick="clearFunnelFilters()" style="font-size:11px;">Clear Filters</button>
+      </div>
+      <!-- Active filter summary -->
+      <div id="funnelFilterSummary" style="display:none;margin-bottom:16px;padding:8px 14px;background:#fff5f5;border:1px solid #ffe0e0;border-radius:6px;font-size:12px;color:var(--party-coral);font-weight:500;"></div>
 
       <!-- Loading state -->
       <div id="funnelLoading" style="text-align:center;padding:60px 20px;color:#888;">
@@ -7308,14 +7341,23 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     var _funnelData = null;
     var _funnelDateFrom = null;
     var _funnelDateTo = null;
+    var _funnelFilterOptionsLoaded = false;
 
     function setFunnelDatePreset(preset) {
       document.querySelectorAll('.funnel-preset').forEach(function(btn) {
         btn.classList.toggle('active', btn.getAttribute('data-preset') === preset);
       });
+      var customEl = document.getElementById('funnelCustomDateRange');
+      customEl.style.display = preset === 'custom' ? 'flex' : 'none';
+      if (preset === 'custom') return; // Wait for Apply click
+
       var now = new Date();
       if (preset === 'all') {
         _funnelDateFrom = null;
+        _funnelDateTo = null;
+      } else if (preset === 'today') {
+        var todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+        _funnelDateFrom = todayStr + 'T00:00:00.000Z';
         _funnelDateTo = null;
       } else if (preset === '7d') {
         _funnelDateFrom = new Date(now.getTime() - 7 * 86400000).toISOString();
@@ -7330,16 +7372,88 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       loadFunnelAnalytics();
     }
 
+    function applyFunnelCustomDate() {
+      var fromVal = document.getElementById('funnelDateFrom').value;
+      var toVal = document.getElementById('funnelDateTo').value;
+      _funnelDateFrom = fromVal ? fromVal + 'T00:00:00.000Z' : null;
+      _funnelDateTo = toVal ? toVal + 'T23:59:59.999Z' : null;
+      loadFunnelAnalytics();
+    }
+
+    function clearFunnelFilters() {
+      document.getElementById('funnelFilterPayment').value = '';
+      document.getElementById('funnelFilterUtm').value = '';
+      document.getElementById('funnelFilterEventType').value = '';
+      document.getElementById('funnelFilterTier').value = '';
+      loadFunnelAnalytics();
+    }
+
+    function getFunnelFilterParams() {
+      var params = '';
+      if (_funnelDateFrom) params += '&from=' + encodeURIComponent(_funnelDateFrom);
+      if (_funnelDateTo) params += '&to=' + encodeURIComponent(_funnelDateTo);
+      var payment = document.getElementById('funnelFilterPayment').value;
+      if (payment) params += '&paymentStatus=' + encodeURIComponent(payment);
+      var utm = document.getElementById('funnelFilterUtm').value;
+      if (utm) params += '&utmSource=' + encodeURIComponent(utm);
+      var eventType = document.getElementById('funnelFilterEventType').value;
+      if (eventType) params += '&eventType=' + encodeURIComponent(eventType);
+      var tier = document.getElementById('funnelFilterTier').value;
+      if (tier) params += '&tier=' + encodeURIComponent(tier);
+      return params;
+    }
+
+    function updateFunnelFilterSummary() {
+      var parts = [];
+      var payment = document.getElementById('funnelFilterPayment').value;
+      var utm = document.getElementById('funnelFilterUtm').value;
+      var eventType = document.getElementById('funnelFilterEventType').value;
+      var tier = document.getElementById('funnelFilterTier').value;
+      if (payment) parts.push('Payment: ' + { free: 'Free (1st event)', paid: 'Paid', coupon: 'Coupon/Credits', unpaid: 'Unpaid' }[payment]);
+      if (utm) parts.push('Source: ' + utm);
+      if (eventType) parts.push('Type: ' + formatEventType(eventType));
+      if (tier) parts.push('Tier: ' + (tier === 'per_event' ? 'Per-Event' : 'Free'));
+      var summaryEl = document.getElementById('funnelFilterSummary');
+      if (parts.length > 0) {
+        summaryEl.textContent = 'Filtered by: ' + parts.join(' · ');
+        summaryEl.style.display = 'block';
+      } else {
+        summaryEl.style.display = 'none';
+      }
+    }
+
+    function populateFunnelFilterOptions(filterOptions) {
+      if (!filterOptions) return;
+      // UTM sources
+      var utmSelect = document.getElementById('funnelFilterUtm');
+      var currentUtm = utmSelect.value;
+      utmSelect.innerHTML = '<option value="">All Traffic Sources</option>';
+      (filterOptions.utmSources || []).forEach(function(src) {
+        utmSelect.innerHTML += '<option value="' + src + '">' + src + '</option>';
+      });
+      if (currentUtm) utmSelect.value = currentUtm;
+
+      // Event types
+      var typeSelect = document.getElementById('funnelFilterEventType');
+      var currentType = typeSelect.value;
+      typeSelect.innerHTML = '<option value="">All Event Types</option>';
+      (filterOptions.eventTypes || []).forEach(function(t) {
+        typeSelect.innerHTML += '<option value="' + t + '">' + formatEventType(t) + '</option>';
+      });
+      if (currentType) typeSelect.value = currentType;
+      _funnelFilterOptionsLoaded = true;
+    }
+
     async function loadFunnelAnalytics() {
       document.getElementById('funnelLoading').style.display = 'block';
       document.getElementById('funnelDashboard').style.display = 'none';
+      updateFunnelFilterSummary();
       try {
-        var params = '';
-        if (_funnelDateFrom) params += '&from=' + encodeURIComponent(_funnelDateFrom);
-        if (_funnelDateTo) params += '&to=' + encodeURIComponent(_funnelDateTo);
+        var params = getFunnelFilterParams();
         var res = await adminFetch('funnelAnalytics' + params);
         if (!res.success) throw new Error(res.error || 'Failed to load');
         _funnelData = res.funnel;
+        populateFunnelFilterOptions(res.funnel.filterOptions);
         renderFunnelDashboard(res.funnel);
       } catch (e) {
         console.error('Funnel analytics error:', e);

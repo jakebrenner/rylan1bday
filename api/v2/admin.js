@@ -3351,10 +3351,14 @@ ${cssSnippet}`
     if (action === 'funnelAnalytics') {
       const from = req.query.from || null;
       const to = req.query.to || null;
+      const filterPayment = req.query.paymentStatus || null;   // 'free', 'paid', 'unpaid', 'coupon'
+      const filterUtmSource = req.query.utmSource || null;     // e.g. 'facebook', 'google'
+      const filterEventType = req.query.eventType || null;     // e.g. 'wedding', 'birthday'
+      const filterTier = req.query.tier || null;               // 'free', 'per_event'
 
       // 1. Funnel stage counts
-      let eventsQuery = supabaseAdmin.from('events').select('id, user_id, status, event_type, settings, created_at, published_at, first_generation_at, generations_to_publish, updated_at');
-      let profilesQuery = supabaseAdmin.from('profiles').select('id, created_at');
+      let eventsQuery = supabaseAdmin.from('events').select('id, user_id, status, event_type, payment_status, settings, created_at, published_at, first_generation_at, generations_to_publish, updated_at');
+      let profilesQuery = supabaseAdmin.from('profiles').select('id, created_at, tier, utm_source, utm_campaign, utm_medium, free_event_credits, purchased_event_credits');
       let guestsQuery = supabaseAdmin.from('guests').select('id, event_id, status, responded_at');
 
       if (from) {
@@ -3365,6 +3369,19 @@ ${cssSnippet}`
         eventsQuery = eventsQuery.lte('created_at', to);
         profilesQuery = profilesQuery.lte('created_at', to);
       }
+      if (filterPayment) {
+        if (filterPayment === 'coupon') {
+          // Coupon users: have free_event_credits > 0 — filter on profiles after fetch
+        } else {
+          eventsQuery = eventsQuery.eq('payment_status', filterPayment);
+        }
+      }
+      if (filterEventType) {
+        eventsQuery = eventsQuery.eq('event_type', filterEventType);
+      }
+      if (filterTier) {
+        profilesQuery = profilesQuery.eq('tier', filterTier);
+      }
 
       const [eventsRes, profilesRes, guestsRes, chatMsgsRes] = await Promise.all([
         eventsQuery,
@@ -3373,10 +3390,36 @@ ${cssSnippet}`
         supabaseAdmin.from('chat_messages').select('id, user_id, session_id, event_id, role, content, phase, created_at').order('created_at', { ascending: true })
       ]);
 
-      const events = eventsRes.data || [];
-      const profiles = profilesRes.data || [];
+      let events = eventsRes.data || [];
+      let profiles = profilesRes.data || [];
       const guests = guestsRes.data || [];
       const chatMsgs = chatMsgsRes.data || [];
+
+      // Apply cross-table filters
+      if (filterTier) {
+        // Restrict events to users matching the tier filter
+        const tierUserIds = new Set(profiles.map(p => p.id));
+        events = events.filter(e => tierUserIds.has(e.user_id));
+      }
+      if (filterUtmSource) {
+        // Restrict to users with matching utm_source
+        profiles = profiles.filter(p => p.utm_source && p.utm_source.toLowerCase() === filterUtmSource.toLowerCase());
+        const utmUserIds = new Set(profiles.map(p => p.id));
+        events = events.filter(e => utmUserIds.has(e.user_id));
+      }
+      if (filterPayment === 'coupon') {
+        // Coupon users have free_event_credits > 0 granted via coupons
+        const couponUserIds = new Set(profiles.filter(p => (p.free_event_credits || 0) > 0).map(p => p.id));
+        events = events.filter(e => couponUserIds.has(e.user_id));
+        profiles = profiles.filter(p => couponUserIds.has(p.id));
+      }
+
+      // Collect distinct values for filter dropdowns
+      const allEventsForOptions = eventsRes.data || [];
+      const allProfilesForOptions = profilesRes.data || [];
+      const distinctEventTypes = [...new Set(allEventsForOptions.map(e => e.event_type).filter(Boolean))].sort();
+      const distinctUtmSources = [...new Set(allProfilesForOptions.map(p => p.utm_source).filter(Boolean))].sort();
+      const distinctPaymentStatuses = [...new Set(allEventsForOptions.map(e => e.payment_status).filter(Boolean))].sort();
 
       // Stage counts
       const totalSignups = profiles.length;
@@ -3585,7 +3628,12 @@ ${cssSnippet}`
           abandonedCount,
           overallConversion: totalSignups > 0
             ? Math.round(1000 * totalPublished / totalSignups) / 10
-            : 0
+            : 0,
+          filterOptions: {
+            eventTypes: distinctEventTypes,
+            utmSources: distinctUtmSources,
+            paymentStatuses: distinctPaymentStatuses
+          }
         }
       });
     }
