@@ -386,7 +386,7 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
       </svg>
     </div>
     <h1 class="fade-in-up fade-delay-1">AI-Powered Custom Invitations <span class="tagline" style="display:block;font-size:0.5em;color:var(--confetti-gold);margin-top:0.3em;">Prompt to Party</span></h1>
-    <p class="subtext fade-in-up fade-delay-2">Describe your event, get a one-of-a-kind invite in seconds — starting free.</p>
+    <p class="subtext fade-in-up fade-delay-2">Describe your event, get a one-of-a-kind invite in seconds — free.</p>
     <div class="hero-chat fade-in-up fade-delay-3">
       <div class="hero-chat-box">
         <input type="text" class="hero-chat-input" id="heroPromptInput" placeholder="Describe your event..." autocomplete="off">
@@ -399,7 +399,7 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
       </div>
       <p class="hero-social-proof" style="margin-top:14px;font-size:0.8rem;color:rgba(255,255,255,0.5);display:flex;align-items:center;justify-content:center;gap:6px;">
         <span style="display:inline-flex;"><span style="color:#FFB74D;">&#9733;&#9733;&#9733;&#9733;&#9733;</span></span>
-        Loved by 2,000+ hosts
+        Loved by hosts around the world
       </p>
       <p class="subtext" style="margin-top:8px;font-size:0.85rem;">Your first event is free — no credit card required</p>
     </div>
@@ -461,6 +461,21 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
         <div class="step-icon"><svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="24" r="22" fill="none" stroke="#4ECDC4" stroke-width="1.5" opacity="0.2"/><path d="M14 18 L24 26 L34 18" fill="none" stroke="#4ECDC4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 30 L34 30" fill="none" stroke="#4ECDC4" stroke-width="1.5" stroke-linecap="round"/><circle cx="24" cy="13" r="2.5" fill="#4ECDC4" opacity="0.6"/><circle cx="19" cy="15" r="1.5" fill="#A78BFA" opacity="0.4"/><circle cx="29" cy="14.5" r="1.5" fill="#FFB74D" opacity="0.4"/></svg></div>
         <h4>Share Beautiful Invite</h4>
         <p>Publish your invite, share the link, track RSVPs, and manage your guest list. Every detail handled, beautifully.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Mid-page CTA -->
+<section class="section cta-section" id="contact">
+  <div class="container" style="text-align:center; max-width:640px;">
+    <p class="section-label scroll-reveal" style="color:var(--confetti-gold);">Ready?</p>
+    <h2 class="section-title scroll-reveal">Create Your Invite</h2>
+    <p class="scroll-reveal" style="color:rgba(255,255,255,0.7); font-size:1.05rem; line-height:1.7; margin-bottom:2rem;">Describe your event, pick a design, and send beautiful invitations — all in minutes. No templates, no subscriptions. Browse our <a href="/inspiration/" style="color:var(--confetti-gold);">invitation gallery</a> to spark ideas or start from scratch.</p>
+    <div class="hero-chat scroll-reveal" style="max-width:500px; margin:0 auto;">
+      <div class="hero-chat-box">
+        <input type="text" class="hero-chat-input" id="midCtaPromptInput" placeholder="Describe your event..." autocomplete="off">
+        <button class="hero-chat-send" onclick="submitMidCtaPrompt()">Create</button>
       </div>
     </div>
   </div>
@@ -619,16 +634,6 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; line-hei
   </div>
 </section>
 
-<!-- Get Started CTA -->
-<section class="section cta-section" id="contact">
-  <div class="container" style="text-align:center; max-width:640px;">
-    <p class="section-label scroll-reveal" style="color:var(--confetti-gold);">Ready?</p>
-    <h2 class="section-title scroll-reveal">Create Your Invite</h2>
-    <p class="scroll-reveal" style="color:rgba(255,255,255,0.7); font-size:1.05rem; line-height:1.7; margin-bottom:2.5rem;">Describe your event, pick a design, and send beautiful invitations — all in minutes. No templates, no subscriptions. Browse our <a href="/inspiration/" style="color:var(--confetti-gold);">invitation gallery</a> to spark ideas or start from scratch.</p>
-    <a href="/v2/create/" class="nav-cta scroll-reveal" style="display:inline-block; padding:1rem 2.5rem; font-size:1.1rem; border-radius:14px;">Create Your First Event Free</a>
-  </div>
-</section>
-
 <!-- Footer -->
 <footer class="site-footer">
   <div class="container">
@@ -689,6 +694,18 @@ function fillPrompt(pill) {
 document.getElementById('heroPromptInput').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') { e.preventDefault(); submitHeroPrompt(); }
 });
+
+document.getElementById('midCtaPromptInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); submitMidCtaPrompt(); }
+});
+
+function submitMidCtaPrompt() {
+  var input = document.getElementById('midCtaPromptInput');
+  var text = input.value.trim();
+  if (!text) { input.focus(); return; }
+  localStorage.setItem('ryvite_landing_prompt', text);
+  window.location.href = '/v2/create/' + (window.location.search || '');
+}
 
 function submitHeroPrompt() {
   var input = document.getElementById('heroPromptInput');
