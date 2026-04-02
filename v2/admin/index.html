@@ -10647,19 +10647,22 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       empty.style.display = 'none';
 
       body.innerHTML = _mktCampaigns.map(function(c) {
+        var isFbOnly = c.source === 'fb_only';
         var ctr = (c.total_impressions || 0) > 0
           ? ((c.total_clicks || 0) / c.total_impressions * 100).toFixed(2) + '%'
           : '--';
-        var cpa = c.avg_cost_per_signup ? '$' + c.avg_cost_per_signup : '--';
+        var cpa = isFbOnly ? '--' : (c.avg_cost_per_signup ? '$' + c.avg_cost_per_signup : '--');
+        var nameHtml = escapeHtml(c.campaign_name)
+          + (isFbOnly ? ' <span style="font-size:10px;color:#888;font-weight:400;">(FB only)</span>' : '');
         return '<tr style="border-bottom:1px solid #eee;">'
-          + '<td style="padding:8px 12px;font-weight:600;">' + escapeHtml(c.campaign_name) + '</td>'
+          + '<td style="padding:8px 12px;font-weight:600;">' + nameHtml + '</td>'
           + '<td style="padding:8px 12px;">' + (c.creative_count || 0) + '</td>'
           + '<td style="padding:8px 12px;">' + (c.total_impressions || 0).toLocaleString() + '</td>'
           + '<td style="padding:8px 12px;">' + (c.total_clicks || 0).toLocaleString() + '</td>'
           + '<td style="padding:8px 12px;">' + ctr + '</td>'
           + '<td style="padding:8px 12px;">$' + ((c.total_spend_cents || 0) / 100).toFixed(2) + '</td>'
-          + '<td style="padding:8px 12px;">' + (c.total_signups || 0) + '</td>'
-          + '<td style="padding:8px 12px;">' + (c.total_publishes || 0) + '</td>'
+          + '<td style="padding:8px 12px;">' + (isFbOnly ? '--' : (c.total_signups || 0)) + '</td>'
+          + '<td style="padding:8px 12px;">' + (isFbOnly ? '--' : (c.total_publishes || 0)) + '</td>'
           + '<td style="padding:8px 12px;">' + cpa + '</td>'
           + '</tr>';
       }).join('');
