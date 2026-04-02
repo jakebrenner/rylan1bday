@@ -1530,10 +1530,8 @@
           // Restore interactive UI based on chatPhase
           if (chatPhase === 'confirmed') {
             showConfirmationCard();
-            showPhotoUploadPrompt();
           } else if (chatPhase === 'themeReady') {
             showConfirmationCard();
-            showPhotoUploadPrompt();
             showDesignReadyCard();
           }
         }
@@ -1796,7 +1794,6 @@
               if (chatResult.ready && chatResult.confirmed && chatPhase !== 'confirmed' && chatPhase !== 'themeReady') {
                 chatPhase = 'confirmed';
                 showConfirmationCard();
-                showPhotoUploadPrompt();
               }
               addChatBubble(chatResult.message, 'assistant');
               if (chatResult.themeReady && chatPhase !== 'themeReady') {
@@ -1890,7 +1887,6 @@
           if (result.ready && result.confirmed && chatPhase !== 'confirmed' && chatPhase !== 'themeReady') {
             chatPhase = 'confirmed';
             showConfirmationCard();
-            showPhotoUploadPrompt();
           }
 
           addChatBubble(result.message, 'assistant');
@@ -7251,17 +7247,7 @@
           var personName = nameMatch ? nameMatch[1] : 'the guest of honor';
           ackText = uploadedCount + ' photo' + (uploadedCount > 1 ? 's' : '') + ' of ' + personName + ' uploaded \u2014 we\u2019ll feature ' + personName + ' prominently in the invite design.';
         }
-        // If we're in the confirmed phase (event details locked, theme discovery in progress),
-        // skip the extra chat exchanges — photos + event details are enough to generate.
-        // Jump straight to the design ready card.
-        if (chatPhase === 'confirmed') {
-          dismissPhotoPrompt();
-          addChatBubble(ackText, 'assistant', true);
-          chatPhase = 'themeReady';
-          showDesignReadyCard();
-        } else {
-          showPhotoAckCard(ackText);
-        }
+        showPhotoAckCard(ackText);
       }
       // Scroll to keep the Generate button visible after adding photos
       scrollChat();
