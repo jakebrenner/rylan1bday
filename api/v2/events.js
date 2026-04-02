@@ -18,29 +18,28 @@ function getUserSupabase(token) {
   });
 }
 
-async function sendWelcomeEmail(eventId, eventTitle, userEmail, firstName, userId) {
+async function sendWelcomeEmail(eventId, userEmail, userId) {
   if (!resend || !userEmail) return;
   try {
     const editUrl = `${PROD_URL}/v2/create/?eventId=${eventId}`;
-    const subject = `Welcome to Ryvite! Let\u2019s make \u201c${eventTitle}\u201d unforgettable`;
+    const subject = `Welcome to Ryvite! Let\u2019s create something amazing`;
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background-color:#f5f5f5;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:40px 20px;">
+<body style="margin:0;padding:0;background-color:#FFFAF5;font-family:'Inter','Helvetica Neue',Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FFFAF5;padding:40px 20px;">
 <tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
-  <tr><td style="background-color:#1A1A2E;padding:32px 40px;border-radius:16px 16px 0 0;text-align:center;">
-    <h1 style="margin:0;font-family:'Playfair Display',Georgia,serif;color:#FFFAF5;font-size:28px;font-weight:700;">
-      Welcome to Ryvite!
-    </h1>
+<table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;">
+  <tr><td align="center" style="padding-bottom:0;">
+    <div style="background:linear-gradient(135deg, #1A1A2E 0%, #0f3460 100%);border-radius:12px 12px 0 0;padding:24px 40px;text-align:center;">
+      <p style="margin:0;font-size:28px;color:#FFFFFF;font-family:'Playfair Display',Georgia,serif;font-weight:700;letter-spacing:0.5px;">Ryvite</p>
+      <p style="margin:4px 0 0;font-size:12px;color:#FFB74D;font-style:italic;font-family:'Inter',Arial,sans-serif;">Prompt to Party</p>
+    </div>
   </td></tr>
-  <tr><td style="background-color:#FFFAF5;padding:40px;">
-    <p style="margin:0 0 16px;color:#1A1A2E;font-size:16px;line-height:1.6;">
-      Hey ${firstName},
-    </p>
-    <p style="margin:0 0 24px;color:#1A1A2E;font-size:16px;line-height:1.6;">
-      You just created <strong>${eventTitle}</strong> \u2014 great choice! Here\u2019s how to make it shine:
+  <tr><td style="background:#FFFFFF;padding:40px;border-radius:0 0 12px 12px;box-shadow:0 4px 24px rgba(26,26,46,0.08);">
+    <h2 style="margin:0 0 16px;font-family:'Playfair Display',Georgia,serif;font-size:22px;color:#1A1A2E;">Let\u2019s get started!</h2>
+    <p style="margin:0 0 24px;font-size:15px;color:#6B7280;line-height:1.6;">
+      You\u2019re all set to create a beautiful event invitation. Here\u2019s how to make it shine:
     </p>
     <div style="background-color:#F8F5F0;border-radius:12px;padding:24px;margin-bottom:24px;">
       <table width="100%" cellpadding="0" cellspacing="0">
@@ -58,17 +57,19 @@ async function sendWelcomeEmail(eventId, eventTitle, userEmail, firstName, userI
         </td></tr>
       </table>
     </div>
-    <div style="text-align:center;margin:32px 0;">
-      <a href="${editUrl}" style="display:inline-block;background-color:#E94560;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:50px;font-size:16px;font-weight:600;">
-        Continue Creating
-      </a>
-    </div>
-    <p style="margin:0;color:#6B7280;font-size:14px;line-height:1.6;text-align:center;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr><td align="center" style="padding:8px 0 32px;">
+        <a href="${editUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg, #E94560, #FF6B6B);color:#FFFFFF;font-size:15px;font-weight:600;text-decoration:none;border-radius:50px;font-family:'Inter','Helvetica Neue',Arial,sans-serif;">
+          Continue Creating
+        </a>
+      </td></tr>
+    </table>
+    <p style="margin:0;color:#D1D5DB;font-size:13px;line-height:1.5;text-align:center;">
       Need help? Just reply to this email.
     </p>
   </td></tr>
-  <tr><td style="background-color:#1A1A2E;padding:20px 40px;border-radius:0 0 16px 16px;text-align:center;">
-    <p style="margin:0;color:#6B7280;font-size:12px;">Built with love for Rylan</p>
+  <tr><td align="center" style="padding:24px 0 0;">
+    <p style="margin:0;font-size:12px;color:#D1D5DB;">&copy; 2026 Ryvite &mdash; Beautiful invitations, effortlessly.</p>
   </td></tr>
 </table>
 </td></tr></table>
@@ -453,8 +454,7 @@ export default async function handler(req, res) {
 
       // Fire-and-forget welcome email
       if (resend && user.email) {
-        const firstName = user.user_metadata?.display_name?.split(' ')[0] || user.email?.split('@')[0] || 'there';
-        sendWelcomeEmail(data.id, title, user.email, firstName, user.id).catch(err =>
+        sendWelcomeEmail(data.id, user.email, user.id).catch(err =>
           console.error('Welcome email error:', err)
         );
       }
