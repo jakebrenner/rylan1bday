@@ -2412,9 +2412,15 @@
       <div id="mktCampaigns" class="mkt-view" style="display:none;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
           <h3 style="margin:0;">Campaign Performance</h3>
-          <button class="btn btn-secondary" onclick="syncFbData()" id="mktSyncBtn" style="font-size:13px;">
-            Sync Facebook Data
-          </button>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="font-size:12px;color:#888;">From</label>
+            <input type="date" id="mktDateFrom" style="padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;" onchange="loadCampaignData()">
+            <label style="font-size:12px;color:#888;">To</label>
+            <input type="date" id="mktDateTo" style="padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;" onchange="loadCampaignData()">
+            <button class="btn btn-secondary" onclick="syncFbData()" id="mktSyncBtn" style="font-size:13px;">
+              Sync Facebook Data
+            </button>
+          </div>
         </div>
         <!-- KPI Cards -->
         <div id="mktKpiCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;"></div>
@@ -9771,6 +9777,15 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     var _mktLoaded = false;
     async function loadMarketingTab() {
+      // Set default date range (last 30 days) on first load
+      if (!_mktLoaded) {
+        var today = new Date().toISOString().split('T')[0];
+        var thirtyAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+        var fromEl = document.getElementById('mktDateFrom');
+        var toEl = document.getElementById('mktDateTo');
+        if (fromEl && !fromEl.value) fromEl.value = thirtyAgo;
+        if (toEl && !toEl.value) toEl.value = today;
+      }
       // Always reload creatives (they may have been added since last visit)
       await Promise.all([loadAdCreatives(), !_mktLoaded ? loadCampaignData() : Promise.resolve(), !_mktLoaded ? loadFbConfig() : Promise.resolve()]);
       _mktLoaded = true;
@@ -10020,7 +10035,12 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     // ── Campaign Performance ──
     async function loadCampaignData() {
       try {
-        var res = await authFetch('/api/v2/ad-creatives?action=stats');
+        var since = document.getElementById('mktDateFrom')?.value || '';
+        var until = document.getElementById('mktDateTo')?.value || '';
+        var params = 'action=stats';
+        if (since) params += '&since=' + since;
+        if (until) params += '&until=' + until;
+        var res = await authFetch('/api/v2/ad-creatives?' + params);
         var data = await res.json();
         _mktCampaigns = data.campaigns || [];
         _mktCreatives = data.creatives || [];
@@ -10072,19 +10092,22 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       empty.style.display = 'none';
 
       body.innerHTML = _mktCampaigns.map(function(c) {
+        var isFbOnly = c.source === 'fb_only';
         var ctr = (c.total_impressions || 0) > 0
           ? ((c.total_clicks || 0) / c.total_impressions * 100).toFixed(2) + '%'
           : '--';
-        var cpa = c.avg_cost_per_signup ? '$' + c.avg_cost_per_signup : '--';
+        var cpa = isFbOnly ? '--' : (c.avg_cost_per_signup ? '$' + c.avg_cost_per_signup : '--');
+        var nameHtml = escapeHtml(c.campaign_name)
+          + (isFbOnly ? ' <span style="font-size:10px;color:#888;font-weight:400;">(FB only)</span>' : '');
         return '<tr style="border-bottom:1px solid #eee;">'
-          + '<td style="padding:8px 12px;font-weight:600;">' + escapeHtml(c.campaign_name) + '</td>'
+          + '<td style="padding:8px 12px;font-weight:600;">' + nameHtml + '</td>'
           + '<td style="padding:8px 12px;">' + (c.creative_count || 0) + '</td>'
           + '<td style="padding:8px 12px;">' + (c.total_impressions || 0).toLocaleString() + '</td>'
           + '<td style="padding:8px 12px;">' + (c.total_clicks || 0).toLocaleString() + '</td>'
           + '<td style="padding:8px 12px;">' + ctr + '</td>'
           + '<td style="padding:8px 12px;">$' + ((c.total_spend_cents || 0) / 100).toFixed(2) + '</td>'
-          + '<td style="padding:8px 12px;">' + (c.total_signups || 0) + '</td>'
-          + '<td style="padding:8px 12px;">' + (c.total_publishes || 0) + '</td>'
+          + '<td style="padding:8px 12px;">' + (isFbOnly ? '--' : (c.total_signups || 0)) + '</td>'
+          + '<td style="padding:8px 12px;">' + (isFbOnly ? '--' : (c.total_publishes || 0)) + '</td>'
           + '<td style="padding:8px 12px;">' + cpa + '</td>'
           + '</tr>';
       }).join('');
@@ -10218,10 +10241,12 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       btn.disabled = true;
       btn.textContent = 'Syncing...';
       try {
+        var syncSince = document.getElementById('mktDateFrom')?.value || undefined;
+        var syncUntil = document.getElementById('mktDateTo')?.value || undefined;
         var res = await authFetch('/api/v2/fb-ads?action=sync', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
+          body: JSON.stringify({ since: syncSince, until: syncUntil })
         });
         var data = await res.json();
         if (data.success) {
