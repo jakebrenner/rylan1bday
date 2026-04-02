@@ -2654,6 +2654,7 @@ This is the most common failure mode. Double-check it.`;
 
     // Parse JSON response — handle various wrapping patterns
     let theme = parseThemeResponse(fullText);
+    console.log('[generate] Parsed theme — CSS length:', theme.theme_css?.length || 0, 'HTML length:', theme.theme_html?.length || 0, 'Raw response length:', fullText.length);
 
     // Normalize: ensure googleFontsImport is always a full @import statement
     if (theme.theme_config.googleFontsImport && !theme.theme_config.googleFontsImport.startsWith('@import')) {
@@ -2713,7 +2714,12 @@ This is the most common failure mode. Double-check it.`;
       }
     }
     if (!theme.theme_css || !theme.theme_css.trim()) {
-      console.error('[generate] WARNING: Theme has no CSS! HTML length:', theme.theme_html?.length, 'Keys:', Object.keys(theme).join(', '));
+      console.error('[generate] CRITICAL: Theme has no CSS! HTML length:', theme.theme_html?.length, 'Keys:', Object.keys(theme).join(', '), 'First 500 chars of raw response:', fullText.substring(0, 500));
+      // Don't save or send an unstyled theme — return error so client can retry
+      clearInterval(keepalive);
+      sendSSE('error', { error: 'Generation produced no CSS styling. Please try again.', retryable: true });
+      res.end();
+      return;
     }
 
     // ── SERVER-SIDE THEME VALIDATION: Catch broken output before sending to client ──

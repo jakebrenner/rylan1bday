@@ -3290,6 +3290,13 @@
               css: genResult.theme.css,
               config: genResult.theme.config
             };
+            // Safety check: if CSS is missing or trivially short, auto-retry
+            if (!ver.css || ver.css.trim().length < 50) {
+              console.error('[generate-theme] CSS missing or too short (' + (ver.css ? ver.css.trim().length : 0) + ' chars) — auto-retrying');
+              stopGeneratingPuns();
+              retryGenerate();
+              return;
+            }
             themeVersions.push(ver);
             activeVersionIndex = themeVersions.length - 1;
             currentEvent.themeHtml = ver.html;
