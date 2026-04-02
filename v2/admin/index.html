@@ -261,6 +261,7 @@
     .gen-detail-info .detail-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f5f5f5; }
     .gen-detail-info .detail-label { color: #888; }
     .gen-detail-info .detail-value { font-weight: 600; color: var(--midnight); }
+    .evt-chat-bubble { max-width: 80%; }
 
     /* Style Library */
     .style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
@@ -489,10 +490,29 @@
       #styleFilters select, #labFilters select, #userGenFilters select,
       #styleFilters input, #labFilters input, #userGenFilters input { width: 100%; }
 
-      /* Generation detail overlay */
+      /* Generation / Event detail overlay */
       .gen-detail-body { padding: 16px; gap: 20px; }
       .gen-detail-header { padding: 12px 16px; }
       .gen-detail-header h2 { font-size: 16px; }
+
+      /* Event detail — smaller phone on mobile */
+      #eventDetailOverlay .phone-mockup { width: 240px; }
+      #eventDetailOverlay .gen-detail-body { grid-template-columns: 1fr; }
+
+      /* Detail rows — stack on very narrow screens */
+      .gen-detail-info .detail-row { flex-wrap: wrap; gap: 2px; }
+      .gen-detail-info .detail-value { word-break: break-all; }
+      .gen-detail-info .detail-value code { font-size: 10px; word-break: break-all; }
+
+      /* Scrollable tables inside event detail */
+      #eventDetailInfo .ud-table { min-width: 0; font-size: 11px; }
+      #eventDetailInfo table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+      /* Chat history — wider bubbles on mobile */
+      .evt-chat-bubble { max-width: 95%; }
+
+      /* Theme version buttons — smaller */
+      #eventThemeVersions button { padding: 4px 8px !important; font-size: 11px !important; }
 
       /* Style detail overlay */
       .style-detail-header { padding: 12px 16px; }
@@ -543,6 +563,12 @@
 
       /* Ensure body and tab content don't overflow */
       .tab-content { max-width: 100vw; overflow-x: hidden; }
+    }
+
+    @media (max-width: 400px) {
+      #eventDetailOverlay .phone-mockup { width: 200px; }
+      .gen-detail-body { padding: 12px; gap: 16px; }
+      .gen-detail-info .detail-row { font-size: 12px; }
     }
   </style>
 <script src="/js/ga.js"></script>
@@ -7935,11 +7961,15 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
       document.getElementById('eventDetailTitle').textContent = ev.title || 'Untitled Event';
 
-      // Render theme preview
+      // Render theme preview with proper scaling
       var iframe = document.getElementById('eventDetailPreviewFrame');
+      requestAnimationFrame(function() {
+        var screen = iframe.closest('.phone-screen');
+        if (screen) iframe.style.transform = 'scale(' + (screen.offsetWidth / 393) + ')';
+      });
       if (previewTheme && previewTheme.html) {
         var fontsImport = (previewTheme.config && previewTheme.config.googleFontsImport) || '';
-        var fullHtml = '<!DOCTYPE html><html><head>'
+        var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
           + '<style>' + fontsImport + '</style>'
           + '<style>' + (previewTheme.css || '') + '</style></head>'
           + '<body>' + previewTheme.html + '</body></html>';
@@ -8044,8 +8074,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         themes.forEach(function(t) {
           var activeBadge = t.isActive ? ' <span class="badge badge-green" style="font-size:9px;">Active</span>' : '';
           var ratingStr = t.adminRating ? (t.adminRating + '/5') : 'Unrated';
-          html += '<div style="padding:8px 0;border-bottom:1px solid #f5f5f5;font-size:13px;display:flex;justify-content:space-between;align-items:center;">';
-          html += '<div><strong>v' + t.version + '</strong>' + activeBadge + ' &middot; ' + shortModel(t.model) + ' &middot; ' + ratingStr + '</div>';
+          html += '<div style="padding:8px 0;border-bottom:1px solid #f5f5f5;font-size:13px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">';
+          html += '<div style="min-width:0;"><strong>v' + t.version + '</strong>' + activeBadge + ' &middot; ' + shortModel(t.model) + ' &middot; ' + ratingStr + '</div>';
           html += '<div style="color:#aaa;font-size:11px;">' + formatDate(t.createdAt) + '</div>';
           html += '</div>';
         });
@@ -8065,7 +8095,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           var label = isUser ? 'User' : (msg.role === 'assistant' ? 'AI' : msg.role);
           var phaseTag = msg.phase ? ' <span style="font-size:9px;color:#aaa;">(' + escapeHtml(msg.phase) + ')</span>' : '';
           html += '<div style="display:flex;justify-content:' + align + ';margin-bottom:8px;">';
-          html += '<div style="max-width:80%;background:' + bg + ';color:' + color + ';border:' + border + ';border-radius:12px;padding:8px 12px;font-size:12px;">';
+          html += '<div class="evt-chat-bubble" style="background:' + bg + ';color:' + color + ';border:' + border + ';border-radius:12px;padding:8px 12px;font-size:12px;">';
           html += '<div style="font-size:10px;font-weight:600;margin-bottom:4px;">' + label + phaseTag + '</div>';
           // Truncate long messages
           var content = msg.content || '';
@@ -8106,8 +8136,12 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var theme = currentEventDetail.themes.find(function(t) { return t.id === themeId; });
       if (!theme || !theme.html) return;
       var iframe = document.getElementById('eventDetailPreviewFrame');
+      requestAnimationFrame(function() {
+        var screen = iframe.closest('.phone-screen');
+        if (screen) iframe.style.transform = 'scale(' + (screen.offsetWidth / 393) + ')';
+      });
       var fontsImport = (theme.config && theme.config.googleFontsImport) || '';
-      var fullHtml = '<!DOCTYPE html><html><head>'
+      var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
         + '<style>' + fontsImport + '</style>'
         + '<style>' + (theme.css || '') + '</style></head>'
         + '<body>' + theme.html + '</body></html>';
