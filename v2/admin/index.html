@@ -86,6 +86,7 @@
     .btn-success { background: #28a745; color: white; }
     .btn-success:hover { background: #218838; }
     .badge-red { background: #f8d7da; color: #721c24; }
+    .badge-purple { background: #e8d5f5; color: #6f42c1; }
     .btn-sm { padding: 6px 12px; font-size: 12px; }
     .date-preset { background: #f0f0f0; color: #555; border: 1px solid #ddd; }
     .date-preset:hover { background: #e0e0e0; }
@@ -262,6 +263,22 @@
     .gen-detail-info .detail-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f5f5f5; }
     .gen-detail-info .detail-label { color: #888; }
     .gen-detail-info .detail-value { font-weight: 600; color: var(--midnight); }
+    /* Chat bubble styles */
+    .evt-chat-bubble { max-width: 80%; position: relative; border-radius: 16px; padding: 10px 14px; font-size: 14px; line-height: 1.45; }
+    .evt-chat-user { background: var(--party-coral); color: #fff; border-bottom-right-radius: 4px; }
+    .evt-chat-ai { background: #f0f0f0; color: var(--midnight); border-bottom-left-radius: 4px; }
+    #edChatBody { background: #fafafa; padding: 16px; border-radius: 8px; }
+    .evt-chat-content { white-space: pre-wrap; word-break: break-word; }
+    .evt-chat-time { font-size: 10px; opacity: 0.5; margin-top: 4px; }
+    .evt-chat-info-btn { position: absolute; top: 6px; right: 6px; width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.15); background: rgba(255,255,255,0.9); font-size: 10px; font-weight: 700; font-style: italic; font-family: Georgia, serif; color: #888; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; }
+    .evt-chat-bubble:hover .evt-chat-info-btn { opacity: 1; }
+    .evt-chat-user .evt-chat-info-btn { border-color: rgba(255,255,255,0.3); color: rgba(255,255,255,0.7); background: rgba(0,0,0,0.15); }
+    .evt-chat-meta { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.08); font-size: 11px; color: #888; }
+    .evt-chat-user .evt-chat-meta { color: rgba(255,255,255,0.7); border-top-color: rgba(255,255,255,0.2); }
+    .evt-chat-user .evt-chat-meta pre { background: rgba(0,0,0,0.15) !important; color: rgba(255,255,255,0.9); }
+    .ed-theme-snapshot { display: flex; align-items: center; gap: 12px; margin: 12px auto; padding: 10px 14px; background: #f0f4ff; border: 1px solid #d0d8f0; border-radius: 10px; cursor: pointer; max-width: 500px; transition: border-color 0.15s; }
+    .ed-theme-snapshot:hover { border-color: var(--party-coral); }
+    .ed-snapshot-thumb { flex-shrink: 0; width: 60px; height: 110px; border-radius: 8px; overflow: hidden; background: #fff; border: 1px solid #ddd; }
 
     /* Style Library */
     .style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
@@ -380,6 +397,16 @@
     .ud-nav-btn:hover:not(.active) { background: #f0f0f0; color: var(--midnight); }
     .ud-section { display: none; }
     .ud-section.active { display: block; }
+    .ed-section { display: none; }
+    .ed-section.active { display: block; }
+    .ed-info-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; border-bottom: 1px solid #f5f5f5; gap: 8px; }
+    .ed-info-label { color: #888; flex-shrink: 0; }
+    .ed-info-value { font-weight: 600; color: var(--midnight); text-align: right; word-break: break-word; min-width: 0; }
+    .ed-info-value code { font-size: 11px; word-break: break-all; }
+    @media (max-width: 500px) {
+      .ed-info-row { flex-direction: column; gap: 2px; }
+      .ed-info-value { text-align: left; }
+    }
 
     .ud-kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
     .ud-kpi { background: white; border-radius: 8px; padding: 16px; border: 1px solid #eee; }
@@ -495,6 +522,12 @@
       .gen-detail-header { padding: 12px 16px; }
       .gen-detail-header h2 { font-size: 16px; }
 
+      /* Event detail page — mobile */
+      #eventDetailView .phone-mockup { width: 240px; }
+      #eventDetailView .ud-two-col { grid-template-columns: 1fr !important; }
+      .evt-chat-bubble { max-width: 95%; }
+      #eventThemeVersions button { padding: 4px 8px !important; font-size: 11px !important; }
+
       /* Style detail overlay */
       .style-detail-header { padding: 12px 16px; }
       .style-detail-header h2 { font-size: 16px; }
@@ -544,6 +577,13 @@
 
       /* Ensure body and tab content don't overflow */
       .tab-content { max-width: 100vw; overflow-x: hidden; }
+    }
+
+    @media (max-width: 400px) {
+      #eventDetailView .phone-mockup { width: 200px; }
+      .gen-detail-body { padding: 12px; gap: 16px; }
+      .ed-info-row { font-size: 12px; }
+      .ud-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
     }
   </style>
 <script src="/js/ga.js"></script>
@@ -982,6 +1022,107 @@
         </div>
 
       </div>
+
+      <!-- Event Detail View (within Users tab) -->
+      <div id="eventDetailView" style="display:none;">
+        <div class="back-link" id="eventDetailBackLink" onclick="closeEventDetailView()">&#8592; Back to user</div>
+
+        <!-- Event Header -->
+        <div class="ud-header">
+          <div class="ud-avatar" id="edAvatar" style="background:var(--party-coral);">?</div>
+          <div class="ud-info">
+            <h2 id="edName">Loading...</h2>
+            <div class="ud-meta" id="edMeta"></div>
+          </div>
+          <div class="ud-actions" id="edActions"></div>
+        </div>
+
+        <!-- Sub-navigation -->
+        <div class="ud-nav">
+          <button class="ud-nav-btn active" data-edsection="details" onclick="switchEventSection('details')">Details</button>
+          <button class="ud-nav-btn" data-edsection="preview" onclick="switchEventSection('preview')">Preview</button>
+          <button class="ud-nav-btn" data-edsection="rsvps" onclick="switchEventSection('rsvps')">RSVPs</button>
+          <button class="ud-nav-btn" data-edsection="chat" onclick="switchEventSection('chat')">Chat</button>
+          <button class="ud-nav-btn" data-edsection="generations" onclick="switchEventSection('generations')">Generations</button>
+        </div>
+
+        <!-- Details Section -->
+        <div class="ed-section active" id="ed-details">
+          <div class="ud-kpi-grid" id="edKpiGrid"></div>
+          <div class="ud-two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Event Info</h4></div>
+              <div class="ud-card-body" id="edEventInfo"></div>
+            </div>
+            <div class="ud-card">
+              <div class="ud-card-header"><h4>Owner</h4></div>
+              <div class="ud-card-body" id="edOwnerInfo"></div>
+            </div>
+          </div>
+          <div class="ud-card" id="edCustomFieldsCard" style="display:none;margin-top:16px;">
+            <div class="ud-card-header"><h4>Custom RSVP Fields</h4></div>
+            <div class="ud-card-body" id="edCustomFields"></div>
+          </div>
+        </div>
+
+        <!-- Preview Section -->
+        <div class="ed-section" id="ed-preview">
+          <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;">
+            <div>
+              <div class="phone-mockup">
+                <div class="phone-frame">
+                  <div class="phone-notch"></div>
+                  <div class="phone-screen">
+                    <iframe id="eventDetailPreviewFrame" sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;"></iframe>
+                  </div>
+                  <div class="phone-home-bar"></div>
+                </div>
+              </div>
+              <div id="eventThemeVersions" style="margin-top:12px;text-align:center;"></div>
+            </div>
+            <div id="edThemeList" style="flex:1;min-width:280px;"></div>
+          </div>
+        </div>
+
+        <!-- RSVPs Section -->
+        <div class="ed-section" id="ed-rsvps">
+          <div class="ud-kpi-grid" id="edRsvpKpis"></div>
+          <div class="ud-card" style="margin-top:16px;">
+            <div class="ud-card-header"><h4>Guest List</h4><span class="count" id="edGuestCount"></span></div>
+            <div class="ud-card-body no-pad">
+              <div class="table-container">
+                <table style="font-size:13px;">
+                  <thead><tr><th>Name</th><th>Contact</th><th>Status</th><th>+Ones</th><th>Responded</th></tr></thead>
+                  <tbody id="edGuestsBody"><tr><td colspan="5" class="ud-empty">No guests</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Section -->
+        <div class="ed-section" id="ed-chat">
+          <div class="ud-card">
+            <div class="ud-card-header"><h4>Chat History</h4><span class="count" id="edChatCount"></span></div>
+            <div class="ud-card-body" id="edChatBody"></div>
+          </div>
+        </div>
+
+        <!-- Generations Section -->
+        <div class="ed-section" id="ed-generations">
+          <div class="ud-card">
+            <div class="ud-card-header"><h4>Generation Log</h4><span class="count" id="edGenCount"></span></div>
+            <div class="ud-card-body no-pad">
+              <div class="table-container">
+                <table style="font-size:13px;">
+                  <thead><tr><th>Type</th><th>Model</th><th>Tokens</th><th>Cost</th><th>Latency</th><th>Date</th></tr></thead>
+                  <tbody id="edGenBody"><tr><td colspan="6" class="ud-empty">No generations</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Coupons Tab -->
@@ -1154,7 +1295,7 @@
             <div id="pricingSummarySettings" style="padding:10px 14px;background:#f9f9f9;border-radius:6px;font-size:14px;color:var(--midnight);">
               Free tier + $4.99/event premium
             </div>
-            <div class="hint">Configure plan limits in the <a href="#subscriptions" onclick="switchTab('subscriptions');loadBillingTab();return false;" style="color:var(--coral);text-decoration:underline;">Billing</a> tab.</div>
+            <div class="hint">Configure plan limits in the <a href="#subscriptions" onclick="switchTab('subscriptions');loadBillingTab();return false;" style="color:var(--party-coral);text-decoration:underline;">Billing</a> tab.</div>
           </div>
         </div>
         <div class="config-row" style="margin-top:16px;">
@@ -3768,6 +3909,7 @@
       if (!u) return;
 
       document.getElementById('usersListView').style.display = 'none';
+      document.getElementById('eventDetailView').style.display = 'none';
       document.getElementById('userDetailView').style.display = 'block';
 
       // Update URL hash
@@ -3837,7 +3979,8 @@
         + kpiCard(fmtCost(f.totalPlatformCost), 'Platform Cost', '')
         + kpiCard(fmtCost(netMargin), 'Net Margin', netMargin >= 0 ? 'positive' : 'negative')
         + kpiCard(data.events.length, 'Events', '')
-        + kpiCard(f.generationCount, 'AI Generations', '')
+        + kpiCard(f.chatCount, 'Chat Generations', '')
+        + kpiCard(f.themeCount, 'Theme Generations', '')
         + kpiCard(f.smsSentCount, 'SMS Sent', '');
 
       // Recent events (top 5)
@@ -3848,7 +3991,7 @@
       } else {
         reBody.innerHTML = recentEvents.map(function(e) {
           var sc = e.status === 'published' ? 'badge-green' : e.status === 'draft' ? 'badge-yellow' : 'badge-gray';
-          return '<tr><td><strong>' + escapeHtml(e.title) + '</strong></td>'
+          return '<tr class="clickable" onclick="openEventDetailView(\'' + e.id + '\')" style="cursor:pointer;"><td><strong>' + escapeHtml(e.title) + '</strong></td>'
             + '<td><span class="badge ' + sc + '">' + escapeHtml(e.status) + '</span></td>'
             + '<td>' + e.rsvps.total + '</td></tr>';
         }).join('');
@@ -3940,18 +4083,18 @@
         evBody.innerHTML = data.events.map(function(e) {
           var sc = e.status === 'published' ? 'badge-green' : e.status === 'draft' ? 'badge-yellow' : 'badge-gray';
           var ec = e.costs.aiCost + e.costs.smsCost;
-          return '<tr>'
+          return '<tr class="clickable" onclick="openEventDetailView(\'' + e.id + '\')" style="cursor:pointer;">'
             + '<td><strong>' + escapeHtml(e.title) + '</strong>' + (e.hasTheme ? ' <span class="badge badge-blue" style="font-size:9px;">Themed</span>' : '') + '</td>'
             + '<td>' + escapeHtml(e.eventType || '—') + '</td>'
             + '<td>' + (e.eventDate ? formatDate(e.eventDate) : '—') + '</td>'
             + '<td><span class="badge ' + sc + '">' + escapeHtml(e.status) + '</span></td>'
             + '<td>' + (e.rsvps.total > 0
-              ? '<span class="clickable" onclick="viewRsvps(\'' + e.id + '\', \'' + escapeHtml(e.title).replace(/'/g, "\\'") + '\')">'
+              ? '<span class="clickable" onclick="event.stopPropagation(); viewRsvps(\'' + e.id + '\', \'' + escapeHtml(e.title).replace(/'/g, "\\'") + '\')">'
                 + e.rsvps.attending + ' yes, ' + e.rsvps.declined + ' no</span>'
               : '0') + '</td>'
             + '<td>' + fmtCost(ec) + '</td>'
             + '<td>' + (e.slug && e.status === 'published'
-              ? '<a href="/v2/event/' + e.slug + '" target="_blank" class="btn btn-secondary btn-sm">View</a>'
+              ? '<a href="/v2/event/' + e.slug + '" target="_blank" class="btn btn-secondary btn-sm" onclick="event.stopPropagation();">View</a>'
               : '') + '</td>'
             + '</tr>';
         }).join('');
@@ -4389,9 +4532,11 @@
 
     function backToUsers() {
       document.getElementById('userDetailView').style.display = 'none';
+      document.getElementById('eventDetailView').style.display = 'none';
       document.getElementById('usersListView').style.display = 'block';
       history.replaceState(null, '', '#users');
       currentUserDetail = null;
+      currentEventDetail = null;
     }
 
     // ---- RSVPs Modal ----
@@ -7923,6 +8068,406 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     function closeGenDetailView() {
       document.getElementById('genDetailOverlay').classList.remove('open');
     }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // EVENT DETAIL PAGE VIEW
+    // ═══════════════════════════════════════════════════════════════════
+
+    var currentEventDetail = null;
+    var _eventDetailReturnUserId = null;
+
+    function switchEventSection(section) {
+      document.querySelectorAll('.ed-section').forEach(function(s) { s.classList.toggle('active', s.id === 'ed-' + section); });
+      document.querySelectorAll('[data-edsection]').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-edsection') === section); });
+      // Scale iframe when switching to preview
+      if (section === 'preview') {
+        requestAnimationFrame(function() {
+          var iframe = document.getElementById('eventDetailPreviewFrame');
+          if (iframe) {
+            var screen = iframe.closest('.phone-screen');
+            if (screen) iframe.style.transform = 'scale(' + (screen.offsetWidth / 393) + ')';
+          }
+        });
+      }
+    }
+
+    async function openEventDetailView(eventId) {
+      // Hide user detail, show event detail
+      document.getElementById('userDetailView').style.display = 'none';
+      document.getElementById('eventDetailView').style.display = 'block';
+
+      // Remember which user to go back to
+      if (currentUserDetail) _eventDetailReturnUserId = currentUserDetail.user.id;
+
+      // Reset state
+      document.getElementById('edName').textContent = 'Loading...';
+      document.getElementById('edMeta').innerHTML = '';
+      document.getElementById('edKpiGrid').innerHTML = '';
+      document.getElementById('edEventInfo').innerHTML = '<p style="color:#888;">Loading...</p>';
+      document.getElementById('edOwnerInfo').innerHTML = '';
+      switchEventSection('details');
+
+      try {
+        var data = await adminFetch('adminEventDetail', { params: { eventId: eventId } });
+        currentEventDetail = data;
+        renderEventDetail(data);
+      } catch (err) {
+        document.getElementById('edEventInfo').innerHTML = '<p style="color:var(--party-coral);">Failed to load event: ' + escapeHtml(err.message || String(err)) + '</p>';
+      }
+    }
+
+    function closeEventDetailView() {
+      document.getElementById('eventDetailView').style.display = 'none';
+      document.getElementById('userDetailView').style.display = 'block';
+      currentEventDetail = null;
+      if (_eventDetailReturnUserId) {
+        // User detail is already rendered, just show it
+        _eventDetailReturnUserId = null;
+      }
+    }
+
+    function renderEventDetail(data) {
+      var ev = data.event;
+      var owner = data.owner;
+      var themes = data.themes || [];
+      var activeTheme = themes.find(function(t) { return t.isActive; });
+      var previewTheme = activeTheme || (themes.length > 0 ? themes[themes.length - 1] : null);
+      var rs = data.rsvpSummary;
+
+      // ---- Header ----
+      var typeInitial = (ev.eventType || '?').charAt(0).toUpperCase();
+      document.getElementById('edAvatar').textContent = typeInitial;
+      document.getElementById('edName').textContent = ev.title || 'Untitled Event';
+      var sc = ev.status === 'published' ? 'badge-green' : ev.status === 'draft' ? 'badge-yellow' : 'badge-gray';
+      var paySc = ev.paymentStatus === 'paid' ? 'badge-green' : ev.paymentStatus === 'free' ? 'badge-blue' : 'badge-yellow';
+      document.getElementById('edMeta').innerHTML =
+        '<span class="badge ' + sc + '">' + escapeHtml(ev.status) + '</span>'
+        + '<span class="sep">|</span>'
+        + '<span>' + escapeHtml(ev.eventType || '') + '</span>'
+        + (ev.eventDate ? '<span class="sep">|</span><span>' + formatDate(ev.eventDate) + '</span>' : '');
+
+      // Actions
+      var actHtml = '';
+      if (ev.slug && ev.status === 'published') {
+        actHtml += '<a href="/v2/event/' + escapeHtml(ev.slug) + '" target="_blank" class="btn btn-secondary btn-sm">View Live</a>';
+      }
+      document.getElementById('edActions').innerHTML = actHtml;
+
+      // Back link text
+      if (owner) {
+        document.getElementById('eventDetailBackLink').innerHTML = '&#8592; Back to ' + escapeHtml(owner.displayName || owner.email);
+      }
+
+      // ---- KPI Grid ----
+      document.getElementById('edKpiGrid').innerHTML =
+        kpiCard(themes.length, 'Versions', '')
+        + kpiCard(data.generations.length, 'Generations', '')
+        + kpiCard(fmtCost(data.totalAiCost), 'AI Cost', '')
+        + kpiCard(rs.total, 'RSVPs', '')
+        + kpiCard('<span class="badge ' + paySc + '">' + escapeHtml(ev.paymentStatus || 'unpaid') + '</span>', 'Payment', '');
+
+      // ---- Event Info Card ----
+      var eiHtml = '';
+      eiHtml += edRow('Title', escapeHtml(ev.title || ''));
+      eiHtml += edRow('Type', escapeHtml(ev.eventType || '—'));
+      eiHtml += edRow('Date', ev.eventDate ? formatDate(ev.eventDate) : '—');
+      if (ev.endDate) eiHtml += edRow('End Date', formatDate(ev.endDate));
+      eiHtml += edRow('Location', escapeHtml(ev.locationName || '—'));
+      if (ev.locationAddress) eiHtml += edRow('Address', escapeHtml(ev.locationAddress));
+      if (ev.dressCode) eiHtml += edRow('Dress Code', escapeHtml(ev.dressCode));
+      eiHtml += edRow('Status', '<span class="badge ' + sc + '">' + escapeHtml(ev.status) + '</span>');
+      eiHtml += edRow('Payment', '<span class="badge ' + paySc + '">' + escapeHtml(ev.paymentStatus || 'unpaid') + '</span>');
+      if (ev.slug) eiHtml += edRow('Slug', '<a href="/v2/event/' + escapeHtml(ev.slug) + '" target="_blank" style="color:var(--party-coral);">' + escapeHtml(ev.slug) + '</a>');
+      eiHtml += edRow('Event ID', '<code>' + escapeHtml(ev.id) + '</code>');
+      eiHtml += edRow('Created', formatDate(ev.createdAt));
+      document.getElementById('edEventInfo').innerHTML = eiHtml;
+
+      // ---- Owner Card ----
+      if (owner) {
+        var oHtml = '';
+        oHtml += edRow('Name', escapeHtml(owner.displayName || '—'));
+        oHtml += edRow('Email', '<span class="clickable" onclick="closeEventDetailView(); viewUser(\'' + owner.id + '\')">' + escapeHtml(owner.email) + '</span>');
+        oHtml += edRow('Phone', escapeHtml(owner.phone || '—'));
+        oHtml += edRow('User ID', '<code>' + escapeHtml(owner.id) + '</code>');
+        document.getElementById('edOwnerInfo').innerHTML = oHtml;
+      }
+
+      // ---- Custom Fields ----
+      if (data.customFields && data.customFields.length > 0) {
+        var cfHtml = '';
+        data.customFields.forEach(function(f) {
+          cfHtml += edRow(escapeHtml(f.label), escapeHtml(f.type) + (f.required ? ' <span class="badge badge-yellow" style="font-size:9px;">Required</span>' : ''));
+        });
+        document.getElementById('edCustomFields').innerHTML = cfHtml;
+        document.getElementById('edCustomFieldsCard').style.display = 'block';
+      } else {
+        document.getElementById('edCustomFieldsCard').style.display = 'none';
+      }
+
+      // ---- Preview Section ----
+      var iframe = document.getElementById('eventDetailPreviewFrame');
+      if (previewTheme && previewTheme.html) {
+        var fontsImport = (previewTheme.config && previewTheme.config.googleFontsImport) || '';
+        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+          + '<style>' + fontsImport + '</style>'
+          + '<style>' + (previewTheme.css || '') + '</style></head>'
+          + '<body>' + previewTheme.html + '</body></html>';
+      } else {
+        iframe.srcdoc = '<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#aaa;"><p>No theme generated</p></body></html>';
+      }
+
+      // Theme versions selector
+      var tvHtml = '';
+      if (themes.length > 0) {
+        tvHtml += '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">';
+        themes.forEach(function(t) {
+          var isAct = t.isActive;
+          var cls = isAct ? 'background:var(--party-coral);color:#fff;border-color:var(--party-coral);' : 'background:#fff;color:var(--midnight);border-color:#ddd;';
+          tvHtml += '<button style="padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid;' + cls + '" onclick="previewEventThemeVersion(\'' + t.id + '\')">';
+          tvHtml += 'v' + t.version + (isAct ? ' (Active)' : '');
+          tvHtml += '</button>';
+        });
+        tvHtml += '</div>';
+      }
+      document.getElementById('eventThemeVersions').innerHTML = tvHtml;
+
+      // Theme list (beside preview on desktop)
+      var tlHtml = '';
+      if (themes.length > 0) {
+        tlHtml += '<div class="ud-card"><div class="ud-card-header"><h4>Theme Versions</h4><span class="count">' + themes.length + '</span></div>';
+        tlHtml += '<div class="ud-card-body no-pad"><table style="font-size:13px;"><thead><tr><th>Version</th><th>Model</th><th>Rating</th><th>Date</th></tr></thead><tbody>';
+        themes.forEach(function(t) {
+          var activeBadge = t.isActive ? ' <span class="badge badge-green" style="font-size:9px;">Active</span>' : '';
+          var ratingStr = t.adminRating ? (t.adminRating + '/5') : '—';
+          tlHtml += '<tr class="clickable" onclick="previewEventThemeVersion(\'' + t.id + '\')">';
+          tlHtml += '<td><strong>v' + t.version + '</strong>' + activeBadge + '</td>';
+          tlHtml += '<td>' + shortModel(t.model) + '</td>';
+          tlHtml += '<td>' + ratingStr + '</td>';
+          tlHtml += '<td>' + formatDate(t.createdAt) + '</td>';
+          tlHtml += '</tr>';
+        });
+        tlHtml += '</tbody></table></div></div>';
+      }
+      document.getElementById('edThemeList').innerHTML = tlHtml;
+
+      // ---- RSVP Section ----
+      document.getElementById('edRsvpKpis').innerHTML =
+        kpiCard(rs.attending, 'Attending', 'positive')
+        + kpiCard(rs.declined, 'Declined', 'negative')
+        + kpiCard(rs.maybe, 'Maybe', '')
+        + kpiCard(rs.noResponse, 'No Response', '');
+      document.getElementById('edGuestCount').textContent = rs.total + ' guests';
+
+      var guests = data.guests || [];
+      if (guests.length > 0) {
+        document.getElementById('edGuestsBody').innerHTML = guests.map(function(g) {
+          var gsc = g.status === 'attending' ? 'badge-green' : g.status === 'declined' ? 'badge-red' : g.status === 'maybe' ? 'badge-yellow' : 'badge-gray';
+          return '<tr>'
+            + '<td>' + escapeHtml(g.name || '—') + '</td>'
+            + '<td>' + escapeHtml(g.email || g.phone || '—') + '</td>'
+            + '<td><span class="badge ' + gsc + '">' + escapeHtml(g.status || 'none') + '</span></td>'
+            + '<td>' + (g.plusOnes || 0) + '</td>'
+            + '<td>' + (g.respondedAt ? formatDate(g.respondedAt) : '—') + '</td>'
+            + '</tr>';
+        }).join('');
+      } else {
+        document.getElementById('edGuestsBody').innerHTML = '<tr><td colspan="5" class="ud-empty">No guests yet</td></tr>';
+      }
+
+      // ---- Chat Section (with interleaved theme snapshots) ----
+      var chatHistory = data.chatHistory || [];
+      document.getElementById('edChatCount').textContent = chatHistory.length + ' messages';
+      if (chatHistory.length > 0 || themes.length > 0) {
+        // Build unified timeline: chat messages + theme generation events
+        var timeline = [];
+        chatHistory.forEach(function(msg) {
+          timeline.push({ type: 'chat', data: msg, time: new Date(msg.createdAt).getTime() });
+        });
+        themes.forEach(function(t) {
+          timeline.push({ type: 'theme', data: t, time: new Date(t.createdAt).getTime() });
+        });
+        timeline.sort(function(a, b) { return a.time - b.time; });
+
+        var chatHtml = '';
+        var chatIdx = 0;
+        timeline.forEach(function(item) {
+          if (item.type === 'chat') {
+            var msg = item.data;
+            var isUser = msg.role === 'user';
+            var rawContent = msg.content || '';
+
+            // Extract human-readable message from AI responses
+            var displayContent = rawContent;
+            var metaJson = null;
+            if (!isUser) {
+              // Try to parse JSON from assistant responses to get just the message
+              var parsed = extractChatMessage(rawContent);
+              displayContent = parsed.message;
+              metaJson = parsed.meta;
+            }
+
+            var align = isUser ? 'flex-end' : 'flex-start';
+            var bubbleId = 'chat-bubble-' + chatIdx;
+            chatIdx++;
+
+            chatHtml += '<div style="display:flex;justify-content:' + align + ';margin-bottom:10px;">';
+            chatHtml += '<div class="evt-chat-bubble ' + (isUser ? 'evt-chat-user' : 'evt-chat-ai') + '" id="' + bubbleId + '">';
+
+            // Info icon (top right) — only if there's metadata
+            if (metaJson || msg.model || msg.phase) {
+              chatHtml += '<button class="evt-chat-info-btn" onclick="event.stopPropagation(); toggleChatMeta(\'' + bubbleId + '\')" title="View metadata">i</button>';
+            }
+
+            // Message content
+            chatHtml += '<div class="evt-chat-content">' + escapeHtml(displayContent) + '</div>';
+
+            // Timestamp
+            chatHtml += '<div class="evt-chat-time">' + formatChatTime(msg.createdAt) + '</div>';
+
+            // Hidden metadata panel
+            if (metaJson || msg.model || msg.phase) {
+              chatHtml += '<div class="evt-chat-meta" style="display:none;">';
+              if (msg.phase) chatHtml += '<div><strong>Phase:</strong> ' + escapeHtml(msg.phase) + '</div>';
+              if (msg.model) chatHtml += '<div><strong>Model:</strong> ' + escapeHtml(msg.model) + '</div>';
+              if (msg.inputTokens) chatHtml += '<div><strong>Tokens:</strong> ' + msg.inputTokens + ' in / ' + (msg.outputTokens || 0) + ' out</div>';
+              if (metaJson) chatHtml += '<div style="margin-top:4px;"><strong>Raw response:</strong><pre style="margin-top:4px;font-size:10px;max-height:200px;overflow:auto;background:#f5f5f5;padding:6px;border-radius:4px;white-space:pre-wrap;word-break:break-all;">' + escapeHtml(typeof metaJson === 'string' ? metaJson : JSON.stringify(metaJson, null, 2)) + '</pre></div>';
+              chatHtml += '</div>';
+            }
+
+            chatHtml += '</div></div>';
+          } else {
+            // Theme generation snapshot
+            var t = item.data;
+            var activeBadge = t.isActive ? '<span class="badge badge-green" style="font-size:9px;">Active</span> ' : '';
+            chatHtml += '<div class="ed-theme-snapshot" onclick="previewEventThemeVersion(\'' + t.id + '\')">';
+            chatHtml += '<div class="ed-snapshot-thumb">';
+            chatHtml += '<iframe class="ed-snapshot-frame" data-theme-id="' + t.id + '" sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;transform-origin:top left;transform:scale(0.153);pointer-events:none;"></iframe>';
+            chatHtml += '</div>';
+            chatHtml += '<div style="min-width:0;flex:1;">';
+            chatHtml += '<div style="font-size:12px;font-weight:700;color:var(--midnight);">Theme v' + t.version + ' generated ' + activeBadge + '</div>';
+            chatHtml += '<div style="font-size:11px;color:#888;margin-top:2px;">' + shortModel(t.model) + ' &middot; ' + (t.latencyMs ? (t.latencyMs / 1000).toFixed(1) + 's' : '') + ' &middot; ' + formatChatTime(t.createdAt) + '</div>';
+            if (t.adminRating) chatHtml += '<div style="font-size:11px;color:#f59e0b;margin-top:2px;">' + '\u2605'.repeat(t.adminRating) + '\u2606'.repeat(5 - t.adminRating) + '</div>';
+            chatHtml += '</div>';
+            chatHtml += '<div style="font-size:18px;color:#888;">\u203A</div>';
+            chatHtml += '</div>';
+          }
+        });
+        document.getElementById('edChatBody').innerHTML = chatHtml;
+
+        // Render mini theme previews in snapshot iframes
+        requestAnimationFrame(function() {
+          themes.forEach(function(t) {
+            var frame = document.querySelector('.ed-snapshot-frame[data-theme-id="' + t.id + '"]');
+            if (frame && t.html) {
+              var fontsImport = (t.config && t.config.googleFontsImport) || '';
+              frame.srcdoc = '<!DOCTYPE html><html><head><meta name="viewport" content="width=393"><style>' + fontsImport + '</style><style>' + (t.css || '') + '</style></head><body>' + t.html + '</body></html>';
+            }
+          });
+        });
+      } else {
+        document.getElementById('edChatBody').innerHTML = '<p class="ud-empty">No chat history</p>';
+      }
+
+      // ---- Generations Section ----
+      var gens = data.generations || [];
+      document.getElementById('edGenCount').textContent = gens.length + ' calls';
+      if (gens.length > 0) {
+        document.getElementById('edGenBody').innerHTML = gens.map(function(g) {
+          var typeCls = g.promptType === 'theme' ? 'badge-blue' : g.promptType === 'chat' ? 'badge-purple' : 'badge-gray';
+          return '<tr>'
+            + '<td><span class="badge ' + typeCls + '">' + escapeHtml(g.promptType) + '</span></td>'
+            + '<td>' + shortModel(g.model) + '</td>'
+            + '<td>' + ((g.inputTokens || 0) + (g.outputTokens || 0)).toLocaleString() + '</td>'
+            + '<td style="color:var(--mint-fizz);">' + fmtCost(g.cost) + '</td>'
+            + '<td>' + (g.latencyMs ? (g.latencyMs / 1000).toFixed(1) + 's' : '—') + '</td>'
+            + '<td>' + formatDate(g.createdAt) + '</td>'
+            + '</tr>';
+        }).join('');
+      } else {
+        document.getElementById('edGenBody').innerHTML = '<tr><td colspan="6" class="ud-empty">No generations</td></tr>';
+      }
+    }
+
+    function edRow(label, value) {
+      return '<div class="ed-info-row"><span class="ed-info-label">' + label + '</span><span class="ed-info-value">' + value + '</span></div>';
+    }
+
+    // Extract human-readable message from AI chat responses
+    // AI returns JSON like {"message": "...", "extracted": {...}, "ready": false, ...}
+    // or sometimes raw JSON strings, or markdown-fenced JSON
+    function extractChatMessage(raw) {
+      if (!raw) return { message: '', meta: null };
+      var text = raw.trim();
+
+      // Strip markdown code fences if present
+      text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+
+      // Collect all "message" values from any JSON objects in the text
+      var messages = [];
+      var meta = null;
+
+      // Strategy: find all top-level JSON objects by matching balanced braces
+      var allJsonObjects = [];
+      var depth = 0, start = -1;
+      for (var i = 0; i < text.length; i++) {
+        if (text[i] === '{') { if (depth === 0) start = i; depth++; }
+        else if (text[i] === '}') { depth--; if (depth === 0 && start >= 0) { allJsonObjects.push(text.substring(start, i + 1)); start = -1; } }
+      }
+
+      if (allJsonObjects.length > 0) {
+        allJsonObjects.forEach(function(jsonStr) {
+          try {
+            var obj = JSON.parse(jsonStr);
+            if (obj && typeof obj.message === 'string' && obj.message.length > 0) {
+              messages.push(obj.message);
+              if (!meta) meta = obj; // Keep first object as meta
+            }
+          } catch (e) { /* skip unparseable */ }
+        });
+      }
+
+      if (messages.length > 0) {
+        return { message: messages.join('\n\n'), meta: meta };
+      }
+
+      // No JSON found or no message field — return raw text
+      return { message: text, meta: null };
+    }
+
+    function toggleChatMeta(bubbleId) {
+      var bubble = document.getElementById(bubbleId);
+      if (!bubble) return;
+      var meta = bubble.querySelector('.evt-chat-meta');
+      if (!meta) return;
+      meta.style.display = meta.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function formatChatTime(iso) {
+      if (!iso) return '';
+      var d = new Date(iso);
+      var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var h = d.getHours();
+      var ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      var min = d.getMinutes().toString().padStart(2, '0');
+      return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear() + ' ' + h + ':' + min + ' ' + ampm;
+    }
+
+    function previewEventThemeVersion(themeId) {
+      if (!currentEventDetail) return;
+      var theme = currentEventDetail.themes.find(function(t) { return t.id === themeId; });
+      if (!theme || !theme.html) return;
+      // Switch to preview tab if not already there
+      switchEventSection('preview');
+      var iframe = document.getElementById('eventDetailPreviewFrame');
+      var fontsImport = (theme.config && theme.config.googleFontsImport) || '';
+      iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        + '<style>' + fontsImport + '</style>'
+        + '<style>' + (theme.css || '') + '</style></head>'
+        + '<body>' + theme.html + '</body></html>';
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
 
     function toggleExcludeFromGallery(id, source, exclude) {
       adminFetch('toggleExcludeFromGallery', { method: 'POST', body: { id: id, source: source, exclude: exclude } })
