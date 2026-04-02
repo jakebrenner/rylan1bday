@@ -11,7 +11,7 @@ When answering questions or making changes, always reference the specific event 
 | Platform | ID | Implementation | Scope |
 |----------|----|---------------|-------|
 | Google Analytics 4 | `G-PXHNPDR9E6` | `js/ga.js` → `window.RyviteGA` | All 28 pages, 14 conversion events |
-| Meta Pixel (Client) | `1854308178620853` | `js/meta-pixel.js` → `window.RyvitePixel` | 26 pages, 8 events |
+| Meta Pixel (Client) | `1854308178620853` | `js/meta-pixel.js` → `window.RyvitePixel` | 27 pages, 9 events |
 | Meta CAPI (Server) | `1854308178620853` | `api/v2/lib/meta-capi.js` → `sendCapiEvent()` | 3 API endpoints, 4 events |
 
 ---
@@ -82,7 +82,7 @@ All 28 user-facing pages:
 
 ### Pages with Meta Pixel (`<script src="/js/meta-pixel.js"></script>`)
 
-All pages listed above except `lp/index.html` and `v2/photos/index.html` (26 of 28 pages).
+All pages listed above except `v2/photos/index.html` (27 of 28 pages).
 
 ---
 
@@ -151,6 +151,14 @@ Events that fire on both client (pixel) and server (CAPI) use a shared `eventId`
 | GA4 | `handleSignup()` success | `{method: 'email'}` |
 | Meta Pixel | `handleSignup()` success | `{content_name: 'Ryvite Account', status: true}` + userData `{em, ph, fn, ln}` |
 | Meta CAPI | `api/v2/auth.js` action=`signup` | `{content_name: 'Ryvite Account', status: 'true'}` + `{email, phone, name}` |
+| **Dedup:** | Yes — `metaEventId` generated server-side, returned in response |
+
+**Landing Page Signup — `lp/index.html`**
+
+| Platform | Trigger | Parameters |
+|----------|---------|------------|
+| Meta Pixel | Signup success (email submitted) | `{content_name: 'Landing Page Chat', status: true}` + userData `{em}` |
+| Meta CAPI | `api/v2/auth.js` action=`signup` | `{content_name: 'Ryvite Account', status: 'true'}` + `{email}` |
 | **Dedup:** | Yes — `metaEventId` generated server-side, returned in response |
 
 **Guest Onboarding Signup — `v2/create/index.html`**
@@ -229,14 +237,16 @@ Events that fire on both client (pixel) and server (CAPI) use a shared `eventId`
 | Meta CAPI | `api/v2/billing.js` Stripe webhook `charge.succeeded` | `{content_name, content_category: 'event_payment', value: amount/100}` |
 | **Dedup:** | Yes — `metaEventId` pre-generated client-side, sent in request body |
 
-#### `event_published` (GA4 only)
+#### `event_published` (GA4) / `EventPublished` (Meta Custom)
 
 **File:** `v2/create/index.html` — fires on BOTH publish paths
 
-| Path | Trigger | Parameters |
-|------|---------|------------|
-| Paid | After `purchase` event fires | `{event_id, event_title, publish_type: 'paid'}` |
-| Free | Inside `publishAndSend()` after reminders scheduled | `{event_id, event_title, publish_type: 'free', send_sms, send_email}` |
+| Platform | Path | Trigger | Parameters |
+|----------|------|---------|------------|
+| GA4 | Paid | After `purchase` event fires | `{event_id, event_title, publish_type: 'paid'}` |
+| GA4 | Free | Inside `publishAndSend()` after reminders scheduled | `{event_id, event_title, publish_type: 'free', send_sms, send_email}` |
+| Meta Pixel | Both | Same triggers as GA4 (custom event via `trackCustom`) | `{content_name, content_category, content_ids}` |
+| Meta CAPI | None | — | — |
 
 ---
 
@@ -318,8 +328,8 @@ Events that fire on both client (pixel) and server (CAPI) use a shared `eventId`
 | Theme generated | `theme_generated` | `ThemeGenerated` (custom) | — | — |
 | Rate theme | `theme_rated` | — | — | — |
 | Initiate checkout | `begin_checkout` | `InitiateCheckout` | — | — |
-| Purchase / publish (paid) | `purchase` + `event_published` | `Purchase` | `Purchase` | Yes |
-| Publish (free) | `event_published` | — | — | — |
+| Purchase / publish (paid) | `purchase` + `event_published` | `Purchase` + `EventPublished` (custom) | `Purchase` | Yes (Purchase only) |
+| Publish (free) | `event_published` | `EventPublished` (custom) | — | — |
 | View invite page | `view_invite` | `ViewContent` | — | — |
 | Submit RSVP | `rsvp_submitted` | `Schedule` + `Lead` | `Schedule` | Yes |
 | Add to calendar | `calendar_add` | — | — | — |
