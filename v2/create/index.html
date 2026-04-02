@@ -3170,6 +3170,7 @@
           // Read full response as text (avoids ReadableStream which Safari kills on mobile)
           var genStartTime = Date.now();
           var fullText = await res2.text();
+          var elapsed = Math.round((Date.now() - genStartTime) / 1000);
 
           // Parse SSE events from the full text
           var genResult = null;
