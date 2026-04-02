@@ -261,7 +261,21 @@
     .gen-detail-info .detail-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f5f5f5; }
     .gen-detail-info .detail-label { color: #888; }
     .gen-detail-info .detail-value { font-weight: 600; color: var(--midnight); }
-    .evt-chat-bubble { max-width: 80%; }
+    /* Chat bubble styles */
+    .evt-chat-bubble { max-width: 80%; position: relative; border-radius: 16px; padding: 10px 14px; font-size: 14px; line-height: 1.45; }
+    .evt-chat-user { background: var(--coral); color: #fff; border-bottom-right-radius: 4px; }
+    .evt-chat-ai { background: #fff; color: var(--midnight); border: 1px solid #eee; border-bottom-left-radius: 4px; }
+    .evt-chat-content { white-space: pre-wrap; word-break: break-word; }
+    .evt-chat-time { font-size: 10px; opacity: 0.5; margin-top: 4px; }
+    .evt-chat-info-btn { position: absolute; top: 6px; right: 6px; width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.15); background: rgba(255,255,255,0.9); font-size: 10px; font-weight: 700; font-style: italic; font-family: Georgia, serif; color: #888; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; }
+    .evt-chat-bubble:hover .evt-chat-info-btn { opacity: 1; }
+    .evt-chat-user .evt-chat-info-btn { border-color: rgba(255,255,255,0.3); color: rgba(255,255,255,0.7); background: rgba(0,0,0,0.15); }
+    .evt-chat-meta { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.08); font-size: 11px; color: #888; }
+    .evt-chat-user .evt-chat-meta { color: rgba(255,255,255,0.7); border-top-color: rgba(255,255,255,0.2); }
+    .evt-chat-user .evt-chat-meta pre { background: rgba(0,0,0,0.15) !important; color: rgba(255,255,255,0.9); }
+    .ed-theme-snapshot { display: flex; align-items: center; gap: 12px; margin: 12px auto; padding: 10px 14px; background: #f0f4ff; border: 1px solid #d0d8f0; border-radius: 10px; cursor: pointer; max-width: 500px; transition: border-color 0.15s; }
+    .ed-theme-snapshot:hover { border-color: var(--coral); }
+    .ed-snapshot-thumb { flex-shrink: 0; width: 60px; height: 110px; border-radius: 8px; overflow: hidden; background: #fff; border: 1px solid #ddd; }
 
     /* Style Library */
     .style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
@@ -8244,37 +8258,63 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         timeline.sort(function(a, b) { return a.time - b.time; });
 
         var chatHtml = '';
+        var chatIdx = 0;
         timeline.forEach(function(item) {
           if (item.type === 'chat') {
             var msg = item.data;
             var isUser = msg.role === 'user';
+            var rawContent = msg.content || '';
+
+            // Extract human-readable message from AI responses
+            var displayContent = rawContent;
+            var metaJson = null;
+            if (!isUser) {
+              // Try to parse JSON from assistant responses to get just the message
+              var parsed = extractChatMessage(rawContent);
+              displayContent = parsed.message;
+              metaJson = parsed.meta;
+            }
+
             var align = isUser ? 'flex-end' : 'flex-start';
-            var bg = isUser ? 'var(--coral)' : '#fff';
-            var color = isUser ? '#fff' : 'var(--midnight)';
-            var border = isUser ? 'none' : '1px solid #eee';
-            var label = isUser ? 'User' : (msg.role === 'assistant' ? 'AI' : msg.role);
-            var phaseTag = msg.phase ? ' <span style="font-size:9px;opacity:0.7;">(' + escapeHtml(msg.phase) + ')</span>' : '';
-            chatHtml += '<div style="display:flex;justify-content:' + align + ';margin-bottom:8px;">';
-            chatHtml += '<div class="evt-chat-bubble" style="background:' + bg + ';color:' + color + ';border:' + border + ';border-radius:12px;padding:8px 12px;font-size:13px;">';
-            chatHtml += '<div style="font-size:10px;font-weight:600;margin-bottom:4px;">' + label + phaseTag + '</div>';
-            var content = msg.content || '';
-            if (content.length > 800) content = content.substring(0, 800) + '...';
-            chatHtml += '<div style="white-space:pre-wrap;word-break:break-word;">' + escapeHtml(content) + '</div>';
-            chatHtml += '<div style="font-size:9px;opacity:0.5;margin-top:4px;">' + formatDate(msg.createdAt) + '</div>';
+            var bubbleId = 'chat-bubble-' + chatIdx;
+            chatIdx++;
+
+            chatHtml += '<div style="display:flex;justify-content:' + align + ';margin-bottom:10px;">';
+            chatHtml += '<div class="evt-chat-bubble ' + (isUser ? 'evt-chat-user' : 'evt-chat-ai') + '" id="' + bubbleId + '">';
+
+            // Info icon (top right) — only if there's metadata
+            if (metaJson || msg.model || msg.phase) {
+              chatHtml += '<button class="evt-chat-info-btn" onclick="event.stopPropagation(); toggleChatMeta(\'' + bubbleId + '\')" title="View metadata">i</button>';
+            }
+
+            // Message content
+            chatHtml += '<div class="evt-chat-content">' + escapeHtml(displayContent) + '</div>';
+
+            // Timestamp
+            chatHtml += '<div class="evt-chat-time">' + formatChatTime(msg.createdAt) + '</div>';
+
+            // Hidden metadata panel
+            if (metaJson || msg.model || msg.phase) {
+              chatHtml += '<div class="evt-chat-meta" style="display:none;">';
+              if (msg.phase) chatHtml += '<div><strong>Phase:</strong> ' + escapeHtml(msg.phase) + '</div>';
+              if (msg.model) chatHtml += '<div><strong>Model:</strong> ' + escapeHtml(msg.model) + '</div>';
+              if (msg.inputTokens) chatHtml += '<div><strong>Tokens:</strong> ' + msg.inputTokens + ' in / ' + (msg.outputTokens || 0) + ' out</div>';
+              if (metaJson) chatHtml += '<div style="margin-top:4px;"><strong>Raw response:</strong><pre style="margin-top:4px;font-size:10px;max-height:200px;overflow:auto;background:#f5f5f5;padding:6px;border-radius:4px;white-space:pre-wrap;word-break:break-all;">' + escapeHtml(typeof metaJson === 'string' ? metaJson : JSON.stringify(metaJson, null, 2)) + '</pre></div>';
+              chatHtml += '</div>';
+            }
+
             chatHtml += '</div></div>';
           } else {
             // Theme generation snapshot
             var t = item.data;
             var activeBadge = t.isActive ? '<span class="badge badge-green" style="font-size:9px;">Active</span> ' : '';
-            chatHtml += '<div class="ed-theme-snapshot" style="display:flex;align-items:center;gap:12px;margin:12px 0;padding:10px 14px;background:#f0f4ff;border:1px solid #d0d8f0;border-radius:10px;cursor:pointer;" onclick="previewEventThemeVersion(\'' + t.id + '\')">';
-            // Mini preview thumbnail
-            chatHtml += '<div style="flex-shrink:0;width:60px;height:110px;border-radius:8px;overflow:hidden;background:#fff;border:1px solid #ddd;position:relative;">';
+            chatHtml += '<div class="ed-theme-snapshot" onclick="previewEventThemeVersion(\'' + t.id + '\')">';
+            chatHtml += '<div class="ed-snapshot-thumb">';
             chatHtml += '<iframe class="ed-snapshot-frame" data-theme-id="' + t.id + '" sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;transform-origin:top left;transform:scale(0.153);pointer-events:none;"></iframe>';
             chatHtml += '</div>';
-            // Info
             chatHtml += '<div style="min-width:0;flex:1;">';
             chatHtml += '<div style="font-size:12px;font-weight:700;color:var(--midnight);">Theme v' + t.version + ' generated ' + activeBadge + '</div>';
-            chatHtml += '<div style="font-size:11px;color:#888;margin-top:2px;">' + shortModel(t.model) + ' &middot; ' + (t.latencyMs ? (t.latencyMs / 1000).toFixed(1) + 's' : '') + ' &middot; ' + formatDate(t.createdAt) + '</div>';
+            chatHtml += '<div style="font-size:11px;color:#888;margin-top:2px;">' + shortModel(t.model) + ' &middot; ' + (t.latencyMs ? (t.latencyMs / 1000).toFixed(1) + 's' : '') + ' &middot; ' + formatChatTime(t.createdAt) + '</div>';
             if (t.adminRating) chatHtml += '<div style="font-size:11px;color:#f59e0b;margin-top:2px;">' + '\u2605'.repeat(t.adminRating) + '\u2606'.repeat(5 - t.adminRating) + '</div>';
             chatHtml += '</div>';
             chatHtml += '<div style="font-size:18px;color:#888;">\u203A</div>';
@@ -8319,6 +8359,64 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     function edRow(label, value) {
       return '<div class="ed-info-row"><span class="ed-info-label">' + label + '</span><span class="ed-info-value">' + value + '</span></div>';
+    }
+
+    // Extract human-readable message from AI chat responses
+    // AI returns JSON like {"message": "...", "extracted": {...}, "ready": false, ...}
+    // or sometimes raw JSON strings, or markdown-fenced JSON
+    function extractChatMessage(raw) {
+      if (!raw) return { message: '', meta: null };
+      var text = raw.trim();
+
+      // Strip markdown code fences if present
+      if (text.indexOf('```') === 0) {
+        text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+      }
+
+      // Try to parse as JSON
+      try {
+        var obj = JSON.parse(text);
+        if (obj && typeof obj.message === 'string') {
+          return { message: obj.message, meta: obj };
+        }
+        // If it's JSON but no message field, show a summary
+        if (obj && typeof obj === 'object') {
+          return { message: JSON.stringify(obj).substring(0, 200) + '...', meta: obj };
+        }
+      } catch (e) {
+        // Not pure JSON — try to find JSON embedded in text
+        var jsonMatch = text.match(/\{[\s\S]*"message"\s*:\s*"[\s\S]*?\}(?:\s*```)?$/);
+        if (jsonMatch) {
+          try {
+            var embedded = JSON.parse(jsonMatch[0].replace(/```$/, ''));
+            if (embedded && typeof embedded.message === 'string') {
+              return { message: embedded.message, meta: embedded };
+            }
+          } catch (e2) { /* fall through */ }
+        }
+      }
+
+      // Plain text — no JSON wrapper
+      return { message: text, meta: null };
+    }
+
+    function toggleChatMeta(bubbleId) {
+      var bubble = document.getElementById(bubbleId);
+      if (!bubble) return;
+      var meta = bubble.querySelector('.evt-chat-meta');
+      if (!meta) return;
+      meta.style.display = meta.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function formatChatTime(iso) {
+      if (!iso) return '';
+      var d = new Date(iso);
+      var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var h = d.getHours();
+      var ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      var min = d.getMinutes().toString().padStart(2, '0');
+      return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear() + ' ' + h + ':' + min + ' ' + ampm;
     }
 
     function previewEventThemeVersion(themeId) {
