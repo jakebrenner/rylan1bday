@@ -561,13 +561,14 @@ export default async function handler(req, res) {
       const eventId = req.query.eventId;
       if (!eventId) return res.status(400).json({ error: 'eventId required' });
 
-      const [eventRes, themesRes, guestsRes, customFieldsRes, generationsRes, chatRes] = await Promise.all([
+      const [eventRes, themesRes, guestsRes, customFieldsRes, generationsRes, chatRes, ratingSummaryRes] = await Promise.all([
         supabaseAdmin.from('events').select('*').eq('id', eventId).single(),
         supabaseAdmin.from('event_themes').select('id, event_id, version, is_active, html, css, config, model, input_tokens, output_tokens, latency_ms, admin_rating, admin_notes, rated_by, rated_at, prompt_version_id, created_at').eq('event_id', eventId).order('version', { ascending: true }),
         supabaseAdmin.from('guests').select('*').eq('event_id', eventId).order('created_at', { ascending: false }),
         supabaseAdmin.from('event_custom_fields').select('*').eq('event_id', eventId).order('sort_order', { ascending: true }),
         supabaseAdmin.from('generation_log').select('id, event_id, model, input_tokens, output_tokens, prompt, status, latency_ms, created_at').eq('event_id', eventId).eq('status', 'success').order('created_at', { ascending: false }),
-        supabaseAdmin.from('chat_messages').select('id, session_id, role, content, phase, model, input_tokens, output_tokens, created_at').eq('event_id', eventId).order('created_at', { ascending: true })
+        supabaseAdmin.from('chat_messages').select('id, session_id, role, content, phase, model, input_tokens, output_tokens, created_at').eq('event_id', eventId).order('created_at', { ascending: true }),
+        supabaseAdmin.from('theme_rating_summary').select('event_theme_id, total_ratings, avg_rating').eq('event_id', eventId)
       ]);
 
       const event = eventRes.data;
@@ -686,7 +687,9 @@ export default async function handler(req, res) {
           displayName: ownerProfile.display_name,
           phone: ownerProfile.phone
         } : null,
-        themes: (themesRes.data || []).map(t => ({
+        themes: (themesRes.data || []).map(t => {
+          const rs = (ratingSummaryRes.data || []).find(r => r.event_theme_id === t.id);
+          return {
           id: t.id,
           version: t.version,
           isActive: t.is_active,
@@ -702,8 +705,10 @@ export default async function handler(req, res) {
           ratedBy: t.rated_by,
           ratedAt: t.rated_at,
           promptVersionId: t.prompt_version_id,
-          createdAt: t.created_at
-        })),
+          createdAt: t.created_at,
+          userAvgRating: rs ? parseFloat(rs.avg_rating) : null,
+          userTotalRatings: rs ? rs.total_ratings : 0
+        }; }),
         customFields: (customFieldsRes.data || []).map(f => ({
           id: f.id,
           key: f.field_key,

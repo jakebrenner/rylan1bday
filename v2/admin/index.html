@@ -8242,10 +8242,10 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var tlHtml = '';
       if (themes.length > 0) {
         tlHtml += '<div class="ud-card"><div class="ud-card-header"><h4>Theme Versions</h4><span class="count">' + themes.length + '</span></div>';
-        tlHtml += '<div class="ud-card-body no-pad"><table style="font-size:13px;"><thead><tr><th>Version</th><th>Model</th><th>Rating</th><th>Date</th></tr></thead><tbody>';
+        tlHtml += '<div class="ud-card-body no-pad"><table style="font-size:13px;"><thead><tr><th>Version</th><th>Model</th><th>Review</th><th>Date</th></tr></thead><tbody>';
         themes.forEach(function(t) {
           var activeBadge = t.isActive ? ' <span class="badge badge-green" style="font-size:9px;">Active</span>' : '';
-          var ratingStr = t.adminRating ? (t.adminRating + '/5') : '—';
+          var ratingStr = t.userTotalRatings > 0 ? (t.userAvgRating.toFixed(1) + '/5') : '—';
           tlHtml += '<tr class="clickable" onclick="previewEventThemeVersion(\'' + t.id + '\')">';
           tlHtml += '<td><strong>v' + t.version + '</strong>' + activeBadge + '</td>';
           tlHtml += '<td>' + shortModel(t.model) + '</td>';

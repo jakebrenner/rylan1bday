@@ -1155,6 +1155,7 @@
           themeVersions = cachedThemes;
           activeVersionIndex = cachedThemes.findIndex(function(t) { return t.isActive; });
           if (activeVersionIndex < 0) activeVersionIndex = cachedThemes.length - 1;
+          restoreHostRatings();
           // Hide resume loader
           document.getElementById('resumeLoader').style.display = 'none';
           var rls = document.getElementById('resumeShowLoader'); if (rls) rls.remove();
@@ -1211,6 +1212,7 @@
                 renderPreview(themeVersions[activeVersionIndex]);
                 renderVersionGallery();
                 sessionStorage.setItem('ryvite_theme_' + ev.id, JSON.stringify(themeVersions));
+                restoreHostRatings();
               }
               // Only restore chat from background fetch if user hasn't already interacted
               // (sessionStorage chat was already loaded via goToStep(2) → initDesignChatIfNeeded at line 1014)
@@ -1290,6 +1292,7 @@
               themeVersions = ev.themeVersions;
               activeVersionIndex = ev.themeVersions.findIndex(function(t) { return t.isActive; });
               if (activeVersionIndex < 0) activeVersionIndex = ev.themeVersions.length - 1;
+              restoreHostRatings();
             } else if (ev.themeHtml) {
               themeVersions = [{ id: null, version: 1, html: ev.themeHtml, css: ev.themeCss, config: ev.themeConfig }];
               activeVersionIndex = 0;
@@ -8196,6 +8199,24 @@
     var hostRatingsByTheme = {}; // themeId → {rating, feedback}
     var hostOneStarCount = 0; // tracks 1-star ratings for this event (for abuse prevention)
     var hostFingerprint = 'fp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+
+    // Restore previously submitted host ratings from the DB so the UI reflects them on page reload
+    async function restoreHostRatings() {
+      if (!themeVersions || themeVersions.length === 0) return;
+      var promises = themeVersions.map(function(tv) {
+        if (!tv.id) return Promise.resolve(null);
+        return fetch('/api/v2/ratings?action=check&eventThemeId=' + tv.id)
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            if (res.success && res.existingRating) {
+              hostRatingsByTheme[tv.id] = { rating: res.existingRating.rating, feedback: res.existingRating.feedback || '' };
+            }
+          })
+          .catch(function() {});
+      });
+      await Promise.all(promises);
+      if (Object.keys(hostRatingsByTheme).length > 0) renderDesignChat();
+    }
 
     function starSvg() {
       return '<svg viewBox="0 0 24 24"><path class="star-fill" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>';
