@@ -88,6 +88,8 @@
     .chat-input-row { display: flex; gap: 10px; align-items: center; }
     .chat-photo-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #ddd; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; color: #888; }
     .chat-photo-btn:hover { border-color: var(--party-coral); color: var(--party-coral); background: rgba(233,69,96,0.05); }
+    .photo-btn-pulse { animation: photoPulse 0.6s ease-in-out 3; }
+    @keyframes photoPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); border-color: var(--party-coral); color: var(--party-coral); } }
     .chat-photo-menu { display: none; position: absolute; bottom: 100%; left: 0; margin-bottom: 8px; background: white; border: 1px solid #e0e0e0; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); overflow: hidden; z-index: 10; min-width: 200px; }
     .chat-photo-menu.open { display: block; }
     .chat-photo-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 16px; border: none; background: none; cursor: pointer; font-size: 13px; font-family: inherit; color: var(--midnight); transition: background 0.15s; }
@@ -1819,6 +1821,7 @@
       // ── End guest onboarding ──
 
       input.value = '';
+      dismissPhotoPrompt();
       addChatBubble(text, 'user');
       var photoCtx = buildPhotoContext();
       chatHistory.push({ role: 'user', content: text + photoCtx });
@@ -2260,13 +2263,21 @@
 
     function dismissPhotoPrompt() {
       var card = document.getElementById('photoUploadPrompt');
-      if (card) card.style.display = 'none';
+      if (card) {
+        card.remove();
+        var photoBtn = document.getElementById('chatPhotoBtn');
+        if (photoBtn) {
+          photoBtn.classList.add('photo-btn-pulse');
+          setTimeout(function() { photoBtn.classList.remove('photo-btn-pulse'); }, 2000);
+        }
+      }
     }
 
     function showDesignReadyCard() {
       // Remove any existing design ready card
       var existing = document.getElementById('designReadyCard');
       if (existing) existing.remove();
+      dismissPhotoPrompt();
 
       var eventType = extractedData.eventType || 'other';
       var photoRec = photoRecommendations[eventType];
@@ -7127,9 +7138,9 @@
       var container = document.getElementById(previewContainerId)
         || document.getElementById(promptPreviewContainerId);
       if (!container) {
-        // Fallback: use chat photo preview area, then legacy
         container = document.getElementById('chatPhotoPreview') || document.getElementById('imagePreviews');
       }
+      var uploadedCount = 0;
       for (var i = 0; i < files.length; i++) {
         if (base64Arr.length >= 6) break;
         var file = files[i];
@@ -7160,6 +7171,7 @@
               // Deduplicate — prevent the same photo URL from being added twice
               if (urlArr.indexOf(uploadResult.url) === -1) {
                 urlArr.push(uploadResult.url);
+                uploadedCount++;
                 console.log('[Photos] Uploaded:', file.name);
               } else {
                 console.log('[Photos] Skipping duplicate URL:', file.name);
@@ -7175,6 +7187,18 @@
         } else {
           placeholder.remove();
         }
+      }
+      // Show chat acknowledgment for uploaded photos
+      if (uploadedCount > 0) {
+        var ackMsg;
+        if (photoType === 'inspiration') {
+          ackMsg = uploadedCount + ' inspiration photo' + (uploadedCount > 1 ? 's' : '') + ' uploaded \u2014 we\u2019ll use ' + (uploadedCount > 1 ? 'these' : 'this') + ' to match the color palette and mood of your design.';
+        } else {
+          var nameMatch = (extractedData.title || '').match(/^(.+?)(?:'s|'s|\u2019s)\s/i);
+          var personName = nameMatch ? nameMatch[1] : 'the guest of honor';
+          ackMsg = uploadedCount + ' photo' + (uploadedCount > 1 ? 's' : '') + ' of ' + personName + ' uploaded \u2014 we\u2019ll feature ' + personName + ' prominently in the invite design.';
+        }
+        addChatBubble(ackMsg, 'assistant', true);
       }
       // Scroll to keep the Generate button visible after adding photos
       scrollChat();
