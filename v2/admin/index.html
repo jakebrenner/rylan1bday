@@ -774,18 +774,24 @@
             <h3>All Users</h3>
             <span class="count" id="userCount">0 users</span>
           </div>
+          <div class="preview-toggle-row" style="justify-content:flex-start;margin-bottom:12px;" id="userFilterRow">
+            <button class="preview-toggle-btn active" onclick="setUserFilter('active')" id="userFilterActive">Active</button>
+            <button class="preview-toggle-btn" onclick="setUserFilter('all')" id="userFilterAll">All</button>
+            <button class="preview-toggle-btn" onclick="setUserFilter('deactivated')" id="userFilterDeactivated">Deactivated</button>
+          </div>
           <table>
             <thead>
               <tr>
                 <th>User</th>
                 <th>Events</th>
-                <th>Credits</th>
+                <th>Published</th>
+                <th>Revenue</th>
                 <th>Joined</th>
                 <th></th>
               </tr>
             </thead>
             <tbody id="usersTableBody">
-              <tr><td colspan="5" class="loading">Loading users...</td></tr>
+              <tr><td colspan="6" class="loading">Loading users...</td></tr>
             </tbody>
           </table>
         </div>
@@ -3517,11 +3523,19 @@
     }
 
     // ---- Users ----
+    var userFilter = 'active';
+
+    function setUserFilter(filter) {
+      userFilter = filter;
+      document.querySelectorAll('#userFilterRow .preview-toggle-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.getElementById('userFilter' + filter.charAt(0).toUpperCase() + filter.slice(1)).classList.add('active');
+      renderUsersTable();
+    }
+
     async function loadUsers() {
       try {
         var res = await adminFetch('users');
         allUsers = res.users || [];
-        document.getElementById('userCount').textContent = allUsers.length + ' users';
         renderUsersTable();
       } catch (err) {
         document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="6" style="color:red;">Failed to load users</td></tr>';
@@ -3530,17 +3544,26 @@
 
     function renderUsersTable() {
       var tbody = document.getElementById('usersTableBody');
-      if (allUsers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="color:#888;">No users yet</td></tr>';
+      var filtered = allUsers;
+      if (userFilter === 'active') {
+        filtered = allUsers.filter(function(u) { return u.isActive !== false; });
+      } else if (userFilter === 'deactivated') {
+        filtered = allUsers.filter(function(u) { return u.isActive === false; });
+      }
+      document.getElementById('userCount').textContent = filtered.length + (filtered.length !== allUsers.length ? ' of ' + allUsers.length : '') + ' users';
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color:#888;">No users found</td></tr>';
         return;
       }
-      tbody.innerHTML = allUsers.map(function(u) {
-        var totalCredits = (u.freeEventCredits || 0) + (u.purchasedEventCredits || 0);
-        return '<tr>'
+      tbody.innerHTML = filtered.map(function(u) {
+        var isDeactivated = u.isActive === false;
+        return '<tr' + (isDeactivated ? ' style="opacity:0.6;"' : '') + '>'
           + '<td><div class="user-email clickable" onclick="viewUser(\'' + u.id + '\')">' + escapeHtml(u.email) + '</div>'
-          + (u.displayName ? '<div class="user-name clickable" onclick="viewUser(\'' + u.id + '\')" style="cursor:pointer;">' + escapeHtml(u.displayName) + '</div>' : '') + '</td>'
+          + (u.displayName ? '<div class="user-name clickable" onclick="viewUser(\'' + u.id + '\')" style="cursor:pointer;">' + escapeHtml(u.displayName) + '</div>' : '')
+          + (isDeactivated ? '<span style="color:#e74c3c;font-size:11px;font-weight:600;">DEACTIVATED</span>' : '') + '</td>'
           + '<td>' + u.events.total + '</td>'
-          + '<td>' + totalCredits + '</td>'
+          + '<td>' + (u.events.published || 0) + '</td>'
+          + '<td>$' + (u.revenue || 0).toFixed(2) + '</td>'
           + '<td>' + formatDate(u.createdAt) + '</td>'
           + '<td><button class="btn btn-secondary btn-sm" onclick="viewUser(\'' + u.id + '\')">View</button></td>'
           + '</tr>';
