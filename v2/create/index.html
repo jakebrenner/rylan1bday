@@ -433,6 +433,202 @@
       .invite-quick-add { flex-direction: column; }
       .invite-quick-add input { min-width: 100%; }
       .contact-tags { display: none; }
+      .gen-banner { flex-direction: column; gap: 8px; height: auto; min-height: 52px; padding: 10px 16px; }
+      .gen-banner-left { min-width: 0; }
+      .gen-banner-right { width: 100%; }
+      .gen-banner-progress { flex: 1; }
+      #genBannerAction { width: 100%; }
+      .guest-builder-content { padding: 0 12px; }
+    }
+
+    /* ── Generation Status Banner ── */
+    .gen-banner {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      height: 52px;
+      padding: 0 20px;
+      background: white;
+      border-bottom: 1px solid #eee;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      border-radius: 12px;
+      margin-bottom: 16px;
+      transition: all 0.3s ease;
+    }
+    .gen-banner-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1;
+    }
+    .gen-banner-status-dot {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .gen-banner-generating .gen-banner-status-dot {
+      background: var(--party-coral);
+      animation: bannerDotPulse 1.5s ease-in-out infinite;
+    }
+    .gen-banner-complete .gen-banner-status-dot {
+      background: var(--mint-fizz);
+      animation: none;
+    }
+    .gen-banner-error .gen-banner-status-dot {
+      background: #ff6b6b;
+      animation: none;
+    }
+    .gen-banner-text {
+      min-width: 0;
+    }
+    .gen-banner-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--midnight);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .gen-banner-subtitle {
+      font-size: 11px;
+      color: #999;
+      font-style: italic;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: opacity 0.15s;
+    }
+    .gen-banner-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .gen-banner-progress {
+      width: 100px;
+      height: 4px;
+      background: #f0f0f0;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .gen-banner-progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--party-coral), var(--confetti-gold), var(--party-coral));
+      background-size: 200% 100%;
+      animation: genShimmer 2s linear infinite;
+      border-radius: 2px;
+      transition: width 2s ease;
+    }
+    .gen-banner-complete {
+      border-color: var(--mint-fizz);
+      background: rgba(78,205,196,0.06);
+      border-left: 3px solid var(--mint-fizz);
+    }
+    .gen-banner-error {
+      border-color: #ff6b6b;
+      background: rgba(255,107,107,0.04);
+      border-left: 3px solid #ff6b6b;
+    }
+    @keyframes bannerDotPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.85); }
+    }
+    @keyframes bannerPulse {
+      0% { transform: scale(1); }
+      30% { transform: scale(1.015); box-shadow: 0 4px 20px rgba(78,205,196,0.3); }
+      100% { transform: scale(1); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    }
+
+    /* ── Celebration Overlay ── */
+    .celebration-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.92);
+      transition: opacity 0.4s ease;
+    }
+    .celebration-content {
+      text-align: center;
+      z-index: 2;
+    }
+    .celebration-check {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--mint-fizz);
+      color: white;
+      font-size: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto;
+      animation: celebCheck 0.5s ease;
+    }
+    @keyframes celebCheck {
+      0% { transform: scale(0); opacity: 0; }
+      60% { transform: scale(1.2); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .confetti-container {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .confetti-dot {
+      position: absolute;
+      top: -10px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      animation: confettiFall 1s ease forwards;
+    }
+    @keyframes confettiFall {
+      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* ── Guest Builder View ── */
+    .guest-builder-content {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* ── Bulk Paste ── */
+    .bulk-paste-area {
+      width: 100%;
+      min-height: 100px;
+      padding: 12px;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 10px;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      resize: vertical;
+      box-sizing: border-box;
+      transition: border-color 0.2s;
+    }
+    .bulk-paste-area:focus {
+      outline: none;
+      border-color: var(--party-coral);
+    }
+
+    /* ── Secondary Tasks ── */
+    .secondary-tasks {
+      max-width: 640px;
+      margin: 0 auto;
     }
   </style>
 <script src="/js/meta-pixel.js"></script>
@@ -617,6 +813,56 @@
         </div>
         <div id="generatingPaywall" style="display:none;"></div>
       </div>
+
+      <!-- Guest List Builder (shown during background generation) -->
+      <div id="guestListBuilderView" style="display:none;">
+        <!-- Celebration overlay -->
+        <div id="celebrationOverlay" class="celebration-overlay" style="display:none;">
+          <div class="confetti-container"></div>
+          <div class="celebration-content">
+            <div class="celebration-check">&#10003;</div>
+            <h3 style="margin:12px 0 4px;font-size:18px;color:var(--midnight);">Your invite is being designed</h3>
+            <p style="margin:0;font-size:14px;color:#888;">Let's get your guest list ready so you can send the moment it's done.</p>
+          </div>
+        </div>
+
+        <!-- Sticky generation progress banner -->
+        <div id="genBanner" class="gen-banner gen-banner-generating">
+          <div class="gen-banner-left">
+            <div class="gen-banner-status-dot"></div>
+            <div class="gen-banner-text">
+              <div class="gen-banner-title">Designing your invite...</div>
+              <div class="gen-banner-subtitle" id="genBannerPun">Our AI is designing something special...</div>
+            </div>
+          </div>
+          <div class="gen-banner-right">
+            <div class="gen-banner-progress"><div class="gen-banner-progress-bar" id="genBannerProgressBar"></div></div>
+            <button id="genBannerAction" class="btn btn-primary btn-sm" style="display:none;" onclick="previewInvite()">Preview Your Invite</button>
+          </div>
+        </div>
+
+        <!-- Builder content area -->
+        <div class="guest-builder-content">
+          <h2 style="text-align:center;margin:24px 0 4px;">Get Your Guest List Ready</h2>
+          <p class="step-desc" style="text-align:center;">Add guests now so you can send invites the moment your design is ready</p>
+
+          <!-- Slot where the reusable guest module will be moved -->
+          <div id="builderGuestSlot"></div>
+
+          <!-- Secondary tasks (shown when generation still in progress and user might be done adding guests) -->
+          <div id="secondaryTasks" class="secondary-tasks" style="display:none;">
+            <div class="invite-card" style="margin-top:16px;">
+              <div class="invite-card-header">
+                <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg> Write a personal message</h3>
+              </div>
+              <p style="font-size:13px;color:#888;margin:0 0 12px;">Draft the message your guests will receive with their invite</p>
+              <textarea id="builderSmsMessage" placeholder="Hi {name}, you're invited to our event! Click the link to RSVP: {link}" style="width:100%;min-height:80px;padding:12px;border:1.5px solid #e0e0e0;border-radius:10px;font-family:'Inter',sans-serif;font-size:14px;resize:vertical;box-sizing:border-box;"></textarea>
+              <div style="font-size:11px;color:#aaa;margin-top:6px;">{name} = guest's name &middot; {link} = their personal RSVP link</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div id="generatedView" style="display: none;">
         <h2 style="text-align:center;">Create Your Invite</h2>
         <p class="step-desc" style="text-align:center;">Love it? Continue to publish. Switch between versions below.</p>
@@ -745,12 +991,29 @@
       </div>
     </div>
 
-    <!-- Step 4: Review & Publish -->
-    <div class="step" data-step="3" style="padding: 20px 0 40px;">
-      <h2>Invite People</h2>
-      <p class="step-desc">Add guests to your event — you can always add more later</p>
-
+    <!-- Reusable Guest List Module (moves between builder and Step 3) -->
+    <div id="guestListModule" style="display:none;">
       <div class="invite-layout">
+          <!-- Bulk paste area -->
+          <div class="invite-card" id="bulkPasteCard">
+            <div class="invite-card-header" style="cursor:pointer;" onclick="toggleBulkPaste()">
+              <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="2" width="8" height="4" rx="1"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg> Bulk Import <span style="font-size:12px;font-weight:400;color:#aaa;margin-left:4px;" id="bulkToggleHint">(click to expand)</span></h3>
+            </div>
+            <div id="bulkPasteArea" style="display:none;">
+              <p style="font-size:13px;color:#888;margin:0 0 10px;">Paste a list of guests — one per line. Format: Name, Email, Phone (email and phone are optional)</p>
+              <textarea id="bulkPasteInput" class="bulk-paste-area" placeholder="John Smith, john@email.com&#10;Jane Doe, jane@email.com, 555-0123&#10;Bob Wilson"></textarea>
+              <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
+                <button class="btn btn-primary btn-sm" onclick="parseBulkPaste()">Import Guests</button>
+                <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  Upload CSV
+                  <input type="file" accept=".csv,.txt" onchange="handleCsvUpload(this.files[0])" style="display:none;">
+                </label>
+                <span id="bulkPasteMsg" style="font-size:12px;color:var(--mint-fizz);display:none;"></span>
+              </div>
+            </div>
+          </div>
+
           <!-- Add Guests (unified card) -->
           <div class="invite-card">
             <div class="invite-card-header">
@@ -806,6 +1069,15 @@
             </div>
           </div>
       </div>
+    </div>
+
+    <!-- Step 4: Review & Publish -->
+    <div class="step" data-step="3" style="padding: 20px 0 40px;">
+      <h2>Invite People</h2>
+      <p class="step-desc">Add guests to your event — you can always add more later</p>
+
+      <!-- Slot where the reusable guest module will be placed in Step 3 -->
+      <div id="step3GuestSlot"></div>
 
       <!-- Bottom Action Bar -->
       <div class="button-group" style="max-width:640px;margin:24px auto 0;">
@@ -2878,9 +3150,15 @@
         window.scrollTo(0, 0);
       }
       if (step === 2) renderRsvpFieldsToDetails();
-      if (step === 2 && !themeVersions.length && !window._templateSource && document.getElementById('generatingPaywall').style.display === 'none') generateTheme();
-      else if (step === 2 && themeVersions.length) {
+      if (step === 2 && !themeVersions.length && !window._templateSource && document.getElementById('generatingPaywall').style.display === 'none') {
+        // First generation — use background mode with guest list builder
+        startBackgroundGeneration();
+      } else if (step === 2 && _generationInProgress) {
+        // Returning to step 2 while generation is still running — show builder
+        showGuestListBuilder();
+      } else if (step === 2 && themeVersions.length) {
         // Returning to step 2 with existing themes — show preview
+        document.getElementById('guestListBuilderView').style.display = 'none';
         document.getElementById('generatingView').style.display = 'none';
         document.getElementById('generatedView').style.display = 'block';
         renderPreview(themeVersions[activeVersionIndex]);
@@ -2888,6 +3166,13 @@
         updateMobileLayout();
       }
       if (step === 3) {
+        // Move guest module to Step 3 and ensure it's visible
+        moveGuestModule('step3GuestSlot');
+        var guestMod = document.getElementById('guestListModule');
+        if (guestMod) guestMod.style.display = '';
+        // Hide builder view if visible
+        var builder = document.getElementById('guestListBuilderView');
+        if (builder) builder.style.display = 'none';
         showSummary();
         if (currentEvent) {
           var saveStep3Body = JSON.stringify({ eventId: currentEvent.id, settings: { creation_step: 3 } });
@@ -2995,8 +3280,8 @@
     var genStageTimers = [];
     var genEmojiList = ['🎨', '🎉', '✨', '💫', '🪄', '🎪', '💌', '🌟'];
 
-    function startGeneratingPuns() {
-      var punEl = document.getElementById('generatingPun');
+    function startGeneratingPuns(targetElId) {
+      var punEl = document.getElementById(targetElId || 'generatingPun');
       if (!punEl) return;
       var shuffled = eventPuns.slice().sort(function() { return Math.random() - 0.5; });
       var idx = 0;
@@ -3123,13 +3408,22 @@
       } catch (e) { console.error('Failed to save referral source:', e); }
     }
 
+    // Background generation state
+    var _generationInProgress = false;
+    var _generationComplete = false;
+    var _generationResult = null;
+    var _backgroundMode = false;
+
     async function generateTheme(feedback) {
-      // Hide paywall, show loading state
-      document.getElementById('generatingPaywall').style.display = 'none';
-      document.getElementById('generatingLoadingState').style.display = 'block';
-      document.getElementById('generatingView').style.display = 'block';
-      document.getElementById('generatedView').style.display = 'none';
-      startGeneratingPuns();
+      // In background mode, skip full-screen loading UI — banner handles progress
+      if (!_backgroundMode) {
+        // Hide paywall, show loading state (legacy full-screen mode for design tweaks)
+        document.getElementById('generatingPaywall').style.display = 'none';
+        document.getElementById('generatingLoadingState').style.display = 'block';
+        document.getElementById('generatingView').style.display = 'block';
+        document.getElementById('generatedView').style.display = 'none';
+        startGeneratingPuns();
+      }
 
       if (!currentEvent) {
         showMessage('Event not saved yet. Please go back and confirm your details.', 'error');
@@ -3202,6 +3496,9 @@
             // Free event hit generation limit — show payment gate
             stopGeneratingPuns();
             showCreatePaymentGate();
+          } else if (_backgroundMode) {
+            _generationInProgress = false;
+            onGenerationError(errText || 'Failed to generate theme (HTTP ' + res2.status + ')');
           } else {
             showGeneratingError(errText || 'Failed to generate theme (HTTP ' + res2.status + ')');
           }
@@ -3314,13 +3611,22 @@
               });
             }
             stopGeneratingPuns();
-            document.getElementById('generatingView').style.display = 'none';
-            document.getElementById('generatedView').style.display = 'block';
-            renderPreview(ver);
-            renderVersionGallery();
+            if (_backgroundMode) {
+              // Background mode: update banner, don't navigate
+              _generationInProgress = false;
+              _generationComplete = true;
+              _generationResult = ver;
+              onGenerationComplete(ver, genResult);
+            } else {
+              // Legacy full-screen mode (design tweaks)
+              document.getElementById('generatingView').style.display = 'none';
+              document.getElementById('generatedView').style.display = 'block';
+              renderPreview(ver);
+              renderVersionGallery();
+            }
             // Set pending rating BEFORE initDesignChat so it gets picked up
             pendingRatingThemeId = ver.id;
-            initDesignChatIfNeeded();
+            if (!_backgroundMode) initDesignChatIfNeeded();
             // Track generation cost — show estimate immediately, then refresh from DB
             if (genResult.metadata) updateCostFromGeneration(genResult.metadata);
             // Always re-fetch accurate cost from DB after background save completes
@@ -3332,7 +3638,7 @@
                 body: JSON.stringify({ eventId: currentEvent.id, settings: { creation_step: 2 } })
               }).catch(function() {});
             }
-            updateMobileLayout();
+            if (!_backgroundMode) updateMobileLayout();
             // Cache theme in sessionStorage for fast reload
             try { sessionStorage.setItem('ryvite_theme_' + currentEvent.id, JSON.stringify(themeVersions)); } catch(e) {}
             // Soft cap warning for paid events with 10+ generations
@@ -3344,7 +3650,12 @@
             console.error('[generate-theme] Generation failed. genError:', genError, 'genResult:', genResult ? JSON.stringify(genResult).substring(0, 500) : null);
             var errMsg = (genError && (genError.message || genError.error)) || (genResult && !genResult.success ? 'Server returned failure' : 'No response received from server');
             window._lastGenDebug = 'Bytes: ' + fullText.length + ' | Error: ' + JSON.stringify(genError) + ' | Result keys: ' + (genResult ? Object.keys(genResult).join(',') : 'null') + ' | Build: 2026-03-12a';
-            showGeneratingError(errMsg);
+            if (_backgroundMode) {
+              _generationInProgress = false;
+              onGenerationError(errMsg);
+            } else {
+              showGeneratingError(errMsg);
+            }
           }
         }
       } catch (err) {
@@ -3359,8 +3670,230 @@
         stopGeneratingPuns();
         var catchMsg = err.message || 'Error generating theme';
         window._lastGenDebug = (window._lastGenDebug || '') + ' | CATCH: ' + catchMsg + ' | Stack: ' + (err.stack || '').substring(0, 300);
-        showGeneratingError(catchMsg);
+        if (_backgroundMode) {
+          _generationInProgress = false;
+          onGenerationError(catchMsg);
+        } else {
+          showGeneratingError(catchMsg);
+        }
       }
+    }
+
+    // ── Background Generation Functions ──
+
+    function startBackgroundGeneration(feedback) {
+      _generationInProgress = true;
+      _generationComplete = false;
+      _generationResult = null;
+      _backgroundMode = true;
+
+      // Show guest list builder view
+      showGuestListBuilder();
+
+      // Fire and forget — don't await
+      generateTheme(feedback).catch(function(err) {
+        console.error('[bg-gen] Uncaught error:', err);
+        _generationInProgress = false;
+        onGenerationError(err.message || 'Generation failed');
+      });
+    }
+
+    function onGenerationComplete(ver, genResult) {
+      _generationInProgress = false;
+      _generationComplete = true;
+      _generationResult = ver;
+
+      var banner = document.getElementById('genBanner');
+      if (!banner) return;
+
+      banner.classList.remove('gen-banner-generating');
+      banner.classList.add('gen-banner-complete');
+
+      // Update status dot to checkmark
+      var dot = banner.querySelector('.gen-banner-status-dot');
+      if (dot) dot.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+
+      // Update text
+      var title = banner.querySelector('.gen-banner-title');
+      var subtitle = banner.querySelector('.gen-banner-subtitle');
+      var guestCount = addedGuests.length;
+      if (title) title.textContent = 'Your invite is ready!';
+      if (subtitle) {
+        subtitle.textContent = guestCount > 0
+          ? guestCount + ' guest' + (guestCount !== 1 ? 's' : '') + ' added'
+          : 'Preview it now, or keep adding guests';
+      }
+
+      // Hide progress bar, show action button
+      var progressWrap = banner.querySelector('.gen-banner-progress');
+      if (progressWrap) progressWrap.style.display = 'none';
+      var actionBtn = document.getElementById('genBannerAction');
+      if (actionBtn) { actionBtn.style.display = ''; actionBtn.textContent = 'Preview Your Invite'; }
+
+      // Haptic feedback on mobile
+      if (navigator.vibrate) try { navigator.vibrate(100); } catch(e) {}
+
+      // Pulse animation
+      banner.style.animation = 'bannerPulse 0.4s ease';
+      setTimeout(function() { banner.style.animation = ''; }, 500);
+    }
+
+    function onGenerationError(msg) {
+      _generationInProgress = false;
+      _generationComplete = false;
+
+      var banner = document.getElementById('genBanner');
+      if (!banner) return;
+
+      banner.classList.remove('gen-banner-generating');
+      banner.classList.add('gen-banner-error');
+
+      var dot = banner.querySelector('.gen-banner-status-dot');
+      if (dot) dot.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+
+      var title = banner.querySelector('.gen-banner-title');
+      var subtitle = banner.querySelector('.gen-banner-subtitle');
+      if (title) title.textContent = 'Something went wrong';
+      if (subtitle) subtitle.textContent = msg || 'Generation failed';
+
+      var progressWrap = banner.querySelector('.gen-banner-progress');
+      if (progressWrap) progressWrap.style.display = 'none';
+      var actionBtn = document.getElementById('genBannerAction');
+      if (actionBtn) {
+        actionBtn.style.display = '';
+        actionBtn.textContent = 'Try Again';
+        actionBtn.onclick = function() { retryBackgroundGeneration(); };
+      }
+    }
+
+    function retryBackgroundGeneration() {
+      // Reset banner to generating state
+      var banner = document.getElementById('genBanner');
+      if (banner) {
+        banner.classList.remove('gen-banner-error', 'gen-banner-complete');
+        banner.classList.add('gen-banner-generating');
+        var dot = banner.querySelector('.gen-banner-status-dot');
+        if (dot) dot.innerHTML = '';
+        var title = banner.querySelector('.gen-banner-title');
+        if (title) title.textContent = 'Designing your invite...';
+        var progressWrap = banner.querySelector('.gen-banner-progress');
+        if (progressWrap) progressWrap.style.display = '';
+        var actionBtn = document.getElementById('genBannerAction');
+        if (actionBtn) actionBtn.style.display = 'none';
+      }
+      // Clear session cache
+      if (currentEvent && currentEvent.id) {
+        try { sessionStorage.removeItem('ryvite_theme_' + currentEvent.id); } catch(e) {}
+      }
+      _generationInProgress = true;
+      _generationComplete = false;
+      _generationResult = null;
+      _backgroundMode = true;
+      startBannerProgress();
+      startGeneratingPuns('genBannerPun');
+      generateTheme().catch(function(err) {
+        _generationInProgress = false;
+        onGenerationError(err.message || 'Generation failed');
+      });
+    }
+
+    function previewInvite() {
+      if (!_generationComplete || !_generationResult) return;
+      _backgroundMode = false;
+
+      // Hide builder, show generated view
+      var builder = document.getElementById('guestListBuilderView');
+      if (builder) builder.style.display = 'none';
+      document.getElementById('generatingView').style.display = 'none';
+      document.getElementById('generatedView').style.display = 'block';
+
+      // Render the generated theme
+      renderPreview(_generationResult);
+      renderVersionGallery();
+      pendingRatingThemeId = _generationResult.id;
+      initDesignChatIfNeeded();
+      updateMobileLayout();
+
+      // Move guest module back to Step 3
+      moveGuestModule('step3GuestSlot');
+    }
+
+    function showGuestListBuilder() {
+      // Hide other Step 2 views
+      document.getElementById('generatingView').style.display = 'none';
+      document.getElementById('generatedView').style.display = 'none';
+
+      // Show builder
+      var builder = document.getElementById('guestListBuilderView');
+      if (builder) builder.style.display = 'block';
+
+      // Move guest module into builder and ensure it's visible
+      moveGuestModule('builderGuestSlot');
+      var guestMod = document.getElementById('guestListModule');
+      if (guestMod) guestMod.style.display = '';
+
+      // Start banner progress animation
+      startBannerProgress();
+      startGeneratingPuns('genBannerPun');
+
+      // Load contacts for the guest list
+      loadContactsForInvite();
+
+      // Show celebration briefly
+      showCelebration();
+    }
+
+    function moveGuestModule(targetSlotId) {
+      var mod = document.getElementById('guestListModule');
+      var slot = document.getElementById(targetSlotId);
+      if (mod && slot && mod.parentElement !== slot) {
+        slot.appendChild(mod);
+      }
+    }
+
+    function showCelebration() {
+      var overlay = document.getElementById('celebrationOverlay');
+      if (!overlay) return;
+      overlay.style.display = 'flex';
+      overlay.style.opacity = '1';
+
+      // Create simple confetti
+      var confettiColors = ['#E94560', '#FFB74D', '#4ECDC4', '#A78BFA', '#FF6B6B'];
+      for (var i = 0; i < 30; i++) {
+        var dot = document.createElement('div');
+        dot.className = 'confetti-dot';
+        dot.style.left = (Math.random() * 100) + '%';
+        dot.style.backgroundColor = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+        dot.style.animationDelay = (Math.random() * 0.5) + 's';
+        dot.style.animationDuration = (0.8 + Math.random() * 0.6) + 's';
+        overlay.querySelector('.confetti-container').appendChild(dot);
+      }
+
+      // Auto-dismiss after 2s
+      setTimeout(function() {
+        overlay.style.opacity = '0';
+        setTimeout(function() {
+          overlay.style.display = 'none';
+          // Clean up confetti dots
+          var container = overlay.querySelector('.confetti-container');
+          if (container) container.innerHTML = '';
+        }, 400);
+      }, 2000);
+    }
+
+    function startBannerProgress() {
+      var bar = document.getElementById('genBannerProgressBar');
+      if (!bar) return;
+      bar.style.width = '0%';
+      bar.style.transition = 'width 2s ease';
+      setTimeout(function() { bar.style.width = '15%'; }, 100);
+      setTimeout(function() { bar.style.width = '35%'; }, 5000);
+      setTimeout(function() { bar.style.width = '55%'; }, 15000);
+      setTimeout(function() { bar.style.width = '70%'; }, 25000);
+      setTimeout(function() { bar.style.width = '80%'; }, 35000);
+      setTimeout(function() { bar.style.width = '88%'; }, 50000);
+      setTimeout(function() { bar.style.width = '93%'; }, 70000);
+      setTimeout(function() { bar.style.width = '96%'; }, 90000);
     }
 
     function showGeneratingError(msg) {
@@ -3383,6 +3916,8 @@
     }
 
     function retryGenerate() {
+      // Ensure we're in legacy (non-background) mode for design tweaks
+      _backgroundMode = false;
       // Clear cached themes so stale data doesn't persist
       if (currentEvent && currentEvent.id) {
         try { sessionStorage.removeItem('ryvite_theme_' + currentEvent.id); } catch(e) {}
@@ -7565,6 +8100,12 @@
       }).join('');
       container.innerHTML = html;
       updatePublishButton();
+
+      // Show secondary tasks in builder when user has added guests and generation is still running
+      var secondaryEl = document.getElementById('secondaryTasks');
+      if (secondaryEl) {
+        secondaryEl.style.display = (_generationInProgress && addedGuests.length >= 3) ? '' : 'none';
+      }
     }
 
     async function removeGuest(idx) {
@@ -7656,6 +8197,151 @@
         msgEl.textContent = 'Error adding guest';
         msgEl.style.color = '#E94560';
       }
+    }
+
+    // ── Bulk Paste & CSV Import ──
+
+    function toggleBulkPaste() {
+      var area = document.getElementById('bulkPasteArea');
+      var hint = document.getElementById('bulkToggleHint');
+      if (!area) return;
+      var showing = area.style.display !== 'none';
+      area.style.display = showing ? 'none' : '';
+      if (hint) hint.textContent = showing ? '(click to expand)' : '(click to collapse)';
+    }
+
+    async function parseBulkPaste() {
+      var input = document.getElementById('bulkPasteInput');
+      var msgEl = document.getElementById('bulkPasteMsg');
+      if (!input || !input.value.trim()) return;
+
+      var lines = input.value.trim().split(/\n/);
+      var contacts = [];
+
+      lines.forEach(function(line) {
+        line = line.trim();
+        if (!line) return;
+        // Split by comma or tab
+        var parts = line.split(/[,\t]+/).map(function(p) { return p.trim(); });
+        var entry = { name: '', email: '', phone: '' };
+
+        parts.forEach(function(part) {
+          if (!part) return;
+          // Detect email
+          if (part.indexOf('@') > -1 && !entry.email) {
+            entry.email = part;
+          }
+          // Detect phone (10+ digits or starts with +)
+          else if (/^[\+\d\(\)\-\.\s]{7,}$/.test(part) && !entry.phone) {
+            entry.phone = part;
+          }
+          // Otherwise it's a name
+          else if (!entry.name) {
+            entry.name = part;
+          }
+        });
+
+        // If no name but has email, use email prefix as name
+        if (!entry.name && entry.email) {
+          entry.name = entry.email.split('@')[0].replace(/[._-]/g, ' ');
+        }
+        if (entry.name) contacts.push(entry);
+      });
+
+      if (contacts.length === 0) {
+        if (msgEl) { msgEl.textContent = 'No valid entries found'; msgEl.style.color = '#E94560'; msgEl.style.display = ''; }
+        return;
+      }
+
+      if (msgEl) { msgEl.textContent = 'Importing ' + contacts.length + '...'; msgEl.style.color = '#666'; msgEl.style.display = ''; }
+
+      try {
+        // Bulk create contacts
+        var res = await authFetch('/api/v2/contacts?action=bulkCreate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contacts: contacts, source: 'import' })
+        });
+        var result = await res.json();
+
+        if (result.success && result.contactIds && result.contactIds.length && currentEvent) {
+          // Add as guests
+          var addRes = await authFetch('/api/v2/events?action=addGuests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: currentEvent.id, contactIds: result.contactIds })
+          });
+          var addResult = await addRes.json();
+          if (addResult.success && addResult.guests) {
+            var stripPh = isPhoneLocked();
+            addResult.guests.forEach(function(g) {
+              addedGuests.push({ id: g.id, serverId: g.id, name: g.name, email: g.email, phone: stripPh ? '' : g.phone, contactId: g.contactId });
+            });
+          }
+          // Refresh contacts
+          try {
+            var cRes = await authFetch('/api/v2/contacts?action=list');
+            var cData = await cRes.json();
+            if (cData.success) allContacts = cData.contacts || [];
+          } catch(e) {}
+
+          var added = addResult && addResult.added ? addResult.added : result.contactIds.length;
+          if (msgEl) { msgEl.textContent = added + ' guest' + (added !== 1 ? 's' : '') + ' imported!'; msgEl.style.color = 'var(--mint-fizz)'; msgEl.style.display = ''; }
+          input.value = '';
+          renderGuestList();
+          filterContacts();
+          setTimeout(function() { if (msgEl) msgEl.style.display = 'none'; }, 3000);
+        } else {
+          if (msgEl) { msgEl.textContent = result.error || 'Import failed'; msgEl.style.color = '#E94560'; msgEl.style.display = ''; }
+        }
+      } catch(e) {
+        if (msgEl) { msgEl.textContent = 'Error importing guests'; msgEl.style.color = '#E94560'; msgEl.style.display = ''; }
+      }
+    }
+
+    async function handleCsvUpload(file) {
+      if (!file) return;
+      var msgEl = document.getElementById('bulkPasteMsg');
+
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var text = e.target.result;
+        var lines = text.split(/\r?\n/);
+        if (lines.length < 2) {
+          if (msgEl) { msgEl.textContent = 'CSV appears empty'; msgEl.style.color = '#E94560'; msgEl.style.display = ''; }
+          return;
+        }
+
+        // Parse header row
+        var headers = lines[0].split(',').map(function(h) { return h.trim().toLowerCase().replace(/['"]/g, ''); });
+        var nameIdx = headers.findIndex(function(h) { return h === 'name' || h === 'full name' || h === 'fullname'; });
+        var emailIdx = headers.findIndex(function(h) { return h === 'email' || h === 'e-mail' || h === 'email address'; });
+        var phoneIdx = headers.findIndex(function(h) { return h === 'phone' || h === 'tel' || h === 'mobile' || h === 'phone number'; });
+
+        // If no name column found, try first column
+        if (nameIdx === -1) nameIdx = 0;
+
+        var csvText = '';
+        for (var i = 1; i < lines.length; i++) {
+          var cols = lines[i].split(',').map(function(c) { return c.trim().replace(/^["']|["']$/g, ''); });
+          if (!cols[nameIdx]) continue;
+          var row = cols[nameIdx];
+          if (emailIdx > -1 && cols[emailIdx]) row += ', ' + cols[emailIdx];
+          if (phoneIdx > -1 && cols[phoneIdx]) row += ', ' + cols[phoneIdx];
+          csvText += row + '\n';
+        }
+
+        // Put into bulk paste input and trigger import
+        var input = document.getElementById('bulkPasteInput');
+        if (input) {
+          input.value = csvText.trim();
+          // Ensure bulk paste area is visible
+          var area = document.getElementById('bulkPasteArea');
+          if (area) area.style.display = '';
+          parseBulkPaste();
+        }
+      };
+      reader.readAsText(file);
     }
 
     // ── Phone Contact Picker ──
@@ -9136,6 +9822,17 @@
     // Track validation results for support context
     var lastValidationResults = null;
     var lastCssIssues = [];
+
+    // ── Guest Module Initialization ──
+    // Place the guest list module in Step 3 slot by default
+    (function initGuestModule() {
+      var mod = document.getElementById('guestListModule');
+      var slot = document.getElementById('step3GuestSlot');
+      if (mod && slot) {
+        slot.appendChild(mod);
+        mod.style.display = '';
+      }
+    })();
   </script>
 
   <!-- Payment Gate Modal -->
