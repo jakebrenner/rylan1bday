@@ -27,14 +27,6 @@ function getOrCreateSheet(name, headers) {
   return sheet;
 }
 
-// ---- One-time migration: run this manually to add missing columns ----
-// Open Apps Script editor > Run > migrateSettingsColumns
-function migrateSettingsColumns() {
-  var sheet = getOrCreateSheet("Settings", SETTINGS_HEADERS);
-  Logger.log("Settings sheet now has headers: " + SETTINGS_HEADERS.join(", "));
-  Logger.log("Done! You can delete this function after running it.");
-}
-
 function normalizePhone(str) {
   var digits = (str || "").replace(/[^0-9]/g, "");
   // Strip leading "1" country code if 11 digits

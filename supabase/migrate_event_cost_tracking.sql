@@ -1,6 +1,8 @@
 -- Migration: Persistent event cost tracking
 -- Adds total_cost_cents to events table so cumulative cost survives page refreshes.
 -- The column is atomically incremented after each AI generation or SMS send.
+-- NOTE: Haiku backfill pricing ($0.80/$4.00) was for an older model version.
+-- Superseded by migrate_cost_tracking_v2.sql which uses correct $1.00/$5.00 rates.
 
 ALTER TABLE public.events
   ADD COLUMN IF NOT EXISTS total_cost_cents integer NOT NULL DEFAULT 0;

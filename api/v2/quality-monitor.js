@@ -433,7 +433,7 @@ If the issue is unfixable without a complete redesign, return:
       // Track cost
       const fixCostCents = calcCost(fixModel, fixTokens.input, fixTokens.output);
       if (eventId) {
-        await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: fixCostCents }).catch(() => {});
+        await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: fixCostCents }).catch(e => console.error('[cost] increment_event_cost failed:', e.message));
       }
 
       if (!fixResult.fixed) {
@@ -781,7 +781,7 @@ Return JSON:
   }).catch(e => console.error('[quality-monitor] Diagnosis generation_log failed:', e.message));
   if (ctx.eventId) {
     const diagCostCents = calcCost(diagnosisModel, diagnosisTokens.input, diagnosisTokens.output);
-    await supabase.rpc('increment_event_cost', { p_event_id: ctx.eventId, p_cost_cents: diagCostCents }).catch(() => {});
+    await supabase.rpc('increment_event_cost', { p_event_id: ctx.eventId, p_cost_cents: diagCostCents }).catch(e => console.error('[cost] increment_event_cost failed:', e.message));
   }
 
   console.log('[quality-monitor] Diagnosis complete:', {
@@ -1066,7 +1066,7 @@ Return JSON:
   // Increment event cost for the auto-heal generation
   const healCostCents = calcCost(healModel, healTokens.input, healTokens.output);
   if (ctx.eventId) {
-    await supabase.rpc('increment_event_cost', { p_event_id: ctx.eventId, p_cost_cents: healCostCents }).catch(() => {});
+    await supabase.rpc('increment_event_cost', { p_event_id: ctx.eventId, p_cost_cents: healCostCents }).catch(e => console.error('[cost] increment_event_cost failed:', e.message));
   }
 
   // Update incident as resolved
