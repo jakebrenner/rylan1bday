@@ -1,11 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { sendCapiEvent } from './lib/meta-capi.js';
+import { reportApiError } from './lib/error-reporter.js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Lazy-initialized to prevent module-level crash if env vars are missing
+let _supabase = null;
+function getSupabase() {
+  if (!_supabase) {
+    _supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return _supabase;
+}
 
 const CLICKSEND_API_URL = 'https://rest.clicksend.com/v3/sms/send';
 
@@ -25,7 +30,7 @@ async function sendAdminSignupNotifications(userEmail, displayName, userPhone) {
     }
 
     // Find all admins who want signup notifications
-    const { data: subscribers, error: queryError } = await supabase
+    const { data: subscribers, error: queryError } = await getSupabase()
       .from('admin_notification_prefs')
       .select('admin_user_id, phone')
       .eq('new_user_signup', true);
@@ -74,7 +79,7 @@ async function sendAdminSignupNotifications(userEmail, displayName, userPhone) {
       }
 
       // Log to notification_log (no event_id, no billing — platform cost)
-      await supabase.from('notification_log').insert({
+      await getSupabase().from('notification_log').insert({
         channel: 'sms',
         recipient: digits.slice(-10),
         status: csMsg?.status === 'SUCCESS' ? 'sent' : 'failed',
@@ -89,10 +94,17 @@ async function sendAdminSignupNotifications(userEmail, displayName, userPhone) {
 }
 
 // Anon-key client for user-facing auth flows (OTP emails, token refresh)
-const supabaseAnon = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+// Lazy-initialized to prevent module-level crash if SUPABASE_ANON_KEY is missing
+let _supabaseAnon = null;
+function getSupabaseAnon() {
+  if (!_supabaseAnon) {
+    if (!process.env.SUPABASE_ANON_KEY) {
+      throw new Error('SUPABASE_ANON_KEY environment variable is not set');
+    }
+    _supabaseAnon = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+  }
+  return _supabaseAnon;
+}
 
 const PROD_URL = 'https://ryvite.com';
 
@@ -119,7 +131,7 @@ export default async function handler(req, res) {
       const { email, displayName, phone, utm } = req.body || {};
       if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
 
-      const { data, error } = await supabase.auth.admin.createUser({
+      const { data, error } = await getSupabase().auth.admin.createUser({
         email,
         email_confirm: true,
         user_metadata: { display_name: displayName || '', phone: phone || '' }
@@ -128,7 +140,7 @@ export default async function handler(req, res) {
       if (error) {
         // User already exists — send magic link instead
         if (error.message.includes('already been registered')) {
-          const { error: otpError } = await supabaseAnon.auth.signInWithOtp({
+          const { error: otpError } = await getSupabaseAnon().auth.signInWithOtp({
             email,
             options: { emailRedirectTo: redirectTo }
           });
@@ -139,7 +151,7 @@ export default async function handler(req, res) {
       }
 
       // Send magic link for the new user
-      const { error: otpError } = await supabaseAnon.auth.signInWithOtp({
+      const { error: otpError } = await getSupabaseAnon().auth.signInWithOtp({
         email,
         options: { emailRedirectTo: redirectTo }
       });
@@ -151,7 +163,7 @@ export default async function handler(req, res) {
         if (phone) { profileUpdate.phone = phone; profileUpdate.display_name = displayName || ''; }
         if (utm && typeof utm === 'object') { profileUpdate.signup_utm = utm; }
         if (Object.keys(profileUpdate).length > 0) {
-          await supabase.from('profiles').update(profileUpdate).eq('id', data.user.id);
+          await getSupabase().from('profiles').update(profileUpdate).eq('id', data.user.id);
         }
       }
 
@@ -183,19 +195,22 @@ export default async function handler(req, res) {
       let isExisting = false;
 
       // Try to create user (auto-confirmed)
-      const { data: createData, error: createError } = await supabase.auth.admin.createUser({
+      const { data: createData, error: createError } = await getSupabase().auth.admin.createUser({
         email,
         email_confirm: true
       });
 
       if (createError) {
         if (createError.message.includes('already been registered')) {
-          // User exists — look up their ID
+          // User exists — look up their ID from profiles table
           isExisting = true;
-          const { data: { users } } = await supabase.auth.admin.listUsers();
-          const existing = users.find(u => u.email === email);
-          if (existing) {
-            userId = existing.id;
+          const { data: existingProfile } = await getSupabase()
+            .from('profiles')
+            .select('id')
+            .eq('email', email)
+            .single();
+          if (existingProfile) {
+            userId = existingProfile.id;
           } else {
             return res.status(400).json({ success: false, error: 'Could not find existing account' });
           }
@@ -207,7 +222,7 @@ export default async function handler(req, res) {
       }
 
       // Generate magic link token (without sending email)
-      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+      const { data: linkData, error: linkError } = await getSupabase().auth.admin.generateLink({
         type: 'magiclink',
         email
       });
@@ -217,7 +232,7 @@ export default async function handler(req, res) {
       }
 
       // Exchange the token for a real session
-      const { data: sessionData, error: sessionError } = await supabaseAnon.auth.verifyOtp({
+      const { data: sessionData, error: sessionError } = await getSupabaseAnon().auth.verifyOtp({
         token_hash: linkData.properties.hashed_token,
         type: 'magiclink'
       });
@@ -229,7 +244,7 @@ export default async function handler(req, res) {
       // Create profile if new user
       let metaEventId = null;
       if (!isExisting && userId) {
-        await supabase.from('profiles').upsert({ id: userId, email }, { onConflict: 'id' }).catch(() => {});
+        try { await getSupabase().from('profiles').upsert({ id: userId, email }, { onConflict: 'id' }); } catch (_) {}
 
         // Await background tasks — Vercel may freeze after res.json()
         metaEventId = crypto.randomUUID();
@@ -247,7 +262,7 @@ export default async function handler(req, res) {
       }
 
       // Fetch profile for client
-      const { data: profile } = await supabase
+      const { data: profile } = await getSupabase()
         .from('profiles')
         .select('*')
         .eq('id', userId)
@@ -280,13 +295,13 @@ export default async function handler(req, res) {
       // Check if this email already has a profile (i.e., is an existing user).
       // signInWithOtp auto-creates new users, so we need to detect that case
       // to send admin signup notifications.
-      const { data: existingProfile } = await supabase
+      const { data: existingProfile } = await getSupabase()
         .from('profiles')
         .select('id')
         .eq('email', email)
         .maybeSingle();
 
-      const { data, error } = await supabaseAnon.auth.signInWithOtp({
+      const { data, error } = await getSupabaseAnon().auth.signInWithOtp({
         email,
         options: { emailRedirectTo: redirectTo }
       });
@@ -312,13 +327,13 @@ export default async function handler(req, res) {
       }
 
       const token = authHeader.slice(7);
-      const { data: { user }, error } = await supabase.auth.getUser(token);
+      const { data: { user }, error } = await getSupabase().auth.getUser(token);
 
       if (error || !user) {
         return res.status(401).json({ success: false, error: 'Invalid session' });
       }
 
-      const { data: profile } = await supabase
+      const { data: profile } = await getSupabase()
         .from('profiles')
         .select('*')
         .eq('id', user.id)
@@ -349,7 +364,7 @@ export default async function handler(req, res) {
       }
 
       const token = authHeader.slice(7);
-      const { data: { user }, error } = await supabase.auth.getUser(token);
+      const { data: { user }, error } = await getSupabase().auth.getUser(token);
 
       if (error || !user) {
         return res.status(401).json({ success: false, error: 'Invalid session' });
@@ -369,7 +384,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'No fields to update' });
       }
 
-      const { error: updateError } = await supabase
+      const { error: updateError } = await getSupabase()
         .from('profiles')
         .update(updates)
         .eq('id', user.id);
@@ -379,7 +394,7 @@ export default async function handler(req, res) {
       }
 
       // Fetch updated profile
-      const { data: profile } = await supabase
+      const { data: profile } = await getSupabase()
         .from('profiles')
         .select('*')
         .eq('id', user.id)
@@ -403,7 +418,7 @@ export default async function handler(req, res) {
       const { refreshToken } = req.body || {};
       if (!refreshToken) return res.status(400).json({ success: false, error: 'refreshToken is required' });
 
-      const { data, error } = await supabaseAnon.auth.refreshSession({ refresh_token: refreshToken });
+      const { data, error } = await getSupabaseAnon().auth.refreshSession({ refresh_token: refreshToken });
 
       if (error || !data.session) {
         return res.status(401).json({ success: false, error: 'Refresh failed — please log in again' });
@@ -428,7 +443,7 @@ export default async function handler(req, res) {
 
       // Ensure the user exists in Supabase auth
       let userId;
-      const { data: createData, error: createError } = await supabase.auth.admin.createUser({
+      const { data: createData, error: createError } = await getSupabase().auth.admin.createUser({
         email,
         email_confirm: true,
         user_metadata: { display_name: 'Jake', phone: '' }
@@ -437,7 +452,7 @@ export default async function handler(req, res) {
       if (createError) {
         if (createError.message.includes('already been registered')) {
           // User exists — list users to find them
-          const { data: listData } = await supabase.auth.admin.listUsers();
+          const { data: listData } = await getSupabase().auth.admin.listUsers();
           const existing = listData?.users?.find(u => u.email === email.toLowerCase());
           if (!existing) return res.status(500).json({ success: false, error: 'User exists but could not be found' });
           userId = existing.id;
@@ -449,7 +464,7 @@ export default async function handler(req, res) {
       }
 
       // Generate a magic link without sending an email (bypasses rate limit)
-      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+      const { data: linkData, error: linkError } = await getSupabase().auth.admin.generateLink({
         type: 'magiclink',
         email,
         options: { redirectTo: redirectTo }
@@ -475,6 +490,13 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Auth error:', err);
-    return res.status(500).json({ error: 'Server error' });
+    await reportApiError({
+      endpoint: '/api/v2/auth',
+      action: req.query?.action || 'unknown',
+      error: err,
+      requestBody: req.body,
+      req
+    }).catch(() => {});
+    return res.status(500).json({ error: 'Server error: ' + (err.message || 'unknown') });
   }
 }
