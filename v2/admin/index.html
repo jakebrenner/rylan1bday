@@ -50,7 +50,9 @@
 
     /* Stats cards */
     .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
-    .stat-card { background: white; border-radius: 8px; padding: 20px; border: 1px solid #eee; }
+    .stat-card { background: white; border-radius: 8px; padding: 20px; border: 1px solid #eee; transition: box-shadow 0.15s, border-color 0.15s; }
+    .stat-card[onclick]:hover { border-color: #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    #platformTotalsGrid > div[onclick]:hover { border-color: #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
     .stat-card .stat-value { font-size: 32px; font-weight: 700; color: var(--midnight); }
     .stat-card .stat-label { font-size: 12px; color: #888; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 
@@ -631,19 +633,19 @@
       <div style="margin-bottom:12px;">
         <div style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Platform Totals</div>
         <div id="platformTotalsGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
-          <div style="background:#f8fafc;border-radius:6px;padding:12px 14px;border:1px solid #e2e8f0;">
+          <div style="background:#f8fafc;border-radius:6px;padding:12px 14px;border:1px solid #e2e8f0;cursor:pointer;" onclick="openDrilldown('users',true)">
             <div style="font-size:24px;font-weight:700;color:#475569;" id="statUsersAllTime">—</div>
             <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.3px;">Users</div>
           </div>
-          <div style="background:#f8fafc;border-radius:6px;padding:12px 14px;border:1px solid #e2e8f0;">
+          <div style="background:#f8fafc;border-radius:6px;padding:12px 14px;border:1px solid #e2e8f0;cursor:pointer;" onclick="openDrilldown('events',true)">
             <div style="font-size:24px;font-weight:700;color:#475569;" id="statEventsAllTime">—</div>
             <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.3px;">Events</div>
           </div>
-          <div style="background:#f8fafc;border-radius:6px;padding:12px 14px;border:1px solid #e2e8f0;">
+          <div style="background:#f8fafc;border-radius:6px;padding:12px 14px;border:1px solid #e2e8f0;cursor:pointer;" onclick="openDrilldown('events',true)">
             <div style="font-size:24px;font-weight:700;color:#475569;" id="statPublishedAllTime">—</div>
             <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.3px;">Published</div>
           </div>
-          <div style="background:#f8fafc;border-radius:6px;padding:12px 14px;border:1px solid #e2e8f0;">
+          <div style="background:#f8fafc;border-radius:6px;padding:12px 14px;border:1px solid #e2e8f0;cursor:pointer;" onclick="openDrilldown('rsvps',true)">
             <div style="font-size:24px;font-weight:700;color:#475569;" id="statRsvpsAllTime">—</div>
             <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.3px;">RSVPs</div>
           </div>
@@ -683,12 +685,12 @@
 
       <!-- Activity — date-filtered -->
       <div class="stat-grid" id="activityGrid">
-        <div class="stat-card"><div class="stat-value" id="statNewUsers">—</div><div class="stat-label" id="statNewUsersLabel">Total Users</div></div>
-        <div class="stat-card"><div class="stat-value" id="statNewEvents">—</div><div class="stat-label" id="statNewEventsLabel">Total Events</div></div>
-        <div class="stat-card"><div class="stat-value" id="statNewRsvps">—</div><div class="stat-label" id="statNewRsvpsLabel">Total RSVPs</div></div>
-        <div class="stat-card"><div class="stat-value" id="statGenerations">—</div><div class="stat-label">AI Generations</div></div>
-        <div class="stat-card"><div class="stat-value" id="statSms">—</div><div class="stat-label" id="statSmsLabel">SMS Sent</div></div>
-        <div class="stat-card"><div class="stat-value" id="statSmsRevenue">—</div><div class="stat-label" id="statSmsRevenueLabel">SMS Revenue</div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="openDrilldown('users')"><div class="stat-value" id="statNewUsers">—</div><div class="stat-label" id="statNewUsersLabel">Total Users</div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="openDrilldown('events')"><div class="stat-value" id="statNewEvents">—</div><div class="stat-label" id="statNewEventsLabel">Total Events</div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="openDrilldown('rsvps')"><div class="stat-value" id="statNewRsvps">—</div><div class="stat-label" id="statNewRsvpsLabel">Total RSVPs</div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="openDrilldown('chatGenerations')"><div class="stat-value" id="statChatGenerations">—</div><div class="stat-label" id="statChatGenerationsLabel">Chat Messages</div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="openDrilldown('themeGenerations')"><div class="stat-value" id="statThemeGenerations">—</div><div class="stat-label" id="statThemeGenerationsLabel">Invite Generations</div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="openDrilldown('sms')"><div class="stat-value" id="statSms">—</div><div class="stat-label" id="statSmsLabel">SMS Sent</div></div>
       </div>
 
       <!-- Cost Tracking -->
@@ -2901,6 +2903,29 @@
       </div>
     </div>
 
+    <!-- Drilldown Modal -->
+    <div id="drilldownModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeDrilldown()">
+      <div class="modal modal-wide" style="max-width:1100px;max-height:90vh;overflow-y:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div>
+            <h3 id="drilldownTitle" style="margin:0;">Details</h3>
+            <div id="drilldownSubtitle" style="font-size:12px;color:#888;margin-top:4px;"></div>
+          </div>
+          <button onclick="closeDrilldown()" style="border:none;background:none;font-size:24px;cursor:pointer;color:#999;">&times;</button>
+        </div>
+        <div id="drilldownLoading" style="text-align:center;padding:40px;color:#888;">Loading...</div>
+        <div id="drilldownContent" style="display:none;">
+          <div id="drilldownTruncated" style="display:none;background:#fefce8;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#92400e;">Showing first 500 results</div>
+          <div style="overflow-x:auto;">
+            <table style="font-size:13px;width:100%;">
+              <thead id="drilldownHead"></thead>
+              <tbody id="drilldownBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Funnel Analytics Tab -->
     <div class="tab-content" id="tab-funnel">
       <h3 style="margin:0 0 20px;">Funnel Analytics</h3>
@@ -3504,7 +3529,10 @@
       document.getElementById('statNewEventsLabel').textContent = isFiltered ? 'New Events' : 'Total Events';
       document.getElementById('statNewRsvps').textContent = f.newRsvps != null ? f.newRsvps : (stats.totalRsvps || 0);
       document.getElementById('statNewRsvpsLabel').textContent = isFiltered ? 'New RSVPs' : 'Total RSVPs';
-      document.getElementById('statGenerations').textContent = f.generations != null ? f.generations : (stats.totalGenerations || 0);
+      document.getElementById('statChatGenerations').textContent = f.chatGenerations != null ? f.chatGenerations : (stats.costs && stats.costs.chatCount || 0);
+      document.getElementById('statChatGenerationsLabel').textContent = isFiltered ? 'Chat Messages' : 'Chat Messages';
+      document.getElementById('statThemeGenerations').textContent = f.themeGenerations != null ? f.themeGenerations : (stats.costs && stats.costs.themeCount || 0);
+      document.getElementById('statThemeGenerationsLabel').textContent = isFiltered ? 'Invite Generations' : 'Invite Generations';
 
       // SMS stats — pass date params for filtering
       (async function() {
@@ -3515,16 +3543,12 @@
           var smsRes = await adminFetch('smsStats' + smsParams);
           if (isFiltered && smsRes.filtered) {
             document.getElementById('statSms').textContent = smsRes.filtered.sent || 0;
-            document.getElementById('statSmsRevenue').textContent = '$' + ((smsRes.filtered.revenueCents || 0) / 100).toFixed(2);
           } else {
             document.getElementById('statSms').textContent = smsRes.totalSent || 0;
-            document.getElementById('statSmsRevenue').textContent = '$' + ((smsRes.totalRevenueCents || 0) / 100).toFixed(2);
           }
           document.getElementById('statSmsLabel').textContent = isFiltered ? 'SMS Sent' : 'SMS Sent';
-          document.getElementById('statSmsRevenueLabel').textContent = isFiltered ? 'SMS Revenue' : 'SMS Revenue';
         } catch (e) {
           document.getElementById('statSms').textContent = '0';
-          document.getElementById('statSmsRevenue').textContent = '$0.00';
         }
       })();
 
@@ -11245,6 +11269,139 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     function closeSupportModal() {
       document.getElementById('supportTicketModal').style.display = 'none';
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // STATS DRILLDOWN MODAL
+    // ═══════════════════════════════════════════════════════
+
+    function closeDrilldown() {
+      document.getElementById('drilldownModal').style.display = 'none';
+    }
+
+    async function openDrilldown(metric, allTime) {
+      document.getElementById('drilldownModal').style.display = 'flex';
+      document.getElementById('drilldownLoading').style.display = '';
+      document.getElementById('drilldownContent').style.display = 'none';
+
+      var titles = {
+        users: 'Users', events: 'Events', rsvps: 'RSVPs',
+        chatGenerations: 'Chat Messages', themeGenerations: 'Invite Generations', sms: 'SMS Sent'
+      };
+      document.getElementById('drilldownTitle').textContent = titles[metric] || 'Details';
+
+      // Show date range subtitle
+      if (allTime) {
+        document.getElementById('drilldownSubtitle').textContent = 'All time';
+      } else if (statsDateFrom || statsDateTo) {
+        var rangeText = '';
+        if (statsDateFrom && statsDateTo) rangeText = statsDateFrom + ' to ' + statsDateTo;
+        else if (statsDateFrom) rangeText = 'From ' + statsDateFrom;
+        else rangeText = 'Through ' + statsDateTo;
+        document.getElementById('drilldownSubtitle').textContent = rangeText;
+      } else {
+        document.getElementById('drilldownSubtitle').textContent = 'All time';
+      }
+
+      var params = '&metric=' + metric;
+      if (!allTime && statsDateFrom) params += '&from=' + encodeURIComponent(pacificDayStart(statsDateFrom));
+      if (!allTime && statsDateTo) params += '&to=' + encodeURIComponent(pacificDayEnd(statsDateTo));
+
+      try {
+        var res = await adminFetch('statsDrilldown' + params);
+        if (!res.success) { showToast('Failed to load details'); closeDrilldown(); return; }
+
+        var columns, rowRenderer;
+        switch (metric) {
+          case 'users':
+            columns = ['Name', 'Email', 'Joined'];
+            rowRenderer = function(r) {
+              return '<td>' + escapeHtml(r.name || '—') + '</td>'
+                + '<td>' + escapeHtml(r.email || '—') + '</td>'
+                + '<td>' + fmtDate(r.createdAt) + '</td>';
+            };
+            break;
+          case 'events':
+            columns = ['Title', 'Creator', 'Type', 'Status', 'Created'];
+            rowRenderer = function(r) {
+              return '<td>' + escapeHtml(r.title || '—') + '</td>'
+                + '<td>' + escapeHtml(r.creatorEmail || '—') + '</td>'
+                + '<td>' + escapeHtml(r.eventType || '—') + '</td>'
+                + '<td><span class="status-badge status-' + (r.status || 'draft') + '">' + escapeHtml(r.status || 'draft') + '</span></td>'
+                + '<td>' + fmtDate(r.createdAt) + '</td>';
+            };
+            break;
+          case 'rsvps':
+            columns = ['Guest', 'Email/Phone', 'Event', 'Status', 'Responded'];
+            rowRenderer = function(r) {
+              var contact = r.email || r.phone || '—';
+              return '<td>' + escapeHtml(r.name || '—') + '</td>'
+                + '<td>' + escapeHtml(contact) + '</td>'
+                + '<td>' + escapeHtml(r.eventTitle || '—') + '</td>'
+                + '<td><span class="status-badge status-' + (r.status || 'pending') + '">' + escapeHtml(r.status || 'pending') + '</span></td>'
+                + '<td>' + fmtDate(r.respondedAt || r.createdAt) + '</td>';
+            };
+            break;
+          case 'chatGenerations':
+            columns = ['Event', 'Model', 'Tokens (In/Out)', 'Cost', 'Time'];
+            rowRenderer = function(r) {
+              var modelShort = (r.model || '').replace('claude-', '').replace(/-\d{8}$/, '');
+              return '<td>' + escapeHtml(r.eventTitle || '—') + '</td>'
+                + '<td>' + escapeHtml(modelShort) + '</td>'
+                + '<td>' + formatNumber(r.inputTokens) + ' / ' + formatNumber(r.outputTokens) + '</td>'
+                + '<td>' + fmtCost(r.cost) + '</td>'
+                + '<td>' + fmtDate(r.createdAt) + '</td>';
+            };
+            break;
+          case 'themeGenerations':
+            columns = ['Event', 'Model', 'Tokens (In/Out)', 'Latency', 'Cost', 'Time'];
+            rowRenderer = function(r) {
+              var modelShort = (r.model || '').replace('claude-', '').replace(/-\d{8}$/, '');
+              var lat = r.latencyMs ? ((r.latencyMs / 1000).toFixed(1) + 's') : '—';
+              return '<td>' + escapeHtml(r.eventTitle || '—') + '</td>'
+                + '<td>' + escapeHtml(modelShort) + '</td>'
+                + '<td>' + formatNumber(r.inputTokens) + ' / ' + formatNumber(r.outputTokens) + '</td>'
+                + '<td>' + lat + '</td>'
+                + '<td>' + fmtCost(r.cost) + '</td>'
+                + '<td>' + fmtDate(r.createdAt) + '</td>';
+            };
+            break;
+          case 'sms':
+            columns = ['Recipient', 'Event', 'Type', 'Status', 'Sent'];
+            rowRenderer = function(r) {
+              return '<td>' + escapeHtml(r.recipientName || r.recipientPhone || '—') + '</td>'
+                + '<td>' + escapeHtml(r.eventTitle || '—') + '</td>'
+                + '<td>' + escapeHtml(r.messageType || '—') + '</td>'
+                + '<td>' + escapeHtml(r.status || '—') + '</td>'
+                + '<td>' + fmtDate(r.createdAt) + '</td>';
+            };
+            break;
+        }
+
+        document.getElementById('drilldownHead').innerHTML = '<tr>' + columns.map(function(c) { return '<th>' + c + '</th>'; }).join('') + '</tr>';
+
+        var rows = res.rows || [];
+        if (rows.length === 0) {
+          document.getElementById('drilldownBody').innerHTML = '<tr><td colspan="' + columns.length + '" style="text-align:center;color:#888;padding:20px;">No data found</td></tr>';
+        } else {
+          document.getElementById('drilldownBody').innerHTML = rows.map(function(r) { return '<tr>' + rowRenderer(r) + '</tr>'; }).join('');
+        }
+
+        document.getElementById('drilldownTruncated').style.display = (res.total > rows.length) ? '' : 'none';
+        document.getElementById('drilldownLoading').style.display = 'none';
+        document.getElementById('drilldownContent').style.display = '';
+      } catch (e) {
+        showToast('Error loading drilldown: ' + e.message);
+        closeDrilldown();
+      }
+    }
+
+    function fmtDate(iso) {
+      if (!iso) return '—';
+      try {
+        var d = new Date(iso);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      } catch (e) { return iso; }
     }
 
     // ═══════════════════════════════════════════════════════
