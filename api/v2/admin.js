@@ -577,29 +577,41 @@ export default async function handler(req, res) {
       let allChatMessages = chatRes.data || [];
       const hasCreatePhase = allChatMessages.some(m => m.phase === 'create');
       if (!hasCreatePhase && event.user_id && event.created_at) {
-        // Fetch creation-phase messages by user_id in a time window around event creation
+        // Find creation-phase messages: look for chat sessions started around event creation
+        // The event is created on the first chat message, so look for sessions starting
+        // within 2 min of event creation, then get ALL messages from that session
         const eventCreated = new Date(event.created_at);
-        const windowStart = new Date(eventCreated.getTime() - 15 * 60 * 1000).toISOString(); // 15 min before
-        const windowEnd = new Date(eventCreated.getTime() + 5 * 60 * 1000).toISOString(); // 5 min after
-        const { data: creationChat } = await supabaseAdmin
+        const windowStart = new Date(eventCreated.getTime() - 2 * 60 * 1000).toISOString();
+        const windowEnd = new Date(eventCreated.getTime() + 2 * 60 * 1000).toISOString();
+
+        // First, find the session_id by looking for messages near event creation
+        const { data: seedMessages } = await supabaseAdmin
           .from('chat_messages')
-          .select('id, session_id, role, content, phase, model, input_tokens, output_tokens, created_at')
+          .select('session_id')
           .eq('user_id', event.user_id)
           .is('event_id', null)
           .gte('created_at', windowStart)
           .lte('created_at', windowEnd)
-          .order('created_at', { ascending: true });
-        if (creationChat && creationChat.length > 0) {
-          // Deduplicate by session — pick the session with most messages in the window
-          const sessions = {};
-          creationChat.forEach(m => {
-            if (!sessions[m.session_id]) sessions[m.session_id] = [];
-            sessions[m.session_id].push(m);
-          });
-          const bestSession = Object.values(sessions).sort((a, b) => b.length - a.length)[0];
-          // Mark these as creation phase and prepend to chat
-          const creationMsgs = bestSession.map(m => ({ ...m, phase: m.phase || 'create' }));
-          allChatMessages = [...creationMsgs, ...allChatMessages];
+          .limit(5);
+
+        if (seedMessages && seedMessages.length > 0) {
+          // Get the most common session_id from the seed
+          const sessionCounts = {};
+          seedMessages.forEach(m => { sessionCounts[m.session_id] = (sessionCounts[m.session_id] || 0) + 1; });
+          const bestSessionId = Object.entries(sessionCounts).sort((a, b) => b[1] - a[1])[0][0];
+
+          // Now fetch ALL messages from that entire session (no time limit)
+          const { data: fullSession } = await supabaseAdmin
+            .from('chat_messages')
+            .select('id, session_id, role, content, phase, model, input_tokens, output_tokens, created_at')
+            .eq('session_id', bestSessionId)
+            .eq('user_id', event.user_id)
+            .order('created_at', { ascending: true });
+
+          if (fullSession && fullSession.length > 0) {
+            const creationMsgs = fullSession.map(m => ({ ...m, phase: m.phase || 'create' }));
+            allChatMessages = [...creationMsgs, ...allChatMessages];
+          }
         }
       }
 
