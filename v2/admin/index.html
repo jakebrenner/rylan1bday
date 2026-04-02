@@ -4220,7 +4220,7 @@
           return '<div class="ud-timeline-item' + (t.success ? ' success' : '') + '">'
             + '<div class="tl-dot" style="background:' + dotColor + ';"></div>'
             + '<div class="tl-content">'
-            + '<div class="tl-date">' + formatDate(t.date) + '</div>'
+            + '<div class="tl-date">' + formatDateTime(t.date) + '</div>'
             + '<div class="tl-desc">' + escapeHtml(t.desc) + '</div>'
             + (t.detail ? '<div class="tl-detail">' + escapeHtml(t.detail) + '</div>' : '')
             + '</div></div>';
@@ -6504,6 +6504,14 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       if (!iso) return '—';
       try { return new Date(iso).toLocaleDateString('en-US', { timeZone: PT_TZ, month: 'short', day: 'numeric', year: 'numeric' }); }
       catch (e) { return iso; }
+    }
+    function formatDateTime(iso) {
+      if (!iso) return '—';
+      try {
+        var d = new Date(iso);
+        return d.toLocaleDateString('en-US', { timeZone: PT_TZ, month: 'short', day: 'numeric', year: 'numeric' })
+          + ' at ' + d.toLocaleTimeString('en-US', { timeZone: PT_TZ, hour: 'numeric', minute: '2-digit', hour12: true });
+      } catch (e) { return iso; }
     }
     function formatNumber(n) {
       if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
