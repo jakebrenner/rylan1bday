@@ -6186,23 +6186,21 @@
         input.style.height = 'auto';
         return;
       }
-      if (currentEvent && currentEvent.paymentStatus === 'free' && (currentEvent.generationCount || 0) > 0) {
-        // Allow Tier 1.75 client-side text swaps — they don't cost anything
-        var textSwapPattern = /\b(change|replace|swap|switch)\b.{0,10}["'\u201C\u201D].+["'\u201C\u201D]\s*(to|with|for)\s*["'\u201C\u201D]/i;
-        if (!textSwapPattern.test(text)) {
-          var remaining = (currentEvent.generationLimit || 2) - (currentEvent.generationCount || 0);
-          pendingUpgradeMessage = text;
-          sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
-          pushDesignChat({ role: 'user', content: text });
-          if (remaining > 0) {
-            pushDesignChat({ role: 'upgrade', content: "I can't make design tweaks on the free plan, but I can generate a brand new design. You have " + remaining + " free design" + (remaining > 1 ? "s" : "") + " remaining.\n\nOr upgrade for $4.99 to unlock unlimited design changes." });
-          } else {
+      if (currentEvent && currentEvent.paymentStatus === 'free') {
+        var remaining = (currentEvent.generationLimit || 2) - (currentEvent.generationCount || 0);
+        if (remaining <= 0) {
+          // Allow Tier 1.75 client-side text swaps — they don't cost anything
+          var textSwapPattern = /\b(change|replace|swap|switch)\b.{0,10}["'\u201C\u201D].+["'\u201C\u201D]\s*(to|with|for)\s*["'\u201C\u201D]/i;
+          if (!textSwapPattern.test(text)) {
+            pendingUpgradeMessage = text;
+            sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
+            pushDesignChat({ role: 'user', content: text });
             pushDesignChat({ role: 'upgrade', content: "You've used all " + (currentEvent.generationLimit || 2) + " of your free designs. Upgrade to unlock unlimited design changes, SMS delivery, and everything you need to send a beautiful invite." });
+            renderDesignChat();
+            input.value = '';
+            input.style.height = 'auto';
+            return;
           }
-          renderDesignChat();
-          input.value = '';
-          input.style.height = 'auto';
-          return;
         }
       }
 

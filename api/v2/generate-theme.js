@@ -2562,7 +2562,7 @@ This is the most common failure mode. Double-check it.`;
     }
 
     if (resolvedInspirationImages.length > 0) {
-      userMessage += `\n\n**Visual Inspiration:** I've provided ${resolvedInspirationImages.length} image(s) as inspiration. Analyze for color palette, mood, textures, and typography cues.`;
+      userMessage += `\n\n**CRITICAL — Visual Inspiration (${resolvedInspirationImages.length} image${resolvedInspirationImages.length > 1 ? 's' : ''}):** The user uploaded these images as design inspiration. You MUST extract and use the dominant color palette, mood, lighting, and visual energy from these images as the primary basis for your design. Do NOT default to generic bright/neon colors — match the actual tones and atmosphere shown in the inspiration. If the images are dark and moody, make the design dark and moody. If warm and golden, use warm golds. The inspiration images are the single strongest signal for what the user wants visually.`;
     }
 
     const messageContent = resolvedInspirationImages.length > 0
