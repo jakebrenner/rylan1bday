@@ -413,12 +413,13 @@
 
     .ud-timeline { position: relative; padding-left: 20px; }
     .ud-timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: #eee; }
-    .ud-timeline-item { position: relative; padding-bottom: 16px; }
-    .ud-timeline-item::before { content: ''; position: absolute; left: -17px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--party-coral); border: 2px solid white; box-shadow: 0 0 0 2px #eee; }
-    .ud-timeline-item.success::before { background: var(--mint-fizz); }
+    .ud-timeline-item { position: relative; padding-bottom: 16px; display: flex; gap: 12px; align-items: flex-start; }
+    .ud-timeline-item::before { display: none; }
+    .ud-timeline-item .tl-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; border: 2px solid white; box-shadow: 0 0 0 2px #eee; }
+    .ud-timeline-item .tl-content { flex: 1; min-width: 0; }
     .ud-timeline-item .tl-date { font-size: 11px; color: #888; }
     .ud-timeline-item .tl-desc { font-size: 13px; font-weight: 500; color: var(--midnight); }
-    .ud-timeline-item .tl-detail { font-size: 12px; color: #888; margin-top: 2px; }
+    .ud-timeline-item .tl-detail { font-size: 12px; color: #888; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     .ud-stripe-card { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f9f9f9; border-radius: 8px; margin-bottom: 8px; }
     .ud-stripe-card .card-icon { font-size: 24px; }
@@ -4157,17 +4158,52 @@
         + detailItem('Created', formatDate(u.createdAt))
         + detailItem('Last Updated', u.updatedAt ? formatDate(u.updatedAt) : '—');
 
-      // Activity timeline
+      // Activity timeline — merges all touchpoints
       var timelineItems = [];
-      timelineItems.push({ date: u.createdAt, desc: 'Account created', detail: u.email, success: true });
+      timelineItems.push({ date: u.createdAt, desc: 'Account created', detail: u.email, success: true, icon: 'account' });
       (data.subscriptions || []).forEach(function(s) {
-        timelineItems.push({ date: s.createdAt, desc: 'Purchased event', detail: '$' + ((s.amountPaidCents || 0) / 100).toFixed(2), success: true });
+        timelineItems.push({ date: s.createdAt, desc: 'Purchased event', detail: '$' + ((s.amountPaidCents || 0) / 100).toFixed(2), success: true, icon: 'payment' });
       });
       data.events.forEach(function(e) {
-        timelineItems.push({ date: e.createdAt, desc: 'Created event: ' + e.title, detail: e.eventType || '', success: e.status === 'published' });
+        timelineItems.push({ date: e.createdAt, desc: 'Created event: ' + e.title, detail: e.eventType || '', success: e.status === 'published', icon: 'event' });
       });
       data.billing.forEach(function(b) {
-        timelineItems.push({ date: b.createdAt, desc: 'Payment: $' + ((b.amountCents || 0) / 100).toFixed(2), detail: b.description || '', success: b.status === 'succeeded' });
+        timelineItems.push({ date: b.createdAt, desc: 'Payment: $' + ((b.amountCents || 0) / 100).toFixed(2), detail: b.description || '', success: b.status === 'succeeded', icon: 'payment' });
+      });
+
+      // Email & SMS notifications
+      var notifTypeLabels = {
+        welcome: 'Welcome email',
+        review_request: 'Review request email',
+        review_reminder: 'Review reminder email',
+        abandonment_nudge: 'Draft abandonment nudge',
+        event_reminder: 'Event reminder',
+        invite_email: 'Invite email',
+        rsvp_digest: 'RSVP digest',
+        cohost_invite: 'Co-host invitation',
+        sms_invite: 'SMS invite',
+        sms_test: 'SMS test'
+      };
+      (data.notifications || []).forEach(function(n) {
+        var typeLabel = notifTypeLabels[n.emailType] || (n.channel === 'sms' ? 'SMS sent' : 'Email sent');
+        var statusDetail = '';
+        if (n.bouncedAt) statusDetail = ' (bounced)';
+        else if (n.clickedAt) statusDetail = ' (opened & clicked)';
+        else if (n.openedAt) statusDetail = ' (opened)';
+        else if (n.deliveredAt) statusDetail = ' (delivered)';
+        else if (n.status === 'failed') statusDetail = ' (failed)';
+        var isFailed = n.status === 'failed' || !!n.bouncedAt;
+        var isSuccess = !!n.clickedAt || !!n.openedAt || n.status === 'delivered' || n.status === 'sent';
+        var channelBadge = n.channel === 'sms' ? '[SMS] ' : '[Email] ';
+        var subjectSnippet = n.subject ? (n.subject.length > 60 ? n.subject.substring(0, 57) + '...' : n.subject) : '';
+        timelineItems.push({
+          date: n.sentAt,
+          desc: channelBadge + typeLabel + statusDetail,
+          detail: subjectSnippet,
+          success: isSuccess && !isFailed,
+          failed: isFailed,
+          icon: n.channel === 'sms' ? 'sms' : 'email'
+        });
       });
 
       timelineItems.sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
@@ -4175,12 +4211,19 @@
       if (timelineItems.length === 0) {
         tlEl.innerHTML = '<div class="ud-empty">No activity</div>';
       } else {
-        tlEl.innerHTML = timelineItems.slice(0, 30).map(function(t) {
+        var iconColors = {
+          account: '#10B981', event: '#E94560', payment: '#8B5CF6',
+          email: '#3B82F6', sms: '#F59E0B', default: '#6B7280'
+        };
+        tlEl.innerHTML = timelineItems.slice(0, 50).map(function(t) {
+          var dotColor = t.failed ? '#EF4444' : (iconColors[t.icon] || iconColors['default']);
           return '<div class="ud-timeline-item' + (t.success ? ' success' : '') + '">'
+            + '<div class="tl-dot" style="background:' + dotColor + ';"></div>'
+            + '<div class="tl-content">'
             + '<div class="tl-date">' + formatDate(t.date) + '</div>'
             + '<div class="tl-desc">' + escapeHtml(t.desc) + '</div>'
             + (t.detail ? '<div class="tl-detail">' + escapeHtml(t.detail) + '</div>' : '')
-            + '</div>';
+            + '</div></div>';
         }).join('');
       }
     }
@@ -10414,6 +10457,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     }
 
     var touchpointLabels = {
+      welcome: 'Welcome Email',
       review_request: 'Review Request',
       review_reminder: 'Review Reminder',
       abandonment_nudge: 'Draft Abandonment',

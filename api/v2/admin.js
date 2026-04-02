@@ -194,7 +194,7 @@ export default async function handler(req, res) {
       if (!userId) return res.status(400).json({ error: 'userId required' });
 
       // Fetch all data in parallel — only use tables/columns that actually exist
-      const [profileRes, authUserRes, eventsRes, subsRes, billingRes, generationsRes, smsRes, chatRes, creditLedgerRes] = await Promise.all([
+      const [profileRes, authUserRes, eventsRes, subsRes, billingRes, generationsRes, smsRes, chatRes, creditLedgerRes, notifRes] = await Promise.all([
         supabaseAdmin.from('profiles').select('*').eq('id', userId).single(),
         supabaseAdmin.auth.admin.getUserById(userId).catch(() => ({ data: { user: null } })),
         supabaseAdmin.from('events').select('id, title, event_type, event_date, status, slug, payment_status, paid_at, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
@@ -203,7 +203,33 @@ export default async function handler(req, res) {
         supabaseAdmin.from('generation_log').select('id, event_id, model, input_tokens, output_tokens, prompt, status, latency_ms, created_at').eq('user_id', userId).eq('status', 'success').order('created_at', { ascending: false }),
         supabaseAdmin.from('sms_messages').select('id, event_id, recipient_phone, recipient_name, message_type, status, cost_cents, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
         supabaseAdmin.from('chat_messages').select('id, session_id, role, content, model, input_tokens, output_tokens, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(200),
-        (async () => { try { return await supabaseAdmin.from('credit_ledger').select('entry_type, amount, source, notes, reference_id, created_at').eq('user_id', userId).order('created_at', { ascending: false }); } catch { return { data: [] }; } })()
+        (async () => { try { return await supabaseAdmin.from('credit_ledger').select('entry_type, amount, source, notes, reference_id, created_at').eq('user_id', userId).order('created_at', { ascending: false }); } catch { return { data: [] }; } })(),
+        // Fetch notification_log: match by user_id OR recipient email (for pre-migration records)
+        (async () => {
+          try {
+            // First try by user_id
+            const byUserId = await supabaseAdmin.from('notification_log')
+              .select('id, event_id, channel, recipient, subject, status, email_type, delivered_at, opened_at, clicked_at, bounced_at, sent_at, created_at')
+              .eq('user_id', userId)
+              .order('sent_at', { ascending: false })
+              .limit(100);
+            // Also get by email for records that predate user_id column
+            const profileData = await supabaseAdmin.from('profiles').select('email').eq('id', userId).single();
+            if (profileData.data?.email) {
+              const byEmail = await supabaseAdmin.from('notification_log')
+                .select('id, event_id, channel, recipient, subject, status, email_type, delivered_at, opened_at, clicked_at, bounced_at, sent_at, created_at')
+                .eq('recipient', profileData.data.email)
+                .is('user_id', null)
+                .order('sent_at', { ascending: false })
+                .limit(100);
+              // Merge and deduplicate by id
+              const allNotifs = [...(byUserId.data || []), ...(byEmail.data || [])];
+              const seen = new Set();
+              return { data: allNotifs.filter(n => { if (seen.has(n.id)) return false; seen.add(n.id); return true; }) };
+            }
+            return byUserId;
+          } catch { return { data: [] }; }
+        })()
       ]);
 
       const profile = profileRes.data;
@@ -512,6 +538,20 @@ export default async function handler(req, res) {
           outputTokens: t.output_tokens,
           latencyMs: t.latency_ms,
           createdAt: t.created_at
+        })),
+        notifications: (notifRes.data || []).map(n => ({
+          id: n.id,
+          eventId: n.event_id,
+          channel: n.channel,
+          recipient: n.recipient,
+          subject: n.subject,
+          status: n.status,
+          emailType: n.email_type,
+          deliveredAt: n.delivered_at,
+          openedAt: n.opened_at,
+          clickedAt: n.clicked_at,
+          bouncedAt: n.bounced_at,
+          sentAt: n.sent_at || n.created_at
         }))
       });
     }
