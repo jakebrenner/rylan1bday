@@ -367,6 +367,7 @@
     .guest-detail-actions { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee; flex-wrap: wrap; }
     .guest-detail-btn { padding: 7px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 12px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; background: white; color: var(--midnight); transition: all 0.15s; }
     .guest-detail-btn:hover:not(:disabled) { border-color: var(--party-coral); color: var(--party-coral); }
+    #addGuestModal input:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.08); }
     .guest-detail-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .guest-response-chips { display: flex; flex-wrap: wrap; gap: 6px; }
     .guest-response-chip { background: white; border: 1px solid #eee; border-radius: 6px; padding: 4px 10px; font-size: 12px; }
@@ -706,6 +707,38 @@
       <div class="confirm-actions">
         <button class="confirm-cancel" onclick="closeConfirm()">Cancel</button>
         <button class="confirm-ok" id="confirmOk">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add New Guest Modal -->
+  <div class="confirm-overlay" id="addGuestModal" onclick="if(event.target===this)closeAddGuestModal()">
+    <div class="confirm-box" style="max-width:400px;text-align:left;">
+      <div class="confirm-title" style="text-align:center;">Add New Guest</div>
+      <div id="addGuestFormSection">
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;color:#666;margin-bottom:4px;display:block;">Name *</label>
+          <input type="text" id="dashNewGuestName" placeholder="Guest name" style="width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;box-sizing:border-box;" onkeydown="if(event.key==='Enter')submitNewGuestFromDashboard()">
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;color:#666;margin-bottom:4px;display:block;">Email</label>
+          <input type="email" id="dashNewGuestEmail" placeholder="guest@example.com" style="width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;box-sizing:border-box;" onkeydown="if(event.key==='Enter')submitNewGuestFromDashboard()">
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;color:#666;margin-bottom:4px;display:block;">Phone</label>
+          <input type="tel" id="dashNewGuestPhone" placeholder="(555) 123-4567" style="width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;box-sizing:border-box;" onkeydown="if(event.key==='Enter')submitNewGuestFromDashboard()">
+        </div>
+        <div id="dashNewGuestMsg" style="display:none;font-size:12px;margin-top:8px;text-align:center;"></div>
+        <div class="confirm-actions">
+          <button class="confirm-cancel" onclick="closeAddGuestModal()">Cancel</button>
+          <button class="confirm-ok" id="addGuestSubmitBtn" onclick="submitNewGuestFromDashboard()" style="background:var(--party-coral);">Add Guest</button>
+        </div>
+      </div>
+      <div id="addGuestInvitePrompt" style="display:none;text-align:center;">
+        <div style="font-size:14px;font-weight:600;color:var(--midnight);margin-bottom:16px;" id="addGuestSuccessMsg"></div>
+        <div id="addGuestInviteBtns" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;"></div>
+        <button onclick="addAnotherGuest()" style="margin-top:16px;background:none;border:none;color:var(--party-coral);font-weight:600;cursor:pointer;font-size:13px;font-family:Inter,sans-serif;">+ Add Another</button>
+        <button onclick="closeAddGuestModal()" style="margin-top:8px;background:none;border:none;color:#999;cursor:pointer;font-size:13px;display:block;margin-left:auto;margin-right:auto;font-family:Inter,sans-serif;">Done</button>
       </div>
     </div>
   </div>
@@ -1722,12 +1755,191 @@
     }
 
     var guestHistoryCache = {};
+    var lastAddedGuestId = null;
+    var lastAddedGuestData = null;
+
+    function openAddGuestModal() {
+      document.getElementById('dashNewGuestName').value = '';
+      document.getElementById('dashNewGuestEmail').value = '';
+      document.getElementById('dashNewGuestPhone').value = '';
+      var msg = document.getElementById('dashNewGuestMsg');
+      msg.style.display = 'none';
+      msg.textContent = '';
+      document.getElementById('addGuestFormSection').style.display = 'block';
+      document.getElementById('addGuestInvitePrompt').style.display = 'none';
+      document.getElementById('addGuestSubmitBtn').disabled = false;
+      document.getElementById('addGuestSubmitBtn').textContent = 'Add Guest';
+      document.getElementById('addGuestModal').classList.add('active');
+      lastAddedGuestId = null;
+      lastAddedGuestData = null;
+      setTimeout(function() { document.getElementById('dashNewGuestName').focus(); }, 100);
+    }
+
+    function closeAddGuestModal() {
+      document.getElementById('addGuestModal').classList.remove('active');
+      lastAddedGuestId = null;
+      lastAddedGuestData = null;
+    }
+
+    async function submitNewGuestFromDashboard() {
+      var name = document.getElementById('dashNewGuestName').value.trim();
+      var email = document.getElementById('dashNewGuestEmail').value.trim();
+      var phone = document.getElementById('dashNewGuestPhone').value.trim();
+      var msg = document.getElementById('dashNewGuestMsg');
+      var btn = document.getElementById('addGuestSubmitBtn');
+
+      if (!name) {
+        msg.textContent = 'Name is required';
+        msg.style.color = '#E94560';
+        msg.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Adding...';
+      msg.textContent = '';
+      msg.style.display = 'none';
+
+      try {
+        // Step 1: Create contact
+        var contactRes = await authFetch('/api/v2/contacts?action=create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name, email: email || null, phone: phone || null, source: 'event_dashboard', sourceEventId: manageEventId })
+        });
+        var contactResult = await contactRes.json();
+        var contactId = null;
+
+        if (contactResult.success) {
+          contactId = contactResult.contact.id;
+        } else if (contactResult.existingContactId) {
+          contactId = contactResult.existingContactId;
+        } else {
+          msg.textContent = contactResult.error || 'Failed to create contact';
+          msg.style.color = '#E94560';
+          msg.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Add Guest';
+          return;
+        }
+
+        // Step 2: Add to event
+        var addRes = await authFetch('/api/v2/events?action=addGuests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: manageEventId, contactIds: [contactId] })
+        });
+        var addResult = await addRes.json();
+
+        if (addResult.guests && addResult.guests.length) {
+          lastAddedGuestId = addResult.guests[0].id;
+        }
+        lastAddedGuestData = { name: name, email: email, phone: phone };
+
+        // Step 3: Reload guest list
+        loadGuestsTab();
+
+        // Step 4: Show invite prompt
+        showToast(escapeHtml(name) + ' added as a guest!');
+        document.getElementById('addGuestFormSection').style.display = 'none';
+        document.getElementById('addGuestInvitePrompt').style.display = 'block';
+        document.getElementById('addGuestSuccessMsg').textContent = name + ' has been added!';
+
+        // Build invite buttons based on available contact info
+        var btnsHtml = '';
+        if (phone && lastAddedGuestId) {
+          btnsHtml += '<button onclick="sendInviteToNewGuest(\'sms\')" id="addGuestSmsBtn" class="confirm-ok" style="background:var(--party-coral);font-size:13px;padding:8px 16px;">Send SMS Invite</button>';
+        }
+        if (email && lastAddedGuestId) {
+          btnsHtml += '<button onclick="sendInviteToNewGuest(\'email\')" id="addGuestEmailBtn" class="confirm-ok" style="background:var(--mint-fizz);color:white;font-size:13px;padding:8px 16px;">Send Email Invite</button>';
+        }
+        if (!phone && !email) {
+          btnsHtml = '<div style="font-size:12px;color:#999;">Add an email or phone number to send invites</div>';
+        }
+        document.getElementById('addGuestInviteBtns').innerHTML = btnsHtml;
+
+      } catch (e) {
+        msg.textContent = 'Error adding guest';
+        msg.style.color = '#E94560';
+        msg.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Add Guest';
+      }
+    }
+
+    async function sendInviteToNewGuest(type) {
+      if (!lastAddedGuestId) return;
+      var btn = document.getElementById(type === 'sms' ? 'addGuestSmsBtn' : 'addGuestEmailBtn');
+      if (!btn) return;
+      var origText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+
+      try {
+        if (type === 'sms') {
+          var inviteUrl = getInviteUrl();
+          var smsMsg = 'You\'re invited to ' + manageTitle + '! RSVP here: ' + inviteUrl;
+          var res = await authFetch('/api/v2/sms?action=sendInvites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: manageEventId, guestIds: [lastAddedGuestId], message: smsMsg })
+          });
+          var result = await res.json();
+          if (result.success) {
+            showToast('SMS invite sent!');
+            btn.textContent = 'SMS Sent';
+            loadGuestsTab();
+          } else {
+            showToast(result.error || 'Failed to send SMS');
+            btn.disabled = false;
+            btn.textContent = origText;
+          }
+        } else {
+          var res = await authFetch('/api/v2/sms?action=sendEmailInvites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: manageEventId, guestIds: [lastAddedGuestId] })
+          });
+          var result = await res.json();
+          if (result.success) {
+            showToast('Email invite sent!');
+            btn.textContent = 'Email Sent';
+            loadGuestsTab();
+          } else {
+            showToast(result.error || 'Failed to send email');
+            btn.disabled = false;
+            btn.textContent = origText;
+          }
+        }
+      } catch (e) {
+        showToast('Failed to send invite');
+        btn.disabled = false;
+        btn.textContent = origText;
+      }
+    }
+
+    function addAnotherGuest() {
+      document.getElementById('dashNewGuestName').value = '';
+      document.getElementById('dashNewGuestEmail').value = '';
+      document.getElementById('dashNewGuestPhone').value = '';
+      var msg = document.getElementById('dashNewGuestMsg');
+      msg.style.display = 'none';
+      msg.textContent = '';
+      document.getElementById('addGuestFormSection').style.display = 'block';
+      document.getElementById('addGuestInvitePrompt').style.display = 'none';
+      document.getElementById('addGuestSubmitBtn').disabled = false;
+      document.getElementById('addGuestSubmitBtn').textContent = 'Add Guest';
+      lastAddedGuestId = null;
+      lastAddedGuestData = null;
+      setTimeout(function() { document.getElementById('dashNewGuestName').focus(); }, 100);
+    }
 
     function renderGuestsTab(rsvps) {
       var content = document.getElementById('manageContent');
       if (!rsvps || rsvps.length === 0) {
         content.innerHTML = '<div class="rsvp-empty">No RSVPs yet. Share your invite link to start collecting responses!</div>'
-          + '<div style="text-align:center;margin-top:12px;"><a href="/v2/contacts/" style="color:var(--party-coral);font-weight:600;font-size:14px;">Add guests from contacts</a></div>';
+          + '<div style="text-align:center;margin-top:12px;"><a href="/v2/contacts/" style="color:var(--party-coral);font-weight:600;font-size:14px;">Add guests from contacts</a></div>'
+          + '<div style="text-align:center;margin-top:10px;"><button onclick="openAddGuestModal()" style="background:var(--party-coral);color:white;border:none;border-radius:20px;padding:10px 24px;font-size:14px;font-weight:600;font-family:Inter,sans-serif;cursor:pointer;">+ Add New Guest</button></div>';
         return;
       }
 
@@ -1739,7 +1951,10 @@
 
       var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
         + '<span style="font-size:13px;color:#666;">' + rsvps.length + ' response' + (rsvps.length !== 1 ? 's' : '') + '</span>'
+        + '<div style="display:flex;gap:12px;align-items:center;">'
         + '<a href="/v2/contacts/" style="color:var(--party-coral);font-weight:600;font-size:13px;text-decoration:none;">+ Add from contacts</a>'
+        + '<button onclick="openAddGuestModal()" style="background:var(--party-coral);color:white;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;font-family:Inter,sans-serif;cursor:pointer;">+ Add New Guest</button>'
+        + '</div>'
         + '</div>';
 
       rsvps.forEach(function(r) {
