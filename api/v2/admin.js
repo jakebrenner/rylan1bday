@@ -3213,12 +3213,25 @@ ${cssSnippet}`
         const footerNote = replaceVars(cm.review_email_footer_note || 'Your review may be featured on our site to help other event planners.');
         const bodyHtml = bodyText.split('\n').filter(p => p.trim()).map(p => `<p style="margin:0 0 16px;font-size:15px;color:#555;line-height:1.6;">${p}</p>`).join('\n    ');
 
-        await resend.emails.send({
+        const emailResult = await resend.emails.send({
           from: 'Ryvite <hello@ryvite.com>',
           to: profile.email,
           subject,
           html: buildReviewEmailFromSettings(firstName, headline, bodyHtml, ctaText, footerNote, reviewUrl)
         });
+
+        // Log to notification_log for engagement tracking
+        await supabaseAdmin.from('notification_log').insert({
+          event_id: eventId,
+          user_id: event.user_id,
+          channel: 'email',
+          recipient: profile.email,
+          subject,
+          status: 'sent',
+          provider_id: emailResult?.data?.id || null,
+          email_type: 'review_request',
+          sent_at: new Date().toISOString()
+        }).catch(() => {});
       }
 
       return res.status(200).json({ success: true, token });
@@ -3662,6 +3675,129 @@ ${cssSnippet}`
             paymentStatuses: distinctPaymentStatuses
           }
         }
+      });
+    }
+
+    // ── CUSTOMER LIFECYCLE / TOUCHPOINT ANALYTICS ──
+
+    // Get funnel metrics for all email touchpoint types
+    if (action === 'touchpointAnalytics') {
+      // 1. Per-type funnel from notification_log
+      const { data: funnel, error: funnelErr } = await supabaseAdmin
+        .from('notification_log')
+        .select('email_type, channel, status, delivered_at, opened_at, clicked_at, bounced_at, sent_at')
+        .not('email_type', 'is', null);
+
+      // 2. Review request pipeline
+      const { data: reviewReqs } = await supabaseAdmin
+        .from('review_requests')
+        .select('status, sent_at, reminder_sent_at, completed_at');
+
+      // 3. Draft abandonment conversion: did events get published after nudge?
+      const { data: abandonmentNudges } = await supabaseAdmin
+        .from('notification_log')
+        .select('event_id, sent_at')
+        .eq('email_type', 'abandonment_nudge');
+
+      let abandonmentConversions = 0;
+      if (abandonmentNudges && abandonmentNudges.length > 0) {
+        const nudgedEventIds = abandonmentNudges.map(n => n.event_id).filter(Boolean);
+        if (nudgedEventIds.length > 0) {
+          const { count } = await supabaseAdmin
+            .from('events')
+            .select('id', { count: 'exact', head: true })
+            .in('id', nudgedEventIds)
+            .eq('status', 'published');
+          abandonmentConversions = count || 0;
+        }
+      }
+
+      // Aggregate funnel by email_type
+      const funnelMap = {};
+      for (const row of (funnel || [])) {
+        const key = row.email_type || 'unknown';
+        if (!funnelMap[key]) {
+          funnelMap[key] = { type: key, channel: row.channel, sent: 0, delivered: 0, opened: 0, clicked: 0, bounced: 0, failed: 0 };
+        }
+        funnelMap[key].sent++;
+        if (row.delivered_at) funnelMap[key].delivered++;
+        if (row.opened_at) funnelMap[key].opened++;
+        if (row.clicked_at) funnelMap[key].clicked++;
+        if (row.bounced_at) funnelMap[key].bounced++;
+        if (row.status === 'failed') funnelMap[key].failed++;
+      }
+
+      // Calculate rates
+      const touchpoints = Object.values(funnelMap).map(t => ({
+        ...t,
+        deliveryRate: t.sent > 0 ? Math.round(t.delivered / t.sent * 1000) / 10 : 0,
+        openRate: t.delivered > 0 ? Math.round(t.opened / t.delivered * 1000) / 10 : 0,
+        clickRate: t.opened > 0 ? Math.round(t.clicked / t.opened * 1000) / 10 : 0,
+        bounceRate: t.sent > 0 ? Math.round(t.bounced / t.sent * 1000) / 10 : 0
+      }));
+
+      // Review pipeline
+      const reqs = reviewReqs || [];
+      const reviewPipeline = {
+        totalRequests: reqs.length,
+        sent: reqs.filter(r => ['sent', 'reminded', 'completed'].includes(r.status)).length,
+        reminded: reqs.filter(r => ['reminded', 'completed'].includes(r.status)).length,
+        completed: reqs.filter(r => r.status === 'completed').length,
+        conversionRate: reqs.length > 0
+          ? Math.round(reqs.filter(r => r.status === 'completed').length / reqs.length * 1000) / 10
+          : 0
+      };
+
+      // Abandonment pipeline
+      const abandonmentPipeline = {
+        nudgesSent: (abandonmentNudges || []).length,
+        converted: abandonmentConversions,
+        conversionRate: (abandonmentNudges || []).length > 0
+          ? Math.round(abandonmentConversions / (abandonmentNudges || []).length * 1000) / 10
+          : 0
+      };
+
+      // Daily trend (last 30 days)
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentLogs } = await supabaseAdmin
+        .from('notification_log')
+        .select('email_type, sent_at, delivered_at, opened_at, clicked_at')
+        .not('email_type', 'is', null)
+        .gte('sent_at', thirtyDaysAgo)
+        .order('sent_at', { ascending: true });
+
+      const dailyTrend = {};
+      for (const row of (recentLogs || [])) {
+        const day = row.sent_at?.substring(0, 10);
+        if (!day) continue;
+        if (!dailyTrend[day]) dailyTrend[day] = { day, sent: 0, delivered: 0, opened: 0, clicked: 0 };
+        dailyTrend[day].sent++;
+        if (row.delivered_at) dailyTrend[day].delivered++;
+        if (row.opened_at) dailyTrend[day].opened++;
+        if (row.clicked_at) dailyTrend[day].clicked++;
+      }
+
+      // Overall totals
+      const totalSent = (funnel || []).length;
+      const totalDelivered = (funnel || []).filter(r => r.delivered_at).length;
+      const totalOpened = (funnel || []).filter(r => r.opened_at).length;
+      const totalClicked = (funnel || []).filter(r => r.clicked_at).length;
+
+      return res.status(200).json({
+        success: true,
+        overview: {
+          totalSent,
+          totalDelivered,
+          totalOpened,
+          totalClicked,
+          overallDeliveryRate: totalSent > 0 ? Math.round(totalDelivered / totalSent * 1000) / 10 : 0,
+          overallOpenRate: totalDelivered > 0 ? Math.round(totalOpened / totalDelivered * 1000) / 10 : 0,
+          overallClickRate: totalOpened > 0 ? Math.round(totalClicked / totalOpened * 1000) / 10 : 0
+        },
+        touchpoints,
+        reviewPipeline,
+        abandonmentPipeline,
+        dailyTrend: Object.values(dailyTrend)
       });
     }
 
