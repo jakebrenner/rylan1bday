@@ -1086,7 +1086,7 @@
         <div class="ed-section" id="ed-chat">
           <div class="ud-card">
             <div class="ud-card-header"><h4>Chat History</h4><span class="count" id="edChatCount"></span></div>
-            <div class="ud-card-body" id="edChatBody" style="max-height:600px;overflow-y:auto;"></div>
+            <div class="ud-card-body" id="edChatBody"></div>
           </div>
         </div>
 
@@ -8229,28 +8229,70 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         document.getElementById('edGuestsBody').innerHTML = '<tr><td colspan="5" class="ud-empty">No guests yet</td></tr>';
       }
 
-      // ---- Chat Section ----
+      // ---- Chat Section (with interleaved theme snapshots) ----
       var chatHistory = data.chatHistory || [];
       document.getElementById('edChatCount').textContent = chatHistory.length + ' messages';
-      if (chatHistory.length > 0) {
-        var chatHtml = '';
+      if (chatHistory.length > 0 || themes.length > 0) {
+        // Build unified timeline: chat messages + theme generation events
+        var timeline = [];
         chatHistory.forEach(function(msg) {
-          var isUser = msg.role === 'user';
-          var align = isUser ? 'flex-end' : 'flex-start';
-          var bg = isUser ? 'var(--coral)' : '#fff';
-          var color = isUser ? '#fff' : 'var(--midnight)';
-          var border = isUser ? 'none' : '1px solid #eee';
-          var label = isUser ? 'User' : (msg.role === 'assistant' ? 'AI' : msg.role);
-          var phaseTag = msg.phase ? ' <span style="font-size:9px;opacity:0.7;">(' + escapeHtml(msg.phase) + ')</span>' : '';
-          chatHtml += '<div style="display:flex;justify-content:' + align + ';margin-bottom:8px;">';
-          chatHtml += '<div class="evt-chat-bubble" style="background:' + bg + ';color:' + color + ';border:' + border + ';border-radius:12px;padding:8px 12px;font-size:13px;">';
-          chatHtml += '<div style="font-size:10px;font-weight:600;margin-bottom:4px;">' + label + phaseTag + '</div>';
-          var content = msg.content || '';
-          if (content.length > 800) content = content.substring(0, 800) + '...';
-          chatHtml += '<div style="white-space:pre-wrap;word-break:break-word;">' + escapeHtml(content) + '</div>';
-          chatHtml += '</div></div>';
+          timeline.push({ type: 'chat', data: msg, time: new Date(msg.createdAt).getTime() });
+        });
+        themes.forEach(function(t) {
+          timeline.push({ type: 'theme', data: t, time: new Date(t.createdAt).getTime() });
+        });
+        timeline.sort(function(a, b) { return a.time - b.time; });
+
+        var chatHtml = '';
+        timeline.forEach(function(item) {
+          if (item.type === 'chat') {
+            var msg = item.data;
+            var isUser = msg.role === 'user';
+            var align = isUser ? 'flex-end' : 'flex-start';
+            var bg = isUser ? 'var(--coral)' : '#fff';
+            var color = isUser ? '#fff' : 'var(--midnight)';
+            var border = isUser ? 'none' : '1px solid #eee';
+            var label = isUser ? 'User' : (msg.role === 'assistant' ? 'AI' : msg.role);
+            var phaseTag = msg.phase ? ' <span style="font-size:9px;opacity:0.7;">(' + escapeHtml(msg.phase) + ')</span>' : '';
+            chatHtml += '<div style="display:flex;justify-content:' + align + ';margin-bottom:8px;">';
+            chatHtml += '<div class="evt-chat-bubble" style="background:' + bg + ';color:' + color + ';border:' + border + ';border-radius:12px;padding:8px 12px;font-size:13px;">';
+            chatHtml += '<div style="font-size:10px;font-weight:600;margin-bottom:4px;">' + label + phaseTag + '</div>';
+            var content = msg.content || '';
+            if (content.length > 800) content = content.substring(0, 800) + '...';
+            chatHtml += '<div style="white-space:pre-wrap;word-break:break-word;">' + escapeHtml(content) + '</div>';
+            chatHtml += '<div style="font-size:9px;opacity:0.5;margin-top:4px;">' + formatDate(msg.createdAt) + '</div>';
+            chatHtml += '</div></div>';
+          } else {
+            // Theme generation snapshot
+            var t = item.data;
+            var activeBadge = t.isActive ? '<span class="badge badge-green" style="font-size:9px;">Active</span> ' : '';
+            chatHtml += '<div class="ed-theme-snapshot" style="display:flex;align-items:center;gap:12px;margin:12px 0;padding:10px 14px;background:#f0f4ff;border:1px solid #d0d8f0;border-radius:10px;cursor:pointer;" onclick="previewEventThemeVersion(\'' + t.id + '\')">';
+            // Mini preview thumbnail
+            chatHtml += '<div style="flex-shrink:0;width:60px;height:110px;border-radius:8px;overflow:hidden;background:#fff;border:1px solid #ddd;position:relative;">';
+            chatHtml += '<iframe class="ed-snapshot-frame" data-theme-id="' + t.id + '" sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;transform-origin:top left;transform:scale(0.153);pointer-events:none;"></iframe>';
+            chatHtml += '</div>';
+            // Info
+            chatHtml += '<div style="min-width:0;flex:1;">';
+            chatHtml += '<div style="font-size:12px;font-weight:700;color:var(--midnight);">Theme v' + t.version + ' generated ' + activeBadge + '</div>';
+            chatHtml += '<div style="font-size:11px;color:#888;margin-top:2px;">' + shortModel(t.model) + ' &middot; ' + (t.latencyMs ? (t.latencyMs / 1000).toFixed(1) + 's' : '') + ' &middot; ' + formatDate(t.createdAt) + '</div>';
+            if (t.adminRating) chatHtml += '<div style="font-size:11px;color:#f59e0b;margin-top:2px;">' + '\u2605'.repeat(t.adminRating) + '\u2606'.repeat(5 - t.adminRating) + '</div>';
+            chatHtml += '</div>';
+            chatHtml += '<div style="font-size:18px;color:#888;">\u203A</div>';
+            chatHtml += '</div>';
+          }
         });
         document.getElementById('edChatBody').innerHTML = chatHtml;
+
+        // Render mini theme previews in snapshot iframes
+        requestAnimationFrame(function() {
+          themes.forEach(function(t) {
+            var frame = document.querySelector('.ed-snapshot-frame[data-theme-id="' + t.id + '"]');
+            if (frame && t.html) {
+              var fontsImport = (t.config && t.config.googleFontsImport) || '';
+              frame.srcdoc = '<!DOCTYPE html><html><head><meta name="viewport" content="width=393"><style>' + fontsImport + '</style><style>' + (t.css || '') + '</style></head><body>' + t.html + '</body></html>';
+            }
+          });
+        });
       } else {
         document.getElementById('edChatBody').innerHTML = '<p class="ud-empty">No chat history</p>';
       }

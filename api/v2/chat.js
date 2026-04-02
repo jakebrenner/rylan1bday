@@ -283,12 +283,16 @@ export default async function handler(req, res) {
       {
         user_id: user.id,
         session_id: chatSessionId,
+        event_id: eventId || null,
+        phase: 'create',
         role: 'user',
         content: lastUserMsg?.content || ''
       },
       {
         user_id: user.id,
         session_id: chatSessionId,
+        event_id: eventId || null,
+        phase: 'create',
         role: 'assistant',
         content: text,
         model: chatModel,
