@@ -67,37 +67,62 @@ export default async function handler(req, res) {
     const action = req.query.action || req.body?.action;
     // ---- LIST ALL USERS ----
     if (action === 'users') {
-      const { data: profiles, error } = await supabaseAdmin
-        .from('profiles')
-        .select('id, email, display_name, phone, tier, free_event_credits, purchased_event_credits, created_at')
-        .order('created_at', { ascending: false });
+      // Fetch profiles, events, revenue, and auth users in parallel
+      const [profilesRes, eventsRes, billingRes, authUsersRes] = await Promise.all([
+        supabaseAdmin
+          .from('profiles')
+          .select('id, email, display_name, phone, tier, free_event_credits, purchased_event_credits, created_at')
+          .order('created_at', { ascending: false }),
+        supabaseAdmin
+          .from('events')
+          .select('user_id, status'),
+        supabaseAdmin
+          .from('billing_history')
+          .select('user_id, amount_cents')
+          .eq('status', 'succeeded'),
+        // Fetch all auth users to check banned status
+        (async () => {
+          let allAuthUsers = [];
+          let page = 1;
+          while (true) {
+            const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+            if (error || !users || users.length === 0) break;
+            allAuthUsers = allAuthUsers.concat(users);
+            if (users.length < 1000) break;
+            page++;
+          }
+          return allAuthUsers;
+        })()
+      ]);
 
+      const { data: profiles, error } = profilesRes;
       if (error) return res.status(400).json({ error: error.message });
 
-      // Get event counts per user
-      const { data: events } = await supabaseAdmin
-        .from('events')
-        .select('user_id, status');
+      const events = eventsRes.data || [];
 
+      // Event counts per user
       const userStats = {};
-      (events || []).forEach(e => {
+      events.forEach(e => {
         if (!userStats[e.user_id]) userStats[e.user_id] = { total: 0, published: 0, draft: 0 };
         userStats[e.user_id].total++;
         if (e.status === 'published') userStats[e.user_id].published++;
         else if (e.status === 'draft') userStats[e.user_id].draft++;
       });
 
-      // Get RSVP counts per user
-      const { data: guests } = await supabaseAdmin
-        .from('guests')
-        .select('event_id, status');
+      // Revenue per user (from billing_history)
+      const revenueByUser = {};
+      (billingRes.data || []).forEach(b => {
+        revenueByUser[b.user_id] = (revenueByUser[b.user_id] || 0) + (b.amount_cents || 0);
+      });
 
-      const eventOwner = {};
-      (events || []).forEach(e => { eventOwner[e.user_id] = eventOwner[e.user_id] || []; eventOwner[e.user_id].push(e); });
-
-      // Build event-to-user map
-      const eventToUser = {};
-      (events || []).forEach(e => { eventToUser[e.user_id] = true; });
+      // Banned status from auth users
+      const bannedMap = {};
+      const now = new Date();
+      (authUsersRes || []).forEach(u => {
+        if (u.banned_until && new Date(u.banned_until) > now) {
+          bannedMap[u.id] = true;
+        }
+      });
 
       return res.status(200).json({
         success: true,
@@ -110,7 +135,9 @@ export default async function handler(req, res) {
           freeEventCredits: p.free_event_credits || 0,
           purchasedEventCredits: p.purchased_event_credits || 0,
           createdAt: p.created_at,
-          events: userStats[p.id] || { total: 0, published: 0, draft: 0 }
+          events: userStats[p.id] || { total: 0, published: 0, draft: 0 },
+          revenue: (revenueByUser[p.id] || 0) / 100,
+          isActive: !bannedMap[p.id]
         }))
       });
     }
