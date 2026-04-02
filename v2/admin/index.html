@@ -7930,17 +7930,19 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var owner = data.owner;
       var themes = data.themes || [];
       var activeTheme = themes.find(function(t) { return t.isActive; });
+      // Fallback to latest theme if none is marked active
+      var previewTheme = activeTheme || (themes.length > 0 ? themes[themes.length - 1] : null);
 
       document.getElementById('eventDetailTitle').textContent = ev.title || 'Untitled Event';
 
-      // Render active theme preview
+      // Render theme preview
       var iframe = document.getElementById('eventDetailPreviewFrame');
-      if (activeTheme && activeTheme.html) {
-        var fontsImport = (activeTheme.config && activeTheme.config.googleFontsImport) || '';
+      if (previewTheme && previewTheme.html) {
+        var fontsImport = (previewTheme.config && previewTheme.config.googleFontsImport) || '';
         var fullHtml = '<!DOCTYPE html><html><head>'
           + '<style>' + fontsImport + '</style>'
-          + '<style>' + (activeTheme.css || '') + '</style></head>'
-          + '<body>' + activeTheme.html + '</body></html>';
+          + '<style>' + (previewTheme.css || '') + '</style></head>'
+          + '<body>' + previewTheme.html + '</body></html>';
         iframe.srcdoc = fullHtml;
       } else {
         iframe.srcdoc = '<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#aaa;"><p>No theme generated</p></body></html>';
@@ -7948,7 +7950,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
       // Theme version selector (below phone preview)
       var tvHtml = '';
-      if (themes.length > 1) {
+      if (themes.length > 0) {
         tvHtml = '<div style="margin-top:8px;"><h4 style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#888;margin-bottom:8px;">Theme Versions (' + themes.length + ')</h4>';
         tvHtml += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
         themes.forEach(function(t) {
