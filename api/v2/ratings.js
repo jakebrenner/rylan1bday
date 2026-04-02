@@ -100,7 +100,7 @@ export default async function handler(req, res) {
       query = query.eq('fingerprint', fingerprint);
     }
 
-    const { data, error } = await query.maybeSingle();
+    const { data, error } = await query.order('created_at', { ascending: false }).limit(1).maybeSingle();
     if (error) return res.status(400).json({ success: false, error: error.message });
 
     return res.status(200).json({ success: true, existingRating: data || null });
