@@ -5354,10 +5354,11 @@
 
     function finishDesignChatInit() {
       var title = extractedData.title || 'your event';
-      var isUnpaid = currentEvent && currentEvent.paymentStatus === 'unpaid';
+      var isLimitReached = currentEvent && (currentEvent.paymentStatus === 'free' || currentEvent.paymentStatus === 'unpaid')
+        && (currentEvent.generationCount || 0) >= (currentEvent.generationLimit || 2);
       var welcomeMsg;
 
-      if (isUnpaid) {
+      if (isLimitReached) {
         welcomeMsg = "Your invite for " + title + " is ready! Here's what you can do for free:\n\n"
           + "- \u{1F4DD} **Update text** \u2014 \"change the date to April 20th\" or \"change the title to ...\"\n"
           + "- \u{2795} **Add RSVP fields** \u2014 \"add a dietary restrictions field\"\n"
@@ -6199,7 +6200,7 @@
       }
 
       // ── Free/unpaid tier gate: block design chat if generation limit reached ──
-      if (currentEvent && (currentEvent.paymentStatus === 'unpaid' || currentEvent.paymentStatus === 'refunded')) {
+      if (currentEvent && currentEvent.paymentStatus === 'refunded') {
         pendingUpgradeMessage = text;
         sessionStorage.setItem('ryvite_pending_upgrade_msg', text);
         pushDesignChat({ role: 'user', content: text });
@@ -6209,7 +6210,7 @@
         input.style.height = 'auto';
         return;
       }
-      if (currentEvent && currentEvent.paymentStatus === 'free') {
+      if (currentEvent && (currentEvent.paymentStatus === 'free' || currentEvent.paymentStatus === 'unpaid')) {
         var remaining = (currentEvent.generationLimit || 2) - (currentEvent.generationCount || 0);
         if (remaining <= 0) {
           // Allow Tier 1.75 client-side text swaps — they don't cost anything
