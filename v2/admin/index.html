@@ -8399,34 +8399,37 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var text = raw.trim();
 
       // Strip markdown code fences if present
-      if (text.indexOf('```') === 0) {
-        text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+      text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+
+      // Collect all "message" values from any JSON objects in the text
+      var messages = [];
+      var meta = null;
+
+      // Strategy: find all top-level JSON objects by matching balanced braces
+      var allJsonObjects = [];
+      var depth = 0, start = -1;
+      for (var i = 0; i < text.length; i++) {
+        if (text[i] === '{') { if (depth === 0) start = i; depth++; }
+        else if (text[i] === '}') { depth--; if (depth === 0 && start >= 0) { allJsonObjects.push(text.substring(start, i + 1)); start = -1; } }
       }
 
-      // Try to parse as JSON
-      try {
-        var obj = JSON.parse(text);
-        if (obj && typeof obj.message === 'string') {
-          return { message: obj.message, meta: obj };
-        }
-        // If it's JSON but no message field, show a summary
-        if (obj && typeof obj === 'object') {
-          return { message: JSON.stringify(obj).substring(0, 200) + '...', meta: obj };
-        }
-      } catch (e) {
-        // Not pure JSON — try to find JSON embedded in text
-        var jsonMatch = text.match(/\{[\s\S]*"message"\s*:\s*"[\s\S]*?\}(?:\s*```)?$/);
-        if (jsonMatch) {
+      if (allJsonObjects.length > 0) {
+        allJsonObjects.forEach(function(jsonStr) {
           try {
-            var embedded = JSON.parse(jsonMatch[0].replace(/```$/, ''));
-            if (embedded && typeof embedded.message === 'string') {
-              return { message: embedded.message, meta: embedded };
+            var obj = JSON.parse(jsonStr);
+            if (obj && typeof obj.message === 'string' && obj.message.length > 0) {
+              messages.push(obj.message);
+              if (!meta) meta = obj; // Keep first object as meta
             }
-          } catch (e2) { /* fall through */ }
-        }
+          } catch (e) { /* skip unparseable */ }
+        });
       }
 
-      // Plain text — no JSON wrapper
+      if (messages.length > 0) {
+        return { message: messages.join('\n\n'), meta: meta };
+      }
+
+      // No JSON found or no message field — return raw text
       return { message: text, meta: null };
     }
 
