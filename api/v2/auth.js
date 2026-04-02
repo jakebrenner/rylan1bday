@@ -190,12 +190,15 @@ export default async function handler(req, res) {
 
       if (createError) {
         if (createError.message.includes('already been registered')) {
-          // User exists — look up their ID
+          // User exists — look up their ID from profiles table
           isExisting = true;
-          const { data: { users } } = await supabase.auth.admin.listUsers();
-          const existing = users.find(u => u.email === email);
-          if (existing) {
-            userId = existing.id;
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', email)
+            .single();
+          if (existingProfile) {
+            userId = existingProfile.id;
           } else {
             return res.status(400).json({ success: false, error: 'Could not find existing account' });
           }
