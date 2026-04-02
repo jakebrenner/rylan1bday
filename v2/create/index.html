@@ -884,6 +884,8 @@
     let themeVersions = []; // [{id, version, html, css, config}]
     let activeVersionIndex = 0;
     let chatHistory = [];
+    let _lastNotifiedInspirationCount = 0;
+    let _lastNotifiedPersonCount = 0;
     let chatSessionId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
     let chatBubbles = []; // [{text, role}] for UI rebuild on restore
     var chatPhase = 'chatting'; // 'chatting' | 'confirmed' | 'themeReady'
@@ -1579,6 +1581,21 @@
       }
     });
 
+    function buildPhotoContext() {
+      var inspoCount = inspirationImageUrls.filter(function(u) { return !!u; }).length;
+      var personCount = personPhotoUrls.filter(function(u) { return !!u; }).length;
+      if (inspoCount === _lastNotifiedInspirationCount && personCount === _lastNotifiedPersonCount) {
+        return '';
+      }
+      var parts = [];
+      if (inspoCount > 0) parts.push(inspoCount + ' inspiration photo' + (inspoCount > 1 ? 's' : ''));
+      if (personCount > 0) parts.push(personCount + ' photo' + (personCount > 1 ? 's' : '') + ' of the person');
+      _lastNotifiedInspirationCount = inspoCount;
+      _lastNotifiedPersonCount = personCount;
+      if (parts.length === 0) return '';
+      return ' [The user has uploaded ' + parts.join(' and ') + ' for the design. Do not ask for photos.]';
+    }
+
     async function sendMessage() {
       var input = document.getElementById('chatInput');
       var text = input.value.trim();
@@ -1746,7 +1763,8 @@
             // Combine the user's first two messages into one rich prompt for the AI
             var userMsgs = _guestMessages.filter(function(m) { return m.role === 'user'; });
             var combinedPrompt = userMsgs.map(function(m) { return m.content; }).join('. ');
-            chatHistory.push({ role: 'user', content: combinedPrompt });
+            var photoCtx = buildPhotoContext();
+            chatHistory.push({ role: 'user', content: combinedPrompt + photoCtx });
 
             // Call the real chat API with the combined context
             addChatBubble("Great, you're all set! Let me think about your event...", 'assistant');
@@ -1760,7 +1778,7 @@
 
             if (chatResult.success) {
               if (chatResult.sessionId) chatSessionId = chatResult.sessionId;
-              chatHistory.push({ role: 'assistant', content: JSON.stringify(chatResult) });
+              chatHistory.push({ role: 'assistant', content: chatResult.message });
               if (chatResult.extracted) {
                 Object.assign(extractedData, chatResult.extracted);
                 if (currentEvent && chatResult.extracted.title) updateDraftEvent();
@@ -1799,7 +1817,8 @@
 
       input.value = '';
       addChatBubble(text, 'user');
-      chatHistory.push({ role: 'user', content: text });
+      var photoCtx = buildPhotoContext();
+      chatHistory.push({ role: 'user', content: text + photoCtx });
 
       // Create draft event on first message so it shows in dashboard immediately
       if (!currentEvent) {
@@ -1833,7 +1852,7 @@
         if (result.success) {
           // Use server-assigned sessionId if available
           if (result.sessionId) chatSessionId = result.sessionId;
-          chatHistory.push({ role: 'assistant', content: JSON.stringify(result) });
+          chatHistory.push({ role: 'assistant', content: result.message });
 
           // Merge extracted data
           if (result.extracted) {
@@ -2692,6 +2711,8 @@
             chatPhase: chatPhase,
             personPhotoUrls: personPhotoUrls.filter(function(u) { return !!u; }),
             inspirationImageUrls: inspirationImageUrls.filter(function(u) { return !!u; }),
+            _lastNotifiedInspirationCount: _lastNotifiedInspirationCount,
+            _lastNotifiedPersonCount: _lastNotifiedPersonCount,
             currentEventId: currentEvent ? currentEvent.id : null,
             currentEventSlug: currentEvent ? currentEvent.slug : null,
             savedAt: Date.now()
@@ -2719,6 +2740,8 @@
         chatPhase = state.chatPhase || 'chatting';
         personPhotoUrls = state.personPhotoUrls || [];
         inspirationImageUrls = state.inspirationImageUrls || [];
+        _lastNotifiedInspirationCount = state._lastNotifiedInspirationCount || 0;
+        _lastNotifiedPersonCount = state._lastNotifiedPersonCount || 0;
         if (state.currentEventId) {
           currentEvent = { id: state.currentEventId, slug: state.currentEventSlug || '' };
         }
@@ -4991,8 +5014,8 @@
           + fontsStyle2
           + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet">'
           + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; }</style>'
-          + '<style>' + sanitizeThemeText(ver.css || '') + '</style>'
           + '<style>' + guaranteedCSS + '</style>'
+          + '<style>' + sanitizeThemeText(ver.css || '') + '</style>'
           + '</head><body>' + tyHtml + '</body></html>';
       }
 
@@ -5868,7 +5891,7 @@
 
         if (result.success) {
           if (result.sessionId) chatSessionId = result.sessionId;
-          chatHistory.push({ role: 'assistant', content: JSON.stringify(result) });
+          chatHistory.push({ role: 'assistant', content: result.message });
 
           // Merge extracted data and update preview
           if (result.extracted) {

@@ -234,8 +234,8 @@ Return a JSON object with exactly these keys:
     "accentColor": "#hex",
     "backgroundColor": "#hex",
     "textColor": "#hex",
-    "fontHeadline": "Font Name",
-    "fontBody": "Font Name",
+    "fontHeadline": "Creative Google Font Name (NEVER Inter, Roboto, Open Sans, Lato, Arial, or system fonts)",
+    "fontBody": "Warm readable Google Font (NEVER Inter, Roboto, Open Sans, Lato, Arial, or system fonts — try Outfit, DM Sans, Plus Jakarta Sans, Nunito, Source Sans 3, etc.)",
     "mood": "one-word mood descriptor",
     "googleFontsImport": "@import url('...')",
     "loadingPun": "A short, fun, on-theme pun shown while the RSVP is submitting"
