@@ -886,7 +886,7 @@
     let chatHistory = [];
     let _lastNotifiedInspirationCount = 0;
     let _lastNotifiedPersonCount = 0;
-    let chatSessionId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    let chatSessionId = 'chat_' + crypto.randomUUID();
     let chatBubbles = []; // [{text, role}] for UI rebuild on restore
     var chatPhase = 'chatting'; // 'chatting' | 'confirmed' | 'themeReady'
     var designChatPhase = null; // null = normal flow, 'collecting_details' | 'rsvp_fields' | 'tweaking'
@@ -957,7 +957,7 @@
       if (hasUtm) {
         var sessionId = sessionStorage.getItem('utm_session_id');
         if (!sessionId) {
-          sessionId = 'utm_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+          sessionId = 'utm_' + crypto.randomUUID();
           sessionStorage.setItem('utm_session_id', sessionId);
         }
         fetch('/api/v2/utm?action=track', {
@@ -1566,7 +1566,6 @@
       setTimeout(function() {
         var input = document.getElementById(inputId);
         if (input) {
-          console.log('[Photos] Opening file picker for:', inputId);
           input.click();
         }
       }, 100);
@@ -3138,7 +3137,6 @@
           body: JSON.stringify(payload)
         });
         window._lastGenDebug = 'Status: ' + res2.status + ' | CT: ' + res2.headers.get('content-type');
-        console.log('[generate-theme] Response status:', res2.status, 'Content-Type:', res2.headers.get('content-type'));
         if (res2.status === 413) {
           // Payload too large — retry without images
           console.warn('Payload too large, retrying without inspiration images');
@@ -3148,7 +3146,6 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
-          console.log('[generate-theme] Retry status:', res2.status);
         }
 
         if (!res2.ok) {
@@ -3171,11 +3168,9 @@
           }
         } else {
           // Read full response as text (avoids ReadableStream which Safari kills on mobile)
-          console.log('[generate-theme] Reading full response text...');
           var genStartTime = Date.now();
           var fullText = await res2.text();
           var elapsed = Math.round((Date.now() - genStartTime) / 1000);
-          console.log('[generate-theme] Response received in ' + elapsed + 's, ' + fullText.length + ' bytes');
 
           // Parse SSE events from the full text
           var genResult = null;
@@ -3199,7 +3194,6 @@
             }
           }
 
-          console.log('[generate-theme] Parse complete. Result:', !!genResult, 'Error:', genError);
           window._lastGenDebug = 'Status: ' + res2.status + ' | Bytes: ' + fullText.length + ' | Elapsed: ' + elapsed + 's | Result: ' + !!genResult + ' | Build: 2026-03-12a';
 
           if (genResult && genResult.success) {
@@ -3238,7 +3232,6 @@
                         break;
                       }
                     }
-                    console.log('[generate] Theme retry save succeeded, new id:', saveData.themeId);
                   }
                 } catch (e) { console.warn('[generate] Theme retry save failed:', e.message); }
               })();
@@ -4095,7 +4088,6 @@
             ver.css = styleBlocks.map(function(s) {
               return s.replace(/<style[^>]*>/gi, '').replace(/<\/style\s*>/gi, '');
             }).join('\n');
-            console.log('[checkCssRendered] Recovered ' + ver.css.length + ' chars of CSS from HTML. Re-rendering...');
             _cssCheckRetries = 0; // Reset for new CSS
             iframe.srcdoc = buildSrcdoc(ver);
           }
@@ -4582,7 +4574,6 @@
         // Use the higher of DB cost vs locally tracked cost (handles race where
         // local updateCostFromGeneration ran before DB write completed)
         var dbCost = costData.totalCostCents || 0;
-        console.log('[cost] initCostTracker: dbCost=' + dbCost + ' localCost=' + eventCostCents + ' using=' + Math.max(dbCost, eventCostCents));
         eventCostCents = Math.max(dbCost, eventCostCents);
         eventGenCount = Math.max(costData.generationCount || 0, eventGenCount);
         usagePlanUser = true;
@@ -4597,7 +4588,6 @@
     function updateCostFromGeneration(metadata) {
       if (!metadata || !metadata.cost) return;
       var genCost = metadata.cost.totalCostCents || 0;
-      console.log('[cost] updateCostFromGeneration:', JSON.stringify(metadata.cost), 'tokens:', JSON.stringify(metadata.tokens), 'model:', metadata.model, 'adding:', genCost, 'to existing:', eventCostCents);
       eventCostCents += genCost;
       eventGenCount++;
       trackFunnel('generation_complete', { generationNumber: eventGenCount });
@@ -5519,7 +5509,6 @@
     // ── Apply RSVP field changes and save ──
     function applyRsvpFieldChanges(changes) {
       if (!changes || !Array.isArray(changes) || changes.length === 0) return;
-      console.log('[tweak] Applying RSVP field changes:', changes);
       changes.forEach(function(change) {
         if (change.action === 'remove') {
           var removeKey = (change.field_key || '').toLowerCase().replace(/[\s_-]+/g, '');
@@ -6101,7 +6090,6 @@
             return (f.field_key || '').toLowerCase() === efKey2;
           });
           if (!efExists2 && efLabel2) {
-            console.log('[rsvp] Client-side fallback: adding explicit field "' + efLabel2 + '" (' + efType2 + ')');
             applyRsvpFieldChanges([{ action: 'add', field_key: efKey2, label: efLabel2.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' '), field_type: efType2, is_required: false, placeholder: null }]);
             renderPreview(themeVersions[activeVersionIndex]);
             var updatedFields2 = rsvpFields.filter(function(ff) { return ff.enabled; });
@@ -6318,7 +6306,6 @@
 
         // Directed theme changes with clear intent → skip clarification, treat as redesign redo
         if (directedThemeChange && !redesignKeywords.test(text)) {
-          console.log('[tweak] Directed theme change detected — skipping clarification, routing as redesign');
           skipRedesignDetection = true; // Will make isRedesignRedo = true
           // Fall through to tier 2/3 — the intent is clear, no need to ask
         } else if (redesignKeywords.test(text) || (vagueKeywords.test(text) && !hasSpecificInstruction)) {
@@ -6377,7 +6364,6 @@
       // ── RSVP field changes: redirect to Details tab ──
       var rsvpFieldResult = tryInstantRsvpFieldChange(text, hasPhotos);
       if (rsvpFieldResult) {
-        console.log('[tweak] RSVP field request detected, redirecting to Details tab');
         pushDesignChat({ role: 'assistant', content: "RSVP fields are managed in the **Details** tab! I\u2019m switching you there now \u2014 you can add, remove, or edit any fields directly.\n\nThis chat is best for design changes like colors, fonts, layout, photos, and text." });
         clearDesignChatPhoto();
         sendBtn.disabled = false;
@@ -6424,7 +6410,6 @@
             return;
           }
           // Text not found — fall through to AI (it might be in CSS or need more context)
-          console.log('[tweak] Text swap: "' + textSwap.oldText + '" not found in HTML, falling through to AI');
         }
       }
 
@@ -6432,7 +6417,6 @@
       // Skip if we already got clarification, or if there are photos (photos imply clear intent)
       if (text && !skipIntentClassification && !hasPhotos) {
         try {
-          console.log('[tweak] Classifying intent before AI call...');
           var enabledFields = rsvpFields.filter(function(f) { return f.enabled; });
           var classifyRes = await authFetch('/api/v2/generate-theme?action=classifyIntent', {
             method: 'POST',
@@ -6446,12 +6430,10 @@
           });
           if (classifyRes.ok) {
             var classification = await classifyRes.json();
-            console.log('[tweak] Classification:', classification.intent, 'confidence:', classification.confidence);
             if (classification.metadata) updateCostFromGeneration(classification);
 
             // If the classifier detected this is a field-related request, redirect to Details tab
             if ((classification.intent === 'add_field' || classification.intent === 'remove_field' || classification.intent === 'modify_field') && classification.confidence >= 0.6) {
-              console.log('[tweak] Classifier detected field request, redirecting to Details tab');
               pushDesignChat({ role: 'assistant', content: "RSVP fields are managed in the **Details** tab! I\u2019m switching you there now \u2014 you can add, remove, or edit any fields directly.\n\nThis chat is best for design changes like colors, fonts, layout, photos, and text." });
               clearDesignChatPhoto();
               sendBtn.disabled = false;
@@ -6471,7 +6453,6 @@
 
             // If the classifier detected a broken render report, bypass clarification and auto-regenerate
             if (classification.intent === 'broken_render' && classification.confidence >= 0.6) {
-              console.log('[tweak] Classifier detected broken_render — triggering auto-regeneration');
               pushDesignChat({
                 role: 'assistant',
                 content: "I can see the issue \u2014 the invite didn't render correctly. Let me regenerate it for you."
@@ -6488,7 +6469,6 @@
 
             // Low confidence — ask for clarification instead of running expensive AI
             if (classification.confidence < 0.8 && classification.clarification) {
-              console.log('[tweak] Low confidence (' + classification.confidence + '), asking for clarification');
               pendingIntentText = text;
               awaitingIntentClarification = true;
 
@@ -6657,9 +6637,7 @@
           }
         } else {
           // Read full response as text (avoids ReadableStream which Safari kills on mobile)
-          console.log('[tweak] Reading full response text...');
           var tweakFullText = await sseRes.text();
-          console.log('[tweak] Response received:', tweakFullText.length, 'bytes');
 
           // Parse SSE events from the full text
           var tweakResult = null;
@@ -6686,7 +6664,7 @@
           clearInterval(tweakPunInterval);
           designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
 
-          console.log('[tweak] Parse result:', !!tweakResult, 'Error:', tweakError, 'Lines:', tweakLines.length, 'Text preview:', tweakFullText.substring(0, 500), 'Build: 2026-03-12a');
+
 
           if (tweakResult && tweakResult.success && tweakResult.chatOnly) {
             // AI returned conversational text instead of a theme change — display it
@@ -7089,16 +7067,14 @@
 
     async function handleInspirationUpload(event) {
       var files = Array.from(event.target.files);
-      if (!files.length) { console.log('[Photos] No files selected for inspiration'); return; }
-      console.log('[Photos] Inspiration upload:', files.length, 'files');
+      if (!files.length) return;
       await addFiles(files, 'inspiration');
       event.target.value = '';
     }
 
     async function handlePersonUpload(event) {
       var files = Array.from(event.target.files);
-      if (!files.length) { console.log('[Photos] No files selected for person'); return; }
-      console.log('[Photos] Person upload:', files.length, 'files');
+      if (!files.length) return;
       await addFiles(files, 'person');
       event.target.value = '';
     }
@@ -7157,9 +7133,7 @@
               // Deduplicate — prevent the same photo URL from being added twice
               if (urlArr.indexOf(uploadResult.url) === -1) {
                 urlArr.push(uploadResult.url);
-                console.log('[Photos] Uploaded:', file.name);
               } else {
-                console.log('[Photos] Skipping duplicate URL:', file.name);
               }
             } else {
               console.error('[Photos] Upload failed:', uploadResult.error || 'unknown error');
@@ -8195,7 +8169,7 @@
     // ════════════════════════════════════════════════════════════
     var hostRatingsByTheme = {}; // themeId → {rating, feedback}
     var hostOneStarCount = 0; // tracks 1-star ratings for this event (for abuse prevention)
-    var hostFingerprint = 'fp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    var hostFingerprint = 'fp_' + crypto.randomUUID();
 
     function starSvg() {
       return '<svg viewBox="0 0 24 24"><path class="star-fill" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>';

@@ -230,7 +230,12 @@ export default async function handler(req, res) {
     // If user is logged in, inject their email so the AI doesn't ask for it
     let systemPrompt = SYSTEM_PROMPT;
     if (user.email) {
-      systemPrompt += `\n\nIMPORTANT: The host is already logged in with email: ${user.email}. Automatically use this as their hostEmail — do NOT ask them for their email address. Include it in "extracted" from your very first response.`;
+      // Replace the hostEmail field instruction inline so the AI never sees "ask for this"
+      systemPrompt = systemPrompt.replace(
+        /- hostEmail:.*?\n/,
+        `- hostEmail: ALREADY KNOWN — the host is logged in as ${user.email}. Use this automatically. NEVER ask for their email.\n`
+      );
+      systemPrompt += `\n\nIMPORTANT: The host's email is ${user.email} (already authenticated). Set hostEmail to "${user.email}" in your very first "extracted" response. Do NOT ask for their email — you already have it.`;
     }
 
     const startTime = Date.now();

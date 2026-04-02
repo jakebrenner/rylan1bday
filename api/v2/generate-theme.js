@@ -1682,7 +1682,7 @@ Rules:
         client_ip: classifyMeta.ip, client_geo: classifyMeta.geo, user_agent: classifyMeta.userAgent
       }).catch(e => console.error('classifyIntent generation_log insert failed:', e.message));
       if (eventId) {
-        await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: classifyCost.rawCostCents }).catch(() => {});
+        await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: classifyCost.rawCostCents }).catch(e => console.error('[cost] increment_event_cost failed:', e.message));
       }
       // AI generation included in $4.99 event price — no per-generation billing
       return res.json({ success: true, ...classification, metadata: { cost: classifyCost } });
@@ -2362,7 +2362,7 @@ Return ONLY a valid JSON object with these keys:
           const finalTweakCost = calcGenerationCost(tweakModel, finalTweakInputTokens, finalTweakOutputTokens);
           const costDelta = finalTweakCost.rawCostCents - tweakCost.rawCostCents;
           if (costDelta > 0) {
-            await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: costDelta }).catch(() => {});
+            await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: costDelta }).catch(e => console.error('[cost] increment_event_cost failed:', e.message));
           }
         }
       } catch (e) { /* non-critical — estimated tokens already saved */ }
@@ -2929,7 +2929,7 @@ This is the most common failure mode. Double-check it.`;
         // Adjust event cost delta if markup changed significantly
         const costDelta = finalCost.rawCostCents - genCost.rawCostCents;
         if (costDelta > 0) {
-          await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: costDelta }).catch(() => {});
+          await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: costDelta }).catch(e => console.error('[cost] increment_event_cost failed:', e.message));
         }
       }
     } catch (e) { /* non-critical — estimated tokens already saved */ }

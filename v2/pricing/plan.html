@@ -129,7 +129,7 @@
             document.getElementById('headerAuth').innerHTML =
               '<a href="/v2/dashboard/" class="btn btn-secondary" style="font-size:13px;padding:8px 16px;min-height:auto;">Dashboard</a>';
           }
-        } catch (e) {}
+        } catch (e) { console.error('[plan] Auth check failed:', e.message); }
       }
 
       // Load the specific plan

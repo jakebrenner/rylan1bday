@@ -630,7 +630,8 @@ Content (first 2000 chars): ${contentSnippet}`
       const seo = JSON.parse(jsonStr);
       return res.status(200).json({ success: true, seo });
     } catch (parseErr) {
-      return res.status(500).json({ error: 'Failed to parse AI response', raw: response.content[0].text });
+      console.error('[blog] Failed to parse AI SEO response:', parseErr.message, response.content[0].text?.substring(0, 200));
+      return res.status(500).json({ error: 'Failed to parse AI response' });
     }
   }
 

@@ -355,7 +355,11 @@
           var btn = document.querySelector('.share-btn');
           btn.textContent = 'Link copied!';
           setTimeout(function() { btn.textContent = 'Share Gallery'; }, 2000);
-        }).catch(function(){});
+        }).catch(function() {
+          var btn = document.querySelector('.share-btn');
+          btn.textContent = 'Could not copy link';
+          setTimeout(function() { btn.textContent = 'Share Gallery'; }, 2000);
+        });
       }
     }
 

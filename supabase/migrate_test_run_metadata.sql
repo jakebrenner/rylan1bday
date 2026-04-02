@@ -29,6 +29,8 @@ create index if not exists idx_prompt_test_runs_version_model
 
 -- ============================================================
 -- 5. ANALYTICS VIEW — comprehensive test run performance
+-- NOTE: This view's cost formula was incorrect (1000x inflation).
+-- Superseded by migrate_fix_test_run_cost.sql which has model-aware pricing.
 -- ============================================================
 
 create or replace view public.test_run_analytics as

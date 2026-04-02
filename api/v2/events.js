@@ -247,7 +247,27 @@ export default async function handler(req, res) {
         }
       }
 
-      // If no guestId or guest not found, INSERT new record (walk-in)
+      // If no guestId or guest not found, check for existing walk-in by email/phone to prevent duplicates (e.g. double-click)
+      if (!data && !error) {
+        const normalizedPhone = (phone || '').replace(/\D/g, '').slice(-10);
+        if (email || normalizedPhone.length === 10) {
+          let q = supabaseAdmin.from('guests').select('id').eq('event_id', eventId);
+          if (email) q = q.eq('email', email.toLowerCase());
+          else q = q.eq('phone', normalizedPhone);
+          const { data: existingGuest } = await q.limit(1).single();
+          if (existingGuest) {
+            // Update existing walk-in instead of creating a duplicate
+            const updates = { name, status: guestStatus, response_data: responseData || {}, plus_ones: plusOnes || 0, notes: notes || null, responded_at: new Date().toISOString() };
+            if (email) updates.email = email;
+            if (phone) updates.phone = phone;
+            const result = await supabaseAdmin.from('guests').update(updates).eq('id', existingGuest.id).select().single();
+            data = result.data;
+            error = result.error;
+          }
+        }
+      }
+
+      // If still no match, INSERT new record (walk-in)
       if (!data && !error) {
         const result = await supabaseAdmin
           .from('guests')
