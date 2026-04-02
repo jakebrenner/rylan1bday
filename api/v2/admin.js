@@ -573,6 +573,36 @@ export default async function handler(req, res) {
       const event = eventRes.data;
       if (!event) return res.status(404).json({ error: 'Event not found' });
 
+      // Check if we have creation-phase chat messages (older events may have event_id=NULL)
+      let allChatMessages = chatRes.data || [];
+      const hasCreatePhase = allChatMessages.some(m => m.phase === 'create');
+      if (!hasCreatePhase && event.user_id && event.created_at) {
+        // Fetch creation-phase messages by user_id in a time window around event creation
+        const eventCreated = new Date(event.created_at);
+        const windowStart = new Date(eventCreated.getTime() - 15 * 60 * 1000).toISOString(); // 15 min before
+        const windowEnd = new Date(eventCreated.getTime() + 5 * 60 * 1000).toISOString(); // 5 min after
+        const { data: creationChat } = await supabaseAdmin
+          .from('chat_messages')
+          .select('id, session_id, role, content, phase, model, input_tokens, output_tokens, created_at')
+          .eq('user_id', event.user_id)
+          .is('event_id', null)
+          .gte('created_at', windowStart)
+          .lte('created_at', windowEnd)
+          .order('created_at', { ascending: true });
+        if (creationChat && creationChat.length > 0) {
+          // Deduplicate by session — pick the session with most messages in the window
+          const sessions = {};
+          creationChat.forEach(m => {
+            if (!sessions[m.session_id]) sessions[m.session_id] = [];
+            sessions[m.session_id].push(m);
+          });
+          const bestSession = Object.values(sessions).sort((a, b) => b.length - a.length)[0];
+          // Mark these as creation phase and prepend to chat
+          const creationMsgs = bestSession.map(m => ({ ...m, phase: m.phase || 'create' }));
+          allChatMessages = [...creationMsgs, ...allChatMessages];
+        }
+      }
+
       // Get owner profile
       const { data: ownerProfile } = await supabaseAdmin.from('profiles').select('id, email, display_name, phone').eq('id', event.user_id).single();
 
@@ -687,7 +717,7 @@ export default async function handler(req, res) {
         })),
         generations,
         totalAiCost,
-        chatHistory: (chatRes.data || []).map(c => ({
+        chatHistory: allChatMessages.map(c => ({
           id: c.id,
           sessionId: c.session_id,
           role: c.role,
