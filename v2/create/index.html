@@ -1822,6 +1822,8 @@
 
       input.value = '';
       dismissPhotoPrompt();
+      var prevAck = document.getElementById('photoAckCard');
+      if (prevAck) prevAck.remove();
       addChatBubble(text, 'user');
       var photoCtx = buildPhotoContext();
       chatHistory.push({ role: 'user', content: text + photoCtx });
@@ -2380,6 +2382,14 @@
         }
         goToStep(2);
       });
+    }
+
+    function handlePhotoAckGenerate(btn) {
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+      // If themeReady phase hasn't been reached yet, set it now
+      if (chatPhase !== 'themeReady') chatPhase = 'themeReady';
+      generateFromDesignReady();
     }
 
     function renderRsvpFields() {
@@ -7188,17 +7198,27 @@
           placeholder.remove();
         }
       }
-      // Show chat acknowledgment for uploaded photos
+      // Show chat acknowledgment for uploaded photos with follow-up prompt + CTA
       if (uploadedCount > 0) {
-        var ackMsg;
+        var ackText;
         if (photoType === 'inspiration') {
-          ackMsg = uploadedCount + ' inspiration photo' + (uploadedCount > 1 ? 's' : '') + ' uploaded \u2014 we\u2019ll use ' + (uploadedCount > 1 ? 'these' : 'this') + ' to match the color palette and mood of your design.';
+          ackText = uploadedCount + ' inspiration photo' + (uploadedCount > 1 ? 's' : '') + ' uploaded \u2014 we\u2019ll use ' + (uploadedCount > 1 ? 'these' : 'this') + ' to match the color palette and mood of your design.';
         } else {
           var nameMatch = (extractedData.title || '').match(/^(.+?)(?:'s|'s|\u2019s)\s/i);
           var personName = nameMatch ? nameMatch[1] : 'the guest of honor';
-          ackMsg = uploadedCount + ' photo' + (uploadedCount > 1 ? 's' : '') + ' of ' + personName + ' uploaded \u2014 we\u2019ll feature ' + personName + ' prominently in the invite design.';
+          ackText = uploadedCount + ' photo' + (uploadedCount > 1 ? 's' : '') + ' of ' + personName + ' uploaded \u2014 we\u2019ll feature ' + personName + ' prominently in the invite design.';
         }
-        addChatBubble(ackMsg, 'assistant', true);
+        // Remove any previous photo ack card so we don't stack them
+        var prevAck = document.getElementById('photoAckCard');
+        if (prevAck) prevAck.remove();
+        var ackCard = document.createElement('div');
+        ackCard.className = 'chat-bubble assistant';
+        ackCard.id = 'photoAckCard';
+        ackCard.innerHTML = '<div>' + ackText + '</div>'
+          + '<div style="margin-top:10px;color:#555;">Anything else you\u2019d like to add or change before we design your invite?</div>'
+          + '<button class="btn btn-primary" onclick="handlePhotoAckGenerate(this)" style="margin-top:12px;width:100%;padding:12px;font-size:14px;font-weight:600;border-radius:10px;">Create My Invite</button>';
+        document.getElementById('chatMessages').appendChild(ackCard);
+        scrollChat();
       }
       // Scroll to keep the Generate button visible after adding photos
       scrollChat();
