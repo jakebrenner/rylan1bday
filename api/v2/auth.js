@@ -11,7 +11,9 @@ const CLICKSEND_API_URL = 'https://rest.clicksend.com/v3/sms/send';
 
 /**
  * Send SMS to all admins who have new_user_signup notifications enabled.
- * Fire-and-forget — errors are logged but never block the signup response.
+ * Must be awaited before sending the HTTP response — Vercel freezes serverless
+ * functions after res.json(), killing incomplete async work. Errors are caught
+ * internally and never propagate to the caller.
  */
 async function sendAdminSignupNotifications(userEmail, displayName, userPhone) {
   try {
@@ -153,19 +155,20 @@ export default async function handler(req, res) {
         }
       }
 
-      // Notify subscribed admins about the new signup (fire-and-forget)
-      sendAdminSignupNotifications(email, displayName, phone).catch(() => {});
-
-      // Track CompleteRegistration via Meta CAPI (fire-and-forget)
+      // Await background tasks before responding — Vercel may freeze the
+      // function after res.json(), killing any incomplete async work.
       const metaEventId = crypto.randomUUID();
-      sendCapiEvent({
-        eventName: 'CompleteRegistration',
-        eventId: metaEventId,
-        eventSourceUrl: req.headers.referer || req.headers.origin || '',
-        userData: { email, phone, name: displayName },
-        customData: { content_name: 'Ryvite Account', status: 'true' },
-        req
-      }).catch(() => {});
+      await Promise.all([
+        sendAdminSignupNotifications(email, displayName, phone).catch(() => {}),
+        sendCapiEvent({
+          eventName: 'CompleteRegistration',
+          eventId: metaEventId,
+          eventSourceUrl: req.headers.referer || req.headers.origin || '',
+          userData: { email, phone, name: displayName },
+          customData: { content_name: 'Ryvite Account', status: 'true' },
+          req
+        }).catch(() => {})
+      ]);
 
       return res.status(200).json({ success: true, message: 'Check your email for login link', metaEventId });
     }
@@ -228,19 +231,19 @@ export default async function handler(req, res) {
       if (!isExisting && userId) {
         await supabase.from('profiles').upsert({ id: userId, email }, { onConflict: 'id' }).catch(() => {});
 
-        // Notify admins (fire-and-forget)
-        sendAdminSignupNotifications(email, '', '').catch(() => {});
-
-        // Track CompleteRegistration via Meta CAPI (fire-and-forget)
+        // Await background tasks — Vercel may freeze after res.json()
         metaEventId = crypto.randomUUID();
-        sendCapiEvent({
-          eventName: 'CompleteRegistration',
-          eventId: metaEventId,
-          eventSourceUrl: req.headers.referer || req.headers.origin || '',
-          userData: { email },
-          customData: { content_name: 'Guest Onboarding', status: 'true' },
-          req
-        }).catch(() => {});
+        await Promise.all([
+          sendAdminSignupNotifications(email, '', '').catch(() => {}),
+          sendCapiEvent({
+            eventName: 'CompleteRegistration',
+            eventId: metaEventId,
+            eventSourceUrl: req.headers.referer || req.headers.origin || '',
+            userData: { email },
+            customData: { content_name: 'Guest Onboarding', status: 'true' },
+            req
+          }).catch(() => {})
+        ]);
       }
 
       // Fetch profile for client
@@ -294,8 +297,9 @@ export default async function handler(req, res) {
       }
 
       // If no profile existed, this login auto-created a new user — notify admins
+      // Must await before responding or Vercel may freeze the function
       if (!existingProfile) {
-        sendAdminSignupNotifications(email, '', '').catch(() => {});
+        await sendAdminSignupNotifications(email, '', '').catch(() => {});
       }
 
       return res.status(200).json({ success: true, message: 'Check your email for login link' });
