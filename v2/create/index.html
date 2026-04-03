@@ -4044,6 +4044,21 @@
               var gradRgb = parseRgb(gradColors[0]);
               if (gradRgb) return { color: gradColors[0], rgb: gradRgb };
             }
+            // Also try hex colors in gradients (some browsers keep hex in computed values)
+            var hexColors = bgImg.match(/#[0-9a-f]{3,8}/gi);
+            if (hexColors && hexColors.length > 0) {
+              var hexRgb = parseRgb(hexColors[0]);
+              if (hexRgb) return { color: hexColors[0], rgb: hexRgb };
+            }
+          }
+          // Check background shorthand (some browsers put color in background, not background-color)
+          var bgShort = styles.background;
+          if (bgShort && bgShort !== 'none') {
+            var shortRgb = bgShort.match(/rgb[a]?\([^)]+\)/);
+            if (shortRgb) {
+              var parsed = parseRgb(shortRgb[0]);
+              if (parsed && (parsed.r + parsed.g + parsed.b) > 0) return { color: shortRgb[0], rgb: parsed };
+            }
           }
         } catch (e) {}
         node = node.parentElement;
@@ -4455,6 +4470,47 @@
           var ifrWinForBg = iframe.contentWindow || doc.defaultView;
           var bgInfo = detectRsvpBackground(slot, ifrWinForBg);
           var slotIsDark = bgInfo.rgb ? relativeLuminance(bgInfo.rgb) < 0.35 : false;
+
+          // CSS fallback: if computed style found white (default), also check the raw CSS
+          // for .rsvp-slot background declarations — computed styles can miss backgrounds
+          // that haven't rendered yet or are set on pseudo-selectors
+          if (!slotIsDark) {
+            try {
+              var styleEls = doc.querySelectorAll('style');
+              for (var si = 0; si < styleEls.length; si++) {
+                var cssText = styleEls[si].textContent || '';
+                // Look for .rsvp-slot (or parent selectors) with background color
+                var rsvpBgMatch = cssText.match(/\.rsvp-slot[^{]*\{[^}]*background(?:-color)?\s*:\s*([^;!}]+)/i);
+                if (rsvpBgMatch) {
+                  var rawBg = rsvpBgMatch[1].trim();
+                  // Extract first color from the value (handles gradients too)
+                  var colorInBg = rawBg.match(/rgb[a]?\([^)]+\)/) || rawBg.match(/#[0-9a-f]{3,8}/i);
+                  if (colorInBg) {
+                    var cssBgRgb = parseRgb(colorInBg[0]);
+                    if (cssBgRgb && relativeLuminance(cssBgRgb) < 0.35) {
+                      slotIsDark = true;
+                      console.log('[RSVP] CSS fallback detected dark bg:', colorInBg[0]);
+                    }
+                  }
+                }
+                // Also check parent containers that commonly wrap .rsvp-slot
+                if (!slotIsDark) {
+                  var sectionBgMatch = cssText.match(/\.(?:rsvp-section|rsvp-container|rsvp-area|form-section|invite-lower|lower-section|bottom-section)[^{]*\{[^}]*background(?:-color)?\s*:\s*([^;!}]+)/i);
+                  if (sectionBgMatch) {
+                    var secBg = sectionBgMatch[1].trim();
+                    var secColor = secBg.match(/rgb[a]?\([^)]+\)/) || secBg.match(/#[0-9a-f]{3,8}/i);
+                    if (secColor) {
+                      var secRgb = parseRgb(secColor[0]);
+                      if (secRgb && relativeLuminance(secRgb) < 0.35) {
+                        slotIsDark = true;
+                        console.log('[RSVP] CSS fallback (parent) detected dark bg:', secColor[0]);
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (e) {}
+          }
           var btn = slot.querySelector('.rsvp-button');
           var btnHtml = btn ? btn.outerHTML : '';
           slot.innerHTML = buildRsvpFormHtml(slotIsDark) + btnHtml;

@@ -761,6 +761,49 @@
           var ifrWin = iframe.contentWindow || iframe.contentDocument.defaultView;
           var bgRgb = detectBgColor(rsvpSlot, ifrWin);
           var isDark = bgIsDark(bgRgb);
+
+          // CSS fallback: if computed style found white (default), also check raw CSS
+          if (!isDark) {
+            try {
+              var styleEls = iframe.contentDocument.querySelectorAll('style');
+              for (var si = 0; si < styleEls.length; si++) {
+                var cssText = styleEls[si].textContent || '';
+                var rsvpBgMatch = cssText.match(/\.rsvp-slot[^{]*\{[^}]*background(?:-color)?\s*:\s*([^;!}]+)/i);
+                if (rsvpBgMatch) {
+                  var rawBg = rsvpBgMatch[1].trim();
+                  var colorInBg = rawBg.match(/rgb[a]?\([^)]+\)/) || rawBg.match(/#[0-9a-f]{3,8}/i);
+                  if (colorInBg) {
+                    var cssBgRgb = colorInBg[0].match(/\d+/g);
+                    if (cssBgRgb && cssBgRgb.length >= 3) {
+                      var testRgb = [+cssBgRgb[0], +cssBgRgb[1], +cssBgRgb[2]];
+                      if (bgIsDark(testRgb)) { isDark = true; break; }
+                    } else if (colorInBg[0].charAt(0) === '#') {
+                      var hex = colorInBg[0].slice(1);
+                      if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+                      var testRgb2 = [parseInt(hex.substr(0,2),16), parseInt(hex.substr(2,2),16), parseInt(hex.substr(4,2),16)];
+                      if (bgIsDark(testRgb2)) { isDark = true; break; }
+                    }
+                  }
+                }
+                if (!isDark) {
+                  var sectionBgMatch = cssText.match(/\.(?:rsvp-section|rsvp-container|rsvp-area|form-section|invite-lower|lower-section|bottom-section)[^{]*\{[^}]*background(?:-color)?\s*:\s*([^;!}]+)/i);
+                  if (sectionBgMatch) {
+                    var secBg = sectionBgMatch[1].trim();
+                    var secColor = secBg.match(/rgb[a]?\([^)]+\)/) || secBg.match(/#[0-9a-f]{3,8}/i);
+                    if (secColor) {
+                      var secNums = secColor[0].match(/\d+/g);
+                      if (secNums && secNums.length >= 3 && bgIsDark([+secNums[0], +secNums[1], +secNums[2]])) { isDark = true; break; }
+                      if (secColor[0].charAt(0) === '#') {
+                        var sh = secColor[0].slice(1);
+                        if (sh.length === 3) sh = sh[0]+sh[0]+sh[1]+sh[1]+sh[2]+sh[2];
+                        if (bgIsDark([parseInt(sh.substr(0,2),16), parseInt(sh.substr(2,2),16), parseInt(sh.substr(4,2),16)])) { isDark = true; break; }
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (e) {}
+          }
           var formHtml = buildRSVPFormHtml(event, isDark);
           rsvpSlot.innerHTML = formHtml;
           rsvpInjectedInIframe = true;
