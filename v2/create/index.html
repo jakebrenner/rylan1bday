@@ -7756,7 +7756,12 @@
       var files = Array.from(event.target.files);
       if (!files.length) { console.log('[Photos] No files selected for inspiration'); return; }
       console.log('[Photos] Inspiration upload:', files.length, 'files');
-      await addFiles(files, 'inspiration');
+      try {
+        await addFiles(files, 'inspiration');
+      } catch (err) {
+        console.error('[Photos] Inspiration upload error:', err);
+        showMessage('Photo upload failed: ' + err.message, 'error');
+      }
       event.target.value = '';
     }
 
@@ -7769,6 +7774,9 @@
       console.log('[Photos] Person upload:', files.length, 'files');
       try {
         await addFiles(files, 'person');
+      } catch (err) {
+        console.error('[Photos] Person upload error:', err);
+        showMessage('Photo upload failed: ' + err.message, 'error');
       } finally {
         _personUploadInProgress = false;
         event.target.value = '';
@@ -7798,6 +7806,12 @@
       if (!container) {
         container = document.getElementById('chatPhotoPreview') || document.getElementById('imagePreviews');
       }
+      console.log('[Photos] addFiles: type=' + photoType + ', container=' + (container ? container.id : 'null') + ', files=' + files.length);
+      if (!container) {
+        console.error('[Photos] No preview container found for', photoType);
+        showMessage('Unable to display photo preview. Please try again.', 'error');
+        return;
+      }
       var uploadedCount = 0;
       for (var i = 0; i < files.length; i++) {
         if (base64Arr.length >= 6) break;
@@ -7806,7 +7820,9 @@
         placeholder.className = 'image-preview';
         placeholder.innerHTML = '<div class="converting">Processing...</div>';
         container.appendChild(placeholder);
+        console.log('[Photos] Processing file:', file.name, 'type=' + file.type, 'size=' + file.size);
         var result = await processFile(file);
+        console.log('[Photos] processFile result:', result ? 'success (' + Math.round(result.base64.length / 1024) + 'KB)' : 'null');
         if (result) {
           var idx = base64Arr.length;
           base64Arr.push(result.base64);
@@ -9238,6 +9254,7 @@
     function showMessage(text, type) {
       var el = document.getElementById('message');
       el.textContent = text; el.className = 'message ' + type;
+      el.style.display = 'block';
       setTimeout(function() { el.style.display = 'none'; el.className = 'message'; }, 5000);
     }
 
