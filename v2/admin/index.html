@@ -4281,21 +4281,53 @@
       } else {
         // Reverse so oldest messages are at top (data comes in desc order)
         var chatMsgs = chatHistoryData.slice().reverse();
-        chatEl.innerHTML = chatMsgs.map(function(c) {
-          var role = c.role || 'user';
-          var cls = role === 'assistant' ? 'assistant' : 'user';
-          var content = escapeHtml(c.content || '').substring(0, 500);
-          if ((c.content || '').length > 500) content += '...';
-          return '<div class="ud-chat-msg ' + cls + '">'
-            + '<div>' + content + '</div>'
-            + '<div class="msg-meta">'
-            + '<strong>' + escapeHtml(role) + '</strong>'
-            + ' &middot; ' + formatDate(c.createdAt)
-            + (c.model ? ' &middot; ' + shortModel(c.model) : '')
-            + (c.inputTokens ? ' &middot; ' + formatNumber(c.inputTokens) + '/' + formatNumber(c.outputTokens) + ' tokens' : '')
-            + (c.sessionId ? ' &middot; <span style="font-family:monospace;font-size:10px;color:#bbb;">' + escapeHtml(c.sessionId.substring(0, 16)) + '</span>' : '')
-            + '</div></div>';
-        }).join('');
+        var udChatHtml = '';
+        var udChatIdx = 0;
+        chatMsgs.forEach(function(msg) {
+          var isUser = msg.role === 'user';
+          var rawContent = msg.content || '';
+
+          // Extract human-readable message from AI responses
+          var displayContent = rawContent;
+          var metaJson = null;
+          if (!isUser) {
+            var parsed = extractChatMessage(rawContent);
+            displayContent = parsed.message;
+            metaJson = parsed.meta;
+          }
+
+          var align = isUser ? 'flex-end' : 'flex-start';
+          var bubbleId = 'ud-chat-bubble-' + udChatIdx;
+          udChatIdx++;
+
+          udChatHtml += '<div style="display:flex;justify-content:' + align + ';margin-bottom:10px;">';
+          udChatHtml += '<div class="evt-chat-bubble ' + (isUser ? 'evt-chat-user' : 'evt-chat-ai') + '" id="' + bubbleId + '">';
+
+          // Info icon — only if there's metadata
+          if (metaJson || msg.model || msg.phase) {
+            udChatHtml += '<button class="evt-chat-info-btn" onclick="event.stopPropagation(); toggleChatMeta(\'' + bubbleId + '\')" title="View metadata">i</button>';
+          }
+
+          // Message content
+          udChatHtml += '<div class="evt-chat-content">' + escapeHtml(displayContent) + '</div>';
+
+          // Timestamp
+          udChatHtml += '<div class="evt-chat-time">' + formatChatTime(msg.createdAt) + '</div>';
+
+          // Hidden metadata panel
+          if (metaJson || msg.model || msg.phase) {
+            udChatHtml += '<div class="evt-chat-meta" style="display:none;">';
+            if (msg.phase) udChatHtml += '<div><strong>Phase:</strong> ' + escapeHtml(msg.phase) + '</div>';
+            if (msg.model) udChatHtml += '<div><strong>Model:</strong> ' + escapeHtml(msg.model) + '</div>';
+            if (msg.inputTokens) udChatHtml += '<div><strong>Tokens:</strong> ' + msg.inputTokens + ' in / ' + (msg.outputTokens || 0) + ' out</div>';
+            if (msg.sessionId) udChatHtml += '<div><strong>Session:</strong> <span style="font-family:monospace;font-size:10px;">' + escapeHtml(msg.sessionId) + '</span></div>';
+            if (metaJson) udChatHtml += '<div style="margin-top:4px;"><strong>Raw response:</strong><pre style="margin-top:4px;font-size:10px;max-height:200px;overflow:auto;background:#f5f5f5;padding:6px;border-radius:4px;white-space:pre-wrap;word-break:break-all;">' + escapeHtml(typeof metaJson === 'string' ? metaJson : JSON.stringify(metaJson, null, 2)) + '</pre></div>';
+            udChatHtml += '</div>';
+          }
+
+          udChatHtml += '</div></div>';
+        });
+        chatEl.innerHTML = udChatHtml;
       }
 
       // Theme generations (from event_themes table)
