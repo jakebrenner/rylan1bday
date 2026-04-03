@@ -4286,8 +4286,17 @@
     function findEffectiveBgColor(el, win) {
       var node = el;
       while (node && node.nodeType === 1) {
-        var bg = win.getComputedStyle(node).backgroundColor;
-        if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg;
+        try {
+          var styles = win.getComputedStyle(node);
+          var bg = styles.backgroundColor;
+          if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg;
+          // Check background-image for gradients (same logic as detectRsvpBackground)
+          var bgImg = styles.backgroundImage;
+          if (bgImg && bgImg !== 'none') {
+            var gradColors = bgImg.match(/rgb[a]?\([^)]+\)/g);
+            if (gradColors && gradColors.length > 0) return gradColors[0];
+          }
+        } catch (e) {}
         node = node.parentElement;
       }
       return '';
