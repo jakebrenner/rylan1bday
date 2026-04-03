@@ -320,19 +320,38 @@ export default async function handler(req, res) {
       userId: incident.user_id
     };
 
-    // Return immediately, heal in background
-    res.status(200).json({ success: true, message: 'Healing started' });
-
+    // Run synchronously so admin sees result
     try {
       await diagnoseAndHeal(incidentId, ctx);
+
+      // Re-fetch to see if it was healed
+      const { data: updated } = await supabase
+        .from('quality_incidents')
+        .select('resolution_type, ai_diagnosis, resolution_data')
+        .eq('id', incidentId)
+        .single();
+
+      const healed = updated?.resolution_type === 'auto_healed';
+      return res.status(200).json({
+        success: true,
+        healed,
+        resolution: updated?.resolution_type,
+        diagnosis: updated?.ai_diagnosis || null,
+        newThemeId: updated?.resolution_data?.new_theme_id || null
+      });
     } catch (e) {
       console.error('[quality-monitor] Admin retry heal failed:', e.message);
       await supabase.from('quality_incidents').update({
         resolution_type: 'escalated',
         resolution_data: { error: 'Admin retry failed: ' + e.message, admin_retry: true }
       }).eq('id', incidentId);
+      return res.status(200).json({
+        success: true,
+        healed: false,
+        resolution: 'escalated',
+        diagnosis: 'Heal failed: ' + e.message
+      });
     }
-    return;
   }
 
   // ── FIX USER-REPORTED ISSUE (synchronous — user is waiting) ──

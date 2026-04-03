@@ -120,6 +120,10 @@
     "api/v2/render-video.js": {
       "maxDuration": 120,
       "memory": 1024
+    },
+    "api/v2/quality-monitor.js": {
+      "maxDuration": 120,
+      "memory": 1024
     }
   },
   "redirects": [

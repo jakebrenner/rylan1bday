@@ -3243,21 +3243,10 @@ ${cssSnippet}`
       return res.status(200).json({ success: true });
     }
 
-    if (action === 'retryIncidentHeal') {
+    if (action === 'resetIncident') {
       const { incidentId } = req.body;
       if (!incidentId) return res.status(400).json({ error: 'incidentId required' });
 
-      // Fetch the incident with all context needed for healing
-      const { data: incident, error: fetchErr } = await supabaseAdmin
-        .from('quality_incidents')
-        .select('*')
-        .eq('id', incidentId)
-        .single();
-
-      if (fetchErr || !incident) return res.status(404).json({ error: 'Incident not found' });
-      if (!incident.event_id) return res.status(400).json({ error: 'No event associated with this incident' });
-
-      // Reset resolution so it can be re-healed
       await supabaseAdmin.from('quality_incidents').update({
         resolution_type: 'unresolved',
         resolution_data: null,
@@ -3265,15 +3254,7 @@ ${cssSnippet}`
         resolved_at: null
       }).eq('id', incidentId);
 
-      // Fire the healing request to quality-monitor endpoint in background
-      const healUrl = (process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'http://localhost:3000') + '/api/v2/quality-monitor?action=adminRetryHeal';
-      fetch(healUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': req.headers.authorization || '' },
-        body: JSON.stringify({ incidentId })
-      }).catch(e => console.error('[admin] retryHeal fire-and-forget failed:', e.message));
-
-      return res.status(200).json({ success: true, message: 'Healing re-triggered. Check back in 30-60 seconds.' });
+      return res.status(200).json({ success: true });
     }
 
     if (action === 'qualityByBrowser') {
