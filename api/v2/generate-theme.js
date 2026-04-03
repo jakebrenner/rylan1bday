@@ -19,6 +19,16 @@ const supabase = createClient(
 
 const DEFAULT_THEME_MODEL = process.env.THEME_MODEL || 'claude-sonnet-4-6';
 
+// Model escalation chain — if the primary model is too slow, try the next one.
+// Each entry: { model, label, timeoutMs, minBytes }
+// timeoutMs = max time to wait before escalating to next model
+// minBytes = minimum output expected by timeoutMs; below this triggers escalation
+const MODEL_ESCALATION_CHAIN = [
+  { model: null, label: 'primary', timeoutMs: 45000, minBytes: 2000 },      // primary model (from config), 45s to produce 2KB
+  { model: 'claude-sonnet-4-6', label: 'sonnet-retry', timeoutMs: 60000, minBytes: 2000 }, // retry same/Sonnet, 60s
+  { model: 'claude-haiku-4-5-20251001', label: 'haiku-fallback', timeoutMs: 90000, minBytes: 2000 },  // fast fallback
+];
+
 // Allow up to 300s on Vercel Pro (caps at 60s on Hobby)
 export const config = { maxDuration: 300 };
 
@@ -2585,66 +2595,143 @@ This is the most common failure mode. Double-check it.`;
 
     sendSSE('status', { phase: 'generating' });
 
-    // Stream response to keep connection alive and avoid Vercel timeout
-    // Use .on('text') (proven to work) + resolve on 'end' event
-    // Do NOT use stream.finalMessage() — it blocks past Vercel's 60s timeout
-    const stream = isOpenAIModel(themeModel)
-      ? openaiStream(themeModel, activePrompt.systemPrompt, messageContent, 12288)
-      : client.messages.stream({
-          model: themeModel,
-          max_tokens: 100000,
-          system: activePrompt.systemPrompt,
-          messages: [{ role: 'user', content: messageContent }]
-        });
-
-    let fullText = '';
-    let chunkCount = 0;
+    // ── MODEL ESCALATION: Stream with automatic fallback on slow/stuck models ──
+    // If the primary model is too slow (< minBytes after timeoutMs), abort and try
+    // the next model in the escalation chain. This saves customer experience when
+    // a model is overloaded.
 
     // Keepalive: send SSE comment every 3s to prevent mobile Safari from killing the connection
     const keepalive = setInterval(() => {
       try { res.write(': keepalive\n\n'); } catch (e) { /* connection already closed */ }
     }, 3000);
 
-    // Accumulate text chunks; resolve on 'end' immediately to render ASAP
-    // finalMessage (with token usage) is captured async for cost logging
+    let fullText = '';
+    let chunkCount = 0;
     let genFinalMessage = null;
-    const finalMessagePromise = new Promise(r => { stream.on('finalMessage', (msg) => { genFinalMessage = msg; r(msg); }); });
-    await new Promise((resolve, reject) => {
-      let resolved = false;
-      let lastChunkTime = Date.now();
-      const done = () => { if (!resolved) { resolved = true; clearInterval(idleCheck); clearInterval(keepalive); resolve(); } };
+    let actualModel = themeModel; // Track which model ultimately produced the output
+    let escalationAttempts = 0;
 
-      stream.on('text', (text) => {
-        fullText += text;
-        chunkCount++;
-        lastChunkTime = Date.now();
-        if (chunkCount % 10 === 0) {
-          sendSSE('progress', { chunks: chunkCount, bytes: fullText.length });
+    // Build escalation chain: primary model first, then fallbacks (skip duplicates)
+    const escalationChain = MODEL_ESCALATION_CHAIN.map((step, i) => ({
+      ...step,
+      model: i === 0 ? themeModel : step.model // First entry uses configured model
+    })).filter((step, i, arr) => {
+      // Skip duplicate models (e.g., if primary IS sonnet, skip the sonnet-retry)
+      if (i === 0) return true;
+      return step.model !== arr[0].model || step.label === 'haiku-fallback';
+    });
+
+    for (let attempt = 0; attempt < escalationChain.length; attempt++) {
+      const { model: attemptModel, label, timeoutMs, minBytes } = escalationChain[attempt];
+      const isLastAttempt = attempt === escalationChain.length - 1;
+
+      // Reset for this attempt
+      fullText = '';
+      chunkCount = 0;
+      genFinalMessage = null;
+      actualModel = attemptModel;
+
+      if (attempt > 0) {
+        escalationAttempts = attempt;
+        console.log(`[escalation] Attempt ${attempt + 1}/${escalationChain.length}: switching to ${attemptModel} (${label})`);
+        sendSSE('status', { phase: 'generating', escalation: label, attempt: attempt + 1 });
+      }
+
+      const stream = isOpenAIModel(attemptModel)
+        ? openaiStream(attemptModel, activePrompt.systemPrompt, messageContent, 12288)
+        : client.messages.stream({
+            model: attemptModel,
+            max_tokens: 100000,
+            system: activePrompt.systemPrompt,
+            messages: [{ role: 'user', content: messageContent }]
+          });
+
+      const finalMessagePromise = new Promise(r => { stream.on('finalMessage', (msg) => { genFinalMessage = msg; r(msg); }); });
+
+      const streamResult = await new Promise((resolve) => {
+        let resolved = false;
+        let lastChunkTime = Date.now();
+        const done = (reason) => { if (!resolved) { resolved = true; clearInterval(idleCheck); clearInterval(speedCheck); resolve({ ok: true, reason }); } };
+        const abort = (reason) => { if (!resolved) { resolved = true; clearInterval(idleCheck); clearInterval(speedCheck); resolve({ ok: false, reason }); } };
+
+        stream.on('text', (text) => {
+          fullText += text;
+          chunkCount++;
+          lastChunkTime = Date.now();
+          if (chunkCount % 10 === 0) {
+            sendSSE('progress', { chunks: chunkCount, bytes: fullText.length });
+          }
+        });
+        stream.on('finalMessage', () => done('complete'));
+        stream.on('end', () => done('end'));
+        stream.on('error', (err) => {
+          console.warn(`[escalation] Stream error on ${label}:`, err.message);
+          if (isLastAttempt) {
+            done('error'); // On last attempt, accept whatever we have
+          } else {
+            abort('error: ' + err.message);
+          }
+        });
+
+        // Idle check: if text was flowing but stopped for 15s with substantial content, accept
+        const idleCheck = setInterval(() => {
+          if (chunkCount > 0 && Date.now() - lastChunkTime > 15000 && fullText.length > 5000) {
+            console.log(`[stream] Idle timeout on ${label} after`, chunkCount, 'chunks,', fullText.length, 'bytes');
+            done('idle');
+          }
+        }, 1000);
+
+        // Speed check: if we don't have enough output by the timeout, escalate
+        const speedCheck = !isLastAttempt ? setTimeout(() => {
+          if (!resolved && fullText.length < minBytes) {
+            console.log(`[escalation] ${label} too slow: ${fullText.length} bytes in ${timeoutMs / 1000}s (need ${minBytes}). Escalating...`);
+            // Try to abort the stream gracefully
+            try { stream.abort?.(); stream.controller?.abort?.(); } catch (_) {}
+            abort('too_slow');
+          }
+          // If we have enough content but stream is still going, let it continue
+        }, timeoutMs) : null;
+
+        // Hard timeout on last attempt: 210s (leaves 90s for post-gen DB saves within 300s maxDuration)
+        if (isLastAttempt) {
+          setTimeout(() => {
+            if (!resolved) {
+              console.log(`[stream] Hard timeout on ${label}, chunks:`, chunkCount, 'bytes:', fullText.length);
+              if (fullText.length > 5000) done('hard_timeout');
+              else abort('hard_timeout_insufficient');
+            }
+          }, 210000);
         }
       });
-      stream.on('finalMessage', () => done());
-      stream.on('end', () => done());
-      stream.on('error', (err) => { if (!resolved) { resolved = true; clearInterval(idleCheck); clearInterval(keepalive); reject(err); } });
 
-      // Safety: if text was flowing but stopped for 15s AND we have substantial content, assume done
-      // Full invites with SVG illustrations can be 20-40KB — don't cut off early
-      const idleCheck = setInterval(() => {
-        if (chunkCount > 0 && Date.now() - lastChunkTime > 15000 && fullText.length > 5000) {
-          console.log('[stream] Idle timeout after', chunkCount, 'chunks,', fullText.length, 'bytes');
-          done();
+      // If stream completed with content, break out of escalation loop
+      if (streamResult.ok && fullText.length > 0) {
+        if (attempt > 0) {
+          console.log(`[escalation] ${label} succeeded after ${attempt} escalation(s). ${fullText.length} bytes`);
         }
-      }, 1000);
+        break;
+      }
 
-      // Hard timeout: 240s (Vercel Pro allows up to 300s via maxDuration config)
-      // Must be well under 300s to leave room for post-generation DB saves
-      setTimeout(() => {
-        if (!resolved) {
-          console.log('[stream] Hard timeout at 240s, chunks:', chunkCount, 'bytes:', fullText.length);
-          if (fullText.length > 5000) done(); // Only accept if we have substantial content
-          else { resolved = true; clearInterval(idleCheck); clearInterval(keepalive); reject(new Error('Generation timed out with insufficient content (' + fullText.length + ' bytes in 240s). The AI may be overloaded — please try again.')); }
-        }
-      }, 240000);
-    });
+      // If this was the last attempt and we still failed
+      if (isLastAttempt && fullText.length < 2000) {
+        clearInterval(keepalive);
+        throw new Error('Generation failed after ' + (attempt + 1) + ' attempt(s). The AI service may be experiencing issues — please try again in a moment.');
+      }
+
+      // If we have SOME content from a failed attempt but it might be usable, try to use it
+      if (isLastAttempt && fullText.length >= 2000) {
+        console.warn(`[escalation] Last attempt ${label} partially succeeded with ${fullText.length} bytes. Proceeding with partial output.`);
+        break;
+      }
+
+      console.log(`[escalation] ${label} failed (${streamResult.reason}), trying next model...`);
+    }
+
+    // Log escalation if it happened
+    if (escalationAttempts > 0) {
+      console.log(`[escalation] Final model: ${actualModel} after ${escalationAttempts} escalation(s). Output: ${fullText.length} bytes`);
+      sendSSE('status', { phase: 'generating', escalationComplete: true, finalModel: actualModel, attempts: escalationAttempts + 1 });
+    }
 
     // Estimate tokens immediately for the client — accurate cost logged in background
     let genInputTokens = genFinalMessage?.usage?.input_tokens || 0;
@@ -2652,13 +2739,11 @@ This is the most common failure mode. Double-check it.`;
     const hadFinalMessage = !!genFinalMessage;
     if (genInputTokens === 0 && genOutputTokens === 0) {
       genOutputTokens = Math.round(fullText.length / 4);
-      // Input = system prompt + user message (event details, style refs, design DNA, RSVP fields)
-      // Both contribute to input tokens — user message is often larger than system prompt
       const systemLen = activePrompt.systemPrompt?.length || 8000;
       const userMsgLen = userMessage?.length || 4000;
       genInputTokens = Math.round((systemLen + userMsgLen) / 4);
     }
-    console.log('[cost] Estimated tokens:', { hadFinalMessage, genInputTokens, genOutputTokens, fullTextLen: fullText.length, model: themeModel });
+    console.log('[cost] Estimated tokens:', { hadFinalMessage, genInputTokens, genOutputTokens, fullTextLen: fullText.length, model: actualModel, escalations: escalationAttempts });
 
     // Detect truncation: if finalMessage has stop_reason 'max_tokens', the response was cut off
     const stopReason = genFinalMessage?.stop_reason || 'unknown';
@@ -2760,8 +2845,8 @@ This is the most common failure mode. Double-check it.`;
     // CRITICAL: All DB saves (theme, generation_log, cost increment) happen BEFORE res.end().
     // Vercel suspends/terminates execution after res.end(), so post-response DB operations
     // are unreliable and were causing ~50x cost tracking discrepancies.
-    const genCost = calcGenerationCost(themeModel, genInputTokens, genOutputTokens);
-    console.log('[cost] Pre-save cost:', { genCost, model: themeModel, inputTokens: genInputTokens, outputTokens: genOutputTokens });
+    const genCost = calcGenerationCost(actualModel, genInputTokens, genOutputTokens);
+    console.log('[cost] Pre-save cost:', { genCost, model: actualModel, escalations: escalationAttempts, inputTokens: genInputTokens, outputTokens: genOutputTokens });
 
     // Collect content warnings for the client (post-repair)
     const finalCheck = validateThemeIntegrity(theme);
@@ -2808,7 +2893,7 @@ This is the most common failure mode. Double-check it.`;
         html: theme.theme_html,
         css: theme.theme_css,
         config: theme.theme_config,
-        model: themeModel,
+        model: actualModel,
         input_tokens: genInputTokens,
         output_tokens: genOutputTokens,
         latency_ms: latency,
@@ -2865,7 +2950,7 @@ This is the most common failure mode. Double-check it.`;
     let genLogId = null;
     const genLogResult = await supabase.from('generation_log').insert({
       event_id: eventId, user_id: user.id, prompt: effectivePrompt,
-      model: themeModel, input_tokens: genInputTokens,
+      model: actualModel, input_tokens: genInputTokens,
       output_tokens: genOutputTokens, latency_ms: latency,
       status: 'success', cost_cents: genCost.costCentsExact, event_type: eventType, style_library_ids: usedStyleIds,
       prompt_version_id: activePrompt.promptVersionId || null,
@@ -2916,7 +3001,8 @@ This is the most common failure mode. Double-check it.`;
         config: theme.theme_config
       },
       metadata: {
-        model: themeModel,
+        model: actualModel,
+        escalations: escalationAttempts > 0 ? escalationAttempts : undefined,
         latencyMs: latency,
         tokens: {
           input: genInputTokens,
@@ -2930,13 +3016,14 @@ This is the most common failure mode. Double-check it.`;
     // ── BACKGROUND: Update with accurate token counts (non-critical) ──
     // If Vercel kills the function here, we still have estimated tokens logged above.
     try {
-      await Promise.race([finalMessagePromise, new Promise(r => setTimeout(r, 5000))]);
+      // genFinalMessage was captured during streaming (if the stream completed normally)
+      if (!genFinalMessage) await new Promise(r => setTimeout(r, 2000)); // Brief wait for late finalMessage
       const finalInputTokens = genFinalMessage?.usage?.input_tokens || genInputTokens;
       const finalOutputTokens = genFinalMessage?.usage?.output_tokens || genOutputTokens;
       console.log('[cost] Background token update:', { finalInputTokens, finalOutputTokens, hadFinalMsg: !!genFinalMessage });
 
       if (finalInputTokens !== genInputTokens || finalOutputTokens !== genOutputTokens) {
-        const finalCost = calcGenerationCost(themeModel, finalInputTokens, finalOutputTokens);
+        const finalCost = calcGenerationCost(actualModel, finalInputTokens, finalOutputTokens);
         // Update event_themes with accurate tokens
         if (newTheme?.id) {
           await supabase.from('event_themes')
@@ -2968,7 +3055,7 @@ This is the most common failure mode. Double-check it.`;
         event_id: eventId,
         user_id: user.id,
         prompt: effectivePrompt,
-        model: themeModel,
+        model: actualModel || themeModel,
         input_tokens: typeof actualInputTokens !== 'undefined' ? actualInputTokens : 0,
         output_tokens: typeof actualOutputTokens !== 'undefined' ? actualOutputTokens : 0,
         latency_ms: Date.now() - startTime,
