@@ -2,7 +2,7 @@
 
 > **Audience:** Technical Product Manager
 > **Purpose:** Understand Ryvite's architecture, AI system, and quality pipeline to improve invite creation reliability, speed, and user flow.
-> **Last updated:** April 2026
+> **Last updated:** April 3, 2026
 
 ---
 
@@ -113,9 +113,9 @@ The system is built on three pillars:
 
 | Step | What Happens | Model Used | Latency |
 |------|-------------|------------|---------|
-| **1. Chat** | User describes event in conversation. AI extracts: title, eventType (14 types), date, location, hostEmail, creative brief. Max 1 question per message. | **Haiku** (~1024 tokens) | ~1–2s per message |
-| **2. RSVP Fields** | System proposes fields based on event type (Name, Email, Phone, Status are built-in). User confirms, adds, or removes fields. | Client-side (+ Haiku for custom field interpretation) | Instant (+ ~1s for AI fields) |
-| **3. Generate** | Full theme generation via SSE streaming. Returns: HTML, CSS, theme_config (colors, fonts, mood), thank-you page HTML. | **Sonnet** (default, ~16K tokens) | ~15–60s |
+| **1. Chat** | User describes event in conversation. AI extracts: title, eventType (14 types), date, location, creative brief. Max 1 question per message. hostEmail and hostName are auto-injected from the logged-in user's profile — AI never asks for these if already known. | **Haiku** (~1024 tokens) | ~1–2s per message |
+| **2. RSVP Fields** | System proposes 1 event-specific custom field (Name, Email, Phone, Status are built-in). User confirms, adds, or removes fields. Minimal by design — no dietary restrictions or meal choices suggested. | Client-side (+ Haiku for custom field interpretation) | Instant (+ ~1s for AI fields) |
+| **3. Generate** | Auto-triggered when AI has vibe/theme direction — no manual "Generate" button click required. Full theme generation via SSE streaming. Returns: HTML, CSS, theme_config (colors, fonts, mood), thank-you page HTML. | **Sonnet** (default, ~16K tokens) | ~15–60s |
 | **4. Refine** | Design chat — iterative tweaks routed through tiered system (see §4.4). | Varies by tier | 0ms – 60s |
 | **5. Publish** | Final review, guest list builder, send invitations via email/SMS. | None | Instant |
 
@@ -228,7 +228,7 @@ User refinement requests are routed to the cheapest/fastest handler that can ful
 4. If intent is text/copy → Haiku diff-based replacement (Tier 2)
 5. If intent is design/layout/style → full Sonnet regeneration (Tier 3)
 
-**Combined commands** ("remove dietary restrictions and make it more festive") are split on conjunctions and each part routes independently.
+**Combined commands** ("remove plus-ones and make it more festive") are split on conjunctions and each part routes independently.
 
 **Redesign clarification:** Vague requests ("I don't like it") prompt for specifics before spending on an expensive generation.
 
@@ -560,7 +560,7 @@ Client IP and Vercel geo headers (country, region, city, lat/lng) logged per gen
 | **Design chat intent accuracy** | Track intent classification accuracy (Tier 2). Misrouted intents waste time (wrong tier) or money (unnecessary full regen). |
 | **Payment gate UX** | Free users hitting generation limits see upgrade prompts. Analyze conversion rate and drop-off at this gate. |
 | **Onboarding optimization** | Guest mode → auth → generation is a multi-step funnel. Measure drop-off at each transition. |
-| **Photo handling** | Photos are converted to base64 for Claude vision. Failed image loads are stripped silently — user may not know their photo wasn't used. |
+| **Photo handling** | Photos are compressed client-side to 800px JPEG (~200KB) before upload — no file size limit on input. Uploaded to Supabase Storage via `/api/v2/upload`. Failed image loads are stripped silently — user may not know their photo wasn't used. |
 
 ---
 
