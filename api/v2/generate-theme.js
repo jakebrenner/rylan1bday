@@ -758,6 +758,9 @@ function normalizeThemeKeys(theme) {
   if (!theme.theme_html && theme.themeHtml) theme.theme_html = theme.themeHtml;
   if (!theme.theme_css && theme.css) theme.theme_css = theme.css;
   if (!theme.theme_css && theme.themeCss) theme.theme_css = theme.themeCss;
+  if (!theme.theme_css && theme.styles) theme.theme_css = theme.styles;
+  if (!theme.theme_css && theme.theme_styles) theme.theme_css = theme.theme_styles;
+  if (!theme.theme_css && theme.stylesheet) theme.theme_css = theme.stylesheet;
   if (!theme.theme_config && theme.config) theme.theme_config = theme.config;
   if (!theme.theme_config && theme.themeConfig) theme.theme_config = theme.themeConfig;
   if (!theme.theme_thankyou_html && theme.thankyou_html) theme.theme_thankyou_html = theme.thankyou_html;
@@ -2895,37 +2898,7 @@ This is the most common failure mode. Double-check it.`;
       }
     }
     if (!theme.theme_css || !theme.theme_css.trim()) {
-      const noCssError = 'Generation produced no CSS styling';
-      console.error('[generate] CRITICAL: Theme has no CSS! HTML length:', theme.theme_html?.length, 'Keys:', Object.keys(theme).join(', '), 'First 500 chars of raw response:', fullText.substring(0, 500));
-
-      // Track the failure — quality incident + generation_log + admin alert
-      const noCssLatency = Date.now() - startTime;
-      try {
-        await supabase.from('quality_incidents').insert({
-          event_id: eventId, user_id: user.id,
-          trigger_type: 'generation_failure',
-          trigger_data: { reason: 'no_css', htmlLength: theme.theme_html?.length || 0, rawBytes: fullText.length, model: actualModel, escalations: escalationAttempts, latencyMs: noCssLatency },
-          theme_snapshot: { html: (theme.theme_html || '').substring(0, 5000), css: '', config: theme.theme_config || {} },
-          resolution_type: 'unresolved'
-        });
-      } catch (e) { console.error('[quality] No CSS incident insert failed:', e.message); }
-
-      try {
-        await supabase.from('generation_log').insert({
-          event_id: eventId, user_id: user.id, prompt: effectivePrompt,
-          model: actualModel, input_tokens: genInputTokens, output_tokens: genOutputTokens,
-          latency_ms: noCssLatency, status: 'error', error: noCssError,
-          event_type: eventType || '', is_tweak: false,
-          client_ip: getClientMeta(req).ip, client_geo: getClientMeta(req).geo, user_agent: getClientMeta(req).userAgent
-        });
-      } catch (e) { console.error('[generate] No CSS generation_log insert failed:', e.message); }
-
-      await reportApiError({ endpoint: '/api/v2/generate-theme', action: 'generate', error: new Error(noCssError + ' — model: ' + actualModel + ', bytes: ' + fullText.length + ', latency: ' + noCssLatency + 'ms'), requestBody: { eventId, eventType }, req }).catch(() => {});
-
-      clearInterval(keepalive);
-      sendSSE('error', { error: 'Generation produced no CSS styling. Please try again.', retryable: true });
-      res.end();
-      return;
+      console.warn('[generate] CSS is empty before repair — HTML length:', theme.theme_html?.length, 'Keys:', Object.keys(theme).join(', '), 'First 500 chars:', fullText.substring(0, 500));
     }
 
     // ── SERVER-SIDE THEME VALIDATION: Catch broken output before sending to client ──
@@ -2937,6 +2910,34 @@ This is the most common failure mode. Double-check it.`;
       const recheck = validateThemeIntegrity(theme);
       if (!recheck.valid) {
         console.error('[generate] Theme still has issues after repair:', recheck.issues.join(', '));
+        // If CSS is still completely empty after repair, this is unrecoverable
+        if (recheck.issues.includes('css_empty')) {
+          const noCssError = 'Generation produced no CSS styling';
+          const noCssLatency = Date.now() - startTime;
+          try {
+            await supabase.from('quality_incidents').insert({
+              event_id: eventId, user_id: user.id,
+              trigger_type: 'generation_failure',
+              trigger_data: { reason: 'no_css_after_repair', htmlLength: theme.theme_html?.length || 0, rawBytes: fullText.length, model: actualModel, escalations: escalationAttempts, latencyMs: noCssLatency, repairAttempted: true },
+              theme_snapshot: { html: (theme.theme_html || '').substring(0, 5000), css: '', config: theme.theme_config || {} },
+              resolution_type: 'unresolved'
+            });
+          } catch (e) { console.error('[quality] No CSS incident insert failed:', e.message); }
+          try {
+            await supabase.from('generation_log').insert({
+              event_id: eventId, user_id: user.id, prompt: effectivePrompt,
+              model: actualModel, input_tokens: genInputTokens, output_tokens: genOutputTokens,
+              latency_ms: noCssLatency, status: 'error', error: noCssError,
+              event_type: eventType || '', is_tweak: false,
+              client_ip: getClientMeta(req).ip, client_geo: getClientMeta(req).geo, user_agent: getClientMeta(req).userAgent
+            });
+          } catch (e) { console.error('[generate] No CSS generation_log insert failed:', e.message); }
+          await reportApiError({ endpoint: '/api/v2/generate-theme', action: 'generate', error: new Error(noCssError + ' (after repair) — model: ' + actualModel + ', bytes: ' + fullText.length + ', latency: ' + noCssLatency + 'ms'), requestBody: { eventId, eventType }, req }).catch(() => {});
+          clearInterval(keepalive);
+          sendSSE('error', { error: 'Generation produced no CSS styling. Please try again.', retryable: true });
+          res.end();
+          return;
+        }
       } else {
         console.log('[generate] Theme auto-repair succeeded');
       }

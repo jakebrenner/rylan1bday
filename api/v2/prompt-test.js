@@ -498,6 +498,9 @@ function normalizeThemeKeys(theme) {
   if (!theme.theme_html && theme.themeHtml) theme.theme_html = theme.themeHtml;
   if (!theme.theme_css && theme.css) theme.theme_css = theme.css;
   if (!theme.theme_css && theme.themeCss) theme.theme_css = theme.themeCss;
+  if (!theme.theme_css && theme.styles) theme.theme_css = theme.styles;
+  if (!theme.theme_css && theme.theme_styles) theme.theme_css = theme.theme_styles;
+  if (!theme.theme_css && theme.stylesheet) theme.theme_css = theme.stylesheet;
   if (!theme.theme_config && theme.config) theme.theme_config = theme.config;
   if (!theme.theme_config && theme.themeConfig) theme.theme_config = theme.themeConfig;
   if (!theme.theme_thankyou_html && theme.thankyou_html) theme.theme_thankyou_html = theme.thankyou_html;
