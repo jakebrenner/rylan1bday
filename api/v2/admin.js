@@ -3228,11 +3228,23 @@ ${cssSnippet}`
       if (!themeId) return res.status(400).json({ error: 'themeId required' });
       const { data: theme } = await supabaseAdmin
         .from('event_themes')
-        .select('html, css')
+        .select('html, css, config')
         .eq('id', themeId)
         .single();
       if (!theme) return res.status(404).json({ error: 'Theme not found' });
-      return res.status(200).json({ success: true, html: theme.html, css: theme.css });
+
+      // Build complete HTML document (same assembly as guest/create pages)
+      const config = theme.config || {};
+      const css = theme.css || '';
+      const html = theme.html || '';
+      let fontsLink = '';
+      const fontsImport = config.googleFontsImport || '';
+      if (fontsImport) {
+        const m = fontsImport.match(/url\(['"]?([^'"\)]+)['"]?\)/);
+        if (m && m[1]) fontsLink = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${m[1]}">`;
+      }
+      const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393,initial-scale=1.0">${fontsLink}<style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:393px;min-height:100%;overflow-x:hidden;background:${config.backgroundColor || '#fff'}}</style><style>${css.replace(/<\/style/gi, '<\\/style')}</style></head><body>${html}</body></html>`;
+      return res.status(200).json({ success: true, html: fullHtml });
     }
 
     // ---- QUALITY BY BROWSER ----

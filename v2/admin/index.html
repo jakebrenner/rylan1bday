@@ -9929,30 +9929,50 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var scaleFactor = (280 - 20) / 393;
         var phoneStart = '<div class="phone-mockup" style="width:280px;"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen">';
         var phoneEnd = '</div><div class="phone-home-bar"></div></div></div>';
-        function makePhonePreview(htmlContent) {
-          return phoneStart + '<iframe sandbox="allow-scripts" srcdoc="' + htmlContent.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;transform:scale(' + scaleFactor.toFixed(4) + ');"></iframe>' + phoneEnd;
+
+        // Build complete HTML doc from separated html+css+config (same as guest/create pages)
+        function buildFullHtml(snapshot) {
+          var themeCss = snapshot.css || '';
+          var themeHtml = snapshot.html || '';
+          var config = snapshot.config || {};
+          var fontsLink = '';
+          var fi = config.googleFontsImport || '';
+          if (fi) {
+            var fm = fi.match(/url\(['"]?([^'"\)]+)['"]?\)/);
+            if (fm && fm[1]) fontsLink = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="' + fm[1] + '">';
+          }
+          return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393,initial-scale=1.0">'
+            + fontsLink
+            + '<style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:393px;min-height:100%;overflow-x:hidden;background:' + (config.backgroundColor || '#fff') + '}</style>'
+            + '<style>' + themeCss.replace(/<\/style/gi, '<\\/style') + '</style>'
+            + '</head><body>' + themeHtml + '</body></html>';
         }
+
+        function makePhonePreview(fullHtmlDoc) {
+          return phoneStart + '<iframe sandbox="allow-scripts" srcdoc="' + fullHtmlDoc.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;transform:scale(' + scaleFactor.toFixed(4) + ');"></iframe>' + phoneEnd;
+        }
+
+        // Build full doc from snapshot for the "before" preview
+        var snapshotFullHtml = (inc.theme_snapshot && inc.theme_snapshot.html) ? buildFullHtml(inc.theme_snapshot) : null;
 
         // If healed, show both old + new side by side
         var hasHealedTheme = rt === 'auto_healed' && inc.resolution_data && inc.resolution_data.new_theme_id;
         if (hasHealedTheme) {
           html += '<details open style="margin-bottom:16px;"><summary style="cursor:pointer;font-weight:600;font-size:13px;">Theme Preview (Before & After Heal)</summary>';
           html += '<div style="margin-top:12px;padding:24px;background:#f9fafb;border-radius:12px;display:flex;gap:24px;flex-wrap:wrap;justify-content:center;align-items:flex-start;">';
-          // Before
-          if (inc.theme_snapshot && inc.theme_snapshot.html) {
+          if (snapshotFullHtml) {
             html += '<div style="text-align:center;"><div style="font-size:12px;font-weight:600;color:#ef4444;margin-bottom:8px;">BEFORE (Broken)</div>';
-            html += makePhonePreview(inc.theme_snapshot.html);
+            html += makePhonePreview(snapshotFullHtml);
             html += '</div>';
           }
-          // After — loaded async
           html += '<div style="text-align:center;"><div style="font-size:12px;font-weight:600;color:#16a34a;margin-bottom:8px;">AFTER (Healed)</div>';
           html += '<div id="healedThemePreview" style="width:280px;height:610px;display:flex;align-items:center;justify-content:center;color:#888;font-size:12px;">Loading healed theme...</div>';
           html += '</div>';
           html += '</div></details>';
-        } else if (inc.theme_snapshot && inc.theme_snapshot.html) {
+        } else if (snapshotFullHtml) {
           html += '<details open style="margin-bottom:16px;"><summary style="cursor:pointer;font-weight:600;font-size:13px;">Theme Preview</summary>';
           html += '<div style="margin-top:12px;padding:24px;background:#f9fafb;border-radius:12px;">';
-          html += makePhonePreview(inc.theme_snapshot.html);
+          html += makePhonePreview(snapshotFullHtml);
           html += '</div></details>';
         }
 
