@@ -851,6 +851,21 @@ export default async function handler(req, res) {
 
       if (guestsResult.error) return res.status(400).json({ success: false, error: guestsResult.error.message });
 
+      // Check which guests actually had notifications sent
+      const guestIds = (guestsResult.data || []).map(g => g.id);
+      let notifiedGuestIds = new Set();
+      if (guestIds.length > 0) {
+        const { data: notifications } = await supabaseAdmin
+          .from('notification_log')
+          .select('guest_id')
+          .eq('event_id', eventId)
+          .in('guest_id', guestIds)
+          .in('channel', ['sms', 'email']);
+        if (notifications) {
+          notifiedGuestIds = new Set(notifications.map(n => n.guest_id));
+        }
+      }
+
       return res.status(200).json({
         success: true,
         customFields: (fieldsResult.data || []).map(f => ({
@@ -871,6 +886,7 @@ export default async function handler(req, res) {
           plusOnes: g.plus_ones,
           notes: g.notes,
           invitedAt: g.invited_at,
+          notified: notifiedGuestIds.has(g.id),
           respondedAt: g.responded_at,
           createdAt: g.created_at
         }))
@@ -898,6 +914,7 @@ export default async function handler(req, res) {
       if (email !== undefined) updates.email = email;
       if (phone !== undefined) updates.phone = phone;
       if (status && status !== 'invited') updates.responded_at = new Date().toISOString();
+      if (req.body.clearInvitedAt) updates.invited_at = null;
 
       const { data, error } = await supabaseAdmin
         .from('guests')
@@ -1138,8 +1155,7 @@ export default async function handler(req, res) {
           name: c.name,
           email: c.email || null,
           phone: c.phone || null,
-          status: 'invited',
-          invited_at: new Date().toISOString()
+          status: 'invited'
         }));
 
       if (newGuests.length === 0) {
@@ -1202,8 +1218,7 @@ export default async function handler(req, res) {
           name: c.name,
           email: c.email || null,
           phone: c.phone || null,
-          status: 'invited',
-          invited_at: new Date().toISOString()
+          status: 'invited'
         }));
 
       if (newGuests.length > 0) {
@@ -1266,8 +1281,7 @@ export default async function handler(req, res) {
           name: g.name,
           email: g.email || null,
           phone: g.phone || null,
-          status: 'invited',
-          invited_at: new Date().toISOString()
+          status: 'invited'
         }));
 
       if (newGuests.length > 0) {

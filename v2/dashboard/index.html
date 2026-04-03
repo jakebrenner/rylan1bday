@@ -367,6 +367,55 @@
     .guest-detail-actions { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee; flex-wrap: wrap; }
     .guest-detail-btn { padding: 7px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 12px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; background: white; color: var(--midnight); transition: all 0.15s; }
     .guest-detail-btn:hover:not(:disabled) { border-color: var(--party-coral); color: var(--party-coral); }
+    #addGuestModal input:focus, #contactPickerModal input:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.08); }
+
+    /* Contact Picker */
+    .cp-search { width: 100%; padding: 10px 14px 10px 36px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; outline: none; background: white; box-sizing: border-box; }
+    .cp-search-wrap { position: relative; }
+    .cp-search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #aaa; }
+    .cp-tag-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    .cp-tag-btn { padding: 4px 12px; border-radius: 14px; border: 1px solid #ddd; background: white; font-size: 12px; cursor: pointer; transition: all 0.15s; font-family: 'Inter', sans-serif; }
+    .cp-tag-btn:hover { border-color: var(--party-coral); }
+    .cp-tag-btn.active { border-color: var(--party-coral); background: rgba(233,69,96,0.08); color: var(--party-coral); font-weight: 500; }
+    .cp-list { max-height: 350px; overflow-y: auto; border: 1px solid #eee; border-radius: 10px; margin-top: 10px; }
+    .cp-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #f5f5f5; cursor: pointer; transition: background 0.15s; font-size: 13px; }
+    .cp-item:last-child { border-bottom: none; }
+    .cp-item:hover { background: #fafafa; }
+    .cp-item.selected { background: rgba(233,69,96,0.06); }
+    .cp-check { width: 20px; height: 20px; border-radius: 4px; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+    .cp-item.selected .cp-check { border-color: var(--party-coral); background: var(--party-coral); }
+    .cp-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+    .cp-name { font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cp-detail { color: #999; font-size: 12px; flex-shrink: 0; }
+    .cp-tags { display: flex; gap: 4px; flex-wrap: wrap; flex-shrink: 0; }
+    .cp-tag-pill { font-size: 10px; padding: 2px 8px; border-radius: 10px; background: #f0f0f0; color: #666; }
+    .cp-icons { display: flex; gap: 4px; flex-shrink: 0; }
+    .cp-icons svg { width: 14px; height: 14px; }
+    .cp-actions { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
+    .cp-add-btn { flex: 1; padding: 10px; border: none; border-radius: 8px; background: var(--party-coral); color: white; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .cp-add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .cp-select-all { background: none; border: 1px solid #ddd; border-radius: 8px; padding: 8px 14px; font-size: 12px; font-family: 'Inter', sans-serif; cursor: pointer; color: #666; white-space: nowrap; }
+    .cp-select-all:hover { border-color: var(--party-coral); color: var(--party-coral); }
+
+    /* Action Sheet */
+    .action-sheet { background: white; border-radius: 16px 16px 0 0; padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px)); max-width: 480px; margin: 0 auto; width: 100%; animation: sheetSlideUp 0.25s ease-out; }
+    @keyframes sheetSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .action-sheet-title { font-size: 16px; font-weight: 700; text-align: center; margin-bottom: 16px; color: var(--midnight); }
+    .action-sheet-option { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; border: none; border-bottom: 1px solid #f0f0f0; background: none; cursor: pointer; text-align: left; font-family: 'Inter', sans-serif; transition: background 0.15s; min-height: 56px; border-radius: 0; }
+    .action-sheet-option:last-of-type { border-bottom: none; }
+    .action-sheet-option:hover { background: #fafafa; }
+    .action-sheet-option:active { background: #f5f5f5; }
+    .action-sheet-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .action-sheet-text { flex: 1; }
+    .action-sheet-label { font-size: 14px; font-weight: 600; color: var(--midnight); }
+    .action-sheet-desc { font-size: 12px; color: #999; margin-top: 2px; display: block; }
+    .action-sheet-cancel { display: block; width: 100%; padding: 14px; border: none; background: #f5f5f5; border-radius: 10px; margin-top: 10px; font-size: 14px; font-weight: 600; color: #666; cursor: pointer; font-family: 'Inter', sans-serif; text-align: center; }
+    .action-sheet-cancel:active { background: #eee; }
+
+    /* Responsive guest header */
+    .guest-header-desktop { display: flex; }
+    .guest-header-mobile { display: none; }
+
     .guest-detail-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .guest-response-chips { display: flex; flex-wrap: wrap; gap: 6px; }
     .guest-response-chip { background: white; border: 1px solid #eee; border-radius: 6px; padding: 4px 10px; font-size: 12px; }
@@ -572,6 +621,21 @@
       .emp-settings-grid { grid-template-columns: 1fr; }
       .emp-danger-actions { flex-direction: column; }
       .emp-danger-btn { width: 100%; text-align: center; justify-content: center; }
+
+      /* Guest header responsive */
+      .guest-header-desktop { display: none !important; }
+      .guest-header-mobile { display: flex !important; }
+
+      /* Contact picker → bottom sheet */
+      #contactPickerModal.active { align-items: flex-end; }
+      #contactPickerModal .confirm-box { max-height: 90vh; overflow-y: auto; padding: 16px; border-radius: 16px 16px 0 0; max-width: 100%; width: 100%; }
+      .cp-list { max-height: 40vh; }
+
+      /* Add guest modal → mobile sizing */
+      #addGuestModal .confirm-box { max-height: 85vh; overflow-y: auto; width: 95%; }
+
+      /* Action sheet → bottom aligned */
+      #addGuestActionSheet.active { align-items: flex-end; }
     }
   </style>
 <script src="/js/meta-pixel.js"></script>
@@ -707,6 +771,95 @@
         <button class="confirm-cancel" onclick="closeConfirm()">Cancel</button>
         <button class="confirm-ok" id="confirmOk">Confirm</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Add New Guest Modal -->
+  <div class="confirm-overlay" id="addGuestModal" onclick="if(event.target===this)closeAddGuestModal()">
+    <div class="confirm-box" style="max-width:400px;text-align:left;">
+      <div class="confirm-title" style="text-align:center;">Add New Guest</div>
+      <div id="addGuestFormSection">
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;color:#666;margin-bottom:4px;display:block;">Name *</label>
+          <input type="text" id="dashNewGuestName" placeholder="Guest name" style="width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;box-sizing:border-box;" onkeydown="if(event.key==='Enter')submitNewGuestFromDashboard()">
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;color:#666;margin-bottom:4px;display:block;">Email</label>
+          <input type="email" id="dashNewGuestEmail" placeholder="guest@example.com" style="width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;box-sizing:border-box;" onkeydown="if(event.key==='Enter')submitNewGuestFromDashboard()">
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;color:#666;margin-bottom:4px;display:block;">Phone</label>
+          <input type="tel" id="dashNewGuestPhone" placeholder="(555) 123-4567" style="width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;box-sizing:border-box;" onkeydown="if(event.key==='Enter')submitNewGuestFromDashboard()">
+        </div>
+        <div id="dashNewGuestMsg" style="display:none;font-size:12px;margin-top:8px;text-align:center;"></div>
+        <div class="confirm-actions">
+          <button class="confirm-cancel" onclick="closeAddGuestModal()">Cancel</button>
+          <button class="confirm-ok" id="addGuestSubmitBtn" onclick="submitNewGuestFromDashboard()" style="background:var(--party-coral);">Add Guest</button>
+        </div>
+      </div>
+      <div id="addGuestInvitePrompt" style="display:none;text-align:center;">
+        <div style="font-size:14px;font-weight:600;color:var(--midnight);margin-bottom:4px;" id="addGuestSuccessMsg"></div>
+        <div style="font-size:12px;color:#999;margin-bottom:16px;">Send invites from the Messages tab when you're ready.</div>
+        <button onclick="addAnotherGuest()" style="background:var(--party-coral);color:white;border:none;border-radius:8px;padding:8px 20px;font-size:13px;font-weight:600;font-family:Inter,sans-serif;cursor:pointer;">+ Add Another</button>
+        <button onclick="closeAddGuestModal()" style="margin-top:8px;background:none;border:none;color:#999;cursor:pointer;font-size:13px;display:block;margin-left:auto;margin-right:auto;font-family:Inter,sans-serif;">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact Picker Modal -->
+  <div class="confirm-overlay" id="contactPickerModal" onclick="if(event.target===this)closeContactPickerModal()">
+    <div class="confirm-box" style="max-width:520px;width:95%;text-align:left;padding:24px;">
+      <div class="confirm-title" style="text-align:center;margin-bottom:16px;">Add from Contacts</div>
+      <div class="cp-search-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" class="cp-search" id="pickerSearch" placeholder="Search by name, email, or phone..." oninput="filterPickerContacts()">
+      </div>
+      <div id="pickerTagBar" class="cp-tag-bar"></div>
+      <div id="pickerContactList" class="cp-list">
+        <div style="padding:30px;text-align:center;color:#999;font-size:13px;">Loading contacts...</div>
+      </div>
+      <div class="cp-actions">
+        <button class="cp-select-all" id="pickerSelectAllBtn" onclick="selectAllPickerContacts()" style="display:none;">Select All</button>
+        <button class="cp-add-btn" id="pickerAddBtn" onclick="addPickerSelectedContacts()" style="display:none;">Add Selected</button>
+      </div>
+      <div style="text-align:center;margin-top:8px;">
+        <button onclick="closeContactPickerModal()" style="background:none;border:none;color:#999;cursor:pointer;font-size:13px;font-family:Inter,sans-serif;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Guest Action Sheet -->
+  <div class="confirm-overlay" id="addGuestActionSheet" onclick="if(event.target===this)closeAddGuestActionSheet()">
+    <div class="action-sheet">
+      <div class="action-sheet-title">Add Guests</div>
+      <button class="action-sheet-option" id="phoneImportOption" style="display:none;" onclick="closeAddGuestActionSheet();importFromPhoneDashboard()">
+        <div class="action-sheet-icon" style="background:rgba(46,204,113,0.1);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e8449" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+        </div>
+        <div class="action-sheet-text">
+          <div class="action-sheet-label">Import from Phone</div>
+          <span class="action-sheet-desc">Select contacts directly from your phone</span>
+        </div>
+      </button>
+      <button class="action-sheet-option" onclick="closeAddGuestActionSheet();openContactPickerModal()">
+        <div class="action-sheet-icon" style="background:rgba(233,69,96,0.1);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--party-coral)" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        </div>
+        <div class="action-sheet-text">
+          <div class="action-sheet-label">Choose from Contacts</div>
+          <span class="action-sheet-desc">Pick from your saved contacts</span>
+        </div>
+      </button>
+      <button class="action-sheet-option" onclick="closeAddGuestActionSheet();openAddGuestModal()">
+        <div class="action-sheet-icon" style="background:rgba(91,141,239,0.1);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5B8DEF" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </div>
+        <div class="action-sheet-text">
+          <div class="action-sheet-label">Add Manually</div>
+          <span class="action-sheet-desc">Enter name, email, or phone</span>
+        </div>
+      </button>
+      <button class="action-sheet-cancel" onclick="closeAddGuestActionSheet()">Cancel</button>
     </div>
   </div>
 
@@ -997,7 +1150,7 @@
         var isDraft = (event.status || 'Draft').toLowerCase() === 'draft';
         var isPublished = event.status === 'Published';
         var isArchived = (event.status || '').toLowerCase() === 'archived';
-        var inviteUrl = window.location.origin + '/v2/event/' + encodeURIComponent(event.slug);
+        var inviteUrl = 'https://ryvite.com/v2/event/' + encodeURIComponent(event.slug);
         var prog = getProgressInfo(event);
 
         var progressHtml = '';
@@ -1192,7 +1345,7 @@
         // Copy Link button in header
         var copyBtn = document.getElementById('empCopyLinkBtn');
         if (data.event.status === 'published' && data.event.slug) {
-          empInviteUrl = window.location.origin + '/v2/event/' + encodeURIComponent(data.event.slug);
+          empInviteUrl = 'https://ryvite.com/v2/event/' + encodeURIComponent(data.event.slug);
           copyBtn.style.display = '';
         } else {
           empInviteUrl = '';
@@ -1674,7 +1827,7 @@
     }
 
     function getInviteUrl() {
-      return window.location.origin + '/v2/event/' + manageSlug;
+      return 'https://ryvite.com/v2/event/' + manageSlug;
     }
 
     function getGuestCountsWithPhone(rsvps) {
@@ -1721,13 +1874,413 @@
       }
     }
 
+    // Avatar utilities
+    var AVATAR_GRADIENTS = [
+      'linear-gradient(135deg, #E94560, #FFB74D)',
+      'linear-gradient(135deg, #A78BFA, #E94560)',
+      'linear-gradient(135deg, #4ECDC4, #5B8DEF)',
+      'linear-gradient(135deg, #FFB74D, #FF6B6B)',
+      'linear-gradient(135deg, #5B8DEF, #A78BFA)',
+      'linear-gradient(135deg, #FF6B6B, #FFB74D)',
+      'linear-gradient(135deg, #4ECDC4, #A78BFA)',
+      'linear-gradient(135deg, #CE93D8, #5B8DEF)'
+    ];
+    function hashName(name) {
+      var hash = 0;
+      for (var i = 0; i < (name || '').length; i++) {
+        hash = ((hash << 5) - hash) + name.charCodeAt(i);
+        hash |= 0;
+      }
+      return Math.abs(hash);
+    }
+    function getInitials(name) {
+      return (name || '?').split(' ').map(function(w) { return w[0]; }).join('').substring(0, 2).toUpperCase();
+    }
+    function getAvatarHtml(name, size) {
+      var s = size || 32;
+      var bg = AVATAR_GRADIENTS[hashName(name) % AVATAR_GRADIENTS.length];
+      return '<div class="cp-avatar" style="width:' + s + 'px;height:' + s + 'px;background:' + bg + ';font-size:' + Math.round(s * 0.38) + 'px;">' + getInitials(name) + '</div>';
+    }
+
+    // Contact Picker state
+    var pickerContacts = [];
+    var pickerTags = [];
+    var pickerSelectedIds = new Set();
+    var pickerActiveTag = null;
+    var pickerFiltered = [];
+
+    async function openContactPickerModal() {
+      pickerContacts = [];
+      pickerTags = [];
+      pickerSelectedIds = new Set();
+      pickerActiveTag = null;
+      document.getElementById('contactPickerModal').classList.add('active');
+      document.getElementById('pickerSearch').value = '';
+      document.getElementById('pickerTagBar').innerHTML = '';
+      document.getElementById('pickerContactList').innerHTML = '<div style="padding:30px;text-align:center;color:#999;font-size:13px;">Loading contacts...</div>';
+      document.getElementById('pickerAddBtn').style.display = 'none';
+      document.getElementById('pickerSelectAllBtn').style.display = 'none';
+
+      try {
+        var res = await Promise.all([
+          authFetch('/api/v2/contacts?action=list'),
+          authFetch('/api/v2/contacts?action=listTags')
+        ]);
+        var contactResult = await res[0].json();
+        var tagResult = await res[1].json();
+        pickerContacts = contactResult.success ? (contactResult.contacts || []) : [];
+        pickerTags = tagResult.success ? (tagResult.tags || []) : [];
+        renderPickerTagFilters();
+        filterPickerContacts();
+        setTimeout(function() { document.getElementById('pickerSearch').focus(); }, 100);
+      } catch (e) {
+        document.getElementById('pickerContactList').innerHTML = '<div style="padding:30px;text-align:center;color:#999;font-size:13px;">Failed to load contacts</div>';
+      }
+    }
+
+    function closeContactPickerModal() {
+      document.getElementById('contactPickerModal').classList.remove('active');
+    }
+
+    function renderPickerTagFilters() {
+      var bar = document.getElementById('pickerTagBar');
+      if (!pickerTags.length) { bar.innerHTML = ''; return; }
+      bar.innerHTML = '<button class="cp-tag-btn' + (!pickerActiveTag ? ' active' : '') + '" onclick="setPickerTagFilter(null)">All</button>'
+        + pickerTags.map(function(t) {
+          return '<button class="cp-tag-btn' + (pickerActiveTag === t.id ? ' active' : '') + '" onclick="setPickerTagFilter(\'' + t.id + '\')">'
+            + escapeHtml(t.name) + ' <span style="color:#999;">(' + (t.count || 0) + ')</span></button>';
+        }).join('');
+    }
+
+    function setPickerTagFilter(tagId) {
+      pickerActiveTag = tagId;
+      renderPickerTagFilters();
+      filterPickerContacts();
+    }
+
+    function filterPickerContacts() {
+      var search = (document.getElementById('pickerSearch').value || '').toLowerCase().trim();
+
+      // Build set of contact IDs already on this event
+      var existingContactIds = new Set();
+      if (manageRsvps) {
+        manageRsvps.forEach(function(r) {
+          if (r.contactId) existingContactIds.add(r.contactId);
+        });
+      }
+
+      pickerFiltered = pickerContacts.filter(function(c) {
+        if (existingContactIds.has(c.id)) return false;
+        if (pickerActiveTag) {
+          var hasTag = c.tags && c.tags.some(function(t) { return t.id === pickerActiveTag; });
+          if (!hasTag) return false;
+        }
+        if (search) {
+          return (c.name && c.name.toLowerCase().includes(search))
+            || (c.email && c.email.toLowerCase().includes(search))
+            || (c.phone && c.phone.includes(search));
+        }
+        return true;
+      });
+
+      var container = document.getElementById('pickerContactList');
+      var addBtn = document.getElementById('pickerAddBtn');
+      var selectAllBtn = document.getElementById('pickerSelectAllBtn');
+
+      if (!pickerFiltered.length) {
+        var msg = pickerContacts.length
+          ? (existingContactIds.size > 0 ? 'All contacts are already added to this event' : 'No contacts match your search')
+          : 'No contacts yet. Use "+ Add New Guest" to create one.';
+        container.innerHTML = '<div style="padding:30px;text-align:center;color:#999;font-size:13px;">' + msg + '</div>';
+        addBtn.style.display = 'none';
+        selectAllBtn.style.display = 'none';
+        return;
+      }
+
+      container.innerHTML = pickerFiltered.map(function(c) {
+        var isSelected = pickerSelectedIds.has(c.id);
+        var detail = c.email || c.phone || '';
+        var tagHtml = (c.tags || []).map(function(t) {
+          return '<span class="cp-tag-pill" style="' + (t.color ? 'background:' + t.color + '20;color:' + t.color : '') + '">' + escapeHtml(t.name) + '</span>';
+        }).join('');
+        var hasPhone = c.phone ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ECDC4" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>' : '';
+        var hasEmail = c.email ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ECDC4" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>' : '';
+        return '<div class="cp-item' + (isSelected ? ' selected' : '') + '" onclick="togglePickerSelect(\'' + c.id + '\')">'
+          + '<div class="cp-check">' + (isSelected ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '') + '</div>'
+          + getAvatarHtml(c.name, 32)
+          + '<span class="cp-name">' + escapeHtml(c.name) + '</span>'
+          + (tagHtml ? '<span class="cp-tags">' + tagHtml + '</span>' : '')
+          + '<span class="cp-icons">' + hasPhone + hasEmail + '</span>'
+          + '<span class="cp-detail">' + escapeHtml(detail) + '</span>'
+          + '</div>';
+      }).join('');
+
+      if (pickerSelectedIds.size > 0) {
+        addBtn.style.display = 'block';
+        addBtn.textContent = 'Add Selected (' + pickerSelectedIds.size + ')';
+      } else {
+        addBtn.style.display = 'none';
+      }
+      selectAllBtn.style.display = pickerFiltered.length > 0 ? 'inline-block' : 'none';
+      var allVisible = pickerFiltered.every(function(c) { return pickerSelectedIds.has(c.id); });
+      selectAllBtn.textContent = allVisible ? 'Deselect All' : 'Select All';
+    }
+
+    function togglePickerSelect(contactId) {
+      if (pickerSelectedIds.has(contactId)) {
+        pickerSelectedIds.delete(contactId);
+      } else {
+        pickerSelectedIds.add(contactId);
+      }
+      filterPickerContacts();
+    }
+
+    function selectAllPickerContacts() {
+      var allVisible = pickerFiltered.every(function(c) { return pickerSelectedIds.has(c.id); });
+      if (allVisible) {
+        pickerFiltered.forEach(function(c) { pickerSelectedIds.delete(c.id); });
+      } else {
+        pickerFiltered.forEach(function(c) { pickerSelectedIds.add(c.id); });
+      }
+      filterPickerContacts();
+    }
+
+    async function addPickerSelectedContacts() {
+      if (!pickerSelectedIds.size) return;
+      var btn = document.getElementById('pickerAddBtn');
+      btn.disabled = true;
+      btn.textContent = 'Adding...';
+
+      try {
+        var res = await authFetch('/api/v2/events?action=addGuests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: manageEventId, contactIds: Array.from(pickerSelectedIds) })
+        });
+        var result = await res.json();
+        if (result.success) {
+          var added = result.added || 0;
+          var skipped = result.skipped || 0;
+          var msg = added + ' guest' + (added !== 1 ? 's' : '') + ' added';
+          if (skipped > 0) msg += ', ' + skipped + ' already invited';
+          showToast(msg);
+          closeContactPickerModal();
+          loadGuestsTab();
+        } else {
+          showToast(result.error || 'Failed to add guests');
+          btn.disabled = false;
+          btn.textContent = 'Add Selected (' + pickerSelectedIds.size + ')';
+        }
+      } catch (e) {
+        showToast('Error adding guests');
+        btn.disabled = false;
+        btn.textContent = 'Add Selected (' + pickerSelectedIds.size + ')';
+      }
+    }
+
+    // ── Phone Contact Picker ──
+    function isSafariMobileDash() {
+      var ua = navigator.userAgent;
+      return /iPhone|iPad|iPod/.test(ua) && /WebKit/.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(ua);
+    }
+
+    function checkContactPickerSupportDash() {
+      var hasAPI = ('contacts' in navigator && 'ContactsManager' in window);
+      var supported = hasAPI || isSafariMobileDash();
+      var phoneBtn = document.getElementById('phoneImportOption');
+      var phoneEmptyBtn = document.getElementById('phoneImportEmptyBtn');
+      if (phoneBtn) phoneBtn.style.display = supported ? 'flex' : 'none';
+      if (phoneEmptyBtn) phoneEmptyBtn.style.display = supported ? 'flex' : 'none';
+    }
+
+    async function importFromPhoneDashboard() {
+      var hasAPI = ('contacts' in navigator && 'ContactsManager' in window);
+      if (!hasAPI) {
+        showToast('Contact Picker not supported in this browser');
+        return;
+      }
+
+      try {
+        var contacts = await navigator.contacts.select(['name', 'tel', 'email'], { multiple: true });
+        if (!contacts || contacts.length === 0) return;
+
+        showToast('Importing ' + contacts.length + ' contact' + (contacts.length !== 1 ? 's' : '') + '...');
+
+        var mapped = contacts.map(function(c) {
+          var name = (c.name && c.name.length > 0) ? c.name[0] : '';
+          var phone = (c.tel && c.tel.length > 0) ? c.tel[0] : '';
+          var email = (c.email && c.email.length > 0) ? c.email[0] : '';
+          return { name: name, phone: phone, email: email };
+        }).filter(function(c) { return c.name; });
+
+        if (mapped.length === 0) {
+          showToast('No valid contacts selected');
+          return;
+        }
+
+        // Bulk create contacts
+        var res = await authFetch('/api/v2/contacts?action=bulkCreate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contacts: mapped, source: 'import' })
+        });
+        var result = await res.json();
+
+        if (result.success) {
+          var contactIds = result.contactIds || [];
+          if (contactIds.length > 0 && manageEventId) {
+            var addRes = await authFetch('/api/v2/events?action=addGuests', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ eventId: manageEventId, contactIds: contactIds })
+            });
+            var addResult = await addRes.json();
+            if (addResult.success) {
+              var added = addResult.added || 0;
+              var skipped = addResult.skipped || 0;
+              var msg = added + ' guest' + (added !== 1 ? 's' : '') + ' added from phone';
+              if (skipped > 0) msg += ', ' + skipped + ' already invited';
+              showToast(msg);
+            } else {
+              showToast(result.error || 'Failed to add guests');
+            }
+          } else {
+            showToast('Contacts saved. Add them from your contacts list.');
+          }
+          loadGuestsTab();
+        } else {
+          showToast(result.error || 'Import failed');
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          showToast('Could not access contacts');
+        }
+      }
+    }
+
+    // ── Action Sheet ──
+    function openAddGuestActionSheet() {
+      checkContactPickerSupportDash();
+      document.getElementById('addGuestActionSheet').classList.add('active');
+    }
+
+    function closeAddGuestActionSheet() {
+      document.getElementById('addGuestActionSheet').classList.remove('active');
+    }
+
     var guestHistoryCache = {};
+
+    function openAddGuestModal() {
+      document.getElementById('dashNewGuestName').value = '';
+      document.getElementById('dashNewGuestEmail').value = '';
+      document.getElementById('dashNewGuestPhone').value = '';
+      var msg = document.getElementById('dashNewGuestMsg');
+      msg.style.display = 'none';
+      msg.textContent = '';
+      document.getElementById('addGuestFormSection').style.display = 'block';
+      document.getElementById('addGuestInvitePrompt').style.display = 'none';
+      document.getElementById('addGuestSubmitBtn').disabled = false;
+      document.getElementById('addGuestSubmitBtn').textContent = 'Add Guest';
+      document.getElementById('addGuestModal').classList.add('active');
+      setTimeout(function() { document.getElementById('dashNewGuestName').focus(); }, 100);
+    }
+
+    function closeAddGuestModal() {
+      document.getElementById('addGuestModal').classList.remove('active');
+    }
+
+    async function submitNewGuestFromDashboard() {
+      var name = document.getElementById('dashNewGuestName').value.trim();
+      var email = document.getElementById('dashNewGuestEmail').value.trim();
+      var phone = document.getElementById('dashNewGuestPhone').value.trim();
+      var msg = document.getElementById('dashNewGuestMsg');
+      var btn = document.getElementById('addGuestSubmitBtn');
+
+      if (!name) {
+        msg.textContent = 'Name is required';
+        msg.style.color = '#E94560';
+        msg.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Adding...';
+      msg.textContent = '';
+      msg.style.display = 'none';
+
+      try {
+        // Step 1: Create contact
+        var contactRes = await authFetch('/api/v2/contacts?action=create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name, email: email || null, phone: phone || null, source: 'event_dashboard', sourceEventId: manageEventId })
+        });
+        var contactResult = await contactRes.json();
+        var contactId = null;
+
+        if (contactResult.success) {
+          contactId = contactResult.contact.id;
+        } else if (contactResult.existingContactId) {
+          contactId = contactResult.existingContactId;
+        } else {
+          msg.textContent = contactResult.error || 'Failed to create contact';
+          msg.style.color = '#E94560';
+          msg.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Add Guest';
+          return;
+        }
+
+        // Step 2: Add to event
+        var addRes = await authFetch('/api/v2/events?action=addGuests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: manageEventId, contactIds: [contactId] })
+        });
+        var addResult = await addRes.json();
+
+        // Reload guest list and show success
+        loadGuestsTab();
+        showToast(escapeHtml(name) + ' added as a guest!');
+        document.getElementById('addGuestFormSection').style.display = 'none';
+        document.getElementById('addGuestInvitePrompt').style.display = 'block';
+        document.getElementById('addGuestSuccessMsg').textContent = name + ' has been added!';
+
+      } catch (e) {
+        msg.textContent = 'Error adding guest';
+        msg.style.color = '#E94560';
+        msg.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Add Guest';
+      }
+    }
+
+    function addAnotherGuest() {
+      document.getElementById('dashNewGuestName').value = '';
+      document.getElementById('dashNewGuestEmail').value = '';
+      document.getElementById('dashNewGuestPhone').value = '';
+      var msg = document.getElementById('dashNewGuestMsg');
+      msg.style.display = 'none';
+      msg.textContent = '';
+      document.getElementById('addGuestFormSection').style.display = 'block';
+      document.getElementById('addGuestInvitePrompt').style.display = 'none';
+      document.getElementById('addGuestSubmitBtn').disabled = false;
+      document.getElementById('addGuestSubmitBtn').textContent = 'Add Guest';
+      setTimeout(function() { document.getElementById('dashNewGuestName').focus(); }, 100);
+    }
 
     function renderGuestsTab(rsvps) {
       var content = document.getElementById('manageContent');
       if (!rsvps || rsvps.length === 0) {
-        content.innerHTML = '<div class="rsvp-empty">No RSVPs yet. Share your invite link to start collecting responses!</div>'
-          + '<div style="text-align:center;margin-top:12px;"><a href="/v2/contacts/" style="color:var(--party-coral);font-weight:600;font-size:14px;">Add guests from contacts</a></div>';
+        content.innerHTML = '<div class="rsvp-empty">No guests yet. Add people to your event to get started!</div>'
+          + '<div style="text-align:center;margin-top:16px;">'
+          + '<button id="phoneImportEmptyBtn" onclick="importFromPhoneDashboard()" style="display:none;margin:0 auto 10px;padding:12px 20px;border:1.5px solid rgba(46,204,113,0.3);border-radius:10px;background:rgba(46,204,113,0.06);color:#1e8449;font-family:Inter,sans-serif;font-size:14px;font-weight:600;cursor:pointer;align-items:center;justify-content:center;gap:8px;">'
+          + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px;margin-right:6px;"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>'
+          + 'Import from Phone</button>'
+          + '</div>'
+          + '<div style="text-align:center;margin-top:4px;"><a onclick="openContactPickerModal()" style="color:var(--party-coral);font-weight:600;font-size:14px;cursor:pointer;">Add from contacts</a></div>'
+          + '<div style="text-align:center;margin-top:10px;"><button onclick="openAddGuestModal()" style="background:var(--party-coral);color:white;border:none;border-radius:20px;padding:10px 24px;font-size:14px;font-weight:600;font-family:Inter,sans-serif;cursor:pointer;">+ Add New Guest</button></div>';
+        checkContactPickerSupportDash();
         return;
       }
 
@@ -1737,9 +2290,15 @@
       renderEmpRsvpInline(attending, declined, maybe);
       guestHistoryCache = {};
 
-      var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
+      var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">'
         + '<span style="font-size:13px;color:#666;">' + rsvps.length + ' response' + (rsvps.length !== 1 ? 's' : '') + '</span>'
-        + '<a href="/v2/contacts/" style="color:var(--party-coral);font-weight:600;font-size:13px;text-decoration:none;">+ Add from contacts</a>'
+        + '<div class="guest-header-desktop" style="gap:12px;align-items:center;">'
+        + '<a onclick="openContactPickerModal()" style="color:var(--party-coral);font-weight:600;font-size:13px;text-decoration:none;cursor:pointer;">+ Add from contacts</a>'
+        + '<button onclick="openAddGuestModal()" style="background:var(--party-coral);color:white;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;font-family:Inter,sans-serif;cursor:pointer;">+ Add New Guest</button>'
+        + '</div>'
+        + '<div class="guest-header-mobile">'
+        + '<button onclick="openAddGuestActionSheet()" style="background:var(--party-coral);color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;font-family:Inter,sans-serif;cursor:pointer;">+ Add Guests</button>'
+        + '</div>'
         + '</div>';
 
       rsvps.forEach(function(r) {
@@ -1749,7 +2308,7 @@
         if (r.email) detail += escapeHtml(r.email);
         if (r.phone) detail += (detail ? ' &middot; ' : '') + escapeHtml(r.phone);
         if (r.respondedAt) detail += (detail ? ' &middot; ' : '') + new Date(r.respondedAt).toLocaleDateString();
-        var smsBadge = r.invitedAt ? ' <span class="sms-badge sms-badge-sms">SMS sent</span>' : '';
+        var smsBadge = r.notified ? ' <span class="sms-badge sms-badge-sms">SMS sent</span>' : '';
 
         html += '<div class="guest-card" id="guest-card-' + r.id + '">'
           + '<div class="guest-card-header" onclick="toggleGuestDetail(\'' + r.id + '\')">'
@@ -1766,6 +2325,7 @@
           + '</div></div>';
       });
       content.innerHTML = html;
+      checkContactPickerSupportDash();
     }
 
     async function toggleGuestDetail(guestId) {
@@ -1888,12 +2448,25 @@
       }
       html += '</div>';
 
-      // Actions (only Make Co-Host — Save to Contacts is automatic)
-      if (guest.email && manageIsOwner) {
-        html += '<div class="guest-detail-actions">';
-        html += '<button class="guest-detail-btn" onclick="event.stopPropagation();makeGuestCohost(\'' + guestId + '\', \'' + escapeHtml(guest.email).replace(/'/g, "\\'") + '\', this)">Make Co-Host</button>';
-        html += '</div>';
+      // Actions
+      html += '<div class="guest-detail-actions">';
+      if (guest.phone) {
+        html += '<button class="guest-detail-btn" onclick="event.stopPropagation();resendInvite(\'' + guestId + '\', \'sms\', this)" style="border-color:var(--party-coral);color:var(--party-coral);">'
+          + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:4px;"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72"/></svg>'
+          + 'Send SMS</button>';
       }
+      if (guest.email) {
+        html += '<button class="guest-detail-btn" onclick="event.stopPropagation();resendInvite(\'' + guestId + '\', \'email\', this)">'
+          + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:4px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>'
+          + 'Send Email</button>';
+      }
+      if (guest.email && manageIsOwner) {
+        html += '<button class="guest-detail-btn" onclick="event.stopPropagation();makeGuestCohost(\'' + guestId + '\', \'' + escapeHtml(guest.email).replace(/'/g, "\\'") + '\', this)">Make Co-Host</button>';
+      }
+      html += '<button class="guest-detail-btn" onclick="event.stopPropagation();deleteGuest(\'' + guestId + '\', \'' + escapeHtml(guest.name).replace(/'/g, "\\'") + '\')" style="color:#dc3545;border-color:#dc3545;">'
+        + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:4px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>'
+        + 'Remove</button>';
+      html += '</div>';
 
       panel.innerHTML = html;
     }
@@ -1956,6 +2529,70 @@
         });
         if (indicator) { indicator.style.display = 'inline'; setTimeout(function() { indicator.style.display = 'none'; }, 2000); }
       } catch (e) { console.error('Update guest response error:', e); }
+    }
+
+    function deleteGuest(guestId, guestName) {
+      showConfirm('Remove Guest', 'Remove ' + guestName + ' from this event? This cannot be undone.', '#dc3545', async function() {
+        try {
+          var res = await authFetch('/api/v2/events?action=removeGuests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: manageEventId, guestIds: [guestId] })
+          });
+          var result = await res.json();
+          if (result.success) {
+            showToast(guestName + ' removed');
+            loadGuestsTab();
+          } else {
+            showToast(result.error || 'Failed to remove guest');
+          }
+        } catch (e) {
+          showToast('Error removing guest');
+        }
+      });
+    }
+
+    async function resendInvite(guestId, type, btn) {
+      if (!guestId) return;
+      var origText = btn.innerHTML;
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+
+      try {
+        var res, result;
+        if (type === 'sms') {
+          var inviteUrl = getInviteUrl();
+          var smsMsg = 'You\'re invited to ' + manageTitle + '! RSVP here: ' + inviteUrl;
+          res = await authFetch('/api/v2/sms?action=sendInvites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: manageEventId, guestIds: [guestId], message: smsMsg })
+          });
+        } else {
+          res = await authFetch('/api/v2/sms?action=sendEmailInvites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: manageEventId, guestIds: [guestId] })
+          });
+        }
+
+        try { result = await res.json(); } catch (e) { result = { success: false, error: 'Server error (status ' + res.status + ')' }; }
+
+        if (result.success) {
+          showToast(type === 'sms' ? 'SMS invite sent!' : 'Email invite sent!');
+          btn.textContent = 'Sent!';
+          setTimeout(function() { btn.innerHTML = origText; btn.disabled = false; }, 2000);
+          loadGuestsTab();
+        } else {
+          showToast(result.error || 'Failed to send ' + type);
+          btn.disabled = false;
+          btn.innerHTML = origText;
+        }
+      } catch (e) {
+        showToast('Failed to send invite');
+        btn.disabled = false;
+        btn.innerHTML = origText;
+      }
     }
 
     async function makeGuestCohost(guestId, email, btn) {
@@ -2873,7 +3510,7 @@
 
     function renderPhotosTab() {
       var content = document.getElementById('manageContent');
-      var galleryUrl = window.location.origin + '/v2/event/' + manageSlug + '/photos';
+      var galleryUrl = 'https://ryvite.com/v2/event/' + manageSlug + '/photos';
 
       var html = '<div style="margin-bottom:20px;">'
         + '<div class="notify-row">'
@@ -2967,7 +3604,7 @@
     }
 
     function switchPhotoSmsTemplate(type, btn) {
-      var galleryUrl = window.location.origin + '/v2/event/' + manageSlug + '/photos';
+      var galleryUrl = 'https://ryvite.com/v2/event/' + manageSlug + '/photos';
       var textarea = document.getElementById('photoSmsMsg');
       if (!textarea) return;
       if (type === 'share') {
@@ -3027,7 +3664,7 @@
     }
 
     function copyGalleryLink() {
-      var url = window.location.origin + '/v2/event/' + manageSlug + '/photos';
+      var url = 'https://ryvite.com/v2/event/' + manageSlug + '/photos';
       navigator.clipboard.writeText(url).then(function() {
         var btn = document.getElementById('copyGalleryBtn');
         btn.textContent = 'Copied!';

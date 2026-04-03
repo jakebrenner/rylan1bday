@@ -272,9 +272,7 @@ async function processEmailReminder(reminder, now) {
   const hostName = profile?.display_name || 'Your host';
 
   // Determine base URL from event slug
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : (process.env.BASE_URL || 'https://ryvite.com');
+  const baseUrl = 'https://ryvite.com';
 
   // Fetch guests with emails
   const { data: guests } = await supabaseAdmin
