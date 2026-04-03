@@ -665,8 +665,31 @@ function parseThemeResponse(rawText) {
   let text = (typeof rawText === 'string' ? rawText : '').trim();
   // ALL paths funnel through normalizeThemeKeys at the end to fix escaping
   if (text.match(/^<!DOCTYPE/i) || text.match(/^<html/i)) return normalizeThemeKeys(extractThemeFromHtmlDoc(text));
-  const jsonBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
-  if (jsonBlockMatch) text = jsonBlockMatch[1].trim();
+  // Strip markdown fences — use greedy match to find the OUTERMOST closing ```
+  // Non-greedy ([\s\S]*?) would break if the JSON content contains triple backticks
+  // (e.g., in HTML strings), matching the first inner ``` and truncating the JSON.
+  const fenceOpenMatch = text.match(/^```(?:json)?\s*\n?/);
+  if (fenceOpenMatch) {
+    const afterOpen = text.substring(fenceOpenMatch[0].length);
+    // Find the LAST ``` in the remaining text (outermost closing fence)
+    const lastFenceIdx = afterOpen.lastIndexOf('```');
+    if (lastFenceIdx !== -1) {
+      text = afterOpen.substring(0, lastFenceIdx).trim();
+    } else {
+      // Opening fence but no closing — strip the opening and use the rest
+      text = afterOpen.trim();
+    }
+  } else {
+    // Fence might not be at the start — try to find it mid-text
+    const midFenceMatch = text.match(/```(?:json)?\s*\n/);
+    if (midFenceMatch) {
+      const afterOpen = text.substring(text.indexOf(midFenceMatch[0]) + midFenceMatch[0].length);
+      const lastFenceIdx = afterOpen.lastIndexOf('```');
+      if (lastFenceIdx !== -1) {
+        text = afterOpen.substring(0, lastFenceIdx).trim();
+      }
+    }
+  }
   if (!text.startsWith('{') || text.match(/^\{\s*--/)) {
     const jsonStart = text.match(/\{\s*"(?:theme_|html|css|config)/);
     if (jsonStart) {
@@ -758,6 +781,14 @@ function normalizeThemeKeys(theme) {
   if (!theme.theme_html && theme.themeHtml) theme.theme_html = theme.themeHtml;
   if (!theme.theme_css && theme.css) theme.theme_css = theme.css;
   if (!theme.theme_css && theme.themeCss) theme.theme_css = theme.themeCss;
+  if (!theme.theme_css && theme.style) theme.theme_css = theme.style;
+  if (!theme.theme_css && theme.styles) theme.theme_css = theme.styles;
+  if (!theme.theme_css && theme.stylesheet) theme.theme_css = theme.stylesheet;
+  // Coerce non-string CSS to string (model may return object/array)
+  if (theme.theme_css && typeof theme.theme_css !== 'string') {
+    console.warn('[normalizeThemeKeys] theme_css was type', typeof theme.theme_css, '— coercing to string');
+    theme.theme_css = typeof theme.theme_css === 'object' ? JSON.stringify(theme.theme_css) : String(theme.theme_css);
+  }
   if (!theme.theme_config && theme.config) theme.theme_config = theme.config;
   if (!theme.theme_config && theme.themeConfig) theme.theme_config = theme.themeConfig;
   if (!theme.theme_thankyou_html && theme.thankyou_html) theme.theme_thankyou_html = theme.thankyou_html;
@@ -2732,8 +2763,10 @@ This is the most common failure mode. Double-check it.`;
       const streamResult = await new Promise((resolve) => {
         let resolved = false;
         let lastChunkTime = Date.now();
-        const done = (reason) => { if (!resolved) { resolved = true; clearInterval(idleCheck); clearInterval(speedCheck); resolve({ ok: true, reason }); } };
-        const abort = (reason) => { if (!resolved) { resolved = true; clearInterval(idleCheck); clearInterval(speedCheck); resolve({ ok: false, reason }); } };
+        let wallClockTimeout = null;
+        const cleanup = () => { clearInterval(idleCheck); clearTimeout(speedCheck); clearTimeout(wallClockTimeout); };
+        const done = (reason) => { if (!resolved) { resolved = true; cleanup(); resolve({ ok: true, reason }); } };
+        const abort = (reason) => { if (!resolved) { resolved = true; cleanup(); resolve({ ok: false, reason }); } };
 
         stream.on('text', (text) => {
           fullText += text;
@@ -2772,6 +2805,15 @@ This is the most common failure mode. Double-check it.`;
           }
           // If we have enough content but stream is still going, let it continue
         }, timeoutMs) : null;
+
+        // Wall-clock timeout for non-last attempts: 90s max to prevent a single slow
+        // model from consuming the entire 300s maxDuration budget
+        wallClockTimeout = !isLastAttempt ? setTimeout(() => {
+          if (!resolved) {
+            console.log(`[escalation] ${label} wall-clock timeout at 90s, bytes: ${fullText.length}. Accepting output.`);
+            done('wall_clock');
+          }
+        }, 90000) : null;
 
         // Hard timeout on last attempt: 210s (leaves 90s for post-gen DB saves within 300s maxDuration)
         if (isLastAttempt) {
@@ -2891,6 +2933,28 @@ This is the most common failure mode. Double-check it.`;
           console.warn('[generate] CSS was empty — extracted ' + fallbackCss.length + ' chars from <style> blocks in HTML');
           theme.theme_css = fallbackCss;
           theme.theme_html = theme.theme_html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+        }
+      }
+    }
+    // ── CSS FAILSAFE 2: Extract from raw AI response if parsing lost the CSS ──
+    // This handles cases where markdown fence stripping or JSON truncation discarded CSS
+    if ((!theme.theme_css || !theme.theme_css.trim()) && fullText.length > 5000) {
+      console.warn('[generate] CSS still empty after HTML extraction — trying raw response extraction');
+      // Try extracting "theme_css" value directly from the raw response text
+      const rawCssMatch = fullText.match(/"theme_css"\s*:\s*"((?:[^"\\]|\\.)*)"/s);
+      if (rawCssMatch && rawCssMatch[1].trim()) {
+        let extractedCss = rawCssMatch[1].replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        console.warn('[generate] Recovered ' + extractedCss.length + ' chars of CSS from raw "theme_css" in response');
+        theme.theme_css = extractedCss;
+      } else {
+        // Try extracting <style> blocks from anywhere in the raw response
+        const rawStyleMatch = fullText.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+        if (rawStyleMatch) {
+          const rawCss = rawStyleMatch.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
+          if (rawCss.trim()) {
+            console.warn('[generate] Recovered ' + rawCss.length + ' chars of CSS from <style> blocks in raw response');
+            theme.theme_css = rawCss;
+          }
         }
       }
     }

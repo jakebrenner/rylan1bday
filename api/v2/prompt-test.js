@@ -360,9 +360,27 @@ function parseThemeResponse(rawText) {
     return normalizeThemeKeys(extractThemeFromHtmlDoc(text));
   }
 
-  // Step 2: Strip markdown code fences
-  const jsonBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
-  if (jsonBlockMatch) text = jsonBlockMatch[1].trim();
+  // Step 2: Strip markdown fences — use greedy match to find the OUTERMOST closing ```
+  // Non-greedy ([\s\S]*?) would break if the JSON content contains triple backticks
+  const fenceOpenMatch = text.match(/^```(?:json)?\s*\n?/);
+  if (fenceOpenMatch) {
+    const afterOpen = text.substring(fenceOpenMatch[0].length);
+    const lastFenceIdx = afterOpen.lastIndexOf('```');
+    if (lastFenceIdx !== -1) {
+      text = afterOpen.substring(0, lastFenceIdx).trim();
+    } else {
+      text = afterOpen.trim();
+    }
+  } else {
+    const midFenceMatch = text.match(/```(?:json)?\s*\n/);
+    if (midFenceMatch) {
+      const afterOpen = text.substring(text.indexOf(midFenceMatch[0]) + midFenceMatch[0].length);
+      const lastFenceIdx = afterOpen.lastIndexOf('```');
+      if (lastFenceIdx !== -1) {
+        text = afterOpen.substring(0, lastFenceIdx).trim();
+      }
+    }
+  }
 
   // Step 3: If still not starting with {, or starts with CSS variables, look for actual JSON
   if (!text.startsWith('{') || text.match(/^\{\s*--/)) {
@@ -498,6 +516,12 @@ function normalizeThemeKeys(theme) {
   if (!theme.theme_html && theme.themeHtml) theme.theme_html = theme.themeHtml;
   if (!theme.theme_css && theme.css) theme.theme_css = theme.css;
   if (!theme.theme_css && theme.themeCss) theme.theme_css = theme.themeCss;
+  if (!theme.theme_css && theme.style) theme.theme_css = theme.style;
+  if (!theme.theme_css && theme.styles) theme.theme_css = theme.styles;
+  if (!theme.theme_css && theme.stylesheet) theme.theme_css = theme.stylesheet;
+  if (theme.theme_css && typeof theme.theme_css !== 'string') {
+    theme.theme_css = typeof theme.theme_css === 'object' ? JSON.stringify(theme.theme_css) : String(theme.theme_css);
+  }
   if (!theme.theme_config && theme.config) theme.theme_config = theme.config;
   if (!theme.theme_config && theme.themeConfig) theme.theme_config = theme.themeConfig;
   if (!theme.theme_thankyou_html && theme.thankyou_html) theme.theme_thankyou_html = theme.thankyou_html;
