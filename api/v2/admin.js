@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import Anthropic from '@anthropic-ai/sdk';
 import { Resend } from 'resend';
+import { reportApiError } from './lib/error-reporter.js';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -3222,7 +3223,64 @@ ${cssSnippet}`
       });
     }
 
+    if (action === 'getThemeHtml') {
+      const themeId = req.query.themeId;
+      if (!themeId) return res.status(400).json({ error: 'themeId required' });
+      const { data: theme } = await supabaseAdmin
+        .from('event_themes')
+        .select('html, css, config')
+        .eq('id', themeId)
+        .single();
+      if (!theme) return res.status(404).json({ error: 'Theme not found' });
+
+      // Build complete HTML document (same assembly as guest/create pages)
+      const config = theme.config || {};
+      const css = theme.css || '';
+      const html = theme.html || '';
+      let fontsLink = '';
+      const fontsImport = config.googleFontsImport || '';
+      if (fontsImport) {
+        const m = fontsImport.match(/url\(['"]?([^'"\)]+)['"]?\)/);
+        if (m && m[1]) fontsLink = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${m[1]}">`;
+      }
+      const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393,initial-scale=1.0">${fontsLink}<style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:393px;min-height:100%;overflow-x:hidden;background:${config.backgroundColor || '#fff'}}</style><style>${css.replace(/<\/style/gi, '<\\/style')}</style></head><body>${html}</body></html>`;
+      return res.status(200).json({ success: true, html: fullHtml });
+    }
+
     // ---- QUALITY BY BROWSER ----
+    if (action === 'resolveIncident') {
+      const { incidentId, resolutionType, notes } = req.body;
+      if (!incidentId || !resolutionType) return res.status(400).json({ error: 'incidentId and resolutionType required' });
+      const validTypes = ['admin_reviewed', 'escalated', 'auto_healed'];
+      if (!validTypes.includes(resolutionType)) return res.status(400).json({ error: 'Invalid resolutionType' });
+
+      const { error } = await supabaseAdmin
+        .from('quality_incidents')
+        .update({
+          resolution_type: resolutionType,
+          resolution_data: { admin_action: true, notes: notes || null, resolved_by: 'admin', resolved_at: new Date().toISOString() },
+          resolved_at: new Date().toISOString()
+        })
+        .eq('id', incidentId);
+
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(200).json({ success: true });
+    }
+
+    if (action === 'resetIncident') {
+      const { incidentId } = req.body;
+      if (!incidentId) return res.status(400).json({ error: 'incidentId required' });
+
+      await supabaseAdmin.from('quality_incidents').update({
+        resolution_type: 'unresolved',
+        resolution_data: null,
+        ai_diagnosis: null,
+        resolved_at: null
+      }).eq('id', incidentId);
+
+      return res.status(200).json({ success: true });
+    }
+
     if (action === 'qualityByBrowser') {
       const { data, error } = await supabaseAdmin
         .from('quality_incidents')
@@ -4257,9 +4315,138 @@ ${cssSnippet}`
       });
     }
 
+    // ---- CLIENT ERROR STATS ----
+    if (action === 'clientErrorStats') {
+      const fromDate = req.query.from || new Date(new Date().setHours(0,0,0,0)).toISOString();
+      const toDate = req.query.to || new Date().toISOString();
+
+      const { data: summary } = await supabaseAdmin
+        .from('client_error_log')
+        .select('error_type, component, funnel_step, error_message, created_at')
+        .gte('created_at', fromDate)
+        .lte('created_at', toDate)
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      const errors = summary || [];
+      const total = errors.length;
+
+      // Group by error_type + component
+      const byTypeComponent = {};
+      const byStep = {};
+
+      for (const e of errors) {
+        const key = (e.error_type || 'unknown') + '|' + (e.component || 'unknown');
+        if (!byTypeComponent[key]) byTypeComponent[key] = { error_type: e.error_type, component: e.component, count: 0, sample_message: e.error_message };
+        byTypeComponent[key].count++;
+
+        if (e.funnel_step) {
+          if (!byStep[e.funnel_step]) byStep[e.funnel_step] = { step: e.funnel_step, count: 0 };
+          byStep[e.funnel_step].count++;
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        total: total,
+        by_type_component: Object.values(byTypeComponent).sort((a, b) => b.count - a.count),
+        by_funnel_step: Object.values(byStep).sort((a, b) => b.count - a.count),
+        recent_errors: errors.slice(0, 20).map(e => ({
+          error_type: e.error_type,
+          component: e.component,
+          funnel_step: e.funnel_step,
+          message: (e.error_message || '').slice(0, 200),
+          created_at: e.created_at
+        }))
+      });
+    }
+
+    // ---- SERVER ERROR STATS ----
+    if (action === 'serverErrorStats') {
+      const fromDate = req.query.from || new Date(new Date().setHours(0,0,0,0)).toISOString();
+      const toDate = req.query.to || new Date().toISOString();
+
+      const { data: errors } = await supabaseAdmin
+        .from('api_error_log')
+        .select('endpoint, action, error_message, created_at')
+        .gte('created_at', fromDate)
+        .lte('created_at', toDate)
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      const rows = errors || [];
+      const grouped = {};
+      let total = 0;
+
+      for (const e of rows) {
+        total++;
+        const key = (e.endpoint || '') + '|' + (e.action || '') + '|' + (e.error_message || '').slice(0, 100);
+        if (!grouped[key]) grouped[key] = { endpoint: e.endpoint, action: e.action, error_message: e.error_message, count: 0, last_seen: e.created_at };
+        grouped[key].count++;
+      }
+
+      return res.status(200).json({
+        success: true,
+        total: total,
+        errors: Object.values(grouped).sort((a, b) => b.count - a.count)
+      });
+    }
+
+    // ---- SMS DELIVERY STATS ----
+    if (action === 'smsDeliveryStats') {
+      const fromDate = req.query.from || new Date(new Date().setHours(0,0,0,0)).toISOString();
+      const toDate = req.query.to || new Date().toISOString();
+
+      const { data: allSms } = await supabaseAdmin
+        .from('sms_messages')
+        .select('status, carrier, country, provider_status, provider_error, created_at')
+        .gte('created_at', fromDate)
+        .lte('created_at', toDate)
+        .order('created_at', { ascending: false })
+        .limit(1000);
+
+      const msgs = allSms || [];
+      const totalSent = msgs.length;
+      const delivered = msgs.filter(m => m.status === 'delivered').length;
+      const deliveryRate = totalSent > 0 ? Math.round(100 * delivered / totalSent) : null;
+
+      // Group by carrier
+      const byCarrier = {};
+      for (const m of msgs) {
+        const key = (m.carrier || 'Unknown') + '|' + (m.country || '');
+        if (!byCarrier[key]) byCarrier[key] = { carrier: m.carrier || 'Unknown', country: m.country || '', total_sent: 0, delivered: 0, failed: 0, bounced: 0, pending: 0 };
+        byCarrier[key].total_sent++;
+        if (m.status === 'delivered') byCarrier[key].delivered++;
+        else if (m.status === 'failed') byCarrier[key].failed++;
+        else if (m.status === 'bounced') byCarrier[key].bounced++;
+        else byCarrier[key].pending++;
+      }
+      for (const c of Object.values(byCarrier)) {
+        c.delivery_rate_pct = c.total_sent > 0 ? Math.round(100 * c.delivered / c.total_sent) : null;
+      }
+
+      // Group by status + provider_status
+      const byStatus = {};
+      for (const m of msgs) {
+        const key = (m.status || '') + '|' + (m.provider_status || '') + '|' + (m.provider_error || '');
+        if (!byStatus[key]) byStatus[key] = { status: m.status, provider_status: m.provider_status, provider_error: m.provider_error, count: 0 };
+        byStatus[key].count++;
+      }
+
+      return res.status(200).json({
+        success: true,
+        delivery_rate_pct: deliveryRate,
+        total_sent: totalSent,
+        total_delivered: delivered,
+        by_carrier: Object.values(byCarrier).sort((a, b) => b.total_sent - a.total_sent),
+        by_status: Object.values(byStatus).sort((a, b) => b.count - a.count)
+      });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Admin API error:', err);
+    await reportApiError({ endpoint: '/api/v2/admin', action: req.query?.action || 'unknown', error: err, requestBody: req.body, req }).catch(() => {});
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

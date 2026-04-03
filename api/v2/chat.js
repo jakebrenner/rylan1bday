@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
+import { reportApiError } from './lib/error-reporter.js';
 // AI generation included in $4.99 event price — no per-generation billing
 
 const client = new Anthropic();
@@ -322,6 +323,7 @@ export default async function handler(req, res) {
         error: (err?.message || '').substring(0, 500)
       });
     } catch {}
+    await reportApiError({ endpoint: '/api/v2/chat', action: 'message', error: err, requestBody: req.body, req }).catch(() => {});
     return res.status(500).json({
       error: 'Failed to process message',
       message: err?.message || 'Unknown error',

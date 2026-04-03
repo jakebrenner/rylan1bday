@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
+import { reportApiError } from './lib/error-reporter.js';
 
 const client = new Anthropic();
 const supabase = createClient(
@@ -71,6 +72,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const action = req.query?.action || '';
+  try {
 
   // ── LOG DESIGN CHAT MESSAGE (real-time persistence) ──
   if (action === 'logChatMessage' && req.method === 'POST') {
@@ -293,6 +295,119 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, incidentId: incident.id });
   }
 
+  // ── ADMIN RETRY HEAL (re-run diagnoseAndHeal on an existing incident) ──
+  if (action === 'adminRetryHeal' && req.method === 'POST') {
+    const { incidentId } = req.body;
+    if (!incidentId) return res.status(400).json({ error: 'incidentId required' });
+
+    console.log('[adminRetryHeal] Starting for incident:', incidentId);
+
+    const { data: incident, error: fetchErr } = await supabase
+      .from('quality_incidents')
+      .select('*')
+      .eq('id', incidentId)
+      .single();
+
+    if (fetchErr) {
+      console.error('[adminRetryHeal] Fetch error:', fetchErr.message);
+      return res.status(404).json({ error: 'Incident not found: ' + fetchErr.message });
+    }
+    if (!incident) return res.status(404).json({ error: 'Incident not found' });
+
+    console.log('[adminRetryHeal] Incident loaded:', {
+      id: incident.id,
+      trigger: incident.trigger_type,
+      eventId: incident.event_id,
+      hasThemeSnapshot: !!incident.theme_snapshot,
+      hasHtml: !!(incident.theme_snapshot?.html),
+      hasCss: !!(incident.theme_snapshot?.css)
+    });
+
+    // If theme_snapshot is missing or has no HTML, we can't diagnose
+    if (!incident.theme_snapshot?.html && !incident.theme_snapshot?.css) {
+      // Try to fetch current theme from event_themes
+      let themeSnapshot = incident.theme_snapshot || {};
+      if (incident.event_id) {
+        const { data: theme } = await supabase
+          .from('event_themes')
+          .select('html, css, config')
+          .eq('event_id', incident.event_id)
+          .eq('is_active', true)
+          .single();
+        if (theme) {
+          themeSnapshot = { html: theme.html, css: theme.css, config: theme.config };
+          console.log('[adminRetryHeal] Loaded theme from event_themes');
+        }
+      }
+      if (!themeSnapshot.html) {
+        return res.status(400).json({ error: 'No theme HTML available for this incident. Cannot diagnose.' });
+      }
+      // Update incident with the theme snapshot for future retries
+      await supabase.from('quality_incidents').update({ theme_snapshot: themeSnapshot }).eq('id', incidentId);
+      incident.theme_snapshot = themeSnapshot;
+    }
+
+    // Build context from stored incident data
+    const ctx = {
+      eventId: incident.event_id,
+      eventThemeId: incident.event_theme_id,
+      triggerType: incident.trigger_type,
+      triggerData: incident.trigger_data,
+      themeSnapshot: incident.theme_snapshot,
+      validationResults: incident.validation_results,
+      chatSnapshot: incident.design_chat_snapshot,
+      userId: incident.user_id
+    };
+
+    // Clear previous resolution/diagnosis for a fresh retry
+    await supabase.from('quality_incidents').update({
+      resolution_type: null, resolution_data: null, resolved_at: null,
+      ai_diagnosis: null, ai_diagnosis_model: null, diagnosis_tokens: null
+    }).eq('id', incidentId);
+
+    // Run synchronously so admin sees result
+    try {
+      console.log('[adminRetryHeal] Running diagnoseAndHeal...');
+      await diagnoseAndHeal(incidentId, ctx);
+      console.log('[adminRetryHeal] diagnoseAndHeal completed');
+
+      // Re-fetch to see if it was healed
+      const { data: updated } = await supabase
+        .from('quality_incidents')
+        .select('resolution_type, ai_diagnosis, resolution_data')
+        .eq('id', incidentId)
+        .single();
+
+      console.log('[adminRetryHeal] Result:', {
+        resolution: updated?.resolution_type,
+        hasDiagnosis: !!updated?.ai_diagnosis,
+        hasNewTheme: !!updated?.resolution_data?.new_theme_id
+      });
+
+      const healed = updated?.resolution_type === 'auto_healed';
+      return res.status(200).json({
+        success: true,
+        healed,
+        resolution: updated?.resolution_type,
+        diagnosis: updated?.ai_diagnosis || null,
+        newThemeId: updated?.resolution_data?.new_theme_id || null
+      });
+    } catch (e) {
+      console.error('[adminRetryHeal] Failed:', e.message, e.stack);
+      await supabase.from('quality_incidents').update({
+        resolution_type: 'escalated',
+        ai_diagnosis: 'Admin retry heal error: ' + e.message,
+        resolution_data: { error: e.message, stack: (e.stack || '').substring(0, 500), admin_retry: true }
+      }).eq('id', incidentId);
+      return res.status(200).json({
+        success: true,
+        healed: false,
+        resolution: 'escalated',
+        diagnosis: 'Heal failed: ' + e.message
+      });
+    }
+  }
+
   // ── FIX USER-REPORTED ISSUE (synchronous — user is waiting) ──
   if (action === 'fixUserReportedIssue' && req.method === 'POST') {
     const user = await getUser(req);
@@ -325,8 +440,8 @@ export default async function handler(req, res) {
       })
       .select('id')
       .single()
-      .catch(e => {
-        console.error('[quality-monitor] User complaint incident insert failed:', e.message);
+      .then(r => r, e => {
+        console.error('[quality-monitor] User complaint incident insert failed:', e?.message || e);
         return { data: null };
       });
 
@@ -428,12 +543,12 @@ If the issue is unfixable without a complete redesign, return:
         status: fixResult.fixed ? 'success' : 'failed',
         is_tweak: true,
         event_type: event?.event_type || ''
-      }).catch(e => console.error('[quality-monitor] Support fix generation_log failed:', e.message));
+      });
 
       // Track cost
       const fixCostCents = calcCost(fixModel, fixTokens.input, fixTokens.output);
       if (eventId) {
-        await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: fixCostCents }).catch(() => {});
+        try { await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: fixCostCents }); } catch(_) {}
       }
 
       if (!fixResult.fixed) {
@@ -563,6 +678,11 @@ If the issue is unfixable without a complete redesign, return:
   }
 
   return res.status(400).json({ error: 'Unknown action: ' + action });
+  } catch (err) {
+    console.error('Quality monitor API error:', err);
+    await reportApiError({ endpoint: '/api/v2/quality-monitor', action: action || 'unknown', error: err, requestBody: req.body, req }).catch(() => {});
+    return res.status(500).json({ error: 'Server error' });
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -638,7 +758,7 @@ Return ONLY the rule text, no explanation or formatting.`
       input_tokens: suggestion.usage?.input_tokens || 0,
       output_tokens: suggestion.usage?.output_tokens || 0,
       latency_ms: 0, status: 'success', is_tweak: false
-    }).catch(e => console.error('[quality-monitor] suggestRule generation_log failed:', e.message));
+    });
     if (!ruleText || ruleText.length > 500) return;
 
     // Collect affected browsers from recent incidents
@@ -778,10 +898,10 @@ Return JSON:
     status: 'success',
     is_tweak: true,
     event_type: ''
-  }).catch(e => console.error('[quality-monitor] Diagnosis generation_log failed:', e.message));
+  });
   if (ctx.eventId) {
     const diagCostCents = calcCost(diagnosisModel, diagnosisTokens.input, diagnosisTokens.output);
-    await supabase.rpc('increment_event_cost', { p_event_id: ctx.eventId, p_cost_cents: diagCostCents }).catch(() => {});
+    try { await supabase.rpc('increment_event_cost', { p_event_id: ctx.eventId, p_cost_cents: diagCostCents }); } catch(_) {}
   }
 
   console.log('[quality-monitor] Diagnosis complete:', {
@@ -818,7 +938,7 @@ async function attemptAutoHeal(incidentId, ctx, diagnosis) {
   const healModel = 'claude-sonnet-4-6';
   const startTime = Date.now();
 
-  // Fetch event details for regeneration context
+  // Fetch event details + custom fields for full regeneration context
   const { data: event } = await supabase
     .from('events')
     .select('title, event_date, event_type, location_name, location_address, dress_code')
@@ -828,6 +948,64 @@ async function attemptAutoHeal(incidentId, ctx, diagnosis) {
   if (!event) {
     throw new Error('Event not found: ' + ctx.eventId);
   }
+
+  // Fetch custom RSVP fields for this event
+  const { data: customFields } = await supabase
+    .from('event_custom_fields')
+    .select('field_key, label, field_type, is_required')
+    .eq('event_id', ctx.eventId)
+    .order('sort_order', { ascending: true });
+
+  const eventContext = `Event: "${event.title}" (${event.event_type || 'event'})
+Date: ${event.event_date || 'TBD'}
+Location: ${event.location_name || 'TBD'}${event.location_address ? ' — ' + event.location_address : ''}
+${event.dress_code ? 'Dress code: ' + event.dress_code : ''}
+RSVP fields: Name (required), Email, Phone, RSVP Status (required)${customFields?.length ? ', ' + customFields.map(f => f.label + ' (' + f.field_type + (f.is_required ? ', required' : '') + ')').join(', ') : ''}`;
+
+  // Platform contract for healed themes — the AI MUST follow these rules
+  const HEAL_PLATFORM_RULES = `## PLATFORM CONTRACT — MANDATORY RULES
+
+### PAGE STRUCTURE (4 required sections):
+1. **THEMATIC HEADER** — Animated or illustrated SVG element specific to the event type
+2. **HERO SECTION** — Large display headline with event title. Element MUST have data-field="title" attribute.
+3. **DETAILS SLOT** — \`<div class="details-slot"></div>\` — MUST be COMPLETELY EMPTY. The platform injects event details (date, time, location, dress code) at runtime. NEVER put text, icons, or labels inside.
+4. **RSVP SLOT** — \`<div class="rsvp-slot"></div>\` — MUST be COMPLETELY EMPTY. The platform injects RSVP form fields (name input, status dropdown, custom fields, submit button) at runtime. NEVER put buttons, links, "RSVP Now", or ANY content inside. NEVER create a click-to-reveal pattern.
+
+### RSVP SLOT CSS — CRITICAL (platform injects form elements at runtime)
+You MUST include ALL of these CSS rules styled to match your theme:
+\`\`\`
+.rsvp-slot { display: flex; flex-direction: column; width: 100%; color: [#FFFFFF on dark bg, #1A1A1A on light bg]; }
+.rsvp-slot input, .rsvp-slot select, .rsvp-slot textarea { background: [rgba(255,255,255,0.15) on dark, rgba(0,0,0,0.05) on light]; border: 1px solid [theme-appropriate]; border-radius: [theme-appropriate]; padding: 12px 14px; font-size: 14px; color: [contrasting]; width: 100%; }
+.rsvp-slot label { font-size: 13px; font-weight: 600; color: [contrasting]; margin-bottom: 4px; }
+.rsvp-slot .rsvp-submit { width: 100%; min-height: 52px; background: [accent color]; color: [contrasting]; border: none; border-radius: [theme-appropriate]; font-size: 16px; font-weight: 600; cursor: pointer; }
+.rsvp-slot .rsvp-form-group { margin-bottom: 14px; }
+\`\`\`
+
+### DETAILS SLOT CSS — CRITICAL (platform injects detail items at runtime)
+\`\`\`
+.details-slot { background: [theme-appropriate]; border-radius: [theme-appropriate]; padding: 20px; margin: 16px 0; }
+.detail-item { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.detail-icon { font-size: 20px; }
+.detail-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; color: [contrasting]; }
+.detail-value { font-size: 15px; font-weight: 500; color: [contrasting]; }
+\`\`\`
+
+### TECHNICAL CONSTRAINTS
+- Max-width: 393px (iPhone viewport), centered
+- Min 48px padding-top (clears iPhone notch/Dynamic Island)
+- Text: min 14px body, WCAG AA contrast (4.5:1 body, 3:1 headings)
+- Generous padding: 20-24px sides
+- CSS animations only, NO JavaScript
+- No fixed positioning, no iframes
+- 3-5 phone screen scrolls of height
+- Source all fonts from Google Fonts (include @import in googleFontsImport)
+- NEVER use Inter, Roboto, Open Sans, Lato, Arial, or system fonts
+
+### TEXT CONTRAST — NEVER VIOLATE
+- EVERY text must have sufficient contrast against its background
+- On dark/colored backgrounds: use #FFFFFF or #FAFAFA for text
+- On light backgrounds: use #1A1A1A or darker
+- Button text MUST contrast against button background`;
 
   let healPrompt;
   if (diagnosis.healStrategy === 'css_repair') {
@@ -869,18 +1047,15 @@ async function attemptAutoHeal(incidentId, ctx, diagnosis) {
 
         if (patchApplied) {
           console.log('[quality-monitor] Surgical CSS patch applied without AI call');
-          // Skip the AI heal entirely — use the patched CSS
           const healedTheme = {
             html: ctx.themeSnapshot?.html || '',
             css: patchedCss,
             config: ctx.themeSnapshot?.config || {}
           };
 
-          // Validate and save (same flow as below)
-          const hasRsvp = healedTheme.html.includes('rsvp-slot');
-          const hasDetails = healedTheme.html.includes('details-slot');
-          const hasTitle = healedTheme.html.includes('data-field="title"');
-          if (hasRsvp && hasDetails && hasTitle) {
+          // Full validation before saving
+          const structuralIssues = validateHealedStructure(healedTheme.html, healedTheme.css);
+          if (structuralIssues.length === 0) {
             const { data: existingThemes } = await supabase
               .from('event_themes').select('version').eq('event_id', ctx.eventId)
               .order('version', { ascending: false }).limit(1);
@@ -908,6 +1083,8 @@ async function attemptAutoHeal(incidentId, ctx, diagnosis) {
               console.log('[quality-monitor] Surgical CSS patch saved:', newTheme.id);
               return; // Done — no AI needed
             }
+          } else {
+            console.warn('[quality-monitor] Surgical patch still has issues:', structuralIssues);
           }
         }
       } catch (e) {
@@ -919,37 +1096,57 @@ async function attemptAutoHeal(incidentId, ctx, diagnosis) {
 ${hasSurgicalFix ? '\nSpecific CSS fixes needed:\n' + diagnosis.cssPropertiesToFix.join('\n') : ''}
 ${diagnosis.healInstructions ? '\nInstructions: ' + diagnosis.healInstructions : ''}
 
+${eventContext}
+
 Current CSS:
 ${ctx.themeSnapshot?.css || '[empty]'}
 
 Current HTML structure (first 2KB):
 ${(ctx.themeSnapshot?.html || '').substring(0, 2000)}
 
+IMPORTANT: The CSS MUST include styling for platform-injected elements:
+- .rsvp-slot (flex column, full width, contrasting text color)
+- .rsvp-slot input, .rsvp-slot select, .rsvp-slot textarea (styled form inputs)
+- .rsvp-slot label (styled labels)
+- .rsvp-slot .rsvp-submit (prominent submit button, min-height 52px)
+- .rsvp-slot .rsvp-form-group (field groups with margin)
+- .details-slot, .detail-item, .detail-icon, .detail-label, .detail-value (event details)
+
 Return ONLY the fixed CSS (no JSON wrapper, no markdown fences). Ensure all selectors match HTML classes, no unclosed braces, and Google Fonts @import is included if needed.`;
   } else {
-    // regenerate or content_inject — full theme regeneration
-    healPrompt = `The previous invite generation for "${event.title}" (${event.event_type || 'event'}) was broken. Diagnosis: "${diagnosis.diagnosis}"
-${diagnosis.healInstructions ? '\nSpecific fix instructions: ' + diagnosis.healInstructions : ''}
+    // regenerate or content_inject — full theme regeneration with complete platform rules
+    healPrompt = `The previous invite generation for this event was broken and needs a complete rebuild.
 
-Generate a COMPLETE, working invite with ALL required elements:
-1. A title element with data-field="title" containing "${event.title}"
-2. A <div class="details-slot"></div> where event details will be injected
-3. A <div class="rsvp-slot"><button class="rsvp-button">RSVP Now!</button></div>
-4. Full CSS with proper selectors, colors, fonts, and layout
-5. Mobile-friendly (max-width: 393px)
+${eventContext}
 
-Return JSON:
+Diagnosis of what went wrong: "${diagnosis.diagnosis}"
+${diagnosis.healInstructions ? 'Fix instructions: ' + diagnosis.healInstructions : ''}
+
+${HEAL_PLATFORM_RULES}
+
+Generate a COMPLETE, beautiful, working invite following ALL platform rules above.
+
+Return JSON with keys IN THIS ORDER (CSS first to avoid truncation):
 {
-  "theme_html": "complete HTML",
-  "theme_css": "complete CSS",
-  "theme_config": { "primaryColor": "...", "backgroundColor": "...", "textColor": "...", "fontBody": "...", "fontHeadline": "...", "googleFontsImport": "@import url('...')" }
+  "theme_css": "complete CSS including .rsvp-slot, .details-slot, .detail-item, .detail-icon, .detail-label, .detail-value, .rsvp-slot input, .rsvp-slot select, .rsvp-slot label, .rsvp-slot .rsvp-submit, .rsvp-slot .rsvp-form-group styling",
+  "theme_config": { "primaryColor": "#hex", "secondaryColor": "#hex", "accentColor": "#hex", "backgroundColor": "#hex", "textColor": "#hex", "fontHeadline": "Creative Google Font", "fontBody": "Readable Google Font", "mood": "one-word", "googleFontsImport": "@import url('...')" },
+  "theme_html": "complete HTML with data-field=title element, empty <div class=details-slot></div>, empty <div class=rsvp-slot></div>"
 }`;
   }
 
   const resp = await client.messages.create({
     model: healModel,
-    max_tokens: 8000,
-    system: 'You are an expert HTML/CSS designer for mobile event invitations. Generate beautiful, complete, working invite designs. Return ONLY what is requested — no commentary.',
+    max_tokens: 12000,
+    system: `You are an expert HTML/CSS designer for mobile event invitations on the Ryvite platform.
+
+CRITICAL PLATFORM RULES:
+- .rsvp-slot and .details-slot must be COMPLETELY EMPTY divs — the platform injects form fields and event details at runtime
+- NEVER put buttons, text, "RSVP Now", or ANY content inside .rsvp-slot or .details-slot
+- You MUST style the platform-injected elements in CSS: .rsvp-slot input, .rsvp-slot select, .rsvp-slot label, .rsvp-slot .rsvp-submit, .rsvp-slot .rsvp-form-group, .detail-item, .detail-icon, .detail-label, .detail-value
+- All text must have WCAG AA contrast against its background
+- Max-width 393px, mobile-first design
+
+Return ONLY what is requested — no commentary or explanation.`,
     messages: [{ role: 'user', content: healPrompt }]
   });
 
@@ -984,27 +1181,18 @@ Return JSON:
     }
   }
 
-  // Validate the healed theme has required elements AND no CSS visual issues
-  const hasRsvp = healedTheme.html.includes('rsvp-slot');
-  const hasDetails = healedTheme.html.includes('details-slot');
-  const hasTitle = healedTheme.html.includes('data-field="title"');
-  const structuralOk = hasRsvp && hasDetails && hasTitle;
+  // Comprehensive validation: structure + CSS visual + platform compliance
+  const allIssues = validateHealedStructure(healedTheme.html, healedTheme.css);
 
-  // Run CSS visual checks on the healed output to prevent healing with same bugs
-  const cssVisualIssues = validateHealedCss(healedTheme.html, healedTheme.css);
-
-  if (!structuralOk || cssVisualIssues.length > 0) {
-    console.warn('[quality-monitor] Healed theme still has issues.',
-      'structural:', { rsvp: hasRsvp, details: hasDetails, title: hasTitle },
-      'cssVisual:', cssVisualIssues);
+  if (allIssues.length > 0) {
+    console.warn('[quality-monitor] Healed theme still has issues:', allIssues);
     await supabase.from('quality_incidents').update({
       resolution_type: 'escalated',
       resolution_data: {
         healStrategy: diagnosis.healStrategy,
         model: healModel,
         healedButStillBroken: true,
-        missing: { rsvp: !hasRsvp, details: !hasDetails, title: !hasTitle },
-        cssVisualIssues
+        issues: allIssues
       }
     }).eq('id', incidentId);
     return;
@@ -1061,12 +1249,12 @@ Return JSON:
     status: 'success',
     is_tweak: true,
     event_type: ''
-  }).catch(e => console.error('[quality-monitor] Generation log failed:', e.message));
+  });
 
   // Increment event cost for the auto-heal generation
   const healCostCents = calcCost(healModel, healTokens.input, healTokens.output);
   if (ctx.eventId) {
-    await supabase.rpc('increment_event_cost', { p_event_id: ctx.eventId, p_cost_cents: healCostCents }).catch(() => {});
+    try { await supabase.rpc('increment_event_cost', { p_event_id: ctx.eventId, p_cost_cents: healCostCents }); } catch(_) {}
   }
 
   // Update incident as resolved
@@ -1091,6 +1279,72 @@ Return JSON:
     costCents: healCostCents,
     latencyMs: Date.now() - startTime
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// COMPREHENSIVE HEALED THEME VALIDATION
+// Checks structure, platform compliance, CSS completeness, and visual
+// rendering to ensure healed themes are 100% functional invites.
+// ═══════════════════════════════════════════════════════════════════
+function validateHealedStructure(html, css) {
+  const issues = [];
+  if (!html) { issues.push('html_empty'); return issues; }
+  if (!css) { issues.push('css_empty'); return issues; }
+
+  // 1. Required structural elements exist
+  const hasRsvpSlot = /class\s*=\s*["'][^"']*\brsvp-slot\b/.test(html);
+  const hasDetailsSlot = /class\s*=\s*["'][^"']*\bdetails-slot\b/.test(html);
+  const hasTitle = /data-field\s*=\s*["']title["']/.test(html);
+  if (!hasRsvpSlot) issues.push('missing_rsvp_slot');
+  if (!hasDetailsSlot) issues.push('missing_details_slot');
+  if (!hasTitle) issues.push('missing_title_field');
+
+  // 2. rsvp-slot must be EMPTY (no buttons, text, or child elements inside)
+  // Match <div class="rsvp-slot">...</div> and check contents
+  const rsvpSlotMatch = html.match(/<div[^>]*class\s*=\s*["'][^"']*\brsvp-slot\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
+  if (rsvpSlotMatch) {
+    const rsvpContent = rsvpSlotMatch[1].trim();
+    if (rsvpContent.length > 0) {
+      issues.push('rsvp_slot_not_empty');
+    }
+  }
+
+  // 3. details-slot must be EMPTY
+  const detailsSlotMatch = html.match(/<div[^>]*class\s*=\s*["'][^"']*\bdetails-slot\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
+  if (detailsSlotMatch) {
+    const detailsContent = detailsSlotMatch[1].trim();
+    if (detailsContent.length > 0) {
+      issues.push('details_slot_not_empty');
+    }
+  }
+
+  // 4. CSS must include styling for platform-injected RSVP form elements
+  const hasRsvpInputStyle = /\.rsvp-slot\s+(?:input|select)/i.test(css) || /\.rsvp-slot\s*(?:input|select)/i.test(css);
+  const hasRsvpLabelStyle = /\.rsvp-slot\s+label/i.test(css) || /\.rsvp-slot\s*label/i.test(css);
+  const hasRsvpSubmitStyle = /\.rsvp-(?:submit|slot\s+\.rsvp-submit|slot\s*\.rsvp-submit)/i.test(css);
+  const hasRsvpFormGroupStyle = /\.rsvp-form-group/i.test(css);
+  if (!hasRsvpInputStyle) issues.push('css_missing_rsvp_input_style');
+  if (!hasRsvpLabelStyle) issues.push('css_missing_rsvp_label_style');
+  if (!hasRsvpSubmitStyle) issues.push('css_missing_rsvp_submit_style');
+  if (!hasRsvpFormGroupStyle) issues.push('css_missing_rsvp_form_group_style');
+
+  // 5. CSS must include styling for platform-injected event details
+  const hasDetailItemStyle = /\.detail-item/i.test(css);
+  const hasDetailValueStyle = /\.detail-value/i.test(css);
+  if (!hasDetailItemStyle) issues.push('css_missing_detail_item_style');
+  if (!hasDetailValueStyle) issues.push('css_missing_detail_value_style');
+
+  // 6. CSS visual rendering checks (from validateHealedCss)
+  const cssVisualIssues = validateHealedCss(html, css);
+  issues.push(...cssVisualIssues);
+
+  // 7. Minimum CSS size — too short means broken/incomplete
+  if (css.length < 200) issues.push('css_too_short');
+
+  // 8. HTML structure — must have actual DOM structure
+  if (!/<(?:div|section|main|header|article)/i.test(html)) issues.push('html_no_structure');
+
+  return issues;
 }
 
 // ═══════════════════════════════════════════════════════════════════

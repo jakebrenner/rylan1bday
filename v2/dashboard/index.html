@@ -2562,7 +2562,7 @@
         var res, result;
         if (type === 'sms') {
           var inviteUrl = getInviteUrl();
-          var smsMsg = 'You\'re invited to ' + manageTitle + '! RSVP here: ' + inviteUrl;
+          var smsMsg = 'You\'re invited to ' + manageTitle + '! RSVP here: ' + inviteUrl + ' Reply STOP to opt out';
           res = await authFetch('/api/v2/sms?action=sendInvites', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2659,7 +2659,7 @@
       var content = document.getElementById('manageContent');
       var counts = getGuestCountsWithPhone(manageRsvps);
       var inviteUrl = getInviteUrl();
-      var defaultInviteMsg = 'Hi {name}, you\'re invited to ' + manageTitle + '! RSVP here: {link}';
+      var defaultInviteMsg = 'Hi {name}, you\'re invited to ' + manageTitle + '! RSVP here: {link} Reply STOP to opt out';
 
       // Gate SMS for free/unpaid events
       var ps = (managePaymentStatus || '').toLowerCase();
@@ -3040,7 +3040,7 @@
       container.style.display = '';
 
       var inviteUrl = getInviteUrl();
-      var defaultMsg = 'Reminder: ' + manageTitle + ' is coming up! Don\'t forget to RSVP: ' + inviteUrl;
+      var defaultMsg = 'Reminder: ' + manageTitle + ' is coming up! Don\'t forget to RSVP: ' + inviteUrl + ' Reply STOP to opt out';
       var offsetVal = presetMinutes || '';
       var unitVal = 'minutes';
       var ps = (managePaymentStatus || '').toLowerCase();

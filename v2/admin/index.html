@@ -628,7 +628,7 @@
         <button class="sidebar-item" data-tab="promptversions" onclick="switchTab('promptversions')">Prompt Versions</button>
         <button class="sidebar-item" data-tab="promptlab" onclick="switchTab('promptlab')">Prompt Lab</button>
         <button class="sidebar-item" data-tab="stylelibrary" onclick="switchTab('stylelibrary')">Generations</button>
-        <button class="sidebar-item" data-tab="quality" onclick="switchTab('quality');loadQualityDashboard();">Quality</button>
+        <button class="sidebar-item" data-tab="quality" onclick="switchTab('quality');loadSystemHealth();">System Health</button>
       </div>
       <div class="sidebar-group">
         <div class="sidebar-group-label">Marketing</div>
@@ -2367,62 +2367,117 @@
 
     <!-- Quality Tab -->
     <div class="tab-content" id="tab-quality">
-      <h2 style="margin-bottom:20px;">Quality Monitor</h2>
+      <h2 style="margin-bottom:20px;">System Health</h2>
+
+      <!-- Date range presets (shared across all sub-tabs) -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
+        <button class="btn btn-sm date-preset health-date-preset active" data-preset="today" onclick="setHealthDatePreset('today')">Today</button>
+        <button class="btn btn-sm date-preset health-date-preset" data-preset="yesterday" onclick="setHealthDatePreset('yesterday')">Yesterday</button>
+        <button class="btn btn-sm date-preset health-date-preset" data-preset="7d" onclick="setHealthDatePreset('7d')">Last 7d</button>
+        <button class="btn btn-sm date-preset health-date-preset" data-preset="30d" onclick="setHealthDatePreset('30d')">Last 30d</button>
+        <button class="btn btn-sm date-preset health-date-preset" data-preset="custom" onclick="setHealthDatePreset('custom')">Custom</button>
+        <button class="btn btn-sm btn-secondary" onclick="loadSystemHealth()" style="margin-left:auto;font-size:12px;padding:6px 12px;">Refresh</button>
+      </div>
+      <div id="healthCustomDateRange" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
+        <input type="date" id="healthDateFrom" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+        <span style="color:#888;font-size:13px;">to</span>
+        <input type="date" id="healthDateTo" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;">
+        <button class="btn btn-sm btn-primary" onclick="loadSystemHealth()">Apply</button>
+      </div>
 
       <!-- Summary Cards -->
-      <div id="qualityCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:28px;">
-        <div class="stat-card"><div class="stat-value" id="qTotal">—</div><div class="stat-label">Total Incidents</div></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:16px;margin-bottom:28px;">
+        <div class="stat-card"><div class="stat-value" id="qTotal">—</div><div class="stat-label">Incidents</div></div>
         <div class="stat-card"><div class="stat-value" id="qAutoHealed">—</div><div class="stat-label">Auto-Healed</div></div>
         <div class="stat-card"><div class="stat-value" id="qUnresolved">—</div><div class="stat-label">Unresolved</div></div>
-        <div class="stat-card"><div class="stat-value" id="qHealRate">—</div><div class="stat-label">Heal Rate</div></div>
+        <div class="stat-card"><div class="stat-value" id="errClientCount">—</div><div class="stat-label">Client Errors</div></div>
+        <div class="stat-card"><div class="stat-value" id="errServerCount">—</div><div class="stat-label">Server Errors</div></div>
+        <div class="stat-card"><div class="stat-value" id="errSmsDelivery">—</div><div class="stat-label">SMS Delivery</div></div>
       </div>
 
-      <!-- Trigger Breakdown -->
-      <div id="qualityByTrigger" style="margin-bottom:24px;"></div>
-
-      <!-- Browser/Device Breakdown -->
-      <div id="qualityBrowserSection" style="margin-bottom:28px;">
-        <h3 style="font-size:16px;margin-bottom:12px;">Incidents by Browser &amp; Device</h3>
-        <div id="qualityBrowserBreakdown" style="font-size:13px;">Loading...</div>
+      <!-- Sub-tabs -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;border-bottom:2px solid #eee;padding-bottom:8px;">
+        <button class="btn btn-sm health-sub-tab active" data-healthtab="incidents" onclick="showHealthSubTab('incidents')">Incidents</button>
+        <button class="btn btn-sm health-sub-tab" data-healthtab="client" onclick="showHealthSubTab('client')">Client Errors</button>
+        <button class="btn btn-sm health-sub-tab" data-healthtab="server" onclick="showHealthSubTab('server')">Server Errors</button>
+        <button class="btn btn-sm health-sub-tab" data-healthtab="sms" onclick="showHealthSubTab('sms')">SMS Delivery</button>
       </div>
 
-      <!-- Recurring Patterns & Suggested Rules -->
-      <div id="qualityPatternsSection" style="margin-bottom:28px;">
-        <h3 style="font-size:16px;margin-bottom:12px;">Recurring Patterns</h3>
-        <div id="qualityPatterns" style="font-size:13px;">Loading...</div>
+      <!-- Incidents Sub-tab (formerly the Quality tab content) -->
+      <div id="healthSubIncidents" class="health-sub-content">
+        <!-- Trigger Breakdown -->
+        <div id="qualityByTrigger" style="margin-bottom:24px;"></div>
+
+        <!-- Browser/Device Breakdown -->
+        <div id="qualityBrowserSection" style="margin-bottom:28px;">
+          <h3 style="font-size:16px;margin-bottom:12px;">Incidents by Browser &amp; Device</h3>
+          <div id="qualityBrowserBreakdown" style="font-size:13px;">Loading...</div>
+        </div>
+
+        <!-- Recurring Patterns & Suggested Rules -->
+        <div id="qualityPatternsSection" style="margin-bottom:28px;">
+          <h3 style="font-size:16px;margin-bottom:12px;">Recurring Patterns</h3>
+          <div id="qualityPatterns" style="font-size:13px;">Loading...</div>
+        </div>
+
+        <div id="qualitySuggestedRulesSection" style="margin-bottom:28px;">
+          <h3 style="font-size:16px;margin-bottom:12px;">Suggested Rules <span style="font-size:12px;color:#888;">(AI-generated from incident patterns)</span></h3>
+          <div id="qualitySuggestedRules" style="font-size:13px;">Loading...</div>
+        </div>
+
+        <!-- Filters -->
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;align-items:center;">
+          <select id="qFilterTrigger" onchange="loadQualityIncidents()" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
+            <option value="">All Triggers</option>
+            <option value="low_rating">Low Rating</option>
+            <option value="broken_render">Broken Render</option>
+            <option value="high_gtp">High GTP</option>
+            <option value="content_warning">Content Warning</option>
+            <option value="user_complaint">User Complaint</option>
+            <option value="guest_broken_render">Guest Broken Render</option>
+          </select>
+          <select id="qFilterResolution" onchange="loadQualityIncidents()" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
+            <option value="">All Resolutions</option>
+            <option value="unresolved">Unresolved</option>
+            <option value="auto_healed">Auto-Healed</option>
+            <option value="escalated">Escalated</option>
+            <option value="admin_reviewed">Admin Reviewed</option>
+          </select>
+        </div>
+
+        <!-- Incident List -->
+        <div id="qualityIncidentList" style="font-size:13px;">Loading...</div>
+
+        <!-- Pagination -->
+        <div id="qualityPagination" style="display:flex;gap:8px;margin-top:16px;align-items:center;font-size:13px;"></div>
       </div>
 
-      <div id="qualitySuggestedRulesSection" style="margin-bottom:28px;">
-        <h3 style="font-size:16px;margin-bottom:12px;">Suggested Rules <span style="font-size:12px;color:#888;">(AI-generated from incident patterns)</span></h3>
-        <div id="qualitySuggestedRules" style="font-size:13px;">Loading...</div>
+      <!-- Client Errors Sub-tab -->
+      <div id="healthSubClient" class="health-sub-content" style="display:none;">
+        <h4 style="font-size:15px;margin:0 0 12px;">Errors by Funnel Step</h4>
+        <div id="errByStep" style="margin-bottom:24px;font-size:13px;">Loading...</div>
+
+        <h4 style="font-size:15px;margin:0 0 12px;">Top Errors by Component</h4>
+        <div id="errByComponent" style="margin-bottom:24px;font-size:13px;">Loading...</div>
+
+        <h4 style="font-size:15px;margin:0 0 12px;">Recent Errors</h4>
+        <div id="errRecent" style="font-size:13px;">Loading...</div>
       </div>
 
-      <!-- Filters -->
-      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;align-items:center;">
-        <select id="qFilterTrigger" onchange="loadQualityIncidents()" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
-          <option value="">All Triggers</option>
-          <option value="low_rating">Low Rating</option>
-          <option value="broken_render">Broken Render</option>
-          <option value="high_gtp">High GTP</option>
-          <option value="content_warning">Content Warning</option>
-          <option value="user_complaint">User Complaint</option>
-          <option value="guest_broken_render">Guest Broken Render</option>
-        </select>
-        <select id="qFilterResolution" onchange="loadQualityIncidents()" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
-          <option value="">All Resolutions</option>
-          <option value="unresolved">Unresolved</option>
-          <option value="auto_healed">Auto-Healed</option>
-          <option value="escalated">Escalated</option>
-          <option value="admin_reviewed">Admin Reviewed</option>
-        </select>
-        <button class="btn btn-secondary" onclick="loadQualityDashboard()" style="font-size:12px;padding:6px 12px;">Refresh</button>
+      <!-- Server Errors Sub-tab -->
+      <div id="healthSubServer" class="health-sub-content" style="display:none;">
+        <h4 style="font-size:15px;margin:0 0 12px;">Server Errors by Endpoint</h4>
+        <div id="errServerList" style="font-size:13px;">Loading...</div>
       </div>
 
-      <!-- Incident List -->
-      <div id="qualityIncidentList" style="font-size:13px;">Loading...</div>
+      <!-- SMS Delivery Sub-tab -->
+      <div id="healthSubSms" class="health-sub-content" style="display:none;">
+        <h4 style="font-size:15px;margin:0 0 12px;">SMS Delivery by Carrier</h4>
+        <div id="errSmsCarrier" style="margin-bottom:24px;font-size:13px;">Loading...</div>
 
-      <!-- Pagination -->
-      <div id="qualityPagination" style="display:flex;gap:8px;margin-top:16px;align-items:center;font-size:13px;"></div>
+        <h4 style="font-size:15px;margin:0 0 12px;">SMS Status Breakdown</h4>
+        <div id="errSmsStatus" style="font-size:13px;">Loading...</div>
+      </div>
 
       <!-- Incident Detail Modal -->
       <div id="qualityDetailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;overflow-y:auto;">
@@ -3074,6 +3129,8 @@
       </div>
     </div>
 
+    <!-- Error Monitoring tab removed — merged into System Health (tab-quality) -->
+
     <!-- Funnel Analytics Tab -->
     <div class="tab-content" id="tab-funnel">
       <h3 style="margin:0 0 20px;">Funnel Analytics</h3>
@@ -3499,7 +3556,7 @@
       subscriptions: function() { loadBillingTab(); },
       coupons: function() { loadCoupons(); },
       notifications: function() { loadAdminNotifPrefs(); },
-      quality: function() { loadQualityDashboard(); },
+      quality: function() { loadSystemHealth(); },
       marketing: function() { loadMarketingTab(); },
       blogposts: function() { loadBlogPosts(); },
       blogcategories: function() { loadBlogCategories(); },
@@ -7864,6 +7921,187 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       _funnelFilterOptionsLoaded = true;
     }
 
+    // ── System Health Tab (combined Quality + Error Monitoring) ──
+    var _healthDatePreset = 'today';
+
+    function showHealthSubTab(tab) {
+      document.querySelectorAll('.health-sub-tab').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-healthtab') === tab); });
+      document.getElementById('healthSubIncidents').style.display = tab === 'incidents' ? '' : 'none';
+      document.getElementById('healthSubClient').style.display = tab === 'client' ? '' : 'none';
+      document.getElementById('healthSubServer').style.display = tab === 'server' ? '' : 'none';
+      document.getElementById('healthSubSms').style.display = tab === 'sms' ? '' : 'none';
+    }
+
+    function setHealthDatePreset(preset) {
+      _healthDatePreset = preset;
+      document.querySelectorAll('.health-date-preset').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-preset') === preset); });
+      var customEl = document.getElementById('healthCustomDateRange');
+      if (preset === 'custom') {
+        customEl.style.display = 'flex';
+        return; // don't reload until Apply is clicked
+      }
+      customEl.style.display = 'none';
+      loadSystemHealth();
+    }
+
+    function getHealthDateRange() {
+      var now = new Date();
+      var from, to;
+      if (_healthDatePreset === 'custom') {
+        var f = document.getElementById('healthDateFrom').value;
+        var t = document.getElementById('healthDateTo').value;
+        from = f ? new Date(f + 'T00:00:00').toISOString() : new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        to = t ? new Date(t + 'T23:59:59.999').toISOString() : now.toISOString();
+      } else if (_healthDatePreset === 'yesterday') {
+        var y = new Date(now); y.setDate(y.getDate() - 1);
+        from = new Date(y.getFullYear(), y.getMonth(), y.getDate()).toISOString();
+        to = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59, 999).toISOString();
+      } else if (_healthDatePreset === '7d') {
+        var d7 = new Date(now); d7.setDate(d7.getDate() - 7);
+        from = new Date(d7.getFullYear(), d7.getMonth(), d7.getDate()).toISOString();
+        to = now.toISOString();
+      } else if (_healthDatePreset === '30d') {
+        var d30 = new Date(now); d30.setDate(d30.getDate() - 30);
+        from = new Date(d30.getFullYear(), d30.getMonth(), d30.getDate()).toISOString();
+        to = now.toISOString();
+      } else {
+        // today (default)
+        from = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        to = now.toISOString();
+      }
+      return { from: from, to: to };
+    }
+
+    async function loadSystemHealth() {
+      var range = getHealthDateRange();
+      var dateParams = '&from=' + encodeURIComponent(range.from) + '&to=' + encodeURIComponent(range.to);
+
+      // Load quality dashboard + error stats in parallel
+      loadQualityDashboard();
+      loadErrorStats(dateParams);
+    }
+
+    async function loadErrorStats(dateParams) {
+      try {
+        var [clientResult, serverResult, smsResult] = await Promise.all([
+          fetch('/api/v2/admin?action=clientErrorStats' + dateParams, { headers: { 'Authorization': 'Bearer ' + token } }).then(function(r) { return r.json(); }).catch(function() { return { success: false }; }),
+          fetch('/api/v2/admin?action=serverErrorStats' + dateParams, { headers: { 'Authorization': 'Bearer ' + token } }).then(function(r) { return r.json(); }).catch(function() { return { success: false }; }),
+          fetch('/api/v2/admin?action=smsDeliveryStats' + dateParams, { headers: { 'Authorization': 'Bearer ' + token } }).then(function(r) { return r.json(); }).catch(function() { return { success: false }; })
+        ]);
+
+        // Client error summary card + details
+        if (clientResult.success) {
+          document.getElementById('errClientCount').textContent = clientResult.total || 0;
+
+          // Errors by funnel step
+          var stepHtml = '';
+          if (clientResult.by_funnel_step && clientResult.by_funnel_step.length) {
+            stepHtml = '<table style="width:100%;border-collapse:collapse;"><tr style="border-bottom:2px solid #eee;"><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Step</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">Count</th></tr>';
+            clientResult.by_funnel_step.forEach(function(s) {
+              stepHtml += '<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 12px;">' + (s.step || 'unknown') + '</td><td style="text-align:right;padding:8px 12px;font-weight:600;' + (s.count > 0 ? 'color:#ef4444;' : '') + '">' + (s.count || 0) + '</td></tr>';
+            });
+            stepHtml += '</table>';
+          } else {
+            stepHtml = '<p style="color:#888;">No client errors in this period.</p>';
+          }
+          document.getElementById('errByStep').innerHTML = stepHtml;
+
+          // Errors by component
+          var compHtml = '';
+          if (clientResult.by_type_component && clientResult.by_type_component.length) {
+            compHtml = '<table style="width:100%;border-collapse:collapse;"><tr style="border-bottom:2px solid #eee;"><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Type</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Component</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">Count</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Sample</th></tr>';
+            clientResult.by_type_component.slice(0, 20).forEach(function(c) {
+              compHtml += '<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 12px;"><span style="background:' + (c.error_type === 'api_error' ? '#fee2e2' : c.error_type === 'js_error' ? '#fef3c7' : '#e0e7ff') + ';color:' + (c.error_type === 'api_error' ? '#991b1b' : c.error_type === 'js_error' ? '#92400e' : '#3730a3') + ';font-size:11px;padding:2px 8px;border-radius:10px;">' + (c.error_type || '?') + '</span></td><td style="padding:8px 12px;">' + (c.component || '—') + '</td><td style="text-align:right;padding:8px 12px;font-weight:600;' + (c.count > 0 ? 'color:#ef4444;' : '') + '">' + (c.count || 0) + '</td><td style="padding:8px 12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666;font-size:12px;" title="' + ((c.sample_message || '').replace(/"/g, '&quot;')) + '">' + ((c.sample_message || '').substring(0, 80)) + '</td></tr>';
+            });
+            compHtml += '</table>';
+          } else {
+            compHtml = '<p style="color:#888;">No client errors in this period.</p>';
+          }
+          document.getElementById('errByComponent').innerHTML = compHtml;
+
+          // Recent errors
+          var recentHtml = '';
+          if (clientResult.recent_errors && clientResult.recent_errors.length) {
+            recentHtml = '<table style="width:100%;border-collapse:collapse;"><tr style="border-bottom:2px solid #eee;"><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Time</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Type</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Step</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Message</th></tr>';
+            clientResult.recent_errors.forEach(function(e) {
+              var t = new Date(e.created_at);
+              var timeStr = t.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+              recentHtml += '<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 12px;white-space:nowrap;color:#888;font-size:12px;">' + timeStr + '</td><td style="padding:8px 12px;"><span style="font-size:11px;padding:2px 6px;border-radius:8px;background:#f3f4f6;">' + (e.error_type || '?') + '</span></td><td style="padding:8px 12px;font-size:12px;">' + (e.funnel_step || '—') + '</td><td style="padding:8px 12px;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;" title="' + ((e.message || '').replace(/"/g, '&quot;')) + '">' + (e.message || '') + '</td></tr>';
+            });
+            recentHtml += '</table>';
+          } else {
+            recentHtml = '<p style="color:#888;">No recent errors in this period.</p>';
+          }
+          document.getElementById('errRecent').innerHTML = recentHtml;
+        } else {
+          document.getElementById('errClientCount').textContent = '—';
+          document.getElementById('errByStep').innerHTML = '<p style="color:#ef4444;">Failed to load client errors. The client_error_log table may not exist yet — run the migration.</p>';
+          document.getElementById('errByComponent').innerHTML = '';
+          document.getElementById('errRecent').innerHTML = '';
+        }
+
+        // Server error summary
+        if (serverResult.success) {
+          document.getElementById('errServerCount').textContent = serverResult.total || 0;
+
+          var serverHtml = '';
+          if (serverResult.errors && serverResult.errors.length) {
+            serverHtml = '<table style="width:100%;border-collapse:collapse;"><tr style="border-bottom:2px solid #eee;"><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Endpoint</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Action</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">Count</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Error</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Last Seen</th></tr>';
+            serverResult.errors.forEach(function(e) {
+              var lastSeen = e.last_seen ? new Date(e.last_seen).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+              serverHtml += '<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 12px;font-family:monospace;font-size:12px;">' + (e.endpoint || '?') + '</td><td style="padding:8px 12px;font-size:12px;">' + (e.action || '—') + '</td><td style="text-align:right;padding:8px 12px;font-weight:600;' + (e.count > 0 ? 'color:#ef4444;' : '') + '">' + (e.count || 0) + '</td><td style="padding:8px 12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#666;" title="' + ((e.error_message || '').replace(/"/g, '&quot;')) + '">' + ((e.error_message || '').substring(0, 80)) + '</td><td style="padding:8px 12px;font-size:12px;color:#888;">' + lastSeen + '</td></tr>';
+            });
+            serverHtml += '</table>';
+          } else {
+            serverHtml = '<p style="color:#888;">No server errors in this period.</p>';
+          }
+          document.getElementById('errServerList').innerHTML = serverHtml;
+        } else {
+          document.getElementById('errServerCount').textContent = '—';
+          document.getElementById('errServerList').innerHTML = '<p style="color:#888;">Server error log not available.</p>';
+        }
+
+        // SMS delivery stats
+        if (smsResult.success) {
+          document.getElementById('errSmsDelivery').textContent = (smsResult.delivery_rate_pct != null ? smsResult.delivery_rate_pct + '%' : '—');
+
+          var carrierHtml = '';
+          if (smsResult.by_carrier && smsResult.by_carrier.length) {
+            carrierHtml = '<table style="width:100%;border-collapse:collapse;"><tr style="border-bottom:2px solid #eee;"><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Carrier</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Country</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">Sent</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">Delivered</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">Failed</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">Rate</th></tr>';
+            smsResult.by_carrier.forEach(function(c) {
+              var rateColor = (c.delivery_rate_pct || 0) >= 80 ? '#16a34a' : (c.delivery_rate_pct || 0) >= 50 ? '#ca8a04' : '#ef4444';
+              carrierHtml += '<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 12px;">' + (c.carrier || 'Unknown') + '</td><td style="padding:8px 12px;">' + (c.country || '—') + '</td><td style="text-align:right;padding:8px 12px;">' + (c.total_sent || 0) + '</td><td style="text-align:right;padding:8px 12px;color:#16a34a;">' + (c.delivered || 0) + '</td><td style="text-align:right;padding:8px 12px;' + ((c.failed || 0) > 0 ? 'color:#ef4444;font-weight:600;' : '') + '">' + (c.failed || 0) + '</td><td style="text-align:right;padding:8px 12px;font-weight:600;color:' + rateColor + ';">' + (c.delivery_rate_pct != null ? c.delivery_rate_pct + '%' : '—') + '</td></tr>';
+            });
+            carrierHtml += '</table>';
+          } else {
+            carrierHtml = '<p style="color:#888;">No carrier data in this period.</p>';
+          }
+          document.getElementById('errSmsCarrier').innerHTML = carrierHtml;
+
+          var statusHtml = '';
+          if (smsResult.by_status && smsResult.by_status.length) {
+            statusHtml = '<table style="width:100%;border-collapse:collapse;"><tr style="border-bottom:2px solid #eee;"><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Status</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Provider Status</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Error</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">Count</th></tr>';
+            smsResult.by_status.forEach(function(s) {
+              var statusBg = s.status === 'delivered' ? '#dcfce7' : s.status === 'failed' ? '#fee2e2' : s.status === 'bounced' ? '#fef3c7' : '#f3f4f6';
+              var statusColor = s.status === 'delivered' ? '#166534' : s.status === 'failed' ? '#991b1b' : s.status === 'bounced' ? '#92400e' : '#374151';
+              statusHtml += '<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 12px;"><span style="background:' + statusBg + ';color:' + statusColor + ';font-size:11px;padding:2px 8px;border-radius:10px;">' + (s.status || '?') + '</span></td><td style="padding:8px 12px;font-size:12px;">' + (s.provider_status || '—') + '</td><td style="padding:8px 12px;font-size:12px;color:#666;">' + (s.provider_error || '—') + '</td><td style="text-align:right;padding:8px 12px;font-weight:600;">' + (s.count || 0) + '</td></tr>';
+            });
+            statusHtml += '</table>';
+          } else {
+            statusHtml = '<p style="color:#888;">No SMS data in this period.</p>';
+          }
+          document.getElementById('errSmsStatus').innerHTML = statusHtml;
+        } else {
+          document.getElementById('errSmsDelivery').textContent = '—';
+          document.getElementById('errSmsCarrier').innerHTML = '<p style="color:#888;">SMS delivery data not available. Run the sms_delivery_metadata migration first.</p>';
+          document.getElementById('errSmsStatus').innerHTML = '';
+        }
+      } catch (e) {
+        console.error('Error loading error stats:', e);
+        document.getElementById('errByStep').innerHTML = '<p style="color:#ef4444;">Failed to load: ' + e.message + '</p>';
+      }
+    }
+
     async function loadFunnelAnalytics() {
       document.getElementById('funnelLoading').style.display = 'block';
       document.getElementById('funnelDashboard').style.display = 'none';
@@ -9504,16 +9742,17 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     async function loadQualityDashboard() {
       try {
-        var resp = await fetch('/api/v2/admin?action=qualityDashboard&days=30', {
+        var range = getHealthDateRange();
+        var days = Math.max(1, Math.round((new Date(range.to) - new Date(range.from)) / (24*60*60*1000)));
+        var resp = await fetch('/api/v2/admin?action=qualityDashboard&days=' + days, {
           headers: { 'Authorization': 'Bearer ' + token }
         });
         var json = await resp.json();
         if (!json.success) throw new Error(json.error);
         var d = json.dashboard;
         document.getElementById('qTotal').textContent = d.totalIncidents;
-        document.getElementById('qAutoHealed').textContent = d.autoHealed;
+        document.getElementById('qAutoHealed').textContent = d.autoHealed + (d.autoHealRate ? ' (' + d.autoHealRate + '%)' : '');
         document.getElementById('qUnresolved').textContent = d.unresolved;
-        document.getElementById('qHealRate').textContent = d.autoHealRate + '%';
 
         // Trigger breakdown
         var triggerHtml = '<div style="display:flex;flex-wrap:wrap;gap:10px;">';
@@ -9525,7 +9764,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           triggerHtml += '</div>';
         });
         triggerHtml += '</div>';
-        if (Object.keys(d.byTrigger).length === 0) triggerHtml = '<p style="color:#888;font-size:13px;">No incidents in the last 30 days.</p>';
+        if (Object.keys(d.byTrigger).length === 0) triggerHtml = '<p style="color:#888;font-size:13px;">No incidents in this period.</p>';
         document.getElementById('qualityByTrigger').innerHTML = triggerHtml;
 
       } catch (e) {
@@ -9594,7 +9833,10 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       }
     }
 
+    var _currentIncidentId = null;
+
     async function viewIncidentDetail(incidentId) {
+      _currentIncidentId = incidentId;
       var modal = document.getElementById('qualityDetailModal');
       var content = document.getElementById('qualityDetailContent');
       modal.style.display = 'block';
@@ -9608,23 +9850,34 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         if (!json.success) throw new Error(json.error);
         var inc = json.incident;
 
-        var html = '<h3 style="margin-bottom:16px;">Incident Detail</h3>';
+        var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">';
+        html += '<h3 style="margin:0;">Incident Detail</h3>';
+        // Status badge
+        var resBg = { auto_healed: '#dcfce7', unresolved: '#fee2e2', escalated: '#fef3c7', admin_reviewed: '#dbeafe' };
+        var resColor = { auto_healed: '#166534', unresolved: '#991b1b', escalated: '#92400e', admin_reviewed: '#1e40af' };
+        var rt = inc.resolution_type || 'unresolved';
+        html += '<span style="background:' + (resBg[rt] || '#f3f4f6') + ';color:' + (resColor[rt] || '#374151') + ';padding:4px 12px;border-radius:8px;font-size:12px;font-weight:600;">' + rt.replace(/_/g, ' ').toUpperCase() + '</span>';
+        html += '</div>';
 
         // Meta info
         html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;font-size:13px;">';
         html += '<div><strong>Trigger:</strong> ' + inc.trigger_type.replace(/_/g, ' ') + '</div>';
-        html += '<div><strong>Status:</strong> ' + (inc.resolution_type || 'unknown').replace(/_/g, ' ') + '</div>';
         html += '<div><strong>Created:</strong> ' + new Date(inc.created_at).toLocaleString() + '</div>';
         if (inc.resolved_at) html += '<div><strong>Resolved:</strong> ' + new Date(inc.resolved_at).toLocaleString() + '</div>';
         if (inc.userInfo) html += '<div><strong>User:</strong> ' + (inc.userInfo.email || '—') + ' (' + (inc.userInfo.tier || 'free') + ')</div>';
         if (inc.eventInfo) html += '<div><strong>Event:</strong> ' + (inc.eventInfo.title || '—') + ' [' + (inc.eventInfo.event_type || '') + ']</div>';
         html += '</div>';
 
-        // Trigger data
-        if (inc.trigger_data) {
-          html += '<details style="margin-bottom:16px;"><summary style="cursor:pointer;font-weight:600;font-size:13px;">Trigger Data</summary>';
-          html += '<pre style="background:#f9f9f9;padding:12px;border-radius:6px;font-size:12px;overflow-x:auto;margin-top:8px;">' + JSON.stringify(inc.trigger_data, null, 2) + '</pre></details>';
+        // Action buttons
+        html += '<div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;" id="incidentActions">';
+        if (rt === 'unresolved' || rt === 'escalated') {
+          html += '<button class="btn btn-primary" style="font-size:12px;padding:8px 16px;" onclick="retryIncidentHeal(\'' + inc.id + '\')">Retry Auto-Heal</button>';
+          html += '<button class="btn btn-secondary" style="font-size:12px;padding:8px 16px;" onclick="resolveIncident(\'' + inc.id + '\', \'admin_reviewed\')">Mark Reviewed</button>';
+          html += '<button class="btn btn-secondary" style="font-size:12px;padding:8px 16px;color:#ca8a04;" onclick="resolveIncident(\'' + inc.id + '\', \'escalated\')">Escalate</button>';
+        } else {
+          html += '<span style="font-size:12px;color:#888;">Resolved — no actions available</span>';
         }
+        html += '</div>';
 
         // AI Diagnosis
         if (inc.ai_diagnosis) {
@@ -9633,6 +9886,17 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           if (inc.ai_diagnosis_model) html += ' <span style="font-size:11px;color:#888;">(' + inc.ai_diagnosis_model + ')</span>';
           html += '<p style="font-size:13px;margin-top:8px;white-space:pre-wrap;">' + inc.ai_diagnosis + '</p>';
           html += '</div>';
+        } else {
+          html += '<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:16px;margin-bottom:16px;">';
+          html += '<strong style="font-size:13px;">No AI Diagnosis</strong>';
+          html += '<p style="font-size:13px;margin-top:4px;color:#92400e;">Diagnosis was not run or failed. Click "Retry Auto-Heal" to trigger diagnosis + healing.</p>';
+          html += '</div>';
+        }
+
+        // Trigger data
+        if (inc.trigger_data) {
+          html += '<details style="margin-bottom:16px;"><summary style="cursor:pointer;font-weight:600;font-size:13px;">Trigger Data</summary>';
+          html += '<pre style="background:#f9f9f9;padding:12px;border-radius:6px;font-size:12px;overflow-x:auto;margin-top:8px;">' + JSON.stringify(inc.trigger_data, null, 2) + '</pre></details>';
         }
 
         // Resolution data
@@ -9661,29 +9925,171 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           html += '</div></details>';
         }
 
-        // Theme preview
-        if (inc.theme_snapshot && inc.theme_snapshot.html) {
-          html += '<details style="margin-bottom:16px;"><summary style="cursor:pointer;font-weight:600;font-size:13px;">Theme Preview</summary>';
-          html += '<div style="margin-top:8px;border:1px solid #eee;border-radius:8px;overflow:hidden;">';
-          html += '<iframe id="qualityThemePreview" sandbox="allow-scripts" style="width:100%;height:500px;border:none;"></iframe>';
+        // Theme preview — iPhone mockup using existing .phone-mockup CSS
+        var scaleFactor = (280 - 20) / 393;
+        var phoneStart = '<div class="phone-mockup" style="width:280px;"><div class="phone-frame"><div class="phone-notch"></div><div class="phone-screen">';
+        var phoneEnd = '</div><div class="phone-home-bar"></div></div></div>';
+
+        // Build complete HTML doc from separated html+css+config (same as guest/create pages)
+        function buildFullHtml(snapshot) {
+          var themeCss = snapshot.css || '';
+          var themeHtml = snapshot.html || '';
+          var config = snapshot.config || {};
+          var fontsLink = '';
+          var fi = config.googleFontsImport || '';
+          if (fi) {
+            var fm = fi.match(/url\(['"]?([^'"\)]+)['"]?\)/);
+            if (fm && fm[1]) fontsLink = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="' + fm[1] + '">';
+          }
+          return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393,initial-scale=1.0">'
+            + fontsLink
+            + '<style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:393px;min-height:100%;overflow-x:hidden;background:' + (config.backgroundColor || '#fff') + '}</style>'
+            + '<style>' + themeCss.replace(/<\/style/gi, '<\\/style') + '</style>'
+            + '</head><body>' + themeHtml + '</body></html>';
+        }
+
+        function makePhonePreview(fullHtmlDoc) {
+          return phoneStart + '<iframe sandbox="allow-scripts" srcdoc="' + fullHtmlDoc.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '" style="width:393px;height:852px;border:none;border-radius:36px;transform-origin:top left;transform:scale(' + scaleFactor.toFixed(4) + ');"></iframe>' + phoneEnd;
+        }
+
+        // Build full doc from snapshot for the "before" preview
+        var snapshotFullHtml = (inc.theme_snapshot && inc.theme_snapshot.html) ? buildFullHtml(inc.theme_snapshot) : null;
+
+        // If healed, show both old + new side by side
+        var hasHealedTheme = rt === 'auto_healed' && inc.resolution_data && inc.resolution_data.new_theme_id;
+        if (hasHealedTheme) {
+          html += '<details open style="margin-bottom:16px;"><summary style="cursor:pointer;font-weight:600;font-size:13px;">Theme Preview (Before & After Heal)</summary>';
+          html += '<div style="margin-top:12px;padding:24px;background:#f9fafb;border-radius:12px;display:flex;gap:24px;flex-wrap:wrap;justify-content:center;align-items:flex-start;">';
+          if (snapshotFullHtml) {
+            html += '<div style="text-align:center;"><div style="font-size:12px;font-weight:600;color:#ef4444;margin-bottom:8px;">BEFORE (Broken)</div>';
+            html += makePhonePreview(snapshotFullHtml);
+            html += '</div>';
+          }
+          html += '<div style="text-align:center;"><div style="font-size:12px;font-weight:600;color:#16a34a;margin-bottom:8px;">AFTER (Healed)</div>';
+          html += '<div id="healedThemePreview" style="width:280px;height:610px;display:flex;align-items:center;justify-content:center;color:#888;font-size:12px;">Loading healed theme...</div>';
+          html += '</div>';
+          html += '</div></details>';
+        } else if (snapshotFullHtml) {
+          html += '<details open style="margin-bottom:16px;"><summary style="cursor:pointer;font-weight:600;font-size:13px;">Theme Preview</summary>';
+          html += '<div style="margin-top:12px;padding:24px;background:#f9fafb;border-radius:12px;">';
+          html += makePhonePreview(snapshotFullHtml);
           html += '</div></details>';
         }
 
         content.innerHTML = html;
 
-        // Inject theme into iframe if present
-        if (inc.theme_snapshot && inc.theme_snapshot.html) {
-          var frame = document.getElementById('qualityThemePreview');
-          if (frame) {
-            var doc = frame.contentDocument || frame.contentWindow.document;
-            doc.open();
-            doc.write(inc.theme_snapshot.html);
-            doc.close();
+        // Load healed theme if available
+        if (hasHealedTheme) {
+          try {
+            var themeResp = await fetch('/api/v2/admin?action=getThemeHtml&themeId=' + inc.resolution_data.new_theme_id, {
+              headers: { 'Authorization': 'Bearer ' + token }
+            });
+            var themeJson = await themeResp.json();
+            if (themeJson.success && themeJson.html) {
+              document.getElementById('healedThemePreview').outerHTML = makePhonePreview(themeJson.html);
+            } else {
+              document.getElementById('healedThemePreview').textContent = 'Could not load healed theme';
+            }
+          } catch(loadErr) {
+            var el = document.getElementById('healedThemePreview');
+            if (el) el.textContent = 'Failed to load healed theme';
           }
         }
 
       } catch (e) {
         content.innerHTML = '<p style="color:#ef4444;">Failed to load incident: ' + e.message + '</p>';
+      }
+    }
+
+    async function retryIncidentHeal(incidentId) {
+      var actionsEl = document.getElementById('incidentActions');
+      if (!actionsEl) return;
+
+      // Replace buttons with progress bar
+      actionsEl.innerHTML = '<div style="width:100%;">'
+        + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">'
+        + '<div id="healSpinner" style="width:20px;height:20px;border:3px solid #e5e7eb;border-top-color:#3b82f6;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;"></div>'
+        + '<span id="healStepLabel" style="font-size:13px;font-weight:600;color:#374151;">Diagnosing issue...</span>'
+        + '</div>'
+        + '<div style="background:#e5e7eb;border-radius:6px;height:8px;overflow:hidden;">'
+        + '<div id="healProgressBar" style="background:linear-gradient(90deg,#3b82f6,#8b5cf6);height:100%;border-radius:6px;width:10%;transition:width 0.5s ease;"></div>'
+        + '</div>'
+        + '<style>@keyframes spin{to{transform:rotate(360deg)}}</style>'
+        + '</div>';
+
+      // Animate progress steps
+      var bar = document.getElementById('healProgressBar');
+      var label = document.getElementById('healStepLabel');
+      var steps = [
+        { pct: '15%', text: 'Loading incident data...' },
+        { pct: '30%', text: 'Running AI diagnosis (Haiku)...' },
+        { pct: '55%', text: 'Analyzing root cause...' },
+        { pct: '70%', text: 'Generating fix (Sonnet)...' },
+        { pct: '85%', text: 'Validating healed theme...' },
+        { pct: '95%', text: 'Saving new theme...' }
+      ];
+      var stepIdx = 0;
+      var stepTimer = setInterval(function() {
+        if (stepIdx < steps.length) {
+          bar.style.width = steps[stepIdx].pct;
+          label.textContent = steps[stepIdx].text;
+          stepIdx++;
+        }
+      }, 4000);
+
+      try {
+        var resp = await fetch('/api/v2/quality-monitor?action=adminRetryHeal', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ incidentId: incidentId })
+        });
+        clearInterval(stepTimer);
+        var text = await resp.text();
+        var json;
+        try { json = JSON.parse(text); } catch (pe) { throw new Error('Non-JSON response: ' + text.substring(0, 200)); }
+        if (!json.success) throw new Error(json.error || 'Heal failed');
+
+        bar.style.width = '100%';
+        if (json.healed) {
+          bar.style.background = 'linear-gradient(90deg,#16a34a,#22c55e)';
+          label.textContent = 'Healed! New theme saved.';
+          document.getElementById('healSpinner').style.display = 'none';
+          showToast('Auto-heal succeeded!');
+        } else {
+          bar.style.background = '#f59e0b';
+          label.textContent = 'Diagnosis complete: ' + (json.resolution || 'unresolved');
+          document.getElementById('healSpinner').style.display = 'none';
+          showToast(json.diagnosis ? json.diagnosis.substring(0, 120) : 'Could not auto-heal. Check incident details.');
+        }
+        // Refresh detail after short delay to show results
+        setTimeout(function() { viewIncidentDetail(incidentId); loadSystemHealth(); }, 2000);
+      } catch (e) {
+        clearInterval(stepTimer);
+        console.error('[admin] retryIncidentHeal error:', e);
+        if (bar) { bar.style.width = '100%'; bar.style.background = '#ef4444'; }
+        if (label) label.textContent = 'Failed: ' + e.message;
+        var spinner = document.getElementById('healSpinner');
+        if (spinner) spinner.style.display = 'none';
+        showToast('Failed: ' + e.message);
+        setTimeout(function() { viewIncidentDetail(incidentId); }, 3000);
+      }
+    }
+
+    async function resolveIncident(incidentId, resolutionType) {
+      var label = resolutionType === 'admin_reviewed' ? 'reviewed' : 'escalated';
+      try {
+        var resp = await fetch('/api/v2/admin?action=resolveIncident', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ incidentId: incidentId, resolutionType: resolutionType })
+        });
+        var json = await resp.json();
+        if (!json.success) throw new Error(json.error);
+        showToast('Incident marked as ' + label);
+        viewIncidentDetail(incidentId);
+        loadQualityDashboard();
+      } catch (e) {
+        showToast('Failed: ' + e.message);
       }
     }
 

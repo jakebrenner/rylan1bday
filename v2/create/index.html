@@ -1271,6 +1271,7 @@
 
     var token = localStorage.getItem('sb_access_token');
     var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
+    var _clientErrorCount = 0;
     var _guestMode = !token || !user; // Allow unauthenticated users to start chatting
     var _guestChatStep = 0; // 0=first msg, 1=followup, 2=email
     var _guestMessages = []; // Accumulated messages to replay after auth
@@ -1331,6 +1332,43 @@
     }
 
     // Wrapper for fetch that auto-retries on 401 with refreshed token
+    // ── Client-side error tracking ──
+    function reportClientError(info) {
+      _clientErrorCount++;
+      if (_clientErrorCount > 20) return; // Stop after 20 errors per page load
+      var body = {
+        errorType: info.errorType || 'js_error',
+        message: (info.message || '').slice(0, 1000),
+        stack: (info.stack || '').slice(0, 2000),
+        pageUrl: location.href,
+        funnelStep: typeof currentStep !== 'undefined' ? String(currentStep) : null,
+        component: info.component || null,
+        eventId: currentEvent ? currentEvent.id : null,
+        metadata: { userAgent: navigator.userAgent, viewport: innerWidth + 'x' + innerHeight }
+      };
+      fetch('/api/v2/events?action=reportClientError', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || '') },
+        body: JSON.stringify(body)
+      }).catch(function() {});
+    }
+    window.onerror = function(msg, url, line, col, error) {
+      reportClientError({
+        errorType: 'js_error',
+        message: String(msg),
+        stack: error ? error.stack : (url + ':' + line + ':' + col),
+        component: 'global'
+      });
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+      reportClientError({
+        errorType: 'unhandled_rejection',
+        message: e.reason ? (e.reason.message || String(e.reason)) : 'Unknown rejection',
+        stack: e.reason ? (e.reason.stack || '') : '',
+        component: 'global'
+      });
+    });
+
     async function authFetch(url, opts) {
       opts = opts || {};
       opts.headers = opts.headers || {};
@@ -1343,8 +1381,14 @@
           res = await fetch(url, opts);
         }
       }
+      if (res && !res.ok && res.status >= 500) {
+        reportClientError({ errorType: 'api_error', message: 'HTTP ' + res.status + ' from ' + url.split('?')[0], component: 'authFetch' });
+      }
       return res;
     }
+
+    // Track page view for funnel analytics
+    trackFunnel('page_view');
 
     // Refresh on page load if token might be stale, then check for resume
     (async function() {
@@ -2002,6 +2046,9 @@
             localStorage.setItem('sb_refresh_token', result.refreshToken);
             localStorage.setItem('v2_user', JSON.stringify(result.user));
             _guestMode = false;
+            token = result.accessToken;
+            user = result.user;
+            if (result.isNew) trackFunnel('signup');
 
             // Track CompleteRegistration with Meta Pixel for new users (dedup with server CAPI)
             if (result.isNew && window.RyvitePixel) {
@@ -2106,6 +2153,7 @@
       addChatBubble(text, 'user');
       var photoCtx = buildPhotoContext();
       chatHistory.push({ role: 'user', content: text + photoCtx });
+      if (chatHistory.filter(function(m) { return m.role === 'user'; }).length === 1) trackFunnel('chat_started');
 
       // Create draft event on first message so it shows in dashboard immediately
       if (!currentEvent) {
@@ -3679,6 +3727,8 @@
             console.error('[generate-theme] Generation failed. genError:', genError, 'genResult:', genResult ? JSON.stringify(genResult).substring(0, 500) : null);
             var errMsg = (genError && (genError.message || genError.error)) || (genResult && !genResult.success ? 'Server returned failure' : 'No response received from server');
             window._lastGenDebug = 'Bytes: ' + fullText.length + ' | Error: ' + JSON.stringify(genError) + ' | Result keys: ' + (genResult ? Object.keys(genResult).join(',') : 'null') + ' | Build: 2026-03-12a';
+            // Report generation failure to server for tracking
+            reportClientError({ errorType: 'generation_failure', message: errMsg, component: 'generateTheme', url: window.location.href, metadata: { bytes: fullText.length, elapsed: elapsed, eventId: currentEvent?.id } });
             if (_backgroundMode) {
               _generationInProgress = false;
               onGenerationError(errMsg);
@@ -5087,6 +5137,7 @@
           rsvpFields: enabledFields.map(function(f) { return { field_key: f.field_key, label: f.label, field_type: f.field_type, is_required: f.is_required }; })
         };
 
+        trackFunnel('generation_started', { generationNumber: (eventGenCount || 0) + 1 });
         var sseRes = await authFetch('/api/v2/generate-theme?action=generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -7705,12 +7756,19 @@
       event.target.value = '';
     }
 
+    var _personUploadInProgress = false;
     async function handlePersonUpload(event) {
       var files = Array.from(event.target.files);
       if (!files.length) { console.log('[Photos] No files selected for person'); return; }
+      if (_personUploadInProgress) { console.log('[Photos] Person upload already in progress, skipping'); return; }
+      _personUploadInProgress = true;
       console.log('[Photos] Person upload:', files.length, 'files');
-      await addFiles(files, 'person');
-      event.target.value = '';
+      try {
+        await addFiles(files, 'person');
+      } finally {
+        _personUploadInProgress = false;
+        event.target.value = '';
+      }
     }
 
     // Legacy handler for backward compat
@@ -7753,6 +7811,7 @@
           placeholder.innerHTML = '<img src="' + result.dataUrl + '" alt="Preview"><button class="remove" onclick="removeImage(this, \'' + photoType + '\')">&times;</button>';
           // Upload to Supabase Storage to get a persistent URL
           try {
+            console.log('[Photos] Uploading', file.name, '(' + Math.round(result.base64.length / 1024) + 'KB base64)...');
             var uploadRes = await authFetch('/api/v2/upload', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -7762,22 +7821,30 @@
                 filename: file.name || 'photo.jpg'
               })
             });
-            var uploadResult = await uploadRes.json();
-            if (uploadResult.success && uploadResult.url) {
-              // Deduplicate — prevent the same photo URL from being added twice
-              if (urlArr.indexOf(uploadResult.url) === -1) {
-                urlArr.push(uploadResult.url);
-                uploadedCount++;
-                console.log('[Photos] Uploaded:', file.name);
-              } else {
-                console.log('[Photos] Skipping duplicate URL:', file.name);
-              }
-            } else {
-              console.error('[Photos] Upload failed:', uploadResult.error || 'unknown error');
+            if (!uploadRes.ok) {
+              console.error('[Photos] Upload HTTP error:', uploadRes.status);
+              showToast('Photo upload failed (HTTP ' + uploadRes.status + '). Please try again.');
               urlArr.push(null);
+            } else {
+              var uploadResult = await uploadRes.json();
+              if (uploadResult.success && uploadResult.url) {
+                // Deduplicate — prevent the same photo URL from being added twice
+                if (urlArr.indexOf(uploadResult.url) === -1) {
+                  urlArr.push(uploadResult.url);
+                  uploadedCount++;
+                  console.log('[Photos] Uploaded:', file.name, '→', uploadResult.url);
+                } else {
+                  console.log('[Photos] Skipping duplicate URL:', file.name);
+                }
+              } else {
+                console.error('[Photos] Upload failed:', uploadResult.error || 'unknown error');
+                showToast('Photo upload failed: ' + (uploadResult.error || 'unknown error'));
+                urlArr.push(null);
+              }
             }
           } catch (e) {
             console.error('[Photos] Upload error:', e.message);
+            showToast('Photo upload error: ' + e.message);
             urlArr.push(null);
           }
         } else {
@@ -7785,6 +7852,7 @@
         }
       }
       // Show chat acknowledgment for uploaded photos with follow-up prompt + CTA
+      var totalValid = urlArr.filter(function(u) { return !!u; }).length;
       if (uploadedCount > 0) {
         var ackText;
         if (photoType === 'inspiration') {
@@ -7795,6 +7863,9 @@
           ackText = uploadedCount + ' photo' + (uploadedCount > 1 ? 's' : '') + ' of ' + personName + ' uploaded \u2014 we\u2019ll feature ' + personName + ' prominently in the invite design.';
         }
         showPhotoAckCard(ackText);
+      } else if (files.length > 0 && uploadedCount === 0) {
+        // All uploads failed — let the user know
+        showToast('Photo upload failed. Please check your connection and try again.');
       }
       // Scroll to keep the Generate button visible after adding photos
       scrollChat();
@@ -9758,6 +9829,7 @@
           rsvpFields: enabledFields.map(function(f) { return { field_key: f.field_key, label: f.label, field_type: f.field_type, is_required: f.is_required }; })
         };
 
+        trackFunnel('generation_started', { generationNumber: (eventGenCount || 0) + 1 });
         var sseRes = await authFetch('/api/v2/generate-theme?action=generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

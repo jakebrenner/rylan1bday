@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
+import { reportApiError } from './lib/error-reporter.js';
 
 async function getUser(req) {
   const authHeader = req.headers.authorization;
@@ -202,6 +203,7 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('[render-video] Error:', err.message);
+    await reportApiError({ endpoint: '/api/v2/render-video', action: 'render', error: err, requestBody: req.body, req }).catch(() => {});
     res.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`);
   } finally {
     clearInterval(keepalive);

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { reportApiError } from './lib/error-reporter.js';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -41,28 +42,34 @@ export default async function handler(req, res) {
     // ClickSend may send a single receipt or an array
     const receipts = Array.isArray(req.body) ? req.body : [req.body];
 
+    console.log('[ClickSend Webhook]', JSON.stringify(req.body));
+
     let updated = 0;
 
     for (const receipt of receipts) {
       const providerId = receipt.message_id;
       if (!providerId) continue;
 
-      const newStatus = mapClickSendStatus(receipt.status);
+      const newStatus = mapClickSendStatus(receipt.status_text || receipt.status);
 
-      // Update sms_messages
+      // Update sms_messages with delivery metadata
       const { data: smsUpdate } = await supabaseAdmin
         .from('sms_messages')
-        .update({ status: newStatus })
+        .update({
+          status: newStatus,
+          provider_status: receipt.status_text || receipt.status || null,
+          provider_error: receipt.error_text || null
+        })
         .eq('provider_id', providerId)
         .select('id')
         .single();
 
-      // Update notification_log
+      // Update notification_log with delivery metadata
       await supabaseAdmin
         .from('notification_log')
         .update({
           status: newStatus,
-          error: newStatus !== 'delivered' ? (receipt.status || null) : null
+          error: newStatus !== 'delivered' ? (receipt.error_text || receipt.status_text || receipt.status || null) : null
         })
         .eq('provider_id', providerId);
 
@@ -72,6 +79,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, updated });
   } catch (err) {
     console.error('SMS webhook error:', err);
+    await reportApiError({ endpoint: '/api/v2/sms-webhook', action: 'delivery-receipt', error: err, requestBody: req.body, req }).catch(() => {});
     return res.status(500).json({ success: false, error: 'Webhook processing failed' });
   }
 }

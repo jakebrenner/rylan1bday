@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { reportApiError } from './lib/error-reporter.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -152,6 +153,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'GET only' });
+  try {
 
   const action = req.query?.action || 'list';
 
@@ -294,4 +296,9 @@ export default async function handler(req, res) {
   }
 
   return res.status(400).json({ error: 'Unknown action: ' + action });
+  } catch (err) {
+    console.error('Templates API error:', err);
+    await reportApiError({ endpoint: '/api/v2/templates', action: req.query?.action || 'unknown', error: err, requestBody: null, req }).catch(() => {});
+    return res.status(500).json({ error: 'Server error' });
+  }
 }
