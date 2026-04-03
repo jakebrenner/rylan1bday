@@ -3223,6 +3223,18 @@ ${cssSnippet}`
       });
     }
 
+    if (action === 'getThemeHtml') {
+      const themeId = req.query.themeId;
+      if (!themeId) return res.status(400).json({ error: 'themeId required' });
+      const { data: theme } = await supabaseAdmin
+        .from('event_themes')
+        .select('html, css')
+        .eq('id', themeId)
+        .single();
+      if (!theme) return res.status(404).json({ error: 'Theme not found' });
+      return res.status(200).json({ success: true, html: theme.html, css: theme.css });
+    }
+
     // ---- QUALITY BY BROWSER ----
     if (action === 'resolveIncident') {
       const { incidentId, resolutionType, notes } = req.body;
