@@ -2308,7 +2308,7 @@
         if (r.email) detail += escapeHtml(r.email);
         if (r.phone) detail += (detail ? ' &middot; ' : '') + escapeHtml(r.phone);
         if (r.respondedAt) detail += (detail ? ' &middot; ' : '') + new Date(r.respondedAt).toLocaleDateString();
-        var smsBadge = r.invitedAt ? ' <span class="sms-badge sms-badge-sms">SMS sent</span>' : '';
+        var smsBadge = r.notified ? ' <span class="sms-badge sms-badge-sms">SMS sent</span>' : '';
 
         html += '<div class="guest-card" id="guest-card-' + r.id + '">'
           + '<div class="guest-card-header" onclick="toggleGuestDetail(\'' + r.id + '\')">'
