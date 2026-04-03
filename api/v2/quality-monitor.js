@@ -295,6 +295,46 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, incidentId: incident.id });
   }
 
+  // ── ADMIN RETRY HEAL (re-run diagnoseAndHeal on an existing incident) ──
+  if (action === 'adminRetryHeal' && req.method === 'POST') {
+    const { incidentId } = req.body;
+    if (!incidentId) return res.status(400).json({ error: 'incidentId required' });
+
+    const { data: incident, error: fetchErr } = await supabase
+      .from('quality_incidents')
+      .select('*')
+      .eq('id', incidentId)
+      .single();
+
+    if (fetchErr || !incident) return res.status(404).json({ error: 'Incident not found' });
+
+    // Build context from stored incident data
+    const ctx = {
+      eventId: incident.event_id,
+      eventThemeId: incident.event_theme_id,
+      triggerType: incident.trigger_type,
+      triggerData: incident.trigger_data,
+      themeSnapshot: incident.theme_snapshot,
+      validationResults: incident.validation_results,
+      chatSnapshot: incident.design_chat_snapshot,
+      userId: incident.user_id
+    };
+
+    // Return immediately, heal in background
+    res.status(200).json({ success: true, message: 'Healing started' });
+
+    try {
+      await diagnoseAndHeal(incidentId, ctx);
+    } catch (e) {
+      console.error('[quality-monitor] Admin retry heal failed:', e.message);
+      await supabase.from('quality_incidents').update({
+        resolution_type: 'escalated',
+        resolution_data: { error: 'Admin retry failed: ' + e.message, admin_retry: true }
+      }).eq('id', incidentId);
+    }
+    return;
+  }
+
   // ── FIX USER-REPORTED ISSUE (synchronous — user is waiting) ──
   if (action === 'fixUserReportedIssue' && req.method === 'POST') {
     const user = await getUser(req);
