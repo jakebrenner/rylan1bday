@@ -2,7 +2,7 @@
 
 > **Audience:** Technical Product Manager
 > **Purpose:** Understand Ryvite's architecture, AI system, and quality pipeline to improve invite creation reliability, speed, and user flow.
-> **Last updated:** April 3, 2026
+> **Last updated:** April 3, 2026 (v2)
 
 ---
 
@@ -115,7 +115,7 @@ The system is built on three pillars:
 |------|-------------|------------|---------|
 | **1. Chat** | User describes event in conversation. AI extracts: title, eventType (14 types), date, location, creative brief. Max 1 question per message. hostEmail and hostName are auto-injected from the logged-in user's profile — AI never asks for these if already known. | **Haiku** (~1024 tokens) | ~1–2s per message |
 | **2. RSVP Fields** | System proposes 1 event-specific custom field (Name, Email, Phone, Status are built-in). User confirms, adds, or removes fields. Minimal by design — no dietary restrictions or meal choices suggested. | Client-side (+ Haiku for custom field interpretation) | Instant (+ ~1s for AI fields) |
-| **3. Generate** | Auto-triggered when AI has vibe/theme direction — no manual "Generate" button click required. Full theme generation via SSE streaming. Returns: HTML, CSS, theme_config (colors, fonts, mood), thank-you page HTML. | **Sonnet** (default, ~16K tokens) | ~15–60s |
+| **3. Generate** | Auto-triggered when AI has vibe/theme direction — no manual "Generate" button click required. Full theme generation via SSE streaming. Returns: HTML, CSS, theme_config (colors, fonts, mood), thank-you page HTML. AI is instructed to always include `theme_thankyou_html` — if missing, a Ryvite-branded fallback with confetti SVG and coral/gold/mint gradient is shown. | **Sonnet** (default, ~16K tokens) | ~15–60s |
 | **4. Refine** | Design chat — iterative tweaks routed through tiered system (see §4.4). | Varies by tier | 0ms – 60s |
 | **5. Publish** | Final review, guest list builder, send invitations via email/SMS. | None | Instant |
 
