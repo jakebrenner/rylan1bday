@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { reportApiError } from './lib/error-reporter.js';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -940,6 +941,7 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('SMS API error:', err);
+    await reportApiError({ endpoint: '/api/v2/sms', action: req.query?.action || 'unknown', error: err, requestBody: req.body, req }).catch(() => {});
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

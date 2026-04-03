@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 import { Resend } from 'resend';
+import { reportApiError } from './lib/error-reporter.js';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -288,6 +289,7 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('Photos handler error:', err);
+    await reportApiError({ endpoint: '/api/v2/photos', action: req.query?.action || 'unknown', error: err, requestBody: null, req }).catch(() => {});
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

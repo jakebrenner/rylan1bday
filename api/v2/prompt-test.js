@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
+import { reportApiError } from './lib/error-reporter.js';
 
 const client = new Anthropic();
 let _openaiClient = null;
@@ -1056,6 +1057,7 @@ Return a JSON object with exactly these keys:
     }
   } catch (err) {
     console.error('Prompt test error:', err);
+    await reportApiError({ endpoint: '/api/v2/prompt-test', action: req.query?.action || 'test', error: err, requestBody: req.body, req }).catch(() => {});
     return res.status(500).json({
       error: 'Test generation failed',
       message: err.message || 'Unknown error',

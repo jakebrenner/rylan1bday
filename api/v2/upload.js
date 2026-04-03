@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
+import { reportApiError } from './lib/error-reporter.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -76,6 +77,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, url: publicUrl, path });
   } catch (err) {
     console.error('Upload handler error:', err);
+    await reportApiError({ endpoint: '/api/v2/upload', action: req.query?.action || 'upload', error: err, requestBody: null, req }).catch(() => {});
     return res.status(500).json({ error: 'Upload failed', message: err.message });
   }
 }

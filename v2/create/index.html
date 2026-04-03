@@ -1271,6 +1271,7 @@
 
     var token = localStorage.getItem('sb_access_token');
     var user = JSON.parse(localStorage.getItem('v2_user') || 'null');
+    var _clientErrorCount = 0;
     var _guestMode = !token || !user; // Allow unauthenticated users to start chatting
     var _guestChatStep = 0; // 0=first msg, 1=followup, 2=email
     var _guestMessages = []; // Accumulated messages to replay after auth
@@ -1331,6 +1332,43 @@
     }
 
     // Wrapper for fetch that auto-retries on 401 with refreshed token
+    // ── Client-side error tracking ──
+    function reportClientError(info) {
+      _clientErrorCount++;
+      if (_clientErrorCount > 20) return; // Stop after 20 errors per page load
+      var body = {
+        errorType: info.errorType || 'js_error',
+        message: (info.message || '').slice(0, 1000),
+        stack: (info.stack || '').slice(0, 2000),
+        pageUrl: location.href,
+        funnelStep: typeof currentStep !== 'undefined' ? String(currentStep) : null,
+        component: info.component || null,
+        eventId: currentEvent ? currentEvent.id : null,
+        metadata: { userAgent: navigator.userAgent, viewport: innerWidth + 'x' + innerHeight }
+      };
+      fetch('/api/v2/events?action=reportClientError', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || '') },
+        body: JSON.stringify(body)
+      }).catch(function() {});
+    }
+    window.onerror = function(msg, url, line, col, error) {
+      reportClientError({
+        errorType: 'js_error',
+        message: String(msg),
+        stack: error ? error.stack : (url + ':' + line + ':' + col),
+        component: 'global'
+      });
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+      reportClientError({
+        errorType: 'unhandled_rejection',
+        message: e.reason ? (e.reason.message || String(e.reason)) : 'Unknown rejection',
+        stack: e.reason ? (e.reason.stack || '') : '',
+        component: 'global'
+      });
+    });
+
     async function authFetch(url, opts) {
       opts = opts || {};
       opts.headers = opts.headers || {};
@@ -1343,8 +1381,14 @@
           res = await fetch(url, opts);
         }
       }
+      if (res && !res.ok && res.status >= 500) {
+        reportClientError({ errorType: 'api_error', message: 'HTTP ' + res.status + ' from ' + url.split('?')[0], component: 'authFetch' });
+      }
       return res;
     }
+
+    // Track page view for funnel analytics
+    trackFunnel('page_view');
 
     // Refresh on page load if token might be stale, then check for resume
     (async function() {
@@ -2002,6 +2046,9 @@
             localStorage.setItem('sb_refresh_token', result.refreshToken);
             localStorage.setItem('v2_user', JSON.stringify(result.user));
             _guestMode = false;
+            token = result.accessToken;
+            user = result.user;
+            if (result.isNew) trackFunnel('signup');
 
             // Track CompleteRegistration with Meta Pixel for new users (dedup with server CAPI)
             if (result.isNew && window.RyvitePixel) {
@@ -2106,6 +2153,7 @@
       addChatBubble(text, 'user');
       var photoCtx = buildPhotoContext();
       chatHistory.push({ role: 'user', content: text + photoCtx });
+      if (chatHistory.filter(function(m) { return m.role === 'user'; }).length === 1) trackFunnel('chat_started');
 
       // Create draft event on first message so it shows in dashboard immediately
       if (!currentEvent) {
@@ -5087,6 +5135,7 @@
           rsvpFields: enabledFields.map(function(f) { return { field_key: f.field_key, label: f.label, field_type: f.field_type, is_required: f.is_required }; })
         };
 
+        trackFunnel('generation_started', { generationNumber: (eventGenCount || 0) + 1 });
         var sseRes = await authFetch('/api/v2/generate-theme?action=generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -9758,6 +9807,7 @@
           rsvpFields: enabledFields.map(function(f) { return { field_key: f.field_key, label: f.label, field_type: f.field_type, is_required: f.is_required }; })
         };
 
+        trackFunnel('generation_started', { generationNumber: (eventGenCount || 0) + 1 });
         var sseRes = await authFetch('/api/v2/generate-theme?action=generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

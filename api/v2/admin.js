@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import Anthropic from '@anthropic-ai/sdk';
 import { Resend } from 'resend';
+import { reportApiError } from './lib/error-reporter.js';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -4257,9 +4258,63 @@ ${cssSnippet}`
       });
     }
 
+    // ---- CLIENT ERROR STATS ----
+    if (action === 'clientErrorStats') {
+      // Summary by error type and component (last 24h and 7d)
+      const { data: summary } = await supabaseAdmin
+        .from('client_error_log')
+        .select('error_type, component, funnel_step, error_message, created_at')
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      const now = Date.now();
+      const day = 24 * 60 * 60 * 1000;
+      const errors = summary || [];
+
+      // Group by error_type + component
+      const byTypeComponent = {};
+      const byStep = {};
+      const last24h = [];
+      const last7d = [];
+
+      for (const e of errors) {
+        const age = now - new Date(e.created_at).getTime();
+        if (age <= day) last24h.push(e);
+        last7d.push(e);
+
+        const key = (e.error_type || 'unknown') + '|' + (e.component || 'unknown');
+        if (!byTypeComponent[key]) byTypeComponent[key] = { error_type: e.error_type, component: e.component, count_24h: 0, count_7d: 0, sample_message: e.error_message };
+        byTypeComponent[key].count_7d++;
+        if (age <= day) byTypeComponent[key].count_24h++;
+
+        if (e.funnel_step) {
+          if (!byStep[e.funnel_step]) byStep[e.funnel_step] = { step: e.funnel_step, count_24h: 0, count_7d: 0 };
+          byStep[e.funnel_step].count_7d++;
+          if (age <= day) byStep[e.funnel_step].count_24h++;
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        total_24h: last24h.length,
+        total_7d: last7d.length,
+        by_type_component: Object.values(byTypeComponent).sort((a, b) => b.count_24h - a.count_24h),
+        by_funnel_step: Object.values(byStep).sort((a, b) => b.count_24h - a.count_24h),
+        recent_errors: last24h.slice(0, 20).map(e => ({
+          error_type: e.error_type,
+          component: e.component,
+          funnel_step: e.funnel_step,
+          message: (e.error_message || '').slice(0, 200),
+          created_at: e.created_at
+        }))
+      });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Admin API error:', err);
+    await reportApiError({ endpoint: '/api/v2/admin', action: req.query?.action || 'unknown', error: err, requestBody: req.body, req }).catch(() => {});
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

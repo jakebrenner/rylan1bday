@@ -110,6 +110,33 @@
   </div>
 
   <script>
+    // ── Client-side error tracking (lightweight — guest page) ──
+    var _clientErrorCount = 0;
+    function reportClientError(info) {
+      _clientErrorCount++;
+      if (_clientErrorCount > 10) return;
+      fetch('/api/v2/events?action=reportClientError', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          errorType: info.errorType || 'js_error',
+          message: (info.message || '').slice(0, 1000),
+          stack: (info.stack || '').slice(0, 2000),
+          pageUrl: location.href,
+          funnelStep: 'rsvp',
+          component: info.component || null,
+          eventId: currentEventData ? currentEventData.id : null,
+          metadata: { userAgent: navigator.userAgent, viewport: innerWidth + 'x' + innerHeight }
+        })
+      }).catch(function() {});
+    }
+    window.onerror = function(msg, url, line, col, error) {
+      reportClientError({ errorType: 'js_error', message: String(msg), stack: error ? error.stack : (url + ':' + line + ':' + col), component: 'global' });
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+      reportClientError({ errorType: 'unhandled_rejection', message: e.reason ? (e.reason.message || String(e.reason)) : 'Unknown', stack: e.reason ? (e.reason.stack || '') : '', component: 'global' });
+    });
+
     let currentEventData = null;
     var _guestCssRetries = 0;
     var _MAX_GUEST_CSS_RETRIES = 2;

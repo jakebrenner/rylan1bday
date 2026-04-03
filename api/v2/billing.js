@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { sendCapiEvent } from './lib/meta-capi.js';
+import { reportApiError } from './lib/error-reporter.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -1002,6 +1003,7 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('Billing API error:', err?.message || err, err?.stack);
+    await reportApiError({ endpoint: '/api/v2/billing', action: req.query?.action || 'unknown', error: err, requestBody: req.body, req }).catch(() => {});
     return res.status(500).json({ error: err?.message || 'Server error' });
   }
 }
@@ -1043,6 +1045,7 @@ async function handleWebhook(req, res) {
     return res.status(200).json({ received: true });
   } catch (err) {
     console.error('Webhook handler error:', err);
+    await reportApiError({ endpoint: '/api/v2/billing', action: 'webhook', error: err, requestBody: req.body, req }).catch(() => {});
     return res.status(500).json({ error: 'Webhook handler error' });
   }
 }

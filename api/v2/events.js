@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import crypto from 'crypto';
 import { sendCapiEvent, extractMetaContext } from './lib/meta-capi.js';
+import { reportApiError } from './lib/error-reporter.js';
 
 const anthropic = new Anthropic();
 const supabaseAdmin = createClient(
@@ -318,6 +319,55 @@ export default async function handler(req, res) {
       }).catch(() => {});
 
       return res.status(200).json({ success: true, guestId: data.id });
+    }
+
+    // ---- REPORT CLIENT ERROR (public — supports both auth and anonymous) ----
+    if (action === 'reportClientError' && req.method === 'POST') {
+      const body = req.body || {};
+      const { errorType, message, stack, pageUrl, funnelStep, component, eventId: clientEventId, metadata: clientMeta } = body;
+      if (!errorType || !message) return res.status(400).json({ error: 'errorType and message are required' });
+
+      // Try to get user from auth header (optional — may be anonymous)
+      let userId = null;
+      const clientAuthHeader = req.headers.authorization;
+      if (clientAuthHeader?.startsWith('Bearer ')) {
+        const clientToken = clientAuthHeader.slice(7);
+        const { data: { user: clientUser } } = await supabaseAdmin.auth.getUser(clientToken).catch(() => ({ data: { user: null } }));
+        userId = clientUser?.id || null;
+      }
+
+      // Rate limit by IP: max 10 client errors per minute
+      const clientIp = req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown';
+      const oneMinAgo = new Date(Date.now() - 60 * 1000).toISOString();
+      const rateLimitQuery = supabaseAdmin
+        .from('client_error_log')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', oneMinAgo);
+      if (userId) rateLimitQuery.eq('user_id', userId);
+      const { count: recentCount } = await rateLimitQuery;
+
+      if ((recentCount || 0) >= 10) {
+        return res.status(200).json({ success: true, throttled: true });
+      }
+
+      const { error } = await supabaseAdmin.from('client_error_log').insert({
+        user_id: userId,
+        event_id: clientEventId || null,
+        error_type: errorType,
+        error_message: (message || '').slice(0, 1000),
+        error_stack: (stack || '').slice(0, 4000),
+        page_url: (pageUrl || '').slice(0, 500),
+        funnel_step: funnelStep || null,
+        component: component || null,
+        metadata: { ...(clientMeta || {}), client_ip: clientIp }
+      });
+
+      if (error) {
+        // Table might not exist yet — fail silently
+        console.error('Client error log insert failed:', error.message);
+      }
+
+      return res.status(200).json({ success: true });
     }
 
     // ---- Authenticated actions ----
@@ -1375,6 +1425,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Events API error:', err);
+    await reportApiError({ endpoint: '/api/v2/events', action: req.query?.action || 'unknown', error: err, requestBody: req.body, req }).catch(() => {});
     return res.status(500).json({ error: 'Server error' });
   }
 }

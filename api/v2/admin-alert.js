@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { reportApiError } from './lib/error-reporter.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'support@ryvite.com';
@@ -103,6 +104,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true });
   } catch (err) {
     console.error('Admin alert error:', err);
+    await reportApiError({ endpoint: '/api/v2/admin-alert', action: req.query?.action || 'unknown', error: err, requestBody: req.body, req }).catch(() => {});
     return res.status(500).json({ error: err.message || 'Failed to send alert' });
   }
 }

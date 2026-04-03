@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { reportApiError } from './lib/error-reporter.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -13,6 +14,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const action = req.query?.action || '';
+  try {
 
   // ── SUBMIT RATING (no auth required — hosts, guests, anonymous) ──
   if (action === 'submit' && req.method === 'POST') {
@@ -107,4 +109,9 @@ export default async function handler(req, res) {
   }
 
   return res.status(400).json({ success: false, error: 'Unknown action: ' + action });
+  } catch (err) {
+    console.error('Ratings API error:', err);
+    await reportApiError({ endpoint: '/api/v2/ratings', action: action || 'unknown', error: err, requestBody: req.body, req }).catch(() => {});
+    return res.status(500).json({ success: false, error: 'Server error' });
+  }
 }

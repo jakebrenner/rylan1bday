@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { reportApiError } from './lib/error-reporter.js';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -895,6 +896,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Contacts API error:', err);
+    await reportApiError({ endpoint: '/api/v2/contacts', action: req.query?.action || 'unknown', error: err, requestBody: req.body, req }).catch(() => {});
     return res.status(500).json({ error: 'Server error' });
   }
 }

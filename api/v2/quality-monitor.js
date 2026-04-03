@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
+import { reportApiError } from './lib/error-reporter.js';
 
 const client = new Anthropic();
 const supabase = createClient(
@@ -71,6 +72,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const action = req.query?.action || '';
+  try {
 
   // ── LOG DESIGN CHAT MESSAGE (real-time persistence) ──
   if (action === 'logChatMessage' && req.method === 'POST') {
@@ -563,6 +565,11 @@ If the issue is unfixable without a complete redesign, return:
   }
 
   return res.status(400).json({ error: 'Unknown action: ' + action });
+  } catch (err) {
+    console.error('Quality monitor API error:', err);
+    await reportApiError({ endpoint: '/api/v2/quality-monitor', action: action || 'unknown', error: err, requestBody: req.body, req }).catch(() => {});
+    return res.status(500).json({ error: 'Server error' });
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════

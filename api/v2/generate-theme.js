@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
+import { reportApiError } from './lib/error-reporter.js';
 // AI generation is included in the $4.99 event price — no per-generation billing
 
 const client = new Anthropic();
@@ -2385,6 +2386,7 @@ Return ONLY a valid JSON object with these keys:
         });
         if (tweakErrLogResult.error) console.error('Tweak error log failed:', tweakErrLogResult.error.message);
       } catch {}
+      await reportApiError({ endpoint: '/api/v2/generate-theme', action: 'tweak', error: err, requestBody: req.body, req }).catch(() => {});
       sendSSE('error', { error: 'Failed to tweak theme', message: err.message });
       return res.end();
     }
@@ -2981,6 +2983,7 @@ This is the most common failure mode. Double-check it.`;
       console.error('Failed to log generation error:', logErr);
     }
 
+    await reportApiError({ endpoint: '/api/v2/generate-theme', action: req.query?.action || 'generate', error: err, requestBody: req.body, req }).catch(() => {});
     sendSSE('error', { error: 'Failed to generate theme', message: err.message || 'Unknown error' });
     return res.end();
   }
