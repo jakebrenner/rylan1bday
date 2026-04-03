@@ -13,6 +13,11 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 const CLICKSEND_API_URL = 'https://rest.clicksend.com/v3/sms/send';
 const CLICKSEND_USERNAME = process.env.CLICKSEND_USERNAME;
 const CLICKSEND_API_KEY = process.env.CLICKSEND_API_KEY;
+
+// SMS compliance — applied server-side so users cannot remove them
+const SMS_PREFIX = 'Ryvite: ';
+const SMS_SUFFIX = '\nReply STOP to opt out';
+
 async function getSmsCostCents() {
   try {
     const { data } = await supabaseAdmin.from('app_config').select('value').eq('key', 'sms_cost_cents').single();
@@ -53,7 +58,7 @@ async function sendViaClickSend(messages) {
       body: JSON.stringify({
         messages: messages.map(m => ({
           to: m.to,
-          body: m.body,
+          body: m.skipCompliance ? m.body : SMS_PREFIX + m.body + SMS_SUFFIX,
           source: 'ryvite-cron'
         }))
       })
@@ -508,7 +513,7 @@ async function processRsvpDigests() {
       const hostPhone = toE164(pref.notify_phone);
       if (!hostPhone) continue;
 
-      const result = await sendViaClickSend([{ to: hostPhone, body }]);
+      const result = await sendViaClickSend([{ to: hostPhone, body, skipCompliance: true }]);
 
       if (result.success) {
         await recordSmsMessages(

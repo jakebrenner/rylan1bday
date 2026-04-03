@@ -13,6 +13,10 @@ const CLICKSEND_API_KEY = process.env.CLICKSEND_API_KEY;
 const resend = new Resend(process.env.RESEND_API_KEY);
 const PROD_URL = 'https://ryvite.com';
 
+// SMS compliance — applied server-side so users cannot remove them
+const SMS_PREFIX = 'Ryvite: ';
+const SMS_SUFFIX = '\nReply STOP to opt out';
+
 // ---- Helpers ----
 
 function normalizePhone(phone) {
@@ -51,7 +55,7 @@ async function sendViaClickSend(messages) {
       body: JSON.stringify({
         messages: messages.map(m => ({
           to: m.to,
-          body: m.body,
+          body: m.skipCompliance ? m.body : SMS_PREFIX + m.body + SMS_SUFFIX,
           source: 'ryvite',
           from: m.from || undefined,
           schedule: m.schedule || undefined,

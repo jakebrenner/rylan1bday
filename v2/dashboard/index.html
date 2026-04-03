@@ -437,8 +437,10 @@
     .msg-type-pill.active { background: var(--party-coral); color: white; border-color: var(--party-coral); }
     .compose-select { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--midnight); margin-bottom: 12px; appearance: auto; background: white; min-height: 44px; }
     .compose-select:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
-    .compose-textarea { width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; color: var(--midnight); min-height: 100px; resize: vertical; line-height: 1.5; }
+    .compose-textarea { width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; color: var(--midnight); min-height: 100px; resize: vertical; line-height: 1.5; border-radius: 0; border-top: none; border-bottom: none; }
     .compose-textarea:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1); }
+    .sms-compliance-prefix { padding: 8px 14px; background: #f7f7f8; border: 1px solid #ddd; border-radius: 8px 8px 0 0; font-size: 13px; font-family: 'Inter', sans-serif; color: #888; font-weight: 600; user-select: none; }
+    .sms-compliance-suffix { padding: 8px 14px; background: #f7f7f8; border: 1px solid #ddd; border-radius: 0 0 8px 8px; font-size: 12px; font-family: 'Inter', sans-serif; color: #999; user-select: none; }
     .compose-helper { font-size: 12px; color: #999; margin-top: 6px; }
     .compose-stats { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; margin-bottom: 16px; }
     .char-count { font-size: 12px; color: #888; }
@@ -1807,9 +1809,13 @@
     // ============================================================
     // Helpers
     // ============================================================
+    var SMS_PREFIX = 'Ryvite: ';
+    var SMS_SUFFIX = '\nReply STOP to opt out';
+    var SMS_OVERHEAD = SMS_PREFIX.length + SMS_SUFFIX.length;
+
     function countSmsSegments(text) {
       if (!text) return 0;
-      var len = text.length;
+      var len = text.length + SMS_OVERHEAD;
       if (len <= 160) return 1;
       return Math.ceil(len / 153);
     }
@@ -2704,10 +2710,12 @@
         + '<option value="maybe">Maybe only (' + counts.maybe + ')</option>'
         + '</select>';
 
-      // Compose textarea
+      // Compose textarea with compliance prefix/suffix
       var defaultMsg = manageMsgType === 'invite' ? defaultInviteMsg : '';
       var placeholder = manageMsgType === 'invite' ? 'Write your invite message...' : 'Type your update message...';
+      html += '<div class="sms-compliance-prefix">' + escapeHtml(SMS_PREFIX) + '</div>';
       html += '<textarea class="compose-textarea" id="smsComposeText" placeholder="' + placeholder + '" oninput="updateSmsPreview()">' + escapeHtml(defaultMsg) + '</textarea>';
+      html += '<div class="sms-compliance-suffix">' + escapeHtml(SMS_SUFFIX.replace(/^\n/, '')) + '</div>';
       html += '<div class="compose-helper">{name} → guest\'s name · {link} → personalized RSVP link (unique per guest)</div>';
 
       // Stats row + test SMS
@@ -2765,10 +2773,10 @@
       if (!textarea || !charCount || !costEstimate || !sendBtn) return;
 
       var text = textarea.value;
-      var len = text.length;
+      var totalLen = text.length + SMS_OVERHEAD;
       var segments = countSmsSegments(text);
 
-      charCount.textContent = len + ' char' + (len !== 1 ? 's' : '') + ' · ' + segments + ' segment' + (segments !== 1 ? 's' : '');
+      charCount.textContent = totalLen + ' char' + (totalLen !== 1 ? 's' : '') + ' · ' + segments + ' segment' + (segments !== 1 ? 's' : '');
 
       var filter = filterEl ? filterEl.value : 'all';
       var counts = getGuestCountsWithPhone(manageRsvps);

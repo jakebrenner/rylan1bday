@@ -416,6 +416,8 @@
     .sms-modal-compose { margin-top: 12px; padding: 14px; background: #f9f9f9; border-radius: 10px; }
     .sms-modal-compose textarea { width: 100%; min-height: 64px; border: 1.5px solid #ddd; border-radius: 8px; padding: 10px 12px; font-family: 'Inter', sans-serif; font-size: 13px; resize: vertical; box-sizing: border-box; transition: border-color 0.2s; }
     .sms-modal-compose textarea:focus { outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.08); }
+    .sms-compliance-prefix { padding: 8px 12px; background: #f0f0f2; border: 1.5px solid #ddd; border-radius: 8px 8px 0 0; font-size: 12px; font-family: 'Inter', sans-serif; color: #888; font-weight: 600; user-select: none; }
+    .sms-compliance-suffix { padding: 8px 12px; background: #f0f0f2; border: 1.5px solid #ddd; border-radius: 0 0 8px 8px; font-size: 11px; font-family: 'Inter', sans-serif; color: #999; user-select: none; }
     .sms-modal-meta { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: #999; }
     .sms-char-count { font-weight: 600; }
 
@@ -1129,7 +1131,9 @@
 
           <!-- SMS compose (shown when SMS checked + paid) -->
           <div id="smsComposeInModal" class="sms-modal-compose" style="display:none;">
-            <textarea id="sendSmsMessage" placeholder="Hi {name}, you're invited!" oninput="updateSmsPreview()"></textarea>
+            <div class="sms-compliance-prefix">Ryvite: </div>
+            <textarea id="sendSmsMessage" placeholder="Hi {name}, you're invited!" oninput="updateSmsPreview()" style="border-radius:0;border-top:none;border-bottom:none;"></textarea>
+            <div class="sms-compliance-suffix">Reply STOP to opt out</div>
             <div class="sms-modal-meta">
               <span class="sms-char-count" id="smsCharCount">0 chars</span>
               <span>{name} = guest name &middot; {link} = RSVP link</span>
@@ -8585,13 +8589,17 @@
     }
 
     // ── SMS Card ──
+    var SMS_OVERHEAD = 'Ryvite: '.length + '\nReply STOP to opt out'.length; // 30 chars
+
     function updateSmsPreview() {
       var msgEl = document.getElementById('sendSmsMessage');
       var charCount = document.getElementById('smsCharCount');
       if (!msgEl || !charCount) return;
 
       var msg = msgEl.value || '';
-      charCount.textContent = msg.length + ' chars' + (msg.length > 160 ? ' (2 SMS)' : '');
+      var totalLen = msg.length + SMS_OVERHEAD;
+      var segments = totalLen <= 160 ? 1 : Math.ceil(totalLen / 153);
+      charCount.textContent = totalLen + ' chars · ' + segments + ' segment' + (segments !== 1 ? 's' : '');
     }
 
     // ── Publish Button ──
