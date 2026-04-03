@@ -7756,12 +7756,19 @@
       event.target.value = '';
     }
 
+    var _personUploadInProgress = false;
     async function handlePersonUpload(event) {
       var files = Array.from(event.target.files);
       if (!files.length) { console.log('[Photos] No files selected for person'); return; }
+      if (_personUploadInProgress) { console.log('[Photos] Person upload already in progress, skipping'); return; }
+      _personUploadInProgress = true;
       console.log('[Photos] Person upload:', files.length, 'files');
-      await addFiles(files, 'person');
-      event.target.value = '';
+      try {
+        await addFiles(files, 'person');
+      } finally {
+        _personUploadInProgress = false;
+        event.target.value = '';
+      }
     }
 
     // Legacy handler for backward compat
@@ -7804,6 +7811,7 @@
           placeholder.innerHTML = '<img src="' + result.dataUrl + '" alt="Preview"><button class="remove" onclick="removeImage(this, \'' + photoType + '\')">&times;</button>';
           // Upload to Supabase Storage to get a persistent URL
           try {
+            console.log('[Photos] Uploading', file.name, '(' + Math.round(result.base64.length / 1024) + 'KB base64)...');
             var uploadRes = await authFetch('/api/v2/upload', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -7813,22 +7821,30 @@
                 filename: file.name || 'photo.jpg'
               })
             });
-            var uploadResult = await uploadRes.json();
-            if (uploadResult.success && uploadResult.url) {
-              // Deduplicate — prevent the same photo URL from being added twice
-              if (urlArr.indexOf(uploadResult.url) === -1) {
-                urlArr.push(uploadResult.url);
-                uploadedCount++;
-                console.log('[Photos] Uploaded:', file.name);
-              } else {
-                console.log('[Photos] Skipping duplicate URL:', file.name);
-              }
-            } else {
-              console.error('[Photos] Upload failed:', uploadResult.error || 'unknown error');
+            if (!uploadRes.ok) {
+              console.error('[Photos] Upload HTTP error:', uploadRes.status);
+              showToast('Photo upload failed (HTTP ' + uploadRes.status + '). Please try again.');
               urlArr.push(null);
+            } else {
+              var uploadResult = await uploadRes.json();
+              if (uploadResult.success && uploadResult.url) {
+                // Deduplicate — prevent the same photo URL from being added twice
+                if (urlArr.indexOf(uploadResult.url) === -1) {
+                  urlArr.push(uploadResult.url);
+                  uploadedCount++;
+                  console.log('[Photos] Uploaded:', file.name, '→', uploadResult.url);
+                } else {
+                  console.log('[Photos] Skipping duplicate URL:', file.name);
+                }
+              } else {
+                console.error('[Photos] Upload failed:', uploadResult.error || 'unknown error');
+                showToast('Photo upload failed: ' + (uploadResult.error || 'unknown error'));
+                urlArr.push(null);
+              }
             }
           } catch (e) {
             console.error('[Photos] Upload error:', e.message);
+            showToast('Photo upload error: ' + e.message);
             urlArr.push(null);
           }
         } else {
@@ -7836,6 +7852,7 @@
         }
       }
       // Show chat acknowledgment for uploaded photos with follow-up prompt + CTA
+      var totalValid = urlArr.filter(function(u) { return !!u; }).length;
       if (uploadedCount > 0) {
         var ackText;
         if (photoType === 'inspiration') {
@@ -7846,6 +7863,9 @@
           ackText = uploadedCount + ' photo' + (uploadedCount > 1 ? 's' : '') + ' of ' + personName + ' uploaded \u2014 we\u2019ll feature ' + personName + ' prominently in the invite design.';
         }
         showPhotoAckCard(ackText);
+      } else if (files.length > 0 && uploadedCount === 0) {
+        // All uploads failed — let the user know
+        showToast('Photo upload failed. Please check your connection and try again.');
       }
       // Scroll to keep the Generate button visible after adding photos
       scrollChat();
