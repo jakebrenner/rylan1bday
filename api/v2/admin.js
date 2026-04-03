@@ -1284,6 +1284,38 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    // ---- GET ERROR ALERT EMAILS ----
+    if (action === 'getErrorAlertEmails') {
+      const { data } = await supabaseAdmin
+        .from('app_config')
+        .select('value')
+        .eq('key', 'error_alert_emails')
+        .maybeSingle();
+
+      let emails = [];
+      if (data?.value) {
+        try { emails = JSON.parse(data.value); } catch (_) {}
+      }
+      return res.status(200).json({ success: true, emails });
+    }
+
+    // ---- SAVE ERROR ALERT EMAILS ----
+    if (action === 'saveErrorAlertEmails') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { emails } = req.body;
+      if (!Array.isArray(emails)) return res.status(400).json({ error: 'emails must be an array' });
+
+      const valid = emails.map(e => String(e).trim().toLowerCase()).filter(e => e.includes('@'));
+
+      const { error } = await supabaseAdmin
+        .from('app_config')
+        .upsert({ key: 'error_alert_emails', value: JSON.stringify(valid), updated_by: admin.id, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+
+      if (error) return res.status(400).json({ error: error.message });
+      return res.status(200).json({ success: true, emails: valid });
+    }
+
     // ---- LIST ADMINS ----
     if (action === 'listAdmins') {
       const { data } = await supabaseAdmin
