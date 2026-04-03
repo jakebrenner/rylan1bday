@@ -106,17 +106,14 @@ Suggest ADDITIONAL fields (beyond the built-in Name, Email, Phone, and RSVP Stat
 - options: array of options (only for "select" type), null otherwise
 - placeholder: hint text or null
 
-### Common field suggestions (pick what's relevant):
+### Common field suggestions (pick ONE that's most relevant to the event):
 - plusOnes (number: "Number of Additional Guests")
-- mealChoice (select — only if the event involves a meal)
-- dietaryRestrictions (text)
 - songRequest (text)
-- message (textarea — a general message field, label it appropriately e.g. "Message", "Note for the Host")
+- message (textarea — label it specifically for the event, e.g. "Message for Brittany", "Note for the Couple")
 - bringingItem (text — for potlucks or shared events)
 - company (text), title (text) — for corporate events
-- notes (textarea)
 
-Keep suggestions practical and straightforward — 2-3 fields max. Only suggest fields that clearly fit the event. If the user mentions something specific (e.g. "potluck"), add a relevant field for it.
+Keep it minimal — suggest only 1 custom field beyond the built-ins, and make it specific to the event theme. Less is more. Only suggest additional fields if the user explicitly mentions needing them.
 
 ## PHASE 3: DESIGN CHAT
 After RSVP fields are confirmed, smoothly transition into designing the invite. Your goal is to collaboratively build a rich, specific creative prompt so the AI designer nails it on the first try.
@@ -152,6 +149,7 @@ CRITICAL: Before asking ANY design questions, re-read the ENTIRE conversation hi
 - The prompt field should read like a creative brief, e.g.: "Monster truck themed 7th birthday. Bold, high-energy design with oversized monster trucks, dirt/mud splatter effects, tire track borders. Neon green, orange, and black color palette. Chunky bold fonts. Fun and exciting, not scary. Birthday child's photo in monster truck cockpit."
 - If the user seems eager to skip ("just make it look good", "surprise me"), set themeReady: true IMMEDIATELY with a well-crafted prompt based on what you know. Don't ask even one more question.
 - Do NOT set themeReady: true until you have at least a vibe/theme direction AND have mentioned photos. But once you have both, set it IMMEDIATELY — do not ask further questions.
+- NEVER do a final recap or summary of what you're about to create. When you set themeReady: true, just say something short and excited like "Got it — designing your invite now!" The system will automatically start generating.
 
 ## RESPONSE FORMAT
 Always respond with JSON:
@@ -170,9 +168,10 @@ Always respond with JSON:
 
 - Set "ready": true and populate "suggestedRsvpFields" when all 5 required fields are provided (title, eventType, startDate, locationName, hostEmail).
 - Set "confirmed": true only AFTER the user approves the RSVP field list.
-- Keep suggestedRsvpFields to 2-4 fields — don't overwhelm.
+- Keep suggestedRsvpFields to 1-2 fields max — minimal is better.
 - NEVER set "confirmed": true without first proposing RSVP fields and getting user approval.
 - Set "themeReady": true AGGRESSIVELY as soon as you have a vibe/theme direction + have mentioned photos. Do NOT keep asking follow-up questions — one clear vibe signal is enough.
+- When setting themeReady: true, your message should be SHORT and action-oriented like "Love it! I've got everything I need — let me start designing your invite!" Do NOT recap or summarize the event details, fields, or design choices. No recap, no summary, no "here's what we'll create" — just a quick excited confirmation and go.
 - The "prompt" field in extracted should be a rich, detailed creative brief by the time themeReady is true. YOU fill in creative details (colors, motifs, typography feel) based on the vibe — don't ask the user to specify them.
 
 ## CONVERSATION RULES
@@ -219,11 +218,19 @@ export default async function handler(req, res) {
 
     const chatModel = await getChatModel();
 
-    // If user is logged in, inject their email so the AI doesn't ask for it
+    // If user is logged in, inject their email and name so the AI doesn't ask for them
     let systemPrompt = SYSTEM_PROMPT;
     if (user.email) {
       systemPrompt += `\n\nIMPORTANT: The host is already logged in with email: ${user.email}. Automatically use this as their hostEmail — do NOT ask them for their email address. Include it in "extracted" from your very first response.`;
     }
+
+    // Fetch display name from profiles if available
+    try {
+      const { data: profile } = await supabase.from('profiles').select('display_name').eq('id', user.id).single();
+      if (profile?.display_name) {
+        systemPrompt += `\n\nThe host's name is "${profile.display_name}". Use this as hostName in "extracted" — do NOT ask them for their name. You already know who they are.`;
+      }
+    } catch (_) {}
 
     const startTime = Date.now();
     const response = await client.messages.create({

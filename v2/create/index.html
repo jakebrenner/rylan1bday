@@ -2225,10 +2225,10 @@
 
           addChatBubble(result.message, 'assistant');
 
-          // If theme discovery is complete, show photo uploads + Generate button
+          // If theme discovery is complete, auto-trigger generation
           if (result.themeReady && chatPhase !== 'themeReady') {
             chatPhase = 'themeReady';
-            showDesignReadyCard();
+            generateFromDesignReady();
           }
         } else {
           var errMsg = result.detail || result.message || result.error || 'Something went wrong';
