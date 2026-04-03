@@ -4260,48 +4260,41 @@ ${cssSnippet}`
 
     // ---- CLIENT ERROR STATS ----
     if (action === 'clientErrorStats') {
-      // Summary by error type and component (last 24h and 7d)
+      const fromDate = req.query.from || new Date(new Date().setHours(0,0,0,0)).toISOString();
+      const toDate = req.query.to || new Date().toISOString();
+
       const { data: summary } = await supabaseAdmin
         .from('client_error_log')
         .select('error_type, component, funnel_step, error_message, created_at')
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .gte('created_at', fromDate)
+        .lte('created_at', toDate)
         .order('created_at', { ascending: false })
         .limit(500);
 
-      const now = Date.now();
-      const day = 24 * 60 * 60 * 1000;
       const errors = summary || [];
+      const total = errors.length;
 
       // Group by error_type + component
       const byTypeComponent = {};
       const byStep = {};
-      const last24h = [];
-      const last7d = [];
 
       for (const e of errors) {
-        const age = now - new Date(e.created_at).getTime();
-        if (age <= day) last24h.push(e);
-        last7d.push(e);
-
         const key = (e.error_type || 'unknown') + '|' + (e.component || 'unknown');
-        if (!byTypeComponent[key]) byTypeComponent[key] = { error_type: e.error_type, component: e.component, count_24h: 0, count_7d: 0, sample_message: e.error_message };
-        byTypeComponent[key].count_7d++;
-        if (age <= day) byTypeComponent[key].count_24h++;
+        if (!byTypeComponent[key]) byTypeComponent[key] = { error_type: e.error_type, component: e.component, count: 0, sample_message: e.error_message };
+        byTypeComponent[key].count++;
 
         if (e.funnel_step) {
-          if (!byStep[e.funnel_step]) byStep[e.funnel_step] = { step: e.funnel_step, count_24h: 0, count_7d: 0 };
-          byStep[e.funnel_step].count_7d++;
-          if (age <= day) byStep[e.funnel_step].count_24h++;
+          if (!byStep[e.funnel_step]) byStep[e.funnel_step] = { step: e.funnel_step, count: 0 };
+          byStep[e.funnel_step].count++;
         }
       }
 
       return res.status(200).json({
         success: true,
-        total_24h: last24h.length,
-        total_7d: last7d.length,
-        by_type_component: Object.values(byTypeComponent).sort((a, b) => b.count_24h - a.count_24h),
-        by_funnel_step: Object.values(byStep).sort((a, b) => b.count_24h - a.count_24h),
-        recent_errors: last24h.slice(0, 20).map(e => ({
+        total: total,
+        by_type_component: Object.values(byTypeComponent).sort((a, b) => b.count - a.count),
+        by_funnel_step: Object.values(byStep).sort((a, b) => b.count - a.count),
+        recent_errors: errors.slice(0, 20).map(e => ({
           error_type: e.error_type,
           component: e.component,
           funnel_step: e.funnel_step,
@@ -4313,44 +4306,45 @@ ${cssSnippet}`
 
     // ---- SERVER ERROR STATS ----
     if (action === 'serverErrorStats') {
+      const fromDate = req.query.from || new Date(new Date().setHours(0,0,0,0)).toISOString();
+      const toDate = req.query.to || new Date().toISOString();
+
       const { data: errors } = await supabaseAdmin
         .from('api_error_log')
         .select('endpoint, action, error_message, created_at')
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .gte('created_at', fromDate)
+        .lte('created_at', toDate)
         .order('created_at', { ascending: false })
         .limit(500);
 
-      const now = Date.now();
-      const day = 24 * 60 * 60 * 1000;
       const rows = errors || [];
       const grouped = {};
-      let total24h = 0, total7d = 0;
+      let total = 0;
 
       for (const e of rows) {
-        const age = now - new Date(e.created_at).getTime();
-        total7d++;
-        if (age <= day) total24h++;
-
+        total++;
         const key = (e.endpoint || '') + '|' + (e.action || '') + '|' + (e.error_message || '').slice(0, 100);
-        if (!grouped[key]) grouped[key] = { endpoint: e.endpoint, action: e.action, error_message: e.error_message, last_24h: 0, last_7d: 0, last_seen: e.created_at };
-        grouped[key].last_7d++;
-        if (age <= day) grouped[key].last_24h++;
+        if (!grouped[key]) grouped[key] = { endpoint: e.endpoint, action: e.action, error_message: e.error_message, count: 0, last_seen: e.created_at };
+        grouped[key].count++;
       }
 
       return res.status(200).json({
         success: true,
-        total_24h: total24h,
-        total_7d: total7d,
-        errors: Object.values(grouped).sort((a, b) => b.last_24h - a.last_24h)
+        total: total,
+        errors: Object.values(grouped).sort((a, b) => b.count - a.count)
       });
     }
 
     // ---- SMS DELIVERY STATS ----
     if (action === 'smsDeliveryStats') {
-      // Overall delivery rate
+      const fromDate = req.query.from || new Date(new Date().setHours(0,0,0,0)).toISOString();
+      const toDate = req.query.to || new Date().toISOString();
+
       const { data: allSms } = await supabaseAdmin
         .from('sms_messages')
         .select('status, carrier, country, provider_status, provider_error, created_at')
+        .gte('created_at', fromDate)
+        .lte('created_at', toDate)
         .order('created_at', { ascending: false })
         .limit(1000);
 
@@ -4375,14 +4369,11 @@ ${cssSnippet}`
       }
 
       // Group by status + provider_status
-      const now = Date.now();
-      const day = 24 * 60 * 60 * 1000;
       const byStatus = {};
       for (const m of msgs) {
         const key = (m.status || '') + '|' + (m.provider_status || '') + '|' + (m.provider_error || '');
-        if (!byStatus[key]) byStatus[key] = { status: m.status, provider_status: m.provider_status, provider_error: m.provider_error, total_count: 0, last_7d: 0 };
-        byStatus[key].total_count++;
-        if (now - new Date(m.created_at).getTime() <= 7 * day) byStatus[key].last_7d++;
+        if (!byStatus[key]) byStatus[key] = { status: m.status, provider_status: m.provider_status, provider_error: m.provider_error, count: 0 };
+        byStatus[key].count++;
       }
 
       return res.status(200).json({
@@ -4391,7 +4382,7 @@ ${cssSnippet}`
         total_sent: totalSent,
         total_delivered: delivered,
         by_carrier: Object.values(byCarrier).sort((a, b) => b.total_sent - a.total_sent),
-        by_status: Object.values(byStatus).sort((a, b) => b.total_count - a.total_count)
+        by_status: Object.values(byStatus).sort((a, b) => b.count - a.count)
       });
     }
 
