@@ -10,6 +10,7 @@ const CLICKSEND_API_URL = 'https://rest.clicksend.com/v3/sms/send';
 const CLICKSEND_USERNAME = process.env.CLICKSEND_USERNAME;
 const CLICKSEND_API_KEY = process.env.CLICKSEND_API_KEY;
 const resend = new Resend(process.env.RESEND_API_KEY);
+const PROD_URL = 'https://ryvite.com';
 
 // ---- Helpers ----
 
@@ -255,7 +256,7 @@ export default async function handler(req, res) {
       }
 
       // Build messages — resolve {name} and {link} per-guest
-      const baseUrl = req.headers.origin || `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
+      const baseUrl = PROD_URL;
       const clickSendMessages = guests.map(g => {
         const guestLink = `${baseUrl}/v2/event/${event.slug}?gid=${g.id}`;
         return {
@@ -353,7 +354,7 @@ export default async function handler(req, res) {
         });
       }
 
-      const updateBaseUrl = req.headers.origin || `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
+      const updateBaseUrl = PROD_URL;
       const clickSendMessages = guests.map(g => {
         const guestLink = `${updateBaseUrl}/v2/event/${event.slug}?gid=${g.id}`;
         return {
@@ -741,7 +742,7 @@ export default async function handler(req, res) {
         .single();
 
       const hostName = profile?.display_name || 'Someone';
-      const baseUrl = req.headers.origin || `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
+      const baseUrl = PROD_URL;
       const eventTitle = event.title || 'an event';
       const emailSubject = subject || `You're invited to ${eventTitle}!`;
       const eventDate = event.event_date

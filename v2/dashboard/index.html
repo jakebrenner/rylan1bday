@@ -1150,7 +1150,7 @@
         var isDraft = (event.status || 'Draft').toLowerCase() === 'draft';
         var isPublished = event.status === 'Published';
         var isArchived = (event.status || '').toLowerCase() === 'archived';
-        var inviteUrl = window.location.origin + '/v2/event/' + encodeURIComponent(event.slug);
+        var inviteUrl = 'https://ryvite.com/v2/event/' + encodeURIComponent(event.slug);
         var prog = getProgressInfo(event);
 
         var progressHtml = '';
@@ -1345,7 +1345,7 @@
         // Copy Link button in header
         var copyBtn = document.getElementById('empCopyLinkBtn');
         if (data.event.status === 'published' && data.event.slug) {
-          empInviteUrl = window.location.origin + '/v2/event/' + encodeURIComponent(data.event.slug);
+          empInviteUrl = 'https://ryvite.com/v2/event/' + encodeURIComponent(data.event.slug);
           copyBtn.style.display = '';
         } else {
           empInviteUrl = '';
@@ -1827,7 +1827,7 @@
     }
 
     function getInviteUrl() {
-      return window.location.origin + '/v2/event/' + manageSlug;
+      return 'https://ryvite.com/v2/event/' + manageSlug;
     }
 
     function getGuestCountsWithPhone(rsvps) {
@@ -3510,7 +3510,7 @@
 
     function renderPhotosTab() {
       var content = document.getElementById('manageContent');
-      var galleryUrl = window.location.origin + '/v2/event/' + manageSlug + '/photos';
+      var galleryUrl = 'https://ryvite.com/v2/event/' + manageSlug + '/photos';
 
       var html = '<div style="margin-bottom:20px;">'
         + '<div class="notify-row">'
@@ -3604,7 +3604,7 @@
     }
 
     function switchPhotoSmsTemplate(type, btn) {
-      var galleryUrl = window.location.origin + '/v2/event/' + manageSlug + '/photos';
+      var galleryUrl = 'https://ryvite.com/v2/event/' + manageSlug + '/photos';
       var textarea = document.getElementById('photoSmsMsg');
       if (!textarea) return;
       if (type === 'share') {
@@ -3664,7 +3664,7 @@
     }
 
     function copyGalleryLink() {
-      var url = window.location.origin + '/v2/event/' + manageSlug + '/photos';
+      var url = 'https://ryvite.com/v2/event/' + manageSlug + '/photos';
       navigator.clipboard.writeText(url).then(function() {
         var btn = document.getElementById('copyGalleryBtn');
         btn.textContent = 'Copied!';
