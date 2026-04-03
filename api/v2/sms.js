@@ -62,6 +62,16 @@ async function sendViaClickSend(messages) {
 
     const result = await response.json();
 
+    console.log('[ClickSend Send]', JSON.stringify({
+      http_code: result.http_code,
+      response_msg: result.response_msg,
+      messages: (result.data?.messages || []).map(m => ({
+        to: m.to, status: m.status, status_code: m.status_code,
+        status_text: m.status_text, carrier: m.carrier,
+        country: m.country, message_id: m.message_id
+      }))
+    }));
+
     if (result.http_code !== 200) {
       return { success: false, error: result.response_msg || 'ClickSend API error', data: result };
     }
@@ -96,7 +106,10 @@ async function recordSmsMessages(userId, eventId, sentMessages, messageType, cli
     status: csMessages[i]?.status === 'SUCCESS' ? 'sent' : 'queued',
     provider_id: csMessages[i]?.message_id || null,
     cost_cents: smsCostCents,
-    billed: true
+    billed: true,
+    carrier: csMessages[i]?.carrier || null,
+    country: csMessages[i]?.country || null,
+    provider_status: csMessages[i]?.status || null
   }));
 
   if (smsRecords.length > 0) {
