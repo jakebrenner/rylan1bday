@@ -633,6 +633,14 @@
       max-width: 640px;
       margin: 0 auto;
     }
+    .toast {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      background: #333; color: #fff; padding: 12px 24px; border-radius: 8px;
+      font-size: 14px; z-index: 10000; animation: toastIn .3s ease, toastOut .3s ease 2.7s;
+      max-width: 90vw; text-align: center; pointer-events: none;
+    }
+    @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+    @keyframes toastOut { from { opacity: 1; } to { opacity: 0; } }
   </style>
 <script src="/js/meta-pixel.js"></script>
 <script src="/js/ga.js"></script>
@@ -1155,6 +1163,13 @@
   </div>
 
   <script>
+    function showToast(message) {
+      var toast = document.createElement('div');
+      toast.className = 'toast'; toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(function() { toast.remove(); }, 3000);
+    }
+
     let currentStep = 1;
     var totalSteps = 3;
     var designPrompt = ''; // Collected from chat style flow
