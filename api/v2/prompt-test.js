@@ -362,23 +362,21 @@ function parseThemeResponse(rawText) {
 
   // Step 2: Strip markdown fences — use greedy match to find the OUTERMOST closing ```
   // Non-greedy ([\s\S]*?) would break if the JSON content contains triple backticks
-  const fenceOpenMatch = text.match(/^```(?:json)?\s*\n?/);
+  const fenceOpenMatch = text.match(/^```(?:json)?\s*\n?/) || text.match(/```(?:json)?\s*\n/);
   if (fenceOpenMatch) {
-    const afterOpen = text.substring(fenceOpenMatch[0].length);
+    const afterOpen = text.substring(text.indexOf(fenceOpenMatch[0]) + fenceOpenMatch[0].length);
     const lastFenceIdx = afterOpen.lastIndexOf('```');
     if (lastFenceIdx !== -1) {
-      text = afterOpen.substring(0, lastFenceIdx).trim();
+      const candidate = afterOpen.substring(0, lastFenceIdx).trim();
+      // Validate: if lastIndexOf matched backticks inside a JSON string value,
+      // the candidate won't start with { — fall back to all content after opening fence
+      if (candidate.startsWith('{') || candidate.startsWith('[') || candidate.match(/^<!DOCTYPE|^<html/i)) {
+        text = candidate;
+      } else {
+        text = afterOpen.trim();
+      }
     } else {
       text = afterOpen.trim();
-    }
-  } else {
-    const midFenceMatch = text.match(/```(?:json)?\s*\n/);
-    if (midFenceMatch) {
-      const afterOpen = text.substring(text.indexOf(midFenceMatch[0]) + midFenceMatch[0].length);
-      const lastFenceIdx = afterOpen.lastIndexOf('```');
-      if (lastFenceIdx !== -1) {
-        text = afterOpen.substring(0, lastFenceIdx).trim();
-      }
     }
   }
 

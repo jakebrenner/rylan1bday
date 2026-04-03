@@ -80,7 +80,7 @@ async function fetchImagesAsBase64(urls) {
   const results = [];
   for (const url of urls) {
     try {
-      const resp = await fetch(url);
+      const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
       if (!resp.ok) continue;
       const buffer = await resp.arrayBuffer();
       const base64 = Buffer.from(buffer).toString('base64');
@@ -669,26 +669,25 @@ function parseThemeResponse(rawText) {
   // Strip markdown fences — use greedy match to find the OUTERMOST closing ```
   // Non-greedy ([\s\S]*?) would break if the JSON content contains triple backticks
   // (e.g., in HTML strings), matching the first inner ``` and truncating the JSON.
-  const fenceOpenMatch = text.match(/^```(?:json)?\s*\n?/);
+  const fenceOpenMatch = text.match(/^```(?:json)?\s*\n?/) || text.match(/```(?:json)?\s*\n/);
   if (fenceOpenMatch) {
-    const afterOpen = text.substring(fenceOpenMatch[0].length);
+    const afterOpen = text.substring(text.indexOf(fenceOpenMatch[0]) + fenceOpenMatch[0].length);
     // Find the LAST ``` in the remaining text (outermost closing fence)
     const lastFenceIdx = afterOpen.lastIndexOf('```');
     if (lastFenceIdx !== -1) {
-      text = afterOpen.substring(0, lastFenceIdx).trim();
+      const candidate = afterOpen.substring(0, lastFenceIdx).trim();
+      // Validate: extracted text should look like JSON (starts with {) or be usable
+      // If lastIndexOf matched backticks INSIDE a JSON string value, the candidate
+      // won't start with { — fall back to using all content after the opening fence
+      if (candidate.startsWith('{') || candidate.startsWith('[') || candidate.match(/^<!DOCTYPE|^<html/i)) {
+        text = candidate;
+      } else {
+        // lastIndexOf found backticks inside content — use everything after opening fence
+        text = afterOpen.trim();
+      }
     } else {
       // Opening fence but no closing — strip the opening and use the rest
       text = afterOpen.trim();
-    }
-  } else {
-    // Fence might not be at the start — try to find it mid-text
-    const midFenceMatch = text.match(/```(?:json)?\s*\n/);
-    if (midFenceMatch) {
-      const afterOpen = text.substring(text.indexOf(midFenceMatch[0]) + midFenceMatch[0].length);
-      const lastFenceIdx = afterOpen.lastIndexOf('```');
-      if (lastFenceIdx !== -1) {
-        text = afterOpen.substring(0, lastFenceIdx).trim();
-      }
     }
   }
   if (!text.startsWith('{') || text.match(/^\{\s*--/)) {
@@ -2691,7 +2690,14 @@ Fields that will be injected (for awareness only — do NOT render):
 ${rsvpFieldsDesc}`;
 
     // Auto-include style references matching event type (adapts to prompt specificity)
-    const styleRefs = await loadStyleReferences(eventType, promptSpecificity);
+    // Timeout after 8s — style refs are nice-to-have, not worth stalling generation
+    const styleRefs = await Promise.race([
+      loadStyleReferences(eventType, promptSpecificity),
+      new Promise(resolve => setTimeout(() => {
+        console.warn('[generate] Style library load timed out after 8s — proceeding without styles');
+        resolve({ context: '', selectedIds: [] });
+      }, 8000))
+    ]);
     const usedStyleIds = styleRefs.selectedIds || [];
     if (styleRefs.context) {
       userMessage += styleRefs.context;
