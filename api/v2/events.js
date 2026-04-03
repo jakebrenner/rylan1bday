@@ -370,6 +370,36 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    // ---- TRACK FUNNEL EVENT (supports both auth and anonymous) ----
+    if (action === 'trackFunnel' && req.method === 'POST') {
+      const { step, eventId, metadata } = body;
+      if (!step) return res.status(400).json({ error: 'step is required' });
+
+      // Try to get user from auth header (optional — page_view fires before login)
+      let funnelUserId = null;
+      const funnelAuthHeader = req.headers.authorization;
+      if (funnelAuthHeader?.startsWith('Bearer ')) {
+        try {
+          const { data: { user: funnelUser } } = await supabaseAdmin.auth.getUser(funnelAuthHeader.slice(7));
+          if (funnelUser) funnelUserId = funnelUser.id;
+        } catch (_) {}
+      }
+
+      try {
+        const { error } = await supabaseAdmin.from('funnel_events').insert({
+          user_id: funnelUserId,
+          event_id: eventId || null,
+          step,
+          metadata: metadata || {}
+        });
+        if (error) console.error('Funnel event insert failed:', error.message);
+      } catch (e) {
+        console.error('Funnel event insert error:', e.message);
+      }
+
+      return res.status(200).json({ success: true });
+    }
+
     // ---- Authenticated actions ----
 
     const authHeader = req.headers.authorization;
@@ -1400,26 +1430,6 @@ export default async function handler(req, res) {
       });
 
       return res.status(200).json({ success: true, contactId, alreadySaved: false });
-    }
-
-    // ---- TRACK FUNNEL EVENT ----
-    if (action === 'trackFunnel') {
-      const { step, eventId, metadata } = body;
-      if (!step) return res.status(400).json({ error: 'step is required' });
-
-      const { error } = await supabaseAdmin.from('funnel_events').insert({
-        user_id: user.id,
-        event_id: eventId || null,
-        step,
-        metadata: metadata || {}
-      });
-
-      if (error) {
-        // Table might not exist yet — fail silently
-        console.error('Funnel event insert failed:', error.message);
-      }
-
-      return res.status(200).json({ success: true });
     }
 
     return res.status(400).json({ error: 'Unknown action' });
