@@ -169,7 +169,23 @@ export async function reportApiError({ endpoint, action, error, requestBody, req
     }
   }
 
-  // 3. Email admins with full error details + Claude Code prompt
+  // 3. Fetch additional error alert email recipients from app_config
+  let extraEmails = [];
+  if (sb) {
+    try {
+      const { data: configRow } = await sb
+        .from('app_config')
+        .select('value')
+        .eq('key', 'error_alert_emails')
+        .maybeSingle();
+      if (configRow?.value) {
+        const parsed = JSON.parse(configRow.value);
+        if (Array.isArray(parsed)) extraEmails = parsed.filter(e => e && typeof e === 'string');
+      }
+    } catch (_) { /* no config row yet — that's fine */ }
+  }
+
+  // 4. Email admins with full error details + Claude Code prompt
   const resend = getResend();
   if (resend) {
     try {
@@ -246,50 +262,12 @@ export async function reportApiError({ endpoint, action, error, requestBody, req
 
       await resend.emails.send({
         from: 'Ryvite Alerts <alerts@ryvite.com>',
-        to: ADMIN_EMAIL,
+        to: [...new Set([ADMIN_EMAIL, ...extraEmails])],
         subject: `[API ERROR] ${endpoint}?action=${action} — ${errorMessage.slice(0, 80)}`,
         html
       });
     } catch (emailErr) {
       console.error('Error reporter — failed to send email:', emailErr.message);
-    }
-  }
-
-  // 4. Send SMS to admin subscribers with api_error notifications
-  if (sb) {
-    try {
-      const CLICKSEND_USERNAME = process.env.CLICKSEND_USERNAME;
-      const CLICKSEND_API_KEY = process.env.CLICKSEND_API_KEY;
-      if (CLICKSEND_USERNAME && CLICKSEND_API_KEY) {
-        const { data: subscribers } = await sb
-          .from('admin_notification_prefs')
-          .select('phone')
-          .eq('new_user_signup', true);  // Reuse existing pref — admins who want signup alerts also want error alerts
-
-        if (subscribers?.length) {
-          const credentials = Buffer.from(`${CLICKSEND_USERNAME}:${CLICKSEND_API_KEY}`).toString('base64');
-          const smsBody = `Ryvite API ERROR: ${endpoint}?action=${action} — ${errorMessage.slice(0, 100)}`;
-
-          for (const sub of subscribers) {
-            const digits = (sub.phone || '').replace(/\D/g, '');
-            const e164 = digits.length >= 10 ? `+1${digits.slice(-10)}` : null;
-            if (!e164) continue;
-
-            await fetch('https://rest.clicksend.com/v3/sms/send', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${credentials}`
-              },
-              body: JSON.stringify({
-                messages: [{ to: e164, body: smsBody, source: 'ryvite-error-alert' }]
-              })
-            }).catch(() => {});
-          }
-        }
-      }
-    } catch (smsErr) {
-      console.error('Error reporter — failed to send SMS:', smsErr.message);
     }
   }
 
