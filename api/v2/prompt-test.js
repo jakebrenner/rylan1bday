@@ -244,6 +244,7 @@ Return a JSON object with exactly these keys IN THIS ORDER (CSS first to avoid t
 }
 
 CRITICAL: Output theme_css and theme_config BEFORE theme_html. The HTML can be very long — if you run out of output space, the CSS must already be complete.
+CRITICAL: theme_thankyou_html MUST be non-empty. Output it AFTER theme_html. A missing thank-you page is a broken experience.
 
 ## PAGE STRUCTURE — REQUIRED SECTIONS
 1. **THEMATIC HEADER** — An animated or illustrated element specific to this event type.
@@ -287,7 +288,8 @@ Style these classes in theme_css to match the theme:
 - No JavaScript. No fixed positioning. No iframes. Google Fonts only.
 - Keep height reasonable — 3-5 phone screen scrolls.
 
-## THANK YOU PAGE (theme_thankyou_html) — CRITICAL
+## THANK YOU PAGE (theme_thankyou_html) — CRITICAL, NEVER SKIP
+You MUST ALWAYS include a non-empty "theme_thankyou_html" field. This is NOT optional.
 The platform injects "Thank You!" heading, subtitle text, calendar buttons, and footer at runtime.
 Your job: provide the **visual wrapper and a decorative illustration** that makes it feel like a celebration.
 - Structure: \`<div class="thankyou-page"><div class="thankyou-decoration"><svg>...</svg></div><div class="thankyou-hero"></div></div>\`

@@ -468,6 +468,7 @@ Return a JSON object with exactly these keys IN THIS ORDER (CSS first to avoid t
 }
 
 CRITICAL: Output theme_css and theme_config BEFORE theme_html. The HTML can be very long — if you run out of output space, the CSS must already be complete.
+CRITICAL: theme_thankyou_html MUST be non-empty. Output it AFTER theme_html. A missing thank-you page is a broken experience.
 
 ## PAGE STRUCTURE — REQUIRED SECTIONS
 Build the page with these sections (creative freedom on visual execution):
@@ -525,7 +526,9 @@ If photos are provided via URL, use them in \`<img>\` tags with the exact URL pr
 - NEVER generate, guess, or hallucinate image URLs. Only use <img> tags for photo URLs explicitly provided in the PHOTOS section. If no photo URLs are provided, do NOT use any <img> tags — use SVG illustrations, CSS gradients, or decorative elements instead.
 - Inspiration images (sent as visual references) are for analyzing color palette, mood, and style ONLY — do NOT try to embed or recreate them as <img> tags.
 
-## THANK YOU PAGE (theme_thankyou_html) — CRITICAL
+## THANK YOU PAGE (theme_thankyou_html) — CRITICAL, NEVER SKIP
+You MUST ALWAYS include a non-empty "theme_thankyou_html" field in your JSON output. This is NOT optional.
+A missing or empty thank-you page results in a broken, ugly fallback that ruins the user experience.
 The platform injects the "Thank You!" heading, subtitle text, calendar buttons, and footer at runtime.
 Your job: provide the **visual wrapper and decorative illustration** that makes it feel like a celebration, not a blank page.
 
