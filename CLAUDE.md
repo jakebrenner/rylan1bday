@@ -288,3 +288,31 @@ No auth required — supports host, guest, and anonymous raters.
 - `alert()` is only acceptable for true browser-level errors (e.g., WebGL not supported, required API unavailable)
 - For error feedback from API calls, use `showToast()` with the error message
 - For form validation, use inline error styling or `showToast()`, not `alert()`
+
+## Documentation Maintenance
+
+### Technical Overview (`docs/technical-overview.md`)
+This document is the canonical technical reference for Ryvite — covering architecture, AI system, quality pipeline, metrics, and improvement opportunities. It is written for technical stakeholders (PMs, engineers onboarding, etc.).
+
+**When to update it:**
+Any change to the following should trigger an update to the relevant section of `docs/technical-overview.md`:
+
+- **Architecture changes**: New API endpoints, new DB tables/views, new services, infra config changes (`vercel.json`)
+- **AI system changes**: Model swaps, prompt layer modifications, escalation chain tuning, tiered tweak system changes, style selection algorithm updates
+- **Quality pipeline changes**: New validation checks, auto-repair rules, quality monitor triggers, heal strategies
+- **Rating/feedback changes**: New rating tiers, scoring formula changes, new analytics views
+- **User flow changes**: New creation steps, auth flow changes, payment gate changes, new frontend features
+- **Metric changes**: New tracked metrics, formula changes, new views
+
+**How to update:**
+1. Edit the specific section(s) in `docs/technical-overview.md` that are affected
+2. Update the "Last updated" date at the top of the document
+3. If adding a new API endpoint, add it to the §2.2 table
+4. If adding a new DB table/view, add it to the §2.3 table or §6.3 analytics views table
+5. If changing model strategy or pricing, update the §4.2 table
+6. Keep the document scannable — use tables and bullet points, not prose paragraphs
+
+**What NOT to put in the technical overview:**
+- Step-by-step code tutorials (that's what CLAUDE.md is for)
+- Implementation details that only matter during development
+- Temporary workarounds or hacks (document those in code comments)

@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; case \"$f\" in */docs/technical-overview.md|*/CLAUDE.md) ;; */api/v2/generate-theme.js|*/api/v2/chat.js|*/api/v2/prompt-test.js|*/api/v2/quality-monitor.js|*/api/v2/admin.js|*/api/v2/ratings.js|*/api/v2/lib/error-reporter.js|*/vercel.json|*/supabase/*.sql) echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"Reminder: If this change affects architecture, AI system, quality pipeline, ratings, metrics, or user flow, update docs/technical-overview.md and the Last updated date.\"}}' ;; esac; }"
+          }
+        ]
+      }
+    ]
+  }
+}
