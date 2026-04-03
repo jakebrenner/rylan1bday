@@ -300,13 +300,52 @@ export default async function handler(req, res) {
     const { incidentId } = req.body;
     if (!incidentId) return res.status(400).json({ error: 'incidentId required' });
 
+    console.log('[adminRetryHeal] Starting for incident:', incidentId);
+
     const { data: incident, error: fetchErr } = await supabase
       .from('quality_incidents')
       .select('*')
       .eq('id', incidentId)
       .single();
 
-    if (fetchErr || !incident) return res.status(404).json({ error: 'Incident not found' });
+    if (fetchErr) {
+      console.error('[adminRetryHeal] Fetch error:', fetchErr.message);
+      return res.status(404).json({ error: 'Incident not found: ' + fetchErr.message });
+    }
+    if (!incident) return res.status(404).json({ error: 'Incident not found' });
+
+    console.log('[adminRetryHeal] Incident loaded:', {
+      id: incident.id,
+      trigger: incident.trigger_type,
+      eventId: incident.event_id,
+      hasThemeSnapshot: !!incident.theme_snapshot,
+      hasHtml: !!(incident.theme_snapshot?.html),
+      hasCss: !!(incident.theme_snapshot?.css)
+    });
+
+    // If theme_snapshot is missing or has no HTML, we can't diagnose
+    if (!incident.theme_snapshot?.html && !incident.theme_snapshot?.css) {
+      // Try to fetch current theme from event_themes
+      let themeSnapshot = incident.theme_snapshot || {};
+      if (incident.event_id) {
+        const { data: theme } = await supabase
+          .from('event_themes')
+          .select('html, css, config')
+          .eq('event_id', incident.event_id)
+          .eq('is_active', true)
+          .single();
+        if (theme) {
+          themeSnapshot = { html: theme.html, css: theme.css, config: theme.config };
+          console.log('[adminRetryHeal] Loaded theme from event_themes');
+        }
+      }
+      if (!themeSnapshot.html) {
+        return res.status(400).json({ error: 'No theme HTML available for this incident. Cannot diagnose.' });
+      }
+      // Update incident with the theme snapshot for future retries
+      await supabase.from('quality_incidents').update({ theme_snapshot: themeSnapshot }).eq('id', incidentId);
+      incident.theme_snapshot = themeSnapshot;
+    }
 
     // Build context from stored incident data
     const ctx = {
@@ -322,7 +361,9 @@ export default async function handler(req, res) {
 
     // Run synchronously so admin sees result
     try {
+      console.log('[adminRetryHeal] Running diagnoseAndHeal...');
       await diagnoseAndHeal(incidentId, ctx);
+      console.log('[adminRetryHeal] diagnoseAndHeal completed');
 
       // Re-fetch to see if it was healed
       const { data: updated } = await supabase
@@ -330,6 +371,12 @@ export default async function handler(req, res) {
         .select('resolution_type, ai_diagnosis, resolution_data')
         .eq('id', incidentId)
         .single();
+
+      console.log('[adminRetryHeal] Result:', {
+        resolution: updated?.resolution_type,
+        hasDiagnosis: !!updated?.ai_diagnosis,
+        hasNewTheme: !!updated?.resolution_data?.new_theme_id
+      });
 
       const healed = updated?.resolution_type === 'auto_healed';
       return res.status(200).json({
@@ -340,10 +387,11 @@ export default async function handler(req, res) {
         newThemeId: updated?.resolution_data?.new_theme_id || null
       });
     } catch (e) {
-      console.error('[quality-monitor] Admin retry heal failed:', e.message);
+      console.error('[adminRetryHeal] Failed:', e.message, e.stack);
       await supabase.from('quality_incidents').update({
         resolution_type: 'escalated',
-        resolution_data: { error: 'Admin retry failed: ' + e.message, admin_retry: true }
+        ai_diagnosis: 'Admin retry heal error: ' + e.message,
+        resolution_data: { error: e.message, stack: (e.stack || '').substring(0, 500), admin_retry: true }
       }).eq('id', incidentId);
       return res.status(200).json({
         success: true,
