@@ -2554,52 +2554,44 @@
 
     async function resendInvite(guestId, type, btn) {
       if (!guestId) return;
-      var origText = btn.textContent;
+      var origText = btn.innerHTML;
       btn.disabled = true;
       btn.textContent = 'Sending...';
 
       try {
+        var res, result;
         if (type === 'sms') {
           var inviteUrl = getInviteUrl();
           var smsMsg = 'You\'re invited to ' + manageTitle + '! RSVP here: ' + inviteUrl;
-          var res = await authFetch('/api/v2/sms?action=sendInvites', {
+          res = await authFetch('/api/v2/sms?action=sendInvites', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ eventId: manageEventId, guestIds: [guestId], message: smsMsg })
           });
-          var result = await res.json();
-          if (result.success) {
-            showToast('SMS invite sent!');
-            btn.textContent = 'Sent!';
-            setTimeout(function() { btn.textContent = origText; btn.disabled = false; }, 2000);
-            loadGuestsTab();
-          } else {
-            showToast(result.error || 'Failed to send SMS');
-            btn.disabled = false;
-            btn.textContent = origText;
-          }
         } else {
-          var res = await authFetch('/api/v2/sms?action=sendEmailInvites', {
+          res = await authFetch('/api/v2/sms?action=sendEmailInvites', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ eventId: manageEventId, guestIds: [guestId] })
           });
-          var result = await res.json();
-          if (result.success) {
-            showToast('Email invite sent!');
-            btn.textContent = 'Sent!';
-            setTimeout(function() { btn.textContent = origText; btn.disabled = false; }, 2000);
-            loadGuestsTab();
-          } else {
-            showToast(result.error || 'Failed to send email');
-            btn.disabled = false;
-            btn.textContent = origText;
-          }
+        }
+
+        try { result = await res.json(); } catch (e) { result = { success: false, error: 'Server error (status ' + res.status + ')' }; }
+
+        if (result.success) {
+          showToast(type === 'sms' ? 'SMS invite sent!' : 'Email invite sent!');
+          btn.textContent = 'Sent!';
+          setTimeout(function() { btn.innerHTML = origText; btn.disabled = false; }, 2000);
+          loadGuestsTab();
+        } else {
+          showToast(result.error || 'Failed to send ' + type);
+          btn.disabled = false;
+          btn.innerHTML = origText;
         }
       } catch (e) {
         showToast('Failed to send invite');
         btn.disabled = false;
-        btn.textContent = origText;
+        btn.innerHTML = origText;
       }
     }
 

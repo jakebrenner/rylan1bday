@@ -278,14 +278,19 @@ export default async function handler(req, res) {
         guestId: g.id
       }));
 
-      const recorded = await recordSmsMessages(user.id, eventId, sentMessages, 'invite', result.data);
+      const recorded = await recordSmsMessages(user.id, eventId, sentMessages, 'invite', result.data).catch(err => {
+        console.error('Failed to record SMS messages:', err);
+        return sentMessages.length; // Continue even if recording fails
+      });
 
       // Update invited_at for these guests
       const guestIdsToUpdate = guests.map(g => g.id);
       await supabaseAdmin
         .from('guests')
         .update({ invited_at: new Date().toISOString() })
-        .in('id', guestIdsToUpdate);
+        .in('id', guestIdsToUpdate)
+        .then(() => {})
+        .catch(err => console.error('Failed to update invited_at:', err));
 
       return res.status(200).json({
         success: true,
