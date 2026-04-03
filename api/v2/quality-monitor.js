@@ -459,6 +459,7 @@ export default async function handler(req, res) {
     const attemptNum = attemptNumber || 1;
 
     try {
+      // ⚠️ PROMPT GUARDIAN: STANDARD — See docs/prompt-registry.md
       const resp = await client.messages.create({
         model: fixModel,
         max_tokens: 16000,
@@ -829,6 +830,7 @@ async function diagnoseAndHeal(incidentId, ctx) {
       ? `\nMissing DOM elements: ${missingElements.join(', ')}`
       : '';
 
+    // ⚠️ PROMPT GUARDIAN: STANDARD — See docs/prompt-registry.md
     const resp = await client.messages.create({
       model: diagnosisModel,
       max_tokens: 500,
@@ -1134,6 +1136,7 @@ Return JSON with keys IN THIS ORDER (CSS first to avoid truncation):
 }`;
   }
 
+  // ⚠️ PROMPT GUARDIAN: STANDARD — See docs/prompt-registry.md
   const resp = await client.messages.create({
     model: healModel,
     max_tokens: 12000,
