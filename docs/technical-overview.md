@@ -301,14 +301,13 @@ Generated output passes through 20+ validation checks before delivery:
 | **Platform elements** | Missing `.rsvp-slot`, `.details-slot`, `data-field="title"` |
 | **CSS integrity** | Unclosed braces, empty/too-short CSS, malformed `@keyframes`, stray `@import` |
 | **Structural** | HTML too short, markdown fences in output, JSON leaked into HTML |
-| **Visual rendering** | Invisible text (color matches background), RSVP form contrast (dark text on dark background, ratio < 3.0), offscreen content, `display:none`, `opacity:0`, zero dimensions, excessive clipping |
+| **Visual rendering** | Invisible text (color matches background), offscreen content, `display:none`, `opacity:0`, zero dimensions, excessive clipping |
 | **Content** | Hallucinated image URLs (strips non-Supabase URLs) |
 
 **Auto-repair mechanisms:**
 - Inject missing platform elements (`.rsvp-slot`, `.details-slot`)
 - Close unclosed CSS/HTML tags
-- Fix text contrast (ensure WCAG AA) — includes RSVP-specific white text injection for dark form backgrounds
-- Client-side CSS fallback: parses raw `<style>` blocks when computed styles miss dark backgrounds
+- Fix text contrast (ensure WCAG AA)
 - Remove offscreen positioning
 - Strip malformed `@keyframes`
 - Extract CSS from `<style>` blocks if `theme_css` is empty
