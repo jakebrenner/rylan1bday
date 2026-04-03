@@ -2448,12 +2448,25 @@
       }
       html += '</div>';
 
-      // Actions (only Make Co-Host — Save to Contacts is automatic)
-      if (guest.email && manageIsOwner) {
-        html += '<div class="guest-detail-actions">';
-        html += '<button class="guest-detail-btn" onclick="event.stopPropagation();makeGuestCohost(\'' + guestId + '\', \'' + escapeHtml(guest.email).replace(/'/g, "\\'") + '\', this)">Make Co-Host</button>';
-        html += '</div>';
+      // Actions
+      html += '<div class="guest-detail-actions">';
+      if (guest.phone) {
+        html += '<button class="guest-detail-btn" onclick="event.stopPropagation();resendInvite(\'' + guestId + '\', \'sms\', this)" style="border-color:var(--party-coral);color:var(--party-coral);">'
+          + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:4px;"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72"/></svg>'
+          + 'Send SMS</button>';
       }
+      if (guest.email) {
+        html += '<button class="guest-detail-btn" onclick="event.stopPropagation();resendInvite(\'' + guestId + '\', \'email\', this)">'
+          + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:4px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>'
+          + 'Send Email</button>';
+      }
+      if (guest.email && manageIsOwner) {
+        html += '<button class="guest-detail-btn" onclick="event.stopPropagation();makeGuestCohost(\'' + guestId + '\', \'' + escapeHtml(guest.email).replace(/'/g, "\\'") + '\', this)">Make Co-Host</button>';
+      }
+      html += '<button class="guest-detail-btn" onclick="event.stopPropagation();deleteGuest(\'' + guestId + '\', \'' + escapeHtml(guest.name).replace(/'/g, "\\'") + '\')" style="color:#dc3545;border-color:#dc3545;">'
+        + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:4px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>'
+        + 'Remove</button>';
+      html += '</div>';
 
       panel.innerHTML = html;
     }
@@ -2516,6 +2529,78 @@
         });
         if (indicator) { indicator.style.display = 'inline'; setTimeout(function() { indicator.style.display = 'none'; }, 2000); }
       } catch (e) { console.error('Update guest response error:', e); }
+    }
+
+    function deleteGuest(guestId, guestName) {
+      showConfirm('Remove Guest', 'Remove ' + guestName + ' from this event? This cannot be undone.', '#dc3545', async function() {
+        try {
+          var res = await authFetch('/api/v2/events?action=removeGuests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: manageEventId, guestIds: [guestId] })
+          });
+          var result = await res.json();
+          if (result.success) {
+            showToast(guestName + ' removed');
+            loadGuestsTab();
+          } else {
+            showToast(result.error || 'Failed to remove guest');
+          }
+        } catch (e) {
+          showToast('Error removing guest');
+        }
+      });
+    }
+
+    async function resendInvite(guestId, type, btn) {
+      if (!guestId) return;
+      var origText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+
+      try {
+        if (type === 'sms') {
+          var inviteUrl = getInviteUrl();
+          var smsMsg = 'You\'re invited to ' + manageTitle + '! RSVP here: ' + inviteUrl;
+          var res = await authFetch('/api/v2/sms?action=sendInvites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: manageEventId, guestIds: [guestId], message: smsMsg })
+          });
+          var result = await res.json();
+          if (result.success) {
+            showToast('SMS invite sent!');
+            btn.textContent = 'Sent!';
+            setTimeout(function() { btn.textContent = origText; btn.disabled = false; }, 2000);
+            loadGuestsTab();
+          } else {
+            showToast(result.error || 'Failed to send SMS');
+            btn.disabled = false;
+            btn.textContent = origText;
+          }
+        } else {
+          var res = await authFetch('/api/v2/sms?action=sendEmailInvites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: manageEventId, guestIds: [guestId] })
+          });
+          var result = await res.json();
+          if (result.success) {
+            showToast('Email invite sent!');
+            btn.textContent = 'Sent!';
+            setTimeout(function() { btn.textContent = origText; btn.disabled = false; }, 2000);
+            loadGuestsTab();
+          } else {
+            showToast(result.error || 'Failed to send email');
+            btn.disabled = false;
+            btn.textContent = origText;
+          }
+        }
+      } catch (e) {
+        showToast('Failed to send invite');
+        btn.disabled = false;
+        btn.textContent = origText;
+      }
     }
 
     async function makeGuestCohost(guestId, email, btn) {
