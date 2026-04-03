@@ -827,36 +827,6 @@ function extractStyleEssence(html) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// ── Color utility for contrast validation ──
-function parseColorToRgb(color) {
-  if (!color) return null;
-  const c = color.trim().toLowerCase();
-  // Named colors (common ones the AI uses)
-  const named = { white: [255,255,255], black: [0,0,0], '#fff': [255,255,255], '#000': [0,0,0] };
-  if (named[c]) return named[c];
-  // rgb/rgba
-  const rgbM = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-  if (rgbM) return [+rgbM[1], +rgbM[2], +rgbM[3]];
-  // hex
-  const hexM = c.match(/^#([0-9a-f]{3,8})$/);
-  if (hexM) {
-    let h = hexM[1];
-    if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
-    return [parseInt(h.substr(0,2),16), parseInt(h.substr(2,2),16), parseInt(h.substr(4,2),16)];
-  }
-  return null;
-}
-
-function srgbLuminance(rgb) {
-  const [r, g, b] = rgb.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-function contrastRatio(rgb1, rgb2) {
-  const l1 = srgbLuminance(rgb1), l2 = srgbLuminance(rgb2);
-  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
-}
-
 // SERVER-SIDE THEME VALIDATION & AUTO-REPAIR
 // Catches common AI output issues before sending to the client.
 // ═══════════════════════════════════════════════════════════════════
@@ -962,47 +932,6 @@ function validateThemeIntegrity(theme) {
           issues.push('css_invisible_text');
           break;
         }
-      }
-    }
-
-    // 10a-2. RSVP form contrast — detect dark text on dark RSVP background
-    // Find .rsvp-slot background color, then check label/input text color against it
-    const rsvpSlotRule = css.match(/\.rsvp-slot\s*\{([^}]+)\}/i);
-    let rsvpBgRgb = null;
-    if (rsvpSlotRule) {
-      const bgVal = rsvpSlotRule[1].match(/background(?:-color)?\s*:\s*([^;!}]+)/i);
-      if (bgVal) {
-        const firstColor = bgVal[1].match(/rgb[a]?\([^)]+\)/) || bgVal[1].match(/#[0-9a-f]{3,8}/i);
-        if (firstColor) rsvpBgRgb = parseColorToRgb(firstColor[0]);
-      }
-    }
-    // Also check parent wrappers the AI commonly uses
-    if (!rsvpBgRgb) {
-      const parentRule = css.match(/\.(?:rsvp-section|rsvp-container|rsvp-area|form-section|invite-lower|lower-section|bottom-section)[^{]*\{([^}]+)\}/i);
-      if (parentRule) {
-        const bgVal = parentRule[1].match(/background(?:-color)?\s*:\s*([^;!}]+)/i);
-        if (bgVal) {
-          const firstColor = bgVal[1].match(/rgb[a]?\([^)]+\)/) || bgVal[1].match(/#[0-9a-f]{3,8}/i);
-          if (firstColor) rsvpBgRgb = parseColorToRgb(firstColor[0]);
-        }
-      }
-    }
-    if (rsvpBgRgb && srgbLuminance(rsvpBgRgb) < 0.35) {
-      // Dark RSVP background — check label color
-      const labelRule = css.match(/\.rsvp-slot\s+label\s*\{([^}]+)\}/i) || css.match(/\.rsvp-slot[^}]*label[^{]*\{([^}]+)\}/i);
-      if (labelRule) {
-        const labelColor = labelRule[1].match(/(?:^|;\s*)color\s*:\s*([^;!}]+)/i);
-        if (labelColor) {
-          const labelRgb = parseColorToRgb(labelColor[1].trim());
-          if (labelRgb && contrastRatio(labelRgb, rsvpBgRgb) < 3.0) {
-            issues.push('rsvp_low_contrast');
-          }
-        }
-      }
-      // Also check if there's no explicit light color set for labels (defaults would be dark)
-      if (!labelRule) {
-        // No label rule = browser default (black text on dark bg)
-        issues.push('rsvp_low_contrast');
       }
     }
 
@@ -1240,15 +1169,6 @@ function repairTheme(theme, issues) {
         }
       }
     }
-  }
-
-  // 10a-2. RSVP low contrast — inject white text rules for dark RSVP backgrounds
-  if (issues.includes('rsvp_low_contrast')) {
-    // Append high-specificity rules to force light text on the dark RSVP section
-    theme.theme_css += '\n/* Auto-repair: RSVP contrast fix */\n'
-      + '.rsvp-slot label, .rsvp-slot .rsvp-form-group, .rsvp-slot { color: #FFFFFF !important; }\n'
-      + '.rsvp-slot input, .rsvp-slot select, .rsvp-slot textarea { color: #FFFFFF; background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.3); }\n';
-    console.log('[repairTheme] Fixed RSVP low contrast: injected white text rules');
   }
 
   // 10b. Offscreen content — remove offscreen positioning
