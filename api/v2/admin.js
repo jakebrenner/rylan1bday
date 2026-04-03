@@ -567,52 +567,77 @@ export default async function handler(req, res) {
         supabaseAdmin.from('guests').select('*').eq('event_id', eventId).order('created_at', { ascending: false }),
         supabaseAdmin.from('event_custom_fields').select('*').eq('event_id', eventId).order('sort_order', { ascending: true }),
         supabaseAdmin.from('generation_log').select('id, event_id, model, input_tokens, output_tokens, prompt, status, latency_ms, created_at').eq('event_id', eventId).eq('status', 'success').order('created_at', { ascending: false }),
-        supabaseAdmin.from('chat_messages').select('id, session_id, role, content, phase, model, input_tokens, output_tokens, created_at').eq('event_id', eventId).order('created_at', { ascending: true }),
+        supabaseAdmin.from('chat_messages').select('id, session_id, role, content, phase, model, input_tokens, output_tokens, created_at').eq('event_id', eventId).order('created_at', { ascending: true }).order('id', { ascending: true }),
         supabaseAdmin.from('theme_rating_summary').select('event_theme_id, total_ratings, avg_rating').eq('event_id', eventId)
       ]);
 
       const event = eventRes.data;
       if (!event) return res.status(404).json({ error: 'Event not found' });
 
-      // Check if we have creation-phase chat messages (older events may have event_id=NULL)
+      // Recover any orphaned messages (event_id=NULL) from the same chat session.
+      // A race condition in createDraftEvent() caused early messages to be saved
+      // with event_id=NULL while later messages got the correct event_id.
       let allChatMessages = chatRes.data || [];
-      const hasCreatePhase = allChatMessages.some(m => m.phase === 'create');
-      if (!hasCreatePhase && event.user_id && event.created_at) {
-        // Find creation-phase messages: look for chat sessions started around event creation
-        // The event is created on the first chat message, so look for sessions starting
-        // within 2 min of event creation, then get ALL messages from that session
-        const eventCreated = new Date(event.created_at);
-        const windowStart = new Date(eventCreated.getTime() - 2 * 60 * 1000).toISOString();
-        const windowEnd = new Date(eventCreated.getTime() + 2 * 60 * 1000).toISOString();
+      if (event.user_id && event.created_at) {
+        const knownSessionIds = new Set(allChatMessages.map(m => m.session_id).filter(Boolean));
+        let orphanedMessages = [];
 
-        // First, find the session_id by looking for messages near event creation
-        const { data: seedMessages } = await supabaseAdmin
-          .from('chat_messages')
-          .select('session_id')
-          .eq('user_id', event.user_id)
-          .is('event_id', null)
-          .gte('created_at', windowStart)
-          .lte('created_at', windowEnd)
-          .limit(5);
-
-        if (seedMessages && seedMessages.length > 0) {
-          // Get the most common session_id from the seed
-          const sessionCounts = {};
-          seedMessages.forEach(m => { sessionCounts[m.session_id] = (sessionCounts[m.session_id] || 0) + 1; });
-          const bestSessionId = Object.entries(sessionCounts).sort((a, b) => b[1] - a[1])[0][0];
-
-          // Now fetch ALL messages from that entire session (no time limit)
-          const { data: fullSession } = await supabaseAdmin
-            .from('chat_messages')
-            .select('id, session_id, role, content, phase, model, input_tokens, output_tokens, created_at')
-            .eq('session_id', bestSessionId)
-            .eq('user_id', event.user_id)
-            .order('created_at', { ascending: true });
-
-          if (fullSession && fullSession.length > 0) {
-            const creationMsgs = fullSession.map(m => ({ ...m, phase: m.phase || 'create' }));
-            allChatMessages = [...creationMsgs, ...allChatMessages];
+        if (knownSessionIds.size > 0) {
+          // We have some event-linked messages — find orphans from the same session(s)
+          for (const sid of knownSessionIds) {
+            const { data: orphans } = await supabaseAdmin
+              .from('chat_messages')
+              .select('id, session_id, role, content, phase, model, input_tokens, output_tokens, created_at')
+              .eq('session_id', sid)
+              .eq('user_id', event.user_id)
+              .is('event_id', null)
+              .order('created_at', { ascending: true })
+              .order('id', { ascending: true });
+            if (orphans && orphans.length > 0) {
+              orphanedMessages.push(...orphans);
+            }
           }
+        } else {
+          // No messages linked at all — use time-window heuristic for old events
+          const eventCreated = new Date(event.created_at);
+          const windowStart = new Date(eventCreated.getTime() - 2 * 60 * 1000).toISOString();
+          const windowEnd = new Date(eventCreated.getTime() + 2 * 60 * 1000).toISOString();
+
+          const { data: seedMessages } = await supabaseAdmin
+            .from('chat_messages')
+            .select('session_id')
+            .eq('user_id', event.user_id)
+            .is('event_id', null)
+            .gte('created_at', windowStart)
+            .lte('created_at', windowEnd)
+            .limit(5);
+
+          if (seedMessages && seedMessages.length > 0) {
+            const sessionCounts = {};
+            seedMessages.forEach(m => { sessionCounts[m.session_id] = (sessionCounts[m.session_id] || 0) + 1; });
+            const bestSessionId = Object.entries(sessionCounts).sort((a, b) => b[1] - a[1])[0][0];
+
+            const { data: fullSession } = await supabaseAdmin
+              .from('chat_messages')
+              .select('id, session_id, role, content, phase, model, input_tokens, output_tokens, created_at')
+              .eq('session_id', bestSessionId)
+              .eq('user_id', event.user_id)
+              .order('created_at', { ascending: true })
+              .order('id', { ascending: true });
+
+            if (fullSession && fullSession.length > 0) {
+              orphanedMessages = fullSession;
+            }
+          }
+        }
+
+        if (orphanedMessages.length > 0) {
+          const existingIds = new Set(allChatMessages.map(m => m.id));
+          const newMsgs = orphanedMessages
+            .filter(m => !existingIds.has(m.id))
+            .map(m => ({ ...m, phase: m.phase || 'create' }));
+          allChatMessages = [...newMsgs, ...allChatMessages]
+            .sort((a, b) => a.id - b.id);
         }
       }
 
