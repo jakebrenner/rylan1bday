@@ -2109,7 +2109,7 @@
 
       // Create draft event on first message so it shows in dashboard immediately
       if (!currentEvent) {
-        createDraftEvent();
+        await createDraftEvent();
       }
 
       var sendBtn = document.getElementById('chatSendBtn');
