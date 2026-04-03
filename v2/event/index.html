@@ -383,7 +383,7 @@
       return '<!DOCTYPE html><html><head><meta charset="UTF-8">'
         + '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
         + fontsLink
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { padding: 20px; background: #f9f9f9; } ' + fallbackCSS + '</style>'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { background: #f9f9f9; } ' + fallbackCSS + '</style>'
         + '<style>' + cleanedCss.replace(/<\/style/gi, '<\\/style') + '</style>'
         + '</head><body>' + themeHtml + '</body></html>';
     }
