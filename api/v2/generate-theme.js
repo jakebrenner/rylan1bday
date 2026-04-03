@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
+import { Resend } from 'resend';
 import { reportApiError } from './lib/error-reporter.js';
 // AI generation is included in the $4.99 event price — no per-generation billing
 
@@ -16,6 +17,8 @@ const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const PROD_URL = 'https://www.ryvite.com';
 
 const DEFAULT_THEME_MODEL = process.env.THEME_MODEL || 'claude-sonnet-4-6';
 
@@ -1402,6 +1405,83 @@ function getClientMeta(req) {
   if (req.headers['x-vercel-ip-longitude']) geo.longitude = req.headers['x-vercel-ip-longitude'];
   const userAgent = (req.headers['user-agent'] || '').substring(0, 500);
   return { ip, geo, userAgent };
+}
+
+async function sendFirstGenerationEmail(eventId, userEmail, userId, eventTitle) {
+  if (!resend || !userEmail) return;
+  try {
+    // Idempotency check — don't send if we already sent one for this event
+    const { count } = await supabase
+      .from('notification_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', eventId)
+      .eq('email_type', 'first_generation');
+    if (count > 0) return;
+
+    const editUrl = `${PROD_URL}/v2/create/?eventId=${eventId}`;
+    const displayTitle = eventTitle || 'your event';
+    const subject = `Woohoo! Your Ryvite is Ready!`;
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background-color:#FFFAF5;font-family:'Inter','Helvetica Neue',Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FFFAF5;padding:40px 20px;">
+<tr><td align="center">
+<table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;">
+  <tr><td align="center" style="padding-bottom:0;">
+    <div style="background:linear-gradient(135deg, #1A1A2E 0%, #0f3460 100%);border-radius:12px 12px 0 0;padding:24px 40px;text-align:center;">
+      <p style="margin:0;font-size:28px;color:#FFFFFF;font-family:'Playfair Display',Georgia,serif;font-weight:700;letter-spacing:0.5px;">Ryvite</p>
+      <p style="margin:4px 0 0;font-size:12px;color:#FFB74D;font-style:italic;font-family:'Inter',Arial,sans-serif;">Prompt to Party</p>
+    </div>
+  </td></tr>
+  <tr><td style="background:#FFFFFF;padding:40px;border-radius:0 0 12px 12px;box-shadow:0 4px 24px rgba(26,26,46,0.08);">
+    <h2 style="margin:0 0 16px;font-family:'Playfair Display',Georgia,serif;font-size:24px;color:#1A1A2E;text-align:center;">Woohoo! Your invite is ready!</h2>
+    <p style="margin:0 0 8px;font-size:15px;color:#6B7280;line-height:1.6;text-align:center;">
+      Your AI-designed invitation for <strong style="color:#1A1A2E;">${displayTitle}</strong> just came to life.
+    </p>
+    <p style="margin:0 0 28px;font-size:15px;color:#6B7280;line-height:1.6;text-align:center;">
+      Take a look, tweak the design, and get ready to wow your guests.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr><td align="center" style="padding:8px 0 32px;">
+        <a href="${editUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg, #E94560, #FF6B6B);color:#FFFFFF;font-size:15px;font-weight:600;text-decoration:none;border-radius:50px;font-family:'Inter','Helvetica Neue',Arial,sans-serif;">
+          Preview &amp; Tweak Your Invite
+        </a>
+      </td></tr>
+    </table>
+    <p style="margin:0;color:#D1D5DB;font-size:13px;line-height:1.5;text-align:center;">
+      Need help? Just reply to this email.
+    </p>
+  </td></tr>
+  <tr><td align="center" style="padding:24px 0 0;">
+    <p style="margin:0;font-size:12px;color:#D1D5DB;">&copy; 2026 Ryvite &mdash; Beautiful invitations, effortlessly.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+
+    const emailResult = await resend.emails.send({
+      from: 'Ryvite <hello@ryvite.com>',
+      to: userEmail,
+      subject,
+      html
+    });
+
+    await supabase.from('notification_log').insert({
+      event_id: eventId,
+      user_id: userId || null,
+      guest_id: null,
+      channel: 'email',
+      recipient: userEmail,
+      subject,
+      status: 'sent',
+      provider_id: emailResult?.data?.id || null,
+      email_type: 'first_generation',
+      sent_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('First generation email error:', err);
+  }
 }
 
 export default async function handler(req, res) {
@@ -2967,9 +3047,16 @@ This is the most common failure mode. Double-check it.`;
       console.error('Theme DB save error:', saveErr);
     }
 
-    await supabase.from('events')
+    const { data: firstGenData } = await supabase.from('events')
       .update({ first_generation_at: new Date().toISOString() })
-      .eq('id', eventId).is('first_generation_at', null);
+      .eq('id', eventId).is('first_generation_at', null)
+      .select('id');
+    const isFirstGeneration = firstGenData?.length > 0;
+
+    // ── Send "Your Ryvite is Ready!" email on first generation ──
+    if (isFirstGeneration) {
+      await sendFirstGenerationEmail(eventId, user.email, user.id, eventDetails?.title);
+    }
 
     // ── Log to generation_log BEFORE res.end() — uses estimated tokens ──
     const genMeta = getClientMeta(req);
