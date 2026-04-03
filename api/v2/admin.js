@@ -4311,6 +4311,90 @@ ${cssSnippet}`
       });
     }
 
+    // ---- SERVER ERROR STATS ----
+    if (action === 'serverErrorStats') {
+      const { data: errors } = await supabaseAdmin
+        .from('api_error_log')
+        .select('endpoint, action, error_message, created_at')
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      const now = Date.now();
+      const day = 24 * 60 * 60 * 1000;
+      const rows = errors || [];
+      const grouped = {};
+      let total24h = 0, total7d = 0;
+
+      for (const e of rows) {
+        const age = now - new Date(e.created_at).getTime();
+        total7d++;
+        if (age <= day) total24h++;
+
+        const key = (e.endpoint || '') + '|' + (e.action || '') + '|' + (e.error_message || '').slice(0, 100);
+        if (!grouped[key]) grouped[key] = { endpoint: e.endpoint, action: e.action, error_message: e.error_message, last_24h: 0, last_7d: 0, last_seen: e.created_at };
+        grouped[key].last_7d++;
+        if (age <= day) grouped[key].last_24h++;
+      }
+
+      return res.status(200).json({
+        success: true,
+        total_24h: total24h,
+        total_7d: total7d,
+        errors: Object.values(grouped).sort((a, b) => b.last_24h - a.last_24h)
+      });
+    }
+
+    // ---- SMS DELIVERY STATS ----
+    if (action === 'smsDeliveryStats') {
+      // Overall delivery rate
+      const { data: allSms } = await supabaseAdmin
+        .from('sms_messages')
+        .select('status, carrier, country, provider_status, provider_error, created_at')
+        .order('created_at', { ascending: false })
+        .limit(1000);
+
+      const msgs = allSms || [];
+      const totalSent = msgs.length;
+      const delivered = msgs.filter(m => m.status === 'delivered').length;
+      const deliveryRate = totalSent > 0 ? Math.round(100 * delivered / totalSent) : null;
+
+      // Group by carrier
+      const byCarrier = {};
+      for (const m of msgs) {
+        const key = (m.carrier || 'Unknown') + '|' + (m.country || '');
+        if (!byCarrier[key]) byCarrier[key] = { carrier: m.carrier || 'Unknown', country: m.country || '', total_sent: 0, delivered: 0, failed: 0, bounced: 0, pending: 0 };
+        byCarrier[key].total_sent++;
+        if (m.status === 'delivered') byCarrier[key].delivered++;
+        else if (m.status === 'failed') byCarrier[key].failed++;
+        else if (m.status === 'bounced') byCarrier[key].bounced++;
+        else byCarrier[key].pending++;
+      }
+      for (const c of Object.values(byCarrier)) {
+        c.delivery_rate_pct = c.total_sent > 0 ? Math.round(100 * c.delivered / c.total_sent) : null;
+      }
+
+      // Group by status + provider_status
+      const now = Date.now();
+      const day = 24 * 60 * 60 * 1000;
+      const byStatus = {};
+      for (const m of msgs) {
+        const key = (m.status || '') + '|' + (m.provider_status || '') + '|' + (m.provider_error || '');
+        if (!byStatus[key]) byStatus[key] = { status: m.status, provider_status: m.provider_status, provider_error: m.provider_error, total_count: 0, last_7d: 0 };
+        byStatus[key].total_count++;
+        if (now - new Date(m.created_at).getTime() <= 7 * day) byStatus[key].last_7d++;
+      }
+
+      return res.status(200).json({
+        success: true,
+        delivery_rate_pct: deliveryRate,
+        total_sent: totalSent,
+        total_delivered: delivered,
+        by_carrier: Object.values(byCarrier).sort((a, b) => b.total_sent - a.total_sent),
+        by_status: Object.values(byStatus).sort((a, b) => b.total_count - a.total_count)
+      });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Admin API error:', err);

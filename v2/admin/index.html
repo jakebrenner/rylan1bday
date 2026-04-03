@@ -657,6 +657,7 @@
       <div class="sidebar-group">
         <div class="sidebar-group-label">Analytics</div>
         <button class="sidebar-item" data-tab="funnel" onclick="switchTab('funnel');loadFunnelAnalytics();">Funnel</button>
+        <button class="sidebar-item" data-tab="errors" onclick="switchTab('errors');loadErrorMonitoring();">Errors</button>
       </div>
     </nav>
 
@@ -3074,6 +3075,54 @@
       </div>
     </div>
 
+    <!-- Error Monitoring Tab -->
+    <div class="tab-content" id="tab-errors">
+      <h3 style="margin:0 0 20px;">Error Monitoring</h3>
+
+      <!-- Summary Cards -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:28px;">
+        <div class="stat-card"><div class="stat-value" id="errClient24h">—</div><div class="stat-label">Client Errors (24h)</div></div>
+        <div class="stat-card"><div class="stat-value" id="errClient7d">—</div><div class="stat-label">Client Errors (7d)</div></div>
+        <div class="stat-card"><div class="stat-value" id="errServer24h">—</div><div class="stat-label">Server Errors (24h)</div></div>
+        <div class="stat-card"><div class="stat-value" id="errServer7d">—</div><div class="stat-label">Server Errors (7d)</div></div>
+        <div class="stat-card"><div class="stat-value" id="errSmsDelivery">—</div><div class="stat-label">SMS Delivery Rate</div></div>
+      </div>
+
+      <!-- Tabs within Error Monitoring -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <button class="btn btn-sm err-sub-tab active" data-errtab="client" onclick="showErrorSubTab('client')">Client Errors</button>
+        <button class="btn btn-sm err-sub-tab" data-errtab="server" onclick="showErrorSubTab('server')">Server Errors</button>
+        <button class="btn btn-sm err-sub-tab" data-errtab="sms" onclick="showErrorSubTab('sms')">SMS Delivery</button>
+      </div>
+
+      <!-- Client Errors Sub-tab -->
+      <div id="errSubClient" class="err-sub-content">
+        <h4 style="font-size:15px;margin:0 0 12px;">Errors by Funnel Step</h4>
+        <div id="errByStep" style="margin-bottom:24px;font-size:13px;">Loading...</div>
+
+        <h4 style="font-size:15px;margin:0 0 12px;">Top Errors by Component</h4>
+        <div id="errByComponent" style="margin-bottom:24px;font-size:13px;">Loading...</div>
+
+        <h4 style="font-size:15px;margin:0 0 12px;">Recent Errors (24h)</h4>
+        <div id="errRecent" style="font-size:13px;">Loading...</div>
+      </div>
+
+      <!-- Server Errors Sub-tab -->
+      <div id="errSubServer" class="err-sub-content" style="display:none;">
+        <h4 style="font-size:15px;margin:0 0 12px;">Server Errors by Endpoint</h4>
+        <div id="errServerList" style="font-size:13px;">Loading...</div>
+      </div>
+
+      <!-- SMS Delivery Sub-tab -->
+      <div id="errSubSms" class="err-sub-content" style="display:none;">
+        <h4 style="font-size:15px;margin:0 0 12px;">SMS Delivery by Carrier</h4>
+        <div id="errSmsCarrier" style="margin-bottom:24px;font-size:13px;">Loading...</div>
+
+        <h4 style="font-size:15px;margin:0 0 12px;">SMS Status Breakdown</h4>
+        <div id="errSmsStatus" style="font-size:13px;">Loading...</div>
+      </div>
+    </div>
+
     <!-- Funnel Analytics Tab -->
     <div class="tab-content" id="tab-funnel">
       <h3 style="margin:0 0 20px;">Funnel Analytics</h3>
@@ -3507,7 +3556,8 @@
       lifecycle: function() { loadLifecycleDashboard(); },
       reviews: function() { loadReviews(); },
       reviewemails: function() { loadReviewEmailSettings(); },
-      funnel: function() { loadFunnelAnalytics(); }
+      funnel: function() { loadFunnelAnalytics(); },
+      errors: function() { loadErrorMonitoring(); }
     };
 
     function handleHashRoute() {
@@ -7862,6 +7912,142 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       });
       if (currentType) typeSelect.value = currentType;
       _funnelFilterOptionsLoaded = true;
+    }
+
+    // ── Error Monitoring Tab ──
+    function showErrorSubTab(tab) {
+      document.querySelectorAll('.err-sub-tab').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-errtab') === tab); });
+      document.getElementById('errSubClient').style.display = tab === 'client' ? '' : 'none';
+      document.getElementById('errSubServer').style.display = tab === 'server' ? '' : 'none';
+      document.getElementById('errSubSms').style.display = tab === 'sms' ? '' : 'none';
+    }
+
+    async function loadErrorMonitoring() {
+      try {
+        // Load all three data sources in parallel
+        var [clientResult, serverResult, smsResult] = await Promise.all([
+          adminFetch('clientErrorStats'),
+          fetch('/api/v2/admin?action=serverErrorStats', { headers: { 'Authorization': 'Bearer ' + token } }).then(function(r) { return r.json(); }).catch(function() { return { success: false }; }),
+          fetch('/api/v2/admin?action=smsDeliveryStats', { headers: { 'Authorization': 'Bearer ' + token } }).then(function(r) { return r.json(); }).catch(function() { return { success: false }; })
+        ]);
+
+        // Client error summary cards
+        if (clientResult.success) {
+          document.getElementById('errClient24h').textContent = clientResult.total_24h || 0;
+          document.getElementById('errClient7d').textContent = clientResult.total_7d || 0;
+
+          // Errors by funnel step
+          var stepHtml = '';
+          if (clientResult.by_funnel_step && clientResult.by_funnel_step.length) {
+            stepHtml = '<table style="width:100%;border-collapse:collapse;"><tr style="border-bottom:2px solid #eee;"><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Step</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">24h</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">7d</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">Users</th></tr>';
+            clientResult.by_funnel_step.forEach(function(s) {
+              stepHtml += '<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 12px;">' + (s.step || 'unknown') + '</td><td style="text-align:right;padding:8px 12px;font-weight:600;' + (s.count_24h > 0 ? 'color:#ef4444;' : '') + '">' + (s.count_24h || 0) + '</td><td style="text-align:right;padding:8px 12px;">' + (s.count_7d || 0) + '</td><td style="text-align:right;padding:8px 12px;color:#888;">' + (s.unique_users || '—') + '</td></tr>';
+            });
+            stepHtml += '</table>';
+          } else {
+            stepHtml = '<p style="color:#888;">No errors by step in the last 7 days.</p>';
+          }
+          document.getElementById('errByStep').innerHTML = stepHtml;
+
+          // Errors by component
+          var compHtml = '';
+          if (clientResult.by_type_component && clientResult.by_type_component.length) {
+            compHtml = '<table style="width:100%;border-collapse:collapse;"><tr style="border-bottom:2px solid #eee;"><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Type</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Component</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">24h</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">7d</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Sample</th></tr>';
+            clientResult.by_type_component.slice(0, 20).forEach(function(c) {
+              compHtml += '<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 12px;"><span style="background:' + (c.error_type === 'api_error' ? '#fee2e2' : c.error_type === 'js_error' ? '#fef3c7' : '#e0e7ff') + ';color:' + (c.error_type === 'api_error' ? '#991b1b' : c.error_type === 'js_error' ? '#92400e' : '#3730a3') + ';font-size:11px;padding:2px 8px;border-radius:10px;">' + (c.error_type || '?') + '</span></td><td style="padding:8px 12px;">' + (c.component || '—') + '</td><td style="text-align:right;padding:8px 12px;font-weight:600;' + (c.count_24h > 0 ? 'color:#ef4444;' : '') + '">' + (c.count_24h || 0) + '</td><td style="text-align:right;padding:8px 12px;">' + (c.count_7d || 0) + '</td><td style="padding:8px 12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#666;font-size:12px;" title="' + ((c.sample_message || '').replace(/"/g, '&quot;')) + '">' + ((c.sample_message || '').substring(0, 80)) + '</td></tr>';
+            });
+            compHtml += '</table>';
+          } else {
+            compHtml = '<p style="color:#888;">No client errors in the last 7 days.</p>';
+          }
+          document.getElementById('errByComponent').innerHTML = compHtml;
+
+          // Recent errors
+          var recentHtml = '';
+          if (clientResult.recent_errors && clientResult.recent_errors.length) {
+            recentHtml = '<table style="width:100%;border-collapse:collapse;"><tr style="border-bottom:2px solid #eee;"><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Time</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Type</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Step</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Message</th></tr>';
+            clientResult.recent_errors.forEach(function(e) {
+              var t = new Date(e.created_at);
+              var timeStr = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              recentHtml += '<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 12px;white-space:nowrap;color:#888;font-size:12px;">' + timeStr + '</td><td style="padding:8px 12px;"><span style="font-size:11px;padding:2px 6px;border-radius:8px;background:#f3f4f6;">' + (e.error_type || '?') + '</span></td><td style="padding:8px 12px;font-size:12px;">' + (e.funnel_step || '—') + '</td><td style="padding:8px 12px;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;" title="' + ((e.message || '').replace(/"/g, '&quot;')) + '">' + (e.message || '') + '</td></tr>';
+            });
+            recentHtml += '</table>';
+          } else {
+            recentHtml = '<p style="color:#888;">No errors in the last 24 hours.</p>';
+          }
+          document.getElementById('errRecent').innerHTML = recentHtml;
+        } else {
+          document.getElementById('errClient24h').textContent = '—';
+          document.getElementById('errClient7d').textContent = '—';
+          document.getElementById('errByStep').innerHTML = '<p style="color:#ef4444;">Failed to load client errors. The client_error_log table may not exist yet — run the migration.</p>';
+          document.getElementById('errByComponent').innerHTML = '';
+          document.getElementById('errRecent').innerHTML = '';
+        }
+
+        // Server error summary
+        if (serverResult.success) {
+          document.getElementById('errServer24h').textContent = serverResult.total_24h || 0;
+          document.getElementById('errServer7d').textContent = serverResult.total_7d || 0;
+
+          var serverHtml = '';
+          if (serverResult.errors && serverResult.errors.length) {
+            serverHtml = '<table style="width:100%;border-collapse:collapse;"><tr style="border-bottom:2px solid #eee;"><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Endpoint</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Action</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">24h</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">7d</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Error</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Last Seen</th></tr>';
+            serverResult.errors.forEach(function(e) {
+              var lastSeen = e.last_seen ? new Date(e.last_seen).toLocaleDateString() : '—';
+              serverHtml += '<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 12px;font-family:monospace;font-size:12px;">' + (e.endpoint || '?') + '</td><td style="padding:8px 12px;font-size:12px;">' + (e.action || '—') + '</td><td style="text-align:right;padding:8px 12px;font-weight:600;' + (e.last_24h > 0 ? 'color:#ef4444;' : '') + '">' + (e.last_24h || 0) + '</td><td style="text-align:right;padding:8px 12px;">' + (e.last_7d || 0) + '</td><td style="padding:8px 12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#666;" title="' + ((e.error_message || '').replace(/"/g, '&quot;')) + '">' + ((e.error_message || '').substring(0, 80)) + '</td><td style="padding:8px 12px;font-size:12px;color:#888;">' + lastSeen + '</td></tr>';
+            });
+            serverHtml += '</table>';
+          } else {
+            serverHtml = '<p style="color:#888;">No server errors in the last 7 days.</p>';
+          }
+          document.getElementById('errServerList').innerHTML = serverHtml;
+        } else {
+          document.getElementById('errServer24h').textContent = '—';
+          document.getElementById('errServer7d').textContent = '—';
+          document.getElementById('errServerList').innerHTML = '<p style="color:#888;">Server error log not available.</p>';
+        }
+
+        // SMS delivery stats
+        if (smsResult.success) {
+          document.getElementById('errSmsDelivery').textContent = (smsResult.delivery_rate_pct != null ? smsResult.delivery_rate_pct + '%' : '—');
+
+          // By carrier
+          var carrierHtml = '';
+          if (smsResult.by_carrier && smsResult.by_carrier.length) {
+            carrierHtml = '<table style="width:100%;border-collapse:collapse;"><tr style="border-bottom:2px solid #eee;"><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Carrier</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Country</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">Sent</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">Delivered</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">Failed</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">Rate</th></tr>';
+            smsResult.by_carrier.forEach(function(c) {
+              var rateColor = (c.delivery_rate_pct || 0) >= 80 ? '#16a34a' : (c.delivery_rate_pct || 0) >= 50 ? '#ca8a04' : '#ef4444';
+              carrierHtml += '<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 12px;">' + (c.carrier || 'Unknown') + '</td><td style="padding:8px 12px;">' + (c.country || '—') + '</td><td style="text-align:right;padding:8px 12px;">' + (c.total_sent || 0) + '</td><td style="text-align:right;padding:8px 12px;color:#16a34a;">' + (c.delivered || 0) + '</td><td style="text-align:right;padding:8px 12px;' + ((c.failed || 0) > 0 ? 'color:#ef4444;font-weight:600;' : '') + '">' + (c.failed || 0) + '</td><td style="text-align:right;padding:8px 12px;font-weight:600;color:' + rateColor + ';">' + (c.delivery_rate_pct != null ? c.delivery_rate_pct + '%' : '—') + '</td></tr>';
+            });
+            carrierHtml += '</table>';
+          } else {
+            carrierHtml = '<p style="color:#888;">No carrier data yet. Send an SMS and check back after the webhook fires.</p>';
+          }
+          document.getElementById('errSmsCarrier').innerHTML = carrierHtml;
+
+          // By status
+          var statusHtml = '';
+          if (smsResult.by_status && smsResult.by_status.length) {
+            statusHtml = '<table style="width:100%;border-collapse:collapse;"><tr style="border-bottom:2px solid #eee;"><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Status</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Provider Status</th><th style="text-align:left;padding:8px 12px;font-size:12px;color:#888;">Error</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">Count</th><th style="text-align:right;padding:8px 12px;font-size:12px;color:#888;">7d</th></tr>';
+            smsResult.by_status.forEach(function(s) {
+              var statusBg = s.status === 'delivered' ? '#dcfce7' : s.status === 'failed' ? '#fee2e2' : s.status === 'bounced' ? '#fef3c7' : '#f3f4f6';
+              var statusColor = s.status === 'delivered' ? '#166534' : s.status === 'failed' ? '#991b1b' : s.status === 'bounced' ? '#92400e' : '#374151';
+              statusHtml += '<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:8px 12px;"><span style="background:' + statusBg + ';color:' + statusColor + ';font-size:11px;padding:2px 8px;border-radius:10px;">' + (s.status || '?') + '</span></td><td style="padding:8px 12px;font-size:12px;">' + (s.provider_status || '—') + '</td><td style="padding:8px 12px;font-size:12px;color:#666;">' + (s.provider_error || '—') + '</td><td style="text-align:right;padding:8px 12px;font-weight:600;">' + (s.total_count || 0) + '</td><td style="text-align:right;padding:8px 12px;">' + (s.last_7d || 0) + '</td></tr>';
+            });
+            statusHtml += '</table>';
+          } else {
+            statusHtml = '<p style="color:#888;">No SMS status data yet.</p>';
+          }
+          document.getElementById('errSmsStatus').innerHTML = statusHtml;
+        } else {
+          document.getElementById('errSmsDelivery').textContent = '—';
+          document.getElementById('errSmsCarrier').innerHTML = '<p style="color:#888;">SMS delivery data not available. Run the sms_delivery_metadata migration first.</p>';
+          document.getElementById('errSmsStatus').innerHTML = '';
+        }
+      } catch (e) {
+        console.error('Error loading error monitoring:', e);
+        document.getElementById('errByStep').innerHTML = '<p style="color:#ef4444;">Failed to load: ' + e.message + '</p>';
+      }
     }
 
     async function loadFunnelAnalytics() {
