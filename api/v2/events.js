@@ -372,7 +372,7 @@ export default async function handler(req, res) {
 
     // ---- TRACK FUNNEL EVENT (supports both auth and anonymous) ----
     if (action === 'trackFunnel' && req.method === 'POST') {
-      const { step, eventId, metadata } = body;
+      const { step, eventId, metadata } = req.body || {};
       if (!step) return res.status(400).json({ error: 'step is required' });
 
       // Try to get user from auth header (optional — page_view fires before login)
