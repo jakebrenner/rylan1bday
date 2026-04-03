@@ -2887,14 +2887,14 @@
 
     function addCustomFieldDetails() {
       var label = document.getElementById('newFieldLabelDetails').value.trim();
-      if (!label) { showToast('Please enter a field label'); return; }
+      if (!label) { showMessage('Please enter a field label', 'error'); return; }
       var fieldType = document.getElementById('newFieldTypeDetails').value;
       var placeholder = document.getElementById('newFieldPlaceholderDetails').value.trim();
       var isRequired = document.getElementById('newFieldRequiredDetails').checked;
       var options = null;
       if (fieldType === 'select') {
         var optStr = document.getElementById('newFieldOptionsDetails').value.trim();
-        if (!optStr) { showToast('Please enter options for the dropdown'); return; }
+        if (!optStr) { showMessage('Please enter options for the dropdown', 'error'); return; }
         options = optStr.split(',').map(function(o) { return o.trim(); }).filter(Boolean);
       }
       var fieldKey = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
@@ -7827,7 +7827,7 @@
             });
             if (!uploadRes.ok) {
               console.error('[Photos] Upload HTTP error:', uploadRes.status);
-              showToast('Photo upload failed (HTTP ' + uploadRes.status + '). Please try again.');
+              showMessage('Photo upload failed (HTTP ' + uploadRes.status + '). Please try again.', 'error');
               urlArr.push(null);
             } else {
               var uploadResult = await uploadRes.json();
@@ -7842,13 +7842,13 @@
                 }
               } else {
                 console.error('[Photos] Upload failed:', uploadResult.error || 'unknown error');
-                showToast('Photo upload failed: ' + (uploadResult.error || 'unknown error'));
+                showMessage('Photo upload failed: ' + (uploadResult.error || 'unknown error'), 'error');
                 urlArr.push(null);
               }
             }
           } catch (e) {
             console.error('[Photos] Upload error:', e.message);
-            showToast('Photo upload error: ' + e.message);
+            showMessage('Photo upload error: ' + e.message, 'error');
             urlArr.push(null);
           }
         } else {
@@ -7869,7 +7869,7 @@
         showPhotoAckCard(ackText);
       } else if (files.length > 0 && uploadedCount === 0) {
         // All uploads failed — let the user know
-        showToast('Photo upload failed. Please check your connection and try again.');
+        showMessage('Photo upload failed. Please check your connection and try again.', 'error');
       }
       // Scroll to keep the Generate button visible after adding photos
       scrollChat();
