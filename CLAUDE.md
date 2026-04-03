@@ -245,6 +245,27 @@ No auth required — supports host, guest, and anonymous raters.
 - **Geographic insights**: Client IP and Vercel geo headers (country, region, city, lat/lng) are logged per generation for understanding regional style preferences.
 - **Style effectiveness**: Which style library references correlate with higher quality ratings. Available via `style_effectiveness` view and `testRunStats` API.
 
+## Platform Constraints (MUST READ)
+
+### Supabase JS v2 Query Builder
+- **NEVER chain `.catch()` directly on Supabase query builders** — `supabase.from(...).insert(...)` returns a `PostgrestFilterBuilder` (thenable), NOT a full Promise. `.catch()` does not exist on it and will throw `TypeError: .catch is not a function`
+- **For error handling on Supabase queries, use one of:**
+  - `const { data, error } = await supabase.from(...).insert(...)` — check `error` after
+  - `try { await supabase.from(...).insert(...); } catch(e) { ... }` — wrap in try-catch
+  - `.then(r => r, e => { ... })` — use the two-argument `.then()` form
+- **`supabase.rpc(...)` has the same constraint** — use `try { await supabase.rpc(...); } catch(_) {}` for fire-and-forget RPCs
+- **`reportApiError(...)` DOES return a real Promise** — `.catch(() => {})` is fine on that function
+
+### Vercel Serverless Functions
+- **No background work after `res.json()`** — once a response is sent, the function is terminated. Fire-and-forget `fetch()` calls after responding will NOT complete. If you need async work, do it BEFORE sending the response.
+- **Default timeout is 10s** (60s on Pro). AI-heavy endpoints MUST have `maxDuration` set in `vercel.json`. Current entries: `generate-theme.js` (300s), `prompt-test.js` (300s), `chat.js` (120s), `quality-monitor.js` (120s), `photos.js` (120s), `render-video.js` (120s).
+- **Functions cannot import from each other** — Vercel bundles each file independently. Shared code must be duplicated or placed in `api/v2/lib/` directory.
+- **SSE streaming is required for AI calls that may exceed 60s** — use `res.write()` with keepalive pings instead of buffering the full response.
+
+### iframe Sandbox Security
+- **Never use `sandbox="allow-scripts allow-same-origin"` together** — this allows the iframe to escape its sandbox. Use only `sandbox="allow-scripts"` for theme previews that use `srcdoc`.
+- For iframes that need `contentDocument.write()`, `allow-same-origin` is required but understand the security trade-off. Prefer `srcdoc` attribute when possible.
+
 ## Development Notes
 
 - Phone numbers are normalized to 10-digit US format (strip +1 prefix)

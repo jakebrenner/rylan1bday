@@ -434,8 +434,8 @@ export default async function handler(req, res) {
       })
       .select('id')
       .single()
-      .catch(e => {
-        console.error('[quality-monitor] User complaint incident insert failed:', e.message);
+      .then(r => r, e => {
+        console.error('[quality-monitor] User complaint incident insert failed:', e?.message || e);
         return { data: null };
       });
 
@@ -537,12 +537,12 @@ If the issue is unfixable without a complete redesign, return:
         status: fixResult.fixed ? 'success' : 'failed',
         is_tweak: true,
         event_type: event?.event_type || ''
-      }).catch(e => console.error('[quality-monitor] Support fix generation_log failed:', e.message));
+      });
 
       // Track cost
       const fixCostCents = calcCost(fixModel, fixTokens.input, fixTokens.output);
       if (eventId) {
-        await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: fixCostCents }).catch(() => {});
+        try { await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: fixCostCents }); } catch(_) {}
       }
 
       if (!fixResult.fixed) {
@@ -752,7 +752,7 @@ Return ONLY the rule text, no explanation or formatting.`
       input_tokens: suggestion.usage?.input_tokens || 0,
       output_tokens: suggestion.usage?.output_tokens || 0,
       latency_ms: 0, status: 'success', is_tweak: false
-    }).catch(e => console.error('[quality-monitor] suggestRule generation_log failed:', e.message));
+    });
     if (!ruleText || ruleText.length > 500) return;
 
     // Collect affected browsers from recent incidents
@@ -892,10 +892,10 @@ Return JSON:
     status: 'success',
     is_tweak: true,
     event_type: ''
-  }).catch(e => console.error('[quality-monitor] Diagnosis generation_log failed:', e.message));
+  });
   if (ctx.eventId) {
     const diagCostCents = calcCost(diagnosisModel, diagnosisTokens.input, diagnosisTokens.output);
-    await supabase.rpc('increment_event_cost', { p_event_id: ctx.eventId, p_cost_cents: diagCostCents }).catch(() => {});
+    try { await supabase.rpc('increment_event_cost', { p_event_id: ctx.eventId, p_cost_cents: diagCostCents }); } catch(_) {}
   }
 
   console.log('[quality-monitor] Diagnosis complete:', {
@@ -1175,12 +1175,12 @@ Return JSON:
     status: 'success',
     is_tweak: true,
     event_type: ''
-  }).catch(e => console.error('[quality-monitor] Generation log failed:', e.message));
+  });
 
   // Increment event cost for the auto-heal generation
   const healCostCents = calcCost(healModel, healTokens.input, healTokens.output);
   if (ctx.eventId) {
-    await supabase.rpc('increment_event_cost', { p_event_id: ctx.eventId, p_cost_cents: healCostCents }).catch(() => {});
+    try { await supabase.rpc('increment_event_cost', { p_event_id: ctx.eventId, p_cost_cents: healCostCents }); } catch(_) {}
   }
 
   // Update incident as resolved
