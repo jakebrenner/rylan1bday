@@ -19,14 +19,15 @@ const supabase = createClient(
 
 const DEFAULT_THEME_MODEL = process.env.THEME_MODEL || 'claude-sonnet-4-6';
 
-// Model escalation chain — if the primary model is too slow, try the next one.
+// Model escalation chain — if the primary model is too slow, escalate UP to
+// a more capable model to save the customer experience. Quality > speed.
 // Each entry: { model, label, timeoutMs, minBytes }
 // timeoutMs = max time to wait before escalating to next model
 // minBytes = minimum output expected by timeoutMs; below this triggers escalation
 const MODEL_ESCALATION_CHAIN = [
-  { model: null, label: 'primary', timeoutMs: 45000, minBytes: 2000 },      // primary model (from config), 45s to produce 2KB
-  { model: 'claude-sonnet-4-6', label: 'sonnet-retry', timeoutMs: 60000, minBytes: 2000 }, // retry same/Sonnet, 60s
-  { model: 'claude-haiku-4-5-20251001', label: 'haiku-fallback', timeoutMs: 90000, minBytes: 2000 },  // fast fallback
+  { model: null, label: 'primary', timeoutMs: 45000, minBytes: 2000 },         // primary model (from config), 45s to produce 2KB
+  { model: 'claude-sonnet-4-6', label: 'sonnet-retry', timeoutMs: 60000, minBytes: 2000 },  // retry Sonnet (may hit different server)
+  { model: 'claude-opus-4-6', label: 'opus-escalation', timeoutMs: 120000, minBytes: 2000 }, // escalate to Opus — best quality, must deliver
 ];
 
 // Allow up to 300s on Vercel Pro (caps at 60s on Hobby)
@@ -2611,14 +2612,14 @@ This is the most common failure mode. Double-check it.`;
     let actualModel = themeModel; // Track which model ultimately produced the output
     let escalationAttempts = 0;
 
-    // Build escalation chain: primary model first, then fallbacks (skip duplicates)
+    // Build escalation chain: primary model first, then escalation (skip duplicates)
     const escalationChain = MODEL_ESCALATION_CHAIN.map((step, i) => ({
       ...step,
       model: i === 0 ? themeModel : step.model // First entry uses configured model
     })).filter((step, i, arr) => {
-      // Skip duplicate models (e.g., if primary IS sonnet, skip the sonnet-retry)
+      // Always keep primary; skip subsequent entries that match primary model
       if (i === 0) return true;
-      return step.model !== arr[0].model || step.label === 'haiku-fallback';
+      return step.model !== arr[0].model;
     });
 
     for (let attempt = 0; attempt < escalationChain.length; attempt++) {
@@ -2814,8 +2815,33 @@ This is the most common failure mode. Double-check it.`;
       }
     }
     if (!theme.theme_css || !theme.theme_css.trim()) {
+      const noCssError = 'Generation produced no CSS styling';
       console.error('[generate] CRITICAL: Theme has no CSS! HTML length:', theme.theme_html?.length, 'Keys:', Object.keys(theme).join(', '), 'First 500 chars of raw response:', fullText.substring(0, 500));
-      // Don't save or send an unstyled theme — return error so client can retry
+
+      // Track the failure — quality incident + generation_log + admin alert
+      const noCssLatency = Date.now() - startTime;
+      try {
+        await supabase.from('quality_incidents').insert({
+          event_id: eventId, user_id: user.id,
+          trigger_type: 'generation_failure',
+          trigger_data: { reason: 'no_css', htmlLength: theme.theme_html?.length || 0, rawBytes: fullText.length, model: actualModel, escalations: escalationAttempts, latencyMs: noCssLatency },
+          theme_snapshot: { html: (theme.theme_html || '').substring(0, 5000), css: '', config: theme.theme_config || {} },
+          resolution_type: 'unresolved'
+        });
+      } catch (e) { console.error('[quality] No CSS incident insert failed:', e.message); }
+
+      try {
+        await supabase.from('generation_log').insert({
+          event_id: eventId, user_id: user.id, prompt: effectivePrompt,
+          model: actualModel, input_tokens: genInputTokens, output_tokens: genOutputTokens,
+          latency_ms: noCssLatency, status: 'error', error: noCssError,
+          event_type: eventType || '', is_tweak: false,
+          client_ip: getClientMeta(req).ip, client_geo: getClientMeta(req).geo, user_agent: getClientMeta(req).userAgent
+        });
+      } catch (e) { console.error('[generate] No CSS generation_log insert failed:', e.message); }
+
+      await reportApiError({ endpoint: '/api/v2/generate-theme', action: 'generate', error: new Error(noCssError + ' — model: ' + actualModel + ', bytes: ' + fullText.length + ', latency: ' + noCssLatency + 'ms'), requestBody: { eventId, eventType }, req }).catch(() => {});
+
       clearInterval(keepalive);
       sendSSE('error', { error: 'Generation produced no CSS styling. Please try again.', retryable: true });
       res.end();

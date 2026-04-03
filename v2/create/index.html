@@ -3727,6 +3727,8 @@
             console.error('[generate-theme] Generation failed. genError:', genError, 'genResult:', genResult ? JSON.stringify(genResult).substring(0, 500) : null);
             var errMsg = (genError && (genError.message || genError.error)) || (genResult && !genResult.success ? 'Server returned failure' : 'No response received from server');
             window._lastGenDebug = 'Bytes: ' + fullText.length + ' | Error: ' + JSON.stringify(genError) + ' | Result keys: ' + (genResult ? Object.keys(genResult).join(',') : 'null') + ' | Build: 2026-03-12a';
+            // Report generation failure to server for tracking
+            reportClientError({ errorType: 'generation_failure', message: errMsg, component: 'generateTheme', url: window.location.href, metadata: { bytes: fullText.length, elapsed: elapsed, eventId: currentEvent?.id } });
             if (_backgroundMode) {
               _generationInProgress = false;
               onGenerationError(errMsg);
