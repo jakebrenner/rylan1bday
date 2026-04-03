@@ -2635,14 +2635,15 @@ This is the most common failure mode. Double-check it.`;
         }
       }, 1000);
 
-      // Hard timeout: 120s (Vercel Pro allows up to 300s via maxDuration config)
+      // Hard timeout: 240s (Vercel Pro allows up to 300s via maxDuration config)
+      // Must be well under 300s to leave room for post-generation DB saves
       setTimeout(() => {
         if (!resolved) {
-          console.log('[stream] Hard timeout at 120s, chunks:', chunkCount, 'bytes:', fullText.length);
-          if (fullText.length > 0) done();
-          else { resolved = true; clearInterval(idleCheck); clearInterval(keepalive); reject(new Error('Stream timeout - no content received')); }
+          console.log('[stream] Hard timeout at 240s, chunks:', chunkCount, 'bytes:', fullText.length);
+          if (fullText.length > 5000) done(); // Only accept if we have substantial content
+          else { resolved = true; clearInterval(idleCheck); clearInterval(keepalive); reject(new Error('Generation timed out with insufficient content (' + fullText.length + ' bytes in 240s). The AI may be overloaded — please try again.')); }
         }
-      }, 120000);
+      }, 240000);
     });
 
     // Estimate tokens immediately for the client — accurate cost logged in background
