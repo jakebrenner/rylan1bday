@@ -29,9 +29,10 @@ const DEFAULT_THEME_MODEL = process.env.THEME_MODEL || 'claude-sonnet-4-6';
 // minBytes = minimum output expected by timeoutMs; below this triggers escalation
 const MODEL_ESCALATION_CHAIN = [
   { model: null, label: 'primary', timeoutMs: 45000, minBytes: 2000 },         // primary model (from config), 45s to produce 2KB
-  { model: 'claude-sonnet-4-6', label: 'sonnet-retry', timeoutMs: 60000, minBytes: 2000 },  // retry Sonnet (may hit different server)
+  { model: 'claude-sonnet-4-6', label: 'sonnet-retry', timeoutMs: 45000, minBytes: 2000 },  // retry Sonnet (may hit different server)
   { model: 'claude-opus-4-6', label: 'opus-escalation', timeoutMs: 120000, minBytes: 2000 }, // escalate to Opus — best quality, must deliver
 ];
+// Budget: primary 45s (90s wall-clock max) + opus 150s hard timeout = 240s, leaving 60s for DB saves within 300s maxDuration
 
 // Allow up to 300s on Vercel Pro (caps at 60s on Hobby)
 export const config = { maxDuration: 300 };
@@ -1720,8 +1721,15 @@ Rules:
 try {
           const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: fieldEventId, p_cost_cents: fieldCost.rawCostCents });
           if (rpcErr) {
-            const { data } = await supabase.from('events').select('total_cost_cents').eq('id', fieldEventId).single();
-            if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + fieldCost.rawCostCents }).eq('id', fieldEventId);
+            for (let costRetry = 0; costRetry < 3; costRetry++) {
+              const { data } = await supabase.from('events').select('total_cost_cents').eq('id', fieldEventId).single();
+              if (!data) break;
+              const oldCost = data.total_cost_cents || 0;
+              const { error: updErr, count } = await supabase.from('events')
+                .update({ total_cost_cents: oldCost + fieldCost.rawCostCents })
+                .eq('id', fieldEventId).eq('total_cost_cents', oldCost);
+              if (!updErr && count !== 0) break;
+            }
           }
         } catch (e) { /* non-critical */ }
       }
@@ -1861,7 +1869,8 @@ Rules:
     res.flushHeaders();
 
     const sendSSE = (event, data) => {
-      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      try { res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); }
+      catch (e) { console.warn('[sendSSE:tweak] Write failed:', e.message); }
     };
 
     try {
@@ -2239,8 +2248,15 @@ Return ONLY a valid JSON object with these keys:
           try {
             const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: chatOnlyCost.rawCostCents });
             if (rpcErr) {
-              const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
-              if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + chatOnlyCost.rawCostCents }).eq('id', eventId);
+              for (let costRetry = 0; costRetry < 3; costRetry++) {
+                const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
+                if (!data) break;
+                const oldCost = data.total_cost_cents || 0;
+                const { error: updErr, count } = await supabase.from('events')
+                  .update({ total_cost_cents: oldCost + chatOnlyCost.rawCostCents })
+                  .eq('id', eventId).eq('total_cost_cents', oldCost);
+                if (!updErr && count !== 0) break;
+              }
             }
           } catch (e) { /* non-critical */ }
         }
@@ -2364,44 +2380,51 @@ Return ONLY a valid JSON object with these keys:
       let savedTweakThemeId = 'pending';
       let savedTweakVersion = 0;
       try {
-        const { data: existingThemes } = await supabase
-          .from('event_themes')
-          .select('id, version, design_group_id')
-          .eq('event_id', eventId)
-          .order('version', { ascending: false })
-          .limit(1);
+        // Retry loop handles concurrent tweaks racing on version number
+        var newTweakTheme = null, tweakThemeError = null;
+        for (let versionRetry = 0; versionRetry < 3; versionRetry++) {
+          const { data: existingThemes } = await supabase
+            .from('event_themes')
+            .select('id, version, design_group_id')
+            .eq('event_id', eventId)
+            .order('version', { ascending: false })
+            .limit(1);
 
-        const nextVersion = existingThemes?.length > 0 ? existingThemes[0].version + 1 : 1;
-        // Tweaks inherit the design group from the theme being tweaked
-        const parentGroupId = existingThemes?.[0]?.design_group_id || null;
+          const nextVersion = existingThemes?.length > 0 ? existingThemes[0].version + 1 : 1;
+          // Tweaks inherit the design group from the theme being tweaked
+          const parentGroupId = existingThemes?.[0]?.design_group_id || null;
 
-        await supabase
-          .from('event_themes')
-          .update({ is_active: false })
-          .eq('event_id', eventId)
-          .eq('is_active', true);
+          await supabase
+            .from('event_themes')
+            .update({ is_active: false })
+            .eq('event_id', eventId)
+            .eq('is_active', true);
 
-        const tweakInsert = {
-          event_id: eventId, version: nextVersion, is_active: true,
-          prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
-          html: theme.theme_html, css: theme.theme_css, config: tweakConfig,
-          model: tweakModel, input_tokens: tweakInputTokens,
-          output_tokens: tweakOutputTokens, latency_ms: latency
-        };
-        if (basedOnThemeId) tweakInsert.based_on_theme_id = basedOnThemeId;
-        if (parentGroupId) tweakInsert.design_group_id = parentGroupId;
-        var { data: newTweakTheme, error: tweakThemeError } = await supabase
-          .from('event_themes').insert(tweakInsert).select().single();
-        // If design_group_id column doesn't exist yet, retry without it
-        if (tweakThemeError && tweakThemeError.message?.includes('design_group_id')) {
-          delete tweakInsert.design_group_id;
+          const tweakInsert = {
+            event_id: eventId, version: nextVersion, is_active: true,
+            prompt: 'Tweak: ' + tweakInstructions.substring(0, 200),
+            html: theme.theme_html, css: theme.theme_css, config: tweakConfig,
+            model: tweakModel, input_tokens: tweakInputTokens,
+            output_tokens: tweakOutputTokens, latency_ms: latency
+          };
+          if (basedOnThemeId) tweakInsert.based_on_theme_id = basedOnThemeId;
+          if (parentGroupId) tweakInsert.design_group_id = parentGroupId;
           ({ data: newTweakTheme, error: tweakThemeError } = await supabase
             .from('event_themes').insert(tweakInsert).select().single());
-        }
+          // If design_group_id column doesn't exist yet, retry without it
+          if (tweakThemeError && tweakThemeError.message?.includes('design_group_id')) {
+            delete tweakInsert.design_group_id;
+            ({ data: newTweakTheme, error: tweakThemeError } = await supabase
+              .from('event_themes').insert(tweakInsert).select().single());
+          }
+          // If insert succeeded or error is NOT a version/unique conflict, stop retrying
+          if (!tweakThemeError || !tweakThemeError.message?.includes('unique') && !tweakThemeError.message?.includes('duplicate')) break;
+          console.warn(`[tweak] Version conflict on attempt ${versionRetry + 1}, retrying...`);
+        } // end version retry loop
         if (tweakThemeError) console.error('Failed to save tweak theme:', tweakThemeError.message);
         if (newTweakTheme) {
           savedTweakThemeId = newTweakTheme.id;
-          savedTweakVersion = nextVersion;
+          savedTweakVersion = newTweakTheme.version;
         }
       } catch (saveErr) {
         console.error('Tweak theme DB save failed:', saveErr);
@@ -2448,8 +2471,15 @@ Return ONLY a valid JSON object with these keys:
       try {
         const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: tweakCost.rawCostCents });
         if (rpcErr) {
-          const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
-          if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + tweakCost.rawCostCents }).eq('id', eventId);
+          for (let costRetry = 0; costRetry < 3; costRetry++) {
+            const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
+            if (!data) break;
+            const oldCost = data.total_cost_cents || 0;
+            const { error: updErr, count } = await supabase.from('events')
+              .update({ total_cost_cents: oldCost + tweakCost.rawCostCents })
+              .eq('id', eventId).eq('total_cost_cents', oldCost);
+            if (!updErr && count !== 0) break;
+          }
         }
       } catch (e) { /* non-critical */ }
 
@@ -2602,8 +2632,14 @@ Return ONLY a valid JSON object with these keys:
   res.flushHeaders();
 
   const sendSSE = (event, data) => {
-    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    try { res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); }
+    catch (e) { console.warn('[sendSSE:generate] Write failed:', e.message); }
   };
+
+  // Declare outside try so they're visible in the catch block for error logging
+  let genInputTokens = 0;
+  let genOutputTokens = 0;
+  let actualModel = themeModel;
 
   try {
     // Build RSVP fields description
@@ -2720,7 +2756,7 @@ This is the most common failure mode. Double-check it.`;
     let fullText = '';
     let chunkCount = 0;
     let genFinalMessage = null;
-    let actualModel = themeModel; // Track which model ultimately produced the output
+    actualModel = themeModel; // Track which model ultimately produced the output
     let escalationAttempts = 0;
 
     // Build escalation chain: primary model first, then escalation (skip duplicates)
@@ -2815,7 +2851,7 @@ This is the most common failure mode. Double-check it.`;
           }
         }, 90000) : null;
 
-        // Hard timeout on last attempt: 210s (leaves 90s for post-gen DB saves within 300s maxDuration)
+        // Hard timeout on last attempt: 150s (leaves ~60s for post-gen DB saves within 300s maxDuration)
         if (isLastAttempt) {
           setTimeout(() => {
             if (!resolved) {
@@ -2823,7 +2859,7 @@ This is the most common failure mode. Double-check it.`;
               if (fullText.length > 5000) done('hard_timeout');
               else abort('hard_timeout_insufficient');
             }
-          }, 210000);
+          }, 150000);
         }
       });
 
@@ -2857,8 +2893,8 @@ This is the most common failure mode. Double-check it.`;
     }
 
     // Estimate tokens immediately for the client — accurate cost logged in background
-    let genInputTokens = genFinalMessage?.usage?.input_tokens || 0;
-    let genOutputTokens = genFinalMessage?.usage?.output_tokens || 0;
+    genInputTokens = genFinalMessage?.usage?.input_tokens || 0;
+    genOutputTokens = genFinalMessage?.usage?.output_tokens || 0;
     const hadFinalMessage = !!genFinalMessage;
     if (genInputTokens === 0 && genOutputTokens === 0) {
       genOutputTokens = Math.round(fullText.length / 4);
@@ -2881,7 +2917,11 @@ This is the most common failure mode. Double-check it.`;
 
     // Normalize: ensure googleFontsImport is always a full @import statement
     if (theme.theme_config.googleFontsImport && !theme.theme_config.googleFontsImport.startsWith('@import')) {
-      theme.theme_config.googleFontsImport = "@import url('" + theme.theme_config.googleFontsImport + "');";
+      let fontVal = theme.theme_config.googleFontsImport;
+      // Strip existing url() wrapper to avoid double-wrapping: url('url(https://...)')
+      const urlInner = fontVal.match(/^url\(\s*['"]?(.*?)['"]?\s*\)$/);
+      if (urlInner) fontVal = urlInner[1];
+      theme.theme_config.googleFontsImport = "@import url('" + fontVal + "');";
     }
 
     // Validate invite completeness — check for required sections
@@ -3140,8 +3180,18 @@ This is the most common failure mode. Double-check it.`;
     try {
       const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: genCost.rawCostCents });
       if (rpcErr) {
-        const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
-        if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + genCost.rawCostCents }).eq('id', eventId);
+        // Fallback: optimistic update with compare-and-swap to avoid race conditions
+        for (let costRetry = 0; costRetry < 3; costRetry++) {
+          const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
+          if (!data) break;
+          const oldCost = data.total_cost_cents || 0;
+          const { error: updErr, count } = await supabase.from('events')
+            .update({ total_cost_cents: oldCost + genCost.rawCostCents })
+            .eq('id', eventId)
+            .eq('total_cost_cents', oldCost); // CAS: only update if value hasn't changed
+          if (!updErr && count !== 0) break; // success
+          // Another request updated cost — retry with fresh value
+        }
       }
     } catch (e) { /* non-critical */ }
 
@@ -3166,8 +3216,10 @@ This is the most common failure mode. Double-check it.`;
     } catch (e) { /* non-critical quality monitoring */ }
 
     // ── Send response and close connection — all critical saves are done ──
+    const themeSaveFailed = !newTheme?.id;
     sendSSE('done', {
       success: true,
+      saveFailed: themeSaveFailed || undefined,
       softCapReached: !!res.softCapReached,
       contentWarnings: contentWarnings.length > 0 ? contentWarnings : undefined,
       theme: {
@@ -3233,8 +3285,8 @@ This is the most common failure mode. Double-check it.`;
         user_id: user.id,
         prompt: effectivePrompt,
         model: actualModel || themeModel,
-        input_tokens: typeof actualInputTokens !== 'undefined' ? actualInputTokens : 0,
-        output_tokens: typeof actualOutputTokens !== 'undefined' ? actualOutputTokens : 0,
+        input_tokens: genInputTokens || 0,
+        output_tokens: genOutputTokens || 0,
         latency_ms: Date.now() - startTime,
         status: 'error',
         error: (err.message || '').substring(0, 500),
