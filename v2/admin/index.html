@@ -7374,7 +7374,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
     var _currentAnalysisId = null;
 
-    function renderHealthResults(analysis, analysisId, cost, tokens, latencyMs) {
+    function renderHealthResults(analysis, analysisId, cost, tokens, latencyMs, recommendations) {
       _currentAnalysisId = analysisId;
       document.getElementById('healthResults').style.display = 'block';
       document.getElementById('healthEmpty').style.display = 'none';
@@ -7439,8 +7439,12 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('healthMeta').innerHTML = 'Analysis cost: $' + (cost ? (cost / 100).toFixed(4) : '0') + ' | Tokens: ' + (tokens ? tokens.input + ' in / ' + tokens.output + ' out' : 'N/A') + ' | Latency: ' + (latencyMs ? (latencyMs / 1000).toFixed(1) + 's' : 'N/A');
       document.getElementById('healthLastRun').textContent = 'Last run: just now';
 
-      // Load and render actionable recommendations
-      if (analysisId) loadRecommendations(analysisId);
+      // Render actionable recommendations (passed in or fetched)
+      if (recommendations) {
+        renderRecommendations(recommendations);
+      } else if (analysisId) {
+        loadRecommendations(analysisId);
+      }
     }
 
     // ── Actionable Recommendations ──
@@ -7572,6 +7576,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         // Refresh recommendations to show updated status
         if (_currentAnalysisId) loadRecommendations(_currentAnalysisId);
         loadHealthPendingCount();
+        // Refresh Prompt Lab version list so the new draft appears
+        if (typeof loadPromptVersions === 'function') loadPromptVersions();
       } catch (err) {
         showToast('Failed: ' + err.message);
         btn.disabled = false;
@@ -7632,9 +7638,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var res = await healthFetch('getAnalysis', { params: { analysisId: analysisId } });
         if (!res.success || !res.analysis) return;
         var a = res.analysis;
-        renderHealthResults(a.full_result, a.id, a.cost_cents, { input: a.input_tokens, output: a.output_tokens }, null);
+        renderHealthResults(a.full_result, a.id, a.cost_cents, { input: a.input_tokens, output: a.output_tokens }, null, res.recommendations || []);
         document.getElementById('healthLastRun').textContent = 'Viewing: ' + formatDate(a.created_at);
-        // Recommendations are loaded by renderHealthResults via loadRecommendations
       } catch (err) {
         console.error('Failed to load analysis:', err);
       }
