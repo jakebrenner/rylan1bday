@@ -1678,17 +1678,17 @@
               </div>
             </div>
 
+            <!-- Regression Risks (show first — what NOT to change) -->
+            <div id="healthRisks" style="margin-bottom:20px;"></div>
+
             <!-- Top Weaknesses -->
             <div id="healthWeaknesses" style="margin-bottom:20px;"></div>
 
-            <!-- Prompt Suggestions -->
-            <div id="healthSuggestions" style="margin-bottom:20px;"></div>
+            <!-- Actionable Recommendations -->
+            <div id="healthRecommendations" style="margin-bottom:20px;"></div>
 
-            <!-- Patterns & Regression Risks -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-              <div id="healthPatterns"></div>
-              <div id="healthRisks"></div>
-            </div>
+            <!-- Patterns -->
+            <div id="healthPatterns" style="margin-bottom:20px;"></div>
 
             <!-- Cost & meta -->
             <div id="healthMeta" style="font-size:11px;color:#aaa;text-align:right;"></div>
@@ -7372,7 +7372,10 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       btn.textContent = 'Run Analysis';
     }
 
+    var _currentAnalysisId = null;
+
     function renderHealthResults(analysis, analysisId, cost, tokens, latencyMs) {
+      _currentAnalysisId = analysisId;
       document.getElementById('healthResults').style.display = 'block';
       document.getElementById('healthEmpty').style.display = 'none';
 
@@ -7387,11 +7390,23 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       // Summary
       document.getElementById('healthSummary').textContent = analysis.summary || 'No summary available.';
 
-      // Weaknesses
+      // Regression risks (shown FIRST — what NOT to change)
+      var riskHtml = '';
+      if (analysis.regressionRisks && analysis.regressionRisks.length > 0) {
+        riskHtml = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px 18px;">'
+          + '<div style="font-size:12px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Working Well — Do Not Change</div>';
+        analysis.regressionRisks.forEach(function(r) {
+          riskHtml += '<div style="font-size:13px;color:#166534;margin-bottom:4px;">&#10003; ' + escapeHtml(r) + '</div>';
+        });
+        riskHtml += '</div>';
+      }
+      document.getElementById('healthRisks').innerHTML = riskHtml;
+
+      // Top weaknesses
       var weakHtml = '';
       if (analysis.topWeaknesses && analysis.topWeaknesses.length > 0) {
         weakHtml = '<div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Top Weaknesses</div>';
-        analysis.topWeaknesses.forEach(function(w, i) {
+        analysis.topWeaknesses.forEach(function(w) {
           var sevColor = w.severity === 'critical' ? '#ef4444' : w.severity === 'major' ? '#f59e0b' : '#888';
           var sevBg = w.severity === 'critical' ? '#fef2f2' : w.severity === 'major' ? '#fffbeb' : '#f9f9f9';
           weakHtml += '<div style="background:' + sevBg + ';border:1px solid ' + sevColor + '33;border-radius:8px;padding:14px 16px;margin-bottom:8px;">'
@@ -7401,30 +7416,11 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             + '</div>'
             + '<div style="font-size:12px;color:#666;margin-bottom:6px;">' + escapeHtml(w.evidence || '') + '</div>'
             + (w.affectedEventTypes && w.affectedEventTypes.length > 0 ? '<div style="font-size:11px;color:#888;margin-bottom:6px;">Affects: ' + w.affectedEventTypes.map(function(t) { return '<span class="badge badge-blue" style="font-size:9px;margin-right:4px;">' + escapeHtml(t) + '</span>'; }).join('') + '</div>' : '')
-            + (w.suggestedFix ? '<div style="font-size:12px;color:var(--midnight);background:white;border:1px solid #eee;border-radius:6px;padding:8px 12px;margin-top:6px;font-family:monospace;white-space:pre-wrap;max-height:100px;overflow-y:auto;">' + escapeHtml(w.suggestedFix) + '</div>' : '')
+            + (w.expectedImpact ? '<div style="font-size:12px;color:#666;margin-top:4px;">Expected impact: ' + escapeHtml(w.expectedImpact) + '</div>' : '')
             + '</div>';
         });
       }
       document.getElementById('healthWeaknesses').innerHTML = weakHtml;
-
-      // Suggestions
-      var sugHtml = '';
-      if (analysis.promptSuggestions && analysis.promptSuggestions.length > 0) {
-        sugHtml = '<div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Prompt Suggestions</div>'
-          + '<div class="table-container"><table class="leaderboard-table"><thead><tr><th>Type</th><th>Section</th><th>Change</th><th>Rationale</th><th></th></tr></thead><tbody>';
-        analysis.promptSuggestions.forEach(function(s, i) {
-          var typeBadge = s.type === 'add' ? '<span class="badge badge-green" style="font-size:10px;">Add</span>' : s.type === 'remove' ? '<span class="badge badge-red" style="font-size:10px;">Remove</span>' : '<span class="badge badge-yellow" style="font-size:10px;">Modify</span>';
-          sugHtml += '<tr>'
-            + '<td>' + typeBadge + '</td>'
-            + '<td style="font-size:12px;">' + escapeHtml(s.section || '') + (s.eventType ? ' (' + escapeHtml(s.eventType) + ')' : '') + '</td>'
-            + '<td style="font-size:12px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml((s.suggestedText || '').substring(0, 100)) + '</td>'
-            + '<td style="font-size:12px;color:#666;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml((s.rationale || '').substring(0, 120)) + '</td>'
-            + '<td style="white-space:nowrap;"></td>'
-            + '</tr>';
-        });
-        sugHtml += '</tbody></table></div>';
-      }
-      document.getElementById('healthSuggestions').innerHTML = sugHtml;
 
       // Patterns
       var patHtml = '';
@@ -7439,21 +7435,160 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       }
       document.getElementById('healthPatterns').innerHTML = patHtml;
 
-      // Regression risks
-      var riskHtml = '';
-      if (analysis.regressionRisks && analysis.regressionRisks.length > 0) {
-        riskHtml = '<div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Regression Risks (Don\'t Change)</div>'
-          + '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;">';
-        analysis.regressionRisks.forEach(function(r) {
-          riskHtml += '<div style="font-size:13px;color:#166534;margin-bottom:4px;">&#10003; ' + escapeHtml(r) + '</div>';
-        });
-        riskHtml += '</div>';
-      }
-      document.getElementById('healthRisks').innerHTML = riskHtml;
-
       // Meta
       document.getElementById('healthMeta').innerHTML = 'Analysis cost: $' + (cost ? (cost / 100).toFixed(4) : '0') + ' | Tokens: ' + (tokens ? tokens.input + ' in / ' + tokens.output + ' out' : 'N/A') + ' | Latency: ' + (latencyMs ? (latencyMs / 1000).toFixed(1) + 's' : 'N/A');
       document.getElementById('healthLastRun').textContent = 'Last run: just now';
+
+      // Load and render actionable recommendations
+      if (analysisId) loadRecommendations(analysisId);
+    }
+
+    // ── Actionable Recommendations ──
+
+    async function loadRecommendations(analysisId) {
+      var container = document.getElementById('healthRecommendations');
+      try {
+        var res = await healthFetch('getAnalysis', { params: { analysisId: analysisId } });
+        if (!res.success || !res.recommendations) {
+          container.innerHTML = '';
+          return;
+        }
+        renderRecommendations(res.recommendations);
+      } catch (err) {
+        console.error('Failed to load recommendations:', err);
+        container.innerHTML = '';
+      }
+    }
+
+    function renderRecommendations(recs) {
+      var container = document.getElementById('healthRecommendations');
+      if (!recs || recs.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+
+      // Status counts
+      var pending = recs.filter(function(r) { return r.status === 'pending'; }).length;
+      var applied = recs.filter(function(r) { return r.status === 'applied'; }).length;
+      var dismissed = recs.filter(function(r) { return r.status === 'dismissed'; }).length;
+
+      var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
+        + '<div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Actionable Recommendations</div>'
+        + '<div style="font-size:12px;color:#888;">'
+        + (pending > 0 ? '<span style="color:var(--party-coral);font-weight:600;">' + pending + ' pending</span>' : '')
+        + (applied > 0 ? (pending > 0 ? ' · ' : '') + '<span style="color:#10b981;">' + applied + ' applied</span>' : '')
+        + (dismissed > 0 ? ((pending + applied > 0) ? ' · ' : '') + dismissed + ' dismissed' : '')
+        + '</div></div>'
+        + '<div style="font-size:12px;color:#888;margin-bottom:12px;">Each recommendation creates a <strong>draft</strong> prompt version. Test it in the Prompt Lab before activating.</div>';
+
+      // Sort: pending first, then applied, then dismissed
+      var sorted = recs.slice().sort(function(a, b) {
+        var order = { pending: 0, applied: 1, dismissed: 2 };
+        return (order[a.status] || 0) - (order[b.status] || 0);
+      });
+
+      sorted.forEach(function(rec) {
+        var isPending = rec.status === 'pending';
+        var isApplied = rec.status === 'applied';
+        var isDismissed = rec.status === 'dismissed';
+        var sevColor = rec.severity === 'critical' ? '#ef4444' : rec.severity === 'major' ? '#f59e0b' : '#888';
+        var cardBg = isDismissed ? '#fafafa' : isApplied ? '#f0fdf4' : 'white';
+        var cardBorder = isDismissed ? '#eee' : isApplied ? '#bbf7d0' : sevColor + '33';
+        var cardOpacity = isDismissed ? '0.6' : '1';
+        var typeBadge = rec.type === 'add' ? '<span class="badge badge-green" style="font-size:9px;">Add</span>'
+          : rec.type === 'remove' ? '<span class="badge badge-red" style="font-size:9px;">Remove</span>'
+          : '<span class="badge badge-yellow" style="font-size:9px;">Modify</span>';
+
+        html += '<div id="healthRec_' + rec.id + '" style="background:' + cardBg + ';border:1px solid ' + cardBorder + ';border-radius:8px;padding:14px 16px;margin-bottom:8px;opacity:' + cardOpacity + ';">';
+
+        // Header row
+        html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">'
+          + '<div style="flex:1;">'
+          + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'
+          + typeBadge
+          + '<span class="badge" style="background:' + sevColor + '22;color:' + sevColor + ';font-size:9px;">' + escapeHtml(rec.severity || 'minor') + '</span>'
+          + '<span style="font-size:11px;color:#888;">' + escapeHtml(rec.section || '') + (rec.event_type ? ' (' + rec.event_type + ')' : '') + '</span>'
+          + '</div>'
+          + '<div style="font-size:14px;font-weight:700;color:var(--midnight);">' + escapeHtml(rec.title || '') + '</div>'
+          + '</div>';
+
+        // Status badge
+        if (isApplied) {
+          html += '<span class="badge badge-green" style="font-size:10px;white-space:nowrap;">Applied</span>';
+        } else if (isDismissed) {
+          html += '<span class="badge" style="font-size:10px;background:#eee;color:#888;">Dismissed</span>';
+        }
+        html += '</div>';
+
+        // Rationale
+        if (rec.rationale) {
+          html += '<div style="font-size:12px;color:#666;margin-bottom:8px;">' + escapeHtml(rec.rationale) + '</div>';
+        }
+
+        // Diff view: current → suggested
+        if (rec.current_text || rec.suggested_text) {
+          html += '<div style="background:#f9f9f9;border:1px solid #eee;border-radius:6px;padding:10px 12px;margin-bottom:8px;font-size:12px;font-family:monospace;max-height:120px;overflow-y:auto;">';
+          if (rec.current_text) {
+            html += '<div style="color:#ef4444;text-decoration:line-through;margin-bottom:4px;white-space:pre-wrap;">- ' + escapeHtml(rec.current_text.substring(0, 300)) + '</div>';
+          }
+          if (rec.suggested_text) {
+            html += '<div style="color:#10b981;white-space:pre-wrap;">+ ' + escapeHtml(rec.suggested_text.substring(0, 300)) + '</div>';
+          }
+          html += '</div>';
+        }
+
+        // Expected impact
+        if (rec.expected_impact) {
+          html += '<div style="font-size:11px;color:#888;margin-bottom:8px;">Expected impact: ' + escapeHtml(rec.expected_impact) + '</div>';
+        }
+
+        // Action buttons
+        if (isPending) {
+          html += '<div style="display:flex;gap:8px;justify-content:flex-end;">'
+            + '<button class="btn btn-sm" style="background:#eee;color:#666;font-size:12px;padding:4px 12px;" onclick="dismissHealthRec(\'' + rec.id + '\')">Dismiss</button>'
+            + '<button class="btn btn-sm btn-primary" style="font-size:12px;padding:4px 12px;" onclick="applyHealthRec(\'' + rec.id + '\')">Create Draft Version</button>'
+            + '</div>';
+        } else if (isApplied) {
+          html += '<div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;">'
+            + '<span style="font-size:11px;color:#10b981;">Draft created</span>'
+            + '<button class="btn btn-sm" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;font-size:12px;padding:4px 12px;" onclick="switchAISubtab(\'lab\')">Test in Lab</button>'
+            + '</div>';
+        }
+
+        html += '</div>';
+      });
+
+      container.innerHTML = html;
+    }
+
+    async function applyHealthRec(recId) {
+      var btn = event.target;
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+      try {
+        var res = await healthFetch('applyRecommendation', { method: 'POST', body: { recommendationId: recId } });
+        if (!res.success) throw new Error(res.error || 'Failed');
+        showToast('Draft v' + res.version + ' created — test it in the Prompt Lab before activating');
+        // Refresh recommendations to show updated status
+        if (_currentAnalysisId) loadRecommendations(_currentAnalysisId);
+        loadHealthPendingCount();
+      } catch (err) {
+        showToast('Failed: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Create Draft Version';
+      }
+    }
+
+    async function dismissHealthRec(recId) {
+      try {
+        var res = await healthFetch('dismissRecommendation', { method: 'POST', body: { recommendationId: recId } });
+        if (!res.success) throw new Error(res.error || 'Failed');
+        showToast('Recommendation dismissed');
+        if (_currentAnalysisId) loadRecommendations(_currentAnalysisId);
+        loadHealthPendingCount();
+      } catch (err) {
+        showToast('Failed: ' + err.message);
+      }
     }
 
     async function loadHealthHistory() {
@@ -7484,7 +7619,6 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           document.getElementById('healthLastRun').textContent = 'Last run: ' + formatDate(res.analyses[0].created_at);
           // Show results if available and no current results showing
           if (document.getElementById('healthResults').style.display === 'none' && document.getElementById('healthEmpty').style.display !== 'none') {
-            // Auto-load latest
             loadFullAnalysis(res.analyses[0].id);
           }
         }
@@ -7500,6 +7634,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var a = res.analysis;
         renderHealthResults(a.full_result, a.id, a.cost_cents, { input: a.input_tokens, output: a.output_tokens }, null);
         document.getElementById('healthLastRun').textContent = 'Viewing: ' + formatDate(a.created_at);
+        // Recommendations are loaded by renderHealthResults via loadRecommendations
       } catch (err) {
         console.error('Failed to load analysis:', err);
       }
