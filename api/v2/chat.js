@@ -210,6 +210,50 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Invalid session' });
     }
 
+    // ── BACKFILL GUEST MESSAGES (pre-auth chat history) ──
+    if (req.body.action === 'backfillGuestMessages') {
+      const { messages: guestMsgs, sessionId: guestSessionId, eventId: guestEventId, baseTimestamp } = req.body;
+      if (!guestMsgs || !Array.isArray(guestMsgs) || guestMsgs.length === 0) {
+        return res.status(400).json({ error: 'messages array is required' });
+      }
+      if (!guestSessionId) {
+        return res.status(400).json({ error: 'sessionId is required' });
+      }
+
+      // Dedup: skip if messages already exist for this session
+      const { data: existing } = await supabase
+        .from('chat_messages')
+        .select('id')
+        .eq('session_id', guestSessionId)
+        .eq('user_id', user.id)
+        .limit(1);
+      if (existing && existing.length > 0) {
+        return res.status(200).json({ success: true, skipped: true, reason: 'messages already exist for this session' });
+      }
+
+      const base = baseTimestamp || Date.now();
+      const rows = guestMsgs.map((msg, i) => ({
+        user_id: user.id,
+        session_id: guestSessionId,
+        event_id: guestEventId || null,
+        phase: 'create',
+        role: msg.role,
+        content: (msg.content || '').substring(0, 5000),
+        model: null,
+        input_tokens: 0,
+        output_tokens: 0,
+        created_at: new Date(base + (msg.offsetMs || i * 1000)).toISOString()
+      }));
+
+      const { error: insertErr } = await supabase.from('chat_messages').insert(rows);
+      if (insertErr) {
+        console.error('Backfill guest messages insert failed:', insertErr.message);
+        return res.status(500).json({ error: 'Failed to backfill messages' });
+      }
+
+      return res.status(200).json({ success: true, inserted: rows.length });
+    }
+
     const { messages, sessionId, eventId } = req.body;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: 'Messages array is required' });

@@ -1282,6 +1282,7 @@
     var _guestMode = !token || !user; // Allow unauthenticated users to start chatting
     var _guestChatStep = 0; // 0=first msg, 1=followup, 2=email
     var _guestMessages = []; // Accumulated messages to replay after auth
+    var _guestStartTime = Date.now(); // Track when guest session began for timestamp reconstruction
     var _loginRedirect = '/v2/create/' + window.location.search;
     var _pendingTemplateId = new URLSearchParams(window.location.search).get('templateId');
     if (_pendingTemplateId) localStorage.setItem('pending_templateId', _pendingTemplateId);
@@ -1951,7 +1952,7 @@
         if (_guestChatStep === 0) {
           // First message: show it, then ask a clarifying follow-up
           addChatBubble(text, 'user');
-          _guestMessages.push({ role: 'user', content: text });
+          _guestMessages.push({ role: 'user', content: text, ts: Date.now() });
           _guestChatStep = 1;
 
           // Show typing indicator briefly, then clarifying question
@@ -1968,7 +1969,7 @@
             if (t) t.remove();
             var followUp = "Love it! When's the date and where will it be?";
             addChatBubble(followUp, 'assistant');
-            _guestMessages.push({ role: 'assistant', content: followUp });
+            _guestMessages.push({ role: 'assistant', content: followUp, ts: Date.now() });
             input.disabled = false;
             input.focus();
           }, 1000);
@@ -1978,7 +1979,7 @@
         if (_guestChatStep === 1) {
           // Second message: show it, then ask for email
           addChatBubble(text, 'user');
-          _guestMessages.push({ role: 'user', content: text });
+          _guestMessages.push({ role: 'user', content: text, ts: Date.now() });
           _guestChatStep = 2;
 
           var typing1 = document.createElement('div');
@@ -1994,7 +1995,7 @@
             if (t) t.remove();
             var emailAsk = "What's your email? We'll get everything set up for you.";
             addChatBubble(emailAsk, 'assistant');
-            _guestMessages.push({ role: 'assistant', content: emailAsk });
+            _guestMessages.push({ role: 'assistant', content: emailAsk, ts: Date.now() });
             input.type = 'email';
             input.autocomplete = 'email';
             input.placeholder = 'your@email.com';
@@ -2016,6 +2017,7 @@
           }
 
           addChatBubble(email, 'user');
+          _guestMessages.push({ role: 'user', content: email, ts: Date.now() });
           input.value = '';
           input.disabled = true;
           var sendBtn2 = document.getElementById('chatSendBtn');
@@ -2096,6 +2098,26 @@
 
             // Now create the draft event and send accumulated messages to the real chat API
             await createDraftEvent();
+
+            // Backfill pre-auth guest messages so admin can see full chat history
+            if (_guestMessages.length > 0) {
+              var backfillMsgs = _guestMessages.map(function(m) {
+                return { role: m.role, content: m.content, offsetMs: m.ts - _guestStartTime };
+              });
+              // Also include the "all set" transition message
+              backfillMsgs.push({ role: 'assistant', content: "Great, you're all set! Let me think about your event...", offsetMs: Date.now() - _guestStartTime });
+              authFetch('/api/v2/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'backfillGuestMessages',
+                  messages: backfillMsgs,
+                  sessionId: chatSessionId,
+                  eventId: currentEvent ? currentEvent.id : null,
+                  baseTimestamp: _guestStartTime
+                })
+              }).catch(function() {}); // fire-and-forget — non-critical
+            }
 
             // Build the real chat history from guest messages and send to API
             chatHistory = [];
