@@ -233,6 +233,10 @@ All endpoints require `Authorization: Bearer <token>` and use `?action=<name>`.
 - `updateTestRunScore` (POST, `{testRunId, score, notes}`) — update rating on a test run
 - `testRunStats` (GET) — aggregated reporting: by prompt, by model, by combo, by event type, by style reference, score distribution
 
+### Bulk Style Library Operations
+- `bulkUploadStyles` (POST, `{items: [{name, html, description?, tags?, eventTypes?, designNotes?, adminRating?}, ...]}`) — batch insert up to 50 style library items
+- `bulkRateStyles` (POST, `{ratings: [{styleId, rating, notes?}, ...]}`) — rate multiple styles at once
+
 ### Admin Ratings (Styles + Themes)
 - `rateStyle` (POST, `{styleId, rating, notes}`) — rate a style library item 1-5 (affects weighted selection)
 - `listThemes` (GET) — browse all generated themes with pagination + filters:
