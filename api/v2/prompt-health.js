@@ -242,7 +242,7 @@ export default async function handler(req, res) {
         try { res.write(': keepalive\n\n'); } catch (_) {}
       }, 3000);
 
-      const analysisModel = 'claude-sonnet-4-6';
+      const analysisModel = 'claude-haiku-4-5-20251001';
       const startTime = Date.now();
 
       try {
@@ -251,11 +251,11 @@ export default async function handler(req, res) {
         const data = await gatherAnalysisData();
         const message = buildAnalysisMessage(data);
 
-        // Call Sonnet for analysis
+        // Call Haiku for analysis (fast: ~5-10s vs Sonnet's 30-60s)
         res.write('data: {"status":"analyzing"}\n\n');
         const resp = await client.messages.create({
           model: analysisModel,
-          max_tokens: 8000,
+          max_tokens: 4096,
           system: ANALYSIS_SYSTEM_PROMPT,
           messages: [{ role: 'user', content: message + '\n\nRespond with ONLY the JSON object, starting with { and ending with }. No other text.' }]
         });
