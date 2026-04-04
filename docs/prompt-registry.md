@@ -81,7 +81,16 @@ These are NOT in the codebase — they live in the `prompt_versions` Supabase ta
 | Quality diagnosis | `claude-haiku-4-5-20251001` | `api/v2/quality-monitor.js` | No |
 | Quality heal | `claude-sonnet-4-6` | `api/v2/quality-monitor.js` | No |
 | Refinement | `claude-sonnet-4-6` | `api/v2/prompt-test.js` | No |
+| Auto-score (production) | `claude-haiku-4-5-20251001` | `api/v2/generate-theme.js` | No |
+| Prompt Health Analysis | `claude-sonnet-4-6` | `api/v2/prompt-health.js` | No |
+
+## AI Optimization Prompts
+
+| Prompt | File | Line | Protection | Purpose |
+|--------|------|------|------------|---------|
+| Auto-Score Prompt | `api/v2/generate-theme.js` | ~85 | STANDARD | Haiku auto-rates generated invites 1-5 for quality tracking. Fire-and-forget after every generation. |
+| Health Analysis Prompt | `api/v2/prompt-health.js` | ~150 | STANDARD | Sonnet analyzes all quality data (incidents, ratings, GTP, feedback) to identify prompt weaknesses and suggest improvements. |
 
 ---
 
-*Last updated: 2026-04-03*
+*Last updated: 2026-04-04*

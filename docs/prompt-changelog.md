@@ -22,6 +22,13 @@ This is the institutional memory for prompt tuning — read it before making cha
 
 *(Add new entries here, in reverse chronological order — newest first)*
 
+### 2026-04-04 — AI Auto-Scoring & Prompt Health Analyst
+- **Prompt(s)**: Auto-Score Prompt (new), Health Analysis Prompt (new)
+- **Change**: Added two new AI prompts: (1) Haiku auto-scorer that rates every production generation 1-5, (2) Sonnet prompt health analyst that ingests all quality data and suggests prompt improvements
+- **Rationale**: Manual rating doesn't scale — most themes go unrated. The health analyst closes the loop by connecting quality data to actionable prompt changes.
+- **Learning**: The platform collects rich quality data (incidents, ratings, GTP, user feedback) but nothing was analyzing it holistically. AI-powered analysis can identify patterns humans miss.
+- **Result**: Pending
+
 ### 2026-04-03 — Initial Registry (Baseline Snapshot)
 - **Prompt(s)**: All prompts
 - **Change**: Established prompt registry, changelog, and guardian system

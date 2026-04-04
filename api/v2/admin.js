@@ -2418,19 +2418,24 @@ export default async function handler(req, res) {
       const limit = Math.min(parseInt(req.query.limit) || 20, 100);
       const offset = (page - 1) * limit;
       const ratingFilter = req.query.ratingFilter; // 'unrated', 'rated', '1', '2', '3', '4', '5'
+      const autoScoreFilter = req.query.autoScoreFilter; // 'flagged', '1', '2', '3', '4', '5'
       const modelFilter = req.query.model;
       const eventTypeFilter = req.query.eventType;
       const promptVersionFilter = req.query.promptVersionId;
-      const sortBy = req.query.sortBy || 'created_at'; // 'created_at', 'admin_rating', 'latency_ms'
+      const sortBy = req.query.sortBy || 'created_at'; // 'created_at', 'admin_rating', 'auto_score', 'latency_ms'
       const sortDir = req.query.sortDir === 'asc' ? true : false;
 
       let query = supabaseAdmin
         .from('event_themes')
-        .select('id, event_id, version, is_active, html, css, config, model, input_tokens, output_tokens, latency_ms, admin_rating, admin_notes, rated_by, rated_at, prompt_version_id, created_at, exclude_from_gallery, events!inner(title, event_type, slug, user_id)', { count: 'exact' });
+        .select('id, event_id, version, is_active, html, css, config, model, input_tokens, output_tokens, latency_ms, admin_rating, admin_notes, rated_by, rated_at, prompt_version_id, auto_score, auto_score_reasoning, auto_scored_at, created_at, exclude_from_gallery, events!inner(title, event_type, slug, user_id)', { count: 'exact' });
 
       if (ratingFilter === 'unrated') query = query.is('admin_rating', null);
       else if (ratingFilter === 'rated') query = query.not('admin_rating', 'is', null);
       else if (['1','2','3','4','5'].includes(ratingFilter)) query = query.eq('admin_rating', parseInt(ratingFilter));
+
+      // Auto-score filters
+      if (autoScoreFilter === 'flagged') query = query.lte('auto_score', 2).is('admin_rating', null);
+      else if (['1','2','3','4','5'].includes(autoScoreFilter)) query = query.eq('auto_score', parseInt(autoScoreFilter));
 
       if (modelFilter) query = query.eq('model', modelFilter);
       if (promptVersionFilter) query = query.eq('prompt_version_id', promptVersionFilter);

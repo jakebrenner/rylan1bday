@@ -1268,6 +1268,7 @@
         <button class="ai-subtab" data-aipanel="config" onclick="switchAISubtab('config')">Models &amp; Config</button>
         <button class="ai-subtab" data-aipanel="versions" onclick="switchAISubtab('versions')">Prompt Versions</button>
         <button class="ai-subtab" data-aipanel="lab" onclick="switchAISubtab('lab')">Prompt Lab</button>
+        <button class="ai-subtab" data-aipanel="health" onclick="switchAISubtab('health')">Prompt Health <span id="healthPendingBadge" style="display:none;background:var(--party-coral);color:white;font-size:9px;padding:2px 6px;border-radius:8px;margin-left:4px;vertical-align:middle;"></span></button>
       </div>
 
       <!-- ═══ LIVE NOW — What's controlling production right now ═══ -->
@@ -1633,6 +1634,73 @@
           </div>
         </div>
       </div><!-- /aipanel-lab -->
+
+      <!-- ═══ PROMPT HEALTH ═══ -->
+      <div class="ai-subpanel" id="aipanel-health">
+        <div class="config-section">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div>
+              <h3>Prompt Health Analyst</h3>
+              <p style="font-size:13px;color:#888;margin-top:4px;">AI analyzes all quality data — incidents, ratings, user feedback, GTP metrics — and identifies prompt weaknesses with specific fix suggestions.</p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span id="healthLastRun" style="font-size:12px;color:#aaa;"></span>
+              <button class="btn btn-primary" id="runHealthBtn" onclick="runPromptHealthAnalysis()">Run Analysis</button>
+            </div>
+          </div>
+
+          <!-- Loading state -->
+          <div id="healthLoading" style="display:none;text-align:center;padding:40px 20px;">
+            <div class="generating-spinner" style="width:32px;height:32px;margin:0 auto 12px;"></div>
+            <div style="font-size:14px;font-weight:600;color:var(--midnight);margin-bottom:4px;">Analyzing prompt health...</div>
+            <div style="font-size:12px;color:#888;">Gathering quality data and running AI analysis. This may take 30-60 seconds.</div>
+          </div>
+
+          <!-- Empty state -->
+          <div id="healthEmpty" style="text-align:center;padding:40px 20px;color:#888;">
+            <div style="font-size:48px;margin-bottom:8px;opacity:0.2;">&#9881;</div>
+            <p style="font-size:14px;font-weight:600;margin-bottom:4px;">No analysis run yet</p>
+            <p style="font-size:13px;">Click "Run Analysis" to have AI review all your quality data and suggest prompt improvements.</p>
+          </div>
+
+          <!-- Results -->
+          <div id="healthResults" style="display:none;">
+            <!-- Health Score + Summary -->
+            <div style="display:flex;gap:16px;margin-bottom:20px;">
+              <div id="healthScoreCard" style="flex:0 0 120px;text-align:center;padding:20px;border-radius:12px;border:2px solid #eee;">
+                <div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Health Score</div>
+                <div id="healthScoreValue" style="font-size:48px;font-weight:800;line-height:1;"></div>
+                <div style="font-size:11px;color:#888;">/10</div>
+              </div>
+              <div style="flex:1;padding:16px 20px;background:#f9f9f9;border-radius:12px;">
+                <div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Executive Summary</div>
+                <div id="healthSummary" style="font-size:14px;line-height:1.6;color:var(--midnight);"></div>
+              </div>
+            </div>
+
+            <!-- Top Weaknesses -->
+            <div id="healthWeaknesses" style="margin-bottom:20px;"></div>
+
+            <!-- Prompt Suggestions -->
+            <div id="healthSuggestions" style="margin-bottom:20px;"></div>
+
+            <!-- Patterns & Regression Risks -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+              <div id="healthPatterns"></div>
+              <div id="healthRisks"></div>
+            </div>
+
+            <!-- Cost & meta -->
+            <div id="healthMeta" style="font-size:11px;color:#aaa;text-align:right;"></div>
+          </div>
+        </div>
+
+        <!-- Analysis History -->
+        <div class="config-section">
+          <h3>Analysis History</h3>
+          <div id="healthHistory" style="font-size:13px;color:#888;">Loading...</div>
+        </div>
+      </div><!-- /aipanel-health -->
 
     </div><!-- /tab-aicontrol -->
 
@@ -7172,6 +7240,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         document.getElementById('liveTweakPrompt').textContent = DESIGN_TWEAK_PROMPT_TEXT;
         document.getElementById('liveLightTweakPrompt').textContent = LIGHT_TWEAK_PROMPT_TEXT;
 
+        // Load health history in background
+        loadHealthHistory();
+
       } catch (err) {
         console.error('Failed to load AI Control Center:', err);
       }
@@ -7226,6 +7297,200 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     var DESIGN_TWEAK_PROMPT_TEXT = "You are modifying an event invite design. The user has an existing invite and wants changes to colors, fonts, layout, photos, or animations.\n\nOutput: { theme_html, theme_css, theme_thankyou_html, theme_config, chat_response, rsvp_field_changes }\n\nCritical rules:\n- Preserve data attributes: data-field=\"title\", data-field=\"datetime\", data-field=\"location\", etc.\n- .rsvp-slot MUST remain empty (no buttons/content)\n- Max-width 393px, mobile-first, WCAG AA contrast\n- Google Fonts only, characterful fonts\n- Thank-you page: MUST include decorative SVG with CSS animation";
 
     var LIGHT_TWEAK_PROMPT_TEXT = "You are modifying an event invite. Make ONLY the specific text, wording, or content changes requested. Do NOT change design, layout, colors, fonts, or CSS.\n\nOutput: { html_replacements: [{old: 'exact HTML substring', new: 'replacement'}], rsvp_field_changes: [...] or null, chat_response: 'Brief message' }\n\nEach replacement's 'old' must be an exact substring from the current HTML. Include surrounding context for uniqueness.";
+
+    // ═══════════════════════════════════════════════
+    // PROMPT HEALTH ANALYST
+    // ═══════════════════════════════════════════════
+
+    async function healthFetch(action, opts) {
+      var method = (opts && opts.method) || 'GET';
+      var url = '/api/v2/prompt-health?action=' + action;
+      if (opts && opts.params) {
+        Object.keys(opts.params).forEach(function(k) { url += '&' + k + '=' + encodeURIComponent(opts.params[k]); });
+      }
+      var fetchOpts = { method: method, headers: { 'Authorization': 'Bearer ' + token } };
+      if (opts && opts.body) {
+        fetchOpts.headers['Content-Type'] = 'application/json';
+        fetchOpts.body = JSON.stringify(opts.body);
+      }
+      var r = await fetch(url, fetchOpts);
+      if (r.status === 401) {
+        var refreshed = await refreshToken();
+        if (refreshed) { fetchOpts.headers['Authorization'] = 'Bearer ' + token; r = await fetch(url, fetchOpts); }
+      }
+      var text = await r.text();
+      try { return JSON.parse(text); } catch (e) { throw new Error('Server error: ' + r.status); }
+    }
+
+    async function runPromptHealthAnalysis() {
+      var btn = document.getElementById('runHealthBtn');
+      btn.disabled = true;
+      btn.textContent = 'Analyzing...';
+      document.getElementById('healthLoading').style.display = 'block';
+      document.getElementById('healthEmpty').style.display = 'none';
+      document.getElementById('healthResults').style.display = 'none';
+
+      try {
+        var res = await healthFetch('analyze', { method: 'POST' });
+        if (!res.success || !res.analysis) throw new Error(res.error || 'Analysis failed');
+        renderHealthResults(res.analysis, res.analysisId, res.cost, res.tokens, res.latencyMs);
+        loadHealthHistory();
+      } catch (err) {
+        console.error('Health analysis failed:', err);
+        document.getElementById('healthEmpty').style.display = 'block';
+        document.getElementById('healthEmpty').innerHTML = '<div style="color:var(--party-coral);font-size:14px;">Analysis failed: ' + escapeHtml(err.message) + '</div>';
+      }
+      document.getElementById('healthLoading').style.display = 'none';
+      btn.disabled = false;
+      btn.textContent = 'Run Analysis';
+    }
+
+    function renderHealthResults(analysis, analysisId, cost, tokens, latencyMs) {
+      document.getElementById('healthResults').style.display = 'block';
+      document.getElementById('healthEmpty').style.display = 'none';
+
+      // Health score
+      var score = analysis.overallHealthScore || 5;
+      var scoreEl = document.getElementById('healthScoreValue');
+      scoreEl.textContent = score;
+      var scoreColor = score >= 7 ? '#10b981' : score >= 4 ? '#f59e0b' : '#ef4444';
+      scoreEl.style.color = scoreColor;
+      document.getElementById('healthScoreCard').style.borderColor = scoreColor;
+
+      // Summary
+      document.getElementById('healthSummary').textContent = analysis.summary || 'No summary available.';
+
+      // Weaknesses
+      var weakHtml = '';
+      if (analysis.topWeaknesses && analysis.topWeaknesses.length > 0) {
+        weakHtml = '<div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Top Weaknesses</div>';
+        analysis.topWeaknesses.forEach(function(w, i) {
+          var sevColor = w.severity === 'critical' ? '#ef4444' : w.severity === 'major' ? '#f59e0b' : '#888';
+          var sevBg = w.severity === 'critical' ? '#fef2f2' : w.severity === 'major' ? '#fffbeb' : '#f9f9f9';
+          weakHtml += '<div style="background:' + sevBg + ';border:1px solid ' + sevColor + '33;border-radius:8px;padding:14px 16px;margin-bottom:8px;">'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+            + '<span style="font-size:14px;font-weight:700;color:var(--midnight);">' + escapeHtml(w.title) + '</span>'
+            + '<span class="badge" style="background:' + sevColor + '22;color:' + sevColor + ';font-size:10px;">' + (w.severity || 'minor') + '</span>'
+            + '</div>'
+            + '<div style="font-size:12px;color:#666;margin-bottom:6px;">' + escapeHtml(w.evidence || '') + '</div>'
+            + (w.affectedEventTypes && w.affectedEventTypes.length > 0 ? '<div style="font-size:11px;color:#888;margin-bottom:6px;">Affects: ' + w.affectedEventTypes.map(function(t) { return '<span class="badge badge-blue" style="font-size:9px;margin-right:4px;">' + escapeHtml(t) + '</span>'; }).join('') + '</div>' : '')
+            + (w.suggestedFix ? '<div style="font-size:12px;color:var(--midnight);background:white;border:1px solid #eee;border-radius:6px;padding:8px 12px;margin-top:6px;font-family:monospace;white-space:pre-wrap;max-height:100px;overflow-y:auto;">' + escapeHtml(w.suggestedFix) + '</div>' : '')
+            + '</div>';
+        });
+      }
+      document.getElementById('healthWeaknesses').innerHTML = weakHtml;
+
+      // Suggestions
+      var sugHtml = '';
+      if (analysis.promptSuggestions && analysis.promptSuggestions.length > 0) {
+        sugHtml = '<div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Prompt Suggestions</div>'
+          + '<div class="table-container"><table class="leaderboard-table"><thead><tr><th>Type</th><th>Section</th><th>Change</th><th>Rationale</th><th></th></tr></thead><tbody>';
+        analysis.promptSuggestions.forEach(function(s, i) {
+          var typeBadge = s.type === 'add' ? '<span class="badge badge-green" style="font-size:10px;">Add</span>' : s.type === 'remove' ? '<span class="badge badge-red" style="font-size:10px;">Remove</span>' : '<span class="badge badge-yellow" style="font-size:10px;">Modify</span>';
+          sugHtml += '<tr>'
+            + '<td>' + typeBadge + '</td>'
+            + '<td style="font-size:12px;">' + escapeHtml(s.section || '') + (s.eventType ? ' (' + escapeHtml(s.eventType) + ')' : '') + '</td>'
+            + '<td style="font-size:12px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml((s.suggestedText || '').substring(0, 100)) + '</td>'
+            + '<td style="font-size:12px;color:#666;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml((s.rationale || '').substring(0, 120)) + '</td>'
+            + '<td style="white-space:nowrap;"></td>'
+            + '</tr>';
+        });
+        sugHtml += '</tbody></table></div>';
+      }
+      document.getElementById('healthSuggestions').innerHTML = sugHtml;
+
+      // Patterns
+      var patHtml = '';
+      if (analysis.patterns && analysis.patterns.length > 0) {
+        patHtml = '<div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Patterns Observed</div>';
+        analysis.patterns.forEach(function(p) {
+          patHtml += '<div style="background:#f9f9f9;border-radius:6px;padding:10px 14px;margin-bottom:6px;">'
+            + '<div style="font-size:13px;font-weight:600;color:var(--midnight);margin-bottom:2px;">' + escapeHtml(p.observation || '') + '</div>'
+            + '<div style="font-size:11px;color:#888;">' + escapeHtml(p.dataPoints || '') + '</div>'
+            + '</div>';
+        });
+      }
+      document.getElementById('healthPatterns').innerHTML = patHtml;
+
+      // Regression risks
+      var riskHtml = '';
+      if (analysis.regressionRisks && analysis.regressionRisks.length > 0) {
+        riskHtml = '<div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Regression Risks (Don\'t Change)</div>'
+          + '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;">';
+        analysis.regressionRisks.forEach(function(r) {
+          riskHtml += '<div style="font-size:13px;color:#166534;margin-bottom:4px;">&#10003; ' + escapeHtml(r) + '</div>';
+        });
+        riskHtml += '</div>';
+      }
+      document.getElementById('healthRisks').innerHTML = riskHtml;
+
+      // Meta
+      document.getElementById('healthMeta').innerHTML = 'Analysis cost: $' + (cost ? (cost / 100).toFixed(4) : '0') + ' | Tokens: ' + (tokens ? tokens.input + ' in / ' + tokens.output + ' out' : 'N/A') + ' | Latency: ' + (latencyMs ? (latencyMs / 1000).toFixed(1) + 's' : 'N/A');
+      document.getElementById('healthLastRun').textContent = 'Last run: just now';
+    }
+
+    async function loadHealthHistory() {
+      try {
+        var res = await healthFetch('history', { params: { limit: 10 } });
+        if (!res.success) return;
+        var container = document.getElementById('healthHistory');
+        if (!res.analyses || res.analyses.length === 0) {
+          container.innerHTML = '<div style="color:#888;font-size:13px;padding:12px;text-align:center;">No analyses yet.</div>';
+          return;
+        }
+        var html = '<table class="leaderboard-table"><thead><tr><th>Date</th><th>Score</th><th>Summary</th><th>Cost</th><th>By</th></tr></thead><tbody>';
+        res.analyses.forEach(function(a) {
+          var scoreColor = a.health_score >= 7 ? '#10b981' : a.health_score >= 4 ? '#f59e0b' : '#ef4444';
+          html += '<tr style="cursor:pointer;" onclick="loadFullAnalysis(\'' + a.id + '\')">'
+            + '<td style="font-size:12px;">' + formatDate(a.created_at) + '</td>'
+            + '<td><span style="font-weight:700;color:' + scoreColor + ';">' + a.health_score + '/10</span></td>'
+            + '<td style="font-size:12px;color:#666;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml((a.summary || '').substring(0, 100)) + '</td>'
+            + '<td style="font-size:12px;">$' + ((a.cost_cents || 0) / 100).toFixed(3) + '</td>'
+            + '<td style="font-size:12px;color:#888;">' + escapeHtml((a.created_by || '').split('@')[0]) + '</td>'
+            + '</tr>';
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+
+        // Update last run timestamp
+        if (res.analyses.length > 0) {
+          document.getElementById('healthLastRun').textContent = 'Last run: ' + formatDate(res.analyses[0].created_at);
+          // Show results if available and no current results showing
+          if (document.getElementById('healthResults').style.display === 'none' && document.getElementById('healthEmpty').style.display !== 'none') {
+            // Auto-load latest
+            loadFullAnalysis(res.analyses[0].id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load health history:', err);
+      }
+    }
+
+    async function loadFullAnalysis(analysisId) {
+      try {
+        var res = await healthFetch('getAnalysis', { params: { analysisId: analysisId } });
+        if (!res.success || !res.analysis) return;
+        var a = res.analysis;
+        renderHealthResults(a.full_result, a.id, a.cost_cents, { input: a.input_tokens, output: a.output_tokens }, null);
+        document.getElementById('healthLastRun').textContent = 'Viewing: ' + formatDate(a.created_at);
+      } catch (err) {
+        console.error('Failed to load analysis:', err);
+      }
+    }
+
+    async function loadHealthPendingCount() {
+      try {
+        var res = await healthFetch('pendingCount');
+        if (res.success && res.count > 0) {
+          var badge = document.getElementById('healthPendingBadge');
+          badge.textContent = res.count;
+          badge.style.display = 'inline';
+        }
+      } catch (_) {}
+    }
+
+    // Load pending count on init
+    loadHealthPendingCount();
 
     // ═══════════════════════════════════════════════
     // GENERATION ARCHIVE (Sub-navigation within Style Library)

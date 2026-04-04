@@ -131,6 +131,17 @@ Adds `style_library_ids` to `event_themes` for direct traceability, and composit
 | `production_style_effectiveness` | Confidence-gated composite score (1-5) **per style per event type** — below 5 data points uses pure admin_rating, above blends in production quality (35%) and user satisfaction (25%) via Bayesian damping |
 | `style_rating_impact` | Validates whether admin style ratings are predictive of output quality — groups by rating tier **and event type**, shows avg output quality per combination |
 
+### Prompt Health & Auto-Scoring (`supabase/migrate_prompt_health.sql`)
+AI-powered prompt optimization infrastructure.
+
+| Table/View | Purpose |
+|------------|---------|
+| `prompt_health_analyses` | Stores AI analysis results (health score, recommendations, data snapshot for reproducibility) |
+| `prompt_health_recommendations` | Individual actionable suggestions with pending/applied/dismissed status |
+| `event_themes.auto_score` | Haiku auto-rates every generation 1-5 (fire-and-forget) |
+| `auto_score_summary` (view) | Auto-score averages by prompt version × model, flagged-for-review count |
+| `auto_score_calibration` (view) | Compares auto_score vs admin_rating accuracy |
+
 ### Key Relationships
 - `event_themes.event_id` → `events.id` (one event has many theme versions, one active)
 - `guests.event_id` → `events.id`
