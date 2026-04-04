@@ -1203,10 +1203,12 @@
 
     // ── Average generation time (fetched from API, replaces hardcoded "30-60 seconds") ──
     var _avgGenTimeText = 'about a minute'; // fallback until API responds
+    var _avgGenSeconds = 60; // fallback — used to calibrate progress bar
     (function fetchAvgLatency() {
       fetch('/api/v2/generate-theme?action=avgLatency')
         .then(function(r) { return r.json(); })
         .then(function(d) {
+          if (d && d.medianSeconds) _avgGenSeconds = d.medianSeconds;
           if (d && d.displaySeconds) {
             var secs = d.displaySeconds;
             if (secs <= 30) _avgGenTimeText = 'about 30 seconds';
@@ -3529,39 +3531,29 @@
       }, 4000);
       genStageTimers.push(emojiTimer);
 
-      // Progress bar animation — calibrated for typical 20-45s generation
-      var bar = document.getElementById('genProgressBar');
-      if (bar) {
-        bar.style.width = '5%';
-        setTimeout(function() { bar.style.width = '15%'; }, 500);
-        setTimeout(function() { bar.style.width = '30%'; }, 3000);
-        setTimeout(function() { bar.style.width = '45%'; }, 8000);
-        setTimeout(function() { bar.style.width = '60%'; }, 15000);
-        setTimeout(function() { bar.style.width = '72%'; }, 22000);
-        setTimeout(function() { bar.style.width = '82%'; }, 30000);
-        setTimeout(function() { bar.style.width = '88%'; }, 40000);
-        setTimeout(function() { bar.style.width = '93%'; }, 50000);
-      }
+      // Progress bar animation — calibrated to real average generation time
+      _clearProgressTimers();
+      _animateProgressBar(document.getElementById('genProgressBar'), _avgGenSeconds);
 
-      // Animate stage progression — spread across typical generation time
+      // Animate stage progression — spread across real average generation time
       var stages = document.querySelectorAll('#genStages .gen-stage');
       if (stages.length >= 3) {
-        // Stage 1 already active — transition at ~8s (AI has started generating)
+        var stage1At = Math.round(_avgGenSeconds * 0.15 * 1000); // 15% — AI started
+        var stage2At = Math.round(_avgGenSeconds * 0.50 * 1000); // 50% — design mostly done
         genStageTimers.push(setTimeout(function() {
           stages[0].classList.remove('active');
           stages[0].classList.add('done');
           stages[0].querySelector('.gen-stage-icon').innerHTML = '✓';
           stages[1].classList.add('active');
           stages[1].querySelector('.gen-stage-icon').innerHTML = '<div class="gen-spinner"></div>';
-        }, 8000));
-        // Stage 2→3 at ~25s (design mostly done, polishing)
+        }, stage1At));
         genStageTimers.push(setTimeout(function() {
           stages[1].classList.remove('active');
           stages[1].classList.add('done');
           stages[1].querySelector('.gen-stage-icon').innerHTML = '✓';
           stages[2].classList.add('active');
           stages[2].querySelector('.gen-stage-icon').innerHTML = '<div class="gen-spinner"></div>';
-        }, 25000));
+        }, stage2At));
       }
 
       // Show "How did you hear about us?" after a few seconds (first time only)
@@ -3572,6 +3564,12 @@
       if (genPunIntervalId) { clearInterval(genPunIntervalId); genPunIntervalId = null; }
       genStageTimers.forEach(function(t) { clearTimeout(t); clearInterval(t); });
       genStageTimers = [];
+      _clearProgressTimers();
+      // Snap progress bars to 100% on completion
+      var bar1 = document.getElementById('genProgressBar');
+      var bar2 = document.getElementById('genBannerProgressBar');
+      if (bar1) { bar1.style.transition = 'width 0.3s ease'; bar1.style.width = '100%'; }
+      if (bar2) { bar2.style.transition = 'width 0.3s ease'; bar2.style.width = '100%'; }
     }
 
     var attributionSources = [
@@ -4111,19 +4109,43 @@
       }, 2000);
     }
 
-    function startBannerProgress() {
-      var bar = document.getElementById('genBannerProgressBar');
+    // Animate a progress bar calibrated to the real average generation time.
+    // Steps are computed dynamically so the bar reaches ~90% at the expected duration,
+    // then slow-crawls to ~96% to handle variance without looking stuck.
+    var _activeProgressTimers = [];
+    function _animateProgressBar(bar, expectedSecs) {
       if (!bar) return;
       bar.style.width = '0%';
       bar.style.transition = 'width 2s ease';
-      setTimeout(function() { bar.style.width = '15%'; }, 100);
-      setTimeout(function() { bar.style.width = '35%'; }, 5000);
-      setTimeout(function() { bar.style.width = '55%'; }, 15000);
-      setTimeout(function() { bar.style.width = '70%'; }, 25000);
-      setTimeout(function() { bar.style.width = '80%'; }, 35000);
-      setTimeout(function() { bar.style.width = '88%'; }, 50000);
-      setTimeout(function() { bar.style.width = '93%'; }, 70000);
-      setTimeout(function() { bar.style.width = '96%'; }, 90000);
+      // Schedule 8 steps that fill to 90% over expectedSecs, then crawl beyond
+      var steps = [
+        { pct: '10%', at: 0.02 },   // 2% — immediate feedback
+        { pct: '25%', at: 0.10 },   // 10%
+        { pct: '40%', at: 0.25 },   // 25%
+        { pct: '55%', at: 0.45 },   // 45%
+        { pct: '68%', at: 0.60 },   // 60%
+        { pct: '78%', at: 0.75 },   // 75%
+        { pct: '86%', at: 0.88 },   // 88%
+        { pct: '91%', at: 1.00 },   // 100% of expected time
+        { pct: '94%', at: 1.25 },   // 25% over expected
+        { pct: '96%', at: 1.60 },   // 60% over expected
+        { pct: '97%', at: 2.00 }    // 2x expected — absolute crawl
+      ];
+      var ms = expectedSecs * 1000;
+      steps.forEach(function(s) {
+        var tid = setTimeout(function() { bar.style.width = s.pct; }, Math.round(s.at * ms));
+        _activeProgressTimers.push(tid);
+      });
+    }
+
+    function _clearProgressTimers() {
+      _activeProgressTimers.forEach(function(t) { clearTimeout(t); });
+      _activeProgressTimers = [];
+    }
+
+    function startBannerProgress() {
+      var bar = document.getElementById('genBannerProgressBar');
+      _animateProgressBar(bar, _avgGenSeconds);
     }
 
     function showGeneratingError(msg) {
