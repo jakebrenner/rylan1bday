@@ -13,6 +13,11 @@ const FOUNDER_EMAIL = 'jake@getmrkt.com';
 
 // Helper: verify admin auth (matches admin.js pattern)
 async function verifyAdmin(req) {
+  // Skip auth on Vercel preview deployments
+  if (process.env.VERCEL_ENV === 'preview') {
+    return { id: 'preview', email: 'preview-admin@localhost' };
+  }
+
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) return null;
 
