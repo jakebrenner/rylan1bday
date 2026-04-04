@@ -3057,6 +3057,8 @@ This is the most common failure mode. Double-check it.`;
     // ── Save theme to event_themes BEFORE res.end() ──
     let newTheme = null;
     let nextVersion = 1;
+    let savedThemeId = null;
+    let savedThemeVersion = null;
     try {
       const { data: existingThemes } = await supabase
         .from('event_themes')
