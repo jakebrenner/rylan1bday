@@ -3057,6 +3057,8 @@ This is the most common failure mode. Double-check it.`;
     // ── Save theme to event_themes BEFORE res.end() ──
     let newTheme = null;
     let nextVersion = 1;
+    let savedThemeId = null;
+    let savedThemeVersion = null;
     try {
       const { data: existingThemes } = await supabase
         .from('event_themes')
@@ -3129,65 +3131,72 @@ This is the most common failure mode. Double-check it.`;
       console.error('Theme DB save error:', saveErr);
     }
 
-    // Fire-and-forget auto-scoring (non-blocking)
-    if (savedThemeId && finalHtml) {
-      autoScoreTheme(savedThemeId, finalHtml, finalCss, themeConfig, eventType, eventDetails)
-        .catch(e => console.warn('[auto-score] Background scoring failed:', e.message));
-    }
-
-    const { data: firstGenData } = await supabase.from('events')
-      .update({ first_generation_at: new Date().toISOString() })
-      .eq('id', eventId).is('first_generation_at', null)
-      .select('id');
-    const isFirstGeneration = firstGenData?.length > 0;
-
-    // ── Send "Your Ryvite is Ready!" email on first generation ──
-    if (isFirstGeneration) {
-      await sendFirstGenerationEmail(eventId, user.email, user.id, eventDetails?.title);
-    }
-
-    // ── Log to generation_log BEFORE res.end() — uses estimated tokens ──
-    const genMeta = getClientMeta(req);
+    // ── Post-save processing: auto-score, logging, cost tracking ──
+    // Wrapped in try-catch so failures here can NEVER prevent sendSSE('done') from reaching the client.
+    // The theme is already saved to DB at this point — everything below is non-critical.
     let genLogId = null;
-    const genLogResult = await supabase.from('generation_log').insert({
-      event_id: eventId, user_id: user.id, prompt: effectivePrompt,
-      model: actualModel, input_tokens: genInputTokens,
-      output_tokens: genOutputTokens, latency_ms: latency,
-      status: 'success', cost_cents: genCost.costCentsExact, event_type: eventType, style_library_ids: usedStyleIds,
-      prompt_version_id: activePrompt.promptVersionId || null,
-      client_ip: genMeta.ip, client_geo: genMeta.geo, user_agent: genMeta.userAgent
-    }).select('id').single();
-    if (genLogResult.error) console.error('generation_log insert failed:', genLogResult.error.message);
-    else genLogId = genLogResult.data?.id;
-
-    // ── Increment persistent event cost BEFORE res.end() ──
     try {
-      const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: genCost.rawCostCents });
-      if (rpcErr) {
-        const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
-        if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + genCost.rawCostCents }).eq('id', eventId);
+      // Fire-and-forget auto-scoring (non-blocking)
+      if (savedThemeId && theme.theme_html) {
+        autoScoreTheme(savedThemeId, theme.theme_html, theme.theme_css, theme.theme_config, eventType, eventDetails)
+          .catch(e => console.warn('[auto-score] Background scoring failed:', e.message));
       }
-    } catch (e) { /* non-critical */ }
 
-    // ── Quality signal: High GTP (3+ generations without publish) ──
-    try {
-      const { count: themeCount } = await supabase
-        .from('event_themes').select('id', { count: 'exact', head: true })
-        .eq('event_id', eventId);
-      if (themeCount >= 3) {
-        const { data: evt } = await supabase.from('events').select('status').eq('id', eventId).single();
-        if (evt && evt.status !== 'published') {
-          await supabase.from('quality_incidents').insert({
-            event_id: eventId, user_id: user.id,
-            event_theme_id: newTheme?.id || null,
-            trigger_type: 'high_gtp',
-            trigger_data: { generationCount: themeCount },
-            theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: theme.theme_config },
-            resolution_type: 'unresolved'
-          });
+      const { data: firstGenData } = await supabase.from('events')
+        .update({ first_generation_at: new Date().toISOString() })
+        .eq('id', eventId).is('first_generation_at', null)
+        .select('id');
+      const isFirstGeneration = firstGenData?.length > 0;
+
+      // Send "Your Ryvite is Ready!" email on first generation
+      if (isFirstGeneration) {
+        await sendFirstGenerationEmail(eventId, user.email, user.id, eventDetails?.title);
+      }
+
+      // Log to generation_log BEFORE res.end() — uses estimated tokens
+      const genMeta = getClientMeta(req);
+      const genLogResult = await supabase.from('generation_log').insert({
+        event_id: eventId, user_id: user.id, prompt: effectivePrompt,
+        model: actualModel, input_tokens: genInputTokens,
+        output_tokens: genOutputTokens, latency_ms: latency,
+        status: 'success', cost_cents: genCost.costCentsExact, event_type: eventType, style_library_ids: usedStyleIds,
+        prompt_version_id: activePrompt.promptVersionId || null,
+        client_ip: genMeta.ip, client_geo: genMeta.geo, user_agent: genMeta.userAgent
+      }).select('id').single();
+      if (genLogResult.error) console.error('generation_log insert failed:', genLogResult.error.message);
+      else genLogId = genLogResult.data?.id;
+
+      // Increment persistent event cost
+      try {
+        const { error: rpcErr } = await supabase.rpc('increment_event_cost', { p_event_id: eventId, p_cost_cents: genCost.rawCostCents });
+        if (rpcErr) {
+          const { data } = await supabase.from('events').select('total_cost_cents').eq('id', eventId).single();
+          if (data) await supabase.from('events').update({ total_cost_cents: (data.total_cost_cents || 0) + genCost.rawCostCents }).eq('id', eventId);
         }
-      }
-    } catch (e) { /* non-critical quality monitoring */ }
+      } catch (e) { /* non-critical */ }
+
+      // Quality signal: High GTP (3+ generations without publish)
+      try {
+        const { count: themeCount } = await supabase
+          .from('event_themes').select('id', { count: 'exact', head: true })
+          .eq('event_id', eventId);
+        if (themeCount >= 3) {
+          const { data: evt } = await supabase.from('events').select('status').eq('id', eventId).single();
+          if (evt && evt.status !== 'published') {
+            await supabase.from('quality_incidents').insert({
+              event_id: eventId, user_id: user.id,
+              event_theme_id: newTheme?.id || null,
+              trigger_type: 'high_gtp',
+              trigger_data: { generationCount: themeCount },
+              theme_snapshot: { html: theme.theme_html, css: theme.theme_css, config: theme.theme_config },
+              resolution_type: 'unresolved'
+            });
+          }
+        }
+      } catch (e) { /* non-critical quality monitoring */ }
+    } catch (postSaveErr) {
+      console.error('[generate] Post-save processing error (theme already saved):', postSaveErr.message);
+    }
 
     // ── Send response and close connection — all critical saves are done ──
     sendSSE('done', {
