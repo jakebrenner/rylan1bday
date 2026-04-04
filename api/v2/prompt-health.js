@@ -547,6 +547,131 @@ export default async function handler(req, res) {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // COMBINE RECOMMENDATIONS — Preview or create a combined draft
+    // ═══════════════════════════════════════════════════════════════
+    if (action === 'combineRecommendations') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { recommendationIds, confirm } = req.body;
+      if (!Array.isArray(recommendationIds) || recommendationIds.length < 2) {
+        return res.status(400).json({ error: 'At least 2 recommendationIds required' });
+      }
+
+      // Fetch all requested recommendations
+      const { data: recs, error: recsErr } = await supabaseAdmin
+        .from('prompt_health_recommendations')
+        .select('*')
+        .in('id', recommendationIds);
+
+      if (recsErr || !recs || recs.length === 0) {
+        return res.status(404).json({ error: 'Recommendations not found' });
+      }
+
+      // Fetch active prompt version as base
+      const { data: activePV } = await supabaseAdmin
+        .from('prompt_versions')
+        .select('*')
+        .eq('is_active', true)
+        .single();
+
+      let creativeDirection = activePV?.creative_direction || '';
+      let designDna = activePV?.design_dna || {};
+      // Deep clone design_dna so mutations don't affect the original
+      designDna = JSON.parse(JSON.stringify(designDna));
+
+      // Sort: remove first, then modify, then add (deterministic ordering)
+      const typeOrder = { remove: 0, modify: 1, add: 2 };
+      const sorted = recs.slice().sort((a, b) => (typeOrder[a.type] || 1) - (typeOrder[b.type] || 1));
+
+      const applied = [];
+      const conflicts = [];
+
+      for (const rec of sorted) {
+        if (rec.section === 'creative_direction') {
+          if (rec.type === 'remove' && rec.current_text) {
+            if (creativeDirection.includes(rec.current_text)) {
+              creativeDirection = creativeDirection.replace(rec.current_text, '');
+              applied.push({ id: rec.id, title: rec.title, type: rec.type, section: rec.section });
+            } else {
+              conflicts.push({ id: rec.id, title: rec.title, reason: 'Text to remove not found (may have been changed by another recommendation)' });
+            }
+          } else if (rec.type === 'modify' && rec.current_text) {
+            if (creativeDirection.includes(rec.current_text)) {
+              creativeDirection = creativeDirection.replace(rec.current_text, rec.suggested_text || '');
+              applied.push({ id: rec.id, title: rec.title, type: rec.type, section: rec.section });
+            } else {
+              conflicts.push({ id: rec.id, title: rec.title, reason: 'Text to modify not found (may have been changed by another recommendation)' });
+            }
+          } else if (rec.type === 'add' || (rec.type === 'modify' && !rec.current_text)) {
+            creativeDirection += '\n\n' + rec.suggested_text;
+            applied.push({ id: rec.id, title: rec.title, type: rec.type, section: rec.section });
+          }
+        } else if (rec.section === 'design_dna' && rec.event_type) {
+          if (!designDna[rec.event_type]) designDna[rec.event_type] = {};
+          if (!designDna[rec.event_type].consider) designDna[rec.event_type].consider = {};
+          designDna[rec.event_type].consider.aiSuggested = rec.suggested_text;
+          applied.push({ id: rec.id, title: rec.title, type: rec.type, section: rec.section, event_type: rec.event_type });
+        }
+      }
+
+      // Preview mode: return combined result without creating version
+      if (!confirm) {
+        return res.status(200).json({
+          success: true,
+          preview: { creative_direction: creativeDirection, design_dna: designDna, applied, conflicts }
+        });
+      }
+
+      // Confirm mode: create the draft version
+      const { data: latest } = await supabaseAdmin
+        .from('prompt_versions')
+        .select('version')
+        .order('version', { ascending: false })
+        .limit(1);
+
+      const nextVersion = (latest?.length > 0) ? latest[0].version + 1 : 1;
+
+      // Build name from applied rec titles
+      const combinedName = applied.map(r => r.title).join(', ');
+      const truncatedName = combinedName.length > 70 ? combinedName.substring(0, 67) + '...' : combinedName;
+
+      const { data: newPV, error: pvErr } = await supabaseAdmin
+        .from('prompt_versions')
+        .insert({
+          version: nextVersion,
+          name: `v${nextVersion} — Combined: ${truncatedName}`,
+          description: `AI Health Analyst: Combined ${applied.length} recommendations. ${applied.map(r => r.title).join('; ')}`.substring(0, 500),
+          creative_direction: creativeDirection,
+          design_dna: designDna,
+          is_active: false,
+          created_by: admin.email
+        })
+        .select()
+        .single();
+
+      if (pvErr) return res.status(500).json({ error: 'Failed to create version: ' + pvErr.message });
+
+      // Mark all applied recs as applied, pointing to same version
+      const appliedIds = applied.map(r => r.id);
+      if (appliedIds.length > 0) {
+        await supabaseAdmin.from('prompt_health_recommendations').update({
+          status: 'applied',
+          applied_version_id: newPV.id,
+          reviewed_by: admin.email,
+          reviewed_at: new Date().toISOString()
+        }).in('id', appliedIds);
+      }
+
+      return res.status(200).json({
+        success: true,
+        newVersionId: newPV.id,
+        version: nextVersion,
+        applied,
+        conflicts
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // PENDING COUNT — Quick count of pending recommendations
     // ═══════════════════════════════════════════════════════════════
     if (action === 'pendingCount') {
