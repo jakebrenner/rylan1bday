@@ -5130,6 +5130,10 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     function toggleEventDetailsExpand() {
       var expanded = document.getElementById('eventDetailsExpanded');
       var isShown = expanded.style.display !== 'none';
+      if (isShown) {
+        // Collapsing — update summary from current form values
+        showEventDetailsSummary();
+      }
       expanded.style.display = isShown ? 'none' : 'block';
       document.getElementById('expandDetailsBtn').textContent = isShown ? 'Edit' : 'Collapse';
     }
