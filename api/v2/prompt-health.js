@@ -496,12 +496,17 @@ export default async function handler(req, res) {
 
       const nextVersion = (latest?.length > 0) ? latest[0].version + 1 : 1;
 
+      // Build a descriptive name from the recommendation title
+      const shortTitle = (rec.title || 'AI tweak').substring(0, 60);
+      const sectionTag = rec.section === 'design_dna' && rec.event_type
+        ? ` [${rec.event_type}]` : '';
+
       // Create new inactive version
       const { data: newPV, error: pvErr } = await supabaseAdmin
         .from('prompt_versions')
         .insert({
           version: nextVersion,
-          name: `v${nextVersion} — AI-suggested`,
+          name: `v${nextVersion} — ${shortTitle}${sectionTag}`,
           description: `AI Health Analyst: ${rec.title}. ${(rec.rationale || '').substring(0, 200)}`,
           creative_direction: creativeDirection,
           design_dna: designDna,
