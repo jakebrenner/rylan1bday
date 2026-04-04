@@ -7016,24 +7016,26 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         }
 
         var versionCreative = v.creative_direction || '';
-        var diffHtml = buildSimpleDiff(baseCreative, versionCreative);
+        var diffHtml = buildInlineDiff(baseCreative, versionCreative);
 
         var html = '<div style="background:#f9f9f9;border-radius:0 0 8px 8px;padding:16px 20px;border-top:2px solid var(--party-coral);">';
 
         // Header
         html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
           + '<div style="font-size:14px;font-weight:700;color:var(--midnight);">' + escapeHtml(v.name) + '</div>'
-          + '<div style="font-size:11px;color:#888;">Changes vs <strong>' + escapeHtml(baseLabel) + '</strong></div>'
-          + '</div>';
+          + '<div style="font-size:11px;color:#888;">Compared to <strong>' + escapeHtml(baseLabel) + '</strong>'
+          + ' &nbsp; <span style="display:inline-block;width:10px;height:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:2px;vertical-align:middle;"></span> added'
+          + ' &nbsp; <span style="display:inline-block;width:10px;height:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:2px;vertical-align:middle;"></span> removed'
+          + '</div></div>';
 
         // Description
         if (v.description) {
           html += '<div style="font-size:12px;color:#666;margin-bottom:12px;padding:8px 12px;background:white;border-radius:6px;border:1px solid #eee;">' + escapeHtml(v.description) + '</div>';
         }
 
-        // Creative direction diff
-        html += '<div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Creative Direction Changes</div>'
-          + '<div style="background:white;border:1px solid #eee;border-radius:6px;padding:12px 14px;font-size:12px;font-family:monospace;max-height:400px;overflow-y:auto;line-height:1.6;">'
+        // Full prompt with inline diff
+        html += '<div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Full Creative Direction</div>'
+          + '<div style="background:white;border:1px solid #eee;border-radius:6px;padding:0;font-size:12px;font-family:\'SF Mono\',Monaco,Consolas,monospace;max-height:500px;overflow-y:auto;line-height:1;">'
           + diffHtml
           + '</div>';
 
@@ -7080,51 +7082,115 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       updateMatrixSummary();
     }
 
-    // Simple line-by-line diff: shows added/removed/unchanged lines
-    function buildSimpleDiff(baseText, newText) {
+    // Full-text inline diff: shows entire document with changes highlighted (like GitHub)
+    // Uses a simple LCS-based approach on lines
+    function buildInlineDiff(baseText, newText) {
       var baseLines = (baseText || '').split('\n');
       var newLines = (newText || '').split('\n');
-      var baseSet = {};
-      var newSet = {};
-      baseLines.forEach(function(line) { var t = line.trim(); if (t) baseSet[t] = true; });
-      newLines.forEach(function(line) { var t = line.trim(); if (t) newSet[t] = true; });
 
-      var html = '';
-      var addedLines = [];
-      var removedLines = [];
-      var contextCount = 0;
+      // Build LCS table for line-level diff
+      var ops = diffLines(baseLines, newLines);
 
-      // Find removed lines (in base but not in new)
-      baseLines.forEach(function(line) {
-        var t = line.trim();
-        if (t && !newSet[t]) {
-          removedLines.push(line);
-        }
-      });
-
-      // Find added lines (in new but not in base)
-      newLines.forEach(function(line) {
-        var t = line.trim();
-        if (t && !baseSet[t]) {
-          addedLines.push(line);
-        }
-      });
-
-      if (removedLines.length === 0 && addedLines.length === 0) {
-        return '<div style="color:#888;font-style:italic;">No changes from base version</div>';
+      if (ops.every(function(op) { return op.type === 'equal'; })) {
+        var html = '';
+        newLines.forEach(function(line, i) {
+          html += diffLine(i + 1, '', line, 'equal');
+        });
+        return '<div style="counter-reset:diffline;">' + html + '<div style="padding:8px 12px;color:#888;font-style:italic;font-size:11px;border-top:1px solid #f0f0f0;">No changes from base version</div></div>';
       }
 
-      // Show removed lines
-      removedLines.forEach(function(line) {
-        html += '<div style="background:#fef2f2;color:#ef4444;padding:1px 4px;border-radius:2px;margin-bottom:1px;text-decoration:line-through;white-space:pre-wrap;">- ' + escapeHtml(line) + '</div>';
+      var html = '<div style="counter-reset:diffline;">';
+      var lineNum = 0;
+      ops.forEach(function(op) {
+        if (op.type === 'equal') {
+          lineNum++;
+          html += diffLine(lineNum, '', op.line, 'equal');
+        } else if (op.type === 'remove') {
+          html += diffLine('', '-', op.line, 'remove');
+        } else if (op.type === 'add') {
+          lineNum++;
+          html += diffLine(lineNum, '+', op.line, 'add');
+        }
       });
-
-      // Show added lines
-      addedLines.forEach(function(line) {
-        html += '<div style="background:#f0fdf4;color:#166534;padding:1px 4px;border-radius:2px;margin-bottom:1px;white-space:pre-wrap;">+ ' + escapeHtml(line) + '</div>';
-      });
-
+      html += '</div>';
       return html;
+    }
+
+    function diffLine(num, prefix, text, type) {
+      var bg = type === 'add' ? '#dcfce7' : type === 'remove' ? '#fef2f2' : 'transparent';
+      var color = type === 'add' ? '#166534' : type === 'remove' ? '#b91c1c' : '#374151';
+      var borderLeft = type === 'add' ? '3px solid #22c55e' : type === 'remove' ? '3px solid #ef4444' : '3px solid transparent';
+      var deco = type === 'remove' ? 'text-decoration:line-through;' : '';
+      var numStr = num !== '' ? String(num) : '';
+      return '<div style="display:flex;background:' + bg + ';border-left:' + borderLeft + ';min-height:20px;' + deco + '">'
+        + '<span style="flex:0 0 36px;text-align:right;padding:2px 6px 2px 0;font-size:11px;color:#aaa;user-select:none;border-right:1px solid #f0f0f0;">' + numStr + '</span>'
+        + '<span style="flex:0 0 20px;text-align:center;padding:2px 0;font-size:11px;color:' + (type === 'equal' ? '#ddd' : color) + ';user-select:none;font-weight:700;">' + (prefix || ' ') + '</span>'
+        + '<span style="flex:1;padding:2px 8px;white-space:pre-wrap;word-break:break-word;color:' + color + ';">' + escapeHtml(text) + '</span>'
+        + '</div>';
+    }
+
+    // Simple line diff using longest common subsequence
+    function diffLines(baseLines, newLines) {
+      var m = baseLines.length;
+      var n = newLines.length;
+
+      // For very large diffs, fall back to a simpler set-based approach
+      if (m * n > 500000) {
+        return diffLinesFallback(baseLines, newLines);
+      }
+
+      // Build LCS table
+      var dp = [];
+      for (var i = 0; i <= m; i++) {
+        dp[i] = [];
+        for (var j = 0; j <= n; j++) {
+          if (i === 0 || j === 0) dp[i][j] = 0;
+          else if (baseLines[i - 1].trim() === newLines[j - 1].trim()) dp[i][j] = dp[i - 1][j - 1] + 1;
+          else dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        }
+      }
+
+      // Backtrack to produce ops
+      var ops = [];
+      var i = m, j = n;
+      while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && baseLines[i - 1].trim() === newLines[j - 1].trim()) {
+          ops.push({ type: 'equal', line: newLines[j - 1] });
+          i--; j--;
+        } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+          ops.push({ type: 'add', line: newLines[j - 1] });
+          j--;
+        } else {
+          ops.push({ type: 'remove', line: baseLines[i - 1] });
+          i--;
+        }
+      }
+      ops.reverse();
+      return ops;
+    }
+
+    // Fallback for very large texts: set-based diff
+    function diffLinesFallback(baseLines, newLines) {
+      var baseSet = {};
+      baseLines.forEach(function(l) { var t = l.trim(); if (t) baseSet[t] = (baseSet[t] || 0) + 1; });
+      var ops = [];
+      // Show removed lines from base that aren't in new
+      var newSet = {};
+      newLines.forEach(function(l) { var t = l.trim(); if (t) newSet[t] = (newSet[t] || 0) + 1; });
+      var removedSet = {};
+      baseLines.forEach(function(l) {
+        var t = l.trim();
+        if (t && (!newSet[t] || (removedSet[t] || 0) >= (newSet[t] || 0))) {
+          ops.push({ type: 'remove', line: l });
+        }
+        removedSet[t] = (removedSet[t] || 0) + 1;
+      });
+      // Then show the full new text with additions highlighted
+      newLines.forEach(function(l) {
+        var t = l.trim();
+        ops.push({ type: (!t || baseSet[t]) ? 'equal' : 'add', line: l });
+      });
+      return ops;
     }
 
     // Find design DNA changes between base and new
