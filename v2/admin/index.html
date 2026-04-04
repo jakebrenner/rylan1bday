@@ -1808,6 +1808,7 @@
           <div style="display:flex;gap:8px;margin-bottom:20px;align-items:center;">
             <button class="btn btn-primary" onclick="openAddStyleModal()">Add Single Sample</button>
             <button class="btn btn-secondary" onclick="document.getElementById('bulkUploadSection').style.display=document.getElementById('bulkUploadSection').style.display==='none'?'block':'none'">Bulk Upload</button>
+            <button class="btn btn-secondary" onclick="retagAllStyles()" id="retagAllBtn">Re-tag All</button>
             <span style="font-size:12px;color:#888;display:flex;align-items:center;" id="styleCount">0 samples in library</span>
           </div>
           <div id="styleFilters" style="display:none;margin-bottom:16px;">
@@ -6359,6 +6360,75 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       }
     }
 
+    async function retagSingleStyle(styleId, btn) {
+      var item = styleLibrary.find(function(s) { return s.id === styleId; });
+      if (!item || !item.html) { showToast('No HTML content to analyze'); return; }
+      var origText = btn ? btn.textContent : '';
+      if (btn) { btn.disabled = true; btn.textContent = 'Tagging...'; }
+      try {
+        var token = localStorage.getItem('sb_access_token');
+        var res = await fetch('/api/v2/prompt-test?action=autoTag', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ html: item.html })
+        }).then(function(r) { return r.json(); });
+        if (!res.success || !res.autoTag) throw new Error(res.error || 'Auto-tag failed');
+        var tag = res.autoTag;
+        // Update style with new tags
+        await adminFetch('saveStyleItem', {
+          method: 'POST',
+          body: { id: styleId, name: tag.name || item.name, description: tag.description || item.description, html: item.html, tags: tag.tags || item.tags, eventTypes: tag.eventTypes || item.eventTypes, designNotes: tag.designNotes || item.designNotes }
+        });
+        showToast('Re-tagged: ' + (tag.eventTypes || []).join(', '));
+        await loadStyleLibrary();
+        if (styleDetailCurrentId === styleId) openStyleDetailView(styleId);
+      } catch (err) {
+        showToast('Re-tag failed: ' + err.message);
+      }
+      if (btn) { btn.disabled = false; btn.textContent = origText; }
+    }
+
+    async function retagAllStyles() {
+      var btn = document.getElementById('retagAllBtn');
+      var items = styleLibrary.filter(function(s) { return s.html && !s.archivedAt; });
+      if (items.length === 0) { showToast('No styles to re-tag'); return; }
+      if (!confirm('Re-tag all ' + items.length + ' styles with AI? This will update event types, tags, and design notes based on the current auto-tag prompt.')) return;
+      btn.disabled = true;
+      btn.textContent = 'Re-tagging 0/' + items.length + '...';
+      var done = 0;
+      var errors = 0;
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        try {
+          var token = localStorage.getItem('sb_access_token');
+          var res = await fetch('/api/v2/prompt-test?action=autoTag', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ html: item.html })
+          }).then(function(r) { return r.json(); });
+          if (res.success && res.autoTag) {
+            var tag = res.autoTag;
+            await adminFetch('saveStyleItem', {
+              method: 'POST',
+              body: { id: item.id, name: tag.name || item.name, description: tag.description || item.description, html: item.html, tags: tag.tags || item.tags, eventTypes: tag.eventTypes || item.eventTypes, designNotes: tag.designNotes || item.designNotes }
+            });
+          } else {
+            errors++;
+          }
+        } catch (err) {
+          errors++;
+        }
+        done++;
+        btn.textContent = 'Re-tagging ' + done + '/' + items.length + '...';
+      }
+      btn.disabled = false;
+      btn.textContent = 'Re-tag All';
+      await loadStyleLibrary();
+      renderStyleGrid();
+      renderStyleCheckboxes();
+      showToast('Re-tagged ' + (done - errors) + '/' + items.length + ' styles' + (errors > 0 ? ' (' + errors + ' failed)' : ''));
+    }
+
     async function archiveStyleItem(styleId) {
       var item = styleLibrary.find(function(s) { return s.id === styleId; });
       if (!item) return;
@@ -6391,20 +6461,63 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         container.innerHTML = '<span style="font-size:12px;color:#aaa;">Select an event type above to see matched styles.</span>';
         return;
       }
-      // Filter to only auto-matched items (same logic as backend: .contains('event_types', [eventType]) limit 2)
+      // Filter to auto-matched items, sorted by admin_rating desc
       var matched = styleLibrary.filter(function(item) {
-        return (item.eventTypes || []).includes(currentType);
-      }).slice(0, 2);
+        return !item.archivedAt && (item.eventTypes || []).includes(currentType);
+      }).sort(function(a, b) { return (b.adminRating || 0) - (a.adminRating || 0); }).slice(0, 3);
+
+      var html = '';
       if (matched.length === 0) {
-        container.innerHTML = '<span style="font-size:12px;color:#aaa;">No style references matched for this event type.</span>';
+        html += '<span style="font-size:12px;color:#aaa;">No style references matched for "' + currentType + '".</span>';
+      } else {
+        html += matched.map(function(item) {
+          var stars = item.adminRating ? '<span style="color:#f59e0b;font-size:11px;margin-left:4px;">' + '★'.repeat(item.adminRating) + '☆'.repeat(5 - item.adminRating) + '</span>' : '';
+          var etTags = (item.eventTypes || []).map(function(et) {
+            var isMatch = et === currentType;
+            return '<span style="font-size:9px;padding:1px 4px;border-radius:3px;margin-left:2px;' + (isMatch ? 'background:rgba(233,69,96,0.1);color:var(--party-coral);font-weight:600;' : 'background:#f0f0f0;color:#888;') + '">' + et + '</span>';
+          }).join('');
+          return '<label class="style-checkbox selected">'
+            + '<input type="checkbox" value="' + item.id + '" checked>'
+            + '<span style="font-size:13px;font-weight:600;">' + escapeHtml(item.name) + '</span>'
+            + '<span style="font-size:10px;font-weight:700;color:var(--mint-fizz);margin-left:6px;">AUTO-MATCH</span>'
+            + stars
+            + '<div style="margin-top:2px;margin-left:22px;">' + etTags + '</div>'
+            + (item.description ? '<div style="font-size:11px;color:#888;margin-top:1px;margin-left:22px;max-width:500px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(item.description) + '</div>' : '')
+            + '</label>';
+        }).join('');
+      }
+
+      // "Browse all" link to manually add styles
+      html += '<div style="margin-top:6px;"><a href="#" style="font-size:12px;color:var(--party-coral);" onclick="toggleStyleBrowser();return false;">+ Browse all styles</a></div>';
+      html += '<div id="styleBrowserPanel" style="display:none;margin-top:8px;max-height:200px;overflow-y:auto;border:1px solid #eee;border-radius:6px;padding:8px;"></div>';
+
+      container.innerHTML = html;
+    }
+
+    function toggleStyleBrowser() {
+      var panel = document.getElementById('styleBrowserPanel');
+      if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+      panel.style.display = 'block';
+      var currentType = document.getElementById('testEventType').value;
+      // Show all non-archived styles, with currently matched ones excluded (already shown above)
+      var alreadyChecked = Array.from(document.querySelectorAll('#styleRefList input[type="checkbox"]:checked')).map(function(cb) { return cb.value; });
+      var others = styleLibrary.filter(function(item) {
+        return !item.archivedAt && alreadyChecked.indexOf(item.id) === -1;
+      }).sort(function(a, b) { return (b.adminRating || 0) - (a.adminRating || 0); });
+
+      if (others.length === 0) {
+        panel.innerHTML = '<span style="font-size:12px;color:#aaa;">No additional styles available.</span>';
         return;
       }
-      container.innerHTML = matched.map(function(item) {
-        return '<label class="style-checkbox selected">'
-          + '<input type="checkbox" value="' + item.id + '" checked>'
-          + '<span style="font-size:13px;font-weight:600;">' + escapeHtml(item.name) + '</span>'
-          + '<span style="font-size:10px;font-weight:700;color:var(--mint-fizz);margin-left:6px;">AUTO-MATCH</span>'
-          + (item.description ? '<span style="font-size:12px;color:#888;margin-left:4px;">' + escapeHtml(item.description) + '</span>' : '')
+      panel.innerHTML = others.map(function(item) {
+        var stars = item.adminRating ? '<span style="color:#f59e0b;font-size:10px;margin-left:4px;">' + '★'.repeat(item.adminRating) + '</span>' : '';
+        var etTags = (item.eventTypes || []).map(function(et) {
+          return '<span style="font-size:9px;padding:1px 3px;border-radius:2px;background:#f0f0f0;color:#888;margin-left:2px;">' + et + '</span>';
+        }).join('');
+        return '<label class="style-checkbox" style="margin-bottom:2px;padding:4px 8px;">'
+          + '<input type="checkbox" value="' + item.id + '">'
+          + '<span style="font-size:12px;font-weight:600;">' + escapeHtml(item.name) + '</span>'
+          + stars + ' ' + etTags
           + '</label>';
       }).join('');
     }
@@ -13791,6 +13904,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
         <div style="display:flex;gap:8px;flex-wrap:wrap;" id="styleDetailActions">
           <button class="btn btn-secondary" onclick="toggleDetailEditMode()">Edit</button>
+          <button class="btn btn-secondary" onclick="retagSingleStyle(styleDetailCurrentId, this)">Re-tag</button>
           <button class="btn btn-secondary" id="styleDetailArchiveBtn" onclick="archiveStyleItem(styleDetailCurrentId)">Archive</button>
           <button class="btn btn-secondary" style="color:var(--party-coral);" onclick="if(confirm('Delete this style?')){deleteStyleItem(styleDetailCurrentId);closeStyleDetailView();}">Delete</button>
         </div>

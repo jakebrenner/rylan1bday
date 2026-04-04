@@ -648,7 +648,7 @@ Return ONLY valid JSON with these keys:
 Valid event type keys: kidsBirthday, adultBirthday, babyShower, engagement, wedding, graduation, holiday, dinnerParty, retirement, anniversary, sports, bridalShower, corporate, other
 
 Guidelines:
-- eventTypes: Include ALL types this style could work for, not just the most obvious one. A formal gold+magenta design could work for quinceañera (kidsBirthday), adultBirthday, and graduation.
+- eventTypes: Be STRICT — only include the 1-2 event types this design is truly designed for based on its THEME and SUBJECT MATTER, not just colors or formality. A jungle/adventure design → only kidsBirthday. A cap-and-gown design → graduation. A floral garden design → wedding, bridalShower. Colors alone do NOT determine event type — the visual theme, imagery, and subject matter do.
 - tags: Include colors, style words, techniques (e.g. "SVG", "confetti", "gradient", "serif", "minimalist", "maximalist")
 - designNotes: Focus on what the AI should LEARN from this sample. Mention specific CSS custom properties, animation keyframes, layout techniques, color palette strategy, and typography pairing.`,
         messages: [{

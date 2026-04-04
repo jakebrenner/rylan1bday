@@ -22,6 +22,13 @@ This is the institutional memory for prompt tuning — read it before making cha
 
 *(Add new entries here, in reverse chronological order — newest first)*
 
+### 2026-04-04 — Fix style auto-tag over-inclusive event type matching
+- **Prompt(s)**: Auto-Tag Prompt (`api/v2/prompt-test.js`, line 651)
+- **Change**: Changed eventTypes guideline from "Include ALL types this style could work for" to "Be STRICT — only include 1-2 types based on THEME and SUBJECT MATTER, not just colors"
+- **Rationale**: Jungle/adventure themes with gold accents were being tagged for "graduation" because the AI was matching on color formality rather than visual theme. This caused wrong styles to appear as auto-matched references in the Prompt Lab.
+- **Learning**: Color-based matching is too loose — a gold palette doesn't make a jungle theme appropriate for graduation. Theme/subject matter is the primary signal for event type matching.
+- **Result**: Pending — existing styles should be re-tagged with "Re-tag All" button after deploy
+
 ### 2026-04-04 — AI Auto-Scoring & Prompt Health Analyst
 - **Prompt(s)**: Auto-Score Prompt (new), Health Analysis Prompt (new)
 - **Change**: Added two new AI prompts: (1) Haiku auto-scorer that rates every production generation 1-5, (2) Sonnet prompt health analyst that ingests all quality data and suggests prompt improvements

@@ -47,6 +47,7 @@ These are constructed inline during tweak handling, not as top-level constants.
 
 | Prompt | File | Line | Protection | Purpose |
 |--------|------|------|------------|---------|
+| autoTag | `api/v2/prompt-test.js` | 637 | STANDARD | Analyze HTML invite samples and return structured metadata (name, description, eventTypes, tags, designNotes). Used for style library auto-categorization. |
 | interpretField | `api/v2/generate-theme.js` | 1662 | STANDARD | Parse natural language RSVP field requests into JSON field definitions. ~1 line. |
 | classifyIntent | `api/v2/generate-theme.js` | 1733 | STANDARD | Classify user tweak request to determine tier routing (light vs design). ~1 line. |
 | REFINE_PROMPT | `api/v2/prompt-test.js` | 859 | GUARDED | Senior UI designer polish pass: RSVP button sizing, contrast, spacing, layout QA. ~34 lines. |
