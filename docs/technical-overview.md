@@ -2,7 +2,7 @@
 
 > **Audience:** Technical Product Manager
 > **Purpose:** Understand Ryvite's architecture, AI system, and quality pipeline to improve invite creation reliability, speed, and user flow.
-> **Last updated:** April 3, 2026 (v2)
+> **Last updated:** April 4, 2026 (v3 — added AI optimization pipeline)
 
 ---
 
@@ -452,6 +452,41 @@ production_style_effectiveness view ──→ Weighted selection for next genera
 | `generation_satisfaction` | GTP metrics by event type |
 | `generation_geo_insights` | Generation patterns by region |
 | `production_model_performance` | Real production perf by model, event type, prompt version |
+| `auto_score_summary` | AI auto-score averages by prompt version and model |
+| `auto_score_calibration` | Compares auto_score vs admin_rating for accuracy tracking |
+
+### 6.4 AI-Powered Prompt Optimization Pipeline
+
+Closes the loop from data collection to prompt improvement:
+
+```
+Every generation ──→ Haiku auto-scores 1-5 (fire-and-forget)
+       │                      │
+       ▼                      ▼
+Quality incidents    auto_score_summary view
+User feedback        ──────────┐
+GTP metrics                    ▼
+Admin ratings   ──→ Prompt Health Analyst (Sonnet, on-demand)
+Model performance              │
+Root cause patterns            ▼
+                    Structured recommendations
+                    (weaknesses + specific prompt fixes)
+                               │
+                               ▼
+                    "Apply" → creates draft prompt version
+                               │
+                               ▼
+                    Admin reviews → activates → monitor results
+```
+
+| Component | Endpoint | Model | Trigger | Cost |
+|-----------|----------|-------|---------|------|
+| Auto-Scorer | `generate-theme.js` (inline) | Haiku | Every generation | ~$0.002/gen |
+| Health Analyst | `prompt-health.js` | Sonnet | Admin clicks "Run Analysis" | ~$0.05-0.15/run |
+
+**Tables:** `prompt_health_analyses` (analysis results + data snapshots), `prompt_health_recommendations` (individual suggestions with pending/applied/dismissed status)
+
+**Admin UI:** "Prompt Health" sub-tab in AI Control Center showing health score (1-10), weaknesses, suggestions with "Apply Fix" buttons, patterns, regression risks, and analysis history.
 
 ---
 

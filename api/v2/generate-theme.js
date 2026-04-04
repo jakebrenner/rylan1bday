@@ -74,6 +74,68 @@ function calcGenerationCost(model, inputTokens, outputTokens) {
   return { rawCostCents: Math.round(rawCost * 100), costCentsExact: Math.round(rawCost * 100 * 10000) / 10000 };
 }
 
+// ⚠️ PROMPT GUARDIAN: STANDARD — See docs/prompt-registry.md
+// Auto-score: Haiku rates every generated theme 1-5 for quality tracking (fire-and-forget)
+async function autoScoreTheme(themeId, html, css, config, eventType, eventDetails) {
+  const model = 'claude-haiku-4-5-20251001';
+  const startTime = Date.now();
+  try {
+    const resp = await client.messages.create({
+      model,
+      max_tokens: 200,
+      system: `You are a quality rater for AI-generated event invitation designs. Rate 1-5 based on:
+- Visual design quality (layout, typography, color harmony, whitespace)
+- Event appropriateness (does the design match the event type and mood?)
+- Technical correctness (proper structure, readable text, functional RSVP area)
+- Mobile readiness (designed for 393px viewport, no horizontal overflow)
+- Overall polish (animations, illustrations, attention to detail)
+
+Rating scale:
+5 = Exceptional, ready to impress guests
+4 = Good, minor polish would help
+3 = Acceptable but generic or has noticeable issues
+2 = Below average, significant design or technical issues
+1 = Poor, broken or inappropriate
+
+Return ONLY a JSON object: {"score": N, "reasoning": "1 sentence"}`,
+      messages: [{ role: 'user', content: `Rate this ${eventType || 'event'} invitation:
+
+HTML (first 4KB): ${(html || '').substring(0, 4000)}
+CSS (first 2KB): ${(css || '').substring(0, 2000)}
+Config: ${JSON.stringify(config || {}).substring(0, 500)}
+Event: ${JSON.stringify(eventDetails || {}).substring(0, 500)}` }]
+    });
+
+    const tokens = { input: resp.usage?.input_tokens || 0, output: resp.usage?.output_tokens || 0 };
+    const text = (resp.content?.[0]?.text || '').trim();
+    const cleaned = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
+    const result = JSON.parse(cleaned);
+    const score = Math.min(5, Math.max(1, Math.round(result.score)));
+
+    await supabase.from('event_themes').update({
+      auto_score: score,
+      auto_score_reasoning: (result.reasoning || '').substring(0, 500),
+      auto_scored_at: new Date().toISOString()
+    }).eq('id', themeId);
+
+    // Log cost
+    const { costCentsExact } = calcGenerationCost(model, tokens.input, tokens.output);
+    await supabase.from('generation_log').insert({
+      prompt: 'auto-score: ' + (eventType || 'unknown'),
+      model,
+      input_tokens: tokens.input,
+      output_tokens: tokens.output,
+      latency_ms: Date.now() - startTime,
+      status: 'success',
+      is_tweak: false,
+      event_type: eventType || '',
+      cost_cents: costCentsExact
+    });
+  } catch (e) {
+    console.warn('[auto-score] Failed for theme', themeId, ':', e.message);
+  }
+}
+
 // Fetch images from URLs and convert to base64 for Claude vision
 async function fetchImagesAsBase64(urls) {
   const results = [];
@@ -2392,6 +2454,12 @@ Return ONLY a valid JSON object with these keys:
         console.error('Tweak theme DB save failed:', saveErr);
       }
 
+      // Fire-and-forget auto-scoring for tweaks
+      if (savedTweakThemeId && theme?.theme_html) {
+        autoScoreTheme(savedTweakThemeId, theme.theme_html, theme.theme_css, tweakConfig, eventType, eventDetails)
+          .catch(e => console.warn('[auto-score] Tweak scoring failed:', e.message));
+      }
+
       // Legacy: mark free_generation_used for backward compatibility
       await supabase.from('events')
         .update({ free_generation_used: true })
@@ -3059,6 +3127,12 @@ This is the most common failure mode. Double-check it.`;
       }
     } catch (saveErr) {
       console.error('Theme DB save error:', saveErr);
+    }
+
+    // Fire-and-forget auto-scoring (non-blocking)
+    if (savedThemeId && finalHtml) {
+      autoScoreTheme(savedThemeId, finalHtml, finalCss, themeConfig, eventType, eventDetails)
+        .catch(e => console.warn('[auto-score] Background scoring failed:', e.message));
     }
 
     const { data: firstGenData } = await supabase.from('events')

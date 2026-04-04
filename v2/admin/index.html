@@ -1268,6 +1268,7 @@
         <button class="ai-subtab" data-aipanel="config" onclick="switchAISubtab('config')">Models &amp; Config</button>
         <button class="ai-subtab" data-aipanel="versions" onclick="switchAISubtab('versions')">Prompt Versions</button>
         <button class="ai-subtab" data-aipanel="lab" onclick="switchAISubtab('lab')">Prompt Lab</button>
+        <button class="ai-subtab" data-aipanel="health" onclick="switchAISubtab('health')">Prompt Health <span id="healthPendingBadge" style="display:none;background:var(--party-coral);color:white;font-size:9px;padding:2px 6px;border-radius:8px;margin-left:4px;vertical-align:middle;"></span></button>
       </div>
 
       <!-- ═══ LIVE NOW — What's controlling production right now ═══ -->
@@ -1634,6 +1635,73 @@
         </div>
       </div><!-- /aipanel-lab -->
 
+      <!-- ═══ PROMPT HEALTH ═══ -->
+      <div class="ai-subpanel" id="aipanel-health">
+        <div class="config-section">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div>
+              <h3>Prompt Health Analyst</h3>
+              <p style="font-size:13px;color:#888;margin-top:4px;">AI analyzes all quality data — incidents, ratings, user feedback, GTP metrics — and identifies prompt weaknesses with specific fix suggestions.</p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span id="healthLastRun" style="font-size:12px;color:#aaa;"></span>
+              <button class="btn btn-primary" id="runHealthBtn" onclick="runPromptHealthAnalysis()">Run Analysis</button>
+            </div>
+          </div>
+
+          <!-- Loading state -->
+          <div id="healthLoading" style="display:none;text-align:center;padding:40px 20px;">
+            <div class="generating-spinner" style="width:32px;height:32px;margin:0 auto 12px;"></div>
+            <div style="font-size:14px;font-weight:600;color:var(--midnight);margin-bottom:4px;">Analyzing prompt health...</div>
+            <div style="font-size:12px;color:#888;">Gathering quality data and running AI analysis. This may take 30-60 seconds.</div>
+          </div>
+
+          <!-- Empty state -->
+          <div id="healthEmpty" style="text-align:center;padding:40px 20px;color:#888;">
+            <div style="font-size:48px;margin-bottom:8px;opacity:0.2;">&#9881;</div>
+            <p style="font-size:14px;font-weight:600;margin-bottom:4px;">No analysis run yet</p>
+            <p style="font-size:13px;">Click "Run Analysis" to have AI review all your quality data and suggest prompt improvements.</p>
+          </div>
+
+          <!-- Results -->
+          <div id="healthResults" style="display:none;">
+            <!-- Health Score + Summary -->
+            <div style="display:flex;gap:16px;margin-bottom:20px;">
+              <div id="healthScoreCard" style="flex:0 0 120px;text-align:center;padding:20px;border-radius:12px;border:2px solid #eee;">
+                <div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Health Score</div>
+                <div id="healthScoreValue" style="font-size:48px;font-weight:800;line-height:1;"></div>
+                <div style="font-size:11px;color:#888;">/10</div>
+              </div>
+              <div style="flex:1;padding:16px 20px;background:#f9f9f9;border-radius:12px;">
+                <div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Executive Summary</div>
+                <div id="healthSummary" style="font-size:14px;line-height:1.6;color:var(--midnight);"></div>
+              </div>
+            </div>
+
+            <!-- Regression Risks (show first — what NOT to change) -->
+            <div id="healthRisks" style="margin-bottom:20px;"></div>
+
+            <!-- Top Weaknesses -->
+            <div id="healthWeaknesses" style="margin-bottom:20px;"></div>
+
+            <!-- Actionable Recommendations -->
+            <div id="healthRecommendations" style="margin-bottom:20px;"></div>
+
+            <!-- Patterns -->
+            <div id="healthPatterns" style="margin-bottom:20px;"></div>
+
+            <!-- Cost & meta -->
+            <div id="healthMeta" style="font-size:11px;color:#aaa;text-align:right;"></div>
+          </div>
+        </div>
+
+        <!-- Analysis History -->
+        <div class="config-section">
+          <h3>Analysis History</h3>
+          <div id="healthHistory" style="font-size:13px;color:#888;">Loading...</div>
+        </div>
+      </div><!-- /aipanel-health -->
+
     </div><!-- /tab-aicontrol -->
 
     <!-- Team Tab -->
@@ -1649,6 +1717,23 @@
             <button class="btn btn-primary" onclick="addAdmin()">Send Invite</button>
           </div>
           <p style="font-size:12px;color:#aaa;margin-top:8px;margin-bottom:0;">They'll receive a branded email with a link to create their account and access the admin dashboard.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Combine Recommendations Preview Modal -->
+    <div id="combinePreviewModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeCombinePreview()">
+      <div class="modal" style="max-width:800px;max-height:90vh;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <h3>Preview Combined Recommendations</h3>
+          <button class="btn btn-secondary btn-sm" onclick="closeCombinePreview()">&times;</button>
+        </div>
+        <div id="combinePreviewContent" style="overflow-y:auto;max-height:calc(90vh - 140px);">
+          <!-- Filled dynamically by previewCombinedRecs() -->
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:1px solid #eee;">
+          <button class="btn btn-secondary" onclick="closeCombinePreview()">Cancel</button>
+          <button class="btn btn-primary" id="combineConfirmBtn" onclick="confirmCombinedRecs()">Create Draft Version</button>
         </div>
       </div>
     </div>
@@ -1723,6 +1808,7 @@
           <div style="display:flex;gap:8px;margin-bottom:20px;align-items:center;">
             <button class="btn btn-primary" onclick="openAddStyleModal()">Add Single Sample</button>
             <button class="btn btn-secondary" onclick="document.getElementById('bulkUploadSection').style.display=document.getElementById('bulkUploadSection').style.display==='none'?'block':'none'">Bulk Upload</button>
+            <button class="btn btn-secondary" onclick="retagAllStyles()" id="retagAllBtn">Re-tag All</button>
             <span style="font-size:12px;color:#888;display:flex;align-items:center;" id="styleCount">0 samples in library</span>
           </div>
           <div id="styleFilters" style="display:none;margin-bottom:16px;">
@@ -5044,6 +5130,10 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     function toggleEventDetailsExpand() {
       var expanded = document.getElementById('eventDetailsExpanded');
       var isShown = expanded.style.display !== 'none';
+      if (isShown) {
+        // Collapsing — update summary from current form values
+        showEventDetailsSummary();
+      }
       expanded.style.display = isShown ? 'none' : 'block';
       document.getElementById('expandDetailsBtn').textContent = isShown ? 'Edit' : 'Collapse';
     }
@@ -5491,7 +5581,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
               completedCount++;
               status.textContent = completedCount + '/' + total + ' complete...';
               if (data.success) {
-                var result = { success: true, theme: data.theme, metadata: data.metadata, promptVersionId: combo.promptVersionId, promptLabel: combo.promptLabel, model: combo.model, modelLabel: combo.modelLabel, score: 0, testRunId: null };
+                var result = { success: true, theme: data.theme, metadata: data.metadata, autoScore: data.autoScore || null, promptVersionId: combo.promptVersionId, promptLabel: combo.promptLabel, model: combo.model, modelLabel: combo.modelLabel, score: 0, testRunId: null };
                 matrixResults[i] = result;
                 renderMatrixCardResult(i, result, combo);
                 // Auto-save test run
@@ -5676,6 +5766,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         + '<div class="stat"><div class="val">' + (meta.latencyMs / 1000).toFixed(1) + 's</div><div class="lbl">Latency</div></div>'
         + '<div class="stat"><div class="val">' + formatNumber(meta.tokens.input) + '/' + formatNumber(meta.tokens.output) + '</div><div class="lbl">Tokens</div></div>'
         + '<div class="stat"><div class="val">' + fmtCost(estCost) + '</div><div class="lbl">Cost</div></div>'
+        + (result.autoScore ? '<div class="stat"><div class="val" style="color:' + (result.autoScore.score >= 4 ? '#10b981' : result.autoScore.score >= 3 ? '#f59e0b' : '#ef4444') + ';font-weight:800;" title="' + escapeHtml(result.autoScore.reasoning || '') + '">' + result.autoScore.score + '/5</div><div class="lbl">AI Score</div></div>' : '')
         + '</div>';
 
       // Render phone preview
@@ -6273,6 +6364,75 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       }
     }
 
+    async function retagSingleStyle(styleId, btn) {
+      var item = styleLibrary.find(function(s) { return s.id === styleId; });
+      if (!item || !item.html) { showToast('No HTML content to analyze'); return; }
+      var origText = btn ? btn.textContent : '';
+      if (btn) { btn.disabled = true; btn.textContent = 'Tagging...'; }
+      try {
+        var token = localStorage.getItem('sb_access_token');
+        var res = await fetch('/api/v2/prompt-test?action=autoTag', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ html: item.html })
+        }).then(function(r) { return r.json(); });
+        if (!res.success || !res.autoTag) throw new Error(res.error || 'Auto-tag failed');
+        var tag = res.autoTag;
+        // Update style with new tags
+        await adminFetch('saveStyleItem', {
+          method: 'POST',
+          body: { id: styleId, name: tag.name || item.name, description: tag.description || item.description, html: item.html, tags: tag.tags || item.tags, eventTypes: tag.eventTypes || item.eventTypes, designNotes: tag.designNotes || item.designNotes }
+        });
+        showToast('Re-tagged: ' + (tag.eventTypes || []).join(', '));
+        await loadStyleLibrary();
+        if (styleDetailCurrentId === styleId) openStyleDetailView(styleId);
+      } catch (err) {
+        showToast('Re-tag failed: ' + err.message);
+      }
+      if (btn) { btn.disabled = false; btn.textContent = origText; }
+    }
+
+    async function retagAllStyles() {
+      var btn = document.getElementById('retagAllBtn');
+      var items = styleLibrary.filter(function(s) { return s.html && !s.archivedAt; });
+      if (items.length === 0) { showToast('No styles to re-tag'); return; }
+      if (!confirm('Re-tag all ' + items.length + ' styles with AI? This will update event types, tags, and design notes based on the current auto-tag prompt.')) return;
+      btn.disabled = true;
+      btn.textContent = 'Re-tagging 0/' + items.length + '...';
+      var done = 0;
+      var errors = 0;
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        try {
+          var token = localStorage.getItem('sb_access_token');
+          var res = await fetch('/api/v2/prompt-test?action=autoTag', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ html: item.html })
+          }).then(function(r) { return r.json(); });
+          if (res.success && res.autoTag) {
+            var tag = res.autoTag;
+            await adminFetch('saveStyleItem', {
+              method: 'POST',
+              body: { id: item.id, name: tag.name || item.name, description: tag.description || item.description, html: item.html, tags: tag.tags || item.tags, eventTypes: tag.eventTypes || item.eventTypes, designNotes: tag.designNotes || item.designNotes }
+            });
+          } else {
+            errors++;
+          }
+        } catch (err) {
+          errors++;
+        }
+        done++;
+        btn.textContent = 'Re-tagging ' + done + '/' + items.length + '...';
+      }
+      btn.disabled = false;
+      btn.textContent = 'Re-tag All';
+      await loadStyleLibrary();
+      renderStyleGrid();
+      renderStyleCheckboxes();
+      showToast('Re-tagged ' + (done - errors) + '/' + items.length + ' styles' + (errors > 0 ? ' (' + errors + ' failed)' : ''));
+    }
+
     async function archiveStyleItem(styleId) {
       var item = styleLibrary.find(function(s) { return s.id === styleId; });
       if (!item) return;
@@ -6305,20 +6465,63 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         container.innerHTML = '<span style="font-size:12px;color:#aaa;">Select an event type above to see matched styles.</span>';
         return;
       }
-      // Filter to only auto-matched items (same logic as backend: .contains('event_types', [eventType]) limit 2)
+      // Filter to auto-matched items, sorted by admin_rating desc
       var matched = styleLibrary.filter(function(item) {
-        return (item.eventTypes || []).includes(currentType);
-      }).slice(0, 2);
+        return !item.archivedAt && (item.eventTypes || []).includes(currentType);
+      }).sort(function(a, b) { return (b.adminRating || 0) - (a.adminRating || 0); }).slice(0, 3);
+
+      var html = '';
       if (matched.length === 0) {
-        container.innerHTML = '<span style="font-size:12px;color:#aaa;">No style references matched for this event type.</span>';
+        html += '<span style="font-size:12px;color:#aaa;">No style references matched for "' + currentType + '".</span>';
+      } else {
+        html += matched.map(function(item) {
+          var stars = item.adminRating ? '<span style="color:#f59e0b;font-size:11px;margin-left:4px;">' + '★'.repeat(item.adminRating) + '☆'.repeat(5 - item.adminRating) + '</span>' : '';
+          var etTags = (item.eventTypes || []).map(function(et) {
+            var isMatch = et === currentType;
+            return '<span style="font-size:9px;padding:1px 4px;border-radius:3px;margin-left:2px;' + (isMatch ? 'background:rgba(233,69,96,0.1);color:var(--party-coral);font-weight:600;' : 'background:#f0f0f0;color:#888;') + '">' + et + '</span>';
+          }).join('');
+          return '<label class="style-checkbox selected">'
+            + '<input type="checkbox" value="' + item.id + '" checked>'
+            + '<span style="font-size:13px;font-weight:600;">' + escapeHtml(item.name) + '</span>'
+            + '<span style="font-size:10px;font-weight:700;color:var(--mint-fizz);margin-left:6px;">AUTO-MATCH</span>'
+            + stars
+            + '<div style="margin-top:2px;margin-left:22px;">' + etTags + '</div>'
+            + (item.description ? '<div style="font-size:11px;color:#888;margin-top:1px;margin-left:22px;max-width:500px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(item.description) + '</div>' : '')
+            + '</label>';
+        }).join('');
+      }
+
+      // "Browse all" link to manually add styles
+      html += '<div style="margin-top:6px;"><a href="#" style="font-size:12px;color:var(--party-coral);" onclick="toggleStyleBrowser();return false;">+ Browse all styles</a></div>';
+      html += '<div id="styleBrowserPanel" style="display:none;margin-top:8px;max-height:200px;overflow-y:auto;border:1px solid #eee;border-radius:6px;padding:8px;"></div>';
+
+      container.innerHTML = html;
+    }
+
+    function toggleStyleBrowser() {
+      var panel = document.getElementById('styleBrowserPanel');
+      if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+      panel.style.display = 'block';
+      var currentType = document.getElementById('testEventType').value;
+      // Show all non-archived styles, with currently matched ones excluded (already shown above)
+      var alreadyChecked = Array.from(document.querySelectorAll('#styleRefList input[type="checkbox"]:checked')).map(function(cb) { return cb.value; });
+      var others = styleLibrary.filter(function(item) {
+        return !item.archivedAt && alreadyChecked.indexOf(item.id) === -1;
+      }).sort(function(a, b) { return (b.adminRating || 0) - (a.adminRating || 0); });
+
+      if (others.length === 0) {
+        panel.innerHTML = '<span style="font-size:12px;color:#aaa;">No additional styles available.</span>';
         return;
       }
-      container.innerHTML = matched.map(function(item) {
-        return '<label class="style-checkbox selected">'
-          + '<input type="checkbox" value="' + item.id + '" checked>'
-          + '<span style="font-size:13px;font-weight:600;">' + escapeHtml(item.name) + '</span>'
-          + '<span style="font-size:10px;font-weight:700;color:var(--mint-fizz);margin-left:6px;">AUTO-MATCH</span>'
-          + (item.description ? '<span style="font-size:12px;color:#888;margin-left:4px;">' + escapeHtml(item.description) + '</span>' : '')
+      panel.innerHTML = others.map(function(item) {
+        var stars = item.adminRating ? '<span style="color:#f59e0b;font-size:10px;margin-left:4px;">' + '★'.repeat(item.adminRating) + '</span>' : '';
+        var etTags = (item.eventTypes || []).map(function(et) {
+          return '<span style="font-size:9px;padding:1px 3px;border-radius:2px;background:#f0f0f0;color:#888;margin-left:2px;">' + et + '</span>';
+        }).join('');
+        return '<label class="style-checkbox" style="margin-bottom:2px;padding:4px 8px;">'
+          + '<input type="checkbox" value="' + item.id + '">'
+          + '<span style="font-size:12px;font-weight:600;">' + escapeHtml(item.name) + '</span>'
+          + stars + ' ' + etTags
           + '</label>';
       }).join('');
     }
@@ -6880,6 +7083,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           + '<td>' + statusBadge + '</td>'
           + '<td style="font-size:12px;color:#888;">' + formatDate(v.created_at) + '</td>'
           + '<td style="white-space:nowrap;">'
+          + '<button class="btn btn-secondary btn-sm" onclick="toggleVersionDiff(\'' + v.id + '\', this)" style="margin-right:4px;">View</button>'
           + '<button class="btn btn-secondary btn-sm" onclick="editPromptVersion(\'' + v.id + '\')" style="margin-right:4px;">Edit</button>'
           + '<button class="btn btn-secondary btn-sm" onclick="duplicatePromptVersion(\'' + v.id + '\')" style="margin-right:4px;">Duplicate</button>';
         if (!v.is_active) {
@@ -6887,9 +7091,88 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           html += '<button class="btn btn-sm" onclick="deletePromptVersion(\'' + v.id + '\')" style="background:#fee;color:var(--party-coral);border:1px solid #fcc;">Delete</button>';
         }
         html += '</td></tr>';
+        // Expandable diff row (hidden by default)
+        html += '<tr id="pvDiffRow_' + v.id + '" style="display:none;"><td colspan="6" style="padding:0;"></td></tr>';
       });
       html += '</tbody></table>';
       container.innerHTML = html;
+    }
+
+    async function toggleVersionDiff(versionId, btn) {
+      var row = document.getElementById('pvDiffRow_' + versionId);
+      if (!row) return;
+
+      // Toggle: if already visible, collapse
+      if (row.style.display !== 'none') {
+        row.style.display = 'none';
+        btn.textContent = 'View';
+        return;
+      }
+
+      // Show loading state
+      row.style.display = '';
+      var cell = row.querySelector('td');
+      cell.innerHTML = '<div style="padding:16px;color:#888;font-size:12px;">Loading prompt details...</div>';
+      btn.textContent = 'Hide';
+
+      try {
+        var res = await adminFetch('getPromptVersion', { params: { versionId: versionId } });
+        if (!res.success) throw new Error(res.error || 'Failed');
+        var v = res.version;
+
+        // Get the base to diff against (active version or hardcoded default)
+        var baseCreative = DEFAULT_CREATIVE_TEXT;
+        var baseLabel = 'Hardcoded Default';
+        if (_livePromptData.creative && _livePromptData.versionLabel) {
+          // Don't diff active version against itself
+          var activeVersion = promptVersionsData.find(function(p) { return p.is_active; });
+          if (!activeVersion || activeVersion.id !== versionId) {
+            baseCreative = _livePromptData.creative;
+            baseLabel = _livePromptData.versionLabel;
+          }
+        }
+
+        var versionCreative = v.creative_direction || '';
+        var diffHtml = buildInlineDiff(baseCreative, versionCreative);
+
+        var html = '<div style="background:#f9f9f9;border-radius:0 0 8px 8px;padding:16px 20px;border-top:2px solid var(--party-coral);">';
+
+        // Header
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
+          + '<div style="font-size:14px;font-weight:700;color:var(--midnight);">' + escapeHtml(v.name) + '</div>'
+          + '<div style="font-size:11px;color:#888;">Compared to <strong>' + escapeHtml(baseLabel) + '</strong>'
+          + ' &nbsp; <span style="display:inline-block;width:10px;height:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:2px;vertical-align:middle;"></span> added'
+          + ' &nbsp; <span style="display:inline-block;width:10px;height:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:2px;vertical-align:middle;"></span> removed'
+          + '</div></div>';
+
+        // Description
+        if (v.description) {
+          html += '<div style="font-size:12px;color:#666;margin-bottom:12px;padding:8px 12px;background:white;border-radius:6px;border:1px solid #eee;">' + escapeHtml(v.description) + '</div>';
+        }
+
+        // Full prompt with inline diff
+        html += '<div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Full Creative Direction</div>'
+          + '<div style="background:white;border:1px solid #eee;border-radius:6px;padding:0;font-size:12px;font-family:\'SF Mono\',Monaco,Consolas,monospace;max-height:500px;overflow-y:auto;line-height:1;">'
+          + diffHtml
+          + '</div>';
+
+        // Design DNA changes
+        if (v.design_dna && typeof v.design_dna === 'object' && Object.keys(v.design_dna).length > 0) {
+          var baseDna = _livePromptData.dna || DESIGN_DNA_DATA || {};
+          var dnaChanges = findDnaChanges(baseDna, v.design_dna);
+          if (dnaChanges) {
+            html += '<div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin:12px 0 6px;">Design DNA Changes</div>'
+              + '<div style="background:white;border:1px solid #eee;border-radius:6px;padding:12px 14px;font-size:12px;font-family:monospace;max-height:200px;overflow-y:auto;line-height:1.6;">'
+              + dnaChanges
+              + '</div>';
+          }
+        }
+
+        html += '</div>';
+        cell.innerHTML = html;
+      } catch (err) {
+        cell.innerHTML = '<div style="padding:16px;color:var(--party-coral);font-size:12px;">Failed to load: ' + escapeHtml(err.message) + '</div>';
+      }
     }
 
     function populatePromptVersionDropdown() {
@@ -6902,12 +7185,160 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       (promptVersionsData || []).forEach(function(v) {
         var label = 'v' + v.version + ' – ' + escapeHtml(v.name);
         if (v.is_active) label += ' <span class="badge badge-green" style="font-size:9px;vertical-align:middle;">Active</span>';
+        // Show description as subtitle for better context
+        var subtitle = '';
+        if (v.description) {
+          subtitle = '<div style="font-size:11px;color:#888;margin-top:2px;margin-left:22px;line-height:1.3;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
+            + escapeHtml(v.description.substring(0, 120)) + '</div>';
+        }
         html += '<label class="style-checkbox" style="margin-bottom:0;">'
           + '<input type="checkbox" name="pvCheck" value="' + v.id + '"> <span style="font-size:13px;">' + label + '</span>'
-          + '</label>';
+          + '</label>' + subtitle;
       });
       container.innerHTML = html;
       updateMatrixSummary();
+    }
+
+    // Full-text inline diff: shows entire document with changes highlighted (like GitHub)
+    // Uses a simple LCS-based approach on lines
+    function buildInlineDiff(baseText, newText) {
+      var baseLines = (baseText || '').split('\n');
+      var newLines = (newText || '').split('\n');
+
+      // Build LCS table for line-level diff
+      var ops = diffLines(baseLines, newLines);
+
+      if (ops.every(function(op) { return op.type === 'equal'; })) {
+        var html = '';
+        newLines.forEach(function(line, i) {
+          html += diffLine(i + 1, '', line, 'equal');
+        });
+        return '<div style="counter-reset:diffline;">' + html + '<div style="padding:8px 12px;color:#888;font-style:italic;font-size:11px;border-top:1px solid #f0f0f0;">No changes from base version</div></div>';
+      }
+
+      var html = '<div style="counter-reset:diffline;">';
+      var lineNum = 0;
+      ops.forEach(function(op) {
+        if (op.type === 'equal') {
+          lineNum++;
+          html += diffLine(lineNum, '', op.line, 'equal');
+        } else if (op.type === 'remove') {
+          html += diffLine('', '-', op.line, 'remove');
+        } else if (op.type === 'add') {
+          lineNum++;
+          html += diffLine(lineNum, '+', op.line, 'add');
+        }
+      });
+      html += '</div>';
+      return html;
+    }
+
+    function diffLine(num, prefix, text, type) {
+      var bg = type === 'add' ? '#dcfce7' : type === 'remove' ? '#fef2f2' : 'transparent';
+      var color = type === 'add' ? '#166534' : type === 'remove' ? '#b91c1c' : '#374151';
+      var borderLeft = type === 'add' ? '3px solid #22c55e' : type === 'remove' ? '3px solid #ef4444' : '3px solid transparent';
+      var deco = type === 'remove' ? 'text-decoration:line-through;' : '';
+      var numStr = num !== '' ? String(num) : '';
+      return '<div style="display:flex;background:' + bg + ';border-left:' + borderLeft + ';min-height:20px;' + deco + '">'
+        + '<span style="flex:0 0 36px;text-align:right;padding:2px 6px 2px 0;font-size:11px;color:#aaa;user-select:none;border-right:1px solid #f0f0f0;">' + numStr + '</span>'
+        + '<span style="flex:0 0 20px;text-align:center;padding:2px 0;font-size:11px;color:' + (type === 'equal' ? '#ddd' : color) + ';user-select:none;font-weight:700;">' + (prefix || ' ') + '</span>'
+        + '<span style="flex:1;padding:2px 8px;white-space:pre-wrap;word-break:break-word;color:' + color + ';">' + escapeHtml(text) + '</span>'
+        + '</div>';
+    }
+
+    // Simple line diff using longest common subsequence
+    function diffLines(baseLines, newLines) {
+      var m = baseLines.length;
+      var n = newLines.length;
+
+      // For very large diffs, fall back to a simpler set-based approach
+      if (m * n > 500000) {
+        return diffLinesFallback(baseLines, newLines);
+      }
+
+      // Build LCS table
+      var dp = [];
+      for (var i = 0; i <= m; i++) {
+        dp[i] = [];
+        for (var j = 0; j <= n; j++) {
+          if (i === 0 || j === 0) dp[i][j] = 0;
+          else if (baseLines[i - 1].trim() === newLines[j - 1].trim()) dp[i][j] = dp[i - 1][j - 1] + 1;
+          else dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        }
+      }
+
+      // Backtrack to produce ops
+      var ops = [];
+      var i = m, j = n;
+      while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && baseLines[i - 1].trim() === newLines[j - 1].trim()) {
+          ops.push({ type: 'equal', line: newLines[j - 1] });
+          i--; j--;
+        } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+          ops.push({ type: 'add', line: newLines[j - 1] });
+          j--;
+        } else {
+          ops.push({ type: 'remove', line: baseLines[i - 1] });
+          i--;
+        }
+      }
+      ops.reverse();
+      return ops;
+    }
+
+    // Fallback for very large texts: set-based diff
+    function diffLinesFallback(baseLines, newLines) {
+      var baseSet = {};
+      baseLines.forEach(function(l) { var t = l.trim(); if (t) baseSet[t] = (baseSet[t] || 0) + 1; });
+      var ops = [];
+      // Show removed lines from base that aren't in new
+      var newSet = {};
+      newLines.forEach(function(l) { var t = l.trim(); if (t) newSet[t] = (newSet[t] || 0) + 1; });
+      var removedSet = {};
+      baseLines.forEach(function(l) {
+        var t = l.trim();
+        if (t && (!newSet[t] || (removedSet[t] || 0) >= (newSet[t] || 0))) {
+          ops.push({ type: 'remove', line: l });
+        }
+        removedSet[t] = (removedSet[t] || 0) + 1;
+      });
+      // Then show the full new text with additions highlighted
+      newLines.forEach(function(l) {
+        var t = l.trim();
+        ops.push({ type: (!t || baseSet[t]) ? 'equal' : 'add', line: l });
+      });
+      return ops;
+    }
+
+    // Find design DNA changes between base and new
+    function findDnaChanges(baseDna, newDna) {
+      var html = '';
+      var allKeys = {};
+      Object.keys(baseDna || {}).forEach(function(k) { allKeys[k] = true; });
+      Object.keys(newDna || {}).forEach(function(k) { allKeys[k] = true; });
+
+      Object.keys(allKeys).forEach(function(eventType) {
+        var baseStr = JSON.stringify(baseDna[eventType] || {});
+        var newStr = JSON.stringify(newDna[eventType] || {});
+        if (baseStr !== newStr) {
+          // Check specifically for aiSuggested additions
+          var newConsider = newDna[eventType]?.consider?.aiSuggested;
+          var baseConsider = baseDna[eventType]?.consider?.aiSuggested;
+          if (newConsider && newConsider !== baseConsider) {
+            html += '<div style="margin-bottom:4px;">'
+              + '<span class="badge badge-blue" style="font-size:9px;">' + escapeHtml(eventType) + '</span> '
+              + '<span style="color:#166534;">+ ' + escapeHtml(newConsider.substring(0, 200)) + '</span>'
+              + '</div>';
+          } else if (!newDna[eventType] && baseDna[eventType]) {
+            html += '<div style="margin-bottom:4px;">'
+              + '<span class="badge badge-blue" style="font-size:9px;">' + escapeHtml(eventType) + '</span> '
+              + '<span style="color:#ef4444;text-decoration:line-through;">removed</span>'
+              + '</div>';
+          }
+        }
+      });
+
+      return html || null;
     }
 
     function openPromptVersionModal(editData) {
@@ -7172,6 +7603,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         document.getElementById('liveTweakPrompt').textContent = DESIGN_TWEAK_PROMPT_TEXT;
         document.getElementById('liveLightTweakPrompt').textContent = LIGHT_TWEAK_PROMPT_TEXT;
 
+        // Load health history in background
+        loadHealthHistory();
+
       } catch (err) {
         console.error('Failed to load AI Control Center:', err);
       }
@@ -7226,6 +7660,526 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     var DESIGN_TWEAK_PROMPT_TEXT = "You are modifying an event invite design. The user has an existing invite and wants changes to colors, fonts, layout, photos, or animations.\n\nOutput: { theme_html, theme_css, theme_thankyou_html, theme_config, chat_response, rsvp_field_changes }\n\nCritical rules:\n- Preserve data attributes: data-field=\"title\", data-field=\"datetime\", data-field=\"location\", etc.\n- .rsvp-slot MUST remain empty (no buttons/content)\n- Max-width 393px, mobile-first, WCAG AA contrast\n- Google Fonts only, characterful fonts\n- Thank-you page: MUST include decorative SVG with CSS animation";
 
     var LIGHT_TWEAK_PROMPT_TEXT = "You are modifying an event invite. Make ONLY the specific text, wording, or content changes requested. Do NOT change design, layout, colors, fonts, or CSS.\n\nOutput: { html_replacements: [{old: 'exact HTML substring', new: 'replacement'}], rsvp_field_changes: [...] or null, chat_response: 'Brief message' }\n\nEach replacement's 'old' must be an exact substring from the current HTML. Include surrounding context for uniqueness.";
+
+    // ═══════════════════════════════════════════════
+    // PROMPT HEALTH ANALYST
+    // ═══════════════════════════════════════════════
+
+    async function healthFetch(action, opts) {
+      var method = (opts && opts.method) || 'GET';
+      var url = '/api/v2/prompt-health?action=' + action;
+      if (opts && opts.params) {
+        Object.keys(opts.params).forEach(function(k) { url += '&' + k + '=' + encodeURIComponent(opts.params[k]); });
+      }
+      var fetchOpts = { method: method, headers: { 'Authorization': 'Bearer ' + token } };
+      if (opts && opts.body) {
+        fetchOpts.headers['Content-Type'] = 'application/json';
+        fetchOpts.body = JSON.stringify(opts.body);
+      }
+      var r = await fetch(url, fetchOpts);
+      if (r.status === 401) {
+        var refreshed = await refreshToken();
+        if (refreshed) { fetchOpts.headers['Authorization'] = 'Bearer ' + token; r = await fetch(url, fetchOpts); }
+      }
+      var text = await r.text();
+      try { return JSON.parse(text); } catch (e) { throw new Error('Server error: ' + r.status); }
+    }
+
+    async function runPromptHealthAnalysis() {
+      var btn = document.getElementById('runHealthBtn');
+      btn.disabled = true;
+      btn.textContent = 'Analyzing...';
+      document.getElementById('healthLoading').style.display = 'block';
+      document.getElementById('healthEmpty').style.display = 'none';
+      document.getElementById('healthResults').style.display = 'none';
+
+      try {
+        // Use res.text() to read SSE stream (same pattern as generate-theme — reliable on mobile Safari)
+        var response = await fetch('/api/v2/prompt-health?action=analyze', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+        });
+        var text = await response.text();
+
+        // Parse SSE: find last "data: {...}" line that contains our result
+        var result = null;
+        var lines = text.split('\n');
+        for (var i = lines.length - 1; i >= 0; i--) {
+          var line = lines[i].trim();
+          if (line.startsWith('data: {')) {
+            try {
+              var parsed = JSON.parse(line.substring(6));
+              if (parsed.success || parsed.error) { result = parsed; break; }
+            } catch (_) {}
+          }
+        }
+
+        if (!result) throw new Error('No result received from server');
+        if (result.error) {
+          var errMsg = result.error;
+          if (result.raw) errMsg += '\n\nRaw AI response:\n' + result.raw;
+          throw new Error(errMsg);
+        }
+        if (!result.analysis) throw new Error('Analysis returned empty');
+
+        renderHealthResults(result.analysis, result.analysisId, result.cost, result.tokens, result.latencyMs);
+        loadHealthHistory();
+      } catch (err) {
+        console.error('Health analysis failed:', err);
+        document.getElementById('healthEmpty').style.display = 'block';
+        document.getElementById('healthEmpty').innerHTML = '<div style="color:var(--party-coral);font-size:14px;">Analysis failed: ' + escapeHtml(err.message).replace(/\n/g, '<br>') + '</div>';
+      }
+      document.getElementById('healthLoading').style.display = 'none';
+      btn.disabled = false;
+      btn.textContent = 'Run Analysis';
+    }
+
+    var _currentAnalysisId = null;
+
+    function renderHealthResults(analysis, analysisId, cost, tokens, latencyMs, recommendations) {
+      _currentAnalysisId = analysisId;
+      document.getElementById('healthResults').style.display = 'block';
+      document.getElementById('healthEmpty').style.display = 'none';
+
+      // Health score
+      var score = analysis.overallHealthScore || 5;
+      var scoreEl = document.getElementById('healthScoreValue');
+      scoreEl.textContent = score;
+      var scoreColor = score >= 7 ? '#10b981' : score >= 4 ? '#f59e0b' : '#ef4444';
+      scoreEl.style.color = scoreColor;
+      document.getElementById('healthScoreCard').style.borderColor = scoreColor;
+
+      // Summary
+      document.getElementById('healthSummary').textContent = analysis.summary || 'No summary available.';
+
+      // Regression risks (shown FIRST — what NOT to change)
+      var riskHtml = '';
+      if (analysis.regressionRisks && analysis.regressionRisks.length > 0) {
+        riskHtml = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px 18px;">'
+          + '<div style="font-size:12px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Working Well — Do Not Change</div>';
+        analysis.regressionRisks.forEach(function(r) {
+          riskHtml += '<div style="font-size:13px;color:#166534;margin-bottom:4px;">&#10003; ' + escapeHtml(r) + '</div>';
+        });
+        riskHtml += '</div>';
+      }
+      document.getElementById('healthRisks').innerHTML = riskHtml;
+
+      // Top weaknesses
+      var weakHtml = '';
+      if (analysis.topWeaknesses && analysis.topWeaknesses.length > 0) {
+        weakHtml = '<div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Top Weaknesses</div>';
+        analysis.topWeaknesses.forEach(function(w) {
+          var sevColor = w.severity === 'critical' ? '#ef4444' : w.severity === 'major' ? '#f59e0b' : '#888';
+          var sevBg = w.severity === 'critical' ? '#fef2f2' : w.severity === 'major' ? '#fffbeb' : '#f9f9f9';
+          weakHtml += '<div style="background:' + sevBg + ';border:1px solid ' + sevColor + '33;border-radius:8px;padding:14px 16px;margin-bottom:8px;">'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+            + '<span style="font-size:14px;font-weight:700;color:var(--midnight);">' + escapeHtml(w.title) + '</span>'
+            + '<span class="badge" style="background:' + sevColor + '22;color:' + sevColor + ';font-size:10px;">' + (w.severity || 'minor') + '</span>'
+            + '</div>'
+            + '<div style="font-size:12px;color:#666;margin-bottom:6px;">' + escapeHtml(w.evidence || '') + '</div>'
+            + (w.affectedEventTypes && w.affectedEventTypes.length > 0 ? '<div style="font-size:11px;color:#888;margin-bottom:6px;">Affects: ' + w.affectedEventTypes.map(function(t) { return '<span class="badge badge-blue" style="font-size:9px;margin-right:4px;">' + escapeHtml(t) + '</span>'; }).join('') + '</div>' : '')
+            + (w.expectedImpact ? '<div style="font-size:12px;color:#666;margin-top:4px;">Expected impact: ' + escapeHtml(w.expectedImpact) + '</div>' : '')
+            + '</div>';
+        });
+      }
+      document.getElementById('healthWeaknesses').innerHTML = weakHtml;
+
+      // Patterns
+      var patHtml = '';
+      if (analysis.patterns && analysis.patterns.length > 0) {
+        patHtml = '<div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Patterns Observed</div>';
+        analysis.patterns.forEach(function(p) {
+          patHtml += '<div style="background:#f9f9f9;border-radius:6px;padding:10px 14px;margin-bottom:6px;">'
+            + '<div style="font-size:13px;font-weight:600;color:var(--midnight);margin-bottom:2px;">' + escapeHtml(p.observation || '') + '</div>'
+            + '<div style="font-size:11px;color:#888;">' + escapeHtml(p.dataPoints || '') + '</div>'
+            + '</div>';
+        });
+      }
+      document.getElementById('healthPatterns').innerHTML = patHtml;
+
+      // Meta
+      document.getElementById('healthMeta').innerHTML = 'Analysis cost: $' + (cost ? (cost / 100).toFixed(4) : '0') + ' | Tokens: ' + (tokens ? tokens.input + ' in / ' + tokens.output + ' out' : 'N/A') + ' | Latency: ' + (latencyMs ? (latencyMs / 1000).toFixed(1) + 's' : 'N/A');
+      document.getElementById('healthLastRun').textContent = 'Last run: just now';
+
+      // Render actionable recommendations (passed in or fetched)
+      if (recommendations) {
+        renderRecommendations(recommendations);
+      } else if (analysisId) {
+        loadRecommendations(analysisId);
+      }
+    }
+
+    // ── Actionable Recommendations ──
+
+    async function loadRecommendations(analysisId) {
+      var container = document.getElementById('healthRecommendations');
+      try {
+        var res = await healthFetch('getAnalysis', { params: { analysisId: analysisId } });
+        if (!res.success || !res.recommendations) {
+          container.innerHTML = '';
+          return;
+        }
+        renderRecommendations(res.recommendations);
+      } catch (err) {
+        console.error('Failed to load recommendations:', err);
+        container.innerHTML = '';
+      }
+    }
+
+    var _selectedRecIds = [];
+    var _combineRecIds = []; // IDs staged for confirm after preview
+
+    function renderRecommendations(recs) {
+      var container = document.getElementById('healthRecommendations');
+      _selectedRecIds = [];
+      if (!recs || recs.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+
+      // Status counts
+      var pending = recs.filter(function(r) { return r.status === 'pending'; }).length;
+      var applied = recs.filter(function(r) { return r.status === 'applied'; }).length;
+      var dismissed = recs.filter(function(r) { return r.status === 'dismissed'; }).length;
+
+      var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
+        + '<div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Actionable Recommendations</div>'
+        + '<div style="font-size:12px;color:#888;">'
+        + (pending > 0 ? '<span style="color:var(--party-coral);font-weight:600;">' + pending + ' pending</span>' : '')
+        + (applied > 0 ? (pending > 0 ? ' · ' : '') + '<span style="color:#10b981;">' + applied + ' applied</span>' : '')
+        + (dismissed > 0 ? ((pending + applied > 0) ? ' · ' : '') + dismissed + ' dismissed' : '')
+        + '</div></div>';
+
+      // Combine toolbar (only when 2+ pending recs)
+      if (pending >= 2) {
+        html += '<div id="combineToolbar" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#f0f0ff;border:1px solid #c7d2fe;border-radius:8px;margin-bottom:12px;">'
+          + '<span style="font-size:13px;font-weight:600;color:#4f46e5;" id="combineCount">0 selected</span>'
+          + '<button class="btn btn-sm btn-primary" id="combinePreviewBtn" style="font-size:12px;padding:4px 14px;" onclick="previewCombinedRecs()" disabled>Preview &amp; Combine</button>'
+          + '<a href="#" style="font-size:12px;color:#888;" onclick="clearRecSelection();return false;">Clear</a>'
+          + '<span style="flex:1;"></span>'
+          + '<span style="font-size:11px;color:#888;">Select 2+ recommendations to combine into one draft version</span>'
+          + '</div>';
+      } else {
+        html += '<div style="font-size:12px;color:#888;margin-bottom:12px;">Each recommendation creates a <strong>draft</strong> prompt version. Test it in the Prompt Lab before activating.</div>';
+      }
+
+      // Sort: pending first, then applied, then dismissed
+      var sorted = recs.slice().sort(function(a, b) {
+        var order = { pending: 0, applied: 1, dismissed: 2 };
+        return (order[a.status] || 0) - (order[b.status] || 0);
+      });
+
+      sorted.forEach(function(rec) {
+        var isPending = rec.status === 'pending';
+        var isApplied = rec.status === 'applied';
+        var isDismissed = rec.status === 'dismissed';
+        var sevColor = rec.severity === 'critical' ? '#ef4444' : rec.severity === 'major' ? '#f59e0b' : '#888';
+        var cardBg = isDismissed ? '#fafafa' : isApplied ? '#f0fdf4' : 'white';
+        var cardBorder = isDismissed ? '#eee' : isApplied ? '#bbf7d0' : sevColor + '33';
+        var cardOpacity = isDismissed ? '0.6' : '1';
+        var typeBadge = rec.type === 'add' ? '<span class="badge badge-green" style="font-size:9px;">Add</span>'
+          : rec.type === 'remove' ? '<span class="badge badge-red" style="font-size:9px;">Remove</span>'
+          : '<span class="badge badge-yellow" style="font-size:9px;">Modify</span>';
+
+        html += '<div id="healthRec_' + rec.id + '" style="background:' + cardBg + ';border:1px solid ' + cardBorder + ';border-radius:8px;padding:14px 16px;margin-bottom:8px;opacity:' + cardOpacity + ';">';
+
+        // Header row
+        html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">'
+          + '<div style="display:flex;align-items:flex-start;gap:10px;flex:1;">';
+
+        // Checkbox for pending recs (combine selection)
+        if (isPending && pending >= 2) {
+          html += '<input type="checkbox" data-rec-id="' + rec.id + '" onchange="toggleRecSelection(this)" style="margin-top:3px;width:16px;height:16px;cursor:pointer;flex-shrink:0;">';
+        }
+
+        html += '<div style="flex:1;">'
+          + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'
+          + typeBadge
+          + '<span class="badge" style="background:' + sevColor + '22;color:' + sevColor + ';font-size:9px;">' + escapeHtml(rec.severity || 'minor') + '</span>'
+          + '<span style="font-size:11px;color:#888;">' + escapeHtml(rec.section || '') + (rec.event_type ? ' (' + rec.event_type + ')' : '') + '</span>'
+          + '</div>'
+          + '<div style="font-size:14px;font-weight:700;color:var(--midnight);">' + escapeHtml(rec.title || '') + '</div>'
+          + '</div></div>';
+
+        // Status badge
+        if (isApplied) {
+          html += '<span class="badge badge-green" style="font-size:10px;white-space:nowrap;">Applied</span>';
+        } else if (isDismissed) {
+          html += '<span class="badge" style="font-size:10px;background:#eee;color:#888;">Dismissed</span>';
+        }
+        html += '</div>';
+
+        // Rationale
+        if (rec.rationale) {
+          html += '<div style="font-size:12px;color:#666;margin-bottom:8px;">' + escapeHtml(rec.rationale) + '</div>';
+        }
+
+        // Diff view: current → suggested
+        if (rec.current_text || rec.suggested_text) {
+          html += '<div style="background:#f9f9f9;border:1px solid #eee;border-radius:6px;padding:10px 12px;margin-bottom:8px;font-size:12px;font-family:monospace;max-height:120px;overflow-y:auto;">';
+          if (rec.current_text) {
+            html += '<div style="color:#ef4444;text-decoration:line-through;margin-bottom:4px;white-space:pre-wrap;">- ' + escapeHtml(rec.current_text.substring(0, 300)) + '</div>';
+          }
+          if (rec.suggested_text) {
+            html += '<div style="color:#10b981;white-space:pre-wrap;">+ ' + escapeHtml(rec.suggested_text.substring(0, 300)) + '</div>';
+          }
+          html += '</div>';
+        }
+
+        // Expected impact
+        if (rec.expected_impact) {
+          html += '<div style="font-size:11px;color:#888;margin-bottom:8px;">Expected impact: ' + escapeHtml(rec.expected_impact) + '</div>';
+        }
+
+        // Action buttons
+        if (isPending) {
+          html += '<div style="display:flex;gap:8px;justify-content:flex-end;">'
+            + '<button class="btn btn-sm" style="background:#eee;color:#666;font-size:12px;padding:4px 12px;" onclick="dismissHealthRec(\'' + rec.id + '\')">Dismiss</button>'
+            + '<button class="btn btn-sm btn-primary" style="font-size:12px;padding:4px 12px;" onclick="applyHealthRec(\'' + rec.id + '\')">Create Draft Version</button>'
+            + '</div>';
+        } else if (isApplied) {
+          html += '<div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;">'
+            + '<span style="font-size:11px;color:#10b981;">Draft created</span>'
+            + '<button class="btn btn-sm" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;font-size:12px;padding:4px 12px;" onclick="switchAISubtab(\'lab\')">Test in Lab</button>'
+            + '</div>';
+        }
+
+        html += '</div>';
+      });
+
+      container.innerHTML = html;
+    }
+
+    // ── Combine Selection Helpers ──
+
+    function toggleRecSelection(checkbox) {
+      var recId = checkbox.dataset.recId;
+      if (checkbox.checked) {
+        if (_selectedRecIds.indexOf(recId) === -1) _selectedRecIds.push(recId);
+      } else {
+        _selectedRecIds = _selectedRecIds.filter(function(id) { return id !== recId; });
+      }
+      updateCombineToolbar();
+    }
+
+    function clearRecSelection() {
+      _selectedRecIds = [];
+      document.querySelectorAll('#healthRecommendations input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
+      updateCombineToolbar();
+    }
+
+    function updateCombineToolbar() {
+      var countEl = document.getElementById('combineCount');
+      var btn = document.getElementById('combinePreviewBtn');
+      if (countEl) countEl.textContent = _selectedRecIds.length + ' selected';
+      if (btn) btn.disabled = _selectedRecIds.length < 2;
+    }
+
+    async function previewCombinedRecs() {
+      var btn = document.getElementById('combinePreviewBtn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Loading...'; }
+      try {
+        var res = await healthFetch('combineRecommendations', {
+          method: 'POST',
+          body: { recommendationIds: _selectedRecIds, confirm: false }
+        });
+        if (!res.success) throw new Error(res.error || 'Failed');
+
+        _combineRecIds = _selectedRecIds.slice();
+        var preview = res.preview;
+        var contentEl = document.getElementById('combinePreviewContent');
+
+        var html = '';
+
+        // Applied recs list
+        if (preview.applied && preview.applied.length > 0) {
+          html += '<div style="margin-bottom:16px;">'
+            + '<div style="font-size:12px;font-weight:600;color:#10b981;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Will Apply (' + preview.applied.length + ')</div>';
+          preview.applied.forEach(function(r) {
+            var typeBadge = r.type === 'add' ? '<span class="badge badge-green" style="font-size:9px;">Add</span>'
+              : r.type === 'remove' ? '<span class="badge badge-red" style="font-size:9px;">Remove</span>'
+              : '<span class="badge badge-yellow" style="font-size:9px;">Modify</span>';
+            html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;">'
+              + '<span style="color:#10b981;">&#10003;</span>' + typeBadge
+              + '<span>' + escapeHtml(r.title) + '</span>'
+              + (r.event_type ? '<span class="badge badge-blue" style="font-size:9px;">' + escapeHtml(r.event_type) + '</span>' : '')
+              + '</div>';
+          });
+          html += '</div>';
+        }
+
+        // Conflicts
+        if (preview.conflicts && preview.conflicts.length > 0) {
+          html += '<div style="margin-bottom:16px;background:#fffbeb;border:1px solid #fbbf2433;border-radius:8px;padding:12px 16px;">'
+            + '<div style="font-size:12px;font-weight:600;color:#f59e0b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Conflicts (' + preview.conflicts.length + ')</div>';
+          preview.conflicts.forEach(function(c) {
+            html += '<div style="font-size:13px;margin-bottom:6px;">'
+              + '<span style="color:#f59e0b;">&#9888;</span> <strong>' + escapeHtml(c.title) + '</strong>'
+              + '<div style="font-size:11px;color:#888;margin-left:20px;">' + escapeHtml(c.reason) + '</div>'
+              + '</div>';
+          });
+          html += '</div>';
+        }
+
+        // Creative Direction preview
+        html += '<div style="margin-bottom:16px;">'
+          + '<div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Combined Creative Direction</div>'
+          + '<textarea readonly style="width:100%;height:200px;padding:12px;border:1px solid #eee;border-radius:8px;font-size:12px;font-family:monospace;background:#f9f9f9;resize:vertical;">'
+          + escapeHtml(preview.creative_direction || '')
+          + '</textarea></div>';
+
+        // Design DNA preview
+        var dnaStr = JSON.stringify(preview.design_dna || {}, null, 2);
+        if (dnaStr !== '{}') {
+          html += '<div style="margin-bottom:16px;">'
+            + '<div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Combined Design DNA</div>'
+            + '<textarea readonly style="width:100%;height:150px;padding:12px;border:1px solid #eee;border-radius:8px;font-size:12px;font-family:monospace;background:#f9f9f9;resize:vertical;">'
+            + escapeHtml(dnaStr)
+            + '</textarea></div>';
+        }
+
+        contentEl.innerHTML = html;
+        document.getElementById('combinePreviewModal').style.display = 'flex';
+      } catch (err) {
+        showToast('Preview failed: ' + err.message);
+      }
+      if (btn) { btn.disabled = false; btn.textContent = 'Preview & Combine'; }
+    }
+
+    function closeCombinePreview() {
+      document.getElementById('combinePreviewModal').style.display = 'none';
+    }
+
+    async function confirmCombinedRecs() {
+      var btn = document.getElementById('combineConfirmBtn');
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+      try {
+        var res = await healthFetch('combineRecommendations', {
+          method: 'POST',
+          body: { recommendationIds: _combineRecIds, confirm: true }
+        });
+        if (!res.success) throw new Error(res.error || 'Failed');
+        closeCombinePreview();
+        var msg = 'Combined draft v' + res.version + ' created';
+        if (res.conflicts && res.conflicts.length > 0) {
+          msg += ' (' + res.conflicts.length + ' conflict' + (res.conflicts.length > 1 ? 's' : '') + ' skipped)';
+        }
+        msg += ' — test it in the Prompt Lab before activating';
+        showToast(msg);
+        clearRecSelection();
+        if (_currentAnalysisId) loadRecommendations(_currentAnalysisId);
+        loadHealthPendingCount();
+        if (typeof loadPromptVersions === 'function') loadPromptVersions();
+      } catch (err) {
+        showToast('Failed: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Create Draft Version';
+      }
+    }
+
+    async function applyHealthRec(recId) {
+      var btn = event.target;
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+      try {
+        var res = await healthFetch('applyRecommendation', { method: 'POST', body: { recommendationId: recId } });
+        if (!res.success) throw new Error(res.error || 'Failed');
+        showToast('Draft v' + res.version + ' created — test it in the Prompt Lab before activating');
+        // Refresh recommendations to show updated status
+        if (_currentAnalysisId) loadRecommendations(_currentAnalysisId);
+        loadHealthPendingCount();
+        // Refresh Prompt Lab version list so the new draft appears
+        if (typeof loadPromptVersions === 'function') loadPromptVersions();
+      } catch (err) {
+        showToast('Failed: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Create Draft Version';
+      }
+    }
+
+    async function dismissHealthRec(recId) {
+      try {
+        var res = await healthFetch('dismissRecommendation', { method: 'POST', body: { recommendationId: recId } });
+        if (!res.success) throw new Error(res.error || 'Failed');
+        showToast('Recommendation dismissed');
+        if (_currentAnalysisId) loadRecommendations(_currentAnalysisId);
+        loadHealthPendingCount();
+      } catch (err) {
+        showToast('Failed: ' + err.message);
+      }
+    }
+
+    async function loadHealthHistory() {
+      try {
+        var res = await healthFetch('history', { params: { limit: 10 } });
+        if (!res.success) return;
+        var container = document.getElementById('healthHistory');
+        if (!res.analyses || res.analyses.length === 0) {
+          container.innerHTML = '<div style="color:#888;font-size:13px;padding:12px;text-align:center;">No analyses yet.</div>';
+          return;
+        }
+        var html = '<table class="leaderboard-table"><thead><tr><th>Date</th><th>Score</th><th>Summary</th><th>Cost</th><th>By</th></tr></thead><tbody>';
+        res.analyses.forEach(function(a) {
+          var scoreColor = a.health_score >= 7 ? '#10b981' : a.health_score >= 4 ? '#f59e0b' : '#ef4444';
+          html += '<tr class="health-history-row" data-analysis-id="' + a.id + '" style="cursor:pointer;" onclick="loadFullAnalysis(\'' + a.id + '\')">'
+            + '<td style="font-size:12px;">' + formatDate(a.created_at) + '</td>'
+            + '<td><span style="font-weight:700;color:' + scoreColor + ';">' + a.health_score + '/10</span></td>'
+            + '<td style="font-size:12px;color:#666;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml((a.summary || '').substring(0, 100)) + '</td>'
+            + '<td style="font-size:12px;">$' + ((a.cost_cents || 0) / 100).toFixed(3) + '</td>'
+            + '<td style="font-size:12px;color:#888;">' + escapeHtml((a.created_by || '').split('@')[0]) + '</td>'
+            + '</tr>';
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+
+        // Update last run timestamp
+        if (res.analyses.length > 0) {
+          document.getElementById('healthLastRun').textContent = 'Last run: ' + formatDate(res.analyses[0].created_at);
+          // Show results if available and no current results showing
+          if (document.getElementById('healthResults').style.display === 'none' && document.getElementById('healthEmpty').style.display !== 'none') {
+            loadFullAnalysis(res.analyses[0].id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load health history:', err);
+      }
+    }
+
+    async function loadFullAnalysis(analysisId) {
+      // Highlight selected history row
+      document.querySelectorAll('.health-history-row').forEach(function(row) {
+        row.style.background = row.dataset.analysisId === analysisId ? '#fff5f5' : '';
+      });
+      // Show loading state in results area
+      document.getElementById('healthResults').style.display = 'block';
+      document.getElementById('healthEmpty').style.display = 'none';
+      document.getElementById('healthLastRun').textContent = 'Loading analysis...';
+      try {
+        var res = await healthFetch('getAnalysis', { params: { analysisId: analysisId } });
+        if (!res.success || !res.analysis) return;
+        var a = res.analysis;
+        renderHealthResults(a.full_result, a.id, a.cost_cents, { input: a.input_tokens, output: a.output_tokens }, null, res.recommendations || []);
+        document.getElementById('healthLastRun').textContent = 'Viewing: ' + formatDate(a.created_at);
+      } catch (err) {
+        console.error('Failed to load analysis:', err);
+        document.getElementById('healthLastRun').textContent = 'Failed to load analysis';
+      }
+    }
+
+    async function loadHealthPendingCount() {
+      try {
+        var res = await healthFetch('pendingCount');
+        if (res.success && res.count > 0) {
+          var badge = document.getElementById('healthPendingBadge');
+          badge.textContent = res.count;
+          badge.style.display = 'inline';
+        }
+      } catch (_) {}
+    }
+
+    // Load pending count on init
+    loadHealthPendingCount();
 
     // ═══════════════════════════════════════════════
     // GENERATION ARCHIVE (Sub-navigation within Style Library)
@@ -12954,6 +13908,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
         <div style="display:flex;gap:8px;flex-wrap:wrap;" id="styleDetailActions">
           <button class="btn btn-secondary" onclick="toggleDetailEditMode()">Edit</button>
+          <button class="btn btn-secondary" onclick="retagSingleStyle(styleDetailCurrentId, this)">Re-tag</button>
           <button class="btn btn-secondary" id="styleDetailArchiveBtn" onclick="archiveStyleItem(styleDetailCurrentId)">Archive</button>
           <button class="btn btn-secondary" style="color:var(--party-coral);" onclick="if(confirm('Delete this style?')){deleteStyleItem(styleDetailCurrentId);closeStyleDetailView();}">Delete</button>
         </div>

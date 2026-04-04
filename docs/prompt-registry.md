@@ -47,6 +47,7 @@ These are constructed inline during tweak handling, not as top-level constants.
 
 | Prompt | File | Line | Protection | Purpose |
 |--------|------|------|------------|---------|
+| autoTag | `api/v2/prompt-test.js` | 637 | STANDARD | Analyze HTML invite samples and return structured metadata (name, description, eventTypes, tags, designNotes). Used for style library auto-categorization. |
 | interpretField | `api/v2/generate-theme.js` | 1662 | STANDARD | Parse natural language RSVP field requests into JSON field definitions. ~1 line. |
 | classifyIntent | `api/v2/generate-theme.js` | 1733 | STANDARD | Classify user tweak request to determine tier routing (light vs design). ~1 line. |
 | REFINE_PROMPT | `api/v2/prompt-test.js` | 859 | GUARDED | Senior UI designer polish pass: RSVP button sizing, contrast, spacing, layout QA. ~34 lines. |
@@ -81,7 +82,16 @@ These are NOT in the codebase — they live in the `prompt_versions` Supabase ta
 | Quality diagnosis | `claude-haiku-4-5-20251001` | `api/v2/quality-monitor.js` | No |
 | Quality heal | `claude-sonnet-4-6` | `api/v2/quality-monitor.js` | No |
 | Refinement | `claude-sonnet-4-6` | `api/v2/prompt-test.js` | No |
+| Auto-score (production) | `claude-haiku-4-5-20251001` | `api/v2/generate-theme.js` | No |
+| Prompt Health Analysis | `claude-sonnet-4-6` | `api/v2/prompt-health.js` | No |
+
+## AI Optimization Prompts
+
+| Prompt | File | Line | Protection | Purpose |
+|--------|------|------|------------|---------|
+| Auto-Score Prompt | `api/v2/generate-theme.js` | ~85 | STANDARD | Haiku auto-rates generated invites 1-5 for quality tracking. Fire-and-forget after every generation. |
+| Health Analysis Prompt | `api/v2/prompt-health.js` | ~150 | STANDARD | Sonnet analyzes all quality data (incidents, ratings, GTP, feedback) to identify prompt weaknesses and suggest improvements. |
 
 ---
 
-*Last updated: 2026-04-03*
+*Last updated: 2026-04-04*
