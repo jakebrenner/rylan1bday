@@ -178,36 +178,38 @@ Be specific and actionable. Every suggestion must cite the data that supports it
 
 Return a JSON object with this exact structure:
 {
-  "overallHealthScore": <integer 1-10>,
-  "summary": "<2-3 sentence executive summary of current prompt health>",
+  "overallHealthScore": 7,
+  "summary": "2-3 sentence executive summary of current prompt health",
   "topWeaknesses": [
     {
-      "title": "<short name>",
-      "severity": "critical" | "major" | "minor",
-      "evidence": "<what data points reveal this>",
-      "affectedEventTypes": ["<event types>"],
-      "suggestedFix": "<specific text to add or modify in creative_direction>",
-      "expectedImpact": "<what improvement to expect>"
+      "title": "short name",
+      "severity": "critical, major, or minor",
+      "evidence": "what data points reveal this",
+      "affectedEventTypes": ["event types"],
+      "suggestedFix": "specific text to add or modify in creative_direction",
+      "expectedImpact": "what improvement to expect"
     }
   ],
   "patterns": [
     {
-      "observation": "<interesting pattern>",
-      "dataPoints": "<what data revealed this>"
+      "observation": "interesting pattern",
+      "dataPoints": "what data revealed this"
     }
   ],
   "promptSuggestions": [
     {
-      "type": "add" | "modify" | "remove",
-      "section": "creative_direction" | "design_dna",
+      "type": "add, modify, or remove",
+      "section": "creative_direction or design_dna",
       "eventType": null,
-      "currentText": "<text to change, if modify/remove>",
-      "suggestedText": "<new or replacement text>",
-      "rationale": "<why, citing specific data>"
+      "currentText": "text to change, if modify/remove",
+      "suggestedText": "new or replacement text",
+      "rationale": "why, citing specific data"
     }
   ],
-  "regressionRisks": ["<things currently working well that should NOT be changed>"]
+  "regressionRisks": ["things currently working well that should NOT be changed"]
 }
+
+Return ONLY the JSON object — no markdown fences, no commentary before or after.
 
 If there is insufficient data for a meaningful analysis (e.g., no rated themes, no incidents), return a health score of 5 and note the data gaps in the summary.`;
 
@@ -247,12 +249,20 @@ export default async function handler(req, res) {
 
       const tokens = { input: resp.usage?.input_tokens || 0, output: resp.usage?.output_tokens || 0 };
       const text = (resp.content?.[0]?.text || '').trim();
-      const cleaned = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
 
       let analysis;
       try {
+        // Strip markdown fences and any text before/after the JSON
+        let cleaned = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
+        // Try to extract JSON object if surrounded by text
+        const jsonStart = cleaned.indexOf('{');
+        const jsonEnd = cleaned.lastIndexOf('}');
+        if (jsonStart >= 0 && jsonEnd > jsonStart) {
+          cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+        }
         analysis = JSON.parse(cleaned);
       } catch (e) {
+        console.error('[prompt-health] JSON parse failed. Raw text:', text.substring(0, 1000));
         return res.status(500).json({ error: 'AI returned invalid JSON', raw: text.substring(0, 500) });
       }
 
