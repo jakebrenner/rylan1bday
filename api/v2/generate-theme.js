@@ -3133,7 +3133,7 @@ This is the most common failure mode. Double-check it.`;
 
     // Fire-and-forget auto-scoring (non-blocking)
     if (savedThemeId && theme.theme_html) {
-      autoScoreTheme(savedThemeId, theme.theme_html, theme.theme_css, themeConfig, eventType, eventDetails)
+      autoScoreTheme(savedThemeId, theme.theme_html, theme.theme_css, theme.theme_config, eventType, eventDetails)
         .catch(e => console.warn('[auto-score] Background scoring failed:', e.message));
     }
 
