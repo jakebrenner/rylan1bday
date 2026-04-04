@@ -1969,7 +1969,7 @@
           <div id="bulkUploadSection" style="display:none;margin-bottom:20px;">
             <div class="bulk-tabs">
               <div class="bulk-tab active" onclick="switchBulkTab('files')">Drop Files</div>
-              <div class="bulk-tab" onclick="switchBulkTab('json')">Paste JSON</div>
+              <div class="bulk-tab" onclick="switchBulkTab('json')">Paste from Claude</div>
             </div>
             <div id="bulkFilesTab">
               <div class="bulk-dropzone" id="bulkDropzone" onclick="document.getElementById('bulkFileInput').click()">
@@ -1980,20 +1980,24 @@
               <input type="file" id="bulkFileInput" multiple accept=".html,.htm" style="display:none;" onchange="handleBulkFiles(this.files)">
             </div>
             <div id="bulkJsonTab" class="json-paste-area">
-              <textarea id="jsonPasteInput" placeholder='Paste JSON array from Claude, e.g.:
-[
-  {
-    "name": "Midnight Garden Soirée",
-    "html": "<!DOCTYPE html>...",
-    "eventTypes": ["wedding"],
-    "tags": ["dark", "botanical", "elegant"],
-    "designNotes": "Layered SVG botanicals..."
-  }
-]
+              <textarea id="jsonPasteInput" placeholder='Paste HTML templates from Claude here.
 
-Or a single object (will be wrapped in an array automatically).'></textarea>
+Each template should start with a metadata comment:
+
+<!-- STYLE_META
+name: Elegant Garden Wedding
+eventTypes: wedding, engagement
+tags: botanical, elegant, serif, green
+designNotes: Uses layered SVG botanicals...
+-->
+<!DOCTYPE html>
+<html>...</html>
+
+You can paste multiple templates at once — they are split automatically.
+JSON format is also accepted (array of {name, html, eventTypes, tags} objects).'></textarea>
               <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
                 <button class="btn btn-primary" onclick="parseAndUploadJson()">Parse & Upload</button>
+                <span id="pasteFormatHint" style="font-size:11px;color:#888;"></span>
                 <label style="font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;">
                   <input type="checkbox" id="jsonAutoTag" checked style="accent-color:var(--party-coral);"> Auto-tag items missing metadata
                 </label>
@@ -6963,24 +6967,69 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('bulkJsonTab').style.display = tab === 'json' ? 'block' : 'none';
     }
 
-    async function parseAndUploadJson() {
-      var raw = document.getElementById('jsonPasteInput').value.trim();
-      if (!raw) { showToast('Paste JSON first'); return; }
+    // Parse STYLE_META comment from HTML string
+    function parseStyleMeta(htmlStr) {
+      var metaMatch = htmlStr.match(/<!--\s*STYLE_META\s*\n([\s\S]*?)-->/);
+      if (!metaMatch) return null;
+      var meta = {};
+      var lines = metaMatch[1].split('\n');
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i].trim();
+        if (!line) continue;
+        var colonIdx = line.indexOf(':');
+        if (colonIdx < 0) continue;
+        var key = line.substring(0, colonIdx).trim();
+        var val = line.substring(colonIdx + 1).trim();
+        meta[key] = val;
+      }
+      // Clean the HTML — remove the meta comment
+      var cleanHtml = htmlStr.replace(/<!--\s*STYLE_META\s*\n[\s\S]*?-->\s*/, '').trim();
+      return {
+        name: meta.name || '',
+        html: cleanHtml,
+        eventTypes: (meta.eventTypes || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean),
+        tags: (meta.tags || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean),
+        designNotes: meta.designNotes || ''
+      };
+    }
 
-      var items;
+    // Split raw paste into template items (supports HTML comment format and JSON)
+    function parsePastedTemplates(raw) {
+      // Try JSON first
       try {
-        // Try parsing as array or single object
         var parsed = JSON.parse(raw);
-        items = Array.isArray(parsed) ? parsed : [parsed];
-      } catch (e) {
-        showToast('Invalid JSON: ' + e.message);
-        return;
+        var arr = Array.isArray(parsed) ? parsed : [parsed];
+        if (arr.length > 0 && arr[0].html) return arr;
+      } catch (e) { /* not JSON, try HTML format */ }
+
+      // Try HTML comment metadata format — split on STYLE_META boundaries
+      if (raw.indexOf('STYLE_META') !== -1) {
+        var chunks = raw.split(/(?=<!--\s*STYLE_META)/);
+        var items = [];
+        for (var i = 0; i < chunks.length; i++) {
+          var chunk = chunks[i].trim();
+          if (!chunk) continue;
+          var parsed = parseStyleMeta(chunk);
+          if (parsed && parsed.html) items.push(parsed);
+        }
+        if (items.length > 0) return items;
       }
 
-      // Validate minimum fields
-      var invalid = items.filter(function(it) { return !it.html; });
-      if (invalid.length > 0) {
-        showToast(invalid.length + ' items missing html field');
+      // Try as a single HTML document (no metadata)
+      if (raw.indexOf('<!DOCTYPE') !== -1 || raw.indexOf('<html') !== -1) {
+        return [{ name: '', html: raw, eventTypes: [], tags: [], designNotes: '' }];
+      }
+
+      return null;
+    }
+
+    async function parseAndUploadJson() {
+      var raw = document.getElementById('jsonPasteInput').value.trim();
+      if (!raw) { showToast('Paste template HTML or JSON first'); return; }
+
+      var items = parsePastedTemplates(raw);
+      if (!items || items.length === 0) {
+        showToast('Could not parse any templates. Paste HTML with <!-- STYLE_META --> comments or JSON.');
         return;
       }
 
