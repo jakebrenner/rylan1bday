@@ -256,9 +256,9 @@ export default async function handler(req, res) {
         res.write('data: {"status":"analyzing"}\n\n');
         const resp = await client.messages.create({
           model: analysisModel,
-          max_tokens: 4096,
+          max_tokens: 8192,
           system: ANALYSIS_SYSTEM_PROMPT,
-          messages: [{ role: 'user', content: message + '\n\nRespond with ONLY the JSON object, starting with { and ending with }. No other text.' }]
+          messages: [{ role: 'user', content: message + '\n\nRespond with ONLY the JSON object, starting with { and ending with }. No other text. Keep string values concise (under 200 chars each) to avoid truncation. Limit topWeaknesses to 3, promptSuggestions to 5, patterns to 3, regressionRisks to 5.' }]
         });
 
         const tokens = { input: resp.usage?.input_tokens || 0, output: resp.usage?.output_tokens || 0 };
@@ -266,27 +266,49 @@ export default async function handler(req, res) {
         let text = (resp.content?.[0]?.text || '').trim();
 
         // If truncated, try to close the JSON
-        if (stopReason === 'max_tokens') {
-          console.warn('[prompt-health] Response truncated at max_tokens. Attempting JSON repair.');
-          // Count open braces/brackets and close them
-          let openBraces = 0, openBrackets = 0;
-          let inString = false, escaped = false;
-          for (const ch of text) {
-            if (escaped) { escaped = false; continue; }
-            if (ch === '\\') { escaped = true; continue; }
-            if (ch === '"') { inString = !inString; continue; }
-            if (inString) continue;
-            if (ch === '{') openBraces++;
-            else if (ch === '}') openBraces--;
-            else if (ch === '[') openBrackets++;
-            else if (ch === ']') openBrackets--;
+        if (stopReason === 'max_tokens' || stopReason === 'end_turn') {
+          // Check if JSON is actually incomplete
+          const trimmed = text.trim();
+          const lastChar = trimmed[trimmed.length - 1];
+          const needsRepair = lastChar !== '}' || (() => {
+            try { JSON.parse(trimmed.replace(/^```(?:json)?\s*\n?/g, '').replace(/\n?\s*```\s*$/g, '')); return false; } catch(e) { return true; }
+          })();
+
+          if (needsRepair) {
+            console.warn('[prompt-health] Response may be truncated (stop: ' + stopReason + '). Attempting JSON repair.');
+            // Determine if we're inside a string by tracking quote state
+            let inString = false, escaped = false;
+            for (const ch of text) {
+              if (escaped) { escaped = false; continue; }
+              if (ch === '\\') { escaped = true; continue; }
+              if (ch === '"') { inString = !inString; }
+            }
+            // If truncated inside a string, close it
+            if (inString) {
+              text += '"';
+            }
+            // Strip any trailing incomplete key-value pair
+            text = text.replace(/,\s*"[^"]*"\s*:\s*"[^"]*$/, '');
+            text = text.replace(/,\s*"[^"]*"\s*:\s*$/, '');
+            text = text.replace(/,\s*"[^"]*$/, '');
+            text = text.replace(/,\s*$/, '');
+            // Recount open structures after repair
+            let openBraces = 0, openBrackets = 0;
+            inString = false; escaped = false;
+            for (const ch of text) {
+              if (escaped) { escaped = false; continue; }
+              if (ch === '\\') { escaped = true; continue; }
+              if (ch === '"') { inString = !inString; continue; }
+              if (inString) continue;
+              if (ch === '{') openBraces++;
+              else if (ch === '}') openBraces--;
+              else if (ch === '[') openBrackets++;
+              else if (ch === ']') openBrackets--;
+            }
+            // Close open structures
+            while (openBrackets > 0) { text += ']'; openBrackets--; }
+            while (openBraces > 0) { text += '}'; openBraces--; }
           }
-          // Strip any trailing incomplete string/value
-          text = text.replace(/,?\s*"[^"]*$/, '');
-          text = text.replace(/,?\s*$/, '');
-          // Close open structures
-          while (openBrackets > 0) { text += ']'; openBrackets--; }
-          while (openBraces > 0) { text += '}'; openBraces--; }
         }
 
         let analysis;
