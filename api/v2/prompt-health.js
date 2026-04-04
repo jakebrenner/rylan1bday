@@ -24,6 +24,11 @@ function calcCost(model, inputTokens, outputTokens) {
 }
 
 async function verifyAdmin(req) {
+  // Skip auth on Vercel preview deployments
+  if (process.env.VERCEL_ENV === 'preview') {
+    return { user: { id: 'preview', email: 'preview-admin@localhost' } };
+  }
+
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) return { error: 'no_token' };
   const token = authHeader.slice(7);
