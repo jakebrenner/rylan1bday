@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { reportApiError } from './lib/error-reporter.js';
+import { DEFAULT_CREATIVE_DIRECTION } from './lib/prompt-defaults.js';
 
 const client = new Anthropic();
 const supabaseAdmin = createClient(
@@ -463,7 +464,7 @@ export default async function handler(req, res) {
         .eq('is_active', true)
         .single();
 
-      let creativeDirection = activePV?.creative_direction || '';
+      let creativeDirection = activePV?.creative_direction || DEFAULT_CREATIVE_DIRECTION;
       let designDna = activePV?.design_dna || {};
 
       // Apply the suggestion
@@ -574,7 +575,7 @@ export default async function handler(req, res) {
         .eq('is_active', true)
         .single();
 
-      let creativeDirection = activePV?.creative_direction || '';
+      let creativeDirection = activePV?.creative_direction || DEFAULT_CREATIVE_DIRECTION;
       let designDna = activePV?.design_dna || {};
       // Deep clone design_dna so mutations don't affect the original
       designDna = JSON.parse(JSON.stringify(designDna));
