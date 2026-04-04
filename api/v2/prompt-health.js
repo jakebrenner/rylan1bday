@@ -257,16 +257,12 @@ export default async function handler(req, res) {
           model: analysisModel,
           max_tokens: 8000,
           system: ANALYSIS_SYSTEM_PROMPT,
-          messages: [
-            { role: 'user', content: message },
-            { role: 'assistant', content: '{' }
-          ]
+          messages: [{ role: 'user', content: message + '\n\nRespond with ONLY the JSON object, starting with { and ending with }. No other text.' }]
         });
 
         const tokens = { input: resp.usage?.input_tokens || 0, output: resp.usage?.output_tokens || 0 };
         const stopReason = resp.stop_reason || '';
-        // Prepend { from assistant prefill since it's not included in the response
-        let text = ('{' + (resp.content?.[0]?.text || '')).trim();
+        let text = (resp.content?.[0]?.text || '').trim();
 
         // If truncated, try to close the JSON
         if (stopReason === 'max_tokens') {
