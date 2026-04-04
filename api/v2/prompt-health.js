@@ -256,9 +256,9 @@ export default async function handler(req, res) {
         res.write('data: {"status":"analyzing"}\n\n');
         const resp = await client.messages.create({
           model: analysisModel,
-          max_tokens: 8192,
+          max_tokens: 16384,
           system: ANALYSIS_SYSTEM_PROMPT,
-          messages: [{ role: 'user', content: message + '\n\nRespond with ONLY the JSON object, starting with { and ending with }. No other text. Keep string values concise (under 200 chars each) to avoid truncation. Limit topWeaknesses to 3, promptSuggestions to 5, patterns to 3, regressionRisks to 5.' }]
+          messages: [{ role: 'user', content: message + '\n\nRespond with ONLY the JSON object, starting with { and ending with }. No other text.' }]
         });
 
         const tokens = { input: resp.usage?.input_tokens || 0, output: resp.usage?.output_tokens || 0 };
