@@ -7332,9 +7332,31 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('healthResults').style.display = 'none';
 
       try {
-        var res = await healthFetch('analyze', { method: 'POST' });
-        if (!res.success || !res.analysis) throw new Error(res.error || 'Analysis failed');
-        renderHealthResults(res.analysis, res.analysisId, res.cost, res.tokens, res.latencyMs);
+        // Use res.text() to read SSE stream (same pattern as generate-theme — reliable on mobile Safari)
+        var response = await fetch('/api/v2/prompt-health?action=analyze', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+        });
+        var text = await response.text();
+
+        // Parse SSE: find last "data: {...}" line that contains our result
+        var result = null;
+        var lines = text.split('\n');
+        for (var i = lines.length - 1; i >= 0; i--) {
+          var line = lines[i].trim();
+          if (line.startsWith('data: {')) {
+            try {
+              var parsed = JSON.parse(line.substring(6));
+              if (parsed.success || parsed.error) { result = parsed; break; }
+            } catch (_) {}
+          }
+        }
+
+        if (!result) throw new Error('No result received from server');
+        if (result.error) throw new Error(result.error);
+        if (!result.analysis) throw new Error('Analysis returned empty');
+
+        renderHealthResults(result.analysis, result.analysisId, result.cost, result.tokens, result.latencyMs);
         loadHealthHistory();
       } catch (err) {
         console.error('Health analysis failed:', err);

@@ -232,122 +232,145 @@ export default async function handler(req, res) {
     if (action === 'analyze') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
 
+      // Use SSE to keep mobile connections alive during long AI analysis
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
+
+      const keepalive = setInterval(() => {
+        try { res.write(': keepalive\n\n'); } catch (_) {}
+      }, 3000);
+
       const analysisModel = 'claude-sonnet-4-6';
       const startTime = Date.now();
 
-      // Gather all data
-      const data = await gatherAnalysisData();
-      const message = buildAnalysisMessage(data);
-
-      // Call Sonnet for analysis
-      const resp = await client.messages.create({
-        model: analysisModel,
-        max_tokens: 4000,
-        system: ANALYSIS_SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: message }]
-      });
-
-      const tokens = { input: resp.usage?.input_tokens || 0, output: resp.usage?.output_tokens || 0 };
-      const text = (resp.content?.[0]?.text || '').trim();
-
-      let analysis;
       try {
-        // Strip markdown fences and any text before/after the JSON
-        let cleaned = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
-        // Try to extract JSON object if surrounded by text
-        const jsonStart = cleaned.indexOf('{');
-        const jsonEnd = cleaned.lastIndexOf('}');
-        if (jsonStart >= 0 && jsonEnd > jsonStart) {
-          cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+        // Gather all data
+        res.write('data: {"status":"gathering"}\n\n');
+        const data = await gatherAnalysisData();
+        const message = buildAnalysisMessage(data);
+
+        // Call Sonnet for analysis
+        res.write('data: {"status":"analyzing"}\n\n');
+        const resp = await client.messages.create({
+          model: analysisModel,
+          max_tokens: 4000,
+          system: ANALYSIS_SYSTEM_PROMPT,
+          messages: [{ role: 'user', content: message }]
+        });
+
+        const tokens = { input: resp.usage?.input_tokens || 0, output: resp.usage?.output_tokens || 0 };
+        const text = (resp.content?.[0]?.text || '').trim();
+
+        let analysis;
+        try {
+          let cleaned = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
+          const jsonStart = cleaned.indexOf('{');
+          const jsonEnd = cleaned.lastIndexOf('}');
+          if (jsonStart >= 0 && jsonEnd > jsonStart) {
+            cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+          }
+          analysis = JSON.parse(cleaned);
+        } catch (e) {
+          console.error('[prompt-health] JSON parse failed. Raw text:', text.substring(0, 1000));
+          clearInterval(keepalive);
+          res.write('data: ' + JSON.stringify({ error: 'AI returned invalid JSON', raw: text.substring(0, 500) }) + '\n\n');
+          return res.end();
         }
-        analysis = JSON.parse(cleaned);
-      } catch (e) {
-        console.error('[prompt-health] JSON parse failed. Raw text:', text.substring(0, 1000));
-        return res.status(500).json({ error: 'AI returned invalid JSON', raw: text.substring(0, 500) });
-      }
 
-      const costCents = calcCost(analysisModel, tokens.input, tokens.output);
+        const costCents = calcCost(analysisModel, tokens.input, tokens.output);
 
-      // Save analysis
-      const { data: saved, error: saveErr } = await supabaseAdmin
-        .from('prompt_health_analyses')
-        .insert({
-          prompt_version_id: data.activePromptVersion?.id || null,
-          analysis_model: analysisModel,
-          health_score: analysis.overallHealthScore || 5,
-          summary: analysis.summary || '',
-          full_result: analysis,
-          data_snapshot: {
-            incidentCount: data.incidentSummary?.length || 0,
-            rootCauseCount: data.rootCausePatterns?.length || 0,
-            feedbackCount: data.userFeedback?.length || 0,
-            generationSample: data.recentGenerations?.length || 0,
-            hasAutoScores: (data.autoScoreSummary?.length || 0) > 0
-          },
+        // Save analysis
+        res.write('data: {"status":"saving"}\n\n');
+        const { data: saved, error: saveErr } = await supabaseAdmin
+          .from('prompt_health_analyses')
+          .insert({
+            prompt_version_id: data.activePromptVersion?.id || null,
+            analysis_model: analysisModel,
+            health_score: analysis.overallHealthScore || 5,
+            summary: analysis.summary || '',
+            full_result: analysis,
+            data_snapshot: {
+              incidentCount: data.incidentSummary?.length || 0,
+              rootCauseCount: data.rootCausePatterns?.length || 0,
+              feedbackCount: data.userFeedback?.length || 0,
+              generationSample: data.recentGenerations?.length || 0,
+              hasAutoScores: (data.autoScoreSummary?.length || 0) > 0
+            },
+            input_tokens: tokens.input,
+            output_tokens: tokens.output,
+            cost_cents: costCents,
+            created_by: admin.email
+          })
+          .select()
+          .single();
+
+        if (saveErr) {
+          console.error('Failed to save analysis:', saveErr.message);
+        }
+
+        // Save individual recommendations
+        if (saved) {
+          const recs = [
+            ...(analysis.topWeaknesses || []).map(w => ({
+              analysis_id: saved.id,
+              type: 'modify',
+              section: 'creative_direction',
+              event_type: w.affectedEventTypes?.[0] || null,
+              severity: w.severity || 'minor',
+              title: w.title,
+              suggested_text: w.suggestedFix || '',
+              rationale: w.evidence || '',
+              expected_impact: w.expectedImpact || ''
+            })),
+            ...(analysis.promptSuggestions || []).map(s => ({
+              analysis_id: saved.id,
+              type: s.type || 'modify',
+              section: s.section || 'creative_direction',
+              event_type: s.eventType || null,
+              severity: 'minor',
+              title: (s.type === 'add' ? 'Add: ' : s.type === 'remove' ? 'Remove: ' : 'Modify: ') + (s.suggestedText || '').substring(0, 80),
+              current_text: s.currentText || null,
+              suggested_text: s.suggestedText || '',
+              rationale: s.rationale || ''
+            }))
+          ];
+
+          if (recs.length > 0) {
+            const { error: recErr } = await supabaseAdmin.from('prompt_health_recommendations').insert(recs);
+            if (recErr) console.error('Failed to save recommendations:', recErr.message);
+          }
+        }
+
+        // Log cost to generation_log
+        await supabaseAdmin.from('generation_log').insert({
+          prompt: 'prompt-health analysis',
+          model: analysisModel,
           input_tokens: tokens.input,
           output_tokens: tokens.output,
-          cost_cents: costCents,
-          created_by: admin.email
-        })
-        .select()
-        .single();
+          latency_ms: Date.now() - startTime,
+          status: 'success',
+          is_tweak: false,
+          cost_cents: costCents
+        });
 
-      if (saveErr) {
-        console.error('Failed to save analysis:', saveErr.message);
-        return res.status(200).json({ success: true, analysis, analysisId: null, cost: costCents, tokens });
+        clearInterval(keepalive);
+        res.write('data: ' + JSON.stringify({
+          success: true,
+          analysisId: saved?.id || null,
+          analysis,
+          cost: costCents,
+          tokens,
+          latencyMs: Date.now() - startTime
+        }) + '\n\n');
+        return res.end();
+      } catch (analyzeErr) {
+        clearInterval(keepalive);
+        console.error('[prompt-health] Analysis error:', analyzeErr);
+        res.write('data: ' + JSON.stringify({ error: analyzeErr.message || 'Analysis failed' }) + '\n\n');
+        return res.end();
       }
-
-      // Save individual recommendations
-      const recs = [
-        ...(analysis.topWeaknesses || []).map(w => ({
-          analysis_id: saved.id,
-          type: 'modify',
-          section: 'creative_direction',
-          event_type: w.affectedEventTypes?.[0] || null,
-          severity: w.severity || 'minor',
-          title: w.title,
-          suggested_text: w.suggestedFix || '',
-          rationale: w.evidence || '',
-          expected_impact: w.expectedImpact || ''
-        })),
-        ...(analysis.promptSuggestions || []).map(s => ({
-          analysis_id: saved.id,
-          type: s.type || 'modify',
-          section: s.section || 'creative_direction',
-          event_type: s.eventType || null,
-          severity: 'minor',
-          title: (s.type === 'add' ? 'Add: ' : s.type === 'remove' ? 'Remove: ' : 'Modify: ') + (s.suggestedText || '').substring(0, 80),
-          current_text: s.currentText || null,
-          suggested_text: s.suggestedText || '',
-          rationale: s.rationale || ''
-        }))
-      ];
-
-      if (recs.length > 0) {
-        const { error: recErr } = await supabaseAdmin.from('prompt_health_recommendations').insert(recs);
-        if (recErr) console.error('Failed to save recommendations:', recErr.message);
-      }
-
-      // Log cost to generation_log
-      await supabaseAdmin.from('generation_log').insert({
-        prompt: 'prompt-health analysis',
-        model: analysisModel,
-        input_tokens: tokens.input,
-        output_tokens: tokens.output,
-        latency_ms: Date.now() - startTime,
-        status: 'success',
-        is_tweak: false,
-        cost_cents: costCents
-      });
-
-      return res.status(200).json({
-        success: true,
-        analysisId: saved.id,
-        analysis,
-        cost: costCents,
-        tokens,
-        latencyMs: Date.now() - startTime
-      });
     }
 
     // ═══════════════════════════════════════════════════════════════
