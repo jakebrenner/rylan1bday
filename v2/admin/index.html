@@ -322,7 +322,7 @@
     .bulk-progress-summary { padding: 10px 16px; font-size: 12px; font-weight: 600; border-top: 1px solid #eee; flex-shrink: 0; }
 
     /* Prompt Versions */
-    #tab-promptversions table { font-size: 13px; }
+    #aipanel-versions table { font-size: 13px; }
     #promptVersionModal textarea { tab-size: 2; }
 
     /* Star ratings */
@@ -381,6 +381,23 @@
     .leaderboard-table tr:hover td { background: #fafafa; }
     .score-bar { display: inline-block; height: 8px; border-radius: 4px; background: var(--mint-fizz); vertical-align: middle; margin-left: 8px; }
     .score-stars { color: #f59e0b; font-size: 13px; letter-spacing: -1px; }
+
+    /* AI Control Center sub-tabs */
+    .ai-subtabs { display: flex; gap: 0; border-bottom: 2px solid #eee; margin-bottom: 24px; }
+    .ai-subtab { padding: 12px 20px; font-size: 13px; font-weight: 600; color: #888; cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; font-family: 'Inter', sans-serif; }
+    .ai-subtab:hover { color: var(--midnight); }
+    .ai-subtab.active { color: var(--party-coral); border-bottom-color: var(--party-coral); }
+    .ai-subpanel { display: none; }
+    .ai-subpanel.active { display: block; }
+    .live-status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .live-status-card { background: white; border: 1px solid #eee; border-radius: 10px; padding: 16px 20px; }
+    .live-status-card .status-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .live-status-card .status-value { font-size: 16px; font-weight: 700; color: var(--midnight); }
+    .live-status-card .status-value .badge { vertical-align: middle; margin-left: 6px; }
+    .prompt-preview-block { background: #1A1A2E; color: #e0e0e0; border-radius: 8px; padding: 16px 20px; font-family: monospace; font-size: 11px; line-height: 1.6; max-height: 500px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; margin-bottom: 16px; }
+    .prompt-preview-block .layer-header { color: var(--confetti-gold); font-weight: 700; font-size: 12px; display: block; margin: 16px 0 4px 0; }
+    .prompt-preview-block .layer-header:first-child { margin-top: 0; }
+    .prompt-preview-block .layer-divider { display: block; border-top: 1px solid rgba(255,255,255,0.1); margin: 12px 0; }
 
     /* User Detail View */
     .ud-header { display: flex; gap: 24px; align-items: flex-start; margin-bottom: 24px; }
@@ -624,9 +641,7 @@
       </div>
       <div class="sidebar-group">
         <div class="sidebar-group-label">AI &amp; Prompts</div>
-        <button class="sidebar-item" data-tab="settings" onclick="switchTab('settings')">AI Models</button>
-        <button class="sidebar-item" data-tab="promptversions" onclick="switchTab('promptversions')">Prompt Versions</button>
-        <button class="sidebar-item" data-tab="promptlab" onclick="switchTab('promptlab')">Prompt Lab</button>
+        <button class="sidebar-item" data-tab="aicontrol" onclick="switchTab('aicontrol');loadAIControlCenter();">AI Control Center</button>
         <button class="sidebar-item" data-tab="stylelibrary" onclick="switchTab('stylelibrary')">Generations</button>
         <button class="sidebar-item" data-tab="quality" onclick="switchTab('quality');loadSystemHealth();">System Health</button>
       </div>
@@ -1246,79 +1261,380 @@
       </div>
     </div>
 
-    <!-- Settings Tab -->
-    <div class="tab-content" id="tab-settings">
-      <div class="config-section">
-        <h3>AI Model Configuration</h3>
-        <p style="font-size:13px;color:#888;margin-bottom:20px;">Choose which Claude models power the chat assistant and invite designer. Changes take effect immediately for all new requests.</p>
-        <div class="config-row">
-          <div class="config-field">
-            <label>Chat Model (Event Details Extraction)</label>
-            <select id="chatModelSelect">
-              <optgroup label="Anthropic Claude">
-                <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fastest, cheapest ($1/1M in, $5/1M out)</option>
-                <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — Balanced ($3/1M in, $15/1M out)</option>
-                <option value="claude-opus-4-6">Claude Opus 4.6 — Most capable ($15/1M in, $75/1M out)</option>
-              </optgroup>
-              <optgroup label="OpenAI">
-                <option value="gpt-4.1">GPT-4.1 — Flagship ($2/1M in, $8/1M out)</option>
-                <option value="gpt-4.1-mini">GPT-4.1 Mini — Fast ($0.40/1M in, $1.60/1M out)</option>
-                <option value="gpt-4.1-nano">GPT-4.1 Nano — Cheapest ($0.10/1M in, $0.40/1M out)</option>
-                <option value="o3">o3 — Reasoning ($2/1M in, $8/1M out)</option>
-                <option value="o4-mini">o4-mini — Fast reasoning ($1.10/1M in, $4.40/1M out)</option>
-              </optgroup>
-            </select>
-            <div class="hint">Used for the conversational event planning chat. Haiku is recommended — it handles structured extraction well at minimal cost.</div>
+    <!-- AI Control Center (consolidated: Live Now + Config + Versions + Lab) -->
+    <div class="tab-content" id="tab-aicontrol">
+      <div class="ai-subtabs">
+        <button class="ai-subtab active" data-aipanel="livenow" onclick="switchAISubtab('livenow')">Live Now</button>
+        <button class="ai-subtab" data-aipanel="config" onclick="switchAISubtab('config')">Models &amp; Config</button>
+        <button class="ai-subtab" data-aipanel="versions" onclick="switchAISubtab('versions')">Prompt Versions</button>
+        <button class="ai-subtab" data-aipanel="lab" onclick="switchAISubtab('lab')">Prompt Lab</button>
+      </div>
+
+      <!-- ═══ LIVE NOW — What's controlling production right now ═══ -->
+      <div class="ai-subpanel active" id="aipanel-livenow">
+        <div class="live-status-grid">
+          <div class="live-status-card" style="border-left:4px solid #10b981;">
+            <div class="status-label">Active Prompt Version</div>
+            <div class="status-value" id="livePromptVersion">Loading...</div>
+            <div style="font-size:12px;color:#888;margin-top:4px;" id="livePromptDesc"></div>
           </div>
-          <div class="config-field">
-            <label>Theme Model (Invite Design Generation)</label>
-            <select id="themeModelSelect">
-              <optgroup label="Anthropic Claude">
-                <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fastest, cheapest ($1/1M in, $5/1M out)</option>
-                <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — Balanced ($3/1M in, $15/1M out)</option>
-                <option value="claude-opus-4-6">Claude Opus 4.6 — Most capable ($15/1M in, $75/1M out)</option>
-              </optgroup>
-              <optgroup label="OpenAI">
-                <option value="gpt-4.1">GPT-4.1 — Flagship ($2/1M in, $8/1M out)</option>
-                <option value="gpt-4.1-mini">GPT-4.1 Mini — Fast ($0.40/1M in, $1.60/1M out)</option>
-                <option value="gpt-4.1-nano">GPT-4.1 Nano — Cheapest ($0.10/1M in, $0.40/1M out)</option>
-                <option value="o3">o3 — Reasoning ($2/1M in, $8/1M out)</option>
-                <option value="o4-mini">o4-mini — Fast reasoning ($1.10/1M in, $4.40/1M out)</option>
-              </optgroup>
-            </select>
-            <div class="hint">Used to generate HTML/CSS invite themes. Higher-tier models produce more creative and polished designs.</div>
+          <div class="live-status-card" style="border-left:4px solid #4f46e5;">
+            <div class="status-label">Theme Model (Invite Generation)</div>
+            <div class="status-value" id="liveThemeModel">Loading...</div>
+          </div>
+          <div class="live-status-card" style="border-left:4px solid #f59e0b;">
+            <div class="status-label">Chat Model (Event Planning)</div>
+            <div class="status-value" id="liveChatModel">Loading...</div>
+          </div>
+          <div class="live-status-card" style="border-left:4px solid var(--party-coral);">
+            <div class="status-label">Prompt Versions Saved</div>
+            <div class="status-value" id="liveVersionCount">Loading...</div>
           </div>
         </div>
-        <div class="config-row" style="margin-top:16px;">
-          <div class="config-field">
-            <label>Pricing Model</label>
-            <div id="pricingSummarySettings" style="padding:10px 14px;background:#f9f9f9;border-radius:6px;font-size:14px;color:var(--midnight);">
-              Free tier + $4.99/event premium
+
+        <!-- Full Composed Prompt Preview -->
+        <div class="config-section">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div>
+              <h3>Full Production Prompt</h3>
+              <p style="font-size:12px;color:#888;margin-top:2px;">This is exactly what the AI sees when generating an invite. Structural Rules + Active Creative Direction.</p>
             </div>
-            <div class="hint">Configure plan limits in the <a href="#subscriptions" onclick="switchTab('subscriptions');loadBillingTab();return false;" style="color:var(--party-coral);text-decoration:underline;">Billing</a> tab.</div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-secondary btn-sm" id="livePromptToggle" onclick="toggleLivePromptSection('structural')">Structural Rules</button>
+              <button class="btn btn-secondary btn-sm" onclick="toggleLivePromptSection('creative')">Creative Direction</button>
+              <button class="btn btn-secondary btn-sm" onclick="toggleLivePromptSection('dna')">Design DNA</button>
+              <button class="btn btn-secondary btn-sm" onclick="toggleLivePromptSection('full')">Full Prompt</button>
+            </div>
+          </div>
+          <div class="prompt-preview-block" id="livePromptPreview">Loading production prompt...</div>
+        </div>
+
+        <!-- Other Live Prompts (collapsed) -->
+        <div class="config-section">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div>
+              <h3>Other AI Prompts</h3>
+              <p style="font-size:12px;color:#888;margin-top:2px;">Chat, tweaks, quality monitor — these are hardcoded and can only be changed in code.</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="otherPromptsToggle" onclick="toggleOtherPrompts()">Show</button>
+          </div>
+          <div id="otherPromptsContent" style="display:none;">
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Event Creation Chat <span class="badge badge-blue" style="font-size:9px;">Hardcoded</span></div>
+                <div class="prompt-preview-block" style="max-height:200px;" id="liveChatPrompt"></div>
+              </div>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Design Tweak (Tier 3) <span class="badge badge-blue" style="font-size:9px;">Hardcoded</span></div>
+                <div class="prompt-preview-block" style="max-height:200px;" id="liveTweakPrompt"></div>
+              </div>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Light Tweak (Tier 2) <span class="badge badge-blue" style="font-size:9px;">Hardcoded</span></div>
+                <div class="prompt-preview-block" style="max-height:200px;" id="liveLightTweakPrompt"></div>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="config-row" style="margin-top:16px;">
-          <div class="config-field">
-            <label for="smsCostCentsInput">SMS Cost Per Message (cents)</label>
-            <input type="number" id="smsCostCentsInput" min="0" max="100" step="1" value="3"
-              style="width:120px;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
-            <div class="hint">ClickSend cost per SMS in cents. Used for platform cost tracking on all outgoing SMS (invites, reminders, notifications).</div>
+
+        <!-- Test Insights (moved from Prompt Versions tab) -->
+        <div class="config-section" id="reportingSection">
+          <h3>Test Results &amp; Insights</h3>
+          <p style="font-size:13px;color:#888;margin-bottom:16px;">Aggregated results from Prompt Lab tests. Rate generations in the Prompt Lab to populate these insights.</p>
+          <div id="reportingEmpty" style="text-align:center;padding:40px 20px;color:#888;">
+            <div style="font-size:36px;margin-bottom:8px;opacity:0.3;">&#9733;</div>
+            <p style="font-size:13px;">No rated test runs yet. Generate invites in the Prompt Lab and rate them to see insights here.</p>
           </div>
-        </div>
-        <div class="config-actions">
-          <button class="btn btn-primary" id="saveConfigBtn" onclick="saveConfig()">Save Configuration</button>
-          <span class="config-saved" id="configSaved">Saved!</span>
+          <div id="reportingContent" style="display:none;">
+            <div class="report-grid" id="reportSummaryCards"></div>
+            <div style="margin-bottom:24px;">
+              <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">Prompt × Model Leaderboard</h4>
+              <div class="table-container">
+                <table class="leaderboard-table" id="comboLeaderboard">
+                  <thead><tr><th>Rank</th><th>Prompt</th><th>Model</th><th>Avg Score</th><th>Tests</th><th>Avg Latency</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="report-two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+              <div>
+                <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">By Prompt Version</h4>
+                <div class="table-container">
+                  <table class="leaderboard-table" id="promptLeaderboard">
+                    <thead><tr><th>Prompt</th><th>Avg Score</th><th>Tests</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+              <div>
+                <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">By Model</h4>
+                <div class="table-container">
+                  <table class="leaderboard-table" id="modelLeaderboard">
+                    <thead><tr><th>Model</th><th>Avg Score</th><th>Tests</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="report-two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+              <div>
+                <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">Score Distribution</h4>
+                <div id="scoreDistribution" style="padding:16px;background:white;border:1px solid #eee;border-radius:8px;"></div>
+              </div>
+              <div>
+                <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">By Event Type</h4>
+                <div class="table-container">
+                  <table class="leaderboard-table" id="eventTypeLeaderboard">
+                    <thead><tr><th>Event Type</th><th>Avg Score</th><th>Tests</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="config-section">
-        <h3>Actual Cost Per Operation</h3>
-        <p style="font-size:13px;color:#888;margin-bottom:16px;">Computed from real generation_log data. Updates automatically.</p>
-        <div id="costEstimationTable" style="font-size:13px;color:#888;">Loading...</div>
-      </div>
+      <!-- ═══ MODELS & CONFIG ═══ -->
+      <div class="ai-subpanel" id="aipanel-config">
+        <div class="config-section">
+          <h3>AI Model Configuration</h3>
+          <p style="font-size:13px;color:#888;margin-bottom:20px;">Choose which models power the chat assistant and invite designer. Changes take effect immediately for all new requests.</p>
+          <div class="config-row">
+            <div class="config-field">
+              <label>Chat Model (Event Details Extraction)</label>
+              <select id="chatModelSelect">
+                <optgroup label="Anthropic Claude">
+                  <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fastest, cheapest ($1/1M in, $5/1M out)</option>
+                  <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — Balanced ($3/1M in, $15/1M out)</option>
+                  <option value="claude-opus-4-6">Claude Opus 4.6 — Most capable ($15/1M in, $75/1M out)</option>
+                </optgroup>
+                <optgroup label="OpenAI">
+                  <option value="gpt-4.1">GPT-4.1 — Flagship ($2/1M in, $8/1M out)</option>
+                  <option value="gpt-4.1-mini">GPT-4.1 Mini — Fast ($0.40/1M in, $1.60/1M out)</option>
+                  <option value="gpt-4.1-nano">GPT-4.1 Nano — Cheapest ($0.10/1M in, $0.40/1M out)</option>
+                  <option value="o3">o3 — Reasoning ($2/1M in, $8/1M out)</option>
+                  <option value="o4-mini">o4-mini — Fast reasoning ($1.10/1M in, $4.40/1M out)</option>
+                </optgroup>
+              </select>
+              <div class="hint">Used for the conversational event planning chat. Haiku is recommended — it handles structured extraction well at minimal cost.</div>
+            </div>
+            <div class="config-field">
+              <label>Theme Model (Invite Design Generation)</label>
+              <select id="themeModelSelect">
+                <optgroup label="Anthropic Claude">
+                  <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — Fastest, cheapest ($1/1M in, $5/1M out)</option>
+                  <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — Balanced ($3/1M in, $15/1M out)</option>
+                  <option value="claude-opus-4-6">Claude Opus 4.6 — Most capable ($15/1M in, $75/1M out)</option>
+                </optgroup>
+                <optgroup label="OpenAI">
+                  <option value="gpt-4.1">GPT-4.1 — Flagship ($2/1M in, $8/1M out)</option>
+                  <option value="gpt-4.1-mini">GPT-4.1 Mini — Fast ($0.40/1M in, $1.60/1M out)</option>
+                  <option value="gpt-4.1-nano">GPT-4.1 Nano — Cheapest ($0.10/1M in, $0.40/1M out)</option>
+                  <option value="o3">o3 — Reasoning ($2/1M in, $8/1M out)</option>
+                  <option value="o4-mini">o4-mini — Fast reasoning ($1.10/1M in, $4.40/1M out)</option>
+                </optgroup>
+              </select>
+              <div class="hint">Used to generate HTML/CSS invite themes. Higher-tier models produce more creative and polished designs.</div>
+            </div>
+          </div>
+          <div class="config-row" style="margin-top:16px;">
+            <div class="config-field">
+              <label for="smsCostCentsInput">SMS Cost Per Message (cents)</label>
+              <input type="number" id="smsCostCentsInput" min="0" max="100" step="1" value="3"
+                style="width:120px;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+              <div class="hint">ClickSend cost per SMS in cents. Used for platform cost tracking on all outgoing SMS (invites, reminders, notifications).</div>
+            </div>
+          </div>
+          <div class="config-actions">
+            <button class="btn btn-primary" id="saveConfigBtn" onclick="saveConfig()">Save Configuration</button>
+            <span class="config-saved" id="configSaved">Saved!</span>
+          </div>
+        </div>
+        <div class="config-section">
+          <h3>Actual Cost Per Operation</h3>
+          <p style="font-size:13px;color:#888;margin-bottom:16px;">Computed from real generation_log data. Updates automatically.</p>
+          <div id="costEstimationTable" style="font-size:13px;color:#888;">Loading...</div>
+        </div>
+      </div><!-- /aipanel-config -->
 
-    </div>
+      <!-- ═══ PROMPT VERSIONS ═══ -->
+      <div class="ai-subpanel" id="aipanel-versions">
+        <div class="config-section">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div>
+              <h3>Prompt Version Control</h3>
+              <p style="font-size:13px;color:#888;margin-top:4px;">Manage versioned system prompts for invite generation. The active version drives production. Test iterations in the Prompt Lab before going live.</p>
+            </div>
+            <button class="btn btn-primary" onclick="openPromptVersionModal()">New Version</button>
+          </div>
+          <div id="promptVersionsList">
+            <div class="loading">Loading prompt versions...</div>
+          </div>
+        </div>
+      </div><!-- /aipanel-versions -->
+
+      <!-- ═══ PROMPT LAB ═══ -->
+      <div class="ai-subpanel" id="aipanel-lab">
+        <div class="promptlab-layout" id="promptlabSingleLayout">
+          <div class="promptlab-config">
+            <div class="config-section">
+              <h3>Event Details</h3>
+              <div class="config-field" style="margin-bottom:12px;">
+                <label>Event Type</label>
+                <select id="testEventType" onchange="onEventTypeChange()" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+                  <option value="" disabled selected>Choose an event type...</option>
+                  <option value="kidsBirthday">Kids Birthday</option>
+                  <option value="adultBirthday">Adult Birthday</option>
+                  <option value="babyShower">Baby Shower</option>
+                  <option value="engagement">Engagement</option>
+                  <option value="wedding">Wedding</option>
+                  <option value="graduation">Graduation</option>
+                  <option value="holiday">Holiday</option>
+                  <option value="dinnerParty">Dinner Party</option>
+                  <option value="retirement">Retirement</option>
+                  <option value="anniversary">Anniversary</option>
+                  <option value="sports">Sports</option>
+                  <option value="bridalShower">Bridal Shower</option>
+                  <option value="corporate">Corporate</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div id="otherTypeInput" style="display:none;margin-bottom:12px;">
+                <div class="config-field">
+                  <label>Describe the Event</label>
+                  <input type="text" id="testOtherDescription" placeholder="e.g. Housewarming, Reunion, Fundraiser..." style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
+                </div>
+              </div>
+              <div id="eventDetailsFilled" style="display:none;padding:12px 16px;background:#f0faf0;border:1px solid #c3e6cb;border-radius:8px;margin-bottom:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                  <span style="font-size:12px;font-weight:600;color:#28a745;text-transform:uppercase;letter-spacing:0.5px;">AI-Generated Test Data</span>
+                  <div style="display:flex;gap:6px;">
+                    <button class="btn btn-secondary btn-sm" onclick="toggleEventDetailsExpand()" id="expandDetailsBtn" style="font-size:11px;">Edit</button>
+                    <button class="btn btn-secondary btn-sm" onclick="regenDummyData()" id="regenBtn" style="font-size:11px;">AI Gen</button>
+                  </div>
+                </div>
+                <div id="eventDetailsSummary" style="font-size:13px;color:#333;line-height:1.6;"></div>
+              </div>
+              <div id="eventDetailsExpanded" style="display:none;">
+                <div class="test-params-grid">
+                  <div class="config-field"><label>Event Title</label><input type="text" id="testTitle"></div>
+                  <div class="config-field"><label>Start Date/Time</label><input type="datetime-local" id="testStartDate"></div>
+                  <div class="config-field"><label>End Date/Time</label><input type="datetime-local" id="testEndDate"></div>
+                  <div class="config-field"><label>Location Name</label><input type="text" id="testLocation"></div>
+                  <div class="config-field"><label>Location Address</label><input type="text" id="testAddress"></div>
+                  <div class="config-field"><label>Host Name</label><input type="text" id="testHost"></div>
+                  <div class="config-field"><label>Dress Code</label><input type="text" id="testDressCode"></div>
+                  <div class="config-field"><label>Tagline</label><input type="text" id="testTagline"></div>
+                  <div class="config-field" style="grid-column:1/-1;"><label>Creative Prompt / Design Direction</label><textarea id="testPrompt" rows="3"></textarea></div>
+                </div>
+              </div>
+              <div id="eventDetailsLoading" style="display:none;padding:16px;text-align:center;color:#888;font-size:13px;">
+                <div class="generating-spinner" style="width:24px;height:24px;margin:0 auto 8px;"></div>
+                Generating test data...
+              </div>
+            </div>
+            <div class="config-section">
+              <h3>Generation Settings</h3>
+              <div class="config-field" style="margin-bottom:16px;">
+                <label>Prompt Versions</label>
+                <div id="promptVersionCheckboxes" style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+                  <label class="style-checkbox selected" style="margin-bottom:0;">
+                    <input type="checkbox" name="pvCheck" value="" checked> <span style="font-size:13px;">Hardcoded Default (in code)</span>
+                  </label>
+                </div>
+                <div class="hint" style="margin-top:6px;">Select one or more prompt versions to test. Multiple selections run a matrix across all selected models.</div>
+              </div>
+              <div class="config-field" style="margin-bottom:16px;">
+                <label>Models</label>
+                <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+                  <div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Anthropic Claude</div>
+                  <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_haiku"><input type="checkbox" name="modelCheck" value="claude-haiku-4-5-20251001"> <span style="font-size:13px;">Haiku 4.5 — Fast ($1/$5)</span></label>
+                  <label class="style-checkbox selected" style="margin-bottom:0;" id="modelCheck_sonnet"><input type="checkbox" name="modelCheck" value="claude-sonnet-4-6" checked> <span style="font-size:13px;">Sonnet 4.6 — Balanced ($3/$15)</span></label>
+                  <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_opus"><input type="checkbox" name="modelCheck" value="claude-opus-4-6"> <span style="font-size:13px;">Opus 4.6 — Best ($15/$75)</span></label>
+                  <div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-top:8px;">OpenAI</div>
+                  <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_gpt41"><input type="checkbox" name="modelCheck" value="gpt-4.1"> <span style="font-size:13px;">GPT-4.1 — Flagship ($2/$8)</span></label>
+                  <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_gpt41mini"><input type="checkbox" name="modelCheck" value="gpt-4.1-mini"> <span style="font-size:13px;">GPT-4.1 Mini — Fast ($0.40/$1.60)</span></label>
+                  <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_o3"><input type="checkbox" name="modelCheck" value="o3"> <span style="font-size:13px;">o3 — Reasoning ($2/$8)</span></label>
+                  <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_o4mini"><input type="checkbox" name="modelCheck" value="o4-mini"> <span style="font-size:13px;">o4-mini — Fast reasoning ($1.10/$4.40)</span></label>
+                </div>
+              </div>
+              <div id="styleLibraryCheckboxes" style="margin-top:16px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Style References (auto-matched)</label>
+                <div id="styleRefList"><span style="font-size:12px;color:#aaa;">Select an event type above to see matched styles.</span></div>
+              </div>
+              <div id="matrixSummary" style="display:none;margin-top:16px;padding:10px 14px;background:#f0f0ff;border:1px solid #c7d2fe;border-radius:8px;">
+                <span style="font-size:13px;font-weight:600;color:#4f46e5;" id="matrixSummaryText"></span>
+              </div>
+              <div style="display:flex;gap:12px;align-items:center;margin-top:16px;">
+                <button class="btn btn-primary" id="runTestBtn" onclick="runPromptTest()" style="padding:12px 24px;font-size:14px;">Generate Test Invite</button>
+                <button class="btn btn-secondary" onclick="fillTestDefaults()">Reset</button>
+                <span id="testStatus" style="font-size:13px;color:#888;"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results section (single model or matrix) -->
+        <div id="singlePreviewSection" style="display:none;">
+          <div class="config-section">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+              <h3>Result</h3>
+              <div class="preview-toggle-row" style="margin-bottom:0;">
+                <button class="preview-toggle-btn active" onclick="setTestPreviewMode('invite')">Invite</button>
+                <button class="preview-toggle-btn" onclick="setTestPreviewMode('thankyou')">Thank You</button>
+              </div>
+            </div>
+            <div id="singlePreviewContent" style="display:flex;gap:24px;flex-wrap:wrap;">
+              <div style="flex:0 0 auto;">
+                <div class="phone-mockup">
+                  <div class="phone-frame">
+                    <div class="phone-notch"></div>
+                    <div class="phone-screen">
+                      <iframe id="testPreviewFrame" sandbox="allow-scripts allow-same-origin"></iframe>
+                    </div>
+                    <div class="phone-home-bar"></div>
+                  </div>
+                </div>
+              </div>
+              <div style="flex:1;min-width:250px;">
+                <div class="star-rating" data-idx="0" style="margin-bottom:8px;">
+                  <span class="star" data-score="1">&#9733;</span><span class="star" data-score="2">&#9733;</span><span class="star" data-score="3">&#9733;</span><span class="star" data-score="4">&#9733;</span><span class="star" data-score="5">&#9733;</span>
+                  <span class="star-label" id="starLabel0">Rate this</span>
+                </div>
+                <div class="test-meta" id="testMeta" style="margin-top:0;margin-bottom:12px;"></div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+                  <button class="save-to-library-btn" id="singleSaveToLibraryBtn" onclick="saveToStyleLibrary(0, this)" title="Save to Style Library" style="padding:6px 14px;font-size:12px;">&#128230; Save to Style Library</button>
+                </div>
+                <div style="display:flex;gap:6px;margin-bottom:8px;">
+                  <button class="btn btn-secondary btn-sm" onclick="showTestView('preview')" id="btnPreview" style="background:var(--midnight);color:white;">Preview</button>
+                  <button class="btn btn-secondary btn-sm" onclick="showTestView('html')" id="btnHtml">HTML</button>
+                  <button class="btn btn-secondary btn-sm" onclick="showTestView('css')" id="btnCss">CSS</button>
+                  <button class="btn btn-secondary btn-sm" onclick="showTestView('config')" id="btnConfig">Config</button>
+                </div>
+                <div id="testViewPreview" style="display:none;"></div>
+                <div id="testViewHtml" style="display:none;"><div class="prompt-viewer" style="max-height:400px;" id="testHtmlContent"></div></div>
+                <div id="testViewCss" style="display:none;"><div class="prompt-viewer" style="max-height:400px;" id="testCssContent"></div></div>
+                <div id="testViewConfig" style="display:none;"><div class="prompt-viewer" style="max-height:300px;" id="testConfigContent"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="matrixResultSection" style="display:none;">
+          <div class="config-section">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+              <h3 id="matrixResultTitle">Results</h3>
+              <div class="preview-toggle-row" style="margin-bottom:0;">
+                <button class="preview-toggle-btn active" onclick="setMatrixPreviewMode('invite')">Invite</button>
+                <button class="preview-toggle-btn" onclick="setMatrixPreviewMode('thankyou')">Thank You</button>
+              </div>
+            </div>
+            <div id="matrixResultGrid" class="matrix-results"></div>
+          </div>
+        </div>
+      </div><!-- /aipanel-lab -->
+
+    </div><!-- /tab-aicontrol -->
 
     <!-- Team Tab -->
     <div class="tab-content" id="tab-team">
@@ -1333,89 +1649,6 @@
             <button class="btn btn-primary" onclick="addAdmin()">Send Invite</button>
           </div>
           <p style="font-size:12px;color:#aaa;margin-top:8px;margin-bottom:0;">They'll receive a branded email with a link to create their account and access the admin dashboard.</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Prompt Versions Tab -->
-    <div class="tab-content" id="tab-promptversions">
-      <div class="config-section">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-          <div>
-            <h3>Prompt Version Control</h3>
-            <p style="font-size:13px;color:#888;margin-top:4px;">Manage versioned system prompts for invite generation. The active version drives production. Test iterations in the Prompt Lab before going live.</p>
-          </div>
-          <button class="btn btn-primary" onclick="openPromptVersionModal()">New Version</button>
-        </div>
-
-        <div id="promptVersionsList">
-          <div class="loading">Loading prompt versions...</div>
-        </div>
-      </div>
-
-      <!-- Reporting Dashboard -->
-      <div class="config-section" id="reportingSection">
-        <h3>Test Results &amp; Insights</h3>
-        <p style="font-size:13px;color:#888;margin-bottom:16px;">Aggregated results from Prompt Lab tests. Rate generations in the Prompt Lab to populate these insights.</p>
-
-        <div id="reportingEmpty" style="text-align:center;padding:40px 20px;color:#888;">
-          <div style="font-size:36px;margin-bottom:8px;opacity:0.3;">&#9733;</div>
-          <p style="font-size:13px;">No rated test runs yet. Generate invites in the Prompt Lab and rate them to see insights here.</p>
-        </div>
-
-        <div id="reportingContent" style="display:none;">
-          <!-- Summary cards -->
-          <div class="report-grid" id="reportSummaryCards"></div>
-
-          <!-- Leaderboard: Prompt × Model combos -->
-          <div style="margin-bottom:24px;">
-            <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">Prompt × Model Leaderboard</h4>
-            <div class="table-container">
-              <table class="leaderboard-table" id="comboLeaderboard">
-                <thead><tr><th>Rank</th><th>Prompt</th><th>Model</th><th>Avg Score</th><th>Tests</th><th>Avg Latency</th></tr></thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- By Prompt Version -->
-          <div class="report-two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
-            <div>
-              <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">By Prompt Version</h4>
-              <div class="table-container">
-                <table class="leaderboard-table" id="promptLeaderboard">
-                  <thead><tr><th>Prompt</th><th>Avg Score</th><th>Tests</th></tr></thead>
-                  <tbody></tbody>
-                </table>
-              </div>
-            </div>
-            <div>
-              <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">By Model</h4>
-              <div class="table-container">
-                <table class="leaderboard-table" id="modelLeaderboard">
-                  <thead><tr><th>Model</th><th>Avg Score</th><th>Tests</th></tr></thead>
-                  <tbody></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- Score distribution + by event type -->
-          <div class="report-two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-            <div>
-              <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">Score Distribution</h4>
-              <div id="scoreDistribution" style="padding:16px;background:white;border:1px solid #eee;border-radius:8px;"></div>
-            </div>
-            <div>
-              <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">By Event Type</h4>
-              <div class="table-container">
-                <table class="leaderboard-table" id="eventTypeLeaderboard">
-                  <thead><tr><th>Event Type</th><th>Avg Score</th><th>Tests</th></tr></thead>
-                  <tbody></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -1466,230 +1699,6 @@
           <button class="btn btn-primary" onclick="savePromptVersion()">Save Version</button>
           <button class="btn btn-secondary" onclick="closePromptVersionModal()">Cancel</button>
           <span id="pvSaveStatus" style="font-size:13px;color:#888;"></span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Prompt Lab Tab -->
-    <div class="tab-content" id="tab-promptlab">
-      <div class="promptlab-layout" id="promptlabSingleLayout">
-        <!-- Config -->
-        <div class="promptlab-config">
-          <div class="config-section">
-            <h3>Event Details</h3>
-            <div class="config-field" style="margin-bottom:12px;">
-              <label>Event Type</label>
-              <select id="testEventType" onchange="onEventTypeChange()" style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
-                <option value="" disabled selected>Choose an event type...</option>
-                <option value="kidsBirthday">Kids Birthday</option>
-                <option value="adultBirthday">Adult Birthday</option>
-                <option value="babyShower">Baby Shower</option>
-                <option value="engagement">Engagement</option>
-                <option value="wedding">Wedding</option>
-                <option value="graduation">Graduation</option>
-                <option value="holiday">Holiday</option>
-                <option value="dinnerParty">Dinner Party</option>
-                <option value="retirement">Retirement</option>
-                <option value="anniversary">Anniversary</option>
-                <option value="sports">Sports</option>
-                <option value="bridalShower">Bridal Shower</option>
-                <option value="corporate">Corporate</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div id="otherTypeInput" style="display:none;margin-bottom:12px;">
-              <div class="config-field">
-                <label>Describe the Event</label>
-                <input type="text" id="testOtherDescription" placeholder="e.g. Housewarming, Reunion, Fundraiser..." style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
-              </div>
-            </div>
-            <div id="eventDetailsFilled" style="display:none;padding:12px 16px;background:#f0faf0;border:1px solid #c3e6cb;border-radius:8px;margin-bottom:12px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <span style="font-size:12px;font-weight:600;color:#28a745;text-transform:uppercase;letter-spacing:0.5px;">AI-Generated Test Data</span>
-                <div style="display:flex;gap:6px;">
-                  <button class="btn btn-secondary btn-sm" onclick="toggleEventDetailsExpand()" id="expandDetailsBtn" style="font-size:11px;">Edit</button>
-                  <button class="btn btn-secondary btn-sm" onclick="regenDummyData()" id="regenBtn" style="font-size:11px;">AI Gen</button>
-                </div>
-              </div>
-              <div id="eventDetailsSummary" style="font-size:13px;color:#333;line-height:1.6;"></div>
-            </div>
-            <div id="eventDetailsExpanded" style="display:none;">
-              <div class="test-params-grid">
-                <div class="config-field">
-                  <label>Event Title</label>
-                  <input type="text" id="testTitle">
-                </div>
-                <div class="config-field">
-                  <label>Start Date/Time</label>
-                  <input type="datetime-local" id="testStartDate">
-                </div>
-                <div class="config-field">
-                  <label>End Date/Time</label>
-                  <input type="datetime-local" id="testEndDate">
-                </div>
-                <div class="config-field">
-                  <label>Location Name</label>
-                  <input type="text" id="testLocation">
-                </div>
-                <div class="config-field">
-                  <label>Location Address</label>
-                  <input type="text" id="testAddress">
-                </div>
-                <div class="config-field">
-                  <label>Host Name</label>
-                  <input type="text" id="testHost">
-                </div>
-                <div class="config-field">
-                  <label>Dress Code</label>
-                  <input type="text" id="testDressCode">
-                </div>
-                <div class="config-field">
-                  <label>Tagline</label>
-                  <input type="text" id="testTagline">
-                </div>
-                <div class="config-field" style="grid-column:1/-1;">
-                  <label>Creative Prompt / Design Direction</label>
-                  <textarea id="testPrompt" rows="3"></textarea>
-                </div>
-              </div>
-            </div>
-            <div id="eventDetailsLoading" style="display:none;padding:16px;text-align:center;color:#888;font-size:13px;">
-              <div class="generating-spinner" style="width:24px;height:24px;margin:0 auto 8px;"></div>
-              Generating test data...
-            </div>
-          </div>
-
-          <div class="config-section">
-            <h3>Generation Settings</h3>
-
-            <!-- Prompt Versions multi-select -->
-            <div class="config-field" style="margin-bottom:16px;">
-              <label>Prompt Versions</label>
-              <div id="promptVersionCheckboxes" style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
-                <label class="style-checkbox selected" style="margin-bottom:0;">
-                  <input type="checkbox" name="pvCheck" value="" checked> <span style="font-size:13px;">Hardcoded Default (in code)</span>
-                </label>
-              </div>
-              <div class="hint" style="margin-top:6px;">Select one or more prompt versions to test. Multiple selections run a matrix across all selected models.</div>
-            </div>
-
-            <!-- Models multi-select -->
-            <div class="config-field" style="margin-bottom:16px;">
-              <label>Models</label>
-              <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
-                <div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Anthropic Claude</div>
-                <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_haiku">
-                  <input type="checkbox" name="modelCheck" value="claude-haiku-4-5-20251001"> <span style="font-size:13px;">Haiku 4.5 — Fast ($1/$5)</span>
-                </label>
-                <label class="style-checkbox selected" style="margin-bottom:0;" id="modelCheck_sonnet">
-                  <input type="checkbox" name="modelCheck" value="claude-sonnet-4-6" checked> <span style="font-size:13px;">Sonnet 4.6 — Balanced ($3/$15)</span>
-                </label>
-                <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_opus">
-                  <input type="checkbox" name="modelCheck" value="claude-opus-4-6"> <span style="font-size:13px;">Opus 4.6 — Best ($15/$75)</span>
-                </label>
-                <div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-top:8px;">OpenAI</div>
-                <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_gpt41">
-                  <input type="checkbox" name="modelCheck" value="gpt-4.1"> <span style="font-size:13px;">GPT-4.1 — Flagship ($2/$8)</span>
-                </label>
-                <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_gpt41mini">
-                  <input type="checkbox" name="modelCheck" value="gpt-4.1-mini"> <span style="font-size:13px;">GPT-4.1 Mini — Fast ($0.40/$1.60)</span>
-                </label>
-                <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_o3">
-                  <input type="checkbox" name="modelCheck" value="o3"> <span style="font-size:13px;">o3 — Reasoning ($2/$8)</span>
-                </label>
-                <label class="style-checkbox" style="margin-bottom:0;" id="modelCheck_o4mini">
-                  <input type="checkbox" name="modelCheck" value="o4-mini"> <span style="font-size:13px;">o4-mini — Fast reasoning ($1.10/$4.40)</span>
-                </label>
-              </div>
-            </div>
-
-            <div id="styleLibraryCheckboxes" style="margin-top:16px;">
-              <label style="display:block;font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Style References (auto-matched)</label>
-              <div id="styleRefList"><span style="font-size:12px;color:#aaa;">Select an event type above to see matched styles.</span></div>
-            </div>
-
-            <div id="matrixSummary" style="display:none;margin-top:16px;padding:10px 14px;background:#f0f0ff;border:1px solid #c7d2fe;border-radius:8px;">
-              <span style="font-size:13px;font-weight:600;color:#4f46e5;" id="matrixSummaryText"></span>
-            </div>
-
-            <div style="display:flex;gap:12px;align-items:center;margin-top:16px;">
-              <button class="btn btn-primary" id="runTestBtn" onclick="runPromptTest()" style="padding:12px 24px;font-size:14px;">Generate Test Invite</button>
-              <button class="btn btn-secondary" onclick="fillTestDefaults()">Reset</button>
-              <span id="testStatus" style="font-size:13px;color:#888;"></span>
-            </div>
-          </div>
-
-          <!-- Prompt viewers removed — creative direction & design DNA are part of each prompt version -->
-        </div>
-
-      </div>
-
-      <!-- Results section (single model or matrix, shown after generation) -->
-      <div id="singlePreviewSection" style="display:none;">
-        <div class="config-section">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <h3>Result</h3>
-            <div class="preview-toggle-row" style="margin-bottom:0;">
-              <button class="preview-toggle-btn active" onclick="setTestPreviewMode('invite')">Invite</button>
-              <button class="preview-toggle-btn" onclick="setTestPreviewMode('thankyou')">Thank You</button>
-            </div>
-          </div>
-          <div id="singlePreviewContent" style="display:flex;gap:24px;flex-wrap:wrap;">
-            <div style="flex:0 0 auto;">
-              <div class="phone-mockup">
-                <div class="phone-frame">
-                  <div class="phone-notch"></div>
-                  <div class="phone-screen">
-                    <iframe id="testPreviewFrame" sandbox="allow-scripts allow-same-origin"></iframe>
-                  </div>
-                  <div class="phone-home-bar"></div>
-                </div>
-              </div>
-            </div>
-            <div style="flex:1;min-width:250px;">
-              <div class="star-rating" data-idx="0" style="margin-bottom:8px;">
-                <span class="star" data-score="1">&#9733;</span>
-                <span class="star" data-score="2">&#9733;</span>
-                <span class="star" data-score="3">&#9733;</span>
-                <span class="star" data-score="4">&#9733;</span>
-                <span class="star" data-score="5">&#9733;</span>
-                <span class="star-label" id="starLabel0">Rate this</span>
-              </div>
-              <div class="test-meta" id="testMeta" style="margin-top:0;margin-bottom:12px;"></div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
-                <button class="save-to-library-btn" id="singleSaveToLibraryBtn" onclick="saveToStyleLibrary(0, this)" title="Save to Style Library" style="padding:6px 14px;font-size:12px;">&#128230; Save to Style Library</button>
-              </div>
-              <div style="display:flex;gap:6px;margin-bottom:8px;">
-                <button class="btn btn-secondary btn-sm" onclick="showTestView('preview')" id="btnPreview" style="background:var(--midnight);color:white;">Preview</button>
-                <button class="btn btn-secondary btn-sm" onclick="showTestView('html')" id="btnHtml">HTML</button>
-                <button class="btn btn-secondary btn-sm" onclick="showTestView('css')" id="btnCss">CSS</button>
-                <button class="btn btn-secondary btn-sm" onclick="showTestView('config')" id="btnConfig">Config</button>
-              </div>
-              <div id="testViewPreview" style="display:none;"></div>
-              <div id="testViewHtml" style="display:none;">
-                <div class="prompt-viewer" style="max-height:400px;" id="testHtmlContent"></div>
-              </div>
-              <div id="testViewCss" style="display:none;">
-                <div class="prompt-viewer" style="max-height:400px;" id="testCssContent"></div>
-              </div>
-              <div id="testViewConfig" style="display:none;">
-                <div class="prompt-viewer" style="max-height:300px;" id="testConfigContent"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div id="matrixResultSection" style="display:none;">
-        <div class="config-section">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <h3 id="matrixResultTitle">Results</h3>
-            <div class="preview-toggle-row" style="margin-bottom:0;">
-              <button class="preview-toggle-btn active" onclick="setMatrixPreviewMode('invite')">Invite</button>
-              <button class="preview-toggle-btn" onclick="setMatrixPreviewMode('thankyou')">Thank You</button>
-            </div>
-          </div>
-          <div id="matrixResultGrid" class="matrix-results"></div>
         </div>
       </div>
     </div>
@@ -3576,6 +3585,7 @@
       subscriptions: function() { loadBillingTab(); },
       coupons: function() { loadCoupons(); },
       notifications: function() { loadAdminNotifPrefs(); },
+      aicontrol: function() { loadAIControlCenter(); },
       quality: function() { loadSystemHealth(); },
       marketing: function() { loadMarketingTab(); },
       blogposts: function() { loadBlogPosts(); },
@@ -3593,6 +3603,17 @@
 
       var parts = hash.split('/');
       var tab = parts[0];
+
+      // Backward compat: old tab names redirect to AI Control Center sub-tabs
+      var _oldTabMap = { settings: 'config', promptversions: 'versions', promptlab: 'lab' };
+      if (_oldTabMap[tab]) {
+        var subtab = _oldTabMap[tab];
+        tab = 'aicontrol';
+        parts[0] = 'aicontrol';
+        history.replaceState(null, '', '#aicontrol');
+        // After switching, also switch to the right sub-tab
+        setTimeout(function() { switchAISubtab(subtab); }, 50);
+      }
 
       // Validate tab exists
       var tabEl = document.getElementById('tab-' + tab);
@@ -7086,6 +7107,125 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     // Load prompt versions on init
     loadPromptVersions();
     loadReportingDashboard();
+
+    // ═══════════════════════════════════════════════
+    // AI CONTROL CENTER
+    // ═══════════════════════════════════════════════
+
+    var _aiControlLoaded = false;
+    var _livePromptData = { structural: '', creative: '', dna: null, versionLabel: '', versionDesc: '' };
+
+    function switchAISubtab(panel) {
+      document.querySelectorAll('.ai-subtab').forEach(function(t) { t.classList.toggle('active', t.getAttribute('data-aipanel') === panel); });
+      document.querySelectorAll('.ai-subpanel').forEach(function(p) { p.classList.toggle('active', p.id === 'aipanel-' + panel); });
+    }
+
+    async function loadAIControlCenter() {
+      if (_aiControlLoaded) return;
+      _aiControlLoaded = true;
+      try {
+        // Load config, active prompt version, and all versions in parallel
+        var [configRes, activeRes] = await Promise.all([
+          adminFetch('getConfig'),
+          adminFetch('getActivePromptVersion')
+        ]);
+
+        // Models
+        var chatModel = (configRes.config && configRes.config.chatModel) || 'claude-haiku-4-5-20251001';
+        var themeModel = (configRes.config && configRes.config.themeModel) || 'claude-sonnet-4-6';
+        document.getElementById('liveChatModel').textContent = shortModelName(chatModel);
+        document.getElementById('liveThemeModel').textContent = shortModelName(themeModel);
+
+        // Also populate the config selects
+        if (configRes.config) {
+          document.getElementById('chatModelSelect').value = configRes.config.chatModel;
+          document.getElementById('themeModelSelect').value = configRes.config.themeModel;
+          var smsCostInput = document.getElementById('smsCostCentsInput');
+          if (smsCostInput) smsCostInput.value = configRes.config.smsCostCents || 3;
+        }
+
+        // Active prompt version
+        var av = activeRes.version;
+        if (av) {
+          document.getElementById('livePromptVersion').innerHTML = 'v' + av.version + ' — ' + escapeHtml(av.name) + ' <span class="badge badge-green">Active</span>';
+          document.getElementById('livePromptDesc').textContent = av.description || '';
+          _livePromptData.creative = av.creative_direction || DEFAULT_CREATIVE_TEXT;
+          _livePromptData.dna = (typeof av.design_dna === 'object' && Object.keys(av.design_dna || {}).length > 0) ? av.design_dna : DESIGN_DNA_DATA;
+          _livePromptData.versionLabel = 'v' + av.version + ' — ' + av.name;
+        } else {
+          document.getElementById('livePromptVersion').innerHTML = 'Hardcoded Default <span class="badge badge-yellow">No DB version active</span>';
+          document.getElementById('livePromptDesc').textContent = 'Using DEFAULT_CREATIVE_DIRECTION from code. Create a prompt version to customize.';
+          _livePromptData.creative = DEFAULT_CREATIVE_TEXT;
+          _livePromptData.dna = DESIGN_DNA_DATA;
+          _livePromptData.versionLabel = 'Hardcoded Default';
+        }
+        _livePromptData.structural = STRUCTURAL_RULES_TEXT;
+
+        // Version count
+        document.getElementById('liveVersionCount').textContent = (promptVersionsData || []).length + ' versions';
+
+        // Render prompt preview (default: full)
+        toggleLivePromptSection('full');
+
+        // Other prompts
+        document.getElementById('liveChatPrompt').textContent = CHAT_SYSTEM_PROMPT_TEXT;
+        document.getElementById('liveTweakPrompt').textContent = DESIGN_TWEAK_PROMPT_TEXT;
+        document.getElementById('liveLightTweakPrompt').textContent = LIGHT_TWEAK_PROMPT_TEXT;
+
+      } catch (err) {
+        console.error('Failed to load AI Control Center:', err);
+      }
+    }
+
+    function toggleLivePromptSection(section) {
+      var el = document.getElementById('livePromptPreview');
+      // Update button states
+      document.querySelectorAll('#aipanel-livenow .config-section .btn-sm').forEach(function(btn) {
+        btn.style.background = '';
+        btn.style.color = '';
+      });
+      var btnMap = { structural: 0, creative: 1, dna: 2, full: 3 };
+      var btns = document.querySelectorAll('#aipanel-livenow .config-section:nth-child(2) .btn-sm');
+      if (btns[btnMap[section]]) {
+        btns[btnMap[section]].style.background = 'var(--midnight)';
+        btns[btnMap[section]].style.color = 'white';
+      }
+
+      if (section === 'structural') {
+        el.innerHTML = '<span class="layer-header">Layer 1: STRUCTURAL RULES (Platform Contract — Locked)</span>\n' + escapeHtml(_livePromptData.structural);
+      } else if (section === 'creative') {
+        el.innerHTML = '<span class="layer-header">Layer 2: CREATIVE DIRECTION (' + escapeHtml(_livePromptData.versionLabel) + ')</span>\n' + escapeHtml(_livePromptData.creative);
+      } else if (section === 'dna') {
+        var dnaText = _livePromptData.dna ? JSON.stringify(_livePromptData.dna, null, 2) : '(empty — using hardcoded defaults)';
+        el.innerHTML = '<span class="layer-header">Layer 3: DESIGN DNA (' + escapeHtml(_livePromptData.versionLabel) + ')</span>\n' + escapeHtml(dnaText);
+      } else {
+        // Full composed prompt
+        el.innerHTML = '<span class="layer-header">Layer 1: STRUCTURAL RULES (Platform Contract — Locked)</span>\n'
+          + escapeHtml(_livePromptData.structural)
+          + '\n<span class="layer-divider"></span>'
+          + '<span class="layer-header">Layer 2: CREATIVE DIRECTION (' + escapeHtml(_livePromptData.versionLabel) + ')</span>\n'
+          + escapeHtml(_livePromptData.creative);
+      }
+    }
+
+    function toggleOtherPrompts() {
+      var content = document.getElementById('otherPromptsContent');
+      var btn = document.getElementById('otherPromptsToggle');
+      if (content.style.display === 'none') {
+        content.style.display = 'block';
+        btn.textContent = 'Hide';
+      } else {
+        content.style.display = 'none';
+        btn.textContent = 'Show';
+      }
+    }
+
+    // Abbreviated hardcoded prompt texts for the "Other Prompts" display
+    var CHAT_SYSTEM_PROMPT_TEXT = "You are Ryvite's event planning assistant. Help users create event invitations through natural conversation. Be warm, friendly, and SHORT — 2 sentences max per message.\n\nPhase 1: EVENT DETAILS — Extract: title, eventType, startDate, locationName, hostEmail\nPhase 2: RSVP FIELDS — Propose custom fields (plusOnes, songRequest, message, etc.)\nPhase 3: DESIGN CHAT — Build creative brief with vibe/colors/photos\n\nGOLDEN RULE: Never re-ask about anything already mentioned.\nKeep responses SHORT (2 sentences max).\nCapture everything in 'prompt' field for AI designer.\nResponse format: JSON with message, extracted fields, status flags.";
+
+    var DESIGN_TWEAK_PROMPT_TEXT = "You are modifying an event invite design. The user has an existing invite and wants changes to colors, fonts, layout, photos, or animations.\n\nOutput: { theme_html, theme_css, theme_thankyou_html, theme_config, chat_response, rsvp_field_changes }\n\nCritical rules:\n- Preserve data attributes: data-field=\"title\", data-field=\"datetime\", data-field=\"location\", etc.\n- .rsvp-slot MUST remain empty (no buttons/content)\n- Max-width 393px, mobile-first, WCAG AA contrast\n- Google Fonts only, characterful fonts\n- Thank-you page: MUST include decorative SVG with CSS animation";
+
+    var LIGHT_TWEAK_PROMPT_TEXT = "You are modifying an event invite. Make ONLY the specific text, wording, or content changes requested. Do NOT change design, layout, colors, fonts, or CSS.\n\nOutput: { html_replacements: [{old: 'exact HTML substring', new: 'replacement'}], rsvp_field_changes: [...] or null, chat_response: 'Brief message' }\n\nEach replacement's 'old' must be an exact substring from the current HTML. Include surrounding context for uniqueness.";
 
     // ═══════════════════════════════════════════════
     // GENERATION ARCHIVE (Sub-navigation within Style Library)

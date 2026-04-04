@@ -241,6 +241,9 @@ async function getThemeModel() {
   }
 }
 
+// ⚠️ PROMPT GUARDIAN: GUARDED — Do not modify without user confirmation + changelog entry.
+// ⚠️ DUPLICATED in prompt-test.js — changes MUST be mirrored there.
+// See docs/prompt-registry.md for full prompt inventory.
 // ── Event-type design DNA injected into the generation prompt ──
 // Each entry has "must" (technique/structure guidance) and "consider" (aesthetic suggestions the model can override)
 const DESIGN_DNA = {
@@ -443,6 +446,10 @@ const DESIGN_DNA = {
 };
 
 // ═══════════════════════════════════════════════════════════════════
+// ⚠️ PROMPT GUARDIAN: LOCKED — Do not modify without explicit user approval.
+// ⚠️ DUPLICATED in prompt-test.js — changes MUST be mirrored there.
+// See docs/prompt-registry.md for full prompt inventory.
+// ═══════════════════════════════════════════════════════════════════
 // STRUCTURAL RULES — Platform contract. NEVER editable by admins.
 // These ensure the output works with Ryvite's runtime (RSVP injection,
 // preview system, data binding, thank-you page rendering).
@@ -599,6 +606,9 @@ Rules:
 - **Thank you page**: The \`.thankyou-page\` background MUST match the invite. If dark, set \`.thankyou-title\`, \`.thankyou-subtitle\` to #FFFFFF. Style \`.cal-btn\`, \`.thankyou-event-recap\`, \`.thankyou-cta-btn\`, \`.thankyou-footer\` with appropriate contrast. On dark backgrounds use glassmorphic buttons (rgba(255,255,255,0.12) + border) and light text. On light backgrounds use your primary color for buttons and dark text.
 - **SIMPLE RULE**: For ANY section with a colored/dark background, set the text color to #FFFFFF or #FAFAFA. For any section with a light/white background, set text to #1A1A1A or darker. Do NOT try to match text color to theme accent colors on dark backgrounds — it almost always fails contrast.`;
 
+// ⚠️ PROMPT GUARDIAN: GUARDED — Do not modify without user confirmation + changelog entry.
+// ⚠️ DUPLICATED in prompt-test.js — changes MUST be mirrored there.
+// See docs/prompt-registry.md for full prompt inventory.
 // ═══════════════════════════════════════════════════════════════════
 // DEFAULT CREATIVE DIRECTION — The editable creative layer.
 // Admins can iterate on this via Prompt Versions without breaking

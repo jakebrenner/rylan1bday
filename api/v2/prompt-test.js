@@ -78,6 +78,9 @@ async function verifyAdmin(req) {
   return null;
 }
 
+// ⚠️ PROMPT GUARDIAN: GUARDED — Do not modify without user confirmation + changelog entry.
+// ⚠️ DUPLICATED in generate-theme.js — changes MUST be mirrored there.
+// See docs/prompt-registry.md for full prompt inventory.
 // ── Import the same DESIGN_DNA and SYSTEM_PROMPT from generate-theme.js ──
 // Each entry has "must" (technique/structure) and "consider" (aesthetic suggestions the model can override)
 const DESIGN_DNA = {
@@ -219,6 +222,9 @@ function buildStyleContext(selected, promptSpecificity) {
   return context;
 }
 
+// ⚠️ PROMPT GUARDIAN: LOCKED — Do not modify without explicit user approval.
+// ⚠️ DUPLICATED in generate-theme.js — changes MUST be mirrored there.
+// See docs/prompt-registry.md for full prompt inventory.
 // ═══════════════════════════════════════════════════════════════════
 // STRUCTURAL RULES — Platform contract. Same as generate-theme.js.
 // These ensure the output works with Ryvite's runtime.
@@ -314,6 +320,9 @@ Your job: provide the **visual wrapper and a decorative illustration** that make
 - **Thank you page**: The \`.thankyou-page\` background MUST match the invite. If dark, set \`.thankyou-title\`, \`.thankyou-subtitle\` to #FFFFFF. Style \`.cal-btn\`, \`.thankyou-event-recap\`, \`.thankyou-cta-btn\`, \`.thankyou-footer\` with appropriate contrast. On dark backgrounds use glassmorphic buttons (rgba(255,255,255,0.12) + border) and light text. On light backgrounds use your primary color for buttons and dark text.
 - **SIMPLE RULE**: For ANY section with a colored/dark background, set the text color to #FFFFFF or #FAFAFA. For any section with a light/white background, set text to #1A1A1A or darker. Do NOT try to match text color to theme accent colors on dark backgrounds — it almost always fails contrast.`;
 
+// ⚠️ PROMPT GUARDIAN: GUARDED — Do not modify without user confirmation + changelog entry.
+// ⚠️ DUPLICATED in generate-theme.js — changes MUST be mirrored there.
+// See docs/prompt-registry.md for full prompt inventory.
 // Default creative direction — the editable layer
 const DEFAULT_CREATIVE_DIRECTION = `You are a world-class invite designer. Create a single-file HTML invite page that feels like it was made by a boutique design studio — not a template generator.
 
@@ -855,6 +864,8 @@ This is the most common failure mode. Double-check it.`;
     };
   }
 
+  // ⚠️ PROMPT GUARDIAN: GUARDED — Do not modify without user confirmation + changelog entry.
+  // See docs/prompt-registry.md for full prompt inventory.
   // ── HYBRID REFINEMENT: take a draft and polish it with a better model ──
   const REFINE_PROMPT = `You are a senior UI designer reviewing and polishing an AI-generated HTML event invitation. You will receive the complete draft (HTML, CSS, config, thank-you page) and must return an IMPROVED version.
 

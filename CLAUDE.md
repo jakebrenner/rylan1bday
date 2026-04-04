@@ -167,6 +167,40 @@ Design DNA is injected separately via `buildEventTypeContext()` / `buildPromptCo
 4. Reporting dashboard shows which prompt×model combos perform best
 5. Admin activates the winning version → immediately used in production
 
+## Prompt Guardian Rules
+
+AI prompts are the most sensitive code in this codebase. Unintentional changes can degrade invite quality across all generations. Follow these rules strictly.
+
+> **Full prompt inventory**: See [`docs/prompt-registry.md`](docs/prompt-registry.md)
+> **Change history & learnings**: See [`docs/prompt-changelog.md`](docs/prompt-changelog.md)
+
+### Protection Levels
+- **LOCKED** (STRUCTURAL_RULES): NEVER modify unless the user explicitly requests it and explains why. These define the platform contract — changing them can break all invite rendering.
+- **GUARDED** (Creative Direction, Design DNA, Chat prompt, Tweak prompts, Refine prompt): Do not modify as a side effect of other work. If a task requires changing these, STOP and confirm with the user before proceeding. Document the change in `docs/prompt-changelog.md`.
+- **STANDARD** (interpretField, classifyIntent, quality diagnosis/heal, blog SEO, ads): Can be modified with normal care. Log significant changes in the changelog.
+
+### Before Modifying Any Prompt
+1. **Check the registry**: Read `docs/prompt-registry.md` to understand the prompt's protection level and purpose
+2. **Check the changelog**: Read `docs/prompt-changelog.md` to understand recent changes and learnings — build on what worked, don't repeat what failed
+3. **State what you're changing and why** before making the edit
+4. **For LOCKED/GUARDED prompts**: Get explicit user confirmation before editing
+5. **Mirror duplicates**: If changing STRUCTURAL_RULES, DEFAULT_CREATIVE_DIRECTION, or DESIGN_DNA, you MUST update both `generate-theme.js` AND `prompt-test.js` identically
+
+### After Modifying Any Prompt
+1. **Add a changelog entry** in `docs/prompt-changelog.md` with: date, which prompt, what changed, why, what learning drove it
+2. **If modifying Creative Direction or Design DNA**: Remind the user that the hardcoded version is only a fallback — the active `prompt_versions` DB entry is what production actually uses. Ask if the DB version should be updated too.
+
+### What Counts as a Prompt Modification
+- Any change to text inside STRUCTURAL_RULES, DEFAULT_CREATIVE_DIRECTION, DESIGN_DNA, SYSTEM_PROMPT, or any prompt string/template in the files listed in `docs/prompt-registry.md`
+- Adding, removing, or reordering instructions in a prompt
+- Changing model selections or parameters (temperature, max_tokens) for prompt-using endpoints
+- Modifying the prompt composition logic (e.g., `getActivePrompt()`, `buildEventTypeContext()`)
+
+### What Does NOT Count
+- Fixing syntax errors or typos that don't change meaning
+- Changing non-prompt code in the same file (API logic, error handling, etc.)
+- Updating the prompt registry or changelog themselves
+
 ## Admin API Endpoints (`api/v2/admin.js`)
 
 All endpoints require `Authorization: Bearer <token>` and use `?action=<name>`.
