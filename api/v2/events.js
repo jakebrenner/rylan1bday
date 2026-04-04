@@ -423,20 +423,23 @@ export default async function handler(req, res) {
 
       if (!title) return res.status(400).json({ success: false, error: 'Title is required' });
 
+      const isTestEvent = settings && settings.is_test === true;
+
       // Under $4.99 model, anyone can create events (payment gate at publish/send time)
       // Check if user has EVER created any event (regardless of status or payment_status)
       // This ensures archived, refunded, or any other events count toward the "first event free" check
-      const { count: totalEventCount } = await supabaseAdmin
+      // Skip credit logic entirely for test events — they never consume credits
+      const { count: totalEventCount } = isTestEvent ? { count: 0 } : await supabaseAdmin
         .from('events')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id);
 
-      let isFirstEvent = (totalEventCount || 0) === 0;
+      let isFirstEvent = isTestEvent || (totalEventCount || 0) === 0;
       let isPrepaid = false;
       let creditSource = null; // Track what type of credit was used for ledger
 
-      // If not first event, check for purchased or admin-granted credits
-      if (!isFirstEvent) {
+      // If not first event, check for purchased or admin-granted credits (skip for test events)
+      if (!isTestEvent && !isFirstEvent) {
         const { data: profileData } = await supabaseAdmin
           .from('profiles')
           .select('purchased_event_credits, free_event_credits')
@@ -512,7 +515,8 @@ export default async function handler(req, res) {
 
       // Write credit ledger entry for credit consumption (paid/coupon credits only)
       // First-event-free is not a credit — it's tracked via payment_status='free'
-      if (isPrepaid) {
+      // Skip for test events — they never consume credits
+      if (isPrepaid && !isTestEvent) {
         const { data: balProfile } = await supabaseAdmin
           .from('profiles')
           .select('purchased_event_credits, free_event_credits')
@@ -532,8 +536,8 @@ export default async function handler(req, res) {
         });
       }
 
-      // Fire-and-forget welcome email
-      if (resend && user.email) {
+      // Fire-and-forget welcome email (skip for test events)
+      if (resend && user.email && !isTestEvent) {
         sendWelcomeEmail(data.id, user.email, user.id).catch(err =>
           console.error('Welcome email error:', err)
         );

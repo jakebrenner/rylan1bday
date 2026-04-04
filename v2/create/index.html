@@ -1188,6 +1188,8 @@
     // ── Funnel event tracking (fire-and-forget) ──
     var _trackedFunnelSteps = {};
     function trackFunnel(step, metadata) {
+      // Skip funnel tracking for test mode events
+      if (_isTestMode) return;
       // Deduplicate: only track each step once per event
       var key = step + ':' + (currentEvent ? currentEvent.id : 'none');
       if (_trackedFunnelSteps[key]) return;
@@ -2246,6 +2248,111 @@
       input.focus();
     }
 
+    // ── Test mode randomization helpers ──
+    var _isTestMode = false;
+    var _TEST_FIRST_NAMES = ['Emma', 'Liam', 'Sophia', 'Noah', 'Olivia', 'Aiden', 'Mia', 'Lucas', 'Ava', 'Ethan', 'Zoe', 'Mason', 'Priya', 'Marcus', 'Aaliyah'];
+    var _TEST_LAST_NAMES = ['Johnson', 'Chen', 'Williams', 'Patel', 'Garcia', 'Kim', 'Brown', 'Nguyen', 'Davis', 'Lopez'];
+    var _TEST_LOCATIONS = [
+      { name: 'Sunshine Park', address: '123 Rainbow Lane' },
+      { name: 'The Grand Estate', address: '450 Magnolia Drive, Charleston, SC' },
+      { name: 'The Downtown Loft', address: '88 Commerce St, Floor 12' },
+      { name: 'Rosewood Tea Room', address: '55 Garden Way, Suite B' },
+      { name: 'Lakeview Pavilion', address: '200 Lakeshore Drive' },
+      { name: 'Skyline Rooftop', address: '1000 High St, Penthouse Level' },
+      { name: 'Olive & Vine', address: '78 Mediterranean Blvd' },
+      { name: 'The Warehouse on 5th', address: '500 5th Ave, Unit C' },
+      { name: 'Cedar Creek Lodge', address: '42 Timber Trail' },
+      { name: 'The Velvet Room', address: '315 Arts District Way' }
+    ];
+    function _pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+    function _randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    function _randomFutureDate() {
+      var now = new Date();
+      var offset = _randInt(14, 56); // 2-8 weeks out
+      var d = new Date(now.getTime() + offset * 86400000);
+      var hour = _pick([10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
+      d.setHours(hour, 0, 0, 0);
+      return d;
+    }
+    function _formatISO(d) {
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + 'T' + String(d.getHours()).padStart(2, '0') + ':00:00';
+    }
+
+    function getRandomTestCase() {
+      var first = _pick(_TEST_FIRST_NAMES);
+      var last = _pick(_TEST_LAST_NAMES);
+      var loc = _pick(_TEST_LOCATIONS);
+      var start = _randomFutureDate();
+      var end = new Date(start.getTime() + _randInt(2, 5) * 3600000);
+      var startISO = _formatISO(start);
+      var endISO = _formatISO(end);
+      var age = _randInt(4, 12);
+
+      var templates = [
+        {
+          userMessage: "I'm throwing a birthday party for " + first + ". " + (first === 'Emma' ? "She" : "They") + "'re turning " + age + " at " + loc.name + ". Rainbow unicorn theme!",
+          data: { title: "TEST - " + first + "'s " + age + "th Birthday Party", eventType: 'kidsBirthday', startDate: startISO, endDate: endISO, locationName: loc.name, locationAddress: loc.address, dressCode: 'Casual & colorful', description: "Rainbow unicorn themed birthday party for " + first + "'s " + age + "th birthday! Join us for cake, games, and magical fun.", prompt: 'Whimsical rainbow unicorn theme with sparkles, pastel colors, and playful typography' },
+          rsvpFields: [{ field_key: 'number_of_kids', label: 'Number of Kids Attending', field_type: 'number', is_required: true, options: null, placeholder: '1', enabled: true }]
+        },
+        {
+          userMessage: "We're getting married! " + first + " and " + _pick(_TEST_FIRST_NAMES) + "'s wedding at " + loc.name + ". Elegant garden party vibes.",
+          data: { title: "TEST - " + first + " & " + _pick(_TEST_FIRST_NAMES) + "'s Wedding", eventType: 'wedding', startDate: startISO, endDate: endISO, locationName: loc.name, locationAddress: loc.address, dressCode: 'Black tie optional', description: "Join us as we celebrate this beautiful wedding. Garden ceremony followed by dinner and dancing under the stars.", prompt: 'Elegant garden wedding with soft florals, gold accents, and romantic serif typography' },
+          rsvpFields: [
+            { field_key: 'meal_preference', label: 'Meal Preference', field_type: 'select', is_required: true, options: ['Beef', 'Chicken', 'Fish', 'Vegetarian'], placeholder: '', enabled: true },
+            { field_key: 'plus_one', label: 'Plus One Name', field_type: 'text', is_required: false, options: null, placeholder: 'Guest name', enabled: true }
+          ]
+        },
+        {
+          userMessage: "Planning a corporate holiday party for our team at " + loc.name + ". Modern and festive!",
+          data: { title: "TEST - " + last + " Corp Holiday Celebration", eventType: 'corporate', startDate: startISO, endDate: endISO, locationName: loc.name, locationAddress: loc.address, dressCode: 'Cocktail attire', description: "Join us for an evening of celebration, great food, and holiday cheer with the whole team.", prompt: 'Sleek modern holiday party with deep jewel tones, geometric patterns, and clean sans-serif type' },
+          rsvpFields: [{ field_key: 'dietary_restrictions', label: 'Dietary Restrictions', field_type: 'text', is_required: false, options: null, placeholder: 'Allergies or preferences', enabled: true }]
+        },
+        {
+          userMessage: "Throwing a backyard BBQ at the " + last + " residence! Casual and fun, bring the whole family.",
+          data: { title: "TEST - " + last + " Family BBQ", eventType: 'social', startDate: startISO, endDate: endISO, locationName: 'The ' + last + ' Residence', locationAddress: loc.address, dressCode: 'Casual — wear your red, white & blue!', description: "Burgers, dogs, fireworks, and fun. Bring a side dish and your swimsuit — the pool will be open!", prompt: 'Fun patriotic cookout vibe with bold red-white-blue, hand-drawn illustrations, and playful retro lettering' },
+          rsvpFields: [
+            { field_key: 'bringing', label: 'What are you bringing?', field_type: 'text', is_required: false, options: null, placeholder: 'Side dish, dessert, drinks...', enabled: true },
+            { field_key: 'headcount', label: 'Total Guests', field_type: 'number', is_required: true, options: null, placeholder: '2', enabled: true }
+          ]
+        },
+        {
+          userMessage: "Baby shower for " + first + "! At " + loc.name + ". Think soft pinks and botanicals.",
+          data: { title: "TEST - " + first + "'s Baby Shower", eventType: 'babyShower', startDate: startISO, endDate: endISO, locationName: loc.name, locationAddress: loc.address, dressCode: 'Garden party chic', description: "Celebrate the upcoming arrival! Join us for tea, treats, and games at a beautiful afternoon shower for " + first + ".", prompt: 'Soft botanical baby shower with blush pinks, watercolor florals, delicate greenery, and elegant script typography' },
+          rsvpFields: [{ field_key: 'gift_registry', label: 'Will you use the gift registry?', field_type: 'select', is_required: false, options: ['Yes', 'No', 'Bringing something else'], placeholder: '', enabled: true }]
+        },
+        {
+          userMessage: "Hosting a Halloween costume party! At " + loc.name + ". Spooky and immersive.",
+          data: { title: "TEST - " + last + "'s Halloween Bash", eventType: 'social', startDate: startISO, endDate: endISO, locationName: loc.name, locationAddress: loc.address, dressCode: 'Costume required!', description: "Enter if you dare. A night of frights, dancing, costume contests, and spooky cocktails.", prompt: 'Dark immersive Halloween theme with eerie purple-green glow, creepy elegant typography, and gothic illustrations' },
+          rsvpFields: [{ field_key: 'costume_hint', label: 'Costume Hint', field_type: 'text', is_required: false, options: null, placeholder: "What are you dressing as?", enabled: true }]
+        },
+        {
+          userMessage: "Graduation party for " + first + "! Just finished med school. At " + loc.name + ".",
+          data: { title: "TEST - " + first + "'s Graduation Celebration", eventType: 'graduation', startDate: startISO, endDate: endISO, locationName: loc.name, locationAddress: loc.address, dressCode: 'Smart casual', description: first + " did it! Join us to celebrate earning that degree. Food, drinks, and good times.", prompt: 'Proud sophisticated graduation celebration with navy and gold, clean modern layout, and bold confident typography' },
+          rsvpFields: [{ field_key: 'message_for_grad', label: 'Message for ' + first, field_type: 'textarea', is_required: false, options: null, placeholder: 'Congrats message...', enabled: true }]
+        },
+        {
+          userMessage: "Dinner party at our place. Going for a moody, intimate supper club vibe. Only 12 seats.",
+          data: { title: "TEST - " + last + "'s Supper Club", eventType: 'dinnerParty', startDate: startISO, endDate: endISO, locationName: 'The ' + last + ' Home', locationAddress: loc.address, dressCode: 'Dress to impress', description: "An intimate evening of wine, a multi-course meal, and great conversation. Only 12 seats — reserve yours.", prompt: 'Moody intimate supper club with dark background, warm candlelight tones, minimal elegant serif typography' },
+          rsvpFields: [
+            { field_key: 'wine_preference', label: 'Wine Preference', field_type: 'select', is_required: false, options: ['Red', 'White', 'Both', 'Non-drinker'], placeholder: '', enabled: true },
+            { field_key: 'allergies', label: 'Food Allergies', field_type: 'text', is_required: false, options: null, placeholder: 'Any allergies?', enabled: true }
+          ]
+        },
+        {
+          userMessage: "Sweet 16 for " + first + "! At " + loc.name + ". Glam and sparkly — think pink and gold.",
+          data: { title: "TEST - " + first + "'s Sweet 16", eventType: 'birthday', startDate: startISO, endDate: endISO, locationName: loc.name, locationAddress: loc.address, dressCode: 'Glam / semi-formal', description: "It's " + first + "'s Sweet 16! Join us for a glamorous rooftop celebration with music, dancing, and a photo booth.", prompt: 'Glamorous Sweet 16 with hot pink and gold, sparkle effects, bold fashion-forward typography, and luxury vibes' },
+          rsvpFields: [{ field_key: 'song_request', label: 'Song Request', field_type: 'text', is_required: false, options: null, placeholder: 'Request a song for the DJ', enabled: true }]
+        },
+        {
+          userMessage: "Engagement party for " + first + " and " + _pick(_TEST_FIRST_NAMES) + "! At " + loc.name + ". Mediterranean garden feel.",
+          data: { title: "TEST - " + first + " & " + _pick(_TEST_FIRST_NAMES) + "'s Engagement", eventType: 'engagement', startDate: startISO, endDate: endISO, locationName: loc.name, locationAddress: loc.address, dressCode: 'Garden party attire', description: "They said yes! Join us for an evening celebrating this engagement with Mediterranean food, wine, and love.", prompt: 'Mediterranean-inspired engagement celebration with olive greens, terracotta, warm sunshine tones, and romantic handwritten script' },
+          rsvpFields: [{ field_key: 'attending_with', label: 'Bringing a date?', field_type: 'select', is_required: true, options: ['Just me', 'Me + 1'], placeholder: '', enabled: true }]
+        }
+      ];
+
+      return templates[Math.floor(Math.random() * templates.length)];
+    }
+
     var TEST_MODE_PROMPTS = [
       {
         userMessage: "I'm throwing a birthday party for my daughter Emma. She's turning 7 on April 15th at Sunshine Park from 2-5pm. It's a rainbow unicorn theme!",
@@ -2425,8 +2532,10 @@
     async function runTestMode() {
       var delay = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
 
-      // Pick a random test prompt
-      var testCase = TEST_MODE_PROMPTS[Math.floor(Math.random() * TEST_MODE_PROMPTS.length)];
+      _isTestMode = true;
+
+      // Generate a randomized test case with varied names, dates, locations
+      var testCase = getRandomTestCase();
 
       addChatBubble('engage_test_mode', 'user');
       await delay(300);
@@ -2451,7 +2560,7 @@
       addChatBubble('Got it! Here\'s what I have. Let me set everything up...', 'assistant');
       await delay(400);
 
-      // Create draft event
+      // Create draft event (will include is_test flag in settings)
       await createDraftEvent();
 
       // Show confirmation card — pause so user can see it
@@ -2945,13 +3054,15 @@
       if (currentEvent) return;
       try {
         await authFetch('/api/v2/auth?action=profile');
+        var createSettings = { creation_step: 0 };
+        if (_isTestMode) createSettings.is_test = true;
         var res = await authFetch('/api/v2/events?action=create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title: 'Untitled Event',
             eventType: 'other',
-            settings: { creation_step: 0 }
+            settings: createSettings
           })
         });
         var result = await res.json();
@@ -2959,8 +3070,8 @@
           currentEvent = { id: result.eventId, slug: result.slug, paymentStatus: result.paymentStatus || 'unpaid', freeGenerationUsed: false, generationCount: 0, generationLimit: 2 };
           window.history.replaceState({}, '', '/v2/create/?eventId=' + result.eventId);
           trackFunnel('event_created');
-          // Track event creation conversion for UTM attribution
-          var utmSid2 = sessionStorage.getItem('utm_session_id');
+          // Track event creation conversion for UTM attribution (skip for test mode)
+          var utmSid2 = !_isTestMode && sessionStorage.getItem('utm_session_id');
           if (utmSid2) {
             var u2 = JSON.parse(localStorage.getItem('v2_user') || 'null');
             fetch('/api/v2/utm?action=convert', {
@@ -2992,7 +3103,7 @@
               locationAddress: extractedData.locationAddress || '',
               dressCode: extractedData.dressCode || '',
               eventType: extractedData.eventType || 'other',
-              settings: { creation_step: 1, design_prompt: extractedData.prompt || '' }
+              settings: Object.assign({ creation_step: 1, design_prompt: extractedData.prompt || '' }, _isTestMode ? { is_test: true } : {})
             })
           });
           var updateResult = await updateRes.json();
@@ -3001,8 +3112,8 @@
           }
           await saveCustomFields();
           trackFunnel('details_extracted', { messageCount: chatHistory.filter(function(m) { return m.role === 'user'; }).length });
-          // Track Lead when event details are saved (not just draft creation)
-          if (extractedData.title && extractedData.title !== 'Untitled Event' && !currentEvent._leadTracked) {
+          // Track Lead when event details are saved (not just draft creation) — skip for test mode
+          if (!_isTestMode && extractedData.title && extractedData.title !== 'Untitled Event' && !currentEvent._leadTracked) {
             if (window.RyvitePixel) {
               RyvitePixel.trackEvent('Lead', {
                 content_name: extractedData.title,

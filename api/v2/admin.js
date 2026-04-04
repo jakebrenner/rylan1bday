@@ -821,7 +821,7 @@ export default async function handler(req, res) {
 
       // Build date-filtered queries for profiles, events, guests
       let filteredProfilesQuery = supabaseAdmin.from('profiles').select('id', { count: 'exact', head: true });
-      let filteredEventsQuery = supabaseAdmin.from('events').select('id, status', { count: 'exact' });
+      let filteredEventsQuery = supabaseAdmin.from('events').select('id, status, settings', { count: 'exact' });
       let filteredGuestsQuery = supabaseAdmin.from('guests').select('id', { count: 'exact', head: true });
       if (statsFrom) {
         filteredProfilesQuery = filteredProfilesQuery.gte('created_at', statsFrom);
@@ -842,7 +842,7 @@ export default async function handler(req, res) {
       const [allUsersRes, allEventsRes, allGuestsRes, filteredUsersRes, filteredEventsRes, filteredGuestsRes, logsRes, revenueRes, allRevenueRes] = await Promise.all([
         // All-time totals (never filtered)
         supabaseAdmin.from('profiles').select('id', { count: 'exact', head: true }),
-        supabaseAdmin.from('events').select('id, status', { count: 'exact' }),
+        supabaseAdmin.from('events').select('id, status, settings', { count: 'exact' }),
         supabaseAdmin.from('guests').select('id', { count: 'exact', head: true }),
         // Date-filtered counts
         filteredProfilesQuery,
@@ -855,9 +855,9 @@ export default async function handler(req, res) {
         supabaseAdmin.from('billing_history').select('amount_cents, created_at').eq('status', 'succeeded')
       ]);
 
-      const allEvents = allEventsRes.data || [];
+      const allEvents = (allEventsRes.data || []).filter(e => !e.settings?.is_test);
       const allPublished = allEvents.filter(e => e.status === 'published').length;
-      const filteredEvents = filteredEventsRes.data || [];
+      const filteredEvents = (filteredEventsRes.data || []).filter(e => !e.settings?.is_test);
       const filteredPublished = filteredEvents.filter(e => e.status === 'published').length;
 
       // Actual revenue from billing_history
@@ -905,6 +905,11 @@ export default async function handler(req, res) {
       let themeLatency7dMs = 0, themeLatency7dCount = 0;
       let themeLatencyPrev7dMs = 0, themeLatencyPrev7dCount = 0;
 
+      // Build set of test event IDs to exclude their generations from real metrics
+      const testEventIds = new Set(
+        (allEventsRes.data || []).filter(e => e.settings?.is_test).map(e => e.id)
+      );
+
       (logsRes.data || []).forEach(l => {
         const model = l.model || 'unknown';
         if (!tokensByModel[model]) tokensByModel[model] = { generations: 0, inputTokens: 0, outputTokens: 0, cost: 0, chatCount: 0, themeCount: 0, testCount: 0, latencyMs: 0, latencyCount: 0 };
@@ -925,7 +930,8 @@ export default async function handler(req, res) {
         totalApiCost += cost;
 
         // Categorize: prompt_test (admin lab), internal (admin/system), chat (event planning), or theme (generation/tweak)
-        const isTest = l.prompt && l.prompt.startsWith('prompt_test');
+        // Also treat generations from test-mode events as test
+        const isTest = (l.prompt && l.prompt.startsWith('prompt_test')) || (l.event_id && testEventIds.has(l.event_id));
         const isInternal = l.prompt && (l.prompt.startsWith('QM ') || l.prompt.startsWith('admin:') || l.prompt.startsWith('blog:') || l.prompt.startsWith('publish-verify:'));
         const isChat = (l.prompt && l.prompt.startsWith('chat:')) || (!l.event_id && !isTest && !isInternal);
         if (isTest) { testApiCost += cost; testCount++; tokensByModel[model].testCount++; }
@@ -1001,14 +1007,14 @@ export default async function handler(req, res) {
           // All-time totals (never filtered)
           allTime: {
             totalUsers: allUsersRes.count || 0,
-            totalEvents: allEventsRes.count || 0,
+            totalEvents: allEvents.length,
             publishedEvents: allPublished,
             totalRsvps: allGuestsRes.count || 0
           },
           // Date-filtered activity counts
           filtered: {
             newUsers: filteredUsersRes.count || 0,
-            newEvents: filteredEventsRes.count || 0,
+            newEvents: filteredEvents.length,
             newPublishedEvents: filteredPublished,
             newRsvps: filteredGuestsRes.count || 0,
             generations: logsRes.count || 0,
@@ -1017,7 +1023,7 @@ export default async function handler(req, res) {
           },
           // Backward compat (deprecated — use allTime/filtered instead)
           totalUsers: allUsersRes.count || 0,
-          totalEvents: allEventsRes.count || 0,
+          totalEvents: allEvents.length,
           publishedEvents: allPublished,
           totalRsvps: allGuestsRes.count || 0,
           totalGenerations: logsRes.count || 0,
@@ -1121,7 +1127,7 @@ export default async function handler(req, res) {
       }
 
       if (metric === 'events') {
-        let q = supabaseAdmin.from('events').select('id, title, user_id, event_type, status, created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(LIMIT);
+        let q = supabaseAdmin.from('events').select('id, title, user_id, event_type, status, settings, created_at', { count: 'exact' }).not('settings->>is_test', 'eq', 'true').order('created_at', { ascending: false }).limit(LIMIT);
         if (drillFrom) q = q.gte('created_at', drillFrom);
         if (drillTo) q = q.lte('created_at', drillTo);
         const { data, count, error } = await q;
@@ -1172,8 +1178,14 @@ export default async function handler(req, res) {
           'claude-opus-4-6':           { input: 15.00, output: 75.00 },
         };
 
+        // Fetch test event IDs for exclusion
+        const drillTestEventIds = new Set(
+          ((await supabaseAdmin.from('events').select('id, settings')).data || [])
+            .filter(e => e.settings?.is_test).map(e => e.id)
+        );
+
         const filtered = (data || []).filter(l => {
-          const isTest = l.prompt && l.prompt.startsWith('prompt_test');
+          const isTest = (l.prompt && l.prompt.startsWith('prompt_test')) || (l.event_id && drillTestEventIds.has(l.event_id));
           const isInternal = l.prompt && (l.prompt.startsWith('QM ') || l.prompt.startsWith('admin:') || l.prompt.startsWith('blog:') || l.prompt.startsWith('publish-verify:'));
           const isChat = (l.prompt && l.prompt.startsWith('chat:')) || (!l.event_id && !isTest && !isInternal);
           if (metric === 'chatGenerations') return isChat;
