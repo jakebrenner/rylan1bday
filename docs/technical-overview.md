@@ -2,7 +2,7 @@
 
 > **Audience:** Technical Product Manager
 > **Purpose:** Understand Ryvite's architecture, AI system, and quality pipeline to improve invite creation reliability, speed, and user flow.
-> **Last updated:** April 4, 2026 (v3 — added AI optimization pipeline)
+> **Last updated:** April 4, 2026 (v4 — added prompt activation history tracking)
 
 ---
 
@@ -56,7 +56,7 @@ The system is built on three pillars:
 | `api/v2/chat.js` | 120s | Event detail extraction via conversational AI |
 | `api/v2/prompt-test.js` | 300s, 1024MB | Admin prompt lab — test prompt×model combos |
 | `api/v2/quality-monitor.js` | 120s | Incident reporting, AI diagnosis, auto-heal |
-| `api/v2/admin.js` | default (10s) | CRUD for prompt versions, test runs, ratings, styles |
+| `api/v2/admin.js` | default (10s) | CRUD for prompt versions, test runs, ratings, styles, activation history |
 | `api/v2/ratings.js` | default (10s) | User-facing invite ratings (no auth required) |
 | `api/v2/events.js` | default (10s) | Event CRUD, RSVP, publish |
 | `api/v2/auth.js` | default (10s) | Login (magic link), signup, token refresh |
@@ -76,6 +76,7 @@ The system is built on three pillars:
 | `generation_log` | AI generation audit trail (model, tokens, latency, cost, geo) |
 | `quality_incidents` | Broken render / quality issue tracking |
 | `invite_ratings` | End-user ratings (1–5 stars + feedback) on invite designs |
+| `prompt_activation_history` | Audit trail for prompt version activations — tracks who activated what version, when, and what it replaced |
 | `suggested_rules` | Auto-suggested prompt rules from pattern detection |
 
 ### 2.4 Infrastructure Constraints
@@ -290,7 +291,11 @@ Create version → Test in Prompt Lab → Rate results → Activate winner
 - Results grouped by `test_session_id` for head-to-head comparison
 - Analytics views: `test_run_analytics`, `test_session_comparisons`, `model_head_to_head`
 
-**Activation:** Exactly one version is active at a time. Activating a new version atomically deactivates the previous one. Takes effect immediately in production.
+**Activation:** Exactly one version is active at a time. Activating a new version atomically deactivates the previous one. Takes effect immediately in production. Each activation is recorded in `prompt_activation_history` (who, when, what it replaced). The `prompt_versions` table also tracks `activated_at` and `activated_by` columns directly.
+
+**Activation history API:**
+- `listActivationHistory` (GET) — activation history timeline with enriched version details
+- `getActivationStats` (GET, `?historyId=`) — production generation count, quality scores, and comparison vs previous version for an activation period
 
 ### 4.7 Output Validation & Repair
 

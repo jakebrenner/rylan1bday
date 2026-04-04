@@ -200,6 +200,7 @@ AI prompts are the most sensitive code in this codebase. Unintentional changes c
 ### After Modifying Any Prompt
 1. **Add a changelog entry** in `docs/prompt-changelog.md` with: date, which prompt, what changed, why, what learning drove it
 2. **If modifying Creative Direction or Design DNA**: Remind the user that the hardcoded version is only a fallback — the active `prompt_versions` DB entry is what production actually uses. Ask if the DB version should be updated too.
+3. **Save as a new prompt version**: Any hardcoded prompt change (STRUCTURAL_RULES, DEFAULT_CREATIVE_DIRECTION, DESIGN_DNA) MUST also be saved as a new `prompt_versions` DB entry via the admin API so it appears in the Activation History timeline. Code-level prompt changes that bypass the DB versioning system are invisible to the admin team — the activation history is the canonical audit trail, not git.
 
 ### What Counts as a Prompt Modification
 - Any change to text inside STRUCTURAL_RULES, DEFAULT_CREATIVE_DIRECTION, DESIGN_DNA, SYSTEM_PROMPT, or any prompt string/template in the files listed in `docs/prompt-registry.md`
