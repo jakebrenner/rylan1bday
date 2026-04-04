@@ -379,6 +379,21 @@
     .bulk-actions-bar .bulk-count { font-size: 13px; color: white; font-weight: 600; }
     .bulk-actions-bar .btn { font-size: 12px; padding: 6px 14px; }
 
+    /* Prompt Builder */
+    .prompt-builder { background: linear-gradient(135deg, #f0f8ff 0%, #fff8f0 100%); border: 1px solid #e8e8e8; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .prompt-builder h4 { margin: 0 0 4px 0; font-size: 15px; color: var(--midnight); }
+    .prompt-builder .builder-desc { font-size: 12px; color: #888; margin-bottom: 14px; }
+    .prompt-builder .event-type-mode { display: flex; gap: 8px; margin-bottom: 12px; }
+    .prompt-builder .mode-btn { padding: 8px 16px; border: 1px solid #ddd; border-radius: 20px; font-size: 12px; font-weight: 600; background: white; cursor: pointer; transition: all 0.15s; }
+    .prompt-builder .mode-btn.active { background: var(--midnight); color: white; border-color: var(--midnight); }
+    .prompt-builder .type-picker { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .prompt-builder .type-picker label { font-size: 12px; padding: 4px 10px; border: 1px solid #ddd; border-radius: 16px; cursor: pointer; transition: all 0.15s; user-select: none; }
+    .prompt-builder .type-picker label:has(input:checked) { background: var(--party-coral); color: white; border-color: var(--party-coral); }
+    .prompt-builder .type-picker input { display: none; }
+    .prompt-builder .copy-row { display: flex; gap: 8px; align-items: center; }
+    .prompt-builder .copy-btn { padding: 10px 24px; font-size: 14px; font-weight: 700; border-radius: 8px; }
+    .prompt-builder .prompt-preview { margin-top: 12px; max-height: 200px; overflow-y: auto; padding: 12px; background: white; border: 1px solid #eee; border-radius: 8px; font-family: 'SF Mono', 'Menlo', monospace; font-size: 11px; white-space: pre-wrap; word-break: break-word; color: #555; display: none; }
+
     /* Bulk Upload Tabs */
     .bulk-tabs { display: flex; gap: 0; margin-bottom: 12px; }
     .bulk-tab { padding: 8px 16px; font-size: 13px; font-weight: 600; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; transition: all 0.15s; }
@@ -1883,6 +1898,7 @@
           <div style="display:flex;gap:8px;margin-bottom:20px;align-items:center;flex-wrap:wrap;">
             <button class="btn btn-primary" onclick="openAddStyleModal()">Add Single Sample</button>
             <button class="btn btn-secondary" onclick="document.getElementById('bulkUploadSection').style.display=document.getElementById('bulkUploadSection').style.display==='none'?'block':'none'">Bulk Upload</button>
+            <button class="btn btn-secondary" onclick="togglePromptBuilder()">Copy Prompt</button>
             <button class="btn btn-secondary" onclick="toggleFactoryPanel()">Template Factory</button>
             <button class="btn btn-secondary" onclick="toggleSelectionMode()" id="selectModeBtn">Select Multiple</button>
             <button class="btn btn-secondary" onclick="retagAllStyles()" id="retagAllBtn">Re-tag All</button>
@@ -1932,6 +1948,28 @@
               <button class="btn btn-secondary btn-sm" onclick="clearStyleFilter()">Clear</button>
             </div>
           </div>
+          <!-- Prompt Builder Panel -->
+          <div class="prompt-builder" id="promptBuilder" style="display:none;">
+            <h4>Generate Templates with Claude</h4>
+            <p class="builder-desc">Copy this prompt into any Claude conversation (claude.ai, Claude app, etc.). Say "another" to keep generating. Paste the outputs back here via Bulk Upload > Paste from Claude. Uses your Claude subscription — no API credits.</p>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px;">Event Type Focus</label>
+              <div class="event-type-mode" id="promptTypeMode">
+                <button class="mode-btn active" onclick="setPromptMode('variety')" id="promptModeVariety">All Types (Variety)</button>
+                <button class="mode-btn" onclick="setPromptMode('specific')" id="promptModeSpecific">Specific Type</button>
+              </div>
+              <div class="type-picker" id="promptTypePicker" style="display:none;"></div>
+            </div>
+            <div class="copy-row">
+              <button class="btn btn-primary copy-btn" onclick="copyPromptToClipboard()">Copy Prompt to Clipboard</button>
+              <span id="promptCopyStatus" style="font-size:12px;color:var(--mint-fizz);font-weight:600;display:none;">Copied!</span>
+            </div>
+            <div class="prompt-preview" id="promptPreview"></div>
+            <div style="margin-top:8px;">
+              <button class="btn btn-secondary btn-sm" onclick="togglePromptPreview()" style="font-size:11px;">Preview prompt</button>
+            </div>
+          </div>
+
           <!-- Template Factory Panel -->
           <div class="factory-panel" id="factoryPanel" style="display:none;">
             <h4>Template Factory — Auto-Generate Style References</h4>
@@ -7090,6 +7128,196 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     var factoryRunning = false;
     var factoryAbort = false;
 
+    // ---- Prompt Builder ----
+    var promptMode = 'variety'; // 'variety' or 'specific'
+
+    function togglePromptBuilder() {
+      var panel = document.getElementById('promptBuilder');
+      var isHidden = panel.style.display === 'none';
+      panel.style.display = isHidden ? 'block' : 'none';
+      if (isHidden && !document.getElementById('promptTypePicker').innerHTML) {
+        var container = document.getElementById('promptTypePicker');
+        container.innerHTML = ALL_EVENT_TYPES.filter(function(et) { return et.value !== 'other'; }).map(function(et) {
+          return '<label><input type="checkbox" value="' + et.value + '" checked> ' + et.label + '</label>';
+        }).join('');
+      }
+    }
+
+    function setPromptMode(mode) {
+      promptMode = mode;
+      document.getElementById('promptModeVariety').classList.toggle('active', mode === 'variety');
+      document.getElementById('promptModeSpecific').classList.toggle('active', mode === 'specific');
+      document.getElementById('promptTypePicker').style.display = mode === 'specific' ? 'flex' : 'none';
+      // Hide preview when mode changes
+      document.getElementById('promptPreview').style.display = 'none';
+    }
+
+    function buildPrompt() {
+      var selectedTypes = [];
+      if (promptMode === 'specific') {
+        document.querySelectorAll('#promptTypePicker input:checked').forEach(function(cb) {
+          var et = ALL_EVENT_TYPES.find(function(x) { return x.value === cb.value; });
+          selectedTypes.push(et ? et.label : cb.value);
+        });
+      }
+
+      var eventTypeSection;
+      if (promptMode === 'variety' || selectedTypes.length === 0) {
+        eventTypeSection = '## EVENT TYPES\n\n'
+          + 'Rotate through ALL of these event types, generating a DIFFERENT type each time I ask for another:\n'
+          + 'Kids Birthday, Adult Birthday, Baby Shower, Bridal Shower, Wedding, Engagement, Graduation, Holiday Party, Dinner Party, Retirement, Anniversary, Sports/Watch Party, Corporate Event\n\n'
+          + 'For each template, pick a DIFFERENT event type from the list above. Use the appropriate eventType key in STYLE_META:\n'
+          + 'kidsBirthday, adultBirthday, babyShower, bridalShower, wedding, engagement, graduation, holiday, dinnerParty, retirement, anniversary, sports, corporate\n\n'
+          + 'Create fictional event details that feel authentic for that type — creative name, venue, date, host. Vary cultural backgrounds of names (mix Asian, African, Latin, European, Middle Eastern, etc.) and geographic locations across different cities.';
+      } else if (selectedTypes.length === 1) {
+        var typeKey = '';
+        document.querySelectorAll('#promptTypePicker input:checked').forEach(function(cb) { typeKey = cb.value; });
+        eventTypeSection = '## EVENT TYPE\n\n'
+          + 'Generate for: **' + selectedTypes[0] + '** (eventType key: "' + typeKey + '")\n\n'
+          + 'Use fictional event details — creative name, venue, date, host. Vary cultural backgrounds of names and geographic locations.';
+      } else {
+        var typeKeys = [];
+        document.querySelectorAll('#promptTypePicker input:checked').forEach(function(cb) { typeKeys.push(cb.value); });
+        eventTypeSection = '## EVENT TYPES\n\n'
+          + 'Rotate through these event types, generating a DIFFERENT type each time I ask for another:\n'
+          + selectedTypes.join(', ') + '\n\n'
+          + 'Use these eventType keys in STYLE_META: ' + typeKeys.join(', ') + '\n\n'
+          + 'Create fictional event details that feel authentic for each type. Vary cultural backgrounds and geographic locations.';
+      }
+
+      return 'You are a world-class event invite designer creating HTML template samples for a style reference library. These templates will be studied by AI during future invite generation — they must be portfolio-worthy, not generic.\n\n'
+
+        + '## OUTPUT FORMAT\n\n'
+        + 'Output a COMPLETE standalone HTML document with a metadata comment at the very top. The metadata comment MUST be the first thing in your output, before the DOCTYPE:\n\n'
+        + '<!-- STYLE_META\n'
+        + 'name: Descriptive Style Name (e.g. "Midnight Garden Soiree")\n'
+        + 'eventTypes: wedding\n'
+        + 'tags: dark, botanical, serif, animation, elegant\n'
+        + 'designNotes: 2-3 sentences describing key CSS techniques, font choices, color strategy, and animation approach.\n'
+        + '-->\n'
+        + '<!DOCTYPE html>\n'
+        + '<html>\n'
+        + '<head>\n'
+        + '  <meta charset="UTF-8">\n'
+        + '  <meta name="viewport" content="width=393, initial-scale=1.0">\n'
+        + '  <style>\n'
+        + '    @import url(\'https://fonts.googleapis.com/css2?family=...\');\n'
+        + '    /* All CSS here */\n'
+        + '  </style>\n'
+        + '</head>\n'
+        + '<body>\n'
+        + '  <!-- Your invite design here -->\n'
+        + '</body>\n'
+        + '</html>\n\n'
+
+        + 'IMPORTANT:\n'
+        + '- The STYLE_META comment MUST be the very first thing in your output\n'
+        + '- eventTypes is comma-separated if multiple (e.g. "wedding, engagement")\n'
+        + '- tags should be 4-8 descriptive words, comma-separated\n'
+        + '- Output raw HTML directly — do NOT wrap in markdown code fences\n'
+        + '- Do NOT output JSON — output the HTML document directly\n\n'
+
+        + '## TECHNICAL REQUIREMENTS\n\n'
+        + '### Hard Rules (Non-Negotiable)\n'
+        + '- Max-width: 393px, centered, mobile-first\n'
+        + '- 48px top padding (phone notch safe area)\n'
+        + '- data-field="title" attribute on the element containing the event title\n'
+        + '- .rsvp-slot must be COMPLETELY EMPTY — no buttons, text, or children. Platform injects the RSVP form at runtime.\n'
+        + '- .details-slot must be COMPLETELY EMPTY — platform injects .detail-item, .detail-icon, .detail-label, .detail-value\n'
+        + '- Google Fonts only — NEVER use Inter, Roboto, Open Sans, Lato, Arial, or system fonts\n'
+        + '- CSS-only animations — no JavaScript at all\n'
+        + '- WCAG AA contrast — 4.5:1 for body text, 3:1 for headings\n'
+        + '- No fixed positioning, no iframes\n'
+        + '- Height: 3-5 phone screen scrolls\n\n'
+
+        + '### Required Page Sections (in order)\n'
+        + '1. THEMATIC HEADER — animated or illustrated element specific to event type\n'
+        + '2. HERO SECTION — large display headline with event title (data-field="title"). Title appears ONCE, never duplicated.\n'
+        + '3. EVENT DETAILS — <div class="details-slot"></div> — EMPTY, platform injects content\n'
+        + '4. RSVP SECTION — <div class="rsvp-slot"></div> — EMPTY, platform injects form\n\n'
+
+        + '### RSVP Slot Styling (CSS only — style the platform-injected elements)\n'
+        + '- .rsvp-slot input, .rsvp-slot select — background, border, border-radius, padding (12px 14px), font-size (14px), width: 100%\n'
+        + '- .rsvp-slot label — font-size 13px, font-weight 600, margin-bottom 4px\n'
+        + '- .rsvp-slot .rsvp-submit — full-width button, min-height 52px, matching accent color, prominent\n'
+        + '- .rsvp-slot .rsvp-form-group — margin-bottom 14px\n'
+        + '- .rsvp-slot layout: display: flex; flex-direction: column; width: 100%;\n'
+        + '- If RSVP background is dark/colored: .rsvp-slot { color: #FFFFFF; }\n\n'
+
+        + '### Details Slot Styling (CSS only)\n'
+        + '- .detail-item — display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px;\n'
+        + '- .detail-icon — 24px, font-size 20px\n'
+        + '- .detail-label — font-size 12px, uppercase, letter-spacing 0.5px, opacity 0.7\n'
+        + '- .detail-value — font-size 15px, font-weight 500\n\n'
+
+        + '## CREATIVE DIRECTION\n\n'
+        + '- UNFORGETTABLE — every spacing, shadow, border-radius, animation timing feels intentional\n'
+        + '- Choose a clear aesthetic direction and commit fully — bold maximalism AND refined minimalism both work\n'
+        + '- Bold, characterful display fonts — typography does the heavy creative lifting\n'
+        + '- Animations are mandatory:\n'
+        + '  - Ambient background: theme-specific moving elements on infinite loop, 0.1-0.2 opacity\n'
+        + '  - Entrance: staggered fade-up on load (animation-delay 0.1s increments)\n'
+        + '  - Hover states on all interactive elements\n'
+        + '  - RSVP button is the visual CLIMAX\n'
+        + '- SVG illustrations when no photos — hand-crafted, detailed, layered\n'
+        + '- Background never plain white — use pattern, texture, subtle gradient, or tinted base\n'
+        + '- Color: One color dominates (60%+), max 2 accent colors. No purple gradients on white.\n'
+        + '- CSS custom properties for all theme colors at :root\n\n'
+
+        + eventTypeSection + '\n\n'
+
+        + '## DIVERSITY RULE\n\n'
+        + 'Each time I ask for another template, you MUST vary SIGNIFICANTLY:\n'
+        + '- Completely different color palette (not shade variations — fundamentally different)\n'
+        + '- Different font pairing (never reuse a Google Font from a previous template)\n'
+        + '- Different layout approach (asymmetric vs centered, full-bleed vs contained, etc.)\n'
+        + '- Different illustration/decorative style\n'
+        + '- Different mood and emotional register\n\n'
+        + 'Never repeat an aesthetic. Draw from these style directions for maximum variety:\n'
+        + 'Art deco, retro 70s, maximalist patterns, minimalist Scandinavian, Afrofuturist, vaporwave, brutalist, paper-cut art, ceramic tile, woodblock print, neon noir, stained glass, mosaic, editorial magazine, rustic, industrial loft, tropical, speakeasy, botanical, celestial, watercolor, collage, Memphis design, Swiss typography, Japanese minimalism, gothic, mid-century modern, psychedelic, wabi-sabi, coastal, Bauhaus, ornamental Victorian, grunge, ethereal, cyberpunk.\n\n'
+        + 'Generate the first template now. Remember: output raw HTML with the STYLE_META comment at the top. No code fences, no JSON. When I say "another" or "next", generate a completely different design.';
+    }
+
+    function copyPromptToClipboard() {
+      var prompt = buildPrompt();
+      navigator.clipboard.writeText(prompt).then(function() {
+        var status = document.getElementById('promptCopyStatus');
+        status.style.display = 'inline';
+        showToast('Prompt copied to clipboard! Paste into Claude.');
+        setTimeout(function() { status.style.display = 'none'; }, 3000);
+      }).catch(function() {
+        // Fallback for mobile/older browsers
+        var ta = document.createElement('textarea');
+        ta.value = prompt;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand('copy');
+          var status = document.getElementById('promptCopyStatus');
+          status.style.display = 'inline';
+          showToast('Prompt copied! Paste into Claude.');
+          setTimeout(function() { status.style.display = 'none'; }, 3000);
+        } catch (e) {
+          showToast('Copy failed — try selecting the preview text manually');
+          togglePromptPreview(true);
+        }
+        document.body.removeChild(ta);
+      });
+    }
+
+    function togglePromptPreview(forceShow) {
+      var preview = document.getElementById('promptPreview');
+      if (forceShow || preview.style.display === 'none') {
+        preview.textContent = buildPrompt();
+        preview.style.display = 'block';
+      } else {
+        preview.style.display = 'none';
+      }
+    }
+
+    // ---- Template Factory ----
     function toggleFactoryPanel() {
       var panel = document.getElementById('factoryPanel');
       var isHidden = panel.style.display === 'none';
