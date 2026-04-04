@@ -49,6 +49,44 @@ function logTestGeneration(userId, model, inputTokens, outputTokens, latencyMs, 
   }).then(() => {}).catch(e => console.warn('Failed to log test generation:', e.message));
 }
 
+// ⚠️ PROMPT GUARDIAN: STANDARD — See docs/prompt-registry.md
+// Auto-score: Haiku rates lab test results 1-5 for quick quality signal
+async function autoScoreLabResult(html, css, config, eventType) {
+  try {
+    const resp = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 200,
+      system: `You are a quality rater for AI-generated event invitation designs. Rate 1-5 based on:
+- Visual design quality (layout, typography, color harmony, whitespace)
+- Event appropriateness (does the design match the event type and mood?)
+- Technical correctness (proper structure, readable text, functional RSVP area)
+- Mobile readiness (designed for 393px viewport, no horizontal overflow)
+- Overall polish (animations, illustrations, attention to detail)
+
+Rating scale:
+5 = Exceptional, ready to impress guests
+4 = Good, minor polish would help
+3 = Acceptable but generic or has noticeable issues
+2 = Below average, significant design or technical issues
+1 = Poor, broken or inappropriate
+
+Return ONLY a JSON object: {"score": N, "reasoning": "1 sentence"}`,
+      messages: [{ role: 'user', content: `Rate this ${eventType || 'event'} invitation:\n\nHTML (first 4KB): ${(html || '').substring(0, 4000)}\nCSS (first 2KB): ${(css || '').substring(0, 2000)}\nConfig: ${JSON.stringify(config || {}).substring(0, 500)}` }]
+    });
+
+    const text = (resp.content?.[0]?.text || '').trim();
+    const cleaned = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
+    const result = JSON.parse(cleaned);
+    return {
+      score: Math.min(5, Math.max(1, Math.round(result.score))),
+      reasoning: (result.reasoning || '').substring(0, 500)
+    };
+  } catch (e) {
+    console.warn('[auto-score-lab] Failed:', e.message);
+    return null;
+  }
+}
+
 async function verifyAdmin(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) return null;
@@ -1043,6 +1081,8 @@ Return a JSON object with exactly these keys:
       });
     }
 
+    const labEventType = eventDetails?.eventType || 'other';
+
     if (isMultiModel) {
       // Run all models in parallel
       const results = await Promise.allSettled(
@@ -1064,12 +1104,27 @@ Return a JSON object with exactly these keys:
         }
       });
 
+      // Auto-score all successful results in parallel
+      const scorePromises = outputs.map(o =>
+        o.success && o.theme ? autoScoreLabResult(o.theme.html, o.theme.css, o.theme.config, labEventType) : Promise.resolve(null)
+      );
+      const scores = await Promise.allSettled(scorePromises);
+      outputs.forEach((o, i) => {
+        if (scores[i].status === 'fulfilled' && scores[i].value) {
+          o.autoScore = scores[i].value;
+        }
+      });
+
       return res.status(200).json({ success: true, multiModel: true, results: outputs, promptVersionId: usedPromptVersionId });
     } else {
       // Single model
       const result = await generateWithModel(model, userMessage, activeSystemPrompt);
       logTestGeneration(admin.id, model, result.metadata.tokens.input, result.metadata.tokens.output, result.metadata.latencyMs, usedPromptVersionId);
-      return res.status(200).json({ success: true, ...result, promptVersionId: usedPromptVersionId });
+
+      // Auto-score
+      const autoScore = result.theme ? await autoScoreLabResult(result.theme.html, result.theme.css, result.theme.config, labEventType) : null;
+
+      return res.status(200).json({ success: true, ...result, autoScore, promptVersionId: usedPromptVersionId });
     }
   } catch (err) {
     console.error('Prompt test error:', err);

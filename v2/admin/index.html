@@ -5559,7 +5559,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
               completedCount++;
               status.textContent = completedCount + '/' + total + ' complete...';
               if (data.success) {
-                var result = { success: true, theme: data.theme, metadata: data.metadata, promptVersionId: combo.promptVersionId, promptLabel: combo.promptLabel, model: combo.model, modelLabel: combo.modelLabel, score: 0, testRunId: null };
+                var result = { success: true, theme: data.theme, metadata: data.metadata, autoScore: data.autoScore || null, promptVersionId: combo.promptVersionId, promptLabel: combo.promptLabel, model: combo.model, modelLabel: combo.modelLabel, score: 0, testRunId: null };
                 matrixResults[i] = result;
                 renderMatrixCardResult(i, result, combo);
                 // Auto-save test run
@@ -5744,6 +5744,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         + '<div class="stat"><div class="val">' + (meta.latencyMs / 1000).toFixed(1) + 's</div><div class="lbl">Latency</div></div>'
         + '<div class="stat"><div class="val">' + formatNumber(meta.tokens.input) + '/' + formatNumber(meta.tokens.output) + '</div><div class="lbl">Tokens</div></div>'
         + '<div class="stat"><div class="val">' + fmtCost(estCost) + '</div><div class="lbl">Cost</div></div>'
+        + (result.autoScore ? '<div class="stat"><div class="val" style="color:' + (result.autoScore.score >= 4 ? '#10b981' : result.autoScore.score >= 3 ? '#f59e0b' : '#ef4444') + ';font-weight:800;" title="' + escapeHtml(result.autoScore.reasoning || '') + '">' + result.autoScore.score + '/5</div><div class="lbl">AI Score</div></div>' : '')
         + '</div>';
 
       // Render phone preview
