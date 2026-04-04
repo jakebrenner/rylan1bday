@@ -255,7 +255,7 @@ export default async function handler(req, res) {
         res.write('data: {"status":"analyzing"}\n\n');
         const resp = await client.messages.create({
           model: analysisModel,
-          max_tokens: 4000,
+          max_tokens: 8000,
           system: ANALYSIS_SYSTEM_PROMPT,
           messages: [
             { role: 'user', content: message },
@@ -264,8 +264,33 @@ export default async function handler(req, res) {
         });
 
         const tokens = { input: resp.usage?.input_tokens || 0, output: resp.usage?.output_tokens || 0 };
+        const stopReason = resp.stop_reason || '';
         // Prepend { from assistant prefill since it's not included in the response
-        const text = ('{' + (resp.content?.[0]?.text || '')).trim();
+        let text = ('{' + (resp.content?.[0]?.text || '')).trim();
+
+        // If truncated, try to close the JSON
+        if (stopReason === 'max_tokens') {
+          console.warn('[prompt-health] Response truncated at max_tokens. Attempting JSON repair.');
+          // Count open braces/brackets and close them
+          let openBraces = 0, openBrackets = 0;
+          let inString = false, escaped = false;
+          for (const ch of text) {
+            if (escaped) { escaped = false; continue; }
+            if (ch === '\\') { escaped = true; continue; }
+            if (ch === '"') { inString = !inString; continue; }
+            if (inString) continue;
+            if (ch === '{') openBraces++;
+            else if (ch === '}') openBraces--;
+            else if (ch === '[') openBrackets++;
+            else if (ch === ']') openBrackets--;
+          }
+          // Strip any trailing incomplete string/value
+          text = text.replace(/,?\s*"[^"]*$/, '');
+          text = text.replace(/,?\s*$/, '');
+          // Close open structures
+          while (openBrackets > 0) { text += ']'; openBrackets--; }
+          while (openBraces > 0) { text += '}'; openBraces--; }
+        }
 
         let analysis;
         try {
@@ -286,7 +311,9 @@ export default async function handler(req, res) {
         } catch (e) {
           console.error('[prompt-health] JSON parse failed. Error:', e.message, 'Raw text (first 2000):', text.substring(0, 2000));
           clearInterval(keepalive);
-          res.write('data: ' + JSON.stringify({ error: 'AI returned invalid JSON', raw: text.substring(0, 500) }) + '\n\n');
+          // Safely encode the raw text for debugging
+          const safeRaw = text.substring(0, 800).replace(/[\n\r]/g, ' ').replace(/[^\x20-\x7E]/g, '');
+          res.write('data: ' + JSON.stringify({ error: 'AI returned invalid JSON: ' + e.message, raw: safeRaw, stopReason }) + '\n\n');
           return res.end();
         }
 
