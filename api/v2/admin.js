@@ -1919,21 +1919,216 @@ export default async function handler(req, res) {
       const { versionId } = req.body;
       if (!versionId) return res.status(400).json({ error: 'versionId required' });
 
+      // Capture the currently active version before deactivating
+      const { data: currentActive } = await supabaseAdmin
+        .from('prompt_versions')
+        .select('id')
+        .eq('is_active', true)
+        .single();
+      const previousActiveId = currentActive?.id || null;
+
       // Deactivate all
       await supabaseAdmin
         .from('prompt_versions')
         .update({ is_active: false })
         .eq('is_active', true);
 
-      // Activate selected
+      const now = new Date().toISOString();
+
+      // Activate selected and stamp activated_at/activated_by
       const { error } = await supabaseAdmin
         .from('prompt_versions')
-        .update({ is_active: true })
+        .update({ is_active: true, activated_at: now, activated_by: admin.email })
         .eq('id', versionId);
 
       if (error) return res.status(500).json({ error: 'Failed to activate: ' + error.message });
 
+      // Log to activation history
+      try {
+        await supabaseAdmin
+          .from('prompt_activation_history')
+          .insert({
+            prompt_version_id: versionId,
+            activated_by: admin.email,
+            deactivated_version_id: previousActiveId !== versionId ? previousActiveId : null,
+            activated_at: now
+          });
+      } catch (_) { /* non-blocking */ }
+
       return res.status(200).json({ success: true });
+    }
+
+    // ---- LIST ACTIVATION HISTORY ----
+    if (action === 'listActivationHistory') {
+      const { data, error } = await supabaseAdmin
+        .from('prompt_activation_history')
+        .select('id, prompt_version_id, activated_by, deactivated_version_id, notes, activated_at')
+        .order('activated_at', { ascending: false })
+        .limit(50);
+
+      if (error) return res.status(400).json({ error: error.message });
+
+      // Enrich with version details
+      const versionIds = [...new Set((data || []).map(d => d.prompt_version_id).concat((data || []).map(d => d.deactivated_version_id)).filter(Boolean))];
+      const versionMap = {};
+      if (versionIds.length > 0) {
+        const { data: versions } = await supabaseAdmin
+          .from('prompt_versions')
+          .select('id, version, name, is_active')
+          .in('id', versionIds);
+        (versions || []).forEach(v => { versionMap[v.id] = v; });
+      }
+
+      const enriched = (data || []).map(entry => ({
+        ...entry,
+        version_number: versionMap[entry.prompt_version_id]?.version,
+        version_name: versionMap[entry.prompt_version_id]?.name,
+        is_current: versionMap[entry.prompt_version_id]?.is_active || false,
+        replaced_version_number: versionMap[entry.deactivated_version_id]?.version,
+        replaced_version_name: versionMap[entry.deactivated_version_id]?.name
+      }));
+
+      return res.status(200).json({ success: true, history: enriched });
+    }
+
+    // ---- GET ACTIVATION STATS ----
+    if (action === 'getActivationStats') {
+      const historyId = req.query.historyId;
+      if (!historyId) return res.status(400).json({ error: 'historyId required' });
+
+      // Get this activation entry
+      const { data: entry, error: entryErr } = await supabaseAdmin
+        .from('prompt_activation_history')
+        .select('*')
+        .eq('id', historyId)
+        .single();
+      if (entryErr || !entry) return res.status(404).json({ error: 'Activation entry not found' });
+
+      // Find the next activation to determine the end of this period
+      const { data: nextEntries } = await supabaseAdmin
+        .from('prompt_activation_history')
+        .select('activated_at')
+        .gt('activated_at', entry.activated_at)
+        .order('activated_at', { ascending: true })
+        .limit(1);
+      const periodEnd = nextEntries && nextEntries.length > 0 ? nextEntries[0].activated_at : null;
+      const isCurrent = !periodEnd;
+
+      // Build time filter
+      let genQuery = supabaseAdmin
+        .from('generation_log')
+        .select('id', { count: 'exact', head: true })
+        .eq('prompt_version_id', entry.prompt_version_id)
+        .eq('status', 'success')
+        .gte('created_at', entry.activated_at);
+      if (periodEnd) genQuery = genQuery.lt('created_at', periodEnd);
+      const { count: generationCount } = await genQuery;
+
+      // Error count
+      let errQuery = supabaseAdmin
+        .from('generation_log')
+        .select('id', { count: 'exact', head: true })
+        .eq('prompt_version_id', entry.prompt_version_id)
+        .eq('status', 'error')
+        .gte('created_at', entry.activated_at);
+      if (periodEnd) errQuery = errQuery.lt('created_at', periodEnd);
+      const { count: errorCount } = await errQuery;
+
+      // Quality scores for this version in this period
+      let themeQuery = supabaseAdmin
+        .from('event_themes')
+        .select('auto_score, admin_rating')
+        .eq('prompt_version_id', entry.prompt_version_id)
+        .gte('created_at', entry.activated_at);
+      if (periodEnd) themeQuery = themeQuery.lt('created_at', periodEnd);
+      const { data: themes } = await themeQuery;
+
+      const scored = (themes || []).filter(t => t.auto_score != null);
+      const rated = (themes || []).filter(t => t.admin_rating != null);
+      const avgAutoScore = scored.length > 0 ? +(scored.reduce((s, t) => s + t.auto_score, 0) / scored.length).toFixed(2) : null;
+      const avgAdminRating = rated.length > 0 ? +(rated.reduce((s, t) => s + t.admin_rating, 0) / rated.length).toFixed(2) : null;
+      const totalGen = (generationCount || 0) + (errorCount || 0);
+      const errorRate = totalGen > 0 ? +((errorCount || 0) / totalGen * 100).toFixed(1) : 0;
+
+      // Previous version stats (from the entry that was replaced)
+      let prevStats = null;
+      if (entry.deactivated_version_id) {
+        // Find the activation entry for the previous version
+        const { data: prevEntry } = await supabaseAdmin
+          .from('prompt_activation_history')
+          .select('*')
+          .eq('prompt_version_id', entry.deactivated_version_id)
+          .order('activated_at', { ascending: false })
+          .limit(1);
+
+        if (prevEntry && prevEntry.length > 0) {
+          const pe = prevEntry[0];
+          // Previous version period: pe.activated_at to entry.activated_at
+          const { count: prevGenCount } = await supabaseAdmin
+            .from('generation_log')
+            .select('id', { count: 'exact', head: true })
+            .eq('prompt_version_id', pe.prompt_version_id)
+            .eq('status', 'success')
+            .gte('created_at', pe.activated_at)
+            .lt('created_at', entry.activated_at);
+
+          const { count: prevErrCount } = await supabaseAdmin
+            .from('generation_log')
+            .select('id', { count: 'exact', head: true })
+            .eq('prompt_version_id', pe.prompt_version_id)
+            .eq('status', 'error')
+            .gte('created_at', pe.activated_at)
+            .lt('created_at', entry.activated_at);
+
+          const { data: prevThemes } = await supabaseAdmin
+            .from('event_themes')
+            .select('auto_score, admin_rating')
+            .eq('prompt_version_id', pe.prompt_version_id)
+            .gte('created_at', pe.activated_at)
+            .lt('created_at', entry.activated_at);
+
+          const ps = (prevThemes || []).filter(t => t.auto_score != null);
+          const pr = (prevThemes || []).filter(t => t.admin_rating != null);
+          const prevTotal = (prevGenCount || 0) + (prevErrCount || 0);
+
+          prevStats = {
+            versionNumber: null, // will be enriched below
+            versionName: null,
+            generationCount: prevGenCount || 0,
+            avgAutoScore: ps.length > 0 ? +(ps.reduce((s, t) => s + t.auto_score, 0) / ps.length).toFixed(2) : null,
+            avgAdminRating: pr.length > 0 ? +(pr.reduce((s, t) => s + t.admin_rating, 0) / pr.length).toFixed(2) : null,
+            errorRate: prevTotal > 0 ? +((prevErrCount || 0) / prevTotal * 100).toFixed(1) : 0
+          };
+
+          // Enrich with version info
+          const { data: prevVersion } = await supabaseAdmin
+            .from('prompt_versions')
+            .select('version, name')
+            .eq('id', entry.deactivated_version_id)
+            .single();
+          if (prevVersion) {
+            prevStats.versionNumber = prevVersion.version;
+            prevStats.versionName = prevVersion.name;
+          }
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        stats: {
+          periodStart: entry.activated_at,
+          periodEnd: periodEnd,
+          isCurrent: isCurrent,
+          generationCount: generationCount || 0,
+          errorCount: errorCount || 0,
+          errorRate: errorRate,
+          avgAutoScore: avgAutoScore,
+          avgAdminRating: avgAdminRating,
+          scoredCount: scored.length,
+          ratedCount: rated.length,
+          previousVersion: prevStats
+        }
+      });
     }
 
     // ---- DELETE PROMPT VERSION ----

@@ -88,6 +88,34 @@
     .badge-red { background: #f8d7da; color: #721c24; }
     .badge-purple { background: #e8d5f5; color: #6f42c1; }
     .btn-sm { padding: 6px 12px; font-size: 12px; }
+    #promptVersionsList .btn-sm { padding: 4px 10px; font-size: 11px; }
+
+    /* Activation History Timeline */
+    .timeline-list { position: relative; padding: 0; margin: 0; list-style: none; }
+    .timeline-list::before { content: ''; position: absolute; left: 15px; top: 8px; bottom: 8px; width: 2px; background: #e2e3e5; }
+    .timeline-entry { position: relative; padding: 12px 12px 12px 40px; margin-bottom: 2px; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
+    .timeline-entry:hover { background: #f9f9f9; }
+    .timeline-dot { position: absolute; left: 10px; top: 18px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #e2e3e5; background: white; z-index: 1; }
+    .timeline-dot.active { background: #28a745; border-color: #28a745; }
+    .timeline-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .timeline-version { font-family: monospace; font-weight: 700; font-size: 13px; color: var(--midnight); background: #f0f0f0; padding: 2px 8px; border-radius: 4px; }
+    .timeline-name { font-weight: 600; font-size: 13px; color: var(--midnight); }
+    .timeline-by { font-size: 12px; color: #888; }
+    .timeline-time { font-size: 11px; color: #aaa; margin-top: 2px; }
+    .timeline-replaced { font-size: 11px; color: #888; margin-top: 2px; }
+    .timeline-detail-panel { background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; padding: 20px; margin: 12px 0 4px 0; }
+    .timeline-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .timeline-stat { background: white; border: 1px solid #eee; border-radius: 8px; padding: 12px; text-align: center; }
+    .timeline-stat .stat-val { font-size: 24px; font-weight: 700; color: var(--midnight); }
+    .timeline-stat .stat-lbl { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    .compare-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .compare-table th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; background: #fafafa; border-bottom: 1px solid #eee; }
+    .compare-table td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; }
+    .compare-table tr:last-child td { border-bottom: none; }
+    .delta-pos { color: #28a745; font-weight: 600; }
+    .delta-neg { color: #dc3545; font-weight: 600; }
+    .delta-neutral { color: #888; }
+
     .date-preset { background: #f0f0f0; color: #555; border: 1px solid #ddd; }
     .date-preset:hover { background: #e0e0e0; }
     .date-preset.active { background: var(--party-coral); color: white; border-color: var(--party-coral); }
@@ -1470,6 +1498,13 @@
           </div>
           <div id="promptVersionsList">
             <div class="loading">Loading prompt versions...</div>
+          </div>
+        </div>
+        <div class="config-section">
+          <h3>Activation History</h3>
+          <p style="font-size:13px;color:#888;margin-top:-12px;margin-bottom:16px;">Timeline of prompt version activations in production. All times shown in Pacific Time.</p>
+          <div id="activationTimeline">
+            <div style="color:#888;font-size:13px;padding:12px;">Loading activation history...</div>
           </div>
         </div>
       </div><!-- /aipanel-versions -->
@@ -7071,7 +7106,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         return;
       }
 
-      var html = '<table><thead><tr><th>Version</th><th>Name</th><th>Description</th><th>Status</th><th>Created</th><th></th></tr></thead><tbody>';
+      var html = '<div class="table-container"><table><thead><tr><th>Version</th><th>Name</th><th>Description</th><th>Status</th><th>Created</th><th></th></tr></thead><tbody>';
       promptVersionsData.forEach(function(v) {
         var statusBadge = v.is_active
           ? '<span class="badge badge-green">Active (Live)</span>'
@@ -7094,7 +7129,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         // Expandable diff row (hidden by default)
         html += '<tr id="pvDiffRow_' + v.id + '" style="display:none;"><td colspan="6" style="padding:0;"></td></tr>';
       });
-      html += '</tbody></table>';
+      html += '</tbody></table></div>';
       container.innerHTML = html;
     }
 
@@ -7436,9 +7471,11 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       try {
         var res = await adminFetch('activatePromptVersion', { method: 'POST', body: { versionId: versionId } });
         if (!res.success) throw new Error(res.error || 'Failed');
+        showToast('Prompt version activated successfully');
         await loadPromptVersions();
+        loadActivationHistory();
       } catch (err) {
-        alert('Failed to activate: ' + err.message);
+        showToast('Failed to activate: ' + err.message);
       }
     }
 
@@ -7447,10 +7484,179 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       try {
         var res = await adminFetch('deletePromptVersion', { method: 'POST', body: { versionId: versionId } });
         if (!res.success) throw new Error(res.error || 'Failed');
+        showToast('Prompt version deleted');
         await loadPromptVersions();
       } catch (err) {
-        alert('Failed to delete: ' + err.message);
+        showToast('Failed to delete: ' + err.message);
       }
+    }
+
+    // ═══════════════════════════════════════════════
+    // ACTIVATION HISTORY TIMELINE
+    // ═══════════════════════════════════════════════
+
+    var activationHistoryData = [];
+    var _expandedHistoryId = null;
+
+    async function loadActivationHistory() {
+      try {
+        var res = await adminFetch('listActivationHistory');
+        if (!res.success) throw new Error(res.error || 'Failed');
+        activationHistoryData = res.history || [];
+        renderActivationTimeline();
+      } catch (err) {
+        console.error('Failed to load activation history:', err);
+        document.getElementById('activationTimeline').innerHTML = '<div style="color:#888;font-size:13px;padding:12px;">No activation history yet. History will appear here when prompt versions are activated.</div>';
+      }
+    }
+
+    function formatPacificTime(isoStr) {
+      if (!isoStr) return '—';
+      return new Date(isoStr).toLocaleString('en-US', {
+        timeZone: 'America/Los_Angeles',
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: 'numeric', minute: '2-digit', hour12: true
+      }) + ' PT';
+    }
+
+    function renderActivationTimeline() {
+      var container = document.getElementById('activationTimeline');
+      if (!activationHistoryData || activationHistoryData.length === 0) {
+        container.innerHTML = '<div style="color:#888;font-size:13px;padding:12px;">No activation history yet. History will appear here when prompt versions are activated.</div>';
+        return;
+      }
+
+      var html = '<ul class="timeline-list">';
+      activationHistoryData.forEach(function(entry, idx) {
+        var isCurrent = entry.is_current && idx === 0;
+        var dotClass = isCurrent ? 'timeline-dot active' : 'timeline-dot';
+
+        html += '<li class="timeline-entry" onclick="toggleActivationDetail(\'' + entry.id + '\')">';
+        html += '<div class="' + dotClass + '"></div>';
+        html += '<div class="timeline-meta">';
+        html += '<span class="timeline-version">v' + (entry.version_number || '?') + '</span>';
+        html += '<span class="timeline-name">' + escapeHtml(entry.version_name || 'Unknown') + '</span>';
+        if (isCurrent) html += '<span class="badge badge-green" style="font-size:10px;">Current</span>';
+        html += '</div>';
+        html += '<div class="timeline-time">' + formatPacificTime(entry.activated_at);
+        if (entry.activated_by) html += ' &middot; by ' + escapeHtml(entry.activated_by);
+        html += '</div>';
+        if (entry.replaced_version_number) {
+          html += '<div class="timeline-replaced">Replaced v' + entry.replaced_version_number + ' (' + escapeHtml(entry.replaced_version_name || '') + ')</div>';
+        }
+        html += '<div id="historyDetail_' + entry.id + '" style="display:none;"></div>';
+        html += '</li>';
+      });
+      html += '</ul>';
+      container.innerHTML = html;
+    }
+
+    async function toggleActivationDetail(historyId) {
+      var detail = document.getElementById('historyDetail_' + historyId);
+      if (!detail) return;
+
+      // Collapse if already open
+      if (_expandedHistoryId === historyId) {
+        detail.style.display = 'none';
+        detail.innerHTML = '';
+        _expandedHistoryId = null;
+        return;
+      }
+
+      // Collapse any previously open detail
+      if (_expandedHistoryId) {
+        var prev = document.getElementById('historyDetail_' + _expandedHistoryId);
+        if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }
+      }
+      _expandedHistoryId = historyId;
+
+      detail.style.display = 'block';
+      detail.innerHTML = '<div class="timeline-detail-panel"><div style="color:#888;font-size:12px;">Loading stats...</div></div>';
+
+      try {
+        var res = await adminFetch('getActivationStats', { params: { historyId: historyId } });
+        if (!res.success) throw new Error(res.error || 'Failed');
+        var s = res.stats;
+
+        var entry = activationHistoryData.find(function(e) { return e.id === historyId; });
+
+        // Period label
+        var periodLabel = formatPacificTime(s.periodStart);
+        if (s.isCurrent) {
+          periodLabel += ' — now (current)';
+        } else if (s.periodEnd) {
+          periodLabel += ' — ' + formatPacificTime(s.periodEnd);
+        }
+        // Duration
+        var durationMs = (s.periodEnd ? new Date(s.periodEnd) : new Date()) - new Date(s.periodStart);
+        var durationDays = Math.round(durationMs / 86400000);
+        var durationLabel = durationDays === 0 ? '< 1 day' : durationDays + ' day' + (durationDays === 1 ? '' : 's');
+
+        var html = '<div class="timeline-detail-panel">';
+        html += '<div style="font-size:12px;color:#888;margin-bottom:12px;">' + periodLabel + ' &middot; ' + durationLabel + '</div>';
+
+        // Stats cards
+        html += '<div class="timeline-stats-grid">';
+        html += '<div class="timeline-stat"><div class="stat-val">' + (s.generationCount || 0).toLocaleString() + '</div><div class="stat-lbl">Production Generations</div></div>';
+        html += '<div class="timeline-stat"><div class="stat-val">' + (s.avgAutoScore != null ? s.avgAutoScore : '—') + '</div><div class="stat-lbl">Avg Auto Score</div></div>';
+        html += '<div class="timeline-stat"><div class="stat-val">' + (s.avgAdminRating != null ? s.avgAdminRating : '—') + '</div><div class="stat-lbl">Avg Admin Rating</div></div>';
+        html += '<div class="timeline-stat"><div class="stat-val">' + s.errorRate + '%</div><div class="stat-lbl">Error Rate</div></div>';
+        html += '</div>';
+
+        // Comparison table
+        if (s.previousVersion) {
+          var pv = s.previousVersion;
+          html += '<div style="font-size:12px;font-weight:600;color:var(--midnight);margin-bottom:8px;">Comparison vs Previous Version (v' + (pv.versionNumber || '?') + ' — ' + escapeHtml(pv.versionName || '') + ')</div>';
+          html += '<div class="table-container"><table class="compare-table">';
+          html += '<thead><tr><th>Metric</th><th>v' + (entry ? entry.version_number : '?') + ' (This)</th><th>v' + (pv.versionNumber || '?') + ' (Previous)</th><th>Change</th></tr></thead><tbody>';
+
+          // Auto Score
+          html += buildCompareRow('Avg Auto Score', s.avgAutoScore, pv.avgAutoScore, true);
+          // Admin Rating
+          html += buildCompareRow('Avg Admin Rating', s.avgAdminRating, pv.avgAdminRating, true);
+          // Generation Count
+          html += buildCompareRow('Generations', s.generationCount, pv.generationCount, true);
+          // Error Rate
+          html += buildCompareRow('Error Rate', s.errorRate + '%', pv.errorRate + '%', false, s.errorRate, pv.errorRate);
+
+          html += '</tbody></table></div>';
+        } else {
+          html += '<div style="font-size:12px;color:#888;font-style:italic;margin-top:4px;">No previous version data available for comparison.</div>';
+        }
+
+        // Rollback button (only show if not currently active)
+        if (!s.isCurrent && entry) {
+          html += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee;">';
+          html += '<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); activatePromptVersion(\'' + entry.prompt_version_id + '\', \'v' + entry.version_number + ' – ' + escapeHtml(entry.version_name || '') + '\')" style="margin-right:8px;">Re-activate This Version</button>';
+          html += '<span style="font-size:11px;color:#888;">Roll back to this prompt version</span>';
+          html += '</div>';
+        }
+
+        html += '</div>';
+        detail.innerHTML = html;
+      } catch (err) {
+        detail.innerHTML = '<div class="timeline-detail-panel"><div style="color:var(--party-coral);font-size:12px;">Failed to load stats: ' + escapeHtml(err.message) + '</div></div>';
+      }
+    }
+
+    function buildCompareRow(label, currentVal, prevVal, higherIsBetter, currentNum, prevNum) {
+      var cv = currentNum != null ? currentNum : (typeof currentVal === 'number' ? currentVal : parseFloat(currentVal));
+      var pv = prevNum != null ? prevNum : (typeof prevVal === 'number' ? prevVal : parseFloat(prevVal));
+      var deltaHtml = '<span class="delta-neutral">—</span>';
+
+      if (!isNaN(cv) && !isNaN(pv) && pv !== 0) {
+        var diff = cv - pv;
+        var sign = diff > 0 ? '+' : '';
+        var isGood = higherIsBetter ? diff > 0 : diff < 0;
+        var isBad = higherIsBetter ? diff < 0 : diff > 0;
+        var cls = diff === 0 ? 'delta-neutral' : (isGood ? 'delta-pos' : (isBad ? 'delta-neg' : 'delta-neutral'));
+        var formatted = typeof cv === 'number' && cv % 1 !== 0 ? diff.toFixed(2) : diff;
+        deltaHtml = '<span class="' + cls + '">' + sign + formatted + '</span>';
+      } else if (isNaN(pv) || prevVal == null) {
+        deltaHtml = '<span class="delta-neutral">N/A</span>';
+      }
+
+      return '<tr><td style="font-weight:600;">' + label + '</td><td>' + (currentVal != null ? currentVal : '—') + '</td><td>' + (prevVal != null ? prevVal : '—') + '</td><td>' + deltaHtml + '</td></tr>';
     }
 
     // ═══════════════════════════════════════════════
@@ -7535,8 +7741,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         + '</div>';
     }
 
-    // Load prompt versions on init
+    // Load prompt versions and activation history on init
     loadPromptVersions();
+    loadActivationHistory();
     loadReportingDashboard();
 
     // ═══════════════════════════════════════════════
