@@ -2534,13 +2534,50 @@
 
       _isTestMode = true;
 
-      // Generate a randomized test case with varied names, dates, locations
-      var testCase = getRandomTestCase();
-
       addChatBubble('engage_test_mode', 'user');
       await delay(300);
+
+      // If not logged in, auto-signup with a fake test email
+      if (_guestMode) {
+        var testFirst = _pick(_TEST_FIRST_NAMES).toLowerCase();
+        var testLast = _pick(_TEST_LAST_NAMES).toLowerCase();
+        var testEmail = testFirst + '.' + testLast + '.test.' + _randInt(1000, 9999) + '@test.ryvite.com';
+        addChatBubble('🔐 Signing up with test email: ' + testEmail, 'assistant');
+        await delay(300);
+
+        try {
+          var authRes = await fetch('/api/v2/auth?action=quickSignup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: testEmail })
+          });
+          var authResult = await authRes.json();
+          if (!authResult.success) {
+            addChatBubble('❌ Test signup failed: ' + (authResult.error || 'Unknown error'), 'assistant');
+            return;
+          }
+          token = authResult.accessToken;
+          user = authResult.user;
+          localStorage.setItem('sb_access_token', authResult.accessToken);
+          localStorage.setItem('sb_refresh_token', authResult.refreshToken);
+          localStorage.setItem('v2_user', JSON.stringify(authResult.user));
+          _guestMode = false;
+
+          var pn = document.getElementById('profileName');
+          var pe = document.getElementById('profileEmail');
+          if (pn) pn.textContent = testEmail.split('@')[0];
+          if (pe) pe.textContent = testEmail;
+        } catch (authErr) {
+          addChatBubble('❌ Test signup failed: ' + authErr.message, 'assistant');
+          return;
+        }
+      }
+
       addChatBubble('🧪 Test mode activated! Simulating event creation...', 'assistant');
       await delay(400);
+
+      // Generate a randomized test case with varied names, dates, locations
+      var testCase = getRandomTestCase();
 
       // Simulate user describing an event
       addChatBubble(testCase.userMessage, 'user');
