@@ -257,23 +257,34 @@ export default async function handler(req, res) {
           model: analysisModel,
           max_tokens: 4000,
           system: ANALYSIS_SYSTEM_PROMPT,
-          messages: [{ role: 'user', content: message }]
+          messages: [
+            { role: 'user', content: message },
+            { role: 'assistant', content: '{' }
+          ]
         });
 
         const tokens = { input: resp.usage?.input_tokens || 0, output: resp.usage?.output_tokens || 0 };
-        const text = (resp.content?.[0]?.text || '').trim();
+        // Prepend { from assistant prefill since it's not included in the response
+        const text = ('{' + (resp.content?.[0]?.text || '')).trim();
 
         let analysis;
         try {
-          let cleaned = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?\s*```\s*$/, '');
+          let cleaned = text;
+          // Strip markdown fences
+          cleaned = cleaned.replace(/^```(?:json)?\s*\n?/g, '').replace(/\n?\s*```\s*$/g, '');
+          // Extract JSON object
           const jsonStart = cleaned.indexOf('{');
           const jsonEnd = cleaned.lastIndexOf('}');
           if (jsonStart >= 0 && jsonEnd > jsonStart) {
             cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
           }
+          // Fix common JSON issues: trailing commas before } or ]
+          cleaned = cleaned.replace(/,\s*([\]}])/g, '$1');
+          // Fix unescaped newlines inside strings
+          cleaned = cleaned.replace(/(?<=":[ ]*"[^"]*)\n/g, '\\n');
           analysis = JSON.parse(cleaned);
         } catch (e) {
-          console.error('[prompt-health] JSON parse failed. Raw text:', text.substring(0, 1000));
+          console.error('[prompt-health] JSON parse failed. Error:', e.message, 'Raw text (first 2000):', text.substring(0, 2000));
           clearInterval(keepalive);
           res.write('data: ' + JSON.stringify({ error: 'AI returned invalid JSON', raw: text.substring(0, 500) }) + '\n\n');
           return res.end();

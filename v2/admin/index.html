@@ -7353,7 +7353,11 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         }
 
         if (!result) throw new Error('No result received from server');
-        if (result.error) throw new Error(result.error);
+        if (result.error) {
+          var errMsg = result.error;
+          if (result.raw) errMsg += '\n\nRaw AI response:\n' + result.raw;
+          throw new Error(errMsg);
+        }
         if (!result.analysis) throw new Error('Analysis returned empty');
 
         renderHealthResults(result.analysis, result.analysisId, result.cost, result.tokens, result.latencyMs);
@@ -7361,7 +7365,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       } catch (err) {
         console.error('Health analysis failed:', err);
         document.getElementById('healthEmpty').style.display = 'block';
-        document.getElementById('healthEmpty').innerHTML = '<div style="color:var(--party-coral);font-size:14px;">Analysis failed: ' + escapeHtml(err.message) + '</div>';
+        document.getElementById('healthEmpty').innerHTML = '<div style="color:var(--party-coral);font-size:14px;">Analysis failed: ' + escapeHtml(err.message).replace(/\n/g, '<br>') + '</div>';
       }
       document.getElementById('healthLoading').style.display = 'none';
       btn.disabled = false;
