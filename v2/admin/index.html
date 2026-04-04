@@ -349,6 +349,46 @@
     .bulk-item .file-status.error { color: var(--party-coral); }
     .bulk-progress-summary { padding: 10px 16px; font-size: 12px; font-weight: 600; border-top: 1px solid #eee; flex-shrink: 0; }
 
+    /* Template Factory */
+    .factory-panel { background: linear-gradient(135deg, #f8f9ff 0%, #fff5f5 100%); border: 1px solid #e8e8e8; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .factory-panel h4 { margin: 0 0 12px 0; font-size: 15px; color: var(--midnight); }
+    .factory-config { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; }
+    .factory-config .config-group { display: flex; flex-direction: column; gap: 4px; }
+    .factory-config .config-group label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+    .factory-config .config-group select, .factory-config .config-group input[type="number"] { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 13px; }
+    .factory-event-types { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .factory-event-types label { font-size: 12px; padding: 4px 10px; border: 1px solid #ddd; border-radius: 16px; cursor: pointer; transition: all 0.15s; user-select: none; }
+    .factory-event-types label:has(input:checked) { background: var(--party-coral); color: white; border-color: var(--party-coral); }
+    .factory-event-types input { display: none; }
+    .factory-status { padding: 12px 16px; background: white; border-radius: 8px; border: 1px solid #eee; margin-bottom: 12px; display: none; }
+    .factory-status .status-text { font-size: 13px; font-weight: 600; color: var(--midnight); margin-bottom: 6px; }
+    .factory-status .status-detail { font-size: 12px; color: #888; }
+    .factory-status .factory-bar { height: 4px; background: #eee; border-radius: 2px; margin-top: 8px; }
+    .factory-status .factory-bar-fill { height: 100%; background: var(--mint-fizz); border-radius: 2px; transition: width 0.3s; width: 0%; }
+    .factory-results { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; max-height: 300px; overflow-y: auto; }
+    .factory-result-card { background: white; border: 1px solid #eee; border-radius: 8px; padding: 6px; text-align: center; font-size: 10px; color: #888; }
+    .factory-result-card .mini-preview { width: 100%; height: 160px; border-radius: 4px; overflow: hidden; margin-bottom: 4px; background: #f5f5f5; }
+    .factory-result-card .mini-preview iframe { width: 393px; height: 852px; border: none; transform: scale(0.28); transform-origin: top left; pointer-events: none; }
+
+    /* Bulk Selection Mode */
+    .style-card-select { position: absolute; top: 8px; left: 8px; z-index: 3; width: 24px; height: 24px; border-radius: 6px; border: 2px solid rgba(0,0,0,0.15); background: rgba(255,255,255,0.9); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; backdrop-filter: blur(4px); }
+    .style-card-select:hover { border-color: var(--party-coral); }
+    .style-card-select.selected { background: var(--party-coral); border-color: var(--party-coral); }
+    .style-card-select.selected::after { content: '\2713'; color: white; font-size: 14px; font-weight: bold; }
+    .bulk-actions-bar { display: flex; gap: 8px; align-items: center; padding: 10px 16px; background: var(--midnight); border-radius: 8px; margin-bottom: 12px; }
+    .bulk-actions-bar .bulk-count { font-size: 13px; color: white; font-weight: 600; }
+    .bulk-actions-bar .btn { font-size: 12px; padding: 6px 14px; }
+
+    /* Bulk Upload Tabs */
+    .bulk-tabs { display: flex; gap: 0; margin-bottom: 12px; }
+    .bulk-tab { padding: 8px 16px; font-size: 13px; font-weight: 600; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; transition: all 0.15s; }
+    .bulk-tab:first-child { border-radius: 6px 0 0 6px; }
+    .bulk-tab:last-child { border-radius: 0 6px 6px 0; }
+    .bulk-tab.active { background: var(--midnight); color: white; border-color: var(--midnight); }
+    .json-paste-area { display: none; }
+    .json-paste-area textarea { width: 100%; min-height: 200px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-family: 'SF Mono', 'Menlo', monospace; font-size: 12px; resize: vertical; }
+    .json-preview { padding: 10px 14px; background: #f8f9ff; border-radius: 6px; margin-top: 8px; font-size: 12px; color: var(--midnight); display: none; }
+
     /* Prompt Versions */
     #aipanel-versions table { font-size: 13px; }
     #promptVersionModal textarea { tab-size: 2; }
@@ -1840,11 +1880,21 @@
             Upload HTML invite samples that the AI can reference during generation. These serve as visual inspiration —
             the AI analyzes the layout patterns, color palettes, typography, and design approaches to produce better results.
           </p>
-          <div style="display:flex;gap:8px;margin-bottom:20px;align-items:center;">
+          <div style="display:flex;gap:8px;margin-bottom:20px;align-items:center;flex-wrap:wrap;">
             <button class="btn btn-primary" onclick="openAddStyleModal()">Add Single Sample</button>
             <button class="btn btn-secondary" onclick="document.getElementById('bulkUploadSection').style.display=document.getElementById('bulkUploadSection').style.display==='none'?'block':'none'">Bulk Upload</button>
+            <button class="btn btn-secondary" onclick="toggleFactoryPanel()">Template Factory</button>
+            <button class="btn btn-secondary" onclick="toggleSelectionMode()" id="selectModeBtn">Select Multiple</button>
             <button class="btn btn-secondary" onclick="retagAllStyles()" id="retagAllBtn">Re-tag All</button>
             <span style="font-size:12px;color:#888;display:flex;align-items:center;" id="styleCount">0 samples in library</span>
+          </div>
+          <!-- Bulk Selection Actions Bar (shown when selection mode active) -->
+          <div class="bulk-actions-bar" id="bulkActionsBar" style="display:none;">
+            <span class="bulk-count" id="bulkSelectCount">0 selected</span>
+            <button class="btn btn-primary" onclick="openBulkRateModal()" id="bulkRateBtn" disabled>Rate Selected</button>
+            <button class="btn btn-secondary" onclick="bulkArchiveSelected()" id="bulkArchiveBtn" disabled>Archive Selected</button>
+            <button class="btn btn-secondary" onclick="selectAllFiltered()">Select All Visible</button>
+            <button class="btn btn-secondary" onclick="clearSelection()">Clear</button>
           </div>
           <div id="styleFilters" style="display:none;margin-bottom:16px;">
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -1882,13 +1932,74 @@
               <button class="btn btn-secondary btn-sm" onclick="clearStyleFilter()">Clear</button>
             </div>
           </div>
-          <div id="bulkUploadSection" style="display:none;margin-bottom:20px;">
-            <div class="bulk-dropzone" id="bulkDropzone" onclick="document.getElementById('bulkFileInput').click()">
-              <div class="drop-icon">&#128194;</div>
-              <div class="drop-text">Drop HTML files here or click to browse</div>
-              <div class="drop-sub">Select multiple .html files — each will be auto-tagged with AI and added to your library</div>
+          <!-- Template Factory Panel -->
+          <div class="factory-panel" id="factoryPanel" style="display:none;">
+            <h4>Template Factory — Auto-Generate Style References</h4>
+            <p style="font-size:12px;color:#888;margin-bottom:12px;">Generate templates autonomously. Each is saved immediately to your library as unrated. Come back and filter by "Unrated" to review.</p>
+            <div style="margin-bottom:12px;">
+              <label style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px;">Event Types (cycles through selected)</label>
+              <div class="factory-event-types" id="factoryEventTypes"></div>
             </div>
-            <input type="file" id="bulkFileInput" multiple accept=".html,.htm" style="display:none;" onchange="handleBulkFiles(this.files)">
+            <div class="factory-config">
+              <div class="config-group">
+                <label>Model</label>
+                <select id="factoryModel">
+                  <option value="claude-sonnet-4-6" selected>Sonnet 4.6</option>
+                  <option value="claude-haiku-4-5-20251001">Haiku 4.5</option>
+                  <option value="claude-opus-4-6">Opus 4.6</option>
+                </select>
+              </div>
+              <div class="config-group">
+                <label>Count</label>
+                <input type="number" id="factoryCount" value="10" min="1" max="100" style="width:70px;">
+              </div>
+              <div class="config-group" style="justify-content:flex-end;">
+                <button class="btn btn-primary" id="factoryStartBtn" onclick="startFactory()">Start Generating</button>
+                <button class="btn btn-secondary" id="factoryStopBtn" onclick="stopFactory()" style="display:none;">Stop</button>
+              </div>
+            </div>
+            <div class="factory-status" id="factoryStatus">
+              <div class="status-text" id="factoryStatusText">Generating...</div>
+              <div class="status-detail" id="factoryStatusDetail"></div>
+              <div class="factory-bar"><div class="factory-bar-fill" id="factoryBarFill"></div></div>
+            </div>
+            <div class="factory-results" id="factoryResults"></div>
+          </div>
+
+          <div id="bulkUploadSection" style="display:none;margin-bottom:20px;">
+            <div class="bulk-tabs">
+              <div class="bulk-tab active" onclick="switchBulkTab('files')">Drop Files</div>
+              <div class="bulk-tab" onclick="switchBulkTab('json')">Paste JSON</div>
+            </div>
+            <div id="bulkFilesTab">
+              <div class="bulk-dropzone" id="bulkDropzone" onclick="document.getElementById('bulkFileInput').click()">
+                <div class="drop-icon">&#128194;</div>
+                <div class="drop-text">Drop HTML files here or click to browse</div>
+                <div class="drop-sub">Select multiple .html files — each will be auto-tagged with AI and added to your library</div>
+              </div>
+              <input type="file" id="bulkFileInput" multiple accept=".html,.htm" style="display:none;" onchange="handleBulkFiles(this.files)">
+            </div>
+            <div id="bulkJsonTab" class="json-paste-area">
+              <textarea id="jsonPasteInput" placeholder='Paste JSON array from Claude, e.g.:
+[
+  {
+    "name": "Midnight Garden Soirée",
+    "html": "<!DOCTYPE html>...",
+    "eventTypes": ["wedding"],
+    "tags": ["dark", "botanical", "elegant"],
+    "designNotes": "Layered SVG botanicals..."
+  }
+]
+
+Or a single object (will be wrapped in an array automatically).'></textarea>
+              <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+                <button class="btn btn-primary" onclick="parseAndUploadJson()">Parse & Upload</button>
+                <label style="font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                  <input type="checkbox" id="jsonAutoTag" checked style="accent-color:var(--party-coral);"> Auto-tag items missing metadata
+                </label>
+              </div>
+              <div class="json-preview" id="jsonPreview"></div>
+            </div>
           </div>
           <div class="style-grid" id="styleGrid">
             <div style="color:#888;font-size:13px;padding:20px;text-align:center;grid-column:1/-1;">
@@ -6172,6 +6283,15 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         card.className = 'style-card';
         card.dataset.styleId = item.id;
 
+        // Selection checkbox (shown in selection mode)
+        if (styleSelectionMode) {
+          var selectBtn = document.createElement('div');
+          selectBtn.className = 'style-card-select' + (selectedStyleIds.has(item.id) ? ' selected' : '');
+          selectBtn.dataset.id = item.id;
+          selectBtn.onclick = function(e) { toggleStyleSelect(item.id, e); };
+          card.appendChild(selectBtn);
+        }
+
         // Details button (top-right corner) — navigates to detail view
         var detailsBtn = document.createElement('button');
         detailsBtn.className = 'style-card-details-btn';
@@ -6833,6 +6953,434 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         reader.onerror = function() { reject(new Error('Failed to read file')); };
         reader.readAsText(file);
       });
+    }
+
+    // ---- Bulk Upload Tabs ----
+    function switchBulkTab(tab) {
+      var tabs = document.querySelectorAll('#bulkUploadSection .bulk-tab');
+      tabs.forEach(function(t, i) { t.classList.toggle('active', i === (tab === 'files' ? 0 : 1)); });
+      document.getElementById('bulkFilesTab').style.display = tab === 'files' ? 'block' : 'none';
+      document.getElementById('bulkJsonTab').style.display = tab === 'json' ? 'block' : 'none';
+    }
+
+    async function parseAndUploadJson() {
+      var raw = document.getElementById('jsonPasteInput').value.trim();
+      if (!raw) { showToast('Paste JSON first'); return; }
+
+      var items;
+      try {
+        // Try parsing as array or single object
+        var parsed = JSON.parse(raw);
+        items = Array.isArray(parsed) ? parsed : [parsed];
+      } catch (e) {
+        showToast('Invalid JSON: ' + e.message);
+        return;
+      }
+
+      // Validate minimum fields
+      var invalid = items.filter(function(it) { return !it.html; });
+      if (invalid.length > 0) {
+        showToast(invalid.length + ' items missing html field');
+        return;
+      }
+
+      // Auto-generate names if missing
+      items.forEach(function(it, i) {
+        if (!it.name) it.name = 'Imported Template ' + (i + 1);
+      });
+
+      var preview = document.getElementById('jsonPreview');
+      preview.style.display = 'block';
+      preview.innerHTML = 'Found <strong>' + items.length + '</strong> templates: ' + items.slice(0, 5).map(function(it) { return escapeHtml(it.name); }).join(', ') + (items.length > 5 ? '...' : '') + '<br>Uploading...';
+
+      // Auto-tag items missing metadata if checkbox checked
+      var autoTag = document.getElementById('jsonAutoTag').checked;
+      if (autoTag) {
+        for (var i = 0; i < items.length; i++) {
+          var it = items[i];
+          if ((!it.eventTypes || it.eventTypes.length === 0) && (!it.tags || it.tags.length === 0)) {
+            try {
+              preview.innerHTML = 'Auto-tagging ' + (i + 1) + '/' + items.length + ': ' + escapeHtml(it.name) + '...';
+              var tagRes = await fetch('/api/v2/prompt-test?action=autoTag', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ html: it.html })
+              });
+              var tagData = await tagRes.json();
+              if (tagData.success && tagData.autoTag) {
+                if (!it.name || it.name.startsWith('Imported Template')) it.name = tagData.autoTag.name || it.name;
+                it.description = it.description || tagData.autoTag.description || '';
+                it.eventTypes = tagData.autoTag.eventTypes || [];
+                it.tags = tagData.autoTag.tags || [];
+                it.designNotes = it.designNotes || tagData.autoTag.designNotes || '';
+              }
+            } catch (e) { /* continue without tags */ }
+          }
+        }
+      }
+
+      // Bulk upload
+      try {
+        preview.innerHTML = 'Uploading ' + items.length + ' templates...';
+        var res = await adminFetch('bulkUploadStyles', { method: 'POST', body: { items: items } });
+        styleLibrary = res.library || [];
+        renderStyleGrid();
+        renderStyleCheckboxes();
+        updateStyleCount();
+        updateFilterUI();
+        preview.innerHTML = 'Successfully added <strong>' + (res.created || []).length + '</strong> templates!';
+        showToast(items.length + ' templates uploaded');
+        document.getElementById('jsonPasteInput').value = '';
+      } catch (e) {
+        preview.innerHTML = 'Upload failed: ' + escapeHtml(e.message || 'Unknown error');
+        showToast('Upload failed: ' + e.message);
+      }
+    }
+
+    // ---- Template Factory ----
+    var factoryRunning = false;
+    var factoryAbort = false;
+
+    function toggleFactoryPanel() {
+      var panel = document.getElementById('factoryPanel');
+      var isHidden = panel.style.display === 'none';
+      panel.style.display = isHidden ? 'block' : 'none';
+      if (isHidden && !document.getElementById('factoryEventTypes').innerHTML) {
+        // Populate event type checkboxes
+        var container = document.getElementById('factoryEventTypes');
+        container.innerHTML = ALL_EVENT_TYPES.filter(function(et) { return et.value !== 'other'; }).map(function(et) {
+          var checked = ['wedding', 'kidsBirthday', 'adultBirthday', 'babyShower', 'bridalShower'].includes(et.value) ? ' checked' : '';
+          return '<label><input type="checkbox" value="' + et.value + '"' + checked + '> ' + et.label + '</label>';
+        }).join('');
+      }
+    }
+
+    async function startFactory() {
+      if (factoryRunning) return;
+
+      var selectedTypes = [];
+      document.querySelectorAll('#factoryEventTypes input:checked').forEach(function(cb) { selectedTypes.push(cb.value); });
+      if (selectedTypes.length === 0) { showToast('Select at least one event type'); return; }
+
+      var model = document.getElementById('factoryModel').value;
+      var count = Math.min(Math.max(parseInt(document.getElementById('factoryCount').value) || 10, 1), 100);
+
+      factoryRunning = true;
+      factoryAbort = false;
+
+      // Toggle buttons
+      document.getElementById('factoryStartBtn').style.display = 'none';
+      document.getElementById('factoryStopBtn').style.display = 'inline-flex';
+
+      var status = document.getElementById('factoryStatus');
+      var statusText = document.getElementById('factoryStatusText');
+      var statusDetail = document.getElementById('factoryStatusDetail');
+      var barFill = document.getElementById('factoryBarFill');
+      var results = document.getElementById('factoryResults');
+      status.style.display = 'block';
+      results.innerHTML = '';
+
+      var successCount = 0;
+      var errorCount = 0;
+      var totalCost = 0;
+      var startTime = Date.now();
+
+      for (var i = 0; i < count; i++) {
+        if (factoryAbort) break;
+
+        var eventType = selectedTypes[i % selectedTypes.length];
+        var typeLabel = (ALL_EVENT_TYPES.find(function(x) { return x.value === eventType; }) || {}).label || eventType;
+        var pct = Math.round(((i) / count) * 100);
+        barFill.style.width = pct + '%';
+
+        try {
+          // Step 1: Generate dummy event data
+          statusText.textContent = 'Generating ' + (i + 1) + '/' + count + '...';
+          statusDetail.textContent = 'Creating ' + typeLabel + ' event details...';
+
+          var dummyRes = await fetch('/api/v2/prompt-test?action=dummyData', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventType: eventType, typeLabel: typeLabel })
+          });
+          var dummyData = await dummyRes.json();
+          if (!dummyData.success) throw new Error('Failed to generate event data');
+
+          if (factoryAbort) break;
+
+          // Step 2: Generate theme
+          statusDetail.textContent = 'Generating ' + typeLabel + ' design with ' + model.split('-').slice(-2).join(' ') + '...';
+          var eventDetails = dummyData.eventDetails;
+          eventDetails.eventType = eventType;
+
+          var themeRes = await fetch('/api/v2/prompt-test', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: model, eventDetails: eventDetails })
+          });
+          var themeData = await themeRes.json();
+          if (!themeData.success || !themeData.theme) throw new Error('Theme generation failed');
+
+          if (factoryAbort) break;
+
+          // Step 3: Build full HTML from theme parts
+          var fullHtml = buildFullHtmlFromTheme(themeData.theme);
+
+          // Step 4: Auto-tag
+          statusDetail.textContent = 'Auto-tagging...';
+          var tagResult = { name: typeLabel + ' Template', eventTypes: [eventType], tags: [], designNotes: '' };
+          try {
+            var tagRes = await fetch('/api/v2/prompt-test?action=autoTag', {
+              method: 'POST',
+              headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ html: fullHtml })
+            });
+            var tagData = await tagRes.json();
+            if (tagData.success && tagData.autoTag) {
+              tagResult = tagData.autoTag;
+              // Ensure the correct event type is included
+              if (!tagResult.eventTypes.includes(eventType)) tagResult.eventTypes.push(eventType);
+            }
+          } catch (e) { /* use fallback tag result */ }
+
+          if (factoryAbort) break;
+
+          // Step 5: Save to style library
+          statusDetail.textContent = 'Saving to library...';
+          var saveRes = await adminFetch('saveStyleItem', {
+            method: 'POST',
+            body: {
+              name: tagResult.name || (typeLabel + ' Template'),
+              description: tagResult.description || '',
+              html: fullHtml,
+              tags: tagResult.tags || [],
+              eventTypes: tagResult.eventTypes || [eventType],
+              designNotes: tagResult.designNotes || ''
+            }
+          });
+          styleLibrary = saveRes.library || styleLibrary;
+          successCount++;
+
+          // Track cost
+          if (themeData.metadata) {
+            var tokens = themeData.metadata.tokens || {};
+            var costMap = { 'claude-haiku-4-5-20251001': [1, 5], 'claude-sonnet-4-6': [3, 15], 'claude-opus-4-6': [15, 75] };
+            var rates = costMap[model] || [3, 15];
+            totalCost += ((tokens.input || 0) * rates[0] + (tokens.output || 0) * rates[1]) / 1000000;
+          }
+
+          // Add mini preview to results
+          var card = document.createElement('div');
+          card.className = 'factory-result-card';
+          var miniPreview = document.createElement('div');
+          miniPreview.className = 'mini-preview';
+          var iframe = document.createElement('iframe');
+          iframe.sandbox = 'allow-scripts';
+          iframe.srcdoc = wrapForPreview(fullHtml, false);
+          miniPreview.appendChild(iframe);
+          card.appendChild(miniPreview);
+          card.innerHTML += '<div>' + escapeHtml((tagResult.name || '').substring(0, 30)) + '</div>';
+          results.appendChild(card);
+
+        } catch (err) {
+          errorCount++;
+          console.warn('Factory generation ' + (i + 1) + ' failed:', err.message);
+          // Add error card
+          var errCard = document.createElement('div');
+          errCard.className = 'factory-result-card';
+          errCard.style.borderColor = 'var(--party-coral)';
+          errCard.innerHTML = '<div class="mini-preview" style="display:flex;align-items:center;justify-content:center;color:var(--party-coral);font-size:20px;">&#10007;</div><div>Failed</div>';
+          results.appendChild(errCard);
+        }
+
+        // Update elapsed time and cost
+        var elapsed = Math.round((Date.now() - startTime) / 1000);
+        var avgTime = elapsed / (i + 1);
+        var remaining = Math.round(avgTime * (count - i - 1));
+        statusDetail.textContent = successCount + ' created, ' + errorCount + ' failed | $' + totalCost.toFixed(2) + ' spent | ~' + formatTime(remaining) + ' remaining';
+      }
+
+      // Done
+      barFill.style.width = '100%';
+      barFill.style.background = factoryAbort ? 'var(--confetti-gold)' : 'var(--mint-fizz)';
+      statusText.textContent = factoryAbort ? 'Stopped — ' + successCount + ' templates created' : 'Done — ' + successCount + ' templates created!';
+      statusDetail.textContent = '$' + totalCost.toFixed(2) + ' total cost | Filter by "Unrated" to review';
+
+      document.getElementById('factoryStartBtn').style.display = 'inline-flex';
+      document.getElementById('factoryStopBtn').style.display = 'none';
+      factoryRunning = false;
+
+      // Refresh grid
+      renderStyleGrid();
+      renderStyleCheckboxes();
+      updateStyleCount();
+      updateFilterUI();
+    }
+
+    function stopFactory() {
+      factoryAbort = true;
+      document.getElementById('factoryStopBtn').textContent = 'Stopping...';
+    }
+
+    function formatTime(seconds) {
+      if (seconds < 60) return seconds + 's';
+      return Math.floor(seconds / 60) + 'm ' + (seconds % 60) + 's';
+    }
+
+    function buildFullHtmlFromTheme(theme) {
+      var css = theme.css || '';
+      var html = theme.html || '';
+      var config = theme.config || {};
+      var fontsImport = config.googleFontsImport || '';
+      return '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=393, initial-scale=1.0">\n<style>\n' + (fontsImport ? fontsImport + '\n' : '') + css + '\n</style>\n</head>\n<body>\n' + html + '\n</body>\n</html>';
+    }
+
+    // ---- Bulk Selection & Rating ----
+    var styleSelectionMode = false;
+    var selectedStyleIds = new Set();
+
+    function toggleSelectionMode() {
+      styleSelectionMode = !styleSelectionMode;
+      selectedStyleIds.clear();
+      document.getElementById('selectModeBtn').textContent = styleSelectionMode ? 'Exit Select' : 'Select Multiple';
+      document.getElementById('selectModeBtn').style.background = styleSelectionMode ? 'var(--party-coral)' : '';
+      document.getElementById('selectModeBtn').style.color = styleSelectionMode ? 'white' : '';
+      document.getElementById('bulkActionsBar').style.display = styleSelectionMode ? 'flex' : 'none';
+      updateBulkSelectCount();
+      renderStyleGrid();
+    }
+
+    function toggleStyleSelect(id, event) {
+      if (event) event.stopPropagation();
+      if (selectedStyleIds.has(id)) {
+        selectedStyleIds.delete(id);
+      } else {
+        selectedStyleIds.add(id);
+      }
+      // Update checkbox visual
+      var el = document.querySelector('.style-card-select[data-id="' + id + '"]');
+      if (el) el.classList.toggle('selected', selectedStyleIds.has(id));
+      updateBulkSelectCount();
+    }
+
+    function selectAllFiltered() {
+      var grid = document.getElementById('styleGrid');
+      grid.querySelectorAll('.style-card').forEach(function(card) {
+        var id = card.dataset.styleId;
+        if (id) selectedStyleIds.add(id);
+        var cb = card.querySelector('.style-card-select');
+        if (cb) cb.classList.add('selected');
+      });
+      updateBulkSelectCount();
+    }
+
+    function clearSelection() {
+      selectedStyleIds.clear();
+      document.querySelectorAll('.style-card-select.selected').forEach(function(el) { el.classList.remove('selected'); });
+      updateBulkSelectCount();
+    }
+
+    function updateBulkSelectCount() {
+      var n = selectedStyleIds.size;
+      document.getElementById('bulkSelectCount').textContent = n + ' selected';
+      document.getElementById('bulkRateBtn').disabled = n === 0;
+      document.getElementById('bulkArchiveBtn').disabled = n === 0;
+    }
+
+    function openBulkRateModal() {
+      var n = selectedStyleIds.size;
+      if (n === 0) return;
+      // Build a simple inline modal
+      var overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.style.display = 'flex';
+      overlay.id = 'bulkRateOverlay';
+      overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+      overlay.innerHTML = '<div class="modal" style="max-width:360px;text-align:center;">'
+        + '<h3 style="margin-bottom:8px;">Rate ' + n + ' items</h3>'
+        + '<p style="font-size:13px;color:#888;margin-bottom:16px;">Apply the same rating to all selected templates.</p>'
+        + '<div class="star-rating" id="bulkRateStars" style="font-size:32px;margin-bottom:16px;">'
+        + [1,2,3,4,5].map(function(s) { return '<span class="star" data-score="' + s + '" style="cursor:pointer;color:#ddd;transition:color 0.15s;" onmouseover="previewBulkStars(' + s + ')" onmouseout="previewBulkStars(0)" onclick="setBulkRating(' + s + ')">&#9733;</span>'; }).join('')
+        + '</div>'
+        + '<div id="bulkRateLabel" style="font-size:13px;color:#888;margin-bottom:16px;">Click a star</div>'
+        + '<textarea id="bulkRateNotes" placeholder="Optional notes..." rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;margin-bottom:12px;resize:none;"></textarea>'
+        + '<div style="display:flex;gap:8px;justify-content:center;">'
+        + '<button class="btn btn-primary" id="bulkRateSubmitBtn" onclick="submitBulkRating()" disabled>Apply Rating</button>'
+        + '<button class="btn btn-secondary" onclick="document.getElementById(\'bulkRateOverlay\').remove()">Cancel</button>'
+        + '</div></div>';
+      document.body.appendChild(overlay);
+    }
+
+    var pendingBulkRating = 0;
+    function previewBulkStars(score) {
+      var display = score || pendingBulkRating;
+      document.querySelectorAll('#bulkRateStars .star').forEach(function(star) {
+        star.style.color = parseInt(star.dataset.score) <= display ? 'var(--confetti-gold)' : '#ddd';
+      });
+    }
+    function setBulkRating(score) {
+      pendingBulkRating = score;
+      previewBulkStars(score);
+      document.getElementById('bulkRateLabel').textContent = STAR_LABELS[score] || '';
+      document.getElementById('bulkRateSubmitBtn').disabled = false;
+    }
+
+    async function submitBulkRating() {
+      if (!pendingBulkRating || selectedStyleIds.size === 0) return;
+      var notes = (document.getElementById('bulkRateNotes') || {}).value || '';
+      var ratings = Array.from(selectedStyleIds).map(function(id) {
+        return { styleId: id, rating: pendingBulkRating, notes: notes };
+      });
+
+      var btn = document.getElementById('bulkRateSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Applying...';
+
+      try {
+        var res = await adminFetch('bulkRateStyles', { method: 'POST', body: { ratings: ratings } });
+        showToast('Rated ' + res.updated + ' items');
+        document.getElementById('bulkRateOverlay').remove();
+
+        // Update local data
+        ratings.forEach(function(r) {
+          var item = styleLibrary.find(function(s) { return s.id === r.styleId; });
+          if (item) {
+            item.adminRating = r.rating;
+            item.adminNotes = r.notes;
+          }
+        });
+
+        // Exit selection mode and refresh
+        toggleSelectionMode();
+        renderStyleGrid();
+      } catch (e) {
+        showToast('Bulk rating failed: ' + e.message);
+        btn.disabled = false;
+        btn.textContent = 'Apply Rating';
+      }
+      pendingBulkRating = 0;
+    }
+
+    async function bulkArchiveSelected() {
+      var n = selectedStyleIds.size;
+      if (n === 0) return;
+      if (!confirm('Archive ' + n + ' selected items? They will be hidden from generation.')) return;
+
+      var errors = 0;
+      for (var id of selectedStyleIds) {
+        try {
+          await adminFetch('archiveStyle', { method: 'POST', body: { styleId: id } });
+        } catch (e) { errors++; }
+      }
+      showToast('Archived ' + (n - errors) + ' items' + (errors ? ' (' + errors + ' failed)' : ''));
+      // Refresh
+      try {
+        var res = await adminFetch('getStyleLibrary');
+        styleLibrary = res.library || [];
+      } catch (e) { /* grid will be stale but OK */ }
+      toggleSelectionMode();
+      renderStyleGrid();
+      updateStyleCount();
     }
 
     function toggleStylePreview() {

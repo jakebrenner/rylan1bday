@@ -1587,10 +1587,74 @@ export default async function handler(req, res) {
       const library = (data || []).map(r => ({
         id: r.id, name: r.name, description: r.description, html: r.html,
         tags: r.tags || [], eventTypes: r.event_types || [], designNotes: r.design_notes,
-        createdAt: r.created_at, updatedAt: r.updated_at, addedBy: r.added_by
+        createdAt: r.created_at, updatedAt: r.updated_at, addedBy: r.added_by,
+        adminRating: r.admin_rating || 0, adminNotes: r.admin_notes || '',
+        ratedBy: r.rated_by || '', ratedAt: r.rated_at || null,
+        timesUsed: r.times_used || 0, archivedAt: r.archived_at || null
       }));
 
       return res.status(200).json({ success: true, library });
+    }
+
+    // ---- BULK UPLOAD STYLE LIBRARY ITEMS ----
+    if (action === 'bulkUploadStyles') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { items } = req.body;
+      if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'items array is required' });
+      if (items.length > 50) return res.status(400).json({ error: 'Max 50 items per batch' });
+
+      const invalid = items.filter((it, i) => !it.name || !it.html);
+      if (invalid.length > 0) return res.status(400).json({ error: 'Every item must have name and html' });
+
+      const now = new Date().toISOString();
+      const rows = items.map((item, i) => {
+        const id = 'style_' + (Date.now() + i) + '_' + Math.random().toString(36).substring(2, 8);
+        const row = {
+          id,
+          name: item.name,
+          description: item.description || '',
+          html: item.html,
+          tags: item.tags || [],
+          event_types: item.eventTypes || [],
+          design_notes: item.designNotes || '',
+          added_by: admin.email,
+          design_group_id: id,
+        };
+        if (item.adminRating && item.adminRating >= 1 && item.adminRating <= 5) {
+          row.admin_rating = item.adminRating;
+          row.rated_by = admin.email;
+          row.rated_at = now;
+        }
+        return row;
+      });
+
+      let { error } = await supabaseAdmin.from('style_library').insert(rows);
+      // Retry without design_group_id if column doesn't exist yet
+      if (error && error.message?.includes('design_group_id')) {
+        rows.forEach(r => delete r.design_group_id);
+        ({ error } = await supabaseAdmin.from('style_library').insert(rows));
+      }
+      if (error) return res.status(500).json({ error: 'Bulk insert failed: ' + error.message });
+
+      const created = rows.map(r => ({ id: r.id, name: r.name }));
+
+      // Return updated library
+      const { data } = await supabaseAdmin
+        .from('style_library')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      const library = (data || []).map(r => ({
+        id: r.id, name: r.name, description: r.description, html: r.html,
+        tags: r.tags || [], eventTypes: r.event_types || [], designNotes: r.design_notes,
+        createdAt: r.created_at, updatedAt: r.updated_at, addedBy: r.added_by,
+        adminRating: r.admin_rating || 0, adminNotes: r.admin_notes || '',
+        ratedBy: r.rated_by || '', ratedAt: r.rated_at || null,
+        timesUsed: r.times_used || 0, archivedAt: r.archived_at || null
+      }));
+
+      return res.status(200).json({ success: true, created, library });
     }
 
     // ---- DELETE STYLE LIBRARY ITEM ----
@@ -2622,6 +2686,35 @@ export default async function handler(req, res) {
 
       if (error) return res.status(500).json({ error: 'Failed to rate: ' + error.message });
       return res.status(200).json({ success: true });
+    }
+
+    // ---- BULK RATE STYLE LIBRARY ITEMS ----
+    if (action === 'bulkRateStyles') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { ratings } = req.body;
+      if (!Array.isArray(ratings) || ratings.length === 0) return res.status(400).json({ error: 'ratings array is required' });
+
+      const invalid = ratings.filter(r => !r.styleId || !r.rating || r.rating < 1 || r.rating > 5);
+      if (invalid.length > 0) return res.status(400).json({ error: 'Each rating must have styleId and rating (1-5)' });
+
+      const now = new Date().toISOString();
+      let updated = 0;
+      const errors = [];
+
+      for (const { styleId, rating, notes } of ratings) {
+        const { error } = await supabaseAdmin
+          .from('style_library')
+          .update({ admin_rating: rating, admin_notes: notes || '', rated_by: admin.email, rated_at: now })
+          .eq('id', styleId);
+        if (error) {
+          errors.push({ styleId, error: error.message });
+        } else {
+          updated++;
+        }
+      }
+
+      return res.status(200).json({ success: true, updated, total: ratings.length, errors: errors.length > 0 ? errors : undefined });
     }
 
     // ---- BROWSE ALL EVENT THEMES (with pagination + filters) ----
