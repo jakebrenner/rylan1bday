@@ -339,7 +339,7 @@ Style these classes in theme_css to match the theme:
 - **BREAKPOINTS** (use these exact values):
   - \`@media (min-width: 600px) { /* Tablet */ }\`
   - \`@media (min-width: 1024px) { /* Desktop */ }\`
-- **Container widths**: The outermost container should use \`max-width: 600px\` (mobile base), \`768px\` (tablet), \`1080px\` (desktop), with \`margin: 0 auto\` to center.
+- **Full-bleed backgrounds, constrained content**: The outermost wrapper (body or a full-width div) MUST have \`width: 100%\` with NO max-width so backgrounds, gradients, and decorative elements fill the entire viewport edge-to-edge on all screen sizes. Content sections INSIDE should use \`max-width\` + \`margin: 0 auto\` to center: \`600px\` (mobile base), \`768px\` (tablet), \`1080px\` (desktop). Never put \`max-width\` on the element that carries the page background — that creates ugly gaps on wide screens.
 - **TOP SAFE AREA**: On mobile (base styles), the page MUST have at least 48px of padding-top for the iPhone notch/Dynamic Island. On tablet/desktop, standard padding (40-72px) is sufficient.
 - **Responsive typography**:
   - Mobile (base): min 14px body, 13px labels, 15px detail values, 36px display headings

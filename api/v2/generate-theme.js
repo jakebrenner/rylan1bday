@@ -586,7 +586,7 @@ Style these classes in theme_css to match the theme:
 - **BREAKPOINTS** (use these exact values):
   - \`@media (min-width: 600px) { /* Tablet */ }\`
   - \`@media (min-width: 1024px) { /* Desktop */ }\`
-- **Container widths**: The outermost container should use \`max-width: 600px\` (mobile base), \`768px\` (tablet), \`1080px\` (desktop), with \`margin: 0 auto\` to center.
+- **Full-bleed backgrounds, constrained content**: The outermost wrapper (body or a full-width div) MUST have \`width: 100%\` with NO max-width so backgrounds, gradients, and decorative elements fill the entire viewport edge-to-edge on all screen sizes. Content sections INSIDE should use \`max-width\` + \`margin: 0 auto\` to center: \`600px\` (mobile base), \`768px\` (tablet), \`1080px\` (desktop). Never put \`max-width\` on the element that carries the page background — that creates ugly gaps on wide screens.
 - **TOP SAFE AREA**: On mobile (base styles), the page MUST have at least 48px of padding-top for the iPhone notch/Dynamic Island. On tablet/desktop, standard padding (40-72px) is sufficient.
 - **Responsive typography**:
   - Mobile (base): min 14px body, 13px labels, 15px detail values, 36px display headings
@@ -645,26 +645,29 @@ Rules:
 \`\`\`css
 /* Mobile-first base */
 .thankyou-page {
-  max-width: 600px; margin: 0 auto; padding: 60px 24px 40px;
+  width: 100%; padding: 60px 24px 40px;
   min-height: 100vh; display: flex; flex-direction: column;
   align-items: center; justify-content: center; text-align: center;
   /* COPY the invite's background treatment here — gradient, color, pattern */
+  /* Background MUST fill the full viewport width — NO max-width on this element */
   background: /* same gradient or color as the invite body */;
   font-family: /* same body font as the invite */;
 }
 .thankyou-decoration { margin-bottom: 24px; /* add entrance animation */ }
-.thankyou-hero { margin-bottom: 32px; }
+.thankyou-hero { margin-bottom: 32px; max-width: 600px; }
 .thankyou-title { font-size: clamp(36px, 5vw, 52px); font-weight: 700; margin-bottom: 12px; font-family: /* same heading font */; color: /* same accent/heading color */; }
 .thankyou-subtitle { font-size: 16px; line-height: 1.5; opacity: 0.8; }
 
 /* Tablet */
 @media (min-width: 600px) {
-  .thankyou-page { max-width: 768px; padding: 60px 40px 48px; }
+  .thankyou-page { padding: 60px 40px 48px; }
+  .thankyou-hero { max-width: 768px; }
   .thankyou-subtitle { font-size: 17px; }
 }
 /* Desktop */
 @media (min-width: 1024px) {
-  .thankyou-page { max-width: 1080px; padding: 72px 60px 56px; }
+  .thankyou-page { padding: 72px 60px 56px; }
+  .thankyou-hero { max-width: 1080px; }
   .thankyou-decoration svg { transform: scale(1.3); }
   .thankyou-subtitle { font-size: 18px; }
 }
@@ -1429,13 +1432,15 @@ function repairTheme(theme, issues) {
   if (issues.includes('css_missing_responsive')) {
     const responsiveFallback = `
 /* Auto-injected responsive fallback */
+/* Full-bleed: outermost containers fill viewport, no max-width gaps */
+.thankyou-page, body > div:first-child, body > section:first-child { width: 100%; max-width: none; }
 @media (min-width: 600px) {
-  .thankyou-page, [class*="container"], [class*="wrapper"], [class*="invite"] { max-width: 768px; padding-left: 40px; padding-right: 40px; }
+  [class*="container"], [class*="wrapper"], [class*="invite"] { max-width: 768px; padding-left: 40px; padding-right: 40px; }
   .rsvp-slot { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .rsvp-slot .rsvp-submit, .rsvp-slot .rsvp-form-group:last-of-type { grid-column: 1 / -1; }
 }
 @media (min-width: 1024px) {
-  .thankyou-page, [class*="container"], [class*="wrapper"], [class*="invite"] { max-width: 1080px; padding-left: 60px; padding-right: 60px; }
+  [class*="container"], [class*="wrapper"], [class*="invite"] { max-width: 1080px; padding-left: 60px; padding-right: 60px; }
   .rsvp-slot { gap: 20px; }
 }`;
     theme.theme_css = (theme.theme_css || '') + responsiveFallback;
@@ -2340,7 +2345,7 @@ Return ONLY a valid JSON object with these keys:
 - Example: user says "add a song request field" → include { "action": "add", "field_key": "song_request", "label": "Song Request", "field_type": "text", "is_required": false, "placeholder": "What song gets you dancing?" }
 
 ### Design rules:
-- Mobile-first responsive design with breakpoints at 600px (tablet) and 1024px (desktop). Preserve ALL existing @media queries. Container max-width: 600px mobile, 768px tablet, 1080px desktop. WCAG AA contrast at all breakpoints.
+- Mobile-first responsive design with breakpoints at 600px (tablet) and 1024px (desktop). Preserve ALL existing @media queries. Full-bleed backgrounds (no max-width on outermost wrapper), content max-width: 600px mobile, 768px tablet, 1080px desktop. WCAG AA contrast at all breakpoints.
 - Google Fonts only (include @import in theme_config.googleFontsImport)
 - NEVER use Inter, Roboto, Arial, or system fonts — always characterful fonts
 - No JavaScript, no external images (except Google Fonts and user-uploaded photos)
