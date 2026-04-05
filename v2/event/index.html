@@ -13,7 +13,8 @@
     :root { --party-coral: #E94560; --blush-pop: #FF6B6B; --midnight: #1A1A2E; --cream: #FFFAF5; }
     html, body { font-family: 'Inter', sans-serif; background: #f9f9f9; color: var(--midnight); }
     .event-container { max-width: 100%; padding: 0; }
-    #themeFrame { width: 100%; border: none; min-height: 600px; display: block; }
+    #themeFrame { width: 100%; border: none; min-height: 600px; display: block; position: relative; z-index: 1; }
+    .invite-bg-fill { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; filter: blur(40px) saturate(1.3); transform: scale(1.2); opacity: 0.5; pointer-events: none; }
     .rsvp-section { max-width: 480px; margin: 40px auto; padding: 24px; background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
     .rsvp-section h3 { font-size: 22px; margin-bottom: 24px; text-align: center; font-weight: 600; }
     .rsvp-form-group { margin-bottom: 18px; }
@@ -138,6 +139,7 @@
     });
 
     let currentEventData = null;
+    var isPreviewMode = false;
     var _guestCssRetries = 0;
     var _MAX_GUEST_CSS_RETRIES = 2;
 
@@ -397,7 +399,8 @@
       var fallbackBg = config.backgroundColor || '#FFFAF5';
       var fallbackText = config.textColor || '#1A1A2E';
       var fallbackFont = config.fontBody || 'Inter';
-      var fallbackCSS = 'html, body { background:' + fallbackBg + '; color:' + fallbackText + '; font-family:\'' + fallbackFont + '\',sans-serif; }';
+      var fallbackCSS = 'html, body { background:' + fallbackBg + '; color:' + fallbackText + '; font-family:\'' + fallbackFont + '\',sans-serif; width:100%; min-width:100%; }'
+        + ' body > div:first-child, body > section:first-child { min-width:100%; }';
 
       // Strip document-level tags
       var themeHtml = sanitizeThemeText(html)
@@ -457,6 +460,7 @@
       var eventId = params.get('eid');
       guestId = params.get('gid') || '';
       var isPreview = params.get('preview') === 'true';
+      isPreviewMode = isPreview;
       var viewMode = params.get('view') || 'invite';
 
       // Support clean URLs: /v2/event/my-slug
@@ -543,6 +547,19 @@
           var iframe = document.getElementById('themeFrame');
           iframe.srcdoc = buildGuestSrcdoc(themeData);
           iframe.style.display = 'block';
+
+          // Add blurred background fill from theme colors (helps legacy 393px invites on desktop)
+          var bgColor = (result.event.themeConfig && result.event.themeConfig.backgroundColor) || '';
+          if (bgColor) {
+            var existingBgFill = document.querySelector('.invite-bg-fill');
+            if (!existingBgFill) {
+              var bgFill = document.createElement('div');
+              bgFill.className = 'invite-bg-fill';
+              bgFill.style.background = bgColor;
+              iframe.parentNode.insertBefore(bgFill, iframe);
+            }
+          }
+
           iframe.onload = function() {
             try {
               var win = iframe.contentWindow;
@@ -583,19 +600,9 @@
                   // Inject RSVP form into .rsvp-slot inside the iframe
                   renderRSVPForm(result.event);
 
-                  // Preview mode: show thank-you page or disable form
-                  if (isPreview) {
-                    if (viewMode === 'thankyou') {
-                      setTimeout(function() { showThankYouPage('Guest', 'yes'); }, 100);
-                    } else {
-                      // Disable submit button in preview
-                      var submitBtn = iframe.contentDocument.querySelector('#rsvpSubmitBtn');
-                      if (submitBtn) {
-                        submitBtn.disabled = true;
-                        submitBtn.style.opacity = '0.7';
-                        submitBtn.style.cursor = 'default';
-                      }
-                    }
+                  // Preview mode: show thank-you page if requested
+                  if (isPreview && viewMode === 'thankyou') {
+                    setTimeout(function() { showThankYouPage('Guest', 'yes'); }, 100);
                   }
 
                   // ── CSS rendering check (retry on failure) ──
@@ -873,6 +880,16 @@
       var loadingPun = (currentEventData.themeConfig || {}).loadingPun || 'Submitting...';
       btn.textContent = loadingPun;
 
+      // Preview mode: simulate submission without saving
+      if (isPreviewMode) {
+        setTimeout(function() {
+          btn.disabled = false; btn.textContent = 'Submit RSVP';
+          showThankYouPage(name, status);
+          triggerConfetti();
+        }, 800);
+        return;
+      }
+
       // Also show a loading overlay inside the RSVP form
       var rsvpForm = document.getElementById('rsvpForm');
       var loadingOverlay = document.createElement('div');
@@ -996,10 +1013,10 @@
       var ctaBtnBg = isDark ? 'rgba(255,255,255,0.15)' : pc;
       var ctaBtnBorder = isDark ? ' border:1px solid rgba(255,255,255,0.3);' : '';
 
-      return '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;'
+      return '.thankyou-page { width:100%; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;'
         + ' background:' + gradientBg + '; color:' + tyTextColor + '; font-family:\'' + bodyFont + '\',sans-serif; }'
         + '.thankyou-decoration { margin-bottom:24px; }'
-        + '.thankyou-hero { margin-bottom:32px; }'
+        + '.thankyou-hero { margin-bottom:32px; max-width:600px; }'
         + '.thankyou-title { font-family:\'' + headlineFont + '\',serif; font-size:36px; font-weight:700; margin-bottom:12px; color:' + tyTitleColor + '; }'
         + '.thankyou-subtitle { font-size:16px; line-height:1.5; opacity:0.85; color:' + tyTextColor + '; }'
         + '.thankyou-calendar-section { width:100%; max-width:320px; padding:0 8px; }'
@@ -1025,7 +1042,33 @@
         + '.thankyou-cta-btn:hover { transform:translateY(-2px); box-shadow:' + hoverShadow + '; }'
         // Footer
         + '.thankyou-footer { font-size:13px; opacity:0.4; margin-top:32px; text-align:center; font-style:italic; color:' + tyTextColor + '; }'
-        + '.thankyou-footer a { color:inherit; text-decoration:none; }';
+        + '.thankyou-footer a { color:inherit; text-decoration:none; }'
+        // Tablet responsive
+        + '@media (min-width:600px) {'
+        + '.thankyou-page { padding:60px 40px 48px; }'
+        + '.thankyou-hero { max-width:768px; }'
+        + '.thankyou-title { font-size:42px; }'
+        + '.thankyou-subtitle { font-size:17px; }'
+        + '.thankyou-calendar-section { max-width:420px; }'
+        + '.calendar-buttons { flex-direction:row; }'
+        + '.cal-btn { flex:1; padding:14px 16px; font-size:15px; }'
+        + '.thankyou-event-recap { max-width:420px; }'
+        + '.thankyou-cta-section { max-width:420px; }'
+        + '}'
+        // Desktop responsive
+        + '@media (min-width:1024px) {'
+        + '.thankyou-page { padding:72px 60px 56px; }'
+        + '.thankyou-hero { max-width:1080px; }'
+        + '.thankyou-title { font-size:clamp(42px, 5vw, 52px); }'
+        + '.thankyou-subtitle { font-size:18px; }'
+        + '.thankyou-decoration svg { transform:scale(1.3); }'
+        + '.thankyou-calendar-section { max-width:500px; }'
+        + '.cal-btn { padding:16px 20px; font-size:16px; }'
+        + '.thankyou-event-recap { max-width:500px; padding:24px; }'
+        + '.thankyou-event-recap .detail-value { font-size:15px; }'
+        + '.thankyou-cta-section { max-width:500px; }'
+        + '.thankyou-cta-btn { padding:14px 36px; font-size:15px; }'
+        + '}';
     }
 
     function buildEventRecapHtml() {
@@ -1138,7 +1181,10 @@
         var fontU2 = fontUrlM2 ? fontUrlM2[1] : (fontsImport.startsWith('http') ? fontsImport : '');
         var fontsTag2 = fontU2 ? '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="' + fontU2 + '">' : '';
         var iframe = document.getElementById('themeFrame');
-        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">' + fontsTag2 + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet"><style>* { margin:0; padding:0; box-sizing:border-box; } html, body { padding: 0; background: transparent; }</style><style>' + guaranteedCSS + '</style><style>' + (currentEventData.themeCss || '') + '</style></head><body>' + tyHtml + '</body></html>';
+        // Guaranteed CSS loads first (provides defaults), theme CSS loads second (AI overrides).
+        // Responsive override CSS loads LAST to ensure old 393px themes get responsive layout.
+        var responsiveOverrideCSS = '.thankyou-page { max-width:none !important; width:100% !important; }';
+        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">' + fontsTag2 + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet"><style>* { margin:0; padding:0; box-sizing:border-box; } html, body { padding: 0; background: transparent; }</style><style>' + guaranteedCSS + '</style><style>' + (currentEventData.themeCss || '') + '</style><style>' + responsiveOverrideCSS + '</style></head><body>' + tyHtml + '</body></html>';
         iframe.onload = function() { try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 40, 600) + 'px'; } catch(e) {} };
 
         // Wire up calendar buttons and CTA click tracking inside the iframe after load
@@ -1196,11 +1242,11 @@
         + '<path d="M40 35 L42 30 L44 35 L49 37 L44 39 L42 44 L40 39 L35 37 Z" fill="#FFB74D" opacity="0.6"/>'
         + '</svg>';
 
-      var fallbackHtml = '<div style="text-align:center;padding:48px 24px;background:linear-gradient(180deg, #FFFAF5 0%, #FFE8E8 50%, #FFF0E6 100%);min-height:100%;border-radius:12px;">'
+      var fallbackHtml = '<div style="text-align:center;padding:48px 24px;background:linear-gradient(180deg, #FFFAF5 0%, #FFE8E8 50%, #FFF0E6 100%);min-height:100%;border-radius:12px;max-width:1080px;margin:0 auto;">'
         + _fbSvg
-        + '<h2 style="font-family:Playfair Display,serif;font-size:32px;font-weight:700;margin-bottom:8px;color:#1A1A2E;">' + confirmMsg.title + '</h2>'
-        + '<p style="font-family:Inter,sans-serif;font-size:15px;color:#1A1A2E;opacity:0.7;margin-bottom:24px;">' + confirmMsg.subtitle + '</p>'
-        + eventRecapItems.replace('thankyou-event-recap', 'thankyou-event-recap" style="text-align:left;background:rgba(0,0,0,0.04);padding:16px;border-radius:10px;margin:0 auto 24px;max-width:320px')
+        + '<h2 style="font-family:Playfair Display,serif;font-size:clamp(32px, 5vw, 48px);font-weight:700;margin-bottom:8px;color:#1A1A2E;">' + confirmMsg.title + '</h2>'
+        + '<p style="font-family:Inter,sans-serif;font-size:clamp(15px, 2vw, 18px);color:#1A1A2E;opacity:0.7;margin-bottom:24px;">' + confirmMsg.subtitle + '</p>'
+        + eventRecapItems.replace('thankyou-event-recap', 'thankyou-event-recap" style="text-align:left;background:rgba(0,0,0,0.04);padding:16px;border-radius:10px;margin:0 auto 24px;max-width:500px')
         + '</div>'
         + buildCalendarButtons()
         + '<div style="text-align:center;margin-top:32px;padding-top:24px;border-top:1px solid rgba(0,0,0,0.08);">'
@@ -1277,7 +1323,7 @@
         + '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">'
         + '<style>* { margin:0; padding:0; box-sizing:border-box; }'
         + 'html, body { font-family: "Inter", sans-serif; background: #FFFAF5; color: #1A1A2E; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 24px; }'
-        + '.card { max-width: 393px; width: 100%; text-align: center; }'
+        + '.card { max-width: 600px; width: 100%; text-align: center; }'
         + '.title { font-size: 32px; font-weight: 700; margin-bottom: 32px; line-height: 1.2; }'
         + '.details { text-align: left; margin: 0 auto; max-width: 320px; }'
         + '.detail-item { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-start; }'

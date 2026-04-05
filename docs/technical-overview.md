@@ -2,7 +2,7 @@
 
 > **Audience:** Technical Product Manager
 > **Purpose:** Understand Ryvite's architecture, AI system, and quality pipeline to improve invite creation reliability, speed, and user flow.
-> **Last updated:** April 4, 2026 (v5 — added Template Factory, bulk upload/rating, style generation prompt)
+> **Last updated:** April 5, 2026 (v6 — responsive design: mobile-first with tablet/desktop breakpoints)
 
 ---
 
@@ -148,7 +148,9 @@ The system prompt for invite generation is split into three layers to separate p
 │    thankyou_html)                                           │
 │  • Platform contract: .rsvp-slot, .details-slot,            │
 │    data-field="title" must exist                            │
-│  • Mobile viewport (393px max-width, 48px top safe area)    │
+│  • Responsive viewport: mobile-first with breakpoints at    │
+│    600px (tablet) and 1024px (desktop), 1080px max-width    │
+│  • 48px top safe area on mobile for iPhone notch            │
 │  • WCAG AA contrast, no JS, no external images              │
 │  • Google Fonts only                                        │
 ├─────────────────────────────────────────────────────────────┤
@@ -157,6 +159,8 @@ The system prompt for invite generation is split into three layers to separate p
 │  • Design philosophy ("unforgettable, not just functional") │
 │  • Typography rules, color approach                         │
 │  • SVG illustration style, animation guidance               │
+│  • Responsive design ("desktop must be stunning, not just   │
+│    wider" — side-by-side layouts, 2-col RSVP, larger type)  │
 │  • Anti-patterns to avoid                                   │
 │  • Falls back to DEFAULT_CREATIVE_DIRECTION constant        │
 ├─────────────────────────────────────────────────────────────┤

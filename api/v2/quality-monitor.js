@@ -470,7 +470,7 @@ STRUCTURAL RULES (do NOT violate):
 - MUST keep: <div class="rsvp-slot"></div>, <div class="details-slot"></div>, element with data-field="title"
 - MUST keep: all existing text content and structural elements
 - CSS @import for Google Fonts MUST be the very first line of CSS
-- Mobile-first: designed for 393px viewport width
+- Mobile-first responsive design: base styles for mobile, @media (min-width: 600px) for tablet, @media (min-width: 1024px) for desktop. Full-bleed backgrounds (no max-width on outermost wrapper).
 - No <script> tags, no external resources except Google Fonts
 - All animations must be CSS-only (no JS)
 
@@ -993,13 +993,13 @@ You MUST include ALL of these CSS rules styled to match your theme:
 \`\`\`
 
 ### TECHNICAL CONSTRAINTS
-- Max-width: 393px (iPhone viewport), centered
-- Min 48px padding-top (clears iPhone notch/Dynamic Island)
+- Mobile-first responsive: base styles for mobile, @media (min-width: 600px) for tablet (768px content max-width), @media (min-width: 1024px) for desktop (1080px content max-width). Full-bleed backgrounds on outermost wrapper.
+- Min 48px padding-top on mobile (clears iPhone notch/Dynamic Island)
 - Text: min 14px body, WCAG AA contrast (4.5:1 body, 3:1 headings)
-- Generous padding: 20-24px sides
+- Responsive padding: 20-24px mobile, 32-40px tablet, 48-60px desktop
 - CSS animations only, NO JavaScript
 - No fixed positioning, no iframes
-- 3-5 phone screen scrolls of height
+- 3-5 phone screen scrolls of height on mobile, shorter on desktop
 - Source all fonts from Google Fonts (include @import in googleFontsImport)
 - NEVER use Inter, Roboto, Open Sans, Lato, Arial, or system fonts
 
@@ -1147,7 +1147,7 @@ CRITICAL PLATFORM RULES:
 - NEVER put buttons, text, "RSVP Now", or ANY content inside .rsvp-slot or .details-slot
 - You MUST style the platform-injected elements in CSS: .rsvp-slot input, .rsvp-slot select, .rsvp-slot label, .rsvp-slot .rsvp-submit, .rsvp-slot .rsvp-form-group, .detail-item, .detail-icon, .detail-label, .detail-value
 - All text must have WCAG AA contrast against its background
-- Max-width 393px, mobile-first design
+- Mobile-first responsive design with full-bleed backgrounds, content max-width 600px (mobile), 768px (tablet), 1080px (desktop)
 
 Return ONLY what is requested — no commentary or explanation.`,
     messages: [{ role: 'user', content: healPrompt }]

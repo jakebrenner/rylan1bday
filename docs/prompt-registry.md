@@ -17,7 +17,7 @@ These compose the main system prompt for theme generation. See CLAUDE.md "AI Pro
 
 | Prompt | File | Line | Protection | Purpose |
 |--------|------|------|------------|---------|
-| STRUCTURAL_RULES | `api/v2/generate-theme.js` | 450 | LOCKED | Platform contract: JSON output format, `.rsvp-slot` rules, `data-*` attributes, mobile constraints (393px), WCAG contrast, thank-you page structure |
+| STRUCTURAL_RULES | `api/v2/generate-theme.js` | 450 | LOCKED | Platform contract: JSON output format, `.rsvp-slot` rules, `data-*` attributes, responsive breakpoints (600px tablet, 1024px desktop, 1080px max-width), WCAG contrast, thank-you page structure |
 | STRUCTURAL_RULES *(copy)* | `api/v2/prompt-test.js` | 226 | LOCKED | Same — duplicated for Vercel serverless isolation |
 | DEFAULT_CREATIVE_DIRECTION | `api/v2/generate-theme.js` | 607 | GUARDED | Design philosophy, typography rules, color approach, SVG illustration style, animation guidance, anti-patterns. Fallback when no DB version active. |
 | DEFAULT_CREATIVE_DIRECTION *(copy)* | `api/v2/prompt-test.js` | 318 | GUARDED | Same — duplicated for Vercel serverless isolation |

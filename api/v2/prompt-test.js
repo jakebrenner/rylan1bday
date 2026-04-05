@@ -60,7 +60,7 @@ async function autoScoreLabResult(html, css, config, eventType) {
 - Visual design quality (layout, typography, color harmony, whitespace)
 - Event appropriateness (does the design match the event type and mood?)
 - Technical correctness (proper structure, readable text, functional RSVP area)
-- Mobile readiness (designed for 393px viewport, no horizontal overflow)
+- Responsive design (mobile-first with tablet/desktop breakpoints, no horizontal overflow at any viewport)
 - Overall polish (animations, illustrations, attention to detail)
 
 Rating scale:
@@ -305,18 +305,21 @@ CRITICAL: theme_thankyou_html MUST be non-empty. Output it AFTER theme_html. A m
 - The \`.rsvp-slot\` is an EMPTY container. The platform fills it with form fields at runtime.
 - NEVER put buttons, links, "Open Invitation", "RSVP Now", or ANY content inside \`.rsvp-slot\` — it must be completely empty like \`.details-slot\`
 - NEVER create a click-to-reveal or button-gated pattern for the RSVP. The form is ALWAYS visible.
-- Style \`.rsvp-slot\` with: \`display: flex; flex-direction: column; width: 100%;\`
-- NEVER set \`.rsvp-slot\` to \`display: grid\`, \`flex-direction: row\`, or \`flex-wrap: wrap\` with side-by-side children
+- **Mobile (base)**: Style \`.rsvp-slot\` with: \`display: flex; flex-direction: column; width: 100%;\` — NEVER use grid or row layout on mobile.
+- **Tablet+ (@media min-width: 600px)**: You MAY switch to a 2-column grid for short fields (name + phone side by side): \`.rsvp-slot { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }\` — the submit button MUST span full width: \`.rsvp-submit { grid-column: 1 / -1; }\`
+- **Desktop (@media min-width: 1024px)**: Same 2-column grid with more generous gap (20px).
 
 ## RSVP FORM STYLING — CRITICAL (platform injects these elements at runtime)
 - The platform injects: text inputs, select dropdowns, labels, and a submit button into \`.rsvp-slot\`
-- All injected form fields MUST render as a **single column** (stacked vertically, full-width)
-- Style these classes in theme_css to match the theme:
+- On mobile (base): All injected form fields MUST render as a **single column** (stacked vertically, full-width)
+- Style these classes in theme_css to match the theme (mobile-first, then enhance):
   - \`.rsvp-slot input, .rsvp-slot select\` — form inputs. Set background, border, border-radius, padding (12px 14px), font-size (14px), color, width: 100%
   - \`.rsvp-slot label\` — field labels. Set font-size (13px), font-weight (600), color, margin-bottom (4px)
   - \`.rsvp-slot .rsvp-submit\` — the submit button. Make it prominent, full-width, min-height 52px, matching the theme's accent color
   - \`.rsvp-slot .rsvp-form-group\` — each field group (label + input). Set margin-bottom (14px)
-- RSVP fields and submit button MUST ALWAYS be single-column. NEVER use two-column grid or side-by-side layouts
+- **Responsive RSVP sizing**:
+  - Tablet (@media min-width: 600px): input padding 14px 16px, font-size 15px, labels 14px, submit min-height 56px
+  - Desktop (@media min-width: 1024px): input padding 16px 18px, font-size 16px, submit min-height 60px
 
 ## REQUIRED DATA ATTRIBUTES
 - \`data-field="title"\` — on the element containing the event title text (the ONLY data-field you generate)
@@ -328,21 +331,35 @@ Style these classes in theme_css to match the theme:
 - \`.detail-icon\` — 24px icon area with emoji. Set font-size: 20px.
 - \`.detail-label\` — small label. Set font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7;
 - \`.detail-value\` — detail text. Set font-size: 15px; font-weight: 500;
+- **Desktop (@media min-width: 1024px)**: \`.details-slot\` MAY use a 2-column grid if there are 3+ details: \`display: grid; grid-template-columns: 1fr 1fr; gap: 20px;\`. Scale icon to 24px, label to 13px, value to 17px.
 - **CRITICAL CONTRAST**: If \`.details-slot\` has a dark/colored background, \`.detail-label\` and \`.detail-value\` color MUST be #FFFFFF or #FAFAFA.
 
 ## TECHNICAL CONSTRAINTS — NON-NEGOTIABLE
-- Max-width 393px, centered, mobile-first. Min 14px body, WCAG AA contrast.
-- **TOP SAFE AREA**: The page MUST have at least 48px of padding-top on the outermost container to clear the iPhone notch/Dynamic Island. Content behind the notch is invisible — never place text, logos, or illustrations in the top 48px.
-- Generous padding (20-24px sides). CSS custom properties for theme colors.
-- No JavaScript. No fixed positioning. No iframes. Google Fonts only.
-- Keep height reasonable — 3-5 phone screen scrolls.
+- **Mobile-first responsive design**. Base styles target mobile (≤599px). Use CSS \`@media\` queries to progressively enhance for tablet and desktop.
+- **BREAKPOINTS** (use these exact values):
+  - \`@media (min-width: 600px) { /* Tablet */ }\`
+  - \`@media (min-width: 1024px) { /* Desktop */ }\`
+- **Full-bleed backgrounds, constrained content**: The outermost wrapper (body or a full-width div) MUST have \`width: 100%\` with NO max-width so backgrounds, gradients, and decorative elements fill the entire viewport edge-to-edge on all screen sizes. Content sections INSIDE should use \`max-width\` + \`margin: 0 auto\` to center: \`600px\` (mobile base), \`768px\` (tablet), \`1080px\` (desktop). Never put \`max-width\` on the element that carries the page background — that creates ugly gaps on wide screens.
+- **TOP SAFE AREA**: On mobile (base styles), the page MUST have at least 48px of padding-top for the iPhone notch/Dynamic Island. On tablet/desktop, standard padding (40-72px) is sufficient.
+- **Responsive typography**:
+  - Mobile (base): min 14px body, 13px labels, 15px detail values, 36px display headings
+  - Tablet (@media min-width: 600px): 15px body, 13px labels, 16px detail values, 42px headings
+  - Desktop (@media min-width: 1024px): 16px body, 14px labels, 17px detail values, 52px headings
+  - Use \`clamp()\` for fluid headline sizing: e.g., \`font-size: clamp(36px, 5vw, 56px)\`
+- Text must be readable: WCAG AA contrast ratios (4.5:1 body, 3:1 headings) at ALL breakpoints.
+- **Responsive padding**: Mobile 20-24px sides, tablet 32-40px, desktop 48-60px.
+- CSS custom properties for theme colors. No JavaScript. No fixed positioning. No iframes. Google Fonts only.
+- Keep height reasonable — 3-5 phone screen scrolls on mobile, shorter on desktop (wider layout = less scroll).
+- **SVG illustrations**: Use \`viewBox\` with \`preserveAspectRatio\` so they scale across breakpoints. On desktop, illustrations can be larger or positioned alongside content.
+- **Ambient/decorative animations**: Should spread across the full viewport width on desktop.
 
 ## THANK YOU PAGE (theme_thankyou_html) — CRITICAL, NEVER SKIP
 You MUST ALWAYS include a non-empty "theme_thankyou_html" field. This is NOT optional.
 The platform injects "Thank You!" heading, subtitle text, calendar buttons, and footer at runtime.
 Your job: provide the **visual wrapper and a decorative illustration** that makes it feel like a celebration.
 - Structure: \`<div class="thankyou-page"><div class="thankyou-decoration"><svg>...</svg></div><div class="thankyou-hero"></div></div>\`
-- \`.thankyou-page\` MUST have a branded background matching the invite (gradient, pattern, texture, or solid color)
+- \`.thankyou-page\` MUST be responsive — use the SAME responsive breakpoints as the invite (600px mobile base, 768px tablet, 1080px desktop). NEVER hardcode a narrow max-width like 393px or 500px.
+- \`.thankyou-page\` MUST have a branded background matching the invite (gradient, pattern, texture, or solid color). The background MUST fill the entire viewport width — no gaps or exposed body color on the sides.
 - \`.thankyou-hero\` MUST be completely EMPTY — the platform fills it with title + subtitle
 - **REQUIRED**: Include a theme-centric decorative SVG illustration (under 2KB) in \`.thankyou-decoration\` with CSS animation (bounce, fade-in, etc.). Examples: confetti, balloons, party hat, checkmark with sparkles, champagne glasses, cake, etc. A blank page with no illustration looks broken.
 - NO text content, NO emojis, NO calendar buttons, NO footer
@@ -391,12 +408,27 @@ When the user gives minimal input, that is creative freedom. Make bold decisions
 - Hover states on all buttons
 - CSS only, transform + opacity for performance
 
+## RESPONSIVE DESIGN — DESKTOP MUST BE STUNNING, NOT JUST WIDER
+- Mobile is the base — design mobile-first, then ENHANCE for larger screens using @media queries
+- Desktop is NOT a stretched mobile view. Use the extra space deliberately:
+  - Wider hero sections with side-by-side text + illustration layouts
+  - More breathing room between sections (larger margins/padding)
+  - Typography that takes advantage of wider measure (larger headings, better line lengths ~60-75 characters)
+  - SVG illustrations can be larger, more detailed, or repositioned (beside content rather than above)
+  - RSVP form can use 2-column grid for short fields (name + phone side by side)
+  - Decorative/ambient animated elements should fill the wider viewport
+- On tablet: A refined intermediate — more padding, slightly larger type, modest layout shifts
+- On desktop: The premium experience — generous whitespace, sophisticated layout, hero-level typography
+- NEVER just remove max-width and let mobile content stretch — actively design each breakpoint
+- Every invite MUST include @media queries for tablet (min-width: 600px) and desktop (min-width: 1024px)
+
 ## WHAT KILLS A GOOD INVITE — NEVER DO THESE
 - System fonts, purple gradients on white, evenly-weighted elements
 - Generic rainbow/balloon/confetti as the default — pick a SPECIFIC theme instead
 - No animations, light text on light backgrounds
 - Playing it safe on a vague brief — be bold and specific
-- Defaulting to the same aesthetic every time — be unpredictable and varied`;
+- Defaulting to the same aesthetic every time — be unpredictable and varied
+- A desktop view that looks like a stretched phone screen — desktop deserves its own layout treatment`;
 
 const SYSTEM_PROMPT = STRUCTURAL_RULES + '\n\n' + DEFAULT_CREATIVE_DIRECTION;
 
@@ -979,9 +1011,9 @@ Fix visual issues and polish the design. Focus on:
    - Perfectly centered text using display:flex; align-items:center; justify-content:center
    - High contrast, explicit background/color/border (no default browser styling)
    - Font-size 16-18px, bold, with hover transition
-   - Must NOT overflow, clip, or break layout at 393px viewport
+   - Must NOT overflow, clip, or break layout at any viewport (mobile 393px, tablet 768px, desktop 1080px)
 
-2. **Layout & spacing**: Fix any elements that overlap, clip, or overflow the 393px container. Ensure generous padding (20-24px sides).
+2. **Layout & spacing**: Fix any elements that overlap, clip, or overflow at any breakpoint. Ensure responsive padding (mobile 20-24px, tablet 32-40px, desktop 48-60px). Verify @media queries exist for min-width: 600px (tablet) and min-width: 1024px (desktop).
 
 3. **Typography & Contrast** (critical): Ensure all text is readable (min 14px body, WCAG AA contrast). Fix any text that blends into the background. CONCRETE RULE: dark/colored background sections → text MUST be #FFFFFF or #FAFAFA. Light backgrounds → text MUST be #1A1A1A or darker. The event details band (date/time/location) is the #1 failure point — check it first. NEVER use accent colors (coral, salmon, rose) as text on dark backgrounds.
 

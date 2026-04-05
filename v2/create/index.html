@@ -209,6 +209,8 @@
       .phone-screen iframe { transform: scale(0.662); }
     }
 
+
+
     /* Version gallery */
     .version-gallery { display: flex; gap: 8px; margin: 16px auto; justify-content: center; flex-wrap: wrap; max-width: 420px; }
     .version-thumb { width: 48px; height: 104px; border-radius: 10px; border: 2px solid #ddd; cursor: pointer; overflow: hidden; transition: all 0.2s; position: relative; background: #f0f0f0; }
@@ -975,7 +977,7 @@
               <button class="preview-toggle-btn" data-mode="email" onclick="setPreviewMode('email')">Email</button>
             </div>
             <div class="phone-mockup">
-              <div class="phone-frame">
+              <div class="phone-frame" id="phoneFrame">
                 <div class="phone-notch"></div>
                 <div class="phone-screen">
                   <iframe id="previewFrame"></iframe>
@@ -4442,9 +4444,9 @@
       // RSVP form and data-field overrides are injected via iframe.onload in the parent
       // (see injectRsvpForm) — NO script injection in srcdoc.
       return '<!DOCTYPE html><html><head><meta charset="UTF-8">'
-        + '<meta name="viewport" content="width=393, initial-scale=1.0">'
+        + '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
         + fontsLink
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; } ' + fallbackCSS + '</style>'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; } ' + fallbackCSS + '</style>'
         + (headStyles || '')
         + '<style>' + cleanedCss.replace(/<\/style/gi, '<\\/style') + '</style>'
         + '</head><body' + (bodyAttrs ? ' ' + bodyAttrs : '') + '>' + themeHtml + '</body></html>';
@@ -4935,9 +4937,9 @@
           }
         }
 
-        // Check 4: Content overflow detection — text flowing outside visible area
+        // Check 4: Content overflow in phone mockup — iframe renders at 393px width
         if (!isUnstyled && doc.body.scrollWidth > 420) {
-          console.warn('[checkCssRendered] Content overflow detected: scrollWidth=' + doc.body.scrollWidth + 'px (max 393px)');
+          console.warn('[checkCssRendered] Content overflow in phone mockup: scrollWidth=' + doc.body.scrollWidth + 'px (phone frame is 393px)');
         }
 
         if (isUnstyled && ver.css && ver.css.trim().length > 100 && _cssCheckRetries < _MAX_CSS_RETRIES) {
@@ -5694,6 +5696,7 @@
       renderPreview(ver);
     }
 
+
     // Detect whether the current theme HTML contains user-uploaded photos
     // Checks for: Supabase event-photos/ URLs, base64 data URIs, and general <img> tags
     // that aren't SVGs (which are AI-generated illustrations)
@@ -5764,7 +5767,7 @@
         + '@keyframes tyConfetti1 { 0%,100% { transform:translateY(0) rotate(25deg); } 50% { transform:translateY(-6px) rotate(40deg); } }'
         + '@keyframes tyConfetti2 { 0%,100% { transform:translateY(0) rotate(-15deg); } 50% { transform:translateY(-8px) rotate(-30deg); } }'
         + '@keyframes tyConfetti3 { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-5px); } }'
-        + '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;'
+        + '.thankyou-page { max-width:100%; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;'
         + ' background:' + gradientBg + '; color:' + tyTextColor + '; font-family:\'' + bodyFont + '\',sans-serif; }'
         + '.thankyou-decoration { margin-bottom:24px; }'
         + '.thankyou-hero { margin-bottom:32px; }'
@@ -5900,10 +5903,10 @@
         var fontUrlMatch2 = fontsImport.match(/url\(['"]?([^'"\)]+)['"]?\)/);
         var fontUrl2 = fontUrlMatch2 ? fontUrlMatch2[1] : (fontsImport.startsWith('http') ? fontsImport : '');
         if (fontUrl2) fontsLink2 = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="' + fontUrl2 + '">';
-        return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
           + fontsLink2
           + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet">'
-          + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; }</style>'
+          + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 852px; overflow-x: hidden; }</style>'
           + '<style>' + guaranteedCSS + '</style>'
           + '<style>' + sanitizeThemeText(ver.css || '') + '</style>'
           + '</head><body>' + tyHtml + '</body></html>';
@@ -5947,10 +5950,10 @@
       var fontUrlMatch3 = fontsImport.match(/url\(['"]?([^'"\)]+)['"]?\)/);
       var fontUrl3 = fontUrlMatch3 ? fontUrlMatch3[1] : (fontsImport.startsWith('http') ? fontsImport : '');
       if (fontUrl3) fontsLink3 = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="' + fontUrl3 + '">';
-      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
         + fontsLink3
         + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet">'
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; background:' + bgColor + '; }</style>'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 852px; overflow-x: hidden; background:' + bgColor + '; }</style>'
         + '<style>' + guaranteedCSS + '</style>'
         + '<style>' + sanitizeThemeText(ver.css || '').replace(/<\/style/gi, '<\\/style') + '</style>'
         + '</head><body>' + thankYouHtml + '</body></html>';

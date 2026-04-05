@@ -162,8 +162,8 @@
     .test-params-grid .config-field input:focus, .test-params-grid .config-field select:focus, .test-params-grid .config-field textarea:focus {
       outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1);
     }
-    .preview-frame { border: 2px solid #eee; border-radius: 8px; overflow: hidden; width: 393px; margin: 0 auto; background: white; min-height: 300px; }
-    .preview-frame iframe { width: 393px; height: 700px; border: none; }
+    .preview-frame { border: 2px solid #eee; border-radius: 8px; overflow: hidden; width: 393px; margin: 0 auto; background: white; min-height: 300px; transition: width 0.3s ease; }
+    .preview-frame iframe { width: 393px; height: 700px; border: none; transition: width 0.3s ease, height 0.3s ease; }
     .test-meta { display: flex; gap: 16px; font-size: 12px; color: #888; margin-top: 12px; padding: 8px 12px; background: #f9f9f9; border-radius: 6px; flex-wrap: wrap; }
     .test-meta span { display: flex; align-items: center; gap: 4px; }
     .test-meta .val { font-weight: 700; color: var(--midnight); }
@@ -1682,8 +1682,8 @@
               </div>
             </div>
             <div id="singlePreviewContent" style="display:flex;gap:24px;flex-wrap:wrap;">
-              <div style="flex:0 0 auto;">
-                <div class="phone-mockup">
+              <div style="flex:0 0 auto;" id="singlePreviewContainer">
+                <div class="phone-mockup" id="singlePhoneMockup">
                   <div class="phone-frame">
                     <div class="phone-notch"></div>
                     <div class="phone-screen">
@@ -2270,7 +2270,7 @@ JSON format is also accepted (array of {name, html, eventTypes, tags} objects).'
         <textarea id="styleHtml" rows="15" placeholder="Paste complete HTML of an invite sample here..." style="width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:monospace;font-size:12px;line-height:1.5;resize:vertical;"></textarea>
         <div id="stylePreviewContainer" style="display:none;margin-top:8px;">
           <div class="preview-frame">
-            <iframe id="stylePreviewFrame" sandbox="allow-scripts allow-same-origin" style="width:393px;height:700px;border:none;display:block;margin:0 auto;"></iframe>
+            <iframe id="stylePreviewFrame" sandbox="allow-scripts allow-same-origin" style="width:100%;height:700px;border:none;display:block;margin:0 auto;"></iframe>
           </div>
         </div>
       </div>
@@ -5190,10 +5190,14 @@ Return a JSON object with exactly these keys:
 - data-field="title"  data-field="datetime"  data-field="location"  data-field="dresscode"  data-field="host"
 
 ## TECHNICAL CONSTRAINTS — NON-NEGOTIABLE
-- Max-width 393px, centered, mobile-first. Min 14px body, WCAG AA contrast.
-- Generous padding (20-24px sides). CSS custom properties for theme colors.
-- No JavaScript. No fixed positioning. No iframes. Google Fonts only.
-- Keep height reasonable — 3-5 phone screen scrolls.
+- Mobile-first responsive design. Base styles target mobile (≤599px). Use CSS @media queries to enhance for tablet and desktop.
+- BREAKPOINTS: @media (min-width: 600px) { /* Tablet */ }  @media (min-width: 1024px) { /* Desktop */ }
+- Container max-width: 600px (mobile), 768px (tablet), 1080px (desktop), centered with margin: 0 auto.
+- Responsive typography: mobile min 14px body / 36px headings, tablet 15px / 42px, desktop 16px / 52px. Use clamp() for fluid headlines.
+- WCAG AA contrast at all breakpoints. Responsive padding: mobile 20-24px, tablet 32-40px, desktop 48-60px.
+- CSS custom properties for theme colors. No JavaScript. No fixed positioning. No iframes. Google Fonts only.
+- SVG illustrations: use viewBox with preserveAspectRatio. On desktop, position alongside content, not just stacked above.
+- Keep height reasonable — 3-5 phone scrolls on mobile, shorter on desktop.
 
 ## THANK YOU PAGE (theme_thankyou_html)
 Provide ONLY .thankyou-page > .thankyou-hero. NO calendar buttons, NO footer. Include <span class="thankyou-guest">Guest</span> in subtitle.
@@ -5244,6 +5248,20 @@ When the user gives you minimal input, that is creative freedom, not a gap to fi
 - Always crop/frame with intention — style with border-radius, box-shadow, creative framing
 - If photos are bad quality, save them with CSS filters (overlay, vignette, color grade)
 
+## RESPONSIVE DESIGN — DESKTOP MUST BE STUNNING, NOT JUST WIDER
+- Mobile is the base — design mobile-first, then ENHANCE for larger screens using @media queries
+- Desktop is NOT a stretched mobile view. Use the extra space deliberately:
+  - Wider hero sections with side-by-side text + illustration layouts
+  - More breathing room between sections (larger margins/padding)
+  - Typography that takes advantage of wider measure (larger headings, better line lengths ~60-75 chars)
+  - SVG illustrations can be larger, repositioned beside content rather than above
+  - RSVP form can use 2-column grid for short fields on tablet+
+  - Decorative/ambient animated elements should fill the wider viewport
+- On tablet: refined intermediate — more padding, slightly larger type, modest layout shifts
+- On desktop: premium experience — generous whitespace, sophisticated layout, hero-level typography
+- NEVER just remove max-width and let mobile content stretch — actively design each breakpoint
+- Every invite MUST include @media queries for tablet (min-width: 600px) and desktop (min-width: 1024px)
+
 ## WHAT KILLS A GOOD INVITE — NEVER DO THESE
 - Using Inter, Roboto, or system fonts
 - Purple gradients on white backgrounds
@@ -5252,6 +5270,7 @@ When the user gives you minimal input, that is creative freedom, not a gap to fi
 - No animations — the page should feel alive
 - Light text on light backgrounds or dark text on dark backgrounds
 - Playing it safe when the brief is minimal — lean into a strong POV
+- A desktop view that looks like a stretched phone screen — desktop deserves its own layout treatment
 
 ## INSPIRATION IMAGES
 If provided, analyze them for color palette, visual mood, textures, typography style, and overall aesthetic. Use as strong creative direction.`;
@@ -5558,9 +5577,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         + '});'
         + '<\/script>';
 
-      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
         + fontsImportToLink(fontsImport)
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; }</style>'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
         + '<style>' + themeCss + '</style></head><body>' + themeHtml + rsvpScript + '</body></html>';
     }
 
@@ -5593,7 +5612,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var btnBorder = isDark ? ' border:1px solid rgba(255,255,255,0.25); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);' : '';
       var hoverShadow = isDark ? '0 4px 12px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.15)';
 
-      var guaranteedCSS = '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:' + tyTextColor + '; }'
+      var guaranteedCSS = '.thankyou-page { max-width:100%; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:' + tyTextColor + '; }'
         + '.thankyou-hero { margin-bottom:32px; }'
         + '.thankyou-title { font-size:36px; font-weight:700; margin-bottom:12px; color:' + tyTextColor + '; }'
         + '.thankyou-subtitle { font-size:16px; line-height:1.5; opacity:0.85; color:' + tyTextColor + '; }'
@@ -5631,9 +5650,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         tyHtml = tyHtml.substring(0, lastDiv) + calendarHTML + footerHTML + tyHtml.substring(lastDiv);
       }
 
-      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
         + fontsImportToLink(fontsImport)
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; }</style>'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
         + '<style>' + theme.css + '</style>'
         + '<style>' + guaranteedCSS + '</style>'
         + '</head><body>' + tyHtml + '</body></html>';
@@ -5660,6 +5679,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       });
       if (lastTestResult) {
         renderPhonePreview(document.getElementById('testPreviewFrame'), lastTestResult.theme, mode);
+        // Also update wide preview if in tablet/desktop mode
       }
     }
 
@@ -5676,6 +5696,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         }
       });
     }
+
+
 
     var MODEL_INFO = {
       'claude-haiku-4-5-20251001': { label: 'Haiku 4.5', badge: 'haiku' },
@@ -6113,8 +6135,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         // Build full HTML combining theme HTML + CSS + fonts
         var theme = result.theme;
         var fontsImport = (theme.config && theme.config.googleFontsImport) || '';
-        var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
           + fontsImportToLink(fontsImport)
+          + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
           + '<style>' + (theme.css || '') + '</style></head><body>' + (theme.html || '') + '</body></html>';
 
         // Step 1: Auto-tag with AI
@@ -7399,7 +7422,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         + '<html>\n'
         + '<head>\n'
         + '  <meta charset="UTF-8">\n'
-        + '  <meta name="viewport" content="width=393, initial-scale=1.0">\n'
+        + '  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
         + '  <style>\n'
         + '    @import url(\'https://fonts.googleapis.com/css2?family=...\');\n'
         + '    /* All CSS here */\n'
@@ -7419,16 +7442,22 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
         + '## TECHNICAL REQUIREMENTS\n\n'
         + '### Hard Rules (Non-Negotiable)\n'
-        + '- Max-width: 393px, centered, mobile-first\n'
-        + '- 48px top padding (phone notch safe area)\n'
+        + '- **Mobile-first responsive design**. Base styles target mobile (≤599px). Use CSS @media queries to enhance for tablet and desktop.\n'
+        + '- **BREAKPOINTS** (use these exact values):\n'
+        + '  - @media (min-width: 600px) { /* Tablet */ }\n'
+        + '  - @media (min-width: 1024px) { /* Desktop */ }\n'
+        + '- **Container widths**: Outermost container uses max-width: 600px (mobile), 768px (tablet), 1080px (desktop), with margin: 0 auto.\n'
+        + '- **48px top padding on mobile** for iPhone notch safe area. On tablet/desktop, standard 40-72px padding.\n'
+        + '- **Responsive typography**: Mobile min 14px body / 36px headings, Tablet 15px / 42px, Desktop 16px / 52px. Use clamp() for fluid headlines.\n'
         + '- data-field="title" attribute on the element containing the event title\n'
         + '- .rsvp-slot must be COMPLETELY EMPTY — no buttons, text, or children. Platform injects the RSVP form at runtime.\n'
         + '- .details-slot must be COMPLETELY EMPTY — platform injects .detail-item, .detail-icon, .detail-label, .detail-value\n'
         + '- Google Fonts only — NEVER use Inter, Roboto, Open Sans, Lato, Arial, or system fonts\n'
         + '- CSS-only animations — no JavaScript at all\n'
-        + '- WCAG AA contrast — 4.5:1 for body text, 3:1 for headings\n'
+        + '- WCAG AA contrast — 4.5:1 for body text, 3:1 for headings, at ALL breakpoints\n'
         + '- No fixed positioning, no iframes\n'
-        + '- Height: 3-5 phone screen scrolls\n\n'
+        + '- Height: 3-5 phone screen scrolls on mobile, shorter on desktop (wider layout = less scroll)\n'
+        + '- SVG illustrations: use viewBox with preserveAspectRatio so they scale. On desktop, position alongside content, not just stacked above.\n\n'
 
         + '### Required Page Sections (in order)\n'
         + '1. THEMATIC HEADER — animated or illustrated element specific to event type\n'
@@ -7437,18 +7466,21 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         + '4. RSVP SECTION — <div class="rsvp-slot"></div> — EMPTY, platform injects form\n\n'
 
         + '### RSVP Slot Styling (CSS only — style the platform-injected elements)\n'
+        + '- **Mobile (base)**: .rsvp-slot layout: display: flex; flex-direction: column; width: 100%; — single column, full-width fields\n'
         + '- .rsvp-slot input, .rsvp-slot select — background, border, border-radius, padding (12px 14px), font-size (14px), width: 100%\n'
         + '- .rsvp-slot label — font-size 13px, font-weight 600, margin-bottom 4px\n'
         + '- .rsvp-slot .rsvp-submit — full-width button, min-height 52px, matching accent color, prominent\n'
         + '- .rsvp-slot .rsvp-form-group — margin-bottom 14px\n'
-        + '- .rsvp-slot layout: display: flex; flex-direction: column; width: 100%;\n'
+        + '- **Tablet+ (@media min-width: 600px)**: MAY switch to 2-column grid: .rsvp-slot { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } with .rsvp-submit { grid-column: 1 / -1; }\n'
+        + '- **Desktop (@media min-width: 1024px)**: Same 2-column grid with gap: 20px, input padding 16px 18px, font-size 16px, submit min-height 60px\n'
         + '- If RSVP background is dark/colored: .rsvp-slot { color: #FFFFFF; }\n\n'
 
         + '### Details Slot Styling (CSS only)\n'
         + '- .detail-item — display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px;\n'
         + '- .detail-icon — 24px, font-size 20px\n'
         + '- .detail-label — font-size 12px, uppercase, letter-spacing 0.5px, opacity 0.7\n'
-        + '- .detail-value — font-size 15px, font-weight 500\n\n'
+        + '- .detail-value — font-size 15px, font-weight 500\n'
+        + '- **Desktop (@media min-width: 1024px)**: .details-slot MAY use 2-column grid if 3+ details: display: grid; grid-template-columns: 1fr 1fr; gap: 20px;\n\n'
 
         + '## CREATIVE DIRECTION\n\n'
         + '- UNFORGETTABLE — every spacing, shadow, border-radius, animation timing feels intentional\n'
@@ -7463,6 +7495,20 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         + '- Background never plain white — use pattern, texture, subtle gradient, or tinted base\n'
         + '- Color: One color dominates (60%+), max 2 accent colors. No purple gradients on white.\n'
         + '- CSS custom properties for all theme colors at :root\n\n'
+
+        + '## RESPONSIVE DESIGN — DESKTOP MUST BE STUNNING, NOT JUST WIDER\n\n'
+        + '- Mobile is the base — design mobile-first, then ENHANCE for larger screens using @media queries\n'
+        + '- Desktop is NOT a stretched mobile view. Use the extra space deliberately:\n'
+        + '  - Wider hero sections with side-by-side text + illustration layouts\n'
+        + '  - More breathing room between sections (larger margins/padding)\n'
+        + '  - Typography that takes advantage of wider measure (larger headings, better line lengths ~60-75 chars)\n'
+        + '  - SVG illustrations can be larger, repositioned beside content rather than above\n'
+        + '  - RSVP form can use 2-column grid for short fields on tablet+\n'
+        + '  - Decorative/ambient animated elements should fill the wider viewport\n'
+        + '- On tablet: refined intermediate — more padding, slightly larger type, modest layout shifts\n'
+        + '- On desktop: premium experience — generous whitespace, sophisticated layout, hero-level typography\n'
+        + '- NEVER just remove max-width and let mobile content stretch — actively design each breakpoint\n'
+        + '- Every template MUST include @media queries for tablet (min-width: 600px) and desktop (min-width: 1024px)\n\n'
 
         + eventTypeSection + '\n\n'
 
@@ -8952,7 +8998,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
     // Abbreviated hardcoded prompt texts for the "Other Prompts" display
     var CHAT_SYSTEM_PROMPT_TEXT = "You are Ryvite's event planning assistant. Help users create event invitations through natural conversation. Be warm, friendly, and SHORT — 2 sentences max per message.\n\nPhase 1: EVENT DETAILS — Extract: title, eventType, startDate, locationName, hostEmail\nPhase 2: RSVP FIELDS — Propose custom fields (plusOnes, songRequest, message, etc.)\nPhase 3: DESIGN CHAT — Build creative brief with vibe/colors/photos\n\nGOLDEN RULE: Never re-ask about anything already mentioned.\nKeep responses SHORT (2 sentences max).\nCapture everything in 'prompt' field for AI designer.\nResponse format: JSON with message, extracted fields, status flags.";
 
-    var DESIGN_TWEAK_PROMPT_TEXT = "You are modifying an event invite design. The user has an existing invite and wants changes to colors, fonts, layout, photos, or animations.\n\nOutput: { theme_html, theme_css, theme_thankyou_html, theme_config, chat_response, rsvp_field_changes }\n\nCritical rules:\n- Preserve data attributes: data-field=\"title\", data-field=\"datetime\", data-field=\"location\", etc.\n- .rsvp-slot MUST remain empty (no buttons/content)\n- Max-width 393px, mobile-first, WCAG AA contrast\n- Google Fonts only, characterful fonts\n- Thank-you page: MUST include decorative SVG with CSS animation";
+    var DESIGN_TWEAK_PROMPT_TEXT = "You are modifying an event invite design. The user has an existing invite and wants changes to colors, fonts, layout, photos, or animations.\n\nOutput: { theme_html, theme_css, theme_thankyou_html, theme_config, chat_response, rsvp_field_changes }\n\nCritical rules:\n- Preserve data attributes: data-field=\"title\", data-field=\"datetime\", data-field=\"location\", etc.\n- .rsvp-slot MUST remain empty (no buttons/content)\n- Responsive design: mobile-first base, @media 600px tablet (768px max-width), @media 1024px desktop (1080px max-width), WCAG AA contrast\n- Google Fonts only, characterful fonts\n- Thank-you page: MUST include decorative SVG with CSS animation";
 
     var LIGHT_TWEAK_PROMPT_TEXT = "You are modifying an event invite. Make ONLY the specific text, wording, or content changes requested. Do NOT change design, layout, colors, fonts, or CSS.\n\nOutput: { html_replacements: [{old: 'exact HTML substring', new: 'replacement'}], rsvp_field_changes: [...] or null, chat_response: 'Brief message' }\n\nEach replacement's 'old' must be an exact substring from the current HTML. Include surrounding context for uniqueness.";
 
@@ -9614,8 +9660,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
         // Set preview HTML for lazy loading
         var fontsImport = (s.config && s.config.googleFontsImport) || '';
-        card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
           + fontsImportToLink(fontsImport)
+          + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
           + '<style>' + (s.css || '') + '</style></head><body>' + (s.html || '') + '</body></html>';
       });
       requestAnimationFrame(function() { setupLazyIframes(grid); });
@@ -9833,8 +9880,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var card = grid.querySelector('.style-card[data-lab-run-id="' + run.id + '"]');
         if (card) {
           var fontsImport = (run.result_config && run.result_config.googleFontsImport) || '';
-          card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+          card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
             + fontsImportToLink(fontsImport)
+            + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
             + '<style>' + (run.result_css || '') + '</style></head><body>' + (run.result_html || '') + '</body></html>';
         }
       });
@@ -9988,8 +10036,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         if (card) {
           if (theme.html) {
             var fontsImport = (theme.config && theme.config.googleFontsImport) || '';
-            card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+            card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
               + fontsImportToLink(fontsImport)
+              + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
               + '<style>' + (theme.css || '') + '</style></head><body>' + (theme.html || '') + '</body></html>';
           } else {
             card.dataset.previewHtml = '<!DOCTYPE html><html><body style="display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:system-ui;color:#999;text-align:center;"><div><p style="font-size:14px;">No preview available</p><p style="font-size:11px;opacity:0.6;">Theme HTML not stored</p></div></body></html>';
@@ -10216,8 +10265,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           config = item.result_config;
         }
         var fontsImport = (config && config.googleFontsImport) || '';
-        var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
           + fontsImportToLink(fontsImport)
+          + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
           + '<style>' + css + '</style></head><body>' + html + '</body></html>';
         iframe.srcdoc = fullHtml;
       });
@@ -11134,7 +11184,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             var frame = document.querySelector('.ed-snapshot-frame[data-theme-id="' + t.id + '"]');
             if (frame && t.html) {
               var fontsImport = (t.config && t.config.googleFontsImport) || '';
-              frame.srcdoc = '<!DOCTYPE html><html><head><meta name="viewport" content="width=393">' + fontsImportToLink(fontsImport) + '<style>' + (t.css || '') + '</style></head><body>' + t.html + '</body></html>';
+              frame.srcdoc = '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0">' + fontsImportToLink(fontsImport) + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style><style>' + (t.css || '') + '</style></head><body>' + t.html + '</body></html>';
             }
           });
         });
@@ -11250,7 +11300,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var btnBorder = isDark ? ' border:1px solid rgba(255,255,255,0.25); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);' : '';
       var hoverShadow = isDark ? '0 4px 12px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.15)';
 
-      var guaranteedCSS = '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:' + tyTextColor + '; }'
+      var guaranteedCSS = '.thankyou-page { max-width:100%; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:' + tyTextColor + '; }'
         + '.thankyou-hero { margin-bottom:32px; }'
         + '.thankyou-title { font-size:36px; font-weight:700; margin-bottom:12px; color:' + tyTextColor + '; }'
         + '.thankyou-subtitle { font-size:16px; line-height:1.5; opacity:0.85; color:' + tyTextColor + '; }'
@@ -11292,9 +11342,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       }
 
       var themeCss = theme.css || '';
-      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
         + fontsImportToLink(fontsImport)
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } ' + themeCss + ' ' + guaranteedCSS + '</style>'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; } ' + themeCss + ' ' + guaranteedCSS + '</style>'
         + '</head><body>' + tyHtml + '</body></html>';
     }
 
@@ -11426,8 +11476,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         iframe.onload = null;
       } else {
         var fontsImport = (theme.config && theme.config.googleFontsImport) || '';
-        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
           + fontsImportToLink(fontsImport)
+          + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
           + '<style>' + (theme.css || '') + '</style></head>'
           + '<body>' + theme.html + '</body></html>';
         iframe.onload = function() { injectAdminPreviewContent(iframe); };
@@ -12753,9 +12804,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             var fm = fi.match(/url\(['"]?([^'"\)]+)['"]?\)/);
             if (fm && fm[1]) fontsLink = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="' + fm[1] + '">';
           }
-          return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393,initial-scale=1.0">'
+          return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">'
             + fontsLink
-            + '<style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:393px;min-height:100%;overflow-x:hidden;background:' + (config.backgroundColor || '#fff') + '}</style>'
+            + '<style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:100%;min-height:100%;overflow-x:hidden;background:' + (config.backgroundColor || '#fff') + '}</style>'
             + '<style>' + themeCss.replace(/<\/style/gi, '<\\/style') + '</style>'
             + '</head><body>' + themeHtml + '</body></html>';
         }
@@ -13962,8 +14013,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           var c = _mktCreatives.find(function(x) { return x.creative_id === creativeId; });
           if (iframe && c && c.invite_html) {
             var fontsImport = (c.invite_config && c.invite_config.googleFontsImport) || '';
-            iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+            iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
               + fontsImportToLink(fontsImport)
+              + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
               + '<style>' + (c.invite_css || '') + '</style></head><body>' + c.invite_html + '</body></html>';
             var screen = iframe.closest('.phone-screen');
             if (screen) iframe.style.transform = 'scale(' + ((screen.offsetWidth || 120) / 393) + ')';
@@ -14024,7 +14076,8 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         if (hasPreview) {
           row += '<div style="width:40px;height:72px;border-radius:6px;overflow:hidden;background:#f5f5f5;flex-shrink:0;border:1px solid #e0e0e0;">'
             + '<div style="width:40px;height:72px;overflow:hidden;position:relative;">'
-            + '<iframe sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;transform-origin:top left;transform:scale(0.102);pointer-events:none;" srcdoc="<!DOCTYPE html><html><head><meta charset=UTF-8><meta name=viewport content=\'width=393,initial-scale=1.0\'>'
+            + '<iframe sandbox="allow-scripts allow-same-origin" style="width:393px;height:852px;border:none;transform-origin:top left;transform:scale(0.102);pointer-events:none;" srcdoc="<!DOCTYPE html><html><head><meta charset=UTF-8><meta name=viewport content=\'width=device-width,initial-scale=1.0\'>'
+            + '<style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:100%;min-height:100%;overflow-x:hidden}</style>'
             + '<style>' + ((c.invite_config && c.invite_config.googleFontsImport) || '').replace(/"/g, '&quot;') + '</style>'
             + '<style>' + (c.invite_css || '').replace(/"/g, '&quot;') + '</style></head><body>' + (c.invite_html || '').replace(/"/g, '&quot;') + '</body></html>"></iframe>'
             + '</div></div>';

@@ -22,6 +22,13 @@ This is the institutional memory for prompt tuning — read it before making cha
 
 *(Add new entries here, in reverse chronological order — newest first)*
 
+### 2026-04-05 — Responsive design: mobile-first with tablet/desktop breakpoints
+- **Prompt(s)**: STRUCTURAL_RULES (LOCKED), DEFAULT_CREATIVE_DIRECTION (GUARDED), Design Tweak Prompt (Tier 3), REFINE_PROMPT, Auto-Score Prompt, Admin DESIGN_TWEAK_PROMPT_TEXT
+- **Change**: Replaced fixed 393px mobile-only constraint with mobile-first responsive design using CSS @media queries at 600px (tablet) and 1024px (desktop). Container max-widths: 600px → 768px → 1080px. Updated typography scaling (clamp() for headlines), RSVP form layout (2-column grid on tablet+), details slot (2-column grid on desktop), SVG scaling guidance, thank-you page responsive structure. Added validation check for missing @media queries and auto-repair injection of responsive fallback CSS. Updated style library context to note mobile-only references. All changes mirrored in both generate-theme.js and prompt-test.js. Added explicit thank-you page responsive rule: `.thankyou-page` MUST use same responsive breakpoints as invite, never hardcode narrow max-width. Client-side responsive override CSS (`!important`) ensures old and non-compliant thank-you pages still render full-width on desktop. Fixed admin DESIGN_TWEAK_PROMPT_TEXT which still referenced 393px.
+- **Rationale**: Invites were only designed for 393px mobile viewport. Desktop and tablet visitors saw a narrow strip centered on a wide screen — a poor experience that didn't match the quality of the mobile design. Thank-you pages were also rendering narrow on desktop even after invite prompts were updated.
+- **Learning**: Mobile-first approach is the right strategy — it preserves existing mobile quality as the base while progressively enhancing for larger screens. AI sometimes follows responsive rules for the main invite but skips them for the thank-you page — explicit per-section callouts are needed. Client-side `!important` overrides are necessary as a safety net since AI compliance is not guaranteed.
+- **Result**: Pending
+
 ### 2026-04-04 — Fix style auto-tag over-inclusive event type matching
 - **Prompt(s)**: Auto-Tag Prompt (`api/v2/prompt-test.js`, line 651)
 - **Change**: Changed eventTypes guideline from "Include ALL types this style could work for" to "Be STRICT — only include 1-2 types based on THEME and SUBJECT MATTER, not just colors"

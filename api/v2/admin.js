@@ -3602,7 +3602,7 @@ ${cssSnippet}`
         const m = fontsImport.match(/url\(['"]?([^'"\)]+)['"]?\)/);
         if (m && m[1]) fontsLink = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${m[1]}">`;
       }
-      const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393,initial-scale=1.0">${fontsLink}<style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:393px;min-height:100%;overflow-x:hidden;background:${config.backgroundColor || '#fff'}}</style><style>${css.replace(/<\/style/gi, '<\\/style')}</style></head><body>${html}</body></html>`;
+      const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">${fontsLink}<style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:100%;min-height:100%;overflow-x:hidden;background:${config.backgroundColor || '#fff'}}</style><style>${css.replace(/<\/style/gi, '<\\/style')}</style></head><body>${html}</body></html>`;
       return res.status(200).json({ success: true, html: fullHtml });
     }
 
