@@ -4115,50 +4115,91 @@
         + '*{margin:0;padding:0;box-sizing:border-box;}'
         + 'body{overflow:hidden;height:100vh;display:flex;align-items:center;justify-content:center;position:relative;background:#f8f8f8;}'
 
-        // Blurred colorful background — fills the whole screen behind logo+bar
-        + '.bg{position:absolute;inset:0;z-index:0;overflow:hidden;filter:blur(60px);opacity:0;animation:bgFadeIn 1.5s 0.2s ease forwards;}'
-        + '.bg-blob{position:absolute;border-radius:50%;}'
-        + '.bg-blob.b1{width:300px;height:300px;background:' + p.c1 + ';top:-40px;left:-60px;animation:blobDrift1 8s ease-in-out infinite;}'
-        + '.bg-blob.b2{width:350px;height:350px;background:' + p.c2 + ';top:200px;right:-80px;animation:blobDrift2 10s ease-in-out infinite;}'
-        + '.bg-blob.b3{width:250px;height:250px;background:' + p.c3 + ';bottom:-50px;left:40px;animation:blobDrift3 9s ease-in-out infinite;}'
-        + '.bg-blob.b4{width:200px;height:200px;background:' + p.c4 + ';top:100px;left:120px;animation:blobDrift1 7s 1s ease-in-out infinite;}'
+        // Blurred background layer — lots of moving color to suggest activity
+        + '.bg{position:absolute;inset:0;z-index:0;overflow:hidden;filter:blur(50px);opacity:0;animation:bgFadeIn 1.2s 0.1s ease forwards;}'
 
-        // Center content (logo + bar) — sits above the blur
+        // Large ambient blobs — slow drift for base color
+        + '.bg .blob{position:absolute;border-radius:50%;}'
+        + '.blob.a1{width:320px;height:320px;background:' + p.c1 + ';top:-60px;left:-80px;animation:drift1 6s ease-in-out infinite;}'
+        + '.blob.a2{width:280px;height:280px;background:' + p.c2 + ';bottom:-40px;right:-60px;animation:drift2 7s ease-in-out infinite;}'
+        + '.blob.a3{width:240px;height:240px;background:' + p.c3 + ';top:50%;left:50%;transform:translate(-50%,-50%);animation:drift3 5s ease-in-out infinite;}'
+
+        // "Layout piece" rectangles — suggest invite structure being assembled
+        // These are colored blocks that move, resize, and reposition to look like
+        // sections of an invite being placed and adjusted behind the blur
+        + '.bg .piece{position:absolute;border-radius:6px;}'
+        // Header block — slides down from top
+        + '.piece.p1{width:280px;height:80px;background:' + p.c2 + ';top:30px;left:50%;transform:translateX(-50%) scaleX(0);animation:slideInX 1s 0.5s ease forwards,pieceShift1 4s 1.5s ease-in-out infinite;}'
+        // Hero image area — expands from center
+        + '.piece.p2{width:300px;height:180px;background:' + p.c1 + ';top:130px;left:50%;transform:translateX(-50%) scale(0.3);opacity:0;animation:pieceGrow 1.2s 0.8s ease forwards,piecePulse1 5s 2s ease-in-out infinite;}'
+        // Title bar
+        + '.piece.p3{width:200px;height:24px;background:' + p.c4 + ';top:340px;left:50%;transform:translateX(-50%) scaleX(0);animation:slideInX 0.8s 1.4s ease forwards,pieceShift2 6s 2.2s ease-in-out infinite;}'
+        // Subtitle bar
+        + '.piece.p4{width:140px;height:14px;background:' + p.c3 + ';top:375px;left:50%;transform:translateX(-50%) scaleX(0);animation:slideInX 0.7s 1.7s ease forwards,pieceShift3 5s 2.5s ease-in-out infinite;}'
+        // Detail block left
+        + '.piece.p5{width:220px;height:50px;background:' + p.c2 + ';top:430px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;animation:slideFadeIn 0.6s 2s ease forwards,piecePulse2 4.5s 2.6s ease-in-out infinite;}'
+        // Detail block right
+        + '.piece.p6{width:220px;height:50px;background:' + p.c4 + ';top:500px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;animation:slideFadeIn 0.6s 2.3s ease forwards,pieceShift1 5.5s 2.9s ease-in-out infinite;}'
+        // Button — pops in last
+        + '.piece.p7{width:160px;height:44px;background:' + p.accent + '80;border-radius:22px;top:580px;left:50%;transform:translateX(-50%) scale(0);animation:piecePop 0.5s 2.7s cubic-bezier(0.34,1.56,0.64,1) forwards,piecePulse1 6s 3.2s ease-in-out infinite;}'
+
+        // Shimmer sweep across the whole background — like light moving across a canvas
+        + '.bg .sweep{position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,0.2) 45%,rgba(255,255,255,0.35) 50%,rgba(255,255,255,0.2) 55%,transparent 70%);animation:sweepMove 3s 1s ease-in-out infinite;z-index:1;}'
+
+        // Center content (logo + bar) — crisp above the blur
         + '.center{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:24px;opacity:0;animation:fadeSlideIn 0.6s 0.3s ease forwards;}'
+        + '.center svg{width:120px;filter:drop-shadow(0 2px 12px rgba(0,0,0,0.1));}'
 
-        // Logo
-        + '.logo svg{width:120px;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.08));}'
-
-        // Progress bar — big, obvious, centered
+        // Progress bar
         + '.bar-wrap{width:200px;}'
-        + '.bar-label{font-family:Inter,sans-serif;font-size:11px;color:#999;text-align:center;margin-bottom:8px;letter-spacing:0.3px;}'
-        + '.bar-track{width:100%;height:6px;background:rgba(255,255,255,0.6);border-radius:3px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06);}'
+        + '.bar-label{font-family:Inter,sans-serif;font-size:11px;color:#888;text-align:center;margin-bottom:8px;letter-spacing:0.3px;}'
+        + '.bar-track{width:100%;height:6px;background:rgba(255,255,255,0.7);border-radius:3px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.08);}'
         + '.bar-fill{height:100%;width:0%;border-radius:3px;transition:width 1.5s ease;'
         + 'background:linear-gradient(90deg,' + p.accent + ',' + p.accent + 'cc);'
-        + 'box-shadow:0 0 12px ' + p.accent + '50;position:relative;}'
-        + '.bar-fill::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent);animation:barShimmer 1.5s ease-in-out infinite;}'
+        + 'box-shadow:0 0 14px ' + p.accent + '60;position:relative;}'
+        + '.bar-fill::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.45),transparent);animation:barShimmer 1.5s ease-in-out infinite;}'
 
         // Keyframes
-        + '@keyframes bgFadeIn{to{opacity:0.85}}'
+        + '@keyframes bgFadeIn{to{opacity:0.9}}'
         + '@keyframes fadeSlideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}'
         + '@keyframes barShimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}'
-        + '@keyframes blobDrift1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(20px,15px) scale(1.05)}}'
-        + '@keyframes blobDrift2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-15px,-20px) scale(1.08)}}'
-        + '@keyframes blobDrift3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(10px,-10px) scale(1.04)}}'
+        // Blob drifts
+        + '@keyframes drift1{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,20px) scale(1.1)}66%{transform:translate(-10px,30px) scale(0.95)}}'
+        + '@keyframes drift2{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(-20px,-30px) scale(1.08)}66%{transform:translate(15px,-10px) scale(0.97)}}'
+        + '@keyframes drift3{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-45%,-55%) scale(1.15)}}'
+        // Piece animations — staggered, varied movement
+        + '@keyframes slideInX{from{transform:translateX(-50%) scaleX(0)}to{transform:translateX(-50%) scaleX(1)}}'
+        + '@keyframes pieceGrow{from{transform:translateX(-50%) scale(0.3);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}'
+        + '@keyframes slideFadeIn{from{transform:translateX(-50%) translateY(20px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}'
+        + '@keyframes piecePop{from{transform:translateX(-50%) scale(0)}to{transform:translateX(-50%) scale(1)}}'
+        // Ongoing piece movements — different rhythms to look like active work
+        + '@keyframes pieceShift1{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-48%) translateY(-4px)}}'
+        + '@keyframes pieceShift2{0%,100%{transform:translateX(-50%) scaleX(1)}30%{transform:translateX(-50%) scaleX(1.05)}70%{transform:translateX(-52%) scaleX(0.97)}}'
+        + '@keyframes pieceShift3{0%,100%{transform:translateX(-50%) scaleX(1)}50%{transform:translateX(-46%) scaleX(1.08)}}'
+        + '@keyframes piecePulse1{0%,100%{opacity:1;transform:translateX(-50%) scale(1)}50%{opacity:0.85;transform:translateX(-50%) scale(1.02)}}'
+        + '@keyframes piecePulse2{0%,100%{opacity:1;transform:translateX(-50%)}50%{opacity:0.9;transform:translateX(-50%) translateY(-3px)}}'
+        + '@keyframes sweepMove{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}'
 
         + '</style></head><body>'
 
-        // Blurred color blobs
+        // Blurred background with color blobs + "layout pieces" + sweep
         + '<div class="bg">'
-        + '<div class="bg-blob b1"></div>'
-        + '<div class="bg-blob b2"></div>'
-        + '<div class="bg-blob b3"></div>'
-        + '<div class="bg-blob b4"></div>'
+        + '<div class="blob a1"></div>'
+        + '<div class="blob a2"></div>'
+        + '<div class="blob a3"></div>'
+        + '<div class="piece p1"></div>'
+        + '<div class="piece p2"></div>'
+        + '<div class="piece p3"></div>'
+        + '<div class="piece p4"></div>'
+        + '<div class="piece p5"></div>'
+        + '<div class="piece p6"></div>'
+        + '<div class="piece p7"></div>'
+        + '<div class="sweep"></div>'
         + '</div>'
 
-        // Centered logo + progress bar
+        // Centered logo + progress bar (crisp, above the blur)
         + '<div class="center">'
-        + '<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" class="logo">'
+        + '<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">'
         + '<circle cx="30" cy="40" r="20" fill="none" stroke="' + p.accent + '" stroke-width="2"/>'
         + '<path d="M15 30 L30 42 L45 30 M15 50 L45 50" fill="none" stroke="' + p.accent + '" stroke-width="2" stroke-linecap="round"/>'
         + '<text x="65" y="50" font-family="Playfair Display,serif" font-size="28" font-weight="600" fill="' + p.accent + '">Ryvite</text>'
