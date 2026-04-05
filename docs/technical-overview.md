@@ -2,7 +2,7 @@
 
 > **Audience:** Technical Product Manager
 > **Purpose:** Understand Ryvite's architecture, AI system, and quality pipeline to improve invite creation reliability, speed, and user flow.
-> **Last updated:** April 4, 2026 (v4 — added prompt activation history tracking)
+> **Last updated:** April 4, 2026 (v5 — added Template Factory, bulk upload/rating, style generation prompt)
 
 ---
 
@@ -56,7 +56,7 @@ The system is built on three pillars:
 | `api/v2/chat.js` | 120s | Event detail extraction via conversational AI |
 | `api/v2/prompt-test.js` | 300s, 1024MB | Admin prompt lab — test prompt×model combos |
 | `api/v2/quality-monitor.js` | 120s | Incident reporting, AI diagnosis, auto-heal |
-| `api/v2/admin.js` | default (10s) | CRUD for prompt versions, test runs, ratings, styles, activation history |
+| `api/v2/admin.js` | default (10s) | CRUD for prompt versions, test runs, ratings, styles, activation history, bulk upload/rating |
 | `api/v2/ratings.js` | default (10s) | User-facing invite ratings (no auth required) |
 | `api/v2/events.js` | default (10s) | Event CRUD, RSVP, publish |
 | `api/v2/auth.js` | default (10s) | Login (magic link), signup, token refresh |
@@ -275,6 +275,21 @@ IF data_points ≥ 5:
 - Score 1 → weight 1.0
 
 This ensures high-rated styles are strongly preferred while low-rated styles still appear occasionally for diversity.
+
+**Template Factory (Admin Panel):**
+The admin panel includes a built-in Template Factory for autonomous bulk generation of style library samples:
+1. Admin selects event types, model, and count (1–100)
+2. System loops autonomously: generate dummy event data → generate theme → auto-tag → save to library
+3. Each template is saved immediately (progress persists if browser is closed)
+4. Admin reviews by filtering to "Unrated" → rate good ones (enter weighted selection pool) → archive bad ones
+5. Supports multi-select + bulk rating for fast triage
+
+**Bulk upload/rating APIs:**
+- `bulkUploadStyles` — batch insert up to 50 style library items in one call
+- `bulkRateStyles` — apply ratings to multiple styles at once
+- JSON paste upload in admin UI — accepts structured JSON from external Claude sessions
+
+**External generation prompt:** `docs/style-generation-prompt.md` provides a ready-to-use prompt for generating templates in Claude chat conversations (one template per message to avoid timeouts).
 
 ### 4.6 Prompt Version Management
 
