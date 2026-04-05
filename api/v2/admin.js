@@ -4271,17 +4271,23 @@ ${cssSnippet}`
         profilesQuery = profilesQuery.eq('tier', filterTier);
       }
 
-      const [eventsRes, profilesRes, guestsRes, chatMsgsRes] = await Promise.all([
+      let funnelEventsQuery = supabaseAdmin.from('funnel_events').select('step, user_id, event_id, created_at');
+      if (from) funnelEventsQuery = funnelEventsQuery.gte('created_at', from);
+      if (to) funnelEventsQuery = funnelEventsQuery.lte('created_at', to);
+
+      const [eventsRes, profilesRes, guestsRes, chatMsgsRes, funnelEventsRes] = await Promise.all([
         eventsQuery,
         profilesQuery,
         guestsQuery,
-        supabaseAdmin.from('chat_messages').select('id, user_id, session_id, event_id, role, content, phase, created_at').order('created_at', { ascending: true })
+        supabaseAdmin.from('chat_messages').select('id, user_id, session_id, event_id, role, content, phase, created_at').order('created_at', { ascending: true }),
+        funnelEventsQuery
       ]);
 
       let events = eventsRes.data || [];
       let profiles = profilesRes.data || [];
       const guests = guestsRes.data || [];
       const chatMsgs = chatMsgsRes.data || [];
+      let funnelEvents = funnelEventsRes.data || [];
 
       // Apply cross-table filters
       if (filterTier) {
@@ -4300,6 +4306,12 @@ ${cssSnippet}`
         const couponUserIds = new Set(profiles.filter(p => (p.free_event_credits || 0) > 0).map(p => p.id));
         events = events.filter(e => couponUserIds.has(e.user_id));
         profiles = profiles.filter(p => couponUserIds.has(p.id));
+      }
+
+      // Apply cross-table filters to funnel_events
+      if (filterTier || filterUtmSource || filterPayment === 'coupon') {
+        const allowedUserIds = new Set(profiles.map(p => p.id));
+        funnelEvents = funnelEvents.filter(fe => !fe.user_id || allowedUserIds.has(fe.user_id));
       }
 
       // Collect distinct values for filter dropdowns
@@ -4330,7 +4342,7 @@ ${cssSnippet}`
       // 2. Drop-off by creation step (draft events only)
       const draftEvents = events.filter(e => e.status !== 'published');
       const stepDistribution = {};
-      const stepLabels = { '0': 'Template Selected', '1': 'Chat / Details', '2': 'Design Preview', '3': 'Guest List' };
+      const stepLabels = { '0': 'Chat Started', '1': 'Details Confirmed', '2': 'Design Generated', '3': 'Guest List / Publish' };
       draftEvents.forEach(e => {
         const step = String(e.settings?.creation_step || '0');
         stepDistribution[step] = (stepDistribution[step] || 0) + 1;
@@ -4485,10 +4497,53 @@ ${cssSnippet}`
       const oneDayAgo = new Date(Date.now() - 86400000).toISOString();
       const abandonedCount = events.filter(e => e.status === 'draft' && !e.first_generation_at && e.created_at < oneDayAgo).length;
 
+      // 11. Detailed funnel from funnel_events (granular step-level tracking)
+      const detailedStepOrder = [
+        { key: 'page_view', label: 'Page View' },
+        { key: 'signup', label: 'Signed Up' },
+        { key: 'chat_started', label: 'Chat Started' },
+        { key: 'event_created', label: 'Event Created' },
+        { key: 'details_extracted', label: 'Details Confirmed' },
+        { key: 'confirmation_shown', label: 'Confirmation Card' },
+        { key: 'generation_started', label: 'Generation Started' },
+        { key: 'generation_complete', label: 'Generation Complete' },
+        { key: 'guest_step_entered', label: 'Guest List' },
+        { key: 'published', label: 'Published' },
+        { key: 'published_with_invites', label: 'Published + Invites' }
+      ];
+      // Count distinct users per step (merge published variants)
+      const stepUserSets = {};
+      detailedStepOrder.forEach(s => { stepUserSets[s.key] = new Set(); });
+      funnelEvents.forEach(fe => {
+        const uid = fe.user_id || fe.event_id || 'anon';
+        if (stepUserSets[fe.step]) stepUserSets[fe.step].add(uid);
+      });
+      // Merge published_with_invites into published for funnel display
+      stepUserSets['published_with_invites'].forEach(uid => stepUserSets['published'].add(uid));
+      // Build funnel excluding the merged variant
+      const detailedFunnelSteps = detailedStepOrder
+        .filter(s => s.key !== 'published_with_invites')
+        .map(s => ({ step: s.key, label: s.label, users: stepUserSets[s.key].size }));
+      // Compute step-to-step drop-offs and find biggest leak
+      let biggestLeakIdx = -1;
+      let biggestLeakDrop = 0;
+      const detailedFunnel = detailedFunnelSteps.map((s, i) => {
+        const prev = i > 0 ? detailedFunnelSteps[i - 1].users : s.users;
+        const dropCount = prev - s.users;
+        const dropPct = prev > 0 ? Math.round(1000 * dropCount / prev) / 10 : 0;
+        if (i > 0 && dropCount > biggestLeakDrop) {
+          biggestLeakDrop = dropCount;
+          biggestLeakIdx = i;
+        }
+        return { ...s, dropCount, dropPct, pctOfTop: detailedFunnelSteps[0].users > 0 ? Math.round(1000 * s.users / detailedFunnelSteps[0].users) / 10 : 0 };
+      });
+      if (biggestLeakIdx >= 0) detailedFunnel[biggestLeakIdx].biggestLeak = true;
+
       return res.status(200).json({
         success: true,
         funnel: {
           stages: funnelStages,
+          detailedFunnel,
           dropOffByStep,
           chatEngagement: {
             avgMsgsPublished,

@@ -2703,6 +2703,7 @@
       // Remove any existing confirmation card
       var existing = document.getElementById('confirmationCard');
       if (existing) existing.remove();
+      trackFunnel('confirmation_shown');
 
       // Keep chat input visible — user continues chatting about design
 
@@ -9915,6 +9916,7 @@
     // ── Per-event payment gate ──
 
     function showCreatePaymentGate() {
+      trackFunnel('payment_gate_shown');
       document.getElementById('generatingLoadingState').style.display = 'none';
       document.getElementById('generatingPaywall').style.display = 'none';
       document.getElementById('createPaymentGate').style.display = 'flex';
