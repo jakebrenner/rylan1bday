@@ -5676,6 +5676,17 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       });
       if (lastTestResult) {
         renderPhonePreview(document.getElementById('testPreviewFrame'), lastTestResult.theme, mode);
+        // Also update wide preview if in tablet/desktop mode
+        if (currentDeviceMode !== 'mobile') {
+          var wideIframe = document.getElementById('testPreviewFrameWide');
+          if (wideIframe) {
+            if (mode === 'thankyou') {
+              wideIframe.srcdoc = buildTestThankYouSrcdoc(lastTestResult.theme);
+            } else {
+              wideIframe.srcdoc = buildTestSrcdoc(lastTestResult.theme);
+            }
+          }
+        }
       }
     }
 
@@ -6243,6 +6254,12 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('matrixResultSection').style.display = 'none';
       document.getElementById('singlePreviewContent').style.display = 'flex';
       testPreviewMode = 'invite';
+      // Reset to mobile view
+      currentDeviceMode = 'mobile';
+      document.getElementById('singlePhoneMockup').style.display = '';
+      document.getElementById('singleWidePreview').style.display = 'none';
+      var dtBtns = document.querySelectorAll('#singleDeviceToggle button');
+      dtBtns.forEach(function(btn) { btn.classList.toggle('active', btn.textContent.toLowerCase().indexOf('mobile') !== -1); });
 
       var meta = data.metadata;
       var estCost = calcEstCost(meta);
