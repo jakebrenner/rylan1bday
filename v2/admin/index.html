@@ -6129,8 +6129,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         // Build full HTML combining theme HTML + CSS + fonts
         var theme = result.theme;
         var fontsImport = (theme.config && theme.config.googleFontsImport) || '';
-        var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
           + fontsImportToLink(fontsImport)
+          + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
           + '<style>' + (theme.css || '') + '</style></head><body>' + (theme.html || '') + '</body></html>';
 
         // Step 1: Auto-tag with AI
@@ -9630,8 +9631,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
 
         // Set preview HTML for lazy loading
         var fontsImport = (s.config && s.config.googleFontsImport) || '';
-        card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
           + fontsImportToLink(fontsImport)
+          + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
           + '<style>' + (s.css || '') + '</style></head><body>' + (s.html || '') + '</body></html>';
       });
       requestAnimationFrame(function() { setupLazyIframes(grid); });
@@ -9849,8 +9851,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         var card = grid.querySelector('.style-card[data-lab-run-id="' + run.id + '"]');
         if (card) {
           var fontsImport = (run.result_config && run.result_config.googleFontsImport) || '';
-          card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+          card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
             + fontsImportToLink(fontsImport)
+            + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
             + '<style>' + (run.result_css || '') + '</style></head><body>' + (run.result_html || '') + '</body></html>';
         }
       });
@@ -10004,8 +10007,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         if (card) {
           if (theme.html) {
             var fontsImport = (theme.config && theme.config.googleFontsImport) || '';
-            card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+            card.dataset.previewHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
               + fontsImportToLink(fontsImport)
+              + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
               + '<style>' + (theme.css || '') + '</style></head><body>' + (theme.html || '') + '</body></html>';
           } else {
             card.dataset.previewHtml = '<!DOCTYPE html><html><body style="display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:system-ui;color:#999;text-align:center;"><div><p style="font-size:14px;">No preview available</p><p style="font-size:11px;opacity:0.6;">Theme HTML not stored</p></div></body></html>';
@@ -10232,8 +10236,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           config = item.result_config;
         }
         var fontsImport = (config && config.googleFontsImport) || '';
-        var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
           + fontsImportToLink(fontsImport)
+          + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
           + '<style>' + css + '</style></head><body>' + html + '</body></html>';
         iframe.srcdoc = fullHtml;
       });
@@ -11150,7 +11155,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             var frame = document.querySelector('.ed-snapshot-frame[data-theme-id="' + t.id + '"]');
             if (frame && t.html) {
               var fontsImport = (t.config && t.config.googleFontsImport) || '';
-              frame.srcdoc = '<!DOCTYPE html><html><head><meta name="viewport" content="width=393">' + fontsImportToLink(fontsImport) + '<style>' + (t.css || '') + '</style></head><body>' + t.html + '</body></html>';
+              frame.srcdoc = '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0">' + fontsImportToLink(fontsImport) + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style><style>' + (t.css || '') + '</style></head><body>' + t.html + '</body></html>';
             }
           });
         });
@@ -11308,9 +11313,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       }
 
       var themeCss = theme.css || '';
-      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
         + fontsImportToLink(fontsImport)
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } ' + themeCss + ' ' + guaranteedCSS + '</style>'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; } ' + themeCss + ' ' + guaranteedCSS + '</style>'
         + '</head><body>' + tyHtml + '</body></html>';
     }
 
@@ -11442,8 +11447,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         iframe.onload = null;
       } else {
         var fontsImport = (theme.config && theme.config.googleFontsImport) || '';
-        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
           + fontsImportToLink(fontsImport)
+          + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
           + '<style>' + (theme.css || '') + '</style></head>'
           + '<body>' + theme.html + '</body></html>';
         iframe.onload = function() { injectAdminPreviewContent(iframe); };
@@ -12769,9 +12775,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
             var fm = fi.match(/url\(['"]?([^'"\)]+)['"]?\)/);
             if (fm && fm[1]) fontsLink = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="' + fm[1] + '">';
           }
-          return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393,initial-scale=1.0">'
+          return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">'
             + fontsLink
-            + '<style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:393px;min-height:100%;overflow-x:hidden;background:' + (config.backgroundColor || '#fff') + '}</style>'
+            + '<style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:100%;min-height:100%;overflow-x:hidden;background:' + (config.backgroundColor || '#fff') + '}</style>'
             + '<style>' + themeCss.replace(/<\/style/gi, '<\\/style') + '</style>'
             + '</head><body>' + themeHtml + '</body></html>';
         }
@@ -13978,8 +13984,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           var c = _mktCreatives.find(function(x) { return x.creative_id === creativeId; });
           if (iframe && c && c.invite_html) {
             var fontsImport = (c.invite_config && c.invite_config.googleFontsImport) || '';
-            iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+            iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
               + fontsImportToLink(fontsImport)
+              + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
               + '<style>' + (c.invite_css || '') + '</style></head><body>' + c.invite_html + '</body></html>';
             var screen = iframe.closest('.phone-screen');
             if (screen) iframe.style.transform = 'scale(' + ((screen.offsetWidth || 120) / 393) + ')';

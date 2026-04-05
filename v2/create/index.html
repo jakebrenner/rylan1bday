@@ -4967,8 +4967,9 @@
         }
 
         // Check 4: Content overflow detection — text flowing outside visible area
-        if (!isUnstyled && doc.body.scrollWidth > 420) {
-          console.warn('[checkCssRendered] Content overflow detected: scrollWidth=' + doc.body.scrollWidth + 'px (max 393px)');
+        var overflowThreshold = currentPreviewDevice === 'desktop' ? 1230 : currentPreviewDevice === 'tablet' ? 790 : 420;
+        if (!isUnstyled && doc.body.scrollWidth > overflowThreshold) {
+          console.warn('[checkCssRendered] Content overflow detected: scrollWidth=' + doc.body.scrollWidth + 'px (max ' + (overflowThreshold - 27) + 'px for ' + currentPreviewDevice + ')');
         }
 
         if (isUnstyled && ver.css && ver.css.trim().length > 100 && _cssCheckRetries < _MAX_CSS_RETRIES) {
@@ -5845,7 +5846,7 @@
         + '@keyframes tyConfetti1 { 0%,100% { transform:translateY(0) rotate(25deg); } 50% { transform:translateY(-6px) rotate(40deg); } }'
         + '@keyframes tyConfetti2 { 0%,100% { transform:translateY(0) rotate(-15deg); } 50% { transform:translateY(-8px) rotate(-30deg); } }'
         + '@keyframes tyConfetti3 { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-5px); } }'
-        + '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;'
+        + '.thankyou-page { max-width:100%; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;'
         + ' background:' + gradientBg + '; color:' + tyTextColor + '; font-family:\'' + bodyFont + '\',sans-serif; }'
         + '.thankyou-decoration { margin-bottom:24px; }'
         + '.thankyou-hero { margin-bottom:32px; }'
