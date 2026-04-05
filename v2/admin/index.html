@@ -9890,6 +9890,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           + fontsImportToLink(fontsImport)
           + '<style>' + (previewTheme.css || '') + '</style></head>'
           + '<body>' + previewTheme.html + '</body></html>';
+        iframe.onload = function() { injectAdminPreviewContent(iframe); };
       } else {
         iframe.srcdoc = '<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#aaa;"><p>No theme generated</p></body></html>';
       }
@@ -10143,6 +10144,138 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         + fontsImportToLink(fontsImport)
         + '<style>' + (theme.css || '') + '</style></head>'
         + '<body>' + theme.html + '</body></html>';
+      iframe.onload = function() { injectAdminPreviewContent(iframe); };
+    }
+
+    // ── Admin Preview: inject event details + RSVP form to match what users see ──
+
+    function injectAdminPreviewContent(iframe) {
+      if (!currentEventDetail) return;
+      var doc = iframe.contentDocument;
+      if (!doc) return;
+      var ev = currentEventDetail.event;
+      var customFields = currentEventDetail.customFields || [];
+
+      // Inject event details into .details-slot
+      var detailsSlot = doc.querySelector('.details-slot');
+      if (detailsSlot) {
+        detailsSlot.innerHTML = buildAdminDetailsHtml(ev);
+      }
+
+      // Override title field
+      var titleEl = doc.querySelector('[data-field="title"]');
+      if (titleEl && ev.title) titleEl.textContent = ev.title;
+
+      // Override legacy data-field elements
+      var dtEl = doc.querySelector('[data-field="datetime"]');
+      if (dtEl && ev.eventDate) {
+        var d = new Date(ev.eventDate);
+        dtEl.textContent = d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+          + ' at ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      }
+      var locEl = doc.querySelector('[data-field="location"]');
+      if (locEl) locEl.textContent = [ev.locationName, ev.locationAddress].filter(Boolean).join(', ') || '';
+      var dcEl = doc.querySelector('[data-field="dresscode"]');
+      if (dcEl && ev.dressCode) dcEl.textContent = ev.dressCode;
+
+      // Inject RSVP form into .rsvp-slot
+      var rsvpSlot = doc.querySelector('.rsvp-slot');
+      if (rsvpSlot) {
+        var ifrWin = iframe.contentWindow || doc.defaultView;
+        var isDark = detectAdminBgDark(rsvpSlot, ifrWin);
+        rsvpSlot.innerHTML = buildAdminRsvpFormHtml(customFields, isDark);
+      }
+    }
+
+    function buildAdminDetailsHtml(ev) {
+      var items = [];
+      if (ev.eventDate) {
+        var d = new Date(ev.eventDate);
+        var formatted = d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        var timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        if (ev.endDate) {
+          var end = new Date(ev.endDate);
+          timeStr += ' \u2013 ' + end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        }
+        items.push({ icon: '&#128197;', label: 'Date', value: formatted + '<br>' + timeStr });
+      }
+      var locName = ev.locationName || '';
+      var locAddr = ev.locationAddress || '';
+      if (locName || locAddr) {
+        items.push({ icon: '&#128205;', label: 'Location', value: [locName, locAddr].filter(Boolean).join('<br>') });
+      }
+      if (ev.dressCode) {
+        items.push({ icon: '&#128087;', label: 'Dress Code', value: escapeHtml(ev.dressCode) });
+      }
+      return items.map(function(item) {
+        return '<div class="detail-item">'
+          + '<div class="detail-icon">' + item.icon + '</div>'
+          + '<div class="detail-text"><div class="detail-label">' + item.label + '</div>'
+          + '<div class="detail-value">' + item.value + '</div></div>'
+          + '</div>';
+      }).join('');
+    }
+
+    function buildAdminRsvpFormHtml(customFields, isDark) {
+      var textColor = isDark ? '#FFFFFF' : '#1A1A1A';
+      var borderColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.15)';
+      var inputBg = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.04)';
+      var inputStyle = 'width:100%;padding:12px 14px;border:1px solid ' + borderColor + ';border-radius:8px;font-size:16px;font-family:Inter,sans-serif;-webkit-appearance:none;background:' + inputBg + ';color:' + textColor + ';';
+      var labelStyle = 'display:block;margin-bottom:8px;font-weight:600;font-size:14px;color:' + textColor + ';';
+
+      var html = '<div style="color:' + textColor + ';">';
+      html += '<div style="margin-bottom:14px;"><label style="' + labelStyle + '">Name <span style="color:#E94560;">*</span></label>'
+        + '<input type="text" disabled placeholder="Your name" style="' + inputStyle + 'opacity:0.7;"></div>';
+      html += '<div style="margin-bottom:14px;"><label style="' + labelStyle + '">Email</label>'
+        + '<input type="email" disabled placeholder="your@email.com" style="' + inputStyle + 'opacity:0.7;"></div>';
+      html += '<div style="margin-bottom:14px;"><label style="' + labelStyle + '">Phone</label>'
+        + '<input type="tel" disabled placeholder="(555) 123-4567" style="' + inputStyle + 'opacity:0.7;"></div>';
+      html += '<div style="margin-bottom:14px;"><label style="' + labelStyle + '">RSVP Status <span style="color:#E94560;">*</span></label>'
+        + '<select disabled style="' + inputStyle + 'opacity:0.7;cursor:default;">'
+        + '<option>Select...</option><option>Yes, I\'ll be there!</option><option>No, sorry</option><option>Maybe</option></select></div>';
+
+      customFields.forEach(function(f) {
+        if (f.key === 'email' || f.key === 'phone') return;
+        var reqStar = f.required ? ' <span style="color:#E94560;">*</span>' : '';
+        html += '<div style="margin-bottom:14px;"><label style="' + labelStyle + '">' + escapeHtml(f.label) + reqStar + '</label>';
+        if (f.type === 'checkbox') {
+          html += '<label style="display:flex;align-items:center;gap:8px;font-size:14px;color:' + textColor + ';"><input type="checkbox" disabled style="width:18px;height:18px;accent-color:#E94560;"> ' + escapeHtml(f.label) + '</label>';
+        } else if (f.type === 'select' && f.options && f.options.length > 0) {
+          html += '<select disabled style="' + inputStyle + 'opacity:0.7;cursor:default;"><option>Select...</option>';
+          f.options.forEach(function(opt) { html += '<option>' + escapeHtml(opt) + '</option>'; });
+          html += '</select>';
+        } else if (f.type === 'textarea') {
+          html += '<textarea disabled placeholder="' + escapeHtml(f.placeholder || '') + '" style="' + inputStyle + 'opacity:0.7;min-height:80px;resize:vertical;"></textarea>';
+        } else {
+          var inputType = f.type === 'number' ? 'number' : f.type === 'email' ? 'email' : f.type === 'phone' || f.type === 'tel' ? 'tel' : 'text';
+          html += '<input type="' + inputType + '" disabled placeholder="' + escapeHtml(f.placeholder || '') + '" style="' + inputStyle + 'opacity:0.7;">';
+        }
+        html += '</div>';
+      });
+
+      html += '<button disabled style="width:100%;padding:14px 24px;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:default;background:#E94560;color:#FFFFFF;font-family:Inter,sans-serif;min-height:48px;opacity:0.7;">Submit RSVP</button>';
+      html += '</div>';
+      return html;
+    }
+
+    function detectAdminBgDark(el, win) {
+      var node = el;
+      while (node && node.nodeType === 1) {
+        try {
+          var styles = win.getComputedStyle(node);
+          var bg = styles.backgroundColor;
+          if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+            var m = bg.match(/\d+/g);
+            if (m && m.length >= 3) {
+              var rgb = [+m[0], +m[1], +m[2]];
+              var a = rgb.map(function(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+              return (0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]) < 0.35;
+            }
+          }
+        } catch (e) {}
+        node = node.parentElement;
+      }
+      return false;
     }
 
     // ═══════════════════════════════════════════════════════════════════
