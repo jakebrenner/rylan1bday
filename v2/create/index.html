@@ -4095,100 +4095,167 @@
     }
 
     function buildSkeletonSrcdoc() {
-      // Animated invite-building skeleton with color phases
-      // Elements stagger in, colors paint on, shapes draw — feels like an invite being created
-      var eventTitle = (extractedData && extractedData.title) || '';
+      // Personalized invite-building skeleton using actual event data
+      var title = (extractedData && extractedData.title) || 'Your Event';
       var eventType = (extractedData && extractedData.eventType) || 'other';
+      var dateStr = '';
+      if (extractedData && extractedData.startDate) {
+        try {
+          var d = new Date(extractedData.startDate);
+          dateStr = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        } catch(e) { dateStr = extractedData.startDate; }
+      }
+      var locationName = (extractedData && extractedData.locationName) || '';
+      var locationAddr = (extractedData && extractedData.locationAddress) || '';
+      var hostName = (extractedData && extractedData.hostName) || '';
 
-      // Pick a warm palette hint based on event type for the "painting" phase
+      // Event-type-specific palettes — richer, more saturated
       var palettes = {
-        wedding: { bg: '#fdf8f4', hero: 'linear-gradient(135deg, #f5e6d3, #edd4c0)', accent: '#c9a87c', btn: '#c9a87c' },
-        birthday: { bg: '#fef6fb', hero: 'linear-gradient(135deg, #f8d7ea, #e8b4d9)', accent: '#d4789c', btn: '#d4789c' },
-        kidsBirthday: { bg: '#f6faff', hero: 'linear-gradient(135deg, #d4e8ff, #b8d4f0)', accent: '#6ba3d6', btn: '#6ba3d6' },
-        babyShower: { bg: '#f8fdf6', hero: 'linear-gradient(135deg, #dff0d8, #c5e6b8)', accent: '#8cc07b', btn: '#8cc07b' },
-        corporate: { bg: '#f4f5f7', hero: 'linear-gradient(135deg, #d8dce6, #c0c8d8)', accent: '#5a6a8a', btn: '#5a6a8a' },
-        holiday: { bg: '#fdf5f5', hero: 'linear-gradient(135deg, #f0d4d4, #e0baba)', accent: '#c05050', btn: '#2d6a4f' },
-        graduation: { bg: '#f5f3fa', hero: 'linear-gradient(135deg, #ddd4f0, #c5b8e8)', accent: '#7b5ea7', btn: '#7b5ea7' },
-        other: { bg: '#faf8f6', hero: 'linear-gradient(135deg, #e8ddd4, #ddd0c4)', accent: '#a08870', btn: '#a08870' }
+        wedding:      { bg: '#fdf6f0', hero: '#f3e4d0', heroGrad: 'linear-gradient(160deg, #f5e6d3 0%, #e8ceb0 40%, #f0dcc8 100%)', accent: '#c9a87c', accentLight: '#f0e0cc', btn: '#b8946a', text: '#5c4a3a', decor: '#d4b896' },
+        birthday:     { bg: '#fef4f9', hero: '#f5d0e3', heroGrad: 'linear-gradient(160deg, #fad4e8 0%, #f0b8d4 40%, #f8d0e0 100%)', accent: '#e0679a', accentLight: '#fce4ef', btn: '#d4557e', text: '#6a3050', decor: '#e88ab4' },
+        kidsBirthday: { bg: '#f0f7ff', hero: '#c8dff8', heroGrad: 'linear-gradient(160deg, #d4e8ff 0%, #a8ccf0 40%, #c0d8f4 100%)', accent: '#4a90d9', accentLight: '#dceafc', btn: '#4a8ad0', text: '#2a4a70', decor: '#6aaae8' },
+        babyShower:   { bg: '#f4fdf2', hero: '#d4eec8', heroGrad: 'linear-gradient(160deg, #dff4d4 0%, #b8e0a8 40%, #d0ecc4 100%)', accent: '#6ab85a', accentLight: '#e4f5de', btn: '#5aa84a', text: '#2a5020', decor: '#88cc78' },
+        corporate:    { bg: '#f2f4f8', hero: '#c8d0e0', heroGrad: 'linear-gradient(160deg, #d0d8e8 0%, #b0bcd4 40%, #c4cee0 100%)', accent: '#4a5a80', accentLight: '#dde2ee', btn: '#3a4a6a', text: '#2a3450', decor: '#7080a0' },
+        holiday:      { bg: '#fdf2f2', hero: '#e8c4c4', heroGrad: 'linear-gradient(160deg, #f0d0d0 0%, #d8a8a8 40%, #e8c0c0 100%)', accent: '#c84040', accentLight: '#fce0e0', btn: '#2d6a4f', text: '#5a2020', decor: '#d06060' },
+        graduation:   { bg: '#f4f0fa', hero: '#d0c4e8', heroGrad: 'linear-gradient(160deg, #ddd0f0 0%, #c0b0e0 40%, #d4c8ec 100%)', accent: '#7050b0', accentLight: '#e8e0f4', btn: '#6040a0', text: '#3a2860', decor: '#9078c8' },
+        other:        { bg: '#faf6f2', hero: '#e0d4c8', heroGrad: 'linear-gradient(160deg, #e8dcd0 0%, #d0c0b0 40%, #ddd0c4 100%)', accent: '#a07850', accentLight: '#f0e8dc', btn: '#907040', text: '#504030', decor: '#b89878' }
       };
-      var pal = palettes[eventType] || palettes.other;
+      var p = palettes[eventType] || palettes.other;
+
+      // Format a friendly event type label
+      var typeLabels = {
+        wedding: 'Wedding', birthday: 'Birthday Party', kidsBirthday: 'Birthday Party',
+        babyShower: 'Baby Shower', corporate: 'Event', holiday: 'Holiday Party',
+        graduation: 'Graduation', dinner: 'Dinner Party', housewarming: 'Housewarming',
+        reunion: 'Reunion', shower: 'Shower', other: 'Event'
+      };
+      var typeLabel = typeLabels[eventType] || 'Event';
+
+      // Escape HTML in user-provided strings
+      function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
       return '<!DOCTYPE html><html><head><style>'
         + '@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap");'
+        + '@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap");'
         + '*{margin:0;padding:0;box-sizing:border-box;}'
-        + 'body{background:#fafafa;overflow:hidden;font-family:sans-serif;height:100vh;}'
-        // Progress bar at very top
-        + '.top-bar{position:fixed;top:0;left:0;right:0;height:3px;background:#eee;z-index:10;}'
-        + '.top-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,' + pal.accent + ',#E94560);border-radius:0 2px 2px 0;transition:width 2s ease;}'
-        // Logo area
-        + '.logo-area{text-align:center;padding:48px 0 16px;opacity:0;animation:fadeSlideIn 0.6s 0.2s ease forwards;}'
-        + '.logo-area svg{width:100px;}'
-        // Hero image area — draws itself in
-        + '.hero{width:100%;height:220px;position:relative;overflow:hidden;opacity:0;animation:fadeSlideIn 0.8s 0.8s ease forwards;}'
-        + '.hero-bg{position:absolute;inset:0;background:' + pal.hero + ';transform:scaleX(0);transform-origin:left;animation:drawIn 1.2s 1s ease forwards;}'
-        + '.hero-shimmer{position:absolute;inset:0;background:linear-gradient(90deg,transparent 30%,rgba(255,255,255,0.3) 50%,transparent 70%);animation:shimmerSlide 2.5s 2s ease-in-out infinite;}'
-        // Decorative SVG shapes that "draw" in the hero
-        + '.hero-decor{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}'
-        + '.hero-decor svg{width:120px;height:120px;opacity:0;animation:fadeIn 0.8s 2.2s ease forwards;}'
-        + '.hero-decor circle,.hero-decor path{stroke-dasharray:200;stroke-dashoffset:200;animation:drawStroke 2s 2.4s ease forwards;}'
-        // Content section
-        + '.content{padding:24px 32px;}'
-        // Title placeholder — types in with a cursor effect
-        + '.title-area{text-align:center;margin-bottom:6px;opacity:0;animation:fadeSlideIn 0.6s 1.6s ease forwards;}'
-        + '.title-line{height:26px;width:75%;margin:0 auto;background:linear-gradient(90deg,#e8e0e0,' + pal.accent + '40,#e8e0e0);background-size:200% 100%;border-radius:6px;animation:colorShimmer 3s 2s ease-in-out infinite;}'
-        + '.subtitle-line{height:16px;width:50%;margin:10px auto 0;background:linear-gradient(90deg,#ece8e8,' + pal.accent + '30,#ece8e8);background-size:200% 100%;border-radius:4px;animation:colorShimmer 3s 2.3s ease-in-out infinite;}'
+        + 'body{background:' + p.bg + ';overflow:hidden;font-family:Inter,sans-serif;height:100vh;}'
+
+        // Bold progress bar at top
+        + '.progress{position:fixed;top:0;left:0;right:0;height:4px;background:' + p.accentLight + ';z-index:10;}'
+        + '.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,' + p.accent + ',' + p.decor + ');border-radius:0 3px 3px 0;transition:width 1.5s ease;box-shadow:0 0 8px ' + p.accent + '60;}'
+
+        // Logo — fades in immediately
+        + '.logo{text-align:center;padding:40px 0 12px;opacity:0;animation:fadeIn 0.4s 0.1s ease forwards;}'
+        + '.logo svg{width:90px;}'
+
+        // "You're invited" text types in
+        + '.invited-text{text-align:center;font-family:Playfair Display,serif;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:' + p.accent + ';opacity:0;animation:fadeSlideIn 0.5s 0.3s ease forwards;margin-bottom:8px;}'
+
+        // Hero — paints in from the left with gradient
+        + '.hero{width:100%;height:200px;position:relative;overflow:hidden;opacity:0;animation:fadeIn 0.3s 0.5s ease forwards;}'
+        + '.hero-bg{position:absolute;inset:0;background:' + p.heroGrad + ';transform:scaleX(0);transform-origin:left;animation:paintIn 1.4s 0.6s cubic-bezier(0.22,1,0.36,1) forwards;}'
+        + '.hero-wash{position:absolute;inset:0;background:linear-gradient(180deg,transparent 60%,' + p.bg + ');}'
+        + '.hero-shimmer{position:absolute;inset:0;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,0.35) 50%,transparent 60%);animation:shimmerSlide 3s 1.8s ease-in-out infinite;}'
+        // Decorative element drawing in hero
+        + '.hero-art{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);}'
+        + '.hero-art svg{width:80px;height:80px;opacity:0;animation:fadeIn 0.6s 1.6s ease forwards;}'
+        + '.hero-art circle,.hero-art path,.hero-art line{stroke-dasharray:300;stroke-dashoffset:300;animation:drawStroke 2.5s 1.8s ease forwards;}'
+
+        // Title — types in with real event name
+        + '.title-area{text-align:center;padding:16px 24px 4px;}'
+        + '.event-title{font-family:Playfair Display,serif;font-size:22px;font-weight:700;color:' + p.text + ';opacity:0;animation:fadeSlideIn 0.6s 1.2s ease forwards;line-height:1.3;}'
+        + '.event-subtitle{font-family:Inter,sans-serif;font-size:11px;color:' + p.accent + ';opacity:0;animation:fadeSlideIn 0.5s 1.6s ease forwards;margin-top:4px;letter-spacing:0.5px;}'
+
         // Divider
-        + '.divider{height:1px;margin:22px 24px;background:linear-gradient(90deg,transparent,' + pal.accent + '40,transparent);opacity:0;animation:fadeIn 0.4s 2.2s ease forwards;}'
-        // Detail rows — slide in one by one
-        + '.detail{display:flex;gap:12px;align-items:center;padding:0 8px;margin-bottom:14px;opacity:0;}'
-        + '.detail:nth-child(1){animation:fadeSlideIn 0.5s 2.4s ease forwards;}'
-        + '.detail:nth-child(2){animation:fadeSlideIn 0.5s 2.7s ease forwards;}'
-        + '.detail-dot{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,' + pal.accent + '30,' + pal.accent + '15);flex-shrink:0;}'
-        + '.detail-lines{flex:1;}'
-        + '.dl{height:11px;border-radius:4px;margin-bottom:6px;background:#eee;position:relative;overflow:hidden;}'
-        + '.dl::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.6),transparent);animation:shimmerSlide 2s ease-in-out infinite;}'
-        + '.dl.w1{width:85%}.dl.w2{width:60%}.dl.w3{width:90%}'
-        // RSVP button skeleton
-        + '.btn-skel{height:44px;width:60%;margin:24px auto 0;border-radius:22px;opacity:0;animation:fadeSlideIn 0.5s 3s ease forwards;'
-        + 'background:linear-gradient(90deg,' + pal.btn + '25,' + pal.btn + '40,' + pal.btn + '25);background-size:200% 100%;animation:fadeSlideIn 0.5s 3s ease forwards,colorShimmer 3s 3.2s ease-in-out infinite;}'
+        + '.divider{height:1px;margin:16px 32px;background:linear-gradient(90deg,transparent,' + p.accent + '35,transparent);opacity:0;animation:fadeIn 0.4s 1.8s ease forwards;}'
+
+        // Detail rows with icons — real data types in
+        + '.details{padding:0 28px;}'
+        + '.detail-row{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;opacity:0;}'
+        + '.detail-row:nth-child(1){animation:fadeSlideIn 0.5s 2s ease forwards;}'
+        + '.detail-row:nth-child(2){animation:fadeSlideIn 0.5s 2.3s ease forwards;}'
+        + '.detail-icon{width:30px;height:30px;border-radius:8px;background:' + p.accentLight + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;}'
+        + '.detail-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:' + p.accent + ';margin-bottom:2px;}'
+        + '.detail-value{font-size:12px;color:' + p.text + ';line-height:1.3;}'
+        // Placeholder shimmer lines for details not yet "typed"
+        + '.detail-shimmer{height:11px;border-radius:3px;background:linear-gradient(90deg,' + p.accentLight + ',' + p.accent + '20,' + p.accentLight + ');background-size:200% 100%;animation:colorShimmer 2.5s ease-in-out infinite;}'
+        + '.ds1{width:80%;margin-bottom:4px;}.ds2{width:55%;}'
+
+        // RSVP button — slides up
+        + '.rsvp-btn{text-align:center;margin:20px auto 0;opacity:0;animation:fadeSlideIn 0.5s 2.6s ease forwards;}'
+        + '.rsvp-btn div{display:inline-block;padding:12px 36px;border-radius:24px;background:' + p.btn + ';color:white;font-size:13px;font-weight:600;letter-spacing:0.5px;box-shadow:0 4px 14px ' + p.btn + '40;}'
+
         // Keyframes
-        + '@keyframes fadeSlideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}'
+        + '@keyframes fadeSlideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}'
         + '@keyframes fadeIn{from{opacity:0}to{opacity:1}}'
-        + '@keyframes drawIn{from{transform:scaleX(0)}to{transform:scaleX(1)}}'
+        + '@keyframes paintIn{from{transform:scaleX(0)}to{transform:scaleX(1)}}'
         + '@keyframes drawStroke{to{stroke-dashoffset:0}}'
-        + '@keyframes shimmerSlide{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}'
+        + '@keyframes shimmerSlide{0%{transform:translateX(-150%)}100%{transform:translateX(150%)}}'
         + '@keyframes colorShimmer{0%{background-position:100% 0}50%{background-position:0% 0}100%{background-position:100% 0}}'
-        // Phase 2: elements gain color tints (triggered by JS adding class)
-        + 'body.phase-painting .hero-bg{background:' + pal.hero + ';}'
-        + 'body.phase-painting .dl{background:linear-gradient(90deg,#e8e0e0,' + pal.accent + '20,#e8e0e0);background-size:200% 100%;animation:colorShimmer 2.5s ease-in-out infinite;}'
-        + 'body.phase-painting .detail-dot{background:linear-gradient(135deg,' + pal.accent + '50,' + pal.accent + '25);}'
-        // Phase 3: polish — subtle glow
-        + 'body.phase-polishing .hero-bg{box-shadow:0 0 40px ' + pal.accent + '15 inset;}'
-        + 'body.phase-polishing .title-line{background:linear-gradient(90deg,' + pal.accent + '30,' + pal.accent + '50,' + pal.accent + '30);background-size:200% 100%;animation:colorShimmer 2s ease-in-out infinite;}'
-        + 'body.phase-polishing .btn-skel{background:linear-gradient(90deg,' + pal.btn + '40,' + pal.btn + '60,' + pal.btn + '40);background-size:200% 100%;animation:colorShimmer 2s ease-in-out infinite;}'
+
+        // Phase: painting — elements get richer color
+        + 'body.phase-painting .hero-bg{box-shadow:0 0 60px ' + p.accent + '15 inset;}'
+        + 'body.phase-painting .detail-shimmer{background:linear-gradient(90deg,' + p.accentLight + ',' + p.accent + '35,' + p.accentLight + ');background-size:200% 100%;animation:colorShimmer 2s ease-in-out infinite;}'
+        + 'body.phase-painting .rsvp-btn div{box-shadow:0 4px 20px ' + p.btn + '50;}'
+
+        // Phase: polishing — final glow
+        + 'body.phase-polishing .hero-bg{background:' + p.heroGrad + ';filter:saturate(1.2);}'
+        + 'body.phase-polishing .rsvp-btn div{transform:scale(1.03);transition:transform 0.6s ease;}'
+        + 'body.phase-polishing .event-title{color:' + p.text + ';text-shadow:0 0 20px ' + p.accent + '15;}'
+
         + '</style></head><body>'
-        + '<div class="top-bar"><div class="top-bar-fill" id="skeletonProgress"></div></div>'
+
+        // Progress bar
+        + '<div class="progress"><div class="progress-fill" id="skeletonProgress"></div></div>'
+
         // Logo
-        + '<div class="logo-area">'
+        + '<div class="logo">'
         + '<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">'
-        + '<circle cx="30" cy="40" r="20" fill="none" stroke="#E94560" stroke-width="1.5" opacity="0.4"/>'
-        + '<path d="M15 30 L30 42 L45 30 M15 50 L45 50" fill="none" stroke="#E94560" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>'
-        + '<text x="65" y="50" font-family="Playfair Display,serif" font-size="28" font-weight="600" fill="#ccc">Ryvite</text>'
+        + '<circle cx="30" cy="40" r="20" fill="none" stroke="' + p.accent + '" stroke-width="1.5" opacity="0.5"/>'
+        + '<path d="M15 30 L30 42 L45 30 M15 50 L45 50" fill="none" stroke="' + p.accent + '" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>'
+        + '<text x="65" y="50" font-family="Playfair Display,serif" font-size="28" font-weight="600" fill="' + p.accent + '80">Ryvite</text>'
         + '</svg></div>'
-        // Hero
-        + '<div class="hero"><div class="hero-bg"></div><div class="hero-shimmer"></div>'
-        + '<div class="hero-decor"><svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">'
-        + '<circle cx="50" cy="50" r="30" stroke="rgba(255,255,255,0.5)" stroke-width="1"/>'
-        + '<path d="M30 50 Q50 20 70 50 Q50 80 30 50" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>'
+
+        // "You're invited"
+        + '<div class="invited-text">You\'re Invited</div>'
+
+        // Hero area with decorative SVG
+        + '<div class="hero"><div class="hero-bg"></div><div class="hero-wash"></div><div class="hero-shimmer"></div>'
+        + '<div class="hero-art"><svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        + '<circle cx="50" cy="50" r="35" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/>'
+        + '<circle cx="50" cy="50" r="20" stroke="rgba(255,255,255,0.3)" stroke-width="0.8"/>'
+        + '<line x1="50" y1="15" x2="50" y2="85" stroke="rgba(255,255,255,0.2)" stroke-width="0.5"/>'
+        + '<line x1="15" y1="50" x2="85" y2="50" stroke="rgba(255,255,255,0.2)" stroke-width="0.5"/>'
         + '</svg></div></div>'
-        // Content
-        + '<div class="content">'
-        + '<div class="title-area"><div class="title-line"></div><div class="subtitle-line"></div></div>'
-        + '<div class="divider"></div>'
-        + '<div class="detail"><div class="detail-dot"></div><div class="detail-lines"><div class="dl w1"></div><div class="dl w2"></div></div></div>'
-        + '<div class="detail"><div class="detail-dot"></div><div class="detail-lines"><div class="dl w3"></div><div class="dl w2"></div></div></div>'
-        + '<div class="btn-skel"></div>'
+
+        // Title — uses real event name
+        + '<div class="title-area">'
+        + '<div class="event-title">' + esc(title) + '</div>'
+        + (hostName ? '<div class="event-subtitle">Hosted by ' + esc(hostName) + '</div>' : '<div class="event-subtitle">' + esc(typeLabel) + '</div>')
         + '</div>'
+
+        // Divider
+        + '<div class="divider"></div>'
+
+        // Details — show real data where available, shimmer placeholders where not
+        + '<div class="details">'
+        + '<div class="detail-row">'
+        + '<div class="detail-icon">\uD83D\uDCC5</div>'
+        + '<div>'
+        + '<div class="detail-label">Date &amp; Time</div>'
+        + (dateStr ? '<div class="detail-value">' + esc(dateStr) + '</div>' : '<div class="detail-shimmer ds1"></div><div class="detail-shimmer ds2"></div>')
+        + '</div></div>'
+        + '<div class="detail-row">'
+        + '<div class="detail-icon">\uD83D\uDCCD</div>'
+        + '<div>'
+        + '<div class="detail-label">Location</div>'
+        + (locationName ? '<div class="detail-value">' + esc(locationName) + (locationAddr ? '<br>' + esc(locationAddr) : '') + '</div>' : '<div class="detail-shimmer ds1"></div><div class="detail-shimmer ds2"></div>')
+        + '</div></div>'
+        + '</div>'
+
+        // RSVP button
+        + '<div class="rsvp-btn"><div>RSVP</div></div>'
+
         + '</body></html>';
     }
 
@@ -4215,14 +4282,13 @@
       // Initialize the design chat with a "building" message
       initDesignChatIfNeeded();
 
-      // Start progress bar and pun rotation inside the iframe
+      // Start progress bar inside the iframe — front-loaded so it feels fast initially
       _clearProgressTimers();
-      // Drive the iframe's internal progress bar via contentDocument
       var iframeProgressSteps = [
-        { pct: '10%', at: 0.02 }, { pct: '25%', at: 0.10 }, { pct: '40%', at: 0.25 },
-        { pct: '55%', at: 0.45 }, { pct: '68%', at: 0.60 }, { pct: '78%', at: 0.75 },
-        { pct: '86%', at: 0.88 }, { pct: '91%', at: 1.00 }, { pct: '94%', at: 1.25 },
-        { pct: '96%', at: 1.60 }, { pct: '97%', at: 2.00 }
+        { pct: '18%', at: 0.01 }, { pct: '35%', at: 0.05 }, { pct: '48%', at: 0.12 },
+        { pct: '58%', at: 0.25 }, { pct: '66%', at: 0.40 }, { pct: '73%', at: 0.55 },
+        { pct: '79%', at: 0.70 }, { pct: '84%', at: 0.85 }, { pct: '89%', at: 1.00 },
+        { pct: '92%', at: 1.25 }, { pct: '95%', at: 1.60 }, { pct: '97%', at: 2.00 }
       ];
       var ms = _avgGenSeconds * 1000;
       iframeProgressSteps.forEach(function(s) {
