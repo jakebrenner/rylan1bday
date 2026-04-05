@@ -4147,14 +4147,14 @@
         + '.bg .sweep{position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,0.2) 45%,rgba(255,255,255,0.35) 50%,rgba(255,255,255,0.2) 55%,transparent 70%);animation:sweepMove 3s 1s ease-in-out infinite;z-index:1;}'
 
         // Center content (logo + bar) — crisp above the blur
-        + '.center{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:24px;opacity:0;animation:fadeSlideIn 0.6s 0.3s ease forwards;}'
-        + '.center svg{width:120px;filter:drop-shadow(0 2px 12px rgba(0,0,0,0.1));}'
+        + '.center{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:28px;opacity:0;animation:fadeSlideIn 0.6s 0.3s ease forwards;}'
+        + '.center svg{width:160px;filter:drop-shadow(0 2px 12px rgba(0,0,0,0.1));}'
 
         // Progress bar
-        + '.bar-wrap{width:200px;}'
-        + '.bar-label{font-family:Inter,sans-serif;font-size:11px;color:#888;text-align:center;margin-bottom:8px;letter-spacing:0.3px;}'
-        + '.bar-track{width:100%;height:6px;background:rgba(255,255,255,0.7);border-radius:3px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.08);}'
-        + '.bar-fill{height:100%;width:0%;border-radius:3px;transition:width 1.5s ease;'
+        + '.bar-wrap{width:240px;}'
+        + '.bar-label{font-family:Inter,sans-serif;font-size:12px;color:#777;text-align:center;margin-bottom:10px;letter-spacing:0.3px;}'
+        + '.bar-track{width:100%;height:8px;background:rgba(255,255,255,0.7);border-radius:4px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.08);}'
+        + '.bar-fill{height:100%;width:0%;border-radius:4px;transition:width 1.5s ease;'
         + 'background:linear-gradient(90deg,' + p.accent + ',' + p.accent + 'cc);'
         + 'box-shadow:0 0 14px ' + p.accent + '60;position:relative;}'
         + '.bar-fill::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.45),transparent);animation:barShimmer 1.5s ease-in-out infinite;}'
@@ -4199,7 +4199,7 @@
 
         // Centered logo + progress bar (crisp, above the blur)
         + '<div class="center">'
-        + '<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">'
+        + '<svg viewBox="8 0 185 80" xmlns="http://www.w3.org/2000/svg">'
         + '<circle cx="30" cy="40" r="20" fill="none" stroke="' + p.accent + '" stroke-width="2"/>'
         + '<path d="M15 30 L30 42 L45 30 M15 50 L45 50" fill="none" stroke="' + p.accent + '" stroke-width="2" stroke-linecap="round"/>'
         + '<text x="65" y="50" font-family="Playfair Display,serif" font-size="28" font-weight="600" fill="' + p.accent + '">Ryvite</text>'
