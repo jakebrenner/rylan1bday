@@ -162,8 +162,16 @@
     .test-params-grid .config-field input:focus, .test-params-grid .config-field select:focus, .test-params-grid .config-field textarea:focus {
       outline: none; border-color: var(--party-coral); box-shadow: 0 0 0 3px rgba(233,69,96,0.1);
     }
-    .preview-frame { border: 2px solid #eee; border-radius: 8px; overflow: hidden; width: 393px; margin: 0 auto; background: white; min-height: 300px; }
-    .preview-frame iframe { width: 393px; height: 700px; border: none; }
+    .preview-frame { border: 2px solid #eee; border-radius: 8px; overflow: hidden; width: 393px; margin: 0 auto; background: white; min-height: 300px; transition: width 0.3s ease; }
+    .preview-frame iframe { width: 393px; height: 700px; border: none; transition: width 0.3s ease, height 0.3s ease; }
+    .preview-frame.device-tablet { width: 768px; }
+    .preview-frame.device-tablet iframe { width: 768px; height: 1024px; }
+    .preview-frame.device-desktop { width: 1080px; }
+    .preview-frame.device-desktop iframe { width: 1080px; height: 800px; }
+    .device-toggle { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; }
+    .device-toggle button { padding: 6px 14px; border-radius: 20px; border: 1px solid #ddd; background: #fff; cursor: pointer; font-size: 13px; font-family: 'Inter', sans-serif; transition: all 0.2s; color: #666; }
+    .device-toggle button.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+    .device-toggle button:hover:not(.active) { border-color: var(--party-coral); color: var(--party-coral); }
     .test-meta { display: flex; gap: 16px; font-size: 12px; color: #888; margin-top: 12px; padding: 8px 12px; background: #f9f9f9; border-radius: 6px; flex-wrap: wrap; }
     .test-meta span { display: flex; align-items: center; gap: 4px; }
     .test-meta .val { font-weight: 700; color: var(--midnight); }
@@ -1681,9 +1689,14 @@
                 <button class="preview-toggle-btn" onclick="setTestPreviewMode('thankyou')">Thank You</button>
               </div>
             </div>
+            <div class="device-toggle" id="singleDeviceToggle">
+              <button class="active" onclick="setDevicePreview('mobile', 'single')">&#128241; Mobile</button>
+              <button onclick="setDevicePreview('tablet', 'single')">&#128195; Tablet</button>
+              <button onclick="setDevicePreview('desktop', 'single')">&#128187; Desktop</button>
+            </div>
             <div id="singlePreviewContent" style="display:flex;gap:24px;flex-wrap:wrap;">
-              <div style="flex:0 0 auto;">
-                <div class="phone-mockup">
+              <div style="flex:0 0 auto;" id="singlePreviewContainer">
+                <div class="phone-mockup" id="singlePhoneMockup">
                   <div class="phone-frame">
                     <div class="phone-notch"></div>
                     <div class="phone-screen">
@@ -1691,6 +1704,9 @@
                     </div>
                     <div class="phone-home-bar"></div>
                   </div>
+                </div>
+                <div class="preview-frame" id="singleWidePreview" style="display:none;">
+                  <iframe id="testPreviewFrameWide" sandbox="allow-scripts allow-same-origin"></iframe>
                 </div>
               </div>
               <div style="flex:1;min-width:250px;">
@@ -5558,9 +5574,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         + '});'
         + '<\/script>';
 
-      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
         + fontsImportToLink(fontsImport)
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; }</style>'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
         + '<style>' + themeCss + '</style></head><body>' + themeHtml + rsvpScript + '</body></html>';
     }
 
@@ -5593,7 +5609,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var btnBorder = isDark ? ' border:1px solid rgba(255,255,255,0.25); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);' : '';
       var hoverShadow = isDark ? '0 4px 12px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.15)';
 
-      var guaranteedCSS = '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:' + tyTextColor + '; }'
+      var guaranteedCSS = '.thankyou-page { max-width:100%; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:' + tyTextColor + '; }'
         + '.thankyou-hero { margin-bottom:32px; }'
         + '.thankyou-title { font-size:36px; font-weight:700; margin-bottom:12px; color:' + tyTextColor + '; }'
         + '.thankyou-subtitle { font-size:16px; line-height:1.5; opacity:0.85; color:' + tyTextColor + '; }'
@@ -5631,9 +5647,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         tyHtml = tyHtml.substring(0, lastDiv) + calendarHTML + footerHTML + tyHtml.substring(lastDiv);
       }
 
-      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
         + fontsImportToLink(fontsImport)
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; }</style>'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; }</style>'
         + '<style>' + theme.css + '</style>'
         + '<style>' + guaranteedCSS + '</style>'
         + '</head><body>' + tyHtml + '</body></html>';
@@ -11250,7 +11266,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var btnBorder = isDark ? ' border:1px solid rgba(255,255,255,0.25); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);' : '';
       var hoverShadow = isDark ? '0 4px 12px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.15)';
 
-      var guaranteedCSS = '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:' + tyTextColor + '; }'
+      var guaranteedCSS = '.thankyou-page { max-width:100%; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:' + tyTextColor + '; }'
         + '.thankyou-hero { margin-bottom:32px; }'
         + '.thankyou-title { font-size:36px; font-weight:700; margin-bottom:12px; color:' + tyTextColor + '; }'
         + '.thankyou-subtitle { font-size:16px; line-height:1.5; opacity:0.85; color:' + tyTextColor + '; }'

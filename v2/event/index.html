@@ -13,7 +13,8 @@
     :root { --party-coral: #E94560; --blush-pop: #FF6B6B; --midnight: #1A1A2E; --cream: #FFFAF5; }
     html, body { font-family: 'Inter', sans-serif; background: #f9f9f9; color: var(--midnight); }
     .event-container { max-width: 100%; padding: 0; }
-    #themeFrame { width: 100%; border: none; min-height: 600px; display: block; }
+    #themeFrame { width: 100%; border: none; min-height: 600px; display: block; position: relative; z-index: 1; }
+    .invite-bg-fill { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; filter: blur(40px) saturate(1.3); transform: scale(1.2); opacity: 0.5; pointer-events: none; }
     .rsvp-section { max-width: 480px; margin: 40px auto; padding: 24px; background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
     .rsvp-section h3 { font-size: 22px; margin-bottom: 24px; text-align: center; font-weight: 600; }
     .rsvp-form-group { margin-bottom: 18px; }
@@ -543,6 +544,19 @@
           var iframe = document.getElementById('themeFrame');
           iframe.srcdoc = buildGuestSrcdoc(themeData);
           iframe.style.display = 'block';
+
+          // Add blurred background fill from theme colors (helps legacy 393px invites on desktop)
+          var bgColor = (result.event.themeConfig && result.event.themeConfig.backgroundColor) || '';
+          if (bgColor) {
+            var existingBgFill = document.querySelector('.invite-bg-fill');
+            if (!existingBgFill) {
+              var bgFill = document.createElement('div');
+              bgFill.className = 'invite-bg-fill';
+              bgFill.style.background = bgColor;
+              iframe.parentNode.insertBefore(bgFill, iframe);
+            }
+          }
+
           iframe.onload = function() {
             try {
               var win = iframe.contentWindow;
@@ -996,7 +1010,7 @@
       var ctaBtnBg = isDark ? 'rgba(255,255,255,0.15)' : pc;
       var ctaBtnBorder = isDark ? ' border:1px solid rgba(255,255,255,0.3);' : '';
 
-      return '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;'
+      return '.thankyou-page { max-width:600px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;'
         + ' background:' + gradientBg + '; color:' + tyTextColor + '; font-family:\'' + bodyFont + '\',sans-serif; }'
         + '.thankyou-decoration { margin-bottom:24px; }'
         + '.thankyou-hero { margin-bottom:32px; }'
@@ -1277,7 +1291,7 @@
         + '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">'
         + '<style>* { margin:0; padding:0; box-sizing:border-box; }'
         + 'html, body { font-family: "Inter", sans-serif; background: #FFFAF5; color: #1A1A2E; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 24px; }'
-        + '.card { max-width: 393px; width: 100%; text-align: center; }'
+        + '.card { max-width: 600px; width: 100%; text-align: center; }'
         + '.title { font-size: 32px; font-weight: 700; margin-bottom: 32px; line-height: 1.2; }'
         + '.details { text-align: left; margin: 0 auto; max-width: 320px; }'
         + '.detail-item { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-start; }'

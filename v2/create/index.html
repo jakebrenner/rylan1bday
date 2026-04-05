@@ -209,6 +209,32 @@
       .phone-screen iframe { transform: scale(0.662); }
     }
 
+    /* Device preview toggle */
+    .device-toggle { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; }
+    .device-toggle button { padding: 6px 14px; border-radius: 20px; border: 1px solid #ddd; background: #fff; cursor: pointer; font-size: 13px; transition: all 0.2s; font-family: 'Inter', sans-serif; }
+    .device-toggle button:hover { border-color: #999; }
+    .device-toggle button.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+
+    /* Tablet mockup */
+    .phone-frame.tablet-frame { width: 380px; border-radius: 24px; }
+    .phone-frame.tablet-frame .phone-notch { display: none; }
+    .phone-frame.tablet-frame .phone-screen { aspect-ratio: 768 / 1024; border-radius: 16px; }
+    .phone-frame.tablet-frame .phone-screen iframe { width: 768px; height: 1024px; }
+    .phone-frame.tablet-frame .phone-home-bar { display: none; }
+
+    /* Desktop mockup */
+    .phone-frame.desktop-frame { width: 480px; border-radius: 12px; }
+    .phone-frame.desktop-frame .phone-notch { display: none; }
+    .phone-frame.desktop-frame .phone-screen { aspect-ratio: 1200 / 800; border-radius: 8px; }
+    .phone-frame.desktop-frame .phone-screen iframe { width: 1200px; height: 800px; }
+    .phone-frame.desktop-frame .phone-home-bar { display: none; }
+
+    /* Tablet/desktop mockup responsive overrides */
+    @media (max-width: 640px) {
+      .phone-frame.tablet-frame { width: 300px; }
+      .phone-frame.desktop-frame { width: 320px; }
+    }
+
     /* Version gallery */
     .version-gallery { display: flex; gap: 8px; margin: 16px auto; justify-content: center; flex-wrap: wrap; max-width: 420px; }
     .version-thumb { width: 48px; height: 104px; border-radius: 10px; border: 2px solid #ddd; cursor: pointer; overflow: hidden; transition: all 0.2s; position: relative; background: #f0f0f0; }
@@ -974,8 +1000,13 @@
               <button class="preview-toggle-btn" data-mode="thankyou" onclick="setPreviewMode('thankyou')">Thank You</button>
               <button class="preview-toggle-btn" data-mode="email" onclick="setPreviewMode('email')">Email</button>
             </div>
+            <div class="device-toggle" id="deviceToggle">
+              <button class="active" data-device="mobile" onclick="switchPreviewDevice('mobile')">📱 Mobile</button>
+              <button data-device="tablet" onclick="switchPreviewDevice('tablet')">📟 Tablet</button>
+              <button data-device="desktop" onclick="switchPreviewDevice('desktop')">🖥 Desktop</button>
+            </div>
             <div class="phone-mockup">
-              <div class="phone-frame">
+              <div class="phone-frame" id="phoneFrame">
                 <div class="phone-notch"></div>
                 <div class="phone-screen">
                   <iframe id="previewFrame"></iframe>
@@ -4442,9 +4473,9 @@
       // RSVP form and data-field overrides are injected via iframe.onload in the parent
       // (see injectRsvpForm) — NO script injection in srcdoc.
       return '<!DOCTYPE html><html><head><meta charset="UTF-8">'
-        + '<meta name="viewport" content="width=393, initial-scale=1.0">'
+        + '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
         + fontsLink
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 100%; overflow-x: hidden; } ' + fallbackCSS + '</style>'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 100%; overflow-x: hidden; } ' + fallbackCSS + '</style>'
         + (headStyles || '')
         + '<style>' + cleanedCss.replace(/<\/style/gi, '<\\/style') + '</style>'
         + '</head><body' + (bodyAttrs ? ' ' + bodyAttrs : '') + '>' + themeHtml + '</body></html>';
@@ -5694,6 +5725,56 @@
       renderPreview(ver);
     }
 
+    // ── Device preview toggle ──
+    var currentPreviewDevice = 'mobile';
+
+    function switchPreviewDevice(device) {
+      currentPreviewDevice = device;
+      var frame = document.getElementById('phoneFrame');
+      if (!frame) return;
+
+      // Update active button
+      document.querySelectorAll('#deviceToggle button').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-device') === device);
+      });
+
+      // Remove all device frame classes
+      frame.classList.remove('tablet-frame', 'desktop-frame');
+
+      // Add the appropriate class and recalculate scale
+      if (device === 'tablet') {
+        frame.classList.add('tablet-frame');
+      } else if (device === 'desktop') {
+        frame.classList.add('desktop-frame');
+      }
+
+      // Recalculate iframe scale after class change
+      recalcPreviewScale();
+    }
+
+    function recalcPreviewScale() {
+      var frame = document.getElementById('phoneFrame');
+      if (!frame) return;
+      var screen = frame.querySelector('.phone-screen');
+      var iframe = frame.querySelector('iframe');
+      if (!screen || !iframe) return;
+
+      // Wait a tick for CSS to apply new dimensions
+      requestAnimationFrame(function() {
+        var screenWidth = screen.clientWidth;
+        var iframeNativeWidth;
+        if (currentPreviewDevice === 'tablet') {
+          iframeNativeWidth = 768;
+        } else if (currentPreviewDevice === 'desktop') {
+          iframeNativeWidth = 1200;
+        } else {
+          iframeNativeWidth = 393;
+        }
+        var scale = screenWidth / iframeNativeWidth;
+        iframe.style.transform = 'scale(' + scale + ')';
+      });
+    }
+
     // Detect whether the current theme HTML contains user-uploaded photos
     // Checks for: Supabase event-photos/ URLs, base64 data URIs, and general <img> tags
     // that aren't SVGs (which are AI-generated illustrations)
@@ -5900,10 +5981,10 @@
         var fontUrlMatch2 = fontsImport.match(/url\(['"]?([^'"\)]+)['"]?\)/);
         var fontUrl2 = fontUrlMatch2 ? fontUrlMatch2[1] : (fontsImport.startsWith('http') ? fontsImport : '');
         if (fontUrl2) fontsLink2 = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="' + fontUrl2 + '">';
-        return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
           + fontsLink2
           + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet">'
-          + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; }</style>'
+          + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 852px; overflow-x: hidden; }</style>'
           + '<style>' + guaranteedCSS + '</style>'
           + '<style>' + sanitizeThemeText(ver.css || '') + '</style>'
           + '</head><body>' + tyHtml + '</body></html>';
@@ -5947,10 +6028,10 @@
       var fontUrlMatch3 = fontsImport.match(/url\(['"]?([^'"\)]+)['"]?\)/);
       var fontUrl3 = fontUrlMatch3 ? fontUrlMatch3[1] : (fontsImport.startsWith('http') ? fontsImport : '');
       if (fontUrl3) fontsLink3 = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="' + fontUrl3 + '">';
-      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
         + fontsLink3
         + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet">'
-        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 393px; min-height: 852px; overflow-x: hidden; background:' + bgColor + '; }</style>'
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } html, body { width: 100%; min-height: 852px; overflow-x: hidden; background:' + bgColor + '; }</style>'
         + '<style>' + guaranteedCSS + '</style>'
         + '<style>' + sanitizeThemeText(ver.css || '').replace(/<\/style/gi, '<\\/style') + '</style>'
         + '</head><body>' + thankYouHtml + '</body></html>';
