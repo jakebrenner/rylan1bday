@@ -341,6 +341,23 @@
     .gen-attribution-chip.selected { border-color: var(--party-coral); background: rgba(233,69,96,0.08); color: var(--party-coral); font-weight: 500; }
     .gen-attribution-thanks { font-size: 13px; color: var(--mint-fizz); font-weight: 500; animation: genFadeIn 0.3s ease; }
 
+    /* ── Generating Preview (shimmer skeleton + blur reveal) ── */
+    /* During generation: hide the "Invite People" button, preview toggle, version gallery, and live link */
+    .generating-preview-wrapper #previewToggle { visibility: hidden; }
+    .generating-preview-wrapper #viewLivePageLink { display: none !important; }
+    .generating-preview-wrapper .version-gallery { display: none; }
+    .generating-preview-wrapper .panel-tabs .panel-tab[onclick*="versions"] { opacity: 0.4; pointer-events: none; }
+    .generating-preview-wrapper div[style*="margin-bottom:16px"] > .btn { opacity: 0.5; pointer-events: none; }
+    .generating-preview-wrapper .design-chat-input-area { opacity: 0.4; pointer-events: none; }
+    .generating-preview-wrapper .invite-support-link { display: none; }
+    /* Blur reveal transition on the phone screen iframe */
+    .phone-screen iframe.preview-blurred { filter: blur(12px); opacity: 0.6; transition: filter 1.2s ease-out, opacity 0.8s ease-out; }
+    .phone-screen iframe.preview-revealing { filter: blur(0); opacity: 1; }
+    /* Error overlay on phone mockup */
+    .gen-preview-error { position: absolute; inset: 0; background: rgba(255,255,255,0.92); border-radius: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 5; padding: 24px; text-align: center; }
+    .gen-preview-error-icon { font-size: 36px; }
+    .gen-preview-error-msg { font-size: 14px; color: #888; max-width: 200px; }
+
     .summary-item { background: #f9f9f9; padding: 16px; border-radius: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     .summary-label { font-weight: 600; }
     .summary-value { color: #666; font-size: 14px; text-align: right; max-width: 60%; }
@@ -3405,16 +3422,18 @@
       }
       if (step === 2) renderRsvpFieldsToDetails();
       if (step === 2 && !themeVersions.length && !window._templateSource && document.getElementById('generatingPaywall').style.display === 'none') {
-        // First generation — use background mode with guest list builder
+        // First generation — show preview with shimmer skeleton
         startBackgroundGeneration();
       } else if (step === 2 && _generationInProgress) {
-        // Returning to step 2 while generation is still running — show builder
-        showGuestListBuilder();
+        // Returning to step 2 while generation is still running — show skeleton preview
+        showGeneratingPreview();
       } else if (step === 2 && themeVersions.length) {
         // Returning to step 2 with existing themes — show preview
         document.getElementById('guestListBuilderView').style.display = 'none';
         document.getElementById('generatingView').style.display = 'none';
-        document.getElementById('generatedView').style.display = 'block';
+        var gv = document.getElementById('generatedView');
+        gv.style.display = 'block';
+        gv.classList.remove('generating-preview-wrapper');
         renderPreview(themeVersions[activeVersionIndex]);
         renderVersionGallery();
         updateMobileLayout();
@@ -3453,9 +3472,10 @@
       var generatedView = document.getElementById('generatedView');
       if (!mobileActions || !generatedView) return;
       var isGenerated = generatedView.style.display !== 'none';
-      mobileActions.style.display = (isMobile && isGenerated) ? 'block' : 'none';
+      var isGenerating = generatedView.classList.contains('generating-preview-wrapper');
+      mobileActions.style.display = (isMobile && isGenerated && !isGenerating) ? 'block' : 'none';
       // On mobile, collapse edit panel by default so phone preview is hero
-      if (editPanel && isMobile && isGenerated) {
+      if (editPanel && isMobile && isGenerated && !isGenerating) {
         editPanel.style.display = editPanel.dataset.mobileCollapsed === 'false' ? '' : 'none';
         // Show a toggle to expand/collapse
         var toggle = document.getElementById('mobileEditToggle');
@@ -3862,10 +3882,7 @@
             }
             stopGeneratingPuns();
             if (_backgroundMode) {
-              // Background mode: update banner, don't navigate
-              _generationInProgress = false;
-              _generationComplete = true;
-              _generationResult = ver;
+              // Background mode: reveal the generated invite with blur transition
               onGenerationComplete(ver, genResult);
             } else {
               // Legacy full-screen mode (design tweaks)
@@ -3939,11 +3956,8 @@
       _generationResult = null;
       _backgroundMode = true;
 
-      // Show guest list builder view
-      showGuestListBuilder();
-
-      // Start banner progress bar animation
-      startBannerProgress();
+      // Show preview with shimmer skeleton
+      showGeneratingPreview();
 
       // Fire and forget — don't await
       generateTheme(feedback).catch(function(err) {
@@ -3954,87 +3968,94 @@
     }
 
     function onGenerationComplete(ver, genResult) {
+      // Delegate to the new reveal flow
+      revealGeneratedPreview(ver, genResult);
+    }
+
+    function revealGeneratedPreview(ver, genResult) {
       _generationInProgress = false;
       _generationComplete = true;
       _generationResult = ver;
 
-      var banner = document.getElementById('genBanner');
-      if (!banner) return;
+      // Stop progress animations
+      stopGeneratingPuns();
+      _clearProgressTimers();
 
-      banner.classList.remove('gen-banner-generating');
-      banner.classList.add('gen-banner-complete');
+      // Remove generating state — re-enables Invite People button, preview toggle, etc.
+      var generatedView = document.getElementById('generatedView');
+      generatedView.classList.remove('generating-preview-wrapper');
 
-      // Update status dot to checkmark
-      var dot = banner.querySelector('.gen-banner-status-dot');
-      if (dot) dot.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+      // Show preview toggle and live link now that invite is ready
+      var previewToggle = document.getElementById('previewToggle');
+      if (previewToggle) previewToggle.style.visibility = '';
+      var liveLink = document.getElementById('viewLivePageLink');
+      if (liveLink && currentEvent && currentEvent.id) liveLink.style.display = '';
 
-      // Update text
-      var title = banner.querySelector('.gen-banner-title');
-      var subtitle = banner.querySelector('.gen-banner-subtitle');
-      var guestCount = addedGuests.length;
-      if (title) title.textContent = 'Your invite is ready!';
-      if (subtitle) {
-        subtitle.textContent = guestCount > 0
-          ? guestCount + ' guest' + (guestCount !== 1 ? 's' : '') + ' added'
-          : 'Preview it now, or keep adding guests';
-      }
+      // Apply blur to iframe before loading new content
+      var iframe = document.getElementById('previewFrame');
+      iframe.classList.add('preview-blurred');
+      iframe.classList.remove('preview-revealing');
 
-      // Hide progress bar, show action button
-      var progressWrap = banner.querySelector('.gen-banner-progress');
-      if (progressWrap) progressWrap.style.display = 'none';
-      var actionBtn = document.getElementById('genBannerAction');
-      if (actionBtn) { actionBtn.style.display = ''; actionBtn.textContent = 'Preview Your Invite'; }
+      // Render the actual invite
+      renderPreview(ver);
+
+      // On iframe load, trigger blur-to-clear reveal
+      var origOnload = iframe.onload;
+      var wrappedOnload = function() {
+        if (origOnload) origOnload.call(iframe);
+        // Small delay to ensure content is painted before animating
+        requestAnimationFrame(function() {
+          iframe.classList.add('preview-revealing');
+          // Clean up classes after transition completes
+          setTimeout(function() {
+            iframe.classList.remove('preview-blurred', 'preview-revealing');
+          }, 1400);
+        });
+      };
+      iframe.onload = wrappedOnload;
+
+      renderVersionGallery();
+      pendingRatingThemeId = ver.id;
+      initDesignChatIfNeeded();
+      updateMobileLayout();
 
       // Haptic feedback on mobile
       if (navigator.vibrate) try { navigator.vibrate(100); } catch(e) {}
-
-      // Pulse animation
-      banner.style.animation = 'bannerPulse 0.4s ease';
-      setTimeout(function() { banner.style.animation = ''; }, 500);
     }
 
     function onGenerationError(msg) {
       _generationInProgress = false;
       _generationComplete = false;
 
-      var banner = document.getElementById('genBanner');
-      if (!banner) return;
+      // Stop progress animations
+      stopGeneratingPuns();
+      _clearProgressTimers();
 
-      banner.classList.remove('gen-banner-generating');
-      banner.classList.add('gen-banner-error');
+      // Show error overlay on the phone mockup
+      var phoneFrame = document.getElementById('phoneFrame');
+      if (phoneFrame) {
+        // Remove any existing error overlay
+        var existing = phoneFrame.querySelector('.gen-preview-error');
+        if (existing) existing.remove();
 
-      var dot = banner.querySelector('.gen-banner-status-dot');
-      if (dot) dot.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
-
-      var title = banner.querySelector('.gen-banner-title');
-      var subtitle = banner.querySelector('.gen-banner-subtitle');
-      if (title) title.textContent = 'Something went wrong';
-      if (subtitle) subtitle.textContent = msg || 'Generation failed';
-
-      var progressWrap = banner.querySelector('.gen-banner-progress');
-      if (progressWrap) progressWrap.style.display = 'none';
-      var actionBtn = document.getElementById('genBannerAction');
-      if (actionBtn) {
-        actionBtn.style.display = '';
-        actionBtn.textContent = 'Try Again';
-        actionBtn.onclick = function() { retryBackgroundGeneration(); };
+        var errorOverlay = document.createElement('div');
+        errorOverlay.className = 'gen-preview-error';
+        errorOverlay.innerHTML = '<div class="gen-preview-error-icon">😅</div>'
+          + '<div style="font-family:Playfair Display,serif;font-size:18px;font-weight:600;color:var(--midnight);">Oops!</div>'
+          + '<div class="gen-preview-error-msg">' + escapeHtml(msg || 'Generation failed') + '</div>'
+          + '<button class="btn btn-primary" onclick="retryBackgroundGeneration()" style="font-size:13px;padding:10px 24px;">Try Again</button>'
+          + '<button class="btn btn-secondary" onclick="var s=document.getElementById(\'resumeHideChat\');if(s)s.remove();goToStep(1)" style="font-size:12px;padding:8px 16px;">Back</button>';
+        phoneFrame.style.position = 'relative';
+        phoneFrame.appendChild(errorOverlay);
       }
     }
 
     function retryBackgroundGeneration() {
-      // Reset banner to generating state
-      var banner = document.getElementById('genBanner');
-      if (banner) {
-        banner.classList.remove('gen-banner-error', 'gen-banner-complete');
-        banner.classList.add('gen-banner-generating');
-        var dot = banner.querySelector('.gen-banner-status-dot');
-        if (dot) dot.innerHTML = '';
-        var title = banner.querySelector('.gen-banner-title');
-        if (title) title.textContent = 'Designing your invite...';
-        var progressWrap = banner.querySelector('.gen-banner-progress');
-        if (progressWrap) progressWrap.style.display = '';
-        var actionBtn = document.getElementById('genBannerAction');
-        if (actionBtn) actionBtn.style.display = 'none';
+      // Remove error overlay if present
+      var phoneFrame = document.getElementById('phoneFrame');
+      if (phoneFrame) {
+        var errorOverlay = phoneFrame.querySelector('.gen-preview-error');
+        if (errorOverlay) errorOverlay.remove();
       }
       // Clear session cache
       if (currentEvent && currentEvent.id) {
@@ -4044,8 +4065,8 @@
       _generationComplete = false;
       _generationResult = null;
       _backgroundMode = true;
-      startBannerProgress();
-      startGeneratingPuns('genBannerPun');
+      // Re-show skeleton preview with progress
+      showGeneratingPreview();
       generateTheme().catch(function(err) {
         _generationInProgress = false;
         onGenerationError(err.message || 'Generation failed');
@@ -4073,29 +4094,177 @@
       moveGuestModule('step3GuestSlot');
     }
 
-    function showGuestListBuilder() {
+    function buildSkeletonSrcdoc() {
+      var eventType = (extractedData && extractedData.eventType) || 'other';
+
+      // Event-type color palettes — used for blurred background
+      var palettes = {
+        wedding:      { c1: '#f5e6d3', c2: '#edd4c0', c3: '#e0c8a8', c4: '#f0dcc8', accent: '#c9a87c' },
+        birthday:     { c1: '#fad4e8', c2: '#f0b8d4', c3: '#e8a0c0', c4: '#f8d0e0', accent: '#d4557e' },
+        kidsBirthday: { c1: '#d4e8ff', c2: '#a8ccf0', c3: '#90b8e8', c4: '#c0d8f4', accent: '#4a8ad0' },
+        babyShower:   { c1: '#dff4d4', c2: '#b8e0a8', c3: '#a0d090', c4: '#d0ecc4', accent: '#5aa84a' },
+        corporate:    { c1: '#d0d8e8', c2: '#b0bcd4', c3: '#98a8c0', c4: '#c4cee0', accent: '#4a5a80' },
+        holiday:      { c1: '#f0d0d0', c2: '#d8a8a8', c3: '#c89090', c4: '#e8c0c0', accent: '#c84040' },
+        graduation:   { c1: '#ddd0f0', c2: '#c0b0e0', c3: '#a898d0', c4: '#d4c8ec', accent: '#7050b0' },
+        other:        { c1: '#e8dcd0', c2: '#d0c0b0', c3: '#c0b0a0', c4: '#ddd0c4', accent: '#a07850' }
+      };
+      var p = palettes[eventType] || palettes.other;
+
+      return '<!DOCTYPE html><html><head><style>'
+        + '@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap");'
+        + '*{margin:0;padding:0;box-sizing:border-box;}'
+        + 'body{overflow:hidden;height:100vh;display:flex;align-items:center;justify-content:center;position:relative;background:#f8f8f8;}'
+
+        // Blurred background layer — lots of moving color to suggest activity
+        + '.bg{position:absolute;inset:0;z-index:0;overflow:hidden;filter:blur(50px);opacity:0;animation:bgFadeIn 1.2s 0.1s ease forwards;}'
+
+        // Large ambient blobs — slow drift for base color
+        + '.bg .blob{position:absolute;border-radius:50%;}'
+        + '.blob.a1{width:320px;height:320px;background:' + p.c1 + ';top:-60px;left:-80px;animation:drift1 6s ease-in-out infinite;}'
+        + '.blob.a2{width:280px;height:280px;background:' + p.c2 + ';bottom:-40px;right:-60px;animation:drift2 7s ease-in-out infinite;}'
+        + '.blob.a3{width:240px;height:240px;background:' + p.c3 + ';top:50%;left:50%;transform:translate(-50%,-50%);animation:drift3 5s ease-in-out infinite;}'
+
+        // "Layout piece" rectangles — suggest invite structure being assembled
+        // These are colored blocks that move, resize, and reposition to look like
+        // sections of an invite being placed and adjusted behind the blur
+        + '.bg .piece{position:absolute;border-radius:6px;}'
+        // Header block — slides down from top
+        + '.piece.p1{width:280px;height:80px;background:' + p.c2 + ';top:30px;left:50%;transform:translateX(-50%) scaleX(0);animation:slideInX 1s 0.5s ease forwards,pieceShift1 4s 1.5s ease-in-out infinite;}'
+        // Hero image area — expands from center
+        + '.piece.p2{width:300px;height:180px;background:' + p.c1 + ';top:130px;left:50%;transform:translateX(-50%) scale(0.3);opacity:0;animation:pieceGrow 1.2s 0.8s ease forwards,piecePulse1 5s 2s ease-in-out infinite;}'
+        // Title bar
+        + '.piece.p3{width:200px;height:24px;background:' + p.c4 + ';top:340px;left:50%;transform:translateX(-50%) scaleX(0);animation:slideInX 0.8s 1.4s ease forwards,pieceShift2 6s 2.2s ease-in-out infinite;}'
+        // Subtitle bar
+        + '.piece.p4{width:140px;height:14px;background:' + p.c3 + ';top:375px;left:50%;transform:translateX(-50%) scaleX(0);animation:slideInX 0.7s 1.7s ease forwards,pieceShift3 5s 2.5s ease-in-out infinite;}'
+        // Detail block left
+        + '.piece.p5{width:220px;height:50px;background:' + p.c2 + ';top:430px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;animation:slideFadeIn 0.6s 2s ease forwards,piecePulse2 4.5s 2.6s ease-in-out infinite;}'
+        // Detail block right
+        + '.piece.p6{width:220px;height:50px;background:' + p.c4 + ';top:500px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;animation:slideFadeIn 0.6s 2.3s ease forwards,pieceShift1 5.5s 2.9s ease-in-out infinite;}'
+        // Button — pops in last
+        + '.piece.p7{width:160px;height:44px;background:' + p.accent + '80;border-radius:22px;top:580px;left:50%;transform:translateX(-50%) scale(0);animation:piecePop 0.5s 2.7s cubic-bezier(0.34,1.56,0.64,1) forwards,piecePulse1 6s 3.2s ease-in-out infinite;}'
+
+        // Shimmer sweep across the whole background — like light moving across a canvas
+        + '.bg .sweep{position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,0.2) 45%,rgba(255,255,255,0.35) 50%,rgba(255,255,255,0.2) 55%,transparent 70%);animation:sweepMove 3s 1s ease-in-out infinite;z-index:1;}'
+
+        // Center content (logo + bar) — crisp above the blur
+        + '.center{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:28px;opacity:0;animation:fadeSlideIn 0.6s 0.3s ease forwards;}'
+        + '.center svg{width:160px;filter:drop-shadow(0 2px 12px rgba(0,0,0,0.1));}'
+
+        // Progress bar
+        + '.bar-wrap{width:240px;}'
+        + '.bar-label{font-family:Inter,sans-serif;font-size:12px;color:#777;text-align:center;margin-bottom:10px;letter-spacing:0.3px;}'
+        + '.bar-track{width:100%;height:8px;background:rgba(255,255,255,0.7);border-radius:4px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.08);}'
+        + '.bar-fill{height:100%;width:0%;border-radius:4px;transition:width 1.5s ease;'
+        + 'background:linear-gradient(90deg,' + p.accent + ',' + p.accent + 'cc);'
+        + 'box-shadow:0 0 14px ' + p.accent + '60;position:relative;}'
+        + '.bar-fill::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.45),transparent);animation:barShimmer 1.5s ease-in-out infinite;}'
+
+        // Keyframes
+        + '@keyframes bgFadeIn{to{opacity:0.9}}'
+        + '@keyframes fadeSlideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}'
+        + '@keyframes barShimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}'
+        // Blob drifts
+        + '@keyframes drift1{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,20px) scale(1.1)}66%{transform:translate(-10px,30px) scale(0.95)}}'
+        + '@keyframes drift2{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(-20px,-30px) scale(1.08)}66%{transform:translate(15px,-10px) scale(0.97)}}'
+        + '@keyframes drift3{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-45%,-55%) scale(1.15)}}'
+        // Piece animations — staggered, varied movement
+        + '@keyframes slideInX{from{transform:translateX(-50%) scaleX(0)}to{transform:translateX(-50%) scaleX(1)}}'
+        + '@keyframes pieceGrow{from{transform:translateX(-50%) scale(0.3);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}'
+        + '@keyframes slideFadeIn{from{transform:translateX(-50%) translateY(20px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}'
+        + '@keyframes piecePop{from{transform:translateX(-50%) scale(0)}to{transform:translateX(-50%) scale(1)}}'
+        // Ongoing piece movements — different rhythms to look like active work
+        + '@keyframes pieceShift1{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-48%) translateY(-4px)}}'
+        + '@keyframes pieceShift2{0%,100%{transform:translateX(-50%) scaleX(1)}30%{transform:translateX(-50%) scaleX(1.05)}70%{transform:translateX(-52%) scaleX(0.97)}}'
+        + '@keyframes pieceShift3{0%,100%{transform:translateX(-50%) scaleX(1)}50%{transform:translateX(-46%) scaleX(1.08)}}'
+        + '@keyframes piecePulse1{0%,100%{opacity:1;transform:translateX(-50%) scale(1)}50%{opacity:0.85;transform:translateX(-50%) scale(1.02)}}'
+        + '@keyframes piecePulse2{0%,100%{opacity:1;transform:translateX(-50%)}50%{opacity:0.9;transform:translateX(-50%) translateY(-3px)}}'
+        + '@keyframes sweepMove{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}'
+
+        + '</style></head><body>'
+
+        // Blurred background with color blobs + "layout pieces" + sweep
+        + '<div class="bg">'
+        + '<div class="blob a1"></div>'
+        + '<div class="blob a2"></div>'
+        + '<div class="blob a3"></div>'
+        + '<div class="piece p1"></div>'
+        + '<div class="piece p2"></div>'
+        + '<div class="piece p3"></div>'
+        + '<div class="piece p4"></div>'
+        + '<div class="piece p5"></div>'
+        + '<div class="piece p6"></div>'
+        + '<div class="piece p7"></div>'
+        + '<div class="sweep"></div>'
+        + '</div>'
+
+        // Centered logo + progress bar (crisp, above the blur)
+        + '<div class="center">'
+        + '<svg viewBox="8 0 185 80" xmlns="http://www.w3.org/2000/svg">'
+        + '<circle cx="30" cy="40" r="20" fill="none" stroke="' + p.accent + '" stroke-width="2"/>'
+        + '<path d="M15 30 L30 42 L45 30 M15 50 L45 50" fill="none" stroke="' + p.accent + '" stroke-width="2" stroke-linecap="round"/>'
+        + '<text x="65" y="50" font-family="Playfair Display,serif" font-size="28" font-weight="600" fill="' + p.accent + '">Ryvite</text>'
+        + '</svg>'
+        + '<div class="bar-wrap">'
+        + '<div class="bar-label">Designing your invite...</div>'
+        + '<div class="bar-track"><div class="bar-fill" id="skeletonProgress"></div></div>'
+        + '</div>'
+        + '</div>'
+
+        + '</body></html>';
+    }
+
+    function showGeneratingPreview() {
       // Hide other Step 2 views
       document.getElementById('generatingView').style.display = 'none';
-      document.getElementById('generatedView').style.display = 'none';
-
-      // Show builder
       var builder = document.getElementById('guestListBuilderView');
-      if (builder) builder.style.display = 'block';
+      if (builder) builder.style.display = 'none';
 
-      // Move guest module into builder and ensure it's visible
-      moveGuestModule('builderGuestSlot');
-      var guestMod = document.getElementById('guestListModule');
-      if (guestMod) guestMod.style.display = '';
+      // Show generated view layout — FULL side-by-side layout with edit panel + phone mockup
+      var generatedView = document.getElementById('generatedView');
+      generatedView.style.display = 'block';
+      generatedView.classList.add('generating-preview-wrapper');
 
-      // Start banner progress animation
-      startBannerProgress();
-      startGeneratingPuns('genBannerPun');
+      // Keep edit panel visible — show the design chat immediately
+      var editPanel = document.getElementById('editPanel');
+      if (editPanel) editPanel.style.display = '';
 
-      // Load contacts for the guest list
-      loadContactsForInvite();
+      // Load skeleton into iframe
+      var iframe = document.getElementById('previewFrame');
+      iframe.onload = null;
+      iframe.srcdoc = buildSkeletonSrcdoc();
 
-      // Show celebration briefly
-      showCelebration();
+      // Initialize the design chat with a "building" message
+      initDesignChatIfNeeded();
+
+      // Animate progress bar inside iframe — front-loaded for immediate feedback
+      _clearProgressTimers();
+      var iframeProgressSteps = [
+        { pct: '15%', at: 0.01 }, { pct: '30%', at: 0.04 }, { pct: '42%', at: 0.10 },
+        { pct: '52%', at: 0.20 }, { pct: '60%', at: 0.35 }, { pct: '67%', at: 0.50 },
+        { pct: '73%', at: 0.65 }, { pct: '79%', at: 0.80 }, { pct: '84%', at: 0.90 },
+        { pct: '88%', at: 1.00 }, { pct: '92%', at: 1.25 }, { pct: '95%', at: 1.60 },
+        { pct: '97%', at: 2.00 }
+      ];
+      var ms = _avgGenSeconds * 1000;
+      iframeProgressSteps.forEach(function(s) {
+        var tid = setTimeout(function() {
+          try {
+            var doc = iframe.contentDocument;
+            if (doc) {
+              var bar = doc.getElementById('skeletonProgress');
+              if (bar) bar.style.width = s.pct;
+            }
+          } catch(e) {}
+        }, Math.round(s.at * ms));
+        _activeProgressTimers.push(tid);
+      });
+
+      updateMobileLayout();
+    }
+
+    function showGuestListBuilder() {
+      // Legacy — redirect to new preview-based flow
+      showGeneratingPreview();
     }
 
     function moveGuestModule(targetSlotId) {
@@ -6217,7 +6386,16 @@
         && (currentEvent.generationCount || 0) >= (currentEvent.generationLimit || 2);
       var welcomeMsg;
 
-      if (isUnpaid || isFreeExhausted) {
+      if (_generationInProgress) {
+        welcomeMsg = "I'm creating your invite for " + title + " right now! \u2728\n\n"
+          + "You'll see it appear in the preview as it's being built. Once it's ready, you can:\n\n"
+          + "- \u{1F3A8} Change colors, fonts, or overall vibe\n"
+          + "- \u{1F4F7} Add your photos directly into the invite\n"
+          + "- \u{2728} Adjust animations, layout, or spacing\n"
+          + "- \u{1F58C}\uFE0F Swap the style entirely\n"
+          + "- \u{1F4DD} Tweak any wording\n\n"
+          + "Sit tight \u2014 this usually takes " + _avgGenTimeText + ".";
+      } else if (isUnpaid || isFreeExhausted) {
         welcomeMsg = "Your invite for " + title + " is ready! Here's what you can do for free:\n\n"
           + "- \u{1F4DD} **Update text** \u2014 \"change the date to April 20th\" or \"change the title to ...\"\n"
           + "- \u{2795} **Add RSVP fields** \u2014 \"add a dietary restrictions field\"\n"
