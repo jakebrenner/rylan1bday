@@ -597,19 +597,9 @@
                   // Inject RSVP form into .rsvp-slot inside the iframe
                   renderRSVPForm(result.event);
 
-                  // Preview mode: show thank-you page or disable form
-                  if (isPreview) {
-                    if (viewMode === 'thankyou') {
-                      setTimeout(function() { showThankYouPage('Guest', 'yes'); }, 100);
-                    } else {
-                      // Disable submit button in preview
-                      var submitBtn = iframe.contentDocument.querySelector('#rsvpSubmitBtn');
-                      if (submitBtn) {
-                        submitBtn.disabled = true;
-                        submitBtn.style.opacity = '0.7';
-                        submitBtn.style.cursor = 'default';
-                      }
-                    }
+                  // Preview mode: show thank-you page if requested
+                  if (isPreview && viewMode === 'thankyou') {
+                    setTimeout(function() { showThankYouPage('Guest', 'yes'); }, 100);
                   }
 
                   // ── CSS rendering check (retry on failure) ──
@@ -886,6 +876,16 @@
       // Show loading pun from theme config if available
       var loadingPun = (currentEventData.themeConfig || {}).loadingPun || 'Submitting...';
       btn.textContent = loadingPun;
+
+      // Preview mode: simulate submission without saving
+      if (isPreview) {
+        setTimeout(function() {
+          btn.disabled = false; btn.textContent = 'Submit RSVP';
+          showThankYouPage(name, status);
+          triggerConfetti();
+        }, 800);
+        return;
+      }
 
       // Also show a loading overlay inside the RSVP form
       var rsvpForm = document.getElementById('rsvpForm');
