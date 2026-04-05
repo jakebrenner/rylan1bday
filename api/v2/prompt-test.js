@@ -358,7 +358,8 @@ You MUST ALWAYS include a non-empty "theme_thankyou_html" field. This is NOT opt
 The platform injects "Thank You!" heading, subtitle text, calendar buttons, and footer at runtime.
 Your job: provide the **visual wrapper and a decorative illustration** that makes it feel like a celebration.
 - Structure: \`<div class="thankyou-page"><div class="thankyou-decoration"><svg>...</svg></div><div class="thankyou-hero"></div></div>\`
-- \`.thankyou-page\` MUST have a branded background matching the invite (gradient, pattern, texture, or solid color)
+- \`.thankyou-page\` MUST be responsive — use the SAME responsive breakpoints as the invite (600px mobile base, 768px tablet, 1080px desktop). NEVER hardcode a narrow max-width like 393px or 500px.
+- \`.thankyou-page\` MUST have a branded background matching the invite (gradient, pattern, texture, or solid color). The background MUST fill the entire viewport width — no gaps or exposed body color on the sides.
 - \`.thankyou-hero\` MUST be completely EMPTY — the platform fills it with title + subtitle
 - **REQUIRED**: Include a theme-centric decorative SVG illustration (under 2KB) in \`.thankyou-decoration\` with CSS animation (bounce, fade-in, etc.). Examples: confetti, balloons, party hat, checkmark with sparkles, champagne glasses, cake, etc. A blank page with no illustration looks broken.
 - NO text content, NO emojis, NO calendar buttons, NO footer

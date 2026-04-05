@@ -1178,7 +1178,11 @@
         var fontU2 = fontUrlM2 ? fontUrlM2[1] : (fontsImport.startsWith('http') ? fontsImport : '');
         var fontsTag2 = fontU2 ? '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="' + fontU2 + '">' : '';
         var iframe = document.getElementById('themeFrame');
-        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">' + fontsTag2 + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet"><style>* { margin:0; padding:0; box-sizing:border-box; } html, body { padding: 0; background: transparent; }</style><style>' + guaranteedCSS + '</style><style>' + (currentEventData.themeCss || '') + '</style></head><body>' + tyHtml + '</body></html>';
+        // Guaranteed CSS loads first (provides defaults), theme CSS loads second (AI overrides).
+        // Responsive override CSS loads LAST to ensure old 393px themes get responsive layout.
+        var responsiveOverrideCSS = '@media (min-width:600px) { .thankyou-page { max-width:768px !important; width:100% !important; } }'
+          + '@media (min-width:1024px) { .thankyou-page { max-width:1080px !important; width:100% !important; } }';
+        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">' + fontsTag2 + '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet"><style>* { margin:0; padding:0; box-sizing:border-box; } html, body { padding: 0; background: transparent; }</style><style>' + guaranteedCSS + '</style><style>' + (currentEventData.themeCss || '') + '</style><style>' + responsiveOverrideCSS + '</style></head><body>' + tyHtml + '</body></html>';
         iframe.onload = function() { try { iframe.style.height = Math.max(iframe.contentDocument.body.scrollHeight + 40, 600) + 'px'; } catch(e) {} };
 
         // Wire up calendar buttons and CTA click tracking inside the iframe after load

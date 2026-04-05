@@ -631,7 +631,8 @@ Your job: provide the **visual wrapper and decorative illustration** that makes 
 \`\`\`
 
 Rules:
-- \`.thankyou-page\` MUST have a branded background matching the invite (gradient, pattern, texture, or solid color)
+- \`.thankyou-page\` MUST be responsive — use the SAME responsive breakpoints as the invite (600px mobile base, 768px tablet, 1080px desktop). NEVER hardcode a narrow max-width like 393px or 500px.
+- \`.thankyou-page\` MUST have a branded background matching the invite (gradient, pattern, texture, or solid color). The background MUST fill the entire viewport width — no gaps or exposed body color on the sides.
 - \`.thankyou-hero\` MUST be completely empty — no text, no emojis, no SVGs inside it. The platform fills it with title + subtitle.
 - **REQUIRED**: Include a decorative SVG illustration OUTSIDE \`.thankyou-hero\` but INSIDE \`.thankyou-page\`. This is NOT optional — a bare page with just text and buttons looks broken. The illustration should:
   - Match the event theme (unicorn for kids party, champagne for wedding, etc.)
