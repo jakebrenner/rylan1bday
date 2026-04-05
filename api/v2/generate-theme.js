@@ -284,9 +284,9 @@ async function getFreeGenerationLimit() {
       .select('value')
       .eq('key', 'free_ai_generations')
       .single();
-    return Math.max(1, parseInt(data?.value) || 2);
+    return Math.max(1, parseInt(data?.value) || 10);
   } catch {
-    return 2;
+    return 10;
   }
 }
 

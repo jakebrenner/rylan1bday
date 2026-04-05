@@ -1272,7 +1272,7 @@ export default async function handler(req, res) {
           themeModel: config.theme_model || 'claude-sonnet-4-6',
           costMarkupPct: parseFloat(config.cost_markup_pct) || 100,
           smsCostCents: parseInt(config.sms_cost_cents) || 3,
-          freeAiGenerations: parseInt(config.free_ai_generations) || 2
+          freeAiGenerations: parseInt(config.free_ai_generations) || 10
         }
       });
     }
@@ -1288,7 +1288,7 @@ export default async function handler(req, res) {
       if (themeModel) upserts.push({ key: 'theme_model', value: themeModel, updated_by: admin.id, updated_at: new Date().toISOString() });
       if (costMarkupPct !== undefined) upserts.push({ key: 'cost_markup_pct', value: String(costMarkupPct), updated_by: admin.id, updated_at: new Date().toISOString() });
       if (smsCostCents !== undefined) upserts.push({ key: 'sms_cost_cents', value: String(smsCostCents), updated_by: admin.id, updated_at: new Date().toISOString() });
-      if (freeAiGenerations !== undefined) upserts.push({ key: 'free_ai_generations', value: String(Math.max(1, Math.min(10, parseInt(freeAiGenerations) || 2))), updated_by: admin.id, updated_at: new Date().toISOString() });
+      if (freeAiGenerations !== undefined) upserts.push({ key: 'free_ai_generations', value: String(Math.max(1, Math.min(10, parseInt(freeAiGenerations) || 10))), updated_by: admin.id, updated_at: new Date().toISOString() });
 
       if (upserts.length > 0) {
         const { error } = await supabaseAdmin

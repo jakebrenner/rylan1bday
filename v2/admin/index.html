@@ -1324,7 +1324,7 @@
         <div class="config-row">
           <div class="config-field">
             <label for="freeAiGenerationsInput">Free AI Generations Per Event</label>
-            <input type="number" id="freeAiGenerationsInput" min="1" max="10" step="1" value="2"
+            <input type="number" id="freeAiGenerationsInput" min="1" max="10" step="1" value="10"
               oninput="var s=document.getElementById('billingPricingSummary');if(s)s.textContent='Free tier ('+this.value+' AI design'+(this.value>1?'s':'')+'/event) + $4.99/event premium';"
               style="width:120px;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;">
             <div class="hint">Total number of AI design generations each free event receives. Users must upgrade to $4.99 for unlimited designs beyond this limit.</div>
@@ -5070,7 +5070,7 @@ JSON format is also accepted (array of {name, html, eventTypes, tags} objects).'
         var res = await adminFetch('getConfig');
         if (res.config) {
           var freeGenInput = document.getElementById('freeAiGenerationsInput');
-          var freeGenVal = res.config.freeAiGenerations || 2;
+          var freeGenVal = res.config.freeAiGenerations || 10;
           if (freeGenInput) freeGenInput.value = freeGenVal;
           var summary = document.getElementById('billingPricingSummary');
           if (summary) summary.textContent = 'Free tier (' + freeGenVal + ' AI design' + (freeGenVal > 1 ? 's' : '') + '/event) + $4.99/event premium';
@@ -5088,7 +5088,7 @@ JSON format is also accepted (array of {name, html, eventTypes, tags} objects).'
         await adminFetch('saveConfig', {
           method: 'POST',
           body: {
-            freeAiGenerations: parseInt(document.getElementById('freeAiGenerationsInput').value) || 2
+            freeAiGenerations: parseInt(document.getElementById('freeAiGenerationsInput').value) || 10
           }
         });
         var saved = document.getElementById('billingConfigSaved');
