@@ -2,7 +2,7 @@
 
 > **Audience:** Technical Product Manager
 > **Purpose:** Understand Ryvite's architecture, AI system, and quality pipeline to improve invite creation reliability, speed, and user flow.
-> **Last updated:** April 5, 2026 (v6 — responsive design: mobile-first with tablet/desktop breakpoints)
+> **Last updated:** April 5, 2026 (v7 — template import pipeline: automated validation, review queue, admin approval workflow)
 
 ---
 
@@ -61,6 +61,7 @@ The system is built on three pillars:
 | `api/v2/events.js` | default (10s) | Event CRUD, RSVP, publish |
 | `api/v2/auth.js` | default (10s) | Login (magic link), signup, token refresh |
 | `api/v2/billing.js` | default (10s) | Stripe integration, payment verification |
+| `api/v2/template-import.js` | 30s | Template import pipeline — validates, auto-repairs, and inserts AI-generated templates into style_library with pending_review status |
 
 ### 2.3 Key Database Tables
 
@@ -70,7 +71,8 @@ The system is built on three pillars:
 | `event_themes` | AI-generated invite designs, versioned per event (html, css, config, model, ratings) |
 | `guests` | Invitees and RSVP responses |
 | `profiles` | User profiles (tier, credits) |
-| `style_library` | Curated HTML invite samples used as AI design references |
+| `style_library` | Curated HTML invite samples used as AI design references (status: pending_review/approved/rejected, source: manual/pipeline/admin) |
+| `template_import_log` | Audit trail for pipeline imports — tracks success, validation failures, insert errors per batch |
 | `prompt_versions` | Versioned creative prompts — one active version drives production |
 | `prompt_test_runs` | Admin lab test results with scores |
 | `generation_log` | AI generation audit trail (model, tokens, latency, cost, geo) |
@@ -294,6 +296,16 @@ The admin panel includes a built-in Template Factory for autonomous bulk generat
 - JSON paste upload in admin UI — accepts structured JSON from external Claude sessions
 
 **External generation prompt:** `docs/style-generation-prompt.md` provides a ready-to-use prompt for generating templates in Claude chat conversations (one template per message to avoid timeouts).
+
+**Template Import Pipeline:**
+External scheduled tasks can push AI-generated templates via `api/v2/template-import.js`:
+1. Auth via `x-api-key` header (rate-limited to 50 req/hr)
+2. Auto-repair: injects missing platform elements (`.rsvp-slot`, `.details-slot`, `data-field="title"`), strips markdown fences, closes unclosed CSS braces, removes hallucinated images
+3. Validation: mirrors `generate-theme.js` checks — platform elements, CSS/HTML length, no scripts/event handlers, no external images, Google Fonts only
+4. On pass: inserts into `style_library` with `status = 'pending_review'`, `source = 'pipeline'`, default `admin_rating = 3`
+5. Admin reviews via `pending-templates` / `review-template` actions in admin API
+6. Only `status = 'approved'` styles appear in production generation queries
+7. All imports logged to `template_import_log` for audit (view: `pipeline_import_stats`)
 
 ### 4.6 Prompt Version Management
 

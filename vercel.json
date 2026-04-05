@@ -128,6 +128,9 @@
     "api/v2/prompt-health.js": {
       "maxDuration": 120,
       "memory": 1024
+    },
+    "api/v2/template-import.js": {
+      "maxDuration": 30
     }
   },
   "redirects": [
