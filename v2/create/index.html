@@ -6585,7 +6585,7 @@
         if (msg.options && msg.options.length > 0) {
           html += '<div class="design-chat-options" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">';
           msg.options.forEach(function(opt) {
-            html += '<button class="design-chat-option-btn" onclick="handleChatOption(this.dataset.val)" data-val="' + escapeHtml(opt.value) + '" style="background:#f0f0f0;border:1px solid #ddd;border-radius:16px;padding:6px 14px;font-size:12px;cursor:pointer;transition:all 0.15s;white-space:nowrap;"'
+            html += '<button class="design-chat-option-btn" onclick="handleChatOption(this.dataset.val, this.dataset.label)" data-val="' + escapeHtml(opt.value) + '" data-label="' + escapeHtml(opt.label) + '" style="background:#f0f0f0;border:1px solid #ddd;border-radius:16px;padding:6px 14px;font-size:12px;cursor:pointer;transition:all 0.15s;white-space:nowrap;"'
               + ' onmouseover="this.style.background=\'#e0e0e0\';this.style.borderColor=\'#bbb\'"'
               + ' onmouseout="this.style.background=\'#f0f0f0\';this.style.borderColor=\'#ddd\'">'
               + escapeHtml(opt.label) + '</button>';
@@ -7640,7 +7640,12 @@
       renderDesignChat();
     }
 
-    function handleChatOption(value) {
+    function handleChatOption(value, label) {
+      // Log every option click as a user message so it appears in chat history
+      var displayLabel = label || value;
+      pushDesignChat({ role: 'user', content: displayLabel });
+      renderDesignChat();
+
       // Support mode entry
       if (value === 'open_invite_support') { enterSupportMode(); return; }
       if (value === 'open_ticket_now') { escalateToTicket('User requested manual help'); return; }
@@ -7664,9 +7669,7 @@
         }
       }
       awaitingRedesignClarification = false;
-      // Show the user's selection as a message
-      pushDesignChat({ role: 'user', content: value });
-      renderDesignChat();
+      // User message already logged by handleChatOption
       // Combine original request with clarification and send — skip redesign detection
       var combined = (pendingRedesignText || 'Give me a new design') + '\n\nClarification from user: ' + value;
       pendingRedesignText = null;
@@ -7685,9 +7688,7 @@
         }
       }
       awaitingIntentClarification = false;
-      // Show the user's selection as a message
-      pushDesignChat({ role: 'user', content: value });
-      renderDesignChat();
+      // User message already logged by handleChatOption
       // Combine original request with the user's choice and send — skip classification
       var combined = (pendingIntentText || value) + '\n\nClarification from user: ' + value;
       pendingIntentText = null;
@@ -9391,6 +9392,9 @@
     async function handleStarClick(themeId, rating) {
       // Always submit immediately — no chips/send-feedback step
       hostRatingsByTheme[themeId] = { rating: rating, feedback: '' };
+
+      // Log the rating as a user message so it appears in chat history
+      pushDesignChat({ role: 'user', content: 'Rated this design ' + rating + ' out of 5 stars' });
 
       // Submit rating (quality incident is triggered inside submitHostRating for 1-2 star ratings)
       submitHostRating(themeId, rating, '');
