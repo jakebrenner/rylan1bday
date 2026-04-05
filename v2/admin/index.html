@@ -1901,6 +1901,7 @@
             <button class="btn btn-secondary" onclick="togglePromptBuilder()">Copy Prompt</button>
             <button class="btn btn-secondary" onclick="toggleFactoryPanel()">Template Factory</button>
             <button class="btn btn-secondary" onclick="toggleSelectionMode()" id="selectModeBtn">Select Multiple</button>
+            <button class="btn btn-secondary" onclick="showDuplicates()">Find Duplicates</button>
             <button class="btn btn-secondary" onclick="retagAllStyles()" id="retagAllBtn">Re-tag All</button>
             <span style="font-size:12px;color:#888;display:flex;align-items:center;" id="styleCount">0 samples in library</span>
           </div>
@@ -6922,9 +6923,13 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       var barFill = document.getElementById('bulkBarFill');
       var listEl = document.getElementById('bulkList');
 
+      // Build hash set of existing library for dedup
+      var existingFileHashes = buildExistingHashSet();
+
       // Process each file sequentially (to avoid hammering the API)
       var successCount = 0;
       var doneCount = 0;
+      var skipCount = 0;
       for (var i = 0; i < items.length; i++) {
         var item = items[i];
         var statusEl = document.getElementById(item.id + '_status');
@@ -6946,6 +6951,19 @@ If provided, analyze them for color palette, visual mood, textures, typography s
           barFill.style.width = Math.round((doneCount / files.length) * 100) + '%';
           continue;
         }
+
+        // Step 1.5: Check for duplicates
+        var fileHash = hashString(normalizeHtml(item.html));
+        if (existingFileHashes.has(fileHash)) {
+          statusEl.textContent = 'Duplicate — skipped';
+          statusEl.className = 'file-status error';
+          skipCount++;
+          doneCount++;
+          headerText.textContent = 'Processing ' + doneCount + ' / ' + files.length;
+          barFill.style.width = Math.round((doneCount / files.length) * 100) + '%';
+          continue;
+        }
+        existingFileHashes.add(fileHash); // Prevent dupes within the same batch
 
         // Step 2: Auto-tag with AI
         try {
@@ -7000,7 +7018,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       }
 
       // Done — update header
-      headerText.textContent = successCount + ' / ' + files.length + ' added';
+      headerText.textContent = successCount + ' / ' + files.length + ' added' + (skipCount > 0 ? ' (' + skipCount + ' duplicates skipped)' : '');
       barFill.style.width = '100%';
       barFill.style.background = successCount === files.length ? 'var(--mint-fizz)' : 'var(--confetti-gold)';
 
@@ -7029,6 +7047,138 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       tabs.forEach(function(t, i) { t.classList.toggle('active', i === (tab === 'files' ? 0 : 1)); });
       document.getElementById('bulkFilesTab').style.display = tab === 'files' ? 'block' : 'none';
       document.getElementById('bulkJsonTab').style.display = tab === 'json' ? 'block' : 'none';
+    }
+
+    // ---- Duplicate Detection ----
+    // Simple string hash (djb2) — fast, sufficient for exact-match dedup
+    function hashString(str) {
+      var hash = 5381;
+      for (var i = 0; i < str.length; i++) {
+        hash = ((hash << 5) + hash) + str.charCodeAt(i);
+        hash = hash & hash; // Convert to 32-bit int
+      }
+      return hash.toString(36);
+    }
+
+    function normalizeHtml(html) {
+      // Strip whitespace variations so trivially reformatted HTML still matches
+      return (html || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function buildExistingHashSet() {
+      var hashes = new Set();
+      (styleLibrary || []).forEach(function(item) {
+        if (item.html) hashes.add(hashString(normalizeHtml(item.html)));
+      });
+      return hashes;
+    }
+
+    function deduplicateItems(items, existingHashes) {
+      var seen = new Set(existingHashes || []);
+      var unique = [];
+      var dupeCount = 0;
+      for (var i = 0; i < items.length; i++) {
+        var h = hashString(normalizeHtml(items[i].html));
+        if (seen.has(h)) {
+          dupeCount++;
+        } else {
+          seen.add(h);
+          unique.push(items[i]);
+        }
+      }
+      return { unique: unique, dupeCount: dupeCount };
+    }
+
+    // Find duplicates in existing library (for cleanup)
+    function findExistingDuplicates() {
+      var hashMap = {};
+      (styleLibrary || []).forEach(function(item) {
+        var h = hashString(normalizeHtml(item.html));
+        if (!hashMap[h]) hashMap[h] = [];
+        hashMap[h].push(item);
+      });
+      var groups = [];
+      for (var h in hashMap) {
+        if (hashMap[h].length > 1) groups.push(hashMap[h]);
+      }
+      return groups;
+    }
+
+    function showDuplicates() {
+      var groups = findExistingDuplicates();
+      if (groups.length === 0) {
+        showToast('No duplicates found in your library');
+        return;
+      }
+
+      var totalDupes = groups.reduce(function(sum, g) { return sum + g.length - 1; }, 0);
+      var overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.style.display = 'flex';
+      overlay.id = 'dupeOverlay';
+      overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+      var html = '<div class="modal" style="max-width:600px;max-height:80vh;overflow-y:auto;">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
+        + '<h3>Duplicate Templates</h3>'
+        + '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'dupeOverlay\').remove()">Close</button>'
+        + '</div>'
+        + '<p style="font-size:13px;color:#888;margin-bottom:16px;">'
+        + 'Found <strong>' + totalDupes + '</strong> duplicate' + (totalDupes > 1 ? 's' : '') + ' across ' + groups.length + ' group' + (groups.length > 1 ? 's' : '') + '. '
+        + 'For each group, keep the one with the highest rating (or oldest) and delete the rest.</p>'
+        + '<button class="btn btn-primary" onclick="autoCleanDuplicates()" style="margin-bottom:16px;">Auto-Clean All Duplicates</button>';
+
+      groups.forEach(function(group, gi) {
+        html += '<div style="border:1px solid #eee;border-radius:8px;padding:12px;margin-bottom:12px;">'
+          + '<div style="font-size:12px;font-weight:600;color:#888;margin-bottom:8px;">Group ' + (gi + 1) + ' — ' + group.length + ' copies</div>';
+        group.forEach(function(item) {
+          var stars = item.adminRating ? '★'.repeat(item.adminRating) + '☆'.repeat(5 - item.adminRating) : 'Unrated';
+          html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1px solid #f5f5f5;font-size:12px;">'
+            + '<span style="font-weight:600;">' + escapeHtml(item.name || 'Untitled') + '</span>'
+            + '<span style="color:#888;">' + stars + ' · ' + (item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '?') + '</span>'
+            + '</div>';
+        });
+        html += '</div>';
+      });
+      html += '</div>';
+
+      overlay.innerHTML = html;
+      document.body.appendChild(overlay);
+    }
+
+    async function autoCleanDuplicates() {
+      var groups = findExistingDuplicates();
+      if (groups.length === 0) return;
+
+      var idsToDelete = [];
+      groups.forEach(function(group) {
+        // Sort: highest rating first, then oldest first (keep the best/oldest)
+        group.sort(function(a, b) {
+          if ((b.adminRating || 0) !== (a.adminRating || 0)) return (b.adminRating || 0) - (a.adminRating || 0);
+          return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+        });
+        // Keep first, delete rest
+        for (var i = 1; i < group.length; i++) {
+          idsToDelete.push(group[i].id);
+        }
+      });
+
+      if (!confirm('Delete ' + idsToDelete.length + ' duplicate items? Keeps the highest-rated (or oldest) copy of each.')) return;
+
+      try {
+        var res = await adminFetch('bulkDeleteStyles', { method: 'POST', body: { styleIds: idsToDelete } });
+        showToast('Cleaned ' + (res.deleted || idsToDelete.length) + ' duplicates');
+        // Refresh
+        var libRes = await adminFetch('getStyleLibrary');
+        styleLibrary = libRes.library || [];
+        renderStyleGrid();
+        updateStyleCount();
+        updateFilterUI();
+        var overlay = document.getElementById('dupeOverlay');
+        if (overlay) overlay.remove();
+      } catch (e) {
+        showToast('Delete failed: ' + e.message);
+      }
     }
 
     // Parse STYLE_META comment from HTML string
@@ -7102,9 +7252,21 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         if (!it.name) it.name = 'Imported Template ' + (i + 1);
       });
 
+      // Deduplicate — remove items that match existing library or each other
+      var existingHashes = buildExistingHashSet();
+      var dedup = deduplicateItems(items, existingHashes);
+      items = dedup.unique;
+
       var preview = document.getElementById('jsonPreview');
       preview.style.display = 'block';
-      preview.innerHTML = 'Found <strong>' + items.length + '</strong> templates: ' + items.slice(0, 5).map(function(it) { return escapeHtml(it.name); }).join(', ') + (items.length > 5 ? '...' : '') + '<br>Uploading...';
+
+      if (dedup.dupeCount > 0 && items.length === 0) {
+        preview.innerHTML = 'All ' + dedup.dupeCount + ' templates are duplicates of items already in your library. Nothing to upload.';
+        return;
+      }
+
+      var dupMsg = dedup.dupeCount > 0 ? ' (' + dedup.dupeCount + ' duplicate' + (dedup.dupeCount > 1 ? 's' : '') + ' skipped)' : '';
+      preview.innerHTML = 'Uploading <strong>' + items.length + '</strong> templates' + dupMsg + ': ' + items.slice(0, 5).map(function(it) { return escapeHtml(it.name); }).join(', ') + (items.length > 5 ? '...' : '');
 
       // Auto-tag items missing metadata if checkbox checked
       var autoTag = document.getElementById('jsonAutoTag').checked;
