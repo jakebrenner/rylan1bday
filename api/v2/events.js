@@ -125,11 +125,16 @@ export default async function handler(req, res) {
 
     if (action === 'getPublic') {
       const { slug, eventId } = req.query;
+      const isPreview = req.query.preview === 'true';
 
       let query = supabaseAdmin
         .from('events')
-        .select('*')
-        .eq('status', 'published');
+        .select('*');
+
+      // In preview mode, allow any status; otherwise only published events
+      if (!isPreview) {
+        query = query.eq('status', 'published');
+      }
 
       if (slug) query = query.eq('slug', slug);
       else if (eventId) query = query.eq('id', eventId);
