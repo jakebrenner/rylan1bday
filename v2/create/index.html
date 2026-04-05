@@ -3940,6 +3940,9 @@
       // Show guest list builder view
       showGuestListBuilder();
 
+      // Start banner progress bar animation
+      startBannerProgress();
+
       // Fire and forget — don't await
       generateTheme(feedback).catch(function(err) {
         console.error('[bg-gen] Uncaught error:', err);
