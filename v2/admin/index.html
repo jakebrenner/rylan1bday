@@ -164,14 +164,6 @@
     }
     .preview-frame { border: 2px solid #eee; border-radius: 8px; overflow: hidden; width: 393px; margin: 0 auto; background: white; min-height: 300px; transition: width 0.3s ease; }
     .preview-frame iframe { width: 393px; height: 700px; border: none; transition: width 0.3s ease, height 0.3s ease; }
-    .preview-frame.device-tablet { width: 768px; }
-    .preview-frame.device-tablet iframe { width: 768px; height: 1024px; }
-    .preview-frame.device-desktop { width: 1080px; }
-    .preview-frame.device-desktop iframe { width: 1080px; height: 800px; }
-    .device-toggle { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; }
-    .device-toggle button { padding: 6px 14px; border-radius: 20px; border: 1px solid #ddd; background: #fff; cursor: pointer; font-size: 13px; font-family: 'Inter', sans-serif; transition: all 0.2s; color: #666; }
-    .device-toggle button.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
-    .device-toggle button:hover:not(.active) { border-color: var(--party-coral); color: var(--party-coral); }
     .test-meta { display: flex; gap: 16px; font-size: 12px; color: #888; margin-top: 12px; padding: 8px 12px; background: #f9f9f9; border-radius: 6px; flex-wrap: wrap; }
     .test-meta span { display: flex; align-items: center; gap: 4px; }
     .test-meta .val { font-weight: 700; color: var(--midnight); }
@@ -1689,11 +1681,6 @@
                 <button class="preview-toggle-btn" onclick="setTestPreviewMode('thankyou')">Thank You</button>
               </div>
             </div>
-            <div class="device-toggle" id="singleDeviceToggle">
-              <button class="active" onclick="setDevicePreview('mobile', 'single')">&#128241; Mobile</button>
-              <button onclick="setDevicePreview('tablet', 'single')">&#128195; Tablet</button>
-              <button onclick="setDevicePreview('desktop', 'single')">&#128187; Desktop</button>
-            </div>
             <div id="singlePreviewContent" style="display:flex;gap:24px;flex-wrap:wrap;">
               <div style="flex:0 0 auto;" id="singlePreviewContainer">
                 <div class="phone-mockup" id="singlePhoneMockup">
@@ -1704,9 +1691,6 @@
                     </div>
                     <div class="phone-home-bar"></div>
                   </div>
-                </div>
-                <div class="preview-frame" id="singleWidePreview" style="display:none;">
-                  <iframe id="testPreviewFrameWide" sandbox="allow-scripts allow-same-origin"></iframe>
                 </div>
               </div>
               <div style="flex:1;min-width:250px;">
@@ -5696,16 +5680,6 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       if (lastTestResult) {
         renderPhonePreview(document.getElementById('testPreviewFrame'), lastTestResult.theme, mode);
         // Also update wide preview if in tablet/desktop mode
-        if (currentDeviceMode !== 'mobile') {
-          var wideIframe = document.getElementById('testPreviewFrameWide');
-          if (wideIframe) {
-            if (mode === 'thankyou') {
-              wideIframe.srcdoc = buildTestThankYouSrcdoc(lastTestResult.theme);
-            } else {
-              wideIframe.srcdoc = buildTestSrcdoc(lastTestResult.theme);
-            }
-          }
-        }
       }
     }
 
@@ -5723,50 +5697,7 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       });
     }
 
-    // ── Device preview toggle (mobile / tablet / desktop) ──
-    var DEVICE_SIZES = { mobile: { w: 393, h: 852 }, tablet: { w: 768, h: 1024 }, desktop: { w: 1080, h: 800 } };
-    var currentDeviceMode = 'mobile';
 
-    function setDevicePreview(device, context) {
-      currentDeviceMode = device;
-      var size = DEVICE_SIZES[device] || DEVICE_SIZES.mobile;
-
-      // Update toggle button active states
-      var toggleId = context === 'single' ? 'singleDeviceToggle' : 'singleDeviceToggle';
-      var toggle = document.getElementById(toggleId);
-      if (toggle) {
-        toggle.querySelectorAll('button').forEach(function(btn) {
-          btn.classList.toggle('active', btn.textContent.toLowerCase().indexOf(device) !== -1);
-        });
-      }
-
-      if (device === 'mobile') {
-        // Show phone mockup, hide wide preview
-        document.getElementById('singlePhoneMockup').style.display = '';
-        document.getElementById('singleWidePreview').style.display = 'none';
-        // Re-render into phone iframe
-        if (lastTestResult) {
-          renderPhonePreview(document.getElementById('testPreviewFrame'), lastTestResult.theme, testPreviewMode);
-        }
-      } else {
-        // Hide phone mockup, show wide preview frame
-        document.getElementById('singlePhoneMockup').style.display = 'none';
-        var widePreview = document.getElementById('singleWidePreview');
-        widePreview.style.display = '';
-        widePreview.style.width = size.w + 'px';
-        var wideIframe = document.getElementById('testPreviewFrameWide');
-        wideIframe.style.width = size.w + 'px';
-        wideIframe.style.height = size.h + 'px';
-        // Render content into wide iframe
-        if (lastTestResult) {
-          if (testPreviewMode === 'thankyou') {
-            wideIframe.srcdoc = buildTestThankYouSrcdoc(lastTestResult.theme);
-          } else {
-            wideIframe.srcdoc = buildTestSrcdoc(lastTestResult.theme);
-          }
-        }
-      }
-    }
 
     var MODEL_INFO = {
       'claude-haiku-4-5-20251001': { label: 'Haiku 4.5', badge: 'haiku' },
@@ -6273,12 +6204,6 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       document.getElementById('matrixResultSection').style.display = 'none';
       document.getElementById('singlePreviewContent').style.display = 'flex';
       testPreviewMode = 'invite';
-      // Reset to mobile view
-      currentDeviceMode = 'mobile';
-      document.getElementById('singlePhoneMockup').style.display = '';
-      document.getElementById('singleWidePreview').style.display = 'none';
-      var dtBtns = document.querySelectorAll('#singleDeviceToggle button');
-      dtBtns.forEach(function(btn) { btn.classList.toggle('active', btn.textContent.toLowerCase().indexOf('mobile') !== -1); });
 
       var meta = data.metadata;
       var estCost = calcEstCost(meta);
