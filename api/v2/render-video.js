@@ -81,6 +81,7 @@ function buildInviteHtml(html, css, config) {
   const fallbackText = configObj.textColor || '#1A1A2E';
   const fallbackFont = configObj.fontBody || 'Inter';
 
+  // Video capture is always phone-sized (393x852) for social media sharing — intentionally NOT responsive
   return `<!DOCTYPE html><html><head><meta charset="UTF-8">
 <meta name="viewport" content="width=393, initial-scale=1.0">
 ${fontsStyle}

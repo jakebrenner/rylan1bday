@@ -4937,9 +4937,9 @@
           }
         }
 
-        // Check 4: Content overflow detection — text flowing outside visible area (mobile preview)
+        // Check 4: Content overflow in phone mockup — iframe renders at 393px width
         if (!isUnstyled && doc.body.scrollWidth > 420) {
-          console.warn('[checkCssRendered] Content overflow detected: scrollWidth=' + doc.body.scrollWidth + 'px (max 393px for mobile preview)');
+          console.warn('[checkCssRendered] Content overflow in phone mockup: scrollWidth=' + doc.body.scrollWidth + 'px (phone frame is 393px)');
         }
 
         if (isUnstyled && ver.css && ver.css.trim().length > 100 && _cssCheckRetries < _MAX_CSS_RETRIES) {
