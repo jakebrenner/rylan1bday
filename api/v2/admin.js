@@ -4802,6 +4802,51 @@ ${cssSnippet}`
       });
     }
 
+    // ---- PENDING PIPELINE TEMPLATES ----
+    if (action === 'pending-templates') {
+      // Try the view first, fall back to direct query
+      let { data, error } = await supabaseAdmin
+        .from('pending_template_review')
+        .select('*');
+      if (error) {
+        // View might not exist — query directly
+        ({ data, error } = await supabaseAdmin
+          .from('style_library')
+          .select('id, name, event_types, tags, admin_rating, metadata, imported_at, created_at, html')
+          .eq('status', 'pending_review')
+          .order('imported_at', { ascending: false }));
+      }
+      if (error) return res.status(500).json({ error: 'Failed to fetch pending templates: ' + error.message });
+      const templates = (data || []).map(t => ({
+        ...t,
+        html_length: t.html ? t.html.length : (t.html_length || 0),
+        html: undefined
+      }));
+      return res.status(200).json({ success: true, templates });
+    }
+
+    // ---- REVIEW PIPELINE TEMPLATE ----
+    if (action === 'review-template') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+      const { id, decision, admin_rating: rating } = req.body;
+      if (!id || !decision) return res.status(400).json({ error: 'id and decision are required' });
+      if (!['approved', 'rejected'].includes(decision)) return res.status(400).json({ error: 'decision must be approved or rejected' });
+
+      const update = { status: decision };
+      if (rating && rating >= 1 && rating <= 5) {
+        update.admin_rating = rating;
+        update.rated_by = admin.email;
+        update.rated_at = new Date().toISOString();
+      }
+
+      const { error } = await supabaseAdmin
+        .from('style_library')
+        .update(update)
+        .eq('id', id);
+      if (error) return res.status(500).json({ error: 'Failed to update template: ' + error.message });
+      return res.status(200).json({ success: true });
+    }
+
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('Admin API error:', err);

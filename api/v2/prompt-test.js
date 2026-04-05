@@ -873,6 +873,7 @@ All names and details must be entirely fictional. Make the design prompt vivid, 
         .select('*')
         .contains('event_types', [eventType])
         .is('archived_at', null)
+        .eq('status', 'approved')
         .order('admin_rating', { ascending: false, nullsFirst: false })
         .limit(fetchLimit);
       // Fallback if admin_rating or archived_at column doesn't exist yet (migration not run)
