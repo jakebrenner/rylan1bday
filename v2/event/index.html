@@ -139,6 +139,7 @@
     });
 
     let currentEventData = null;
+    var isPreviewMode = false;
     var _guestCssRetries = 0;
     var _MAX_GUEST_CSS_RETRIES = 2;
 
@@ -458,6 +459,7 @@
       var eventId = params.get('eid');
       guestId = params.get('gid') || '';
       var isPreview = params.get('preview') === 'true';
+      isPreviewMode = isPreview;
       var viewMode = params.get('view') || 'invite';
 
       // Support clean URLs: /v2/event/my-slug
@@ -878,7 +880,7 @@
       btn.textContent = loadingPun;
 
       // Preview mode: simulate submission without saving
-      if (isPreview) {
+      if (isPreviewMode) {
         setTimeout(function() {
           btn.disabled = false; btn.textContent = 'Submit RSVP';
           showThankYouPage(name, status);
