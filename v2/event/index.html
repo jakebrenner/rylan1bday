@@ -474,10 +474,12 @@
         var queryParams = slug ? 'slug=' + encodeURIComponent(slug) : 'eventId=' + encodeURIComponent(eventId);
 
         // Try public endpoint first (works for published events, no auth needed)
-        var res = await fetch('/api/v2/events?action=getPublic&' + queryParams);
+        // In preview mode, pass preview=true so the API returns draft events too
+        var previewParam = isPreview ? '&preview=true' : '';
+        var res = await fetch('/api/v2/events?action=getPublic&' + queryParams + previewParam);
         var result = await res.json();
 
-        // Preview mode fallback: if getPublic fails (draft/unpublished), try authenticated get
+        // Preview mode fallback: if getPublic fails, try authenticated get
         if (isPreview && (!result.success || !result.event)) {
           var token = localStorage.getItem('sb_access_token');
           if (token) {

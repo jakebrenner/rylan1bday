@@ -1112,6 +1112,12 @@
         <div class="ed-section" id="ed-preview">
           <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;">
             <div>
+              <div style="display:flex;gap:6px;justify-content:center;margin-bottom:12px;">
+                <button class="btn btn-sm" id="edPreviewInvite" onclick="switchAdminPreviewMode('invite')" style="background:var(--party-coral);color:#fff;border-color:var(--party-coral);">Invite</button>
+                <button class="btn btn-sm btn-secondary" id="edPreviewThankyou" onclick="switchAdminPreviewMode('thankyou')">Thank You</button>
+                <button class="btn btn-sm btn-secondary" id="edPreviewEmail" onclick="switchAdminPreviewMode('email')">Email</button>
+              </div>
+              <div id="edPreviewLinks" style="text-align:center;margin-bottom:10px;font-size:12px;"></div>
               <div class="phone-mockup">
                 <div class="phone-frame">
                   <div class="phone-notch"></div>
@@ -9883,13 +9889,23 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       }
 
       // ---- Preview Section ----
+      _adminPreviewMode = 'invite';
+      _adminPreviewThemeId = previewTheme ? previewTheme.id : null;
+      // Reset preview mode buttons
+      switchAdminPreviewMode('invite');
+
+      // Preview links (view live page)
+      var linksHtml = '';
+      if (ev.slug && ev.status === 'published') {
+        linksHtml += '<a href="/v2/event/' + escapeHtml(ev.slug) + '" target="_blank" style="color:var(--party-coral);text-decoration:none;font-weight:600;">View live page &rarr;</a>';
+      } else if (ev.slug) {
+        linksHtml += '<a href="/v2/event/' + escapeHtml(ev.slug) + '?preview=true" target="_blank" style="color:#888;text-decoration:none;font-weight:500;">Preview page (draft) &rarr;</a>';
+      }
+      document.getElementById('edPreviewLinks').innerHTML = linksHtml;
+
       var iframe = document.getElementById('eventDetailPreviewFrame');
       if (previewTheme && previewTheme.html) {
-        var fontsImport = (previewTheme.config && previewTheme.config.googleFontsImport) || '';
-        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
-          + fontsImportToLink(fontsImport)
-          + '<style>' + (previewTheme.css || '') + '</style></head>'
-          + '<body>' + previewTheme.html + '</body></html>';
+        renderAdminPreview(previewTheme);
       } else {
         iframe.srcdoc = '<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#aaa;"><p>No theme generated</p></body></html>';
       }
@@ -10131,18 +10147,342 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear() + ' ' + h + ':' + min + ' ' + ampm;
     }
 
+    function rgbToHex(r, g, b) {
+      return '#' + [r, g, b].map(function(c) { return Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, '0'); }).join('');
+    }
+    function mixColor(hex, target, amount) {
+      var rgb1 = hexToRgb(hex), rgb2 = hexToRgb(target);
+      return rgbToHex(rgb1[0]+(rgb2[0]-rgb1[0])*amount, rgb1[1]+(rgb2[1]-rgb1[1])*amount, rgb1[2]+(rgb2[2]-rgb1[2])*amount);
+    }
+
+    function buildAdminThankYouSrcdoc(theme) {
+      var config = theme.config || {};
+      var fontsImport = config.googleFontsImport || '';
+      var ev = currentEventDetail ? currentEventDetail.event : {};
+      var guestName = 'Sarah';
+      var title = ev.title || 'the event';
+      var pc = config.primaryColor || '#333';
+      var bgColor = config.backgroundColor || '#FFFAF5';
+      var tc = config.textColor || '#1A1A2E';
+      var isDark = isColorDark(bgColor);
+      var tyTextColor = isDark ? '#FFFFFF' : tc;
+      var btnBg = isDark ? 'rgba(255,255,255,0.12)' : pc;
+      var btnBorder = isDark ? ' border:1px solid rgba(255,255,255,0.25); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);' : '';
+      var hoverShadow = isDark ? '0 4px 12px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.15)';
+
+      var guaranteedCSS = '.thankyou-page { max-width:393px; margin:0 auto; padding:60px 32px 40px; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:' + tyTextColor + '; }'
+        + '.thankyou-hero { margin-bottom:32px; }'
+        + '.thankyou-title { font-size:36px; font-weight:700; margin-bottom:12px; color:' + tyTextColor + '; }'
+        + '.thankyou-subtitle { font-size:16px; line-height:1.5; opacity:0.85; color:' + tyTextColor + '; }'
+        + '.thankyou-calendar-section { width:100%; max-width:320px; padding:0 8px; }'
+        + '.calendar-label { font-size:14px; margin-bottom:16px; opacity:0.7; color:' + tyTextColor + '; }'
+        + '.calendar-buttons { display:flex; flex-direction:column; gap:12px; width:100%; }'
+        + '.cal-btn { display:block; width:100%; padding:16px 24px; border-radius:12px; border:none; font-family:inherit; font-size:16px; font-weight:600; cursor:pointer; transition:transform 0.15s,box-shadow 0.15s; text-align:center; color:#fff;' + btnBorder + ' }'
+        + '.cal-btn:hover { transform:translateY(-2px); box-shadow:' + hoverShadow + '; }'
+        + '.cal-apple { background:' + btnBg + '; color:#fff; }'
+        + '.cal-google { background:' + btnBg + '; color:#fff;' + (isDark ? '' : ' opacity:0.85;') + ' }'
+        + '.cal-outlook { background:' + btnBg + '; color:#fff;' + (isDark ? '' : ' opacity:0.7;') + ' }'
+        + '.thankyou-footer { font-size:15px; opacity:0.6; margin-top:40px; text-align:center; color:' + tyTextColor + '; }'
+        + '.thankyou-footer a { color:inherit; text-decoration:none; }';
+
+      var calendarHTML = '<div class="thankyou-calendar-section">'
+        + '<p class="calendar-label">Add to your calendar:</p>'
+        + '<div class="calendar-buttons">'
+        + '<button class="cal-btn cal-apple">Apple / Outlook (.ics)</button>'
+        + '<button class="cal-btn cal-google">Google Calendar</button>'
+        + '<button class="cal-btn cal-outlook">Outlook Web</button>'
+        + '</div></div>';
+      var footerHTML = '<p class="thankyou-footer">Made with &#10084; by <a href="https://www.ryvite.com">Ryvite</a></p>';
+
+      var tyHtml = config.thankyouHtml || '<div class="thankyou-page"><div class="thankyou-hero"><h1 class="thankyou-title">Thank You!</h1><p class="thankyou-subtitle">We can\'t wait to celebrate with you.</p></div></div>';
+
+      tyHtml = tyHtml.replace(/<span class="thankyou-guest">[^<]*<\/span>/g, '<span class="thankyou-guest">' + escapeHtml(guestName) + '</span>');
+      tyHtml = tyHtml.replace(/<span class="thankyou-event">[^<]*<\/span>/g, '<span class="thankyou-event">' + escapeHtml(title) + '</span>');
+
+      // Strip AI calendar/footer and inject guaranteed ones
+      tyHtml = tyHtml.replace(/<div class="thankyou-calendar-section">[\s\S]*?<\/div>\s*<\/div>/gi, '');
+      tyHtml = tyHtml.replace(/<p class="thankyou-footer">[\s\S]*?<\/p>/gi, '');
+
+      // Insert before closing tag
+      var insertIdx = tyHtml.lastIndexOf('</div>');
+      if (insertIdx >= 0) {
+        tyHtml = tyHtml.substring(0, insertIdx) + calendarHTML + footerHTML + tyHtml.substring(insertIdx);
+      } else {
+        tyHtml += calendarHTML + footerHTML;
+      }
+
+      var themeCss = theme.css || '';
+      return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+        + fontsImportToLink(fontsImport)
+        + '<style>* { margin:0; padding:0; box-sizing:border-box; } ' + themeCss + ' ' + guaranteedCSS + '</style>'
+        + '</head><body>' + tyHtml + '</body></html>';
+    }
+
+    function buildAdminEmailSrcdoc(theme) {
+      var config = theme.config || {};
+      var emailHtml = config.emailHtml || '';
+
+      // If AI has generated custom email HTML, use it directly
+      if (emailHtml) return emailHtml;
+
+      // Ryvite-branded email template (mirrors api/v2/sms.js and v2/create buildEmailSrcdoc)
+      var ev = currentEventDetail ? currentEventDetail.event : {};
+      var pc = config.primaryColor || '#E94560';
+      var bgColor = config.backgroundColor || '#FFFAF5';
+      var headlineFont = config.fontHeadline || 'Playfair Display';
+      var bodyFont = config.fontBody || 'Inter';
+      var isDark = isColorDark(bgColor);
+
+      var cardBg = mixColor(pc, '#FFFFFF', 0.92);
+      var pcRgb = hexToRgb(pc);
+      var pcLuminance = (0.299 * pcRgb[0] + 0.587 * pcRgb[1] + 0.114 * pcRgb[2]) / 255;
+      var btnTextColor = pcLuminance > 0.55 ? '#1A1A2E' : '#FFFFFF';
+      var heroBg = isDark ? bgColor : pc;
+      var heroText = isDark ? (isColorDark(bgColor) ? '#FFFFFF' : '#1A1A2E') : btnTextColor;
+
+      var title = ev.title || 'Your Event';
+      var hostName = (currentEventDetail && currentEventDetail.owner) ? (currentEventDetail.owner.displayName || 'Your host') : 'Your host';
+      var eventDate = ev.eventDate ? new Date(ev.eventDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '';
+      var location = ev.locationName || '';
+
+      var detailRows = '';
+      if (eventDate) {
+        detailRows += '<tr><td style="width:32px;vertical-align:top;padding-right:12px;"><p style="margin:0;font-size:18px;line-height:1;">&#128197;</p></td>'
+          + '<td style="vertical-align:top;"><p style="font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:14px;color:#1A1A2E;margin:0;line-height:1.5;font-weight:600;">' + escapeHtml(eventDate) + '</p></td></tr>';
+      }
+      if (location) {
+        detailRows += '<tr><td style="width:32px;vertical-align:top;padding-right:12px;' + (eventDate ? 'padding-top:10px;' : '') + '"><p style="margin:0;font-size:18px;line-height:1;">&#128205;</p></td>'
+          + '<td style="vertical-align:top;' + (eventDate ? 'padding-top:10px;' : '') + '"><p style="font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:14px;color:#5A5A6E;margin:0;line-height:1.5;">' + escapeHtml(location) + '</p></td></tr>';
+      }
+      var detailsSection = detailRows
+        ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:20px 32px 0;">'
+          + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:' + cardBg + ';border-radius:12px;"><tr><td style="padding:18px 20px;">'
+          + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">' + detailRows + '</table>'
+          + '</td></tr></table></td></tr></table>'
+        : '';
+
+      return '<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">'
+        + '<style>body{margin:0;padding:0;background-color:#FFFFFF;-webkit-text-size-adjust:100%}</style></head>'
+        + '<body style="margin:0;padding:0;background-color:#FFFFFF;">'
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#FFFFFF;padding:32px 16px;"><tr><td align="center">'
+        + '<table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;width:100%;">'
+        // Hero
+        + '<tr><td align="center" style="padding:0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:' + heroBg + ';border-radius:16px 16px 0 0;"><tr><td style="padding:40px 32px 32px;text-align:center;">'
+        + '<p style="margin:0 0 8px;font-size:28px;line-height:1;">&#10024;</p>'
+        + '<p style="margin:0 0 6px;font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:' + heroText + ';opacity:0.7;">YOU\'RE INVITED</p>'
+        + '<h1 style="margin:0;font-family:\'' + headlineFont + '\',Georgia,serif;font-size:28px;font-weight:700;color:' + heroText + ';line-height:1.25;">' + escapeHtml(title) + '</h1>'
+        + '</td></tr></table></td></tr>'
+        // Body
+        + '<tr><td style="background-color:#FFFFFF;padding:0;border-radius:0 0 16px 16px;border:1px solid #f0ebe5;border-top:none;">'
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:28px 32px 0;">'
+        + '<p style="font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:15px;color:#1A1A2E;margin:0;line-height:1.6;">Hey Sarah,</p>'
+        + '<p style="font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:15px;color:#5A5A6E;margin:6px 0 0;line-height:1.6;">' + escapeHtml(hostName) + ' would love for you to be there! Check out the full invite and let them know if you can make it.</p>'
+        + '</td></tr></table>'
+        + detailsSection
+        + '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="height:28px;font-size:0;line-height:0;" height="28">&nbsp;</td></tr></table>'
+        // CTA
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:0 32px 0;">'
+        + '<a href="#" style="display:inline-block;padding:16px 48px;background-color:' + pc + ';color:' + btnTextColor + ';font-size:16px;font-weight:700;text-decoration:none;border-radius:50px;font-family:\'' + bodyFont + '\',Arial,sans-serif;letter-spacing:0.3px;min-width:200px;text-align:center;">View Invitation &amp; RSVP</a>'
+        + '</td></tr></table>'
+        // Divider
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:24px 32px 24px;">'
+        + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="border-top:1px solid #f0ebe5;height:1px;font-size:0;line-height:0;">&nbsp;</td></tr></table>'
+        + '<p style="font-family:\'' + bodyFont + '\',Arial,sans-serif;font-size:12px;color:#B0B0B8;margin:16px 0 0;line-height:1.5;text-align:center;">Tap the button to see your full invitation and RSVP</p>'
+        + '</td></tr></table></td></tr>'
+        // Footer
+        + '<tr><td align="center" style="padding:24px 0 0;">'
+        + '<p style="margin:0;font-size:11px;color:#C8C8D0;font-family:\'' + bodyFont + '\',Arial,sans-serif;">Sent via <span style="color:#E94560;font-weight:600;">Ryvite</span> &mdash; Beautiful invitations, effortlessly.</p>'
+        + '</td></tr>'
+        + '</table></td></tr></table></body></html>';
+    }
+
+    var _adminPreviewMode = 'invite';
+    var _adminPreviewThemeId = null;
+
     function previewEventThemeVersion(themeId) {
       if (!currentEventDetail) return;
       var theme = currentEventDetail.themes.find(function(t) { return t.id === themeId; });
       if (!theme || !theme.html) return;
+      _adminPreviewThemeId = themeId;
       // Switch to preview tab if not already there
       switchEventSection('preview');
+      renderAdminPreview(theme);
+    }
+
+    function switchAdminPreviewMode(mode) {
+      _adminPreviewMode = mode;
+      // Update button styles
+      ['Invite', 'Thankyou', 'Email'].forEach(function(m) {
+        var btn = document.getElementById('edPreview' + m);
+        if (!btn) return;
+        if (m.toLowerCase() === mode) {
+          btn.style.background = 'var(--party-coral)';
+          btn.style.color = '#fff';
+          btn.style.borderColor = 'var(--party-coral)';
+          btn.className = 'btn btn-sm';
+        } else {
+          btn.style.background = '';
+          btn.style.color = '';
+          btn.style.borderColor = '';
+          btn.className = 'btn btn-sm btn-secondary';
+        }
+      });
+      // Re-render with current theme
+      if (!currentEventDetail) return;
+      var themes = currentEventDetail.themes || [];
+      var theme = _adminPreviewThemeId
+        ? themes.find(function(t) { return t.id === _adminPreviewThemeId; })
+        : themes.find(function(t) { return t.isActive; }) || themes[themes.length - 1];
+      if (theme) renderAdminPreview(theme);
+    }
+
+    function renderAdminPreview(theme) {
       var iframe = document.getElementById('eventDetailPreviewFrame');
-      var fontsImport = (theme.config && theme.config.googleFontsImport) || '';
-      iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
-        + fontsImportToLink(fontsImport)
-        + '<style>' + (theme.css || '') + '</style></head>'
-        + '<body>' + theme.html + '</body></html>';
+      if (_adminPreviewMode === 'thankyou') {
+        iframe.srcdoc = buildAdminThankYouSrcdoc(theme);
+        iframe.onload = null;
+      } else if (_adminPreviewMode === 'email') {
+        iframe.srcdoc = buildAdminEmailSrcdoc(theme);
+        iframe.onload = null;
+      } else {
+        var fontsImport = (theme.config && theme.config.googleFontsImport) || '';
+        iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=393, initial-scale=1.0">'
+          + fontsImportToLink(fontsImport)
+          + '<style>' + (theme.css || '') + '</style></head>'
+          + '<body>' + theme.html + '</body></html>';
+        iframe.onload = function() { injectAdminPreviewContent(iframe); };
+      }
+    }
+
+    // ── Admin Preview: inject event details + RSVP form to match what users see ──
+
+    function injectAdminPreviewContent(iframe) {
+      if (!currentEventDetail) return;
+      var doc = iframe.contentDocument;
+      if (!doc) return;
+      var ev = currentEventDetail.event;
+      var customFields = currentEventDetail.customFields || [];
+
+      // Inject event details into .details-slot
+      var detailsSlot = doc.querySelector('.details-slot');
+      if (detailsSlot) {
+        detailsSlot.innerHTML = buildAdminDetailsHtml(ev);
+      }
+
+      // Override title field
+      var titleEl = doc.querySelector('[data-field="title"]');
+      if (titleEl && ev.title) titleEl.textContent = ev.title;
+
+      // Override legacy data-field elements
+      var dtEl = doc.querySelector('[data-field="datetime"]');
+      if (dtEl && ev.eventDate) {
+        var d = new Date(ev.eventDate);
+        dtEl.textContent = d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+          + ' at ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      }
+      var locEl = doc.querySelector('[data-field="location"]');
+      if (locEl) locEl.textContent = [ev.locationName, ev.locationAddress].filter(Boolean).join(', ') || '';
+      var dcEl = doc.querySelector('[data-field="dresscode"]');
+      if (dcEl && ev.dressCode) dcEl.textContent = ev.dressCode;
+
+      // Inject RSVP form into .rsvp-slot
+      var rsvpSlot = doc.querySelector('.rsvp-slot');
+      if (rsvpSlot) {
+        var ifrWin = iframe.contentWindow || doc.defaultView;
+        var isDark = detectAdminBgDark(rsvpSlot, ifrWin);
+        rsvpSlot.innerHTML = buildAdminRsvpFormHtml(customFields, isDark);
+      }
+    }
+
+    function buildAdminDetailsHtml(ev) {
+      var items = [];
+      if (ev.eventDate) {
+        var d = new Date(ev.eventDate);
+        var formatted = d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        var timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        if (ev.endDate) {
+          var end = new Date(ev.endDate);
+          timeStr += ' \u2013 ' + end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        }
+        items.push({ icon: '&#128197;', label: 'Date', value: formatted + '<br>' + timeStr });
+      }
+      var locName = ev.locationName || '';
+      var locAddr = ev.locationAddress || '';
+      if (locName || locAddr) {
+        items.push({ icon: '&#128205;', label: 'Location', value: [locName, locAddr].filter(Boolean).join('<br>') });
+      }
+      if (ev.dressCode) {
+        items.push({ icon: '&#128087;', label: 'Dress Code', value: escapeHtml(ev.dressCode) });
+      }
+      return items.map(function(item) {
+        return '<div class="detail-item">'
+          + '<div class="detail-icon">' + item.icon + '</div>'
+          + '<div class="detail-text"><div class="detail-label">' + item.label + '</div>'
+          + '<div class="detail-value">' + item.value + '</div></div>'
+          + '</div>';
+      }).join('');
+    }
+
+    function buildAdminRsvpFormHtml(customFields, isDark) {
+      var textColor = isDark ? '#FFFFFF' : '#1A1A1A';
+      var borderColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.15)';
+      var inputBg = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.04)';
+      var inputStyle = 'width:100%;padding:12px 14px;border:1px solid ' + borderColor + ';border-radius:8px;font-size:16px;font-family:Inter,sans-serif;-webkit-appearance:none;background:' + inputBg + ';color:' + textColor + ';';
+      var labelStyle = 'display:block;margin-bottom:8px;font-weight:600;font-size:14px;color:' + textColor + ';';
+
+      var html = '<div style="color:' + textColor + ';">';
+      html += '<div style="margin-bottom:14px;"><label style="' + labelStyle + '">Name <span style="color:#E94560;">*</span></label>'
+        + '<input type="text" disabled placeholder="Your name" style="' + inputStyle + 'opacity:0.7;"></div>';
+      html += '<div style="margin-bottom:14px;"><label style="' + labelStyle + '">Email</label>'
+        + '<input type="email" disabled placeholder="your@email.com" style="' + inputStyle + 'opacity:0.7;"></div>';
+      html += '<div style="margin-bottom:14px;"><label style="' + labelStyle + '">Phone</label>'
+        + '<input type="tel" disabled placeholder="(555) 123-4567" style="' + inputStyle + 'opacity:0.7;"></div>';
+      html += '<div style="margin-bottom:14px;"><label style="' + labelStyle + '">RSVP Status <span style="color:#E94560;">*</span></label>'
+        + '<select disabled style="' + inputStyle + 'opacity:0.7;cursor:default;">'
+        + '<option>Select...</option><option>Yes, I\'ll be there!</option><option>No, sorry</option><option>Maybe</option></select></div>';
+
+      customFields.forEach(function(f) {
+        if (f.key === 'email' || f.key === 'phone') return;
+        var reqStar = f.required ? ' <span style="color:#E94560;">*</span>' : '';
+        html += '<div style="margin-bottom:14px;"><label style="' + labelStyle + '">' + escapeHtml(f.label) + reqStar + '</label>';
+        if (f.type === 'checkbox') {
+          html += '<label style="display:flex;align-items:center;gap:8px;font-size:14px;color:' + textColor + ';"><input type="checkbox" disabled style="width:18px;height:18px;accent-color:#E94560;"> ' + escapeHtml(f.label) + '</label>';
+        } else if (f.type === 'select' && f.options && f.options.length > 0) {
+          html += '<select disabled style="' + inputStyle + 'opacity:0.7;cursor:default;"><option>Select...</option>';
+          f.options.forEach(function(opt) { html += '<option>' + escapeHtml(opt) + '</option>'; });
+          html += '</select>';
+        } else if (f.type === 'textarea') {
+          html += '<textarea disabled placeholder="' + escapeHtml(f.placeholder || '') + '" style="' + inputStyle + 'opacity:0.7;min-height:80px;resize:vertical;"></textarea>';
+        } else {
+          var inputType = f.type === 'number' ? 'number' : f.type === 'email' ? 'email' : f.type === 'phone' || f.type === 'tel' ? 'tel' : 'text';
+          html += '<input type="' + inputType + '" disabled placeholder="' + escapeHtml(f.placeholder || '') + '" style="' + inputStyle + 'opacity:0.7;">';
+        }
+        html += '</div>';
+      });
+
+      html += '<button disabled style="width:100%;padding:14px 24px;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:default;background:#E94560;color:#FFFFFF;font-family:Inter,sans-serif;min-height:48px;opacity:0.7;">Submit RSVP</button>';
+      html += '</div>';
+      return html;
+    }
+
+    function detectAdminBgDark(el, win) {
+      var node = el;
+      while (node && node.nodeType === 1) {
+        try {
+          var styles = win.getComputedStyle(node);
+          var bg = styles.backgroundColor;
+          if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+            var m = bg.match(/\d+/g);
+            if (m && m.length >= 3) {
+              var rgb = [+m[0], +m[1], +m[2]];
+              var a = rgb.map(function(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+              return (0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]) < 0.35;
+            }
+          }
+        } catch (e) {}
+        node = node.parentElement;
+      }
+      return false;
     }
 
     // ═══════════════════════════════════════════════════════════════════
