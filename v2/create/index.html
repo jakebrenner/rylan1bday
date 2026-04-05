@@ -342,26 +342,14 @@
     .gen-attribution-thanks { font-size: 13px; color: var(--mint-fizz); font-weight: 500; animation: genFadeIn 0.3s ease; }
 
     /* ── Generating Preview (shimmer skeleton + blur reveal) ── */
-    .generating-preview-wrapper { text-align: center; }
-    .generating-preview-wrapper > h2,
-    .generating-preview-wrapper > p.step-desc { display: none; }
-    .generating-preview-wrapper #previewToggle { display: none !important; }
-    .generating-preview-wrapper #editPanel { display: none !important; }
-    .generating-preview-wrapper #mobilePreviewActions { display: none !important; }
+    /* During generation: hide the "Invite People" button, preview toggle, version gallery, and live link */
+    .generating-preview-wrapper #previewToggle { visibility: hidden; }
     .generating-preview-wrapper #viewLivePageLink { display: none !important; }
-    .gen-preview-status { max-width: 360px; margin: 0 auto; text-align: center; }
-    .gen-preview-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--midnight); margin: 0 0 4px; }
-    .gen-preview-pun { font-size: 13px; color: #888; font-style: italic; min-height: 18px; transition: opacity 0.3s; margin: 0 0 12px; }
-    .gen-preview-time-hint { font-size: 12px; color: #bbb; margin: 0 0 16px; }
-    .gen-preview-progress { width: 100%; max-width: 240px; height: 6px; background: #f0e8ea; border-radius: 3px; overflow: hidden; margin: 0 auto 20px; }
-    .gen-preview-progress-bar { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--party-coral), var(--blush-pop), var(--mint-fizz)); background-size: 200% 100%; animation: genShimmer 2s ease-in-out infinite; transition: width 0.8s ease; width: 5%; }
-    .gen-preview-stages { display: flex; justify-content: center; gap: 20px; margin-bottom: 8px; }
-    .gen-preview-stage { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #ccc; transition: color 0.3s; }
-    .gen-preview-stage.active { color: var(--party-coral); font-weight: 500; }
-    .gen-preview-stage.done { color: var(--mint-fizz); }
-    .gen-preview-stage-dot { width: 8px; height: 8px; border-radius: 50%; background: #e0e0e0; transition: background 0.3s; flex-shrink: 0; }
-    .gen-preview-stage.active .gen-preview-stage-dot { background: var(--party-coral); animation: bannerDotPulse 1.5s ease-in-out infinite; }
-    .gen-preview-stage.done .gen-preview-stage-dot { background: var(--mint-fizz); }
+    .generating-preview-wrapper .version-gallery { display: none; }
+    .generating-preview-wrapper .panel-tabs .panel-tab[onclick*="versions"] { opacity: 0.4; pointer-events: none; }
+    .generating-preview-wrapper div[style*="margin-bottom:16px"] > .btn { opacity: 0.5; pointer-events: none; }
+    .generating-preview-wrapper .design-chat-input-area { opacity: 0.4; pointer-events: none; }
+    .generating-preview-wrapper .invite-support-link { display: none; }
     /* Blur reveal transition on the phone screen iframe */
     .phone-screen iframe.preview-blurred { filter: blur(12px); opacity: 0.6; transition: filter 1.2s ease-out, opacity 0.8s ease-out; }
     .phone-screen iframe.preview-revealing { filter: blur(0); opacity: 1; }
@@ -3993,19 +3981,13 @@
       stopGeneratingPuns();
       _clearProgressTimers();
 
-      // Hide status area below phone
-      var statusEl = document.getElementById('genPreviewStatus');
-      if (statusEl) statusEl.style.display = 'none';
-
-      // Remove generating wrapper class to reveal edit panel
+      // Remove generating state — re-enables Invite People button, preview toggle, etc.
       var generatedView = document.getElementById('generatedView');
       generatedView.classList.remove('generating-preview-wrapper');
 
-      // Show edit panel, preview toggle, etc.
-      var editPanel = document.getElementById('editPanel');
-      if (editPanel) editPanel.style.display = '';
+      // Show preview toggle and live link now that invite is ready
       var previewToggle = document.getElementById('previewToggle');
-      if (previewToggle) previewToggle.style.display = '';
+      if (previewToggle) previewToggle.style.visibility = '';
       var liveLink = document.getElementById('viewLivePageLink');
       if (liveLink && currentEvent && currentEvent.id) liveLink.style.display = '';
 
@@ -4048,10 +4030,6 @@
       // Stop progress animations
       stopGeneratingPuns();
       _clearProgressTimers();
-
-      // Hide status area below phone
-      var statusEl = document.getElementById('genPreviewStatus');
-      if (statusEl) statusEl.style.display = 'none';
 
       // Show error overlay on the phone mockup
       var phoneFrame = document.getElementById('phoneFrame');
@@ -4117,40 +4095,99 @@
     }
 
     function buildSkeletonSrcdoc() {
-      var logoSvg = '<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" style="width:120px;margin:60px auto 0;display:block;opacity:0.5;">'
-        + '<circle cx="30" cy="40" r="20" fill="none" stroke="#E94560" stroke-width="2"/>'
-        + '<path d="M15 30 L30 42 L45 30 M15 50 L45 50" fill="none" stroke="#E94560" stroke-width="2" stroke-linecap="round"/>'
-        + '<text x="65" y="50" font-family="serif" font-size="32" font-weight="600" fill="#ccc">Ryvite</text>'
-        + '</svg>';
+      // Animated invite-building skeleton with color phases
+      // Elements stagger in, colors paint on, shapes draw — feels like an invite being created
+      var eventTitle = (extractedData && extractedData.title) || '';
+      var eventType = (extractedData && extractedData.eventType) || 'other';
+
+      // Pick a warm palette hint based on event type for the "painting" phase
+      var palettes = {
+        wedding: { bg: '#fdf8f4', hero: 'linear-gradient(135deg, #f5e6d3, #edd4c0)', accent: '#c9a87c', btn: '#c9a87c' },
+        birthday: { bg: '#fef6fb', hero: 'linear-gradient(135deg, #f8d7ea, #e8b4d9)', accent: '#d4789c', btn: '#d4789c' },
+        kidsBirthday: { bg: '#f6faff', hero: 'linear-gradient(135deg, #d4e8ff, #b8d4f0)', accent: '#6ba3d6', btn: '#6ba3d6' },
+        babyShower: { bg: '#f8fdf6', hero: 'linear-gradient(135deg, #dff0d8, #c5e6b8)', accent: '#8cc07b', btn: '#8cc07b' },
+        corporate: { bg: '#f4f5f7', hero: 'linear-gradient(135deg, #d8dce6, #c0c8d8)', accent: '#5a6a8a', btn: '#5a6a8a' },
+        holiday: { bg: '#fdf5f5', hero: 'linear-gradient(135deg, #f0d4d4, #e0baba)', accent: '#c05050', btn: '#2d6a4f' },
+        graduation: { bg: '#f5f3fa', hero: 'linear-gradient(135deg, #ddd4f0, #c5b8e8)', accent: '#7b5ea7', btn: '#7b5ea7' },
+        other: { bg: '#faf8f6', hero: 'linear-gradient(135deg, #e8ddd4, #ddd0c4)', accent: '#a08870', btn: '#a08870' }
+      };
+      var pal = palettes[eventType] || palettes.other;
+
       return '<!DOCTYPE html><html><head><style>'
-        + 'body{margin:0;padding:0;background:#fafafa;overflow:hidden;font-family:sans-serif;}'
-        + '.skeleton{position:relative;overflow:hidden;background:#e8e8e8;border-radius:8px;}'
-        + '.skeleton::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.5),transparent);animation:shimmer 1.8s ease-in-out infinite;}'
-        + '@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}'
-        + '.wrap{padding:0 28px;}'
-        + '.hero{width:100%;height:260px;background:#e0e0e0;border-radius:0;margin-bottom:28px;position:relative;overflow:hidden;}'
-        + '.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent);animation:shimmer 1.8s ease-in-out infinite;}'
-        + '.title{height:28px;width:70%;margin:0 auto 14px;}'
-        + '.subtitle{height:16px;width:50%;margin:0 auto 32px;}'
-        + '.line{height:12px;margin-bottom:10px;}'
-        + '.line.w80{width:80%}.line.w60{width:60%}.line.w90{width:90%}'
-        + '.btn-skel{height:44px;width:65%;margin:28px auto 0;border-radius:22px;}'
-        + '.divider{height:1px;background:#e8e8e8;margin:28px 0;}'
-        + '.detail-row{display:flex;gap:10px;align-items:center;margin-bottom:14px;}'
-        + '.detail-icon{width:28px;height:28px;border-radius:50%;flex-shrink:0;}'
+        + '@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap");'
+        + '*{margin:0;padding:0;box-sizing:border-box;}'
+        + 'body{background:#fafafa;overflow:hidden;font-family:sans-serif;height:100vh;}'
+        // Progress bar at very top
+        + '.top-bar{position:fixed;top:0;left:0;right:0;height:3px;background:#eee;z-index:10;}'
+        + '.top-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,' + pal.accent + ',#E94560);border-radius:0 2px 2px 0;transition:width 2s ease;}'
+        // Logo area
+        + '.logo-area{text-align:center;padding:48px 0 16px;opacity:0;animation:fadeSlideIn 0.6s 0.2s ease forwards;}'
+        + '.logo-area svg{width:100px;}'
+        // Hero image area — draws itself in
+        + '.hero{width:100%;height:220px;position:relative;overflow:hidden;opacity:0;animation:fadeSlideIn 0.8s 0.8s ease forwards;}'
+        + '.hero-bg{position:absolute;inset:0;background:' + pal.hero + ';transform:scaleX(0);transform-origin:left;animation:drawIn 1.2s 1s ease forwards;}'
+        + '.hero-shimmer{position:absolute;inset:0;background:linear-gradient(90deg,transparent 30%,rgba(255,255,255,0.3) 50%,transparent 70%);animation:shimmerSlide 2.5s 2s ease-in-out infinite;}'
+        // Decorative SVG shapes that "draw" in the hero
+        + '.hero-decor{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}'
+        + '.hero-decor svg{width:120px;height:120px;opacity:0;animation:fadeIn 0.8s 2.2s ease forwards;}'
+        + '.hero-decor circle,.hero-decor path{stroke-dasharray:200;stroke-dashoffset:200;animation:drawStroke 2s 2.4s ease forwards;}'
+        // Content section
+        + '.content{padding:24px 32px;}'
+        // Title placeholder — types in with a cursor effect
+        + '.title-area{text-align:center;margin-bottom:6px;opacity:0;animation:fadeSlideIn 0.6s 1.6s ease forwards;}'
+        + '.title-line{height:26px;width:75%;margin:0 auto;background:linear-gradient(90deg,#e8e0e0,' + pal.accent + '40,#e8e0e0);background-size:200% 100%;border-radius:6px;animation:colorShimmer 3s 2s ease-in-out infinite;}'
+        + '.subtitle-line{height:16px;width:50%;margin:10px auto 0;background:linear-gradient(90deg,#ece8e8,' + pal.accent + '30,#ece8e8);background-size:200% 100%;border-radius:4px;animation:colorShimmer 3s 2.3s ease-in-out infinite;}'
+        // Divider
+        + '.divider{height:1px;margin:22px 24px;background:linear-gradient(90deg,transparent,' + pal.accent + '40,transparent);opacity:0;animation:fadeIn 0.4s 2.2s ease forwards;}'
+        // Detail rows — slide in one by one
+        + '.detail{display:flex;gap:12px;align-items:center;padding:0 8px;margin-bottom:14px;opacity:0;}'
+        + '.detail:nth-child(1){animation:fadeSlideIn 0.5s 2.4s ease forwards;}'
+        + '.detail:nth-child(2){animation:fadeSlideIn 0.5s 2.7s ease forwards;}'
+        + '.detail-dot{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,' + pal.accent + '30,' + pal.accent + '15);flex-shrink:0;}'
         + '.detail-lines{flex:1;}'
-        + '.detail-lines .line{margin-bottom:6px;}'
+        + '.dl{height:11px;border-radius:4px;margin-bottom:6px;background:#eee;position:relative;overflow:hidden;}'
+        + '.dl::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.6),transparent);animation:shimmerSlide 2s ease-in-out infinite;}'
+        + '.dl.w1{width:85%}.dl.w2{width:60%}.dl.w3{width:90%}'
+        // RSVP button skeleton
+        + '.btn-skel{height:44px;width:60%;margin:24px auto 0;border-radius:22px;opacity:0;animation:fadeSlideIn 0.5s 3s ease forwards;'
+        + 'background:linear-gradient(90deg,' + pal.btn + '25,' + pal.btn + '40,' + pal.btn + '25);background-size:200% 100%;animation:fadeSlideIn 0.5s 3s ease forwards,colorShimmer 3s 3.2s ease-in-out infinite;}'
+        // Keyframes
+        + '@keyframes fadeSlideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}'
+        + '@keyframes fadeIn{from{opacity:0}to{opacity:1}}'
+        + '@keyframes drawIn{from{transform:scaleX(0)}to{transform:scaleX(1)}}'
+        + '@keyframes drawStroke{to{stroke-dashoffset:0}}'
+        + '@keyframes shimmerSlide{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}'
+        + '@keyframes colorShimmer{0%{background-position:100% 0}50%{background-position:0% 0}100%{background-position:100% 0}}'
+        // Phase 2: elements gain color tints (triggered by JS adding class)
+        + 'body.phase-painting .hero-bg{background:' + pal.hero + ';}'
+        + 'body.phase-painting .dl{background:linear-gradient(90deg,#e8e0e0,' + pal.accent + '20,#e8e0e0);background-size:200% 100%;animation:colorShimmer 2.5s ease-in-out infinite;}'
+        + 'body.phase-painting .detail-dot{background:linear-gradient(135deg,' + pal.accent + '50,' + pal.accent + '25);}'
+        // Phase 3: polish — subtle glow
+        + 'body.phase-polishing .hero-bg{box-shadow:0 0 40px ' + pal.accent + '15 inset;}'
+        + 'body.phase-polishing .title-line{background:linear-gradient(90deg,' + pal.accent + '30,' + pal.accent + '50,' + pal.accent + '30);background-size:200% 100%;animation:colorShimmer 2s ease-in-out infinite;}'
+        + 'body.phase-polishing .btn-skel{background:linear-gradient(90deg,' + pal.btn + '40,' + pal.btn + '60,' + pal.btn + '40);background-size:200% 100%;animation:colorShimmer 2s ease-in-out infinite;}'
         + '</style></head><body>'
-        + logoSvg
-        + '<div style="height:24px"></div>'
-        + '<div class="hero"></div>'
-        + '<div class="wrap">'
-        + '<div class="skeleton title"></div>'
-        + '<div class="skeleton subtitle"></div>'
+        + '<div class="top-bar"><div class="top-bar-fill" id="skeletonProgress"></div></div>'
+        // Logo
+        + '<div class="logo-area">'
+        + '<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">'
+        + '<circle cx="30" cy="40" r="20" fill="none" stroke="#E94560" stroke-width="1.5" opacity="0.4"/>'
+        + '<path d="M15 30 L30 42 L45 30 M15 50 L45 50" fill="none" stroke="#E94560" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>'
+        + '<text x="65" y="50" font-family="Playfair Display,serif" font-size="28" font-weight="600" fill="#ccc">Ryvite</text>'
+        + '</svg></div>'
+        // Hero
+        + '<div class="hero"><div class="hero-bg"></div><div class="hero-shimmer"></div>'
+        + '<div class="hero-decor"><svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        + '<circle cx="50" cy="50" r="30" stroke="rgba(255,255,255,0.5)" stroke-width="1"/>'
+        + '<path d="M30 50 Q50 20 70 50 Q50 80 30 50" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>'
+        + '</svg></div></div>'
+        // Content
+        + '<div class="content">'
+        + '<div class="title-area"><div class="title-line"></div><div class="subtitle-line"></div></div>'
         + '<div class="divider"></div>'
-        + '<div class="detail-row"><div class="skeleton detail-icon"></div><div class="detail-lines"><div class="skeleton line w80"></div><div class="skeleton line w60"></div></div></div>'
-        + '<div class="detail-row"><div class="skeleton detail-icon"></div><div class="detail-lines"><div class="skeleton line w90"></div><div class="skeleton line w60"></div></div></div>'
-        + '<div class="skeleton btn-skel"></div>'
+        + '<div class="detail"><div class="detail-dot"></div><div class="detail-lines"><div class="dl w1"></div><div class="dl w2"></div></div></div>'
+        + '<div class="detail"><div class="detail-dot"></div><div class="detail-lines"><div class="dl w3"></div><div class="dl w2"></div></div></div>'
+        + '<div class="btn-skel"></div>'
         + '</div>'
         + '</body></html>';
     }
@@ -4161,65 +4198,61 @@
       var builder = document.getElementById('guestListBuilderView');
       if (builder) builder.style.display = 'none';
 
-      // Show generated view layout (phone mockup + edit panel)
+      // Show generated view layout — FULL side-by-side layout with edit panel + phone mockup
       var generatedView = document.getElementById('generatedView');
       generatedView.style.display = 'block';
-
-      // Hide edit panel and preview toggle during generation
       generatedView.classList.add('generating-preview-wrapper');
+
+      // Keep edit panel visible — show the design chat immediately
       var editPanel = document.getElementById('editPanel');
-      if (editPanel) editPanel.style.display = 'none';
-      var previewToggle = document.getElementById('previewToggle');
-      if (previewToggle) previewToggle.style.display = 'none';
-      var mobileActions = document.getElementById('mobilePreviewActions');
-      if (mobileActions) mobileActions.style.display = 'none';
-      var liveLink = document.getElementById('viewLivePageLink');
-      if (liveLink) liveLink.style.display = 'none';
+      if (editPanel) editPanel.style.display = '';
 
       // Load skeleton into iframe
       var iframe = document.getElementById('previewFrame');
       iframe.onload = null;
       iframe.srcdoc = buildSkeletonSrcdoc();
 
-      // Add/update status area below the phone mockup
-      var previewCol = document.getElementById('previewColumn');
-      var statusEl = document.getElementById('genPreviewStatus');
-      if (!statusEl) {
-        statusEl = document.createElement('div');
-        statusEl.id = 'genPreviewStatus';
-        statusEl.className = 'gen-preview-status';
-        previewCol.appendChild(statusEl);
-      }
-      statusEl.innerHTML = '<h3 class="gen-preview-title">Creating Your Invite</h3>'
-        + '<p class="gen-preview-pun" id="genPreviewPun">Our AI is designing something special...</p>'
-        + '<p class="gen-preview-time-hint">Right now invites are taking ' + _avgGenTimeText + '</p>'
-        + '<div class="gen-preview-progress"><div class="gen-preview-progress-bar" id="genPreviewProgressBar"></div></div>'
-        + '<div class="gen-preview-stages" id="genPreviewStages">'
-        + '<div class="gen-preview-stage active" data-stage="analyze"><span class="gen-preview-stage-dot"></span> Analyzing</div>'
-        + '<div class="gen-preview-stage" data-stage="design"><span class="gen-preview-stage-dot"></span> Designing</div>'
-        + '<div class="gen-preview-stage" data-stage="polish"><span class="gen-preview-stage-dot"></span> Polishing</div>'
-        + '</div>';
-      statusEl.style.display = '';
+      // Initialize the design chat with a "building" message
+      initDesignChatIfNeeded();
 
-      // Start progress bar and pun rotation
+      // Start progress bar and pun rotation inside the iframe
       _clearProgressTimers();
-      _animateProgressBar(document.getElementById('genPreviewProgressBar'), _avgGenSeconds);
-      startGeneratingPuns('genPreviewPun');
+      // Drive the iframe's internal progress bar via contentDocument
+      var iframeProgressSteps = [
+        { pct: '10%', at: 0.02 }, { pct: '25%', at: 0.10 }, { pct: '40%', at: 0.25 },
+        { pct: '55%', at: 0.45 }, { pct: '68%', at: 0.60 }, { pct: '78%', at: 0.75 },
+        { pct: '86%', at: 0.88 }, { pct: '91%', at: 1.00 }, { pct: '94%', at: 1.25 },
+        { pct: '96%', at: 1.60 }, { pct: '97%', at: 2.00 }
+      ];
+      var ms = _avgGenSeconds * 1000;
+      iframeProgressSteps.forEach(function(s) {
+        var tid = setTimeout(function() {
+          try {
+            var doc = iframe.contentDocument;
+            if (doc) {
+              var bar = doc.getElementById('skeletonProgress');
+              if (bar) bar.style.width = s.pct;
+            }
+          } catch(e) {}
+        }, Math.round(s.at * ms));
+        _activeProgressTimers.push(tid);
+      });
 
-      // Animate preview stages
-      var previewStages = document.querySelectorAll('#genPreviewStages .gen-preview-stage');
-      if (previewStages.length >= 3) {
-        var s1At = Math.round(_avgGenSeconds * 0.15 * 1000);
-        var s2At = Math.round(_avgGenSeconds * 0.50 * 1000);
-        genStageTimers.push(setTimeout(function() {
-          previewStages[0].classList.remove('active'); previewStages[0].classList.add('done');
-          previewStages[1].classList.add('active');
-        }, s1At));
-        genStageTimers.push(setTimeout(function() {
-          previewStages[1].classList.remove('active'); previewStages[1].classList.add('done');
-          previewStages[2].classList.add('active');
-        }, s2At));
-      }
+      // Phase transitions — make the skeleton evolve over time
+      var phase1At = Math.round(_avgGenSeconds * 0.30 * 1000); // 30% — start painting colors
+      var phase2At = Math.round(_avgGenSeconds * 0.65 * 1000); // 65% — polishing
+      genStageTimers.push(setTimeout(function() {
+        try {
+          var doc = iframe.contentDocument;
+          if (doc && doc.body) doc.body.classList.add('phase-painting');
+        } catch(e) {}
+      }, phase1At));
+      genStageTimers.push(setTimeout(function() {
+        try {
+          var doc = iframe.contentDocument;
+          if (doc && doc.body) { doc.body.classList.add('phase-polishing'); }
+        } catch(e) {}
+      }, phase2At));
 
       updateMobileLayout();
     }
@@ -6348,7 +6381,16 @@
         && (currentEvent.generationCount || 0) >= (currentEvent.generationLimit || 2);
       var welcomeMsg;
 
-      if (isUnpaid || isFreeExhausted) {
+      if (_generationInProgress) {
+        welcomeMsg = "I'm creating your invite for " + title + " right now! \u2728\n\n"
+          + "You'll see it appear in the preview as it's being built. Once it's ready, you can:\n\n"
+          + "- \u{1F3A8} Change colors, fonts, or overall vibe\n"
+          + "- \u{1F4F7} Add your photos directly into the invite\n"
+          + "- \u{2728} Adjust animations, layout, or spacing\n"
+          + "- \u{1F58C}\uFE0F Swap the style entirely\n"
+          + "- \u{1F4DD} Tweak any wording\n\n"
+          + "Sit tight \u2014 this usually takes " + _avgGenTimeText + ".";
+      } else if (isUnpaid || isFreeExhausted) {
         welcomeMsg = "Your invite for " + title + " is ready! Here's what you can do for free:\n\n"
           + "- \u{1F4DD} **Update text** \u2014 \"change the date to April 20th\" or \"change the title to ...\"\n"
           + "- \u{2795} **Add RSVP fields** \u2014 \"add a dietary restrictions field\"\n"
