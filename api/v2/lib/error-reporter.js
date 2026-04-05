@@ -65,8 +65,19 @@ function extractRequestMeta(req) {
 
 /**
  * Build a Claude Code prompt for debugging this specific error.
+ * @param {object} options
+ * @param {object} [options.diagnostics] - Endpoint-specific debugging data (raw response snippets, parser state, etc.)
  */
-function buildClaudePrompt({ endpoint, action, errorMessage, errorStack, requestMeta }) {
+function buildClaudePrompt({ endpoint, action, errorMessage, errorStack, requestMeta, diagnostics }) {
+  let diagnosticsBlock = '';
+  if (diagnostics && typeof diagnostics === 'object' && Object.keys(diagnostics).length > 0) {
+    const entries = Object.entries(diagnostics).map(([key, value]) => {
+      const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+      return `- ${key}: ${displayValue}`;
+    }).join('\n');
+    diagnosticsBlock = `\n**Diagnostics (endpoint-specific):**\n${entries}\n`;
+  }
+
   return `Fix a 500 error in the Ryvite API.
 
 **Endpoint:** ${endpoint}?action=${action}
@@ -82,7 +93,7 @@ ${errorStack || 'No stack trace available'}
 - User-Agent: ${requestMeta?.userAgent || 'unknown'}
 - IP: ${requestMeta?.ip || 'unknown'}
 - Geo: ${requestMeta?.geo?.city || ''}, ${requestMeta?.geo?.region || ''}, ${requestMeta?.geo?.country || ''}
-
+${diagnosticsBlock}
 **Steps to reproduce:**
 1. Go to ${PROD_URL}/v2/create/
 2. Trigger the ${action} action
@@ -92,9 +103,10 @@ ${errorStack || 'No stack trace available'}
 1. Read the file that contains the endpoint handler (look in api/v2/ for the file matching "${endpoint}")
 2. Find the code path that handles action="${action}"
 3. Identify what throws: "${errorMessage}"
-4. Fix the root cause, not just the symptom
-5. Add proper error handling if missing
-6. Commit and push the fix`;
+4. Use the diagnostics above to understand exactly what the AI model returned and how the parser handled it
+5. Fix the root cause, not just the symptom
+6. Add proper error handling if missing
+7. Commit and push the fix`;
 }
 
 /**
@@ -106,13 +118,14 @@ ${errorStack || 'No stack trace available'}
  * @param {Error} options.error - The caught error object
  * @param {object} [options.requestBody] - The request body (will be sanitized)
  * @param {object} [options.req] - The Vercel request object
+ * @param {object} [options.diagnostics] - Endpoint-specific debugging data (raw response snippets, parser state, model info, etc.)
  */
-export async function reportApiError({ endpoint, action, error, requestBody, req }) {
+export async function reportApiError({ endpoint, action, error, requestBody, req, diagnostics }) {
   const errorMessage = error?.message || String(error) || 'Unknown error';
   const errorStack = error?.stack || '';
   const requestMeta = extractRequestMeta(req);
   const sanitizedBody = sanitizeBody(requestBody);
-  const claudePrompt = buildClaudePrompt({ endpoint, action, errorMessage, errorStack, requestMeta });
+  const claudePrompt = buildClaudePrompt({ endpoint, action, errorMessage, errorStack, requestMeta, diagnostics });
   const timestamp = new Date().toISOString();
 
   // 1. Log to Supabase api_error_log table
@@ -120,7 +133,7 @@ export async function reportApiError({ endpoint, action, error, requestBody, req
   const sb = getSupabase();
   if (sb) {
     try {
-      const { data } = await sb.from('api_error_log').insert({
+      const insertPayload = {
         endpoint,
         action,
         error_message: errorMessage,
@@ -129,7 +142,12 @@ export async function reportApiError({ endpoint, action, error, requestBody, req
         request_meta: requestMeta,
         claude_prompt: claudePrompt,
         created_at: timestamp
-      }).select('id').single();
+      };
+      // Store diagnostics if provided (new JSONB column — insert won't fail if column doesn't exist yet)
+      if (diagnostics && Object.keys(diagnostics).length > 0) {
+        insertPayload.diagnostics = diagnostics;
+      }
+      const { data } = await sb.from('api_error_log').insert(insertPayload).select('id').single();
       errorLogId = data?.id;
     } catch (logErr) {
       console.error('Error reporter — failed to log to DB:', logErr.message);
@@ -233,6 +251,19 @@ export async function reportApiError({ endpoint, action, error, requestBody, req
 
             <p style="margin:0 0 8px;color:#1A1A2E;font-size:14px;font-weight:600;">Stack Trace:</p>
             <pre style="background-color:#1A1A2E;color:#E5E7EB;padding:16px;border-radius:8px;font-size:12px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;margin:0 0 24px;">${errorStack || 'No stack trace'}</pre>
+
+            ${diagnostics && Object.keys(diagnostics).length > 0 ? `
+            <p style="margin:0 0 8px;color:#1A1A2E;font-size:14px;font-weight:600;">Diagnostics:</p>
+            <table width="100%" cellpadding="8" cellspacing="0" style="background-color:#EFF6FF;border-radius:8px;margin-bottom:24px;border:1px solid #BFDBFE;">
+              ${Object.entries(diagnostics).map(([key, value]) => {
+                const displayValue = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
+                const isLong = displayValue.length > 200;
+                return `<tr>
+                  <td style="color:#1E40AF;font-size:12px;font-weight:600;vertical-align:top;white-space:nowrap;border-bottom:1px solid #DBEAFE;padding:8px 12px;width:160px;">${key}</td>
+                  <td style="color:#1A1A2E;font-size:12px;font-family:monospace;border-bottom:1px solid #DBEAFE;padding:8px 12px;${isLong ? 'white-space:pre-wrap;word-break:break-all;' : ''}">${displayValue.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>
+                </tr>`;
+              }).join('')}
+            </table>` : ''}
 
             <p style="margin:0 0 8px;color:#1A1A2E;font-size:14px;font-weight:600;">Claude Code Fix Prompt:</p>
             <div style="background-color:#F0F0FF;border-left:4px solid #A78BFA;border-radius:8px;padding:16px;margin-bottom:24px;">

@@ -2652,7 +2652,14 @@ Return ONLY a valid JSON object with these keys:
         });
         if (tweakErrLogResult.error) console.error('Tweak error log failed:', tweakErrLogResult.error.message);
       } catch {}
-      await reportApiError({ endpoint: '/api/v2/generate-theme', action: 'tweak', error: err, requestBody: req.body, req }).catch(() => {});
+      await reportApiError({ endpoint: '/api/v2/generate-theme', action: 'tweak', error: err, requestBody: req.body, req, diagnostics: {
+        model: tweakModel || 'unknown',
+        event_type: eventDetails?.eventType || '',
+        latency_ms: Date.now() - startTime,
+        raw_response_bytes: typeof fullText === 'string' ? fullText.length : 0,
+        raw_response_first_500: typeof fullText === 'string' ? fullText.substring(0, 500) : 'N/A',
+        tweak_instructions: (tweakInstructions || '').substring(0, 300),
+      } }).catch(() => {});
       sendSSE('error', { error: 'Failed to tweak theme', message: err.message });
       return res.end();
     }
@@ -3104,7 +3111,30 @@ This is the most common failure mode. Double-check it.`;
               client_ip: getClientMeta(req).ip, client_geo: getClientMeta(req).geo, user_agent: getClientMeta(req).userAgent
             });
           } catch (e) { console.error('[generate] No CSS generation_log insert failed:', e.message); }
-          await reportApiError({ endpoint: '/api/v2/generate-theme', action: 'generate', error: new Error(noCssError + ' (after repair) — model: ' + actualModel + ', bytes: ' + fullText.length + ', latency: ' + noCssLatency + 'ms'), requestBody: { eventId, eventType }, req }).catch(() => {});
+          // Build rich diagnostics so the Claude Code prompt has everything needed to pinpoint the parser failure
+          const noCssDiagnostics = {
+            model: actualModel,
+            stop_reason: genFinalMessage?.stop_reason || 'unknown',
+            escalation_attempts: escalationAttempts,
+            raw_response_bytes: fullText.length,
+            raw_response_first_500: fullText.substring(0, 500),
+            raw_response_last_500: fullText.substring(Math.max(0, fullText.length - 500)),
+            parsed_keys: Object.keys(theme),
+            css_length_after_parse: theme.theme_css?.length || 0,
+            html_length_after_parse: theme.theme_html?.length || 0,
+            html_has_style_tags: /<style[\s>]/i.test(theme.theme_html || ''),
+            html_has_unclosed_style: /<style[\s>]/i.test(theme.theme_html || '') && !/<\/style>/i.test(theme.theme_html || ''),
+            html_first_200: (theme.theme_html || '').substring(0, 200),
+            validation_issues_before_repair: validation.issues,
+            validation_issues_after_repair: recheck.issues,
+            response_starts_with_json: fullText.trimStart().startsWith('{'),
+            response_starts_with_html: /^\s*<(!DOCTYPE|html)/i.test(fullText),
+            event_type: eventType || '',
+            latency_ms: noCssLatency,
+            input_tokens: genInputTokens,
+            output_tokens: genOutputTokens,
+          };
+          await reportApiError({ endpoint: '/api/v2/generate-theme', action: 'generate', error: new Error(noCssError + ' (after repair) — model: ' + actualModel + ', bytes: ' + fullText.length + ', latency: ' + noCssLatency + 'ms'), requestBody: { eventId, eventType }, req, diagnostics: noCssDiagnostics }).catch(() => {});
           clearInterval(keepalive);
           sendSSE('error', { error: 'Generation produced no CSS styling. Please try again.', retryable: true });
           res.end();
@@ -3372,7 +3402,17 @@ This is the most common failure mode. Double-check it.`;
       console.error('Failed to log generation error:', logErr);
     }
 
-    await reportApiError({ endpoint: '/api/v2/generate-theme', action: req.query?.action || 'generate', error: err, requestBody: req.body, req }).catch(() => {});
+    // Include whatever diagnostic context is available at the point of failure
+    const catchDiagnostics = {
+      model: actualModel || themeModel || 'unknown',
+      event_type: eventType || '',
+      latency_ms: Date.now() - startTime,
+      raw_response_bytes: typeof fullText === 'string' ? fullText.length : 0,
+      raw_response_first_500: typeof fullText === 'string' ? fullText.substring(0, 500) : 'N/A',
+      stop_reason: genFinalMessage?.stop_reason || 'unknown',
+      escalation_attempts: typeof escalationAttempts !== 'undefined' ? escalationAttempts : 0,
+    };
+    await reportApiError({ endpoint: '/api/v2/generate-theme', action: req.query?.action || 'generate', error: err, requestBody: req.body, req, diagnostics: catchDiagnostics }).catch(() => {});
     sendSSE('error', { error: 'Failed to generate theme', message: err.message || 'Unknown error' });
     return res.end();
   }
