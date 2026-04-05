@@ -2717,6 +2717,23 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, updated, total: ratings.length, errors: errors.length > 0 ? errors : undefined });
     }
 
+    // ---- BULK DELETE STYLE LIBRARY ITEMS ----
+    if (action === 'bulkDeleteStyles') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+
+      const { styleIds } = req.body;
+      if (!Array.isArray(styleIds) || styleIds.length === 0) return res.status(400).json({ error: 'styleIds array is required' });
+      if (styleIds.length > 100) return res.status(400).json({ error: 'Max 100 items per batch' });
+
+      const { error, count } = await supabaseAdmin
+        .from('style_library')
+        .delete()
+        .in('id', styleIds);
+
+      if (error) return res.status(500).json({ error: 'Bulk delete failed: ' + error.message });
+      return res.status(200).json({ success: true, deleted: count || styleIds.length });
+    }
+
     // ---- BROWSE ALL EVENT THEMES (with pagination + filters) ----
     if (action === 'listThemes') {
       const page = parseInt(req.query.page) || 1;
