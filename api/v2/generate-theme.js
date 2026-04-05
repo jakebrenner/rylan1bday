@@ -779,6 +779,15 @@ function parseThemeResponse(rawText) {
     for (let i = 0; i < bracketDepth; i++) repaired += ']';
     for (let i = 0; i < braceDepth; i++) repaired += '}';
     try { theme = JSON.parse(repaired); } catch (e2) {
+      // Try regex-based field extraction from the broken JSON first — this handles
+      // cases where the JSON has unescaped characters but the key-value structure is intact.
+      // extractThemeFromHtmlDoc doesn't work on raw JSON text (it looks for <style> tags
+      // which don't exist in JSON string values), so this must come first.
+      const extracted = extractFieldsFromBrokenJson(rawText);
+      if (extracted.theme_html && extracted.theme_html.length > 100) {
+        console.log('[parseThemeResponse] Recovered theme from broken JSON via field extraction — CSS:', (extracted.theme_css || '').length, 'HTML:', extracted.theme_html.length);
+        return normalizeThemeKeys(extracted);
+      }
       if (rawText.includes('<div') || rawText.includes('<section') || rawText.includes('<style')) return normalizeThemeKeys(extractThemeFromHtmlDoc(rawText));
       // Try splitting CSS + HTML if raw text contains HTML elements
       const htmlTag = rawText.match(/<(div|section|main|header|article)\b/i);
@@ -791,6 +800,65 @@ function parseThemeResponse(rawText) {
     }
   }
   return normalizeThemeKeys(theme);
+}
+
+// Extract theme fields from broken/unparseable JSON using regex-based key extraction.
+// This handles the common case where the model returns valid-looking JSON but with
+// unescaped characters that break JSON.parse. We extract string values by walking
+// the text manually, which is more tolerant of minor formatting issues.
+function extractFieldsFromBrokenJson(rawText) {
+  const result = { theme_css: '', theme_html: '', theme_config: {}, theme_thankyou_html: '' };
+  for (const key of ['theme_css', 'theme_html', 'theme_thankyou_html']) {
+    const keyPattern = new RegExp('"' + key + '"\\s*:\\s*"');
+    const match = rawText.match(keyPattern);
+    if (match) {
+      const startIdx = rawText.indexOf(match[0]) + match[0].length;
+      // Walk forward to find the end of the JSON string value.
+      // Track escape sequences so we don't stop on escaped quotes.
+      let endIdx = -1;
+      let escaped = false;
+      for (let i = startIdx; i < rawText.length; i++) {
+        if (escaped) { escaped = false; continue; }
+        if (rawText[i] === '\\') { escaped = true; continue; }
+        // End of string: unescaped quote followed by , or } or whitespace (next key or end of object)
+        if (rawText[i] === '"') {
+          // Verify this looks like the end of a JSON value (next non-whitespace is , or } or end)
+          const afterQuote = rawText.substring(i + 1, i + 20).trimStart();
+          if (afterQuote.length === 0 || afterQuote[0] === ',' || afterQuote[0] === '}') {
+            endIdx = i;
+            break;
+          }
+          // Otherwise it might be an unescaped quote inside the value — keep going
+          // but also record this position as a candidate if we don't find a better end
+          if (endIdx === -1) endIdx = i;
+        }
+      }
+      if (endIdx > startIdx) {
+        const rawValue = rawText.substring(startIdx, endIdx);
+        try {
+          result[key] = JSON.parse('"' + rawValue + '"');
+        } catch (_) {
+          // Basic unescaping if JSON.parse fails
+          result[key] = rawValue.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        }
+      }
+    }
+  }
+  // Try to extract theme_config as JSON object
+  const configMatch = rawText.match(/"theme_config"\s*:\s*\{/);
+  if (configMatch) {
+    const startIdx = rawText.indexOf(configMatch[0]) + configMatch[0].length - 1;
+    let depth = 0, inStr = false;
+    for (let i = startIdx; i < rawText.length; i++) {
+      const ch = rawText[i];
+      if (ch === '"' && (i === 0 || rawText[i - 1] !== '\\')) inStr = !inStr;
+      if (!inStr) {
+        if (ch === '{') depth++;
+        else if (ch === '}') { depth--; if (depth === 0) { try { result.theme_config = JSON.parse(rawText.substring(startIdx, i + 1)); } catch (_) {} break; } }
+      }
+    }
+  }
+  return result;
 }
 
 function extractThemeFromHtmlDoc(html) {
@@ -1143,6 +1211,7 @@ function repairTheme(theme, issues) {
 
   // If CSS is empty/too short but HTML has inline styles, extract them
   if (issues.includes('css_empty') || issues.includes('css_too_short')) {
+    // First try: properly closed <style>...</style> blocks
     const styleBlocks = (theme.theme_html || '').match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
     if (styleBlocks) {
       const extracted = styleBlocks.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
@@ -1150,6 +1219,28 @@ function repairTheme(theme, issues) {
         theme.theme_css = extracted;
         theme.theme_html = theme.theme_html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
         console.log('[repairTheme] Extracted ' + extracted.length + ' chars of CSS from inline <style> blocks');
+      }
+    }
+    // Second try: unclosed <style> tag (truncated response or model forgot </style>)
+    // Extract everything between <style> and the first HTML tag that indicates CSS is over
+    if ((!theme.theme_css || !theme.theme_css.trim()) && theme.theme_html) {
+      const unclosedStyleMatch = theme.theme_html.match(/<style[^>]*>([\s\S]+)/i);
+      if (unclosedStyleMatch) {
+        let cssCandidate = unclosedStyleMatch[1];
+        // Find where CSS ends and HTML begins — look for first structural HTML tag
+        const htmlResume = cssCandidate.match(/<(div|section|main|header|article|nav|footer)\b/i);
+        if (htmlResume) {
+          const cutIdx = cssCandidate.indexOf(htmlResume[0]);
+          const extractedCss = cssCandidate.substring(0, cutIdx).trim();
+          const remainingHtml = cssCandidate.substring(cutIdx);
+          if (extractedCss.length > 50 && /[.#\w@:][^{]*\{[^}]+\}/s.test(extractedCss)) {
+            theme.theme_css = extractedCss;
+            // Reconstruct HTML: everything before the <style> tag + everything after CSS
+            const styleTagIdx = theme.theme_html.indexOf(unclosedStyleMatch[0]);
+            theme.theme_html = theme.theme_html.substring(0, styleTagIdx).trim() + '\n' + remainingHtml;
+            console.log('[repairTheme] Extracted ' + extractedCss.length + ' chars of CSS from unclosed <style> tag');
+          }
+        }
       }
     }
   }

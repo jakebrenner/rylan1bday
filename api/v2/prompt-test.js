@@ -480,7 +480,15 @@ function parseThemeResponse(rawText) {
     try {
       theme = JSON.parse(repaired);
     } catch (e2) {
-      // Step 6: Last resort — try to extract HTML/CSS from the raw text
+      // Step 6a: Try regex-based field extraction from broken JSON — this handles
+      // cases where JSON has unescaped characters but key-value structure is intact.
+      // Must come before extractThemeFromHtmlDoc which doesn't work on raw JSON text.
+      const extracted = extractFieldsFromBrokenJson(rawText);
+      if (extracted.theme_html && extracted.theme_html.length > 100) {
+        console.log('[parseThemeResponse] Recovered theme from broken JSON via field extraction — CSS:', (extracted.theme_css || '').length, 'HTML:', extracted.theme_html.length);
+        return normalizeThemeKeys(extracted);
+      }
+      // Step 6b: Last resort — try to extract HTML/CSS from the raw text
       if (rawText.includes('<div') || rawText.includes('<section') || rawText.includes('<style')) {
         return normalizeThemeKeys(extractThemeFromHtmlDoc(rawText));
       }
@@ -500,6 +508,57 @@ function parseThemeResponse(rawText) {
 
   // Step 7: Normalize keys (accept snake_case, camelCase, shorthand)
   return normalizeThemeKeys(theme);
+}
+
+// Extract theme fields from broken/unparseable JSON using regex-based key extraction.
+// This handles the common case where the model returns valid-looking JSON but with
+// unescaped characters that break JSON.parse. We extract string values by walking
+// the text manually, which is more tolerant of minor formatting issues.
+function extractFieldsFromBrokenJson(rawText) {
+  const result = { theme_css: '', theme_html: '', theme_config: {}, theme_thankyou_html: '' };
+  for (const key of ['theme_css', 'theme_html', 'theme_thankyou_html']) {
+    const keyPattern = new RegExp('"' + key + '"\\s*:\\s*"');
+    const match = rawText.match(keyPattern);
+    if (match) {
+      const startIdx = rawText.indexOf(match[0]) + match[0].length;
+      let endIdx = -1;
+      let escaped = false;
+      for (let i = startIdx; i < rawText.length; i++) {
+        if (escaped) { escaped = false; continue; }
+        if (rawText[i] === '\\') { escaped = true; continue; }
+        if (rawText[i] === '"') {
+          const afterQuote = rawText.substring(i + 1, i + 20).trimStart();
+          if (afterQuote.length === 0 || afterQuote[0] === ',' || afterQuote[0] === '}') {
+            endIdx = i;
+            break;
+          }
+          if (endIdx === -1) endIdx = i;
+        }
+      }
+      if (endIdx > startIdx) {
+        const rawValue = rawText.substring(startIdx, endIdx);
+        try {
+          result[key] = JSON.parse('"' + rawValue + '"');
+        } catch (_) {
+          result[key] = rawValue.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        }
+      }
+    }
+  }
+  const configMatch = rawText.match(/"theme_config"\s*:\s*\{/);
+  if (configMatch) {
+    const startIdx = rawText.indexOf(configMatch[0]) + configMatch[0].length - 1;
+    let depth = 0, inStr = false;
+    for (let i = startIdx; i < rawText.length; i++) {
+      const ch = rawText[i];
+      if (ch === '"' && (i === 0 || rawText[i - 1] !== '\\')) inStr = !inStr;
+      if (!inStr) {
+        if (ch === '{') depth++;
+        else if (ch === '}') { depth--; if (depth === 0) { try { result.theme_config = JSON.parse(rawText.substring(startIdx, i + 1)); } catch (_) {} break; } }
+      }
+    }
+  }
+  return result;
 }
 
 // Extract theme from a raw HTML document the model returned instead of JSON
