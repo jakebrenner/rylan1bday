@@ -6941,6 +6941,7 @@
       updateMobileChatDrawerHeight();
       if ('visualViewport' in window) {
         window.visualViewport.addEventListener('resize', updateMobileChatDrawerHeight);
+        window.visualViewport.addEventListener('scroll', updateMobileChatDrawerHeight);
       }
 
       // Hide FAB while drawer is open
@@ -6962,12 +6963,14 @@
 
       if ('visualViewport' in window) {
         window.visualViewport.removeEventListener('resize', updateMobileChatDrawerHeight);
+        window.visualViewport.removeEventListener('scroll', updateMobileChatDrawerHeight);
       }
 
       // After transition, restore chat to original location
       setTimeout(function() {
         overlay.style.display = 'none';
         drawer.style.height = '';
+        drawer.style.bottom = '';
         document.body.style.overflow = '';
         _mobileChatDrawerOpen = false;
 
@@ -6989,10 +6992,25 @@
     function updateMobileChatDrawerHeight() {
       var drawer = document.getElementById('mobileChatDrawer');
       if (!drawer || !_mobileChatDrawerOpen) return;
-      var vh = ('visualViewport' in window) ? window.visualViewport.height : window.innerHeight;
-      // Use 85% of viewport, but ensure at least 300px
-      var h = Math.max(vh * 0.85, 300);
-      drawer.style.height = h + 'px';
+      if ('visualViewport' in window) {
+        var vv = window.visualViewport;
+        // On iOS Safari, when the keyboard opens, the visual viewport shrinks
+        // but position:fixed bottom:0 still refers to the layout viewport bottom
+        // (behind the keyboard). We need to offset the drawer above the keyboard.
+        var keyboardHeight = window.innerHeight - vv.height - vv.offsetTop;
+        if (keyboardHeight > 50) {
+          // Keyboard is open — fill the visible area above it
+          drawer.style.bottom = keyboardHeight + 'px';
+          drawer.style.height = Math.max(vv.height * 0.95, 250) + 'px';
+        } else {
+          // No keyboard — normal bottom sheet at 85% viewport
+          drawer.style.bottom = '0px';
+          drawer.style.height = Math.max(vv.height * 0.85, 300) + 'px';
+        }
+      } else {
+        drawer.style.bottom = '0px';
+        drawer.style.height = Math.max(window.innerHeight * 0.85, 300) + 'px';
+      }
       scrollDesignChat();
     }
 
