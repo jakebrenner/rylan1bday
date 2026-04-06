@@ -1,4 +1,4 @@
--- Seed configurable free AI generations limit (default: 2 to match existing 1 gen + 1 redo behavior)
+-- Seed configurable free AI generations limit (default: 10 free designs per event)
 insert into public.app_config (key, value)
-values ('free_ai_generations', '2')
+values ('free_ai_generations', '10')
 on conflict (key) do nothing;

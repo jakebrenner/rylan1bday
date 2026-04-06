@@ -278,8 +278,16 @@ export default async function handler(req, res) {
       const isPaid = event.payment_status === 'paid';
       const requiresPayment = !isFreeEvent && !isPaid;
 
-      // Generation limits: free tier = 1, paid = soft cap 10 (not enforced server-side)
-      const generationLimit = isFreeEvent ? 1 : 10;
+      // Generation limits: free tier from DB config (default 10), paid = soft cap 10
+      let generationLimit = 10;
+      if (isFreeEvent) {
+        const { data: limitRow } = await supabaseAdmin
+          .from('app_config')
+          .select('value')
+          .eq('key', 'free_ai_generations')
+          .single();
+        generationLimit = Math.max(1, parseInt(limitRow?.value) || 10);
+      }
       const smsLimit = isFreeEvent ? 0 : (event.sms_limit || 1000);
 
       return res.status(200).json({

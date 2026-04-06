@@ -174,7 +174,7 @@ export default async function handler(req, res) {
           .eq('key', 'free_ai_generations')
           .single();
         formatted.generationCount = genCount || 0;
-        formatted.generationLimit = Math.max(1, parseInt(limitRow?.value) || 2);
+        formatted.generationLimit = Math.max(1, parseInt(limitRow?.value) || 10);
       }
 
       return res.status(200).json({
@@ -548,7 +548,18 @@ export default async function handler(req, res) {
         );
       }
 
-      return res.status(200).json({ success: true, eventId: data.id, slug: data.slug, paymentStatus: data.payment_status });
+      // Fetch free generation limit from config so frontend knows the limit
+      let generationLimit = 10;
+      if (data.payment_status === 'free') {
+        const { data: limitRow } = await supabaseAdmin
+          .from('app_config')
+          .select('value')
+          .eq('key', 'free_ai_generations')
+          .single();
+        generationLimit = Math.max(1, parseInt(limitRow?.value) || 10);
+      }
+
+      return res.status(200).json({ success: true, eventId: data.id, slug: data.slug, paymentStatus: data.payment_status, generationLimit });
     }
 
     if (action === 'update') {
@@ -911,7 +922,7 @@ export default async function handler(req, res) {
           .eq('key', 'free_ai_generations')
           .single();
         formatted.generationCount = genCount || 0;
-        formatted.generationLimit = Math.max(1, parseInt(limitRow?.value) || 2);
+        formatted.generationLimit = Math.max(1, parseInt(limitRow?.value) || 10);
       }
 
       return res.status(200).json({ success: true, event: formatted });
