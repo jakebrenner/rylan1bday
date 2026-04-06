@@ -284,6 +284,25 @@
     .design-chat-keyboard-active { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; background: white; border-top: 1px solid #eee; box-shadow: 0 -4px 16px rgba(0,0,0,0.1); padding: 0 12px; display: flex; flex-direction: column; }
     .design-chat-keyboard-active .design-chat-messages { max-height: 40vh; }
     .design-chat-keyboard-active .design-chat-input-area { padding-bottom: env(safe-area-inset-bottom, 8px); }
+
+    /* Mobile chat drawer — bottom sheet overlay for design chat on mobile */
+    .mobile-chat-fab { display: none; position: fixed; bottom: 20px; right: 20px; z-index: 40; width: 56px; height: 56px; border-radius: 50%; border: none; background: var(--party-coral); color: white; cursor: pointer; box-shadow: 0 4px 16px rgba(233,69,96,0.4); align-items: center; justify-content: center; transition: transform 0.2s, box-shadow 0.2s; }
+    .mobile-chat-fab:active { transform: scale(0.92); }
+    .mobile-chat-fab .fab-badge { position: absolute; top: -2px; right: -2px; width: 18px; height: 18px; border-radius: 50%; background: var(--mint-fizz); color: white; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+    .mobile-chat-drawer-overlay { display: none; position: fixed; inset: 0; z-index: 998; background: rgba(0,0,0,0.4); opacity: 0; transition: opacity 0.3s ease; }
+    .mobile-chat-drawer-overlay.visible { opacity: 1; }
+    .mobile-chat-drawer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 999; background: white; border-radius: 16px 16px 0 0; box-shadow: 0 -8px 32px rgba(0,0,0,0.15); flex-direction: column; max-height: 85vh; min-height: 300px; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1); pointer-events: none; visibility: hidden; }
+    .mobile-chat-drawer.open { display: flex; transform: translateY(0); pointer-events: auto; visibility: visible; }
+    .mobile-chat-drawer .drawer-handle { display: flex; align-items: center; justify-content: center; padding: 10px 16px 4px; cursor: grab; flex-shrink: 0; }
+    .mobile-chat-drawer .drawer-handle-bar { width: 36px; height: 4px; border-radius: 2px; background: #ddd; }
+    .mobile-chat-drawer .drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 0 16px 10px; border-bottom: 1px solid #eee; flex-shrink: 0; }
+    .mobile-chat-drawer .drawer-header h3 { margin: 0; font-size: 15px; font-weight: 600; color: #333; }
+    .mobile-chat-drawer .drawer-close { width: 32px; height: 32px; border-radius: 50%; border: none; background: #f0f0f0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #666; }
+    .mobile-chat-drawer .drawer-close:active { background: #e0e0e0; }
+    .mobile-chat-drawer .design-chat { flex: 1; min-height: 0; padding: 0 16px; overflow: hidden; }
+    .mobile-chat-drawer .design-chat-messages { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .mobile-chat-drawer .design-chat-input-area { padding-bottom: env(safe-area-inset-bottom, 12px); border-top: 1px solid #eee; padding-top: 10px; margin-top: 8px; }
+    .mobile-chat-drawer .invite-support-link { padding-bottom: env(safe-area-inset-bottom, 8px); }
     .design-chat-photo-preview { display: flex; gap: 6px; padding: 6px 0; flex-wrap: wrap; }
     .design-chat-photo-preview img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
     .design-chat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -3475,9 +3494,10 @@
       var isGenerating = generatedView.classList.contains('generating-preview-wrapper');
       mobileActions.style.display = (isMobile && isGenerated && !isGenerating) ? 'block' : 'none';
       // On mobile, collapse edit panel by default so phone preview is hero
+      // The design chat is accessible via the floating chat button (FAB) instead
       if (editPanel && isMobile && isGenerated && !isGenerating) {
         editPanel.style.display = editPanel.dataset.mobileCollapsed === 'false' ? '' : 'none';
-        // Show a toggle to expand/collapse
+        // Show a toggle to expand/collapse the details/versions tabs
         var toggle = document.getElementById('mobileEditToggle');
         if (!toggle) {
           toggle = document.createElement('button');
@@ -3501,6 +3521,8 @@
         var toggle = document.getElementById('mobileEditToggle');
         if (toggle) toggle.style.display = 'none';
       }
+      // Update mobile chat FAB visibility
+      updateMobileChatFab();
       // On desktop, constrain edit panel height to match preview column
       syncEditPanelHeight();
     }
@@ -6878,73 +6900,160 @@
       });
     }
 
+    // ── Mobile chat drawer (bottom sheet) ──
+    var _mobileChatDrawerOpen = false;
+    var _mobileChatOriginalParent = null;
+    var _mobileChatOriginalNext = null;
+
+    function isMobileChat() { return window.innerWidth <= 900; }
+
+    function openMobileChatDrawer() {
+      var drawer = document.getElementById('mobileChatDrawer');
+      var overlay = document.getElementById('mobileChatOverlay');
+      var body = document.getElementById('mobileChatDrawerBody');
+      var chat = document.querySelector('#tabDesign .design-chat') || document.querySelector('.design-chat');
+      if (!drawer || !chat) return;
+
+      // Save original position so we can restore on close
+      if (!_mobileChatOriginalParent) {
+        _mobileChatOriginalParent = chat.parentNode;
+        _mobileChatOriginalNext = chat.nextSibling;
+      }
+
+      // Move chat into the drawer
+      body.appendChild(chat);
+      _mobileChatDrawerOpen = true;
+
+      // Show overlay and drawer
+      overlay.style.display = 'block';
+      document.body.style.overflow = 'hidden';
+
+      // Animate in on next frame (delay needed for CSS transition)
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+          overlay.classList.add('visible');
+          drawer.classList.add('open');
+          scrollDesignChat();
+        });
+      });
+
+      // Set drawer height based on visual viewport
+      updateMobileChatDrawerHeight();
+      if ('visualViewport' in window) {
+        window.visualViewport.addEventListener('resize', updateMobileChatDrawerHeight);
+      }
+
+      // Hide FAB while drawer is open
+      var fab = document.getElementById('mobileChatFab');
+      if (fab) fab.style.display = 'none';
+    }
+
+    function closeMobileChatDrawer() {
+      var drawer = document.getElementById('mobileChatDrawer');
+      var overlay = document.getElementById('mobileChatOverlay');
+      if (!drawer) return;
+
+      // Blur any focused input first
+      var activeEl = document.activeElement;
+      if (activeEl && activeEl.tagName === 'TEXTAREA') activeEl.blur();
+
+      overlay.classList.remove('visible');
+      drawer.classList.remove('open');
+
+      if ('visualViewport' in window) {
+        window.visualViewport.removeEventListener('resize', updateMobileChatDrawerHeight);
+      }
+
+      // After transition, restore chat to original location
+      setTimeout(function() {
+        overlay.style.display = 'none';
+        drawer.style.height = '';
+        document.body.style.overflow = '';
+        _mobileChatDrawerOpen = false;
+
+        // Restore design chat to edit panel
+        var chat = drawer.querySelector('.design-chat');
+        if (chat && _mobileChatOriginalParent) {
+          if (_mobileChatOriginalNext) {
+            _mobileChatOriginalParent.insertBefore(chat, _mobileChatOriginalNext);
+          } else {
+            _mobileChatOriginalParent.appendChild(chat);
+          }
+        }
+
+        // Show FAB again
+        updateMobileChatFab();
+      }, 300);
+    }
+
+    function updateMobileChatDrawerHeight() {
+      var drawer = document.getElementById('mobileChatDrawer');
+      if (!drawer || !_mobileChatDrawerOpen) return;
+      var vh = ('visualViewport' in window) ? window.visualViewport.height : window.innerHeight;
+      // Use 85% of viewport, but ensure at least 300px
+      var h = Math.max(vh * 0.85, 300);
+      drawer.style.height = h + 'px';
+      scrollDesignChat();
+    }
+
+    function updateMobileChatFab() {
+      var fab = document.getElementById('mobileChatFab');
+      if (!fab) return;
+      var generatedView = document.getElementById('generatedView');
+      var isGenerated = generatedView && generatedView.style.display !== 'none';
+      var isGenerating = generatedView && generatedView.classList.contains('generating-preview-wrapper');
+      // Show FAB on mobile when we have a generated preview and drawer is not open
+      fab.style.display = (isMobileChat() && isGenerated && !isGenerating && !_mobileChatDrawerOpen) ? 'flex' : 'none';
+    }
+
+    // Swipe-down to close drawer
+    (function() {
+      var startY = 0, currentY = 0, dragging = false;
+      document.addEventListener('touchstart', function(e) {
+        var handle = document.getElementById('mobileChatDrawerHandle');
+        if (!handle || !handle.contains(e.target)) return;
+        startY = e.touches[0].clientY;
+        currentY = startY;
+        dragging = true;
+      }, { passive: true });
+      document.addEventListener('touchmove', function(e) {
+        if (!dragging) return;
+        currentY = e.touches[0].clientY;
+        var dy = currentY - startY;
+        if (dy > 0) {
+          var drawer = document.getElementById('mobileChatDrawer');
+          if (drawer) drawer.style.transform = 'translateY(' + dy + 'px)';
+        }
+      }, { passive: true });
+      document.addEventListener('touchend', function() {
+        if (!dragging) return;
+        dragging = false;
+        var dy = currentY - startY;
+        var drawer = document.getElementById('mobileChatDrawer');
+        if (dy > 80) {
+          closeMobileChatDrawer();
+        } else if (drawer) {
+          drawer.style.transform = '';
+        }
+      });
+    })();
+
     // Mobile keyboard handler — keeps design chat input visible above the virtual keyboard
     function setupDesignChatKeyboardHandler() {
       if (!('visualViewport' in window)) return;
       var textarea = document.getElementById('designChatInput');
       if (!textarea) return;
-      var chatEl = null;
-      var isActive = false;
-      var originalParent = null;
-      var originalNextSibling = null;
 
-      function isMobile() { return window.innerWidth <= 900; }
-
-      function getChat() {
-        if (!chatEl) chatEl = textarea.closest('.design-chat');
-        return chatEl;
-      }
-
-      function activate() {
-        if (isActive || !isMobile()) return;
-        var dc = getChat();
-        if (!dc) return;
-        isActive = true;
-        originalParent = dc.parentNode;
-        originalNextSibling = dc.nextSibling;
-        // Move to body so position:fixed works reliably on iOS Safari
-        document.body.appendChild(dc);
-        dc.classList.add('design-chat-keyboard-active');
-        document.body.style.overflow = 'hidden';
-        updateHeight();
-        window.visualViewport.addEventListener('resize', updateHeight);
-        scrollDesignChat();
-      }
-
-      function deactivate() {
-        if (!isActive) return;
-        var dc = getChat();
-        if (!dc) return;
-        isActive = false;
-        window.visualViewport.removeEventListener('resize', updateHeight);
-        dc.classList.remove('design-chat-keyboard-active');
-        dc.style.height = '';
-        document.body.style.overflow = '';
-        // Restore to original DOM position
-        if (originalNextSibling) {
-          originalParent.insertBefore(dc, originalNextSibling);
-        } else {
-          originalParent.appendChild(dc);
-        }
-      }
-
-      function updateHeight() {
-        var dc = getChat();
-        if (!dc || !isActive) return;
-        var h = Math.min(window.visualViewport.height * 0.55, 360);
-        dc.style.height = h + 'px';
-        scrollDesignChat();
-      }
-
+      // When inside the mobile drawer, adjust drawer height for keyboard instead of old reparenting logic
       textarea.addEventListener('focus', function() {
-        if (!isMobile()) return;
-        setTimeout(activate, 100);
-      });
-
-      textarea.addEventListener('blur', function() {
-        setTimeout(function() {
-          if (document.activeElement !== textarea) deactivate();
-        }, 150);
+        if (!isMobileChat()) return;
+        if (_mobileChatDrawerOpen) {
+          // Drawer is open — just resize to account for keyboard
+          setTimeout(function() { updateMobileChatDrawerHeight(); }, 100);
+        } else {
+          // Not in drawer — open the drawer
+          setTimeout(function() { openMobileChatDrawer(); }, 100);
+        }
       });
     }
 
@@ -10500,6 +10609,22 @@
       </div>
       <div id="paymentGateCheckout" style="display:none;"></div>
     </div>
+  </div>
+
+  <!-- Mobile chat FAB (floating action button) -->
+  <button id="mobileChatFab" class="mobile-chat-fab" onclick="openMobileChatDrawer()" aria-label="Open design chat">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/><path d="M7 9h10v2H7zm0-3h10v2H7zm0 6h7v2H7z"/></svg>
+  </button>
+
+  <!-- Mobile chat drawer (bottom sheet) -->
+  <div id="mobileChatOverlay" class="mobile-chat-drawer-overlay" onclick="closeMobileChatDrawer()"></div>
+  <div id="mobileChatDrawer" class="mobile-chat-drawer">
+    <div class="drawer-handle" id="mobileChatDrawerHandle"><div class="drawer-handle-bar"></div></div>
+    <div class="drawer-header">
+      <h3>Design Chat</h3>
+      <button class="drawer-close" onclick="closeMobileChatDrawer()" aria-label="Close">&times;</button>
+    </div>
+    <div id="mobileChatDrawerBody"></div>
   </div>
 </body>
 </html>
