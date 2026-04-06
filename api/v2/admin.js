@@ -4246,7 +4246,7 @@ ${cssSnippet}`
 
       // 1. Funnel stage counts
       let eventsQuery = supabaseAdmin.from('events').select('id, user_id, status, event_type, payment_status, settings, created_at, published_at, first_generation_at, generations_to_publish, updated_at');
-      let profilesQuery = supabaseAdmin.from('profiles').select('id, created_at, tier, utm_source, utm_campaign, utm_medium, free_event_credits, purchased_event_credits');
+      let profilesQuery = supabaseAdmin.from('profiles').select('id, email, created_at, tier, utm_source, utm_campaign, utm_medium, free_event_credits, purchased_event_credits');
       let guestsQuery = supabaseAdmin.from('guests').select('id, event_id, status, responded_at');
 
       if (from) {
@@ -4289,6 +4289,14 @@ ${cssSnippet}`
       const chatMsgs = chatMsgsRes.data || [];
       let funnelEvents = funnelEventsRes.data || [];
 
+      // Exclude test users (emails containing ".test")
+      const testUserIds = new Set(profiles.filter(p => p.email && p.email.includes('.test')).map(p => p.id));
+      if (testUserIds.size > 0) {
+        profiles = profiles.filter(p => !testUserIds.has(p.id));
+        events = events.filter(e => !testUserIds.has(e.user_id));
+        funnelEvents = funnelEvents.filter(fe => !fe.user_id || !testUserIds.has(fe.user_id));
+      }
+
       // Apply cross-table filters
       if (filterTier) {
         // Restrict events to users matching the tier filter
@@ -4314,9 +4322,9 @@ ${cssSnippet}`
         funnelEvents = funnelEvents.filter(fe => !fe.user_id || allowedUserIds.has(fe.user_id));
       }
 
-      // Collect distinct values for filter dropdowns
-      const allEventsForOptions = eventsRes.data || [];
-      const allProfilesForOptions = profilesRes.data || [];
+      // Collect distinct values for filter dropdowns (exclude test users)
+      const allEventsForOptions = (eventsRes.data || []).filter(e => !testUserIds.has(e.user_id));
+      const allProfilesForOptions = (profilesRes.data || []).filter(p => !testUserIds.has(p.id));
       const distinctEventTypes = [...new Set(allEventsForOptions.map(e => e.event_type).filter(Boolean))].sort();
       const distinctUtmSources = [...new Set(allProfilesForOptions.map(p => p.utm_source).filter(Boolean))].sort();
       const distinctPaymentStatuses = [...new Set(allEventsForOptions.map(e => e.payment_status).filter(Boolean))].sort();
@@ -4352,9 +4360,9 @@ ${cssSnippet}`
       }));
 
       // 3. Chat engagement analysis
-      // Group chat messages by session
+      // Group chat messages by session (exclude test users)
       const sessionMap = {};
-      chatMsgs.forEach(m => {
+      chatMsgs.filter(m => !testUserIds.has(m.user_id)).forEach(m => {
         const sid = m.session_id || m.event_id || 'unknown';
         if (!sessionMap[sid]) sessionMap[sid] = { userId: m.user_id, eventId: m.event_id, messages: [], userMessages: 0, phase: m.phase || 'create' };
         sessionMap[sid].messages.push(m);
