@@ -291,7 +291,7 @@
     .mobile-chat-fab .fab-badge { position: absolute; top: -2px; right: -2px; width: 18px; height: 18px; border-radius: 50%; background: var(--mint-fizz); color: white; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
     .mobile-chat-drawer-overlay { display: none; position: fixed; inset: 0; z-index: 998; background: rgba(0,0,0,0.4); opacity: 0; transition: opacity 0.3s ease; }
     .mobile-chat-drawer-overlay.visible { opacity: 1; }
-    .mobile-chat-drawer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 999; background: white; border-radius: 16px 16px 0 0; box-shadow: 0 -8px 32px rgba(0,0,0,0.15); flex-direction: column; max-height: 85vh; min-height: 300px; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1); pointer-events: none; visibility: hidden; }
+    .mobile-chat-drawer { position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 999; background: white; border-radius: 16px 16px 0 0; box-shadow: 0 -8px 32px rgba(0,0,0,0.15); flex-direction: column; max-height: 85vh; min-height: 300px; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1); pointer-events: none; visibility: hidden; }
     .mobile-chat-drawer.open { display: flex; transform: translateY(0); pointer-events: auto; visibility: visible; }
     .mobile-chat-drawer .drawer-handle { display: flex; align-items: center; justify-content: center; padding: 10px 16px 4px; cursor: grab; flex-shrink: 0; }
     .mobile-chat-drawer .drawer-handle-bar { width: 36px; height: 4px; border-radius: 2px; background: #ddd; }
@@ -6970,6 +6970,7 @@
       setTimeout(function() {
         overlay.style.display = 'none';
         drawer.style.height = '';
+        drawer.style.top = '';
         drawer.style.bottom = '';
         document.body.style.overflow = '';
         _mobileChatDrawerOpen = false;
@@ -6994,20 +6995,24 @@
       if (!drawer || !_mobileChatDrawerOpen) return;
       if ('visualViewport' in window) {
         var vv = window.visualViewport;
-        // On iOS Safari, when the keyboard opens, the visual viewport shrinks
-        // but position:fixed bottom:0 still refers to the layout viewport bottom
-        // (behind the keyboard). We need to offset the drawer above the keyboard.
         var keyboardHeight = window.innerHeight - vv.height - vv.offsetTop;
         if (keyboardHeight > 50) {
-          // Keyboard is open — fill the visible area above it
-          drawer.style.bottom = keyboardHeight + 'px';
-          drawer.style.height = Math.max(vv.height * 0.95, 250) + 'px';
+          // Keyboard open: use top-based positioning within the visible viewport.
+          // iOS Safari ignores bottom offsets for fixed elements when keyboard is up,
+          // but top-based positioning with visualViewport works reliably.
+          var drawerH = Math.max(vv.height * 0.95, 250);
+          var topPos = vv.offsetTop + (vv.height - drawerH);
+          drawer.style.top = Math.max(topPos, vv.offsetTop) + 'px';
+          drawer.style.bottom = 'auto';
+          drawer.style.height = Math.min(drawerH, vv.height) + 'px';
         } else {
-          // No keyboard — normal bottom sheet at 85% viewport
+          // No keyboard — normal bottom sheet
+          drawer.style.top = '';
           drawer.style.bottom = '0px';
           drawer.style.height = Math.max(vv.height * 0.85, 300) + 'px';
         }
       } else {
+        drawer.style.top = '';
         drawer.style.bottom = '0px';
         drawer.style.height = Math.max(window.innerHeight * 0.85, 300) + 'px';
       }
