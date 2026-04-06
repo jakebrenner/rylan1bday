@@ -1371,7 +1371,7 @@
         funnelStep: typeof currentStep !== 'undefined' ? String(currentStep) : null,
         component: info.component || null,
         eventId: currentEvent ? currentEvent.id : null,
-        metadata: { userAgent: navigator.userAgent, viewport: innerWidth + 'x' + innerHeight }
+        metadata: Object.assign({ userAgent: navigator.userAgent, viewport: innerWidth + 'x' + innerHeight }, info.metadata || {})
       };
       fetch('/api/v2/events?action=reportClientError', {
         method: 'POST',
@@ -4019,6 +4019,7 @@
         stopGeneratingPuns();
         var catchMsg = err.message || 'Error generating theme';
         window._lastGenDebug = (window._lastGenDebug || '') + ' | CATCH: ' + catchMsg + ' | Stack: ' + (err.stack || '').substring(0, 300);
+        reportClientError({ errorType: 'generation_failure', message: catchMsg, stack: (err.stack || '').substring(0, 2000), component: 'generateTheme_catch', metadata: { bytes: typeof fullText !== 'undefined' ? fullText.length : null, elapsed: typeof elapsed !== 'undefined' ? elapsed : null, eventId: currentEvent?.id, retried: !!_genRetried } });
         if (_backgroundMode) {
           _generationInProgress = false;
           onGenerationError(catchMsg);

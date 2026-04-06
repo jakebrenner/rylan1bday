@@ -372,6 +372,27 @@ export default async function handler(req, res) {
         console.error('Client error log insert failed:', error.message);
       }
 
+      // Trigger admin email alert for generation failures so they never go unnoticed
+      if (errorType === 'generation_failure') {
+        await reportApiError({
+          endpoint: '/api/v2/events',
+          action: 'reportClientError',
+          error: new Error(`[Client] ${message}`),
+          requestBody: { errorType, component, eventId: clientEventId, metadata: clientMeta },
+          req,
+          diagnostics: {
+            source: 'client_error',
+            component: component || 'unknown',
+            event_id: clientEventId || 'unknown',
+            client_message: (message || '').slice(0, 500),
+            client_stack: (stack || '').slice(0, 1000),
+            page_url: pageUrl || '',
+            user_id: userId || 'anonymous',
+            ...(clientMeta || {})
+          }
+        }).catch(() => {});
+      }
+
       return res.status(200).json({ success: true });
     }
 
