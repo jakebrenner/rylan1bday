@@ -2703,6 +2703,19 @@
       // Remove any existing confirmation card
       var existing = document.getElementById('confirmationCard');
       if (existing) existing.remove();
+      trackFunnel('confirmation_shown');
+      if (window.RyviteGA) {
+        RyviteGA.trackEvent('confirmation_card_shown', {
+          event_type: extractedData.eventType || 'other',
+          event_title: extractedData.title || ''
+        });
+      }
+      if (window.RyvitePixel) {
+        RyvitePixel.trackCustom('ConfirmationShown', {
+          content_name: extractedData.title || '',
+          content_category: extractedData.eventType || 'other'
+        });
+      }
 
       // Keep chat input visible — user continues chatting about design
 
@@ -9915,6 +9928,20 @@
     // ── Per-event payment gate ──
 
     function showCreatePaymentGate() {
+      trackFunnel('payment_gate_shown');
+      if (window.RyviteGA) {
+        RyviteGA.trackEvent('payment_gate_viewed', {
+          event_type: extractedData.eventType || 'other',
+          event_id: currentEvent ? currentEvent.id : ''
+        });
+      }
+      if (window.RyvitePixel) {
+        RyvitePixel.trackCustom('PaymentGateViewed', {
+          content_name: extractedData.title || '',
+          content_category: extractedData.eventType || 'other',
+          content_ids: currentEvent ? [currentEvent.id] : []
+        });
+      }
       document.getElementById('generatingLoadingState').style.display = 'none';
       document.getElementById('generatingPaywall').style.display = 'none';
       document.getElementById('createPaymentGate').style.display = 'flex';

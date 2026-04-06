@@ -242,10 +242,30 @@
     .funnel-histogram-label { flex: 1; text-align: center; font-size: 10px; color: #888; }
     .funnel-histogram-tooltip { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 700; color: var(--midnight); white-space: nowrap; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
     .funnel-histogram-bar:hover .funnel-histogram-tooltip { opacity: 1; }
+    /* Detailed Funnel Visualization */
+    .detailed-funnel { display: flex; flex-direction: column; gap: 0; }
+    .df-row { display: flex; align-items: center; gap: 0; padding: 6px 0; }
+    .df-label { width: 160px; flex-shrink: 0; text-align: right; padding-right: 16px; }
+    .df-label-text { font-size: 13px; font-weight: 600; color: var(--midnight); line-height: 1.2; }
+    .df-label-count { font-size: 11px; color: #888; font-weight: 500; }
+    .df-bar-area { flex: 1; height: 28px; position: relative; }
+    .df-bar { height: 100%; border-radius: 4px; transition: width 0.5s ease; min-width: 4px; }
+    .df-stats { width: 110px; flex-shrink: 0; padding-left: 12px; display: flex; flex-direction: column; align-items: flex-start; }
+    .df-stats-pct { font-size: 13px; font-weight: 700; color: var(--midnight); }
+    .df-stats-drop { font-size: 10px; font-weight: 600; margin-top: 1px; }
+    .df-drop-good { color: #2e7d32; }
+    .df-drop-warn { color: #f57f17; }
+    .df-drop-bad { color: #c62828; }
+    .df-leak-tag { display: inline-block; font-size: 9px; font-weight: 700; color: #c62828; background: #fce4ec; border: 1px solid #e57373; padding: 1px 5px; border-radius: 3px; margin-left: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
     @media (max-width: 768px) {
       .funnel-two-col { grid-template-columns: 1fr !important; }
       .funnel-bar-label { width: 80px; font-size: 11px; }
       .funnel-bar-pct { width: 50px; font-size: 11px; }
+      .df-label { width: 110px; padding-right: 10px; }
+      .df-label-text { font-size: 11px; }
+      .df-bar-area { height: 24px; }
+      .df-stats { width: 90px; padding-left: 8px; }
+      .df-stats-pct { font-size: 12px; }
     }
     .ad-spinner { display:inline-block; width:14px; height:14px; border:2px solid #f59e0b; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; }
     .prompt-toggle { cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--midnight); padding: 10px 14px; background: #f9f9f9; border-radius: 6px; border: 1px solid #eee; margin-bottom: 12px; user-select: none; }
@@ -3522,9 +3542,16 @@ JSON format is also accepted (array of {name, html, eventTypes, tags} objects).'
         <!-- Section 1: Key Metrics Cards -->
         <div class="stat-grid" id="funnelKeyMetrics" style="margin-bottom:24px;"></div>
 
-        <!-- Section 2: Visual Funnel -->
+        <!-- Section 2a: Detailed Step-by-Step Funnel -->
         <div class="config-section" style="margin-bottom:24px;">
-          <h3 style="font-size:15px;margin-bottom:16px;">Conversion Funnel</h3>
+          <h3 style="font-size:15px;margin-bottom:4px;">Creation Funnel</h3>
+          <p style="font-size:12px;color:#888;margin-bottom:16px;">Unique users reaching each step. Bar width = relative volume. Drop % = step-over-step loss.</p>
+          <div id="detailedFunnelChart" class="detailed-funnel"></div>
+        </div>
+
+        <!-- Section 2b: High-Level Conversion Funnel -->
+        <div class="config-section" style="margin-bottom:24px;">
+          <h3 style="font-size:15px;margin-bottom:16px;">Conversion Funnel (Summary)</h3>
           <div id="funnelBars" style="display:flex;flex-direction:column;gap:6px;"></div>
         </div>
 
@@ -10669,6 +10696,9 @@ If provided, analyze them for color palette, visual mood, textures, typography s
       // Funnel bars
       renderFunnelBars(f.stages);
 
+      // Detailed step-by-step funnel
+      if (f.detailedFunnel) renderDetailedFunnel(f.detailedFunnel);
+
       // Drop-off chart
       renderDropOffChart(f.dropOffByStep);
 
@@ -10720,6 +10750,65 @@ If provided, analyze them for color palette, visual mood, textures, typography s
         html += '<div class="funnel-bar-label">' + s.stage + '</div>';
         html += '<div class="funnel-bar-track"><div class="funnel-bar-fill" style="width:' + Math.max(pct, 2) + '%;background:' + colors[i % colors.length] + ';"><span class="funnel-bar-value">' + s.count.toLocaleString() + '</span></div></div>';
         html += '<div class="funnel-bar-pct">' + (i > 0 ? stepPct : '') + '</div>';
+        html += '</div>';
+      });
+      container.innerHTML = html;
+    }
+
+    function renderDetailedFunnel(steps) {
+      var container = document.getElementById('detailedFunnelChart');
+      if (!steps || steps.length === 0) {
+        container.innerHTML = '<div style="color:#888;font-size:13px;padding:20px;text-align:center;">No funnel event data yet. Data appears as users go through the creation flow.</div>';
+        return;
+      }
+
+      // Use max across all steps as denominator (handles cases where later steps > earlier ones due to tracking gaps)
+      var maxUsers = Math.max.apply(null, steps.map(function(s) { return s.users; })) || 1;
+      var html = '';
+
+      // Smooth gradient from teal → purple → coral
+      var barColors = ['#4ECDC4', '#45C4BD', '#3DB8B2', '#5BB0C2', '#6FA8C8', '#7E9ECE', '#9B8CCE', '#B87AC4', '#D068B0', '#E94560'];
+
+      steps.forEach(function(s, i) {
+        var widthPct = Math.max(Math.round(100 * s.users / maxUsers), 3);
+        var color = barColors[Math.min(i, barColors.length - 1)];
+
+        // Compute step-over-step conversion (not vs top)
+        var stepConv = '';
+        var dropClass = '';
+        if (i > 0 && steps[i - 1].users > 0) {
+          var convPct = Math.round(1000 * s.users / steps[i - 1].users) / 10;
+          var dropPct = Math.round(1000 * (1 - s.users / steps[i - 1].users)) / 10;
+          if (dropPct <= 0) {
+            stepConv = '';
+          } else if (dropPct < 20) {
+            stepConv = '-' + dropPct + '%';
+            dropClass = 'df-drop-good';
+          } else if (dropPct < 50) {
+            stepConv = '-' + dropPct + '%';
+            dropClass = 'df-drop-warn';
+          } else {
+            stepConv = '-' + dropPct + '%';
+            dropClass = 'df-drop-bad';
+          }
+        }
+
+        var pctOfTop = maxUsers > 0 ? Math.round(1000 * s.users / maxUsers) / 10 : 0;
+
+        html += '<div class="df-row">';
+        // Label (left)
+        html += '<div class="df-label"><div class="df-label-text">' + s.label + '</div><div class="df-label-count">' + s.users.toLocaleString() + ' users</div></div>';
+        // Bar (center)
+        html += '<div class="df-bar-area"><div class="df-bar" style="width:' + widthPct + '%;background:' + color + ';"></div></div>';
+        // Stats (right)
+        html += '<div class="df-stats">';
+        html += '<span class="df-stats-pct">' + pctOfTop + '%</span>';
+        if (stepConv) {
+          html += '<span class="df-stats-drop ' + dropClass + '">' + stepConv;
+          if (s.biggestLeak) html += ' <span class="df-leak-tag">leak</span>';
+          html += '</span>';
+        }
+        html += '</div>';
         html += '</div>';
       });
       container.innerHTML = html;

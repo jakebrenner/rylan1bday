@@ -10,8 +10,8 @@ When answering questions or making changes, always reference the specific event 
 
 | Platform | ID | Implementation | Scope |
 |----------|----|---------------|-------|
-| Google Analytics 4 | `G-PXHNPDR9E6` | `js/ga.js` → `window.RyviteGA` | All 28 pages, 14 conversion events |
-| Meta Pixel (Client) | `1854308178620853` | `js/meta-pixel.js` → `window.RyvitePixel` | 27 pages, 9 events |
+| Google Analytics 4 | `G-PXHNPDR9E6` | `js/ga.js` → `window.RyviteGA` | All 28 pages, 16 conversion events |
+| Meta Pixel (Client) | `1854308178620853` | `js/meta-pixel.js` → `window.RyvitePixel` | 27 pages, 11 events |
 | Meta CAPI (Server) | `1854308178620853` | `api/v2/lib/meta-capi.js` → `sendCapiEvent()` | 3 API endpoints, 4 events |
 
 ---
@@ -195,6 +195,26 @@ Events that fire on both client (pixel) and server (CAPI) use a shared `eventId`
 | Meta CAPI | None | — |
 | **Guard:** | `!currentEvent._leadTracked` — fires once per event |
 
+#### `confirmation_card_shown` (GA4) / `ConfirmationShown` (Meta Custom)
+
+**File:** `v2/create/index.html` — `showConfirmationCard()` function
+
+| Platform | Trigger | Parameters |
+|----------|---------|------------|
+| GA4 | Confirmation card with event details + RSVP fields shown to user | `{event_type, event_title}` |
+| Meta Pixel | Same trigger (custom event via `trackCustom`) | `{content_name: title, content_category: eventType}` |
+| Meta CAPI | None | — |
+
+#### `payment_gate_viewed` (GA4) / `PaymentGateViewed` (Meta Custom)
+
+**File:** `v2/create/index.html` — `showCreatePaymentGate()` function
+
+| Platform | Trigger | Parameters |
+|----------|---------|------------|
+| GA4 | Payment gate shown (user needs to pay to generate) | `{event_type, event_id}` |
+| Meta Pixel | Same trigger (custom event via `trackCustom`) | `{content_name, content_category, content_ids}` |
+| Meta CAPI | None | — |
+
 #### `theme_generated` (GA4) / `ThemeGenerated` (Meta Custom)
 
 **File:** `v2/create/index.html`
@@ -325,6 +345,8 @@ Events that fire on both client (pixel) and server (CAPI) use a shared `eventId`
 | Sign up (guest onboarding) | `sign_up` | `CompleteRegistration` | `CompleteRegistration` | Yes |
 | Click "New Event" | `begin_event_creation` | `AddToCart` | — | — |
 | Event details extracted | `event_details_extracted` | `Lead` | — | — |
+| Confirmation card shown | `confirmation_card_shown` | `ConfirmationShown` (custom) | — | — |
+| Payment gate shown | `payment_gate_viewed` | `PaymentGateViewed` (custom) | — | — |
 | Theme generated | `theme_generated` | `ThemeGenerated` (custom) | — | — |
 | Rate theme | `theme_rated` | — | — | — |
 | Initiate checkout | `begin_checkout` | `InitiateCheckout` | — | — |
@@ -364,7 +386,7 @@ Mark these as **key events** in GA4 Admin > Events:
 ## GA4 Funnel Explorations
 
 **Creation Funnel:**
-`begin_event_creation` → `event_details_extracted` → `theme_generated` → `theme_rated` → `begin_checkout` → `purchase` → `event_published`
+`begin_event_creation` → `event_details_extracted` → `confirmation_card_shown` → `payment_gate_viewed` (if applicable) → `theme_generated` → `theme_rated` → `begin_checkout` → `purchase` → `event_published`
 
 **RSVP Funnel:**
 `view_invite` → `rsvp_submitted` → `calendar_add`
@@ -394,7 +416,7 @@ Mark these as **key events** in GA4 Admin > Events:
 | `api/v2/auth.js` | Server CAPI for `CompleteRegistration` (signup + quickSignup) |
 | `api/v2/events.js` | Server CAPI for `Schedule` (RSVP) and `Purchase` (publish) |
 | `api/v2/billing.js` | Server CAPI for `Purchase` (Stripe webhook) |
-| `v2/create/index.html` | GA4 events: `sign_up`, `event_details_extracted`, `theme_generated`, `theme_rated`, `begin_checkout`, `purchase`, `event_published`, `cohost_invited` |
+| `v2/create/index.html` | GA4 events: `sign_up`, `event_details_extracted`, `confirmation_card_shown`, `payment_gate_viewed`, `theme_generated`, `theme_rated`, `begin_checkout`, `purchase`, `event_published`, `cohost_invited` |
 | `v2/event/index.html` | GA4 events: `view_invite`, `rsvp_submitted`, `calendar_add`, `viral_cta_click`, `photo_uploaded` |
 | `v2/login/index.html` | GA4 event: `sign_up` |
 | `v2/dashboard/index.html` | GA4 event: `begin_event_creation` |
