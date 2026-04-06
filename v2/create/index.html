@@ -3683,6 +3683,37 @@
     var _generationComplete = false;
     var _generationResult = null;
     var _backgroundMode = false;
+    var _genStartTimestamp = null; // Track when generation started for recovery
+
+    // Recover a theme from the server after a connection drop (mobile Safari "Load failed").
+    // The server saves the theme to the DB BEFORE closing the SSE stream, so if the
+    // connection drops mid-stream, the theme is almost always already saved.
+    async function recoverThemeFromServer() {
+      if (!currentEvent || !currentEvent.id) return null;
+      try {
+        console.log('[recover] Checking server for saved theme...');
+        var res = await authFetch('/api/v2/events?action=get&eventId=' + encodeURIComponent(currentEvent.id));
+        var result = await res.json();
+        if (result.success && result.event && result.event.themeVersions && result.event.themeVersions.length > 0) {
+          // Find the most recent theme version
+          var versions = result.event.themeVersions;
+          var latest = versions[versions.length - 1];
+          // Validate it has actual content
+          if (latest && latest.html && latest.css && latest.css.trim().length >= 50) {
+            console.log('[recover] Found saved theme on server, id:', latest.id);
+            return {
+              theme: { id: latest.id, version: latest.version, html: latest.html, css: latest.css, config: latest.config },
+              recovered: true
+            };
+          }
+        }
+        console.log('[recover] No usable theme found on server');
+        return null;
+      } catch (e) {
+        console.warn('[recover] Failed to check server:', e.message);
+        return null;
+      }
+    }
 
     async function generateTheme(feedback) {
       // In background mode, skip full-screen loading UI — banner handles progress
@@ -3929,11 +3960,60 @@
         }
       } catch (err) {
         // Mobile Safari "Load failed" — connection dropped during SSE stream.
-        // Auto-retry once since the server likely completed the generation.
-        if (err.message === 'Load failed' && !_genRetried) {
-          console.warn('[generate-theme] Mobile connection dropped, retrying...');
-          _genRetried = true;
-          try { return await generateTheme(feedback); } finally { _genRetried = false; }
+        // The server saves the theme to the DB BEFORE res.end(), so it's likely already saved.
+        // Try to recover the saved theme first; only retry generation as a last resort.
+        if (err.message === 'Load failed' || err.message === 'The network connection was lost.') {
+          console.warn('[generate-theme] Mobile connection dropped, attempting recovery...');
+
+          // Step 1: Wait a moment for the server to finish saving
+          await new Promise(function(r) { setTimeout(r, 2000); });
+
+          // Step 2: Try to recover the saved theme from the server
+          var recovered = await recoverThemeFromServer();
+          if (recovered && recovered.theme) {
+            console.log('[generate-theme] Successfully recovered theme from server');
+            stopGeneratingPuns();
+            var ver = {
+              id: recovered.theme.id,
+              version: recovered.theme.version,
+              html: recovered.theme.html,
+              css: recovered.theme.css,
+              config: recovered.theme.config
+            };
+            themeVersions.push(ver);
+            activeVersionIndex = themeVersions.length - 1;
+            currentEvent.themeHtml = ver.html;
+            currentEvent.themeCss = ver.css;
+            currentEvent.themeConfig = ver.config;
+            if (_backgroundMode) {
+              onGenerationComplete(ver, { theme: ver });
+            } else {
+              document.getElementById('generatingView').style.display = 'none';
+              document.getElementById('generatedView').style.display = 'block';
+              renderPreview(ver);
+              renderVersionGallery();
+            }
+            pendingRatingThemeId = ver.id;
+            if (!_backgroundMode) initDesignChatIfNeeded();
+            if (currentEvent) {
+              authFetch('/api/v2/events?action=update', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ eventId: currentEvent.id, settings: { creation_step: 2 } })
+              }).catch(function() {});
+            }
+            if (!_backgroundMode) updateMobileLayout();
+            try { sessionStorage.setItem('ryvite_theme_' + currentEvent.id, JSON.stringify(themeVersions)); } catch(e) {}
+            // Update generation count since server did complete
+            if (currentEvent) currentEvent.generationCount = (currentEvent.generationCount || 0) + 1;
+            return;
+          }
+
+          // Step 3: Recovery failed — retry generation once
+          if (!_genRetried) {
+            console.warn('[generate-theme] Recovery failed, retrying generation...');
+            _genRetried = true;
+            try { return await generateTheme(feedback); } finally { _genRetried = false; }
+          }
         }
         console.error('[generate-theme] CATCH error:', err, err.stack);
         stopGeneratingPuns();
@@ -7815,6 +7895,36 @@
         console.error('[tweak] CATCH error:', err, err.stack);
         clearInterval(tweakPunInterval);
         designChatHistory = designChatHistory.filter(function(m) { return m.role !== 'system'; });
+
+        // Mobile Safari "Load failed" — try to recover the saved tweak from the server
+        if (err.message === 'Load failed' || err.message === 'The network connection was lost.') {
+          console.warn('[tweak] Connection dropped, attempting recovery...');
+          await new Promise(function(r) { setTimeout(r, 2000); });
+          var tweakRecovered = await recoverThemeFromServer();
+          if (tweakRecovered && tweakRecovered.theme) {
+            var recoveredVer = tweakRecovered.theme;
+            // Only use if it's a newer version than what we have
+            var latestLocal = themeVersions.length > 0 ? themeVersions[themeVersions.length - 1] : null;
+            if (!latestLocal || recoveredVer.id !== latestLocal.id) {
+              console.log('[tweak] Recovered tweaked theme from server');
+              themeVersions.push(recoveredVer);
+              activeVersionIndex = themeVersions.length - 1;
+              currentEvent.themeHtml = recoveredVer.html;
+              currentEvent.themeCss = recoveredVer.css;
+              currentEvent.themeConfig = recoveredVer.config;
+              renderPreview(recoveredVer);
+              renderVersionGallery();
+              try { if (currentEvent) sessionStorage.setItem('ryvite_theme_' + currentEvent.id, JSON.stringify(themeVersions)); } catch(e) {}
+              if (currentEvent) currentEvent.generationCount = (currentEvent.generationCount || 0) + 1;
+              pushDesignChat({ role: 'assistant', content: "Done! The connection was briefly interrupted, but I recovered the changes. Take a look at the preview!\n\nWant to make any more changes, or switch to the Versions tab above to go back to a previous version." });
+              clearDesignChatPhoto();
+              sendBtn.disabled = false;
+              renderDesignChat();
+              return;
+            }
+          }
+        }
+
         console.error('[tweak] Connection error details:', err.message);
         pushDesignChat({ role: 'assistant', content: "Looks like our connection was interrupted — these things happen! Let's try again. Just send your request one more time and I'll get right on it." });
       }
